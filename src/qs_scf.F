@@ -409,10 +409,10 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'scf_env_do_scf', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, handle2, ispin, iw, &
-                                                output_unit
+    INTEGER                                  :: handle, handle2, i, ispin, &
+                                                iw, output_unit
     LOGICAL :: diis_step, do_level_shift, EII_necessary, energy_only, &
-      failure, gapw, gapw_xc, harris_flag, has_unit_metric, id_equal, ionode, &
+      failure, gapw, gapw_xc, harris_flag, has_unit_metric, id_equal, &
       should_stop, use_cholesky, use_jacobi
     REAL(KIND=dp)                            :: diis_error, mo_mag_max, &
                                                 mo_mag_min, orthonormality, &
@@ -445,43 +445,35 @@ CONTAINS
 !dbg
 !   ---------------------------------------------------------------------------
 
+    CALL timeset(routineN,"I"," ",handle)
+
+    failure=.FALSE.
+
     NULLIFY(dft_control,matrix_h,matrix_s,matrix_ks,matrix_p,rho,rho_xc,energy, &
             scf_control,logger,pw_env, qs_charges,ks_env,mos,atomic_kind_set, &
             particle_set,scf_work1,ortho,scf_work2,harris_env,dft_section,input,&
             scf_section)
 
-    logger => cp_error_get_logger(error)
-    t1 = m_walltime()
-    failure=.FALSE.
-
     CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(qs_env%ref_count>0,cp_failure_level,routineP,error,failure)
-    
-    CALL get_qs_env(qs_env=qs_env,&
-         atomic_kind_set=atomic_kind_set,&
-         input=input,&
-         dft_control=dft_control,&
-         scf_control=scf_control)
+
+    logger => cp_error_get_logger(error)
+    t1 = m_walltime()
+
+    CALL get_qs_env(qs_env=qs_env,input=input, dft_control=dft_control, &
+                    scf_control=scf_control,error=error)
 
     dft_section => section_vals_get_subs_vals(input,"DFT",error=error)
     scf_section => section_vals_get_subs_vals(dft_section,"SCF",error=error)
 
-!   *** Quick return, if no SCF iteration is requested ***
-
-    IF (scf_control%max_scf < 1) RETURN
-
-    CALL timeset(routineN,"I"," ",handle)
     output_unit=cp_print_key_unit_nr(logger,scf_section,"PRINT%PROGRAM_RUN_INFO",&
          extension=".scfLog",error=error)
-    ionode = logger%para_env%source==logger%para_env%mepos
-    energy_only = .FALSE.
-    EII_necessary = .TRUE.
 
     ! some special checks to eliminate the first problems with restricted
+    ! should move earlier I think
     IF (dft_control%restricted) THEN
-       ! OT only right now
        IF (scf_env%method .NE. ot_method_nr) THEN 
           IF (output_unit>0) WRITE(output_unit,*) "OT only for restricted"
           CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
@@ -489,70 +481,39 @@ CONTAINS
        CPPrecondition(dft_control%nspins.EQ.2,cp_failure_level,routineP,error,failure)
     ENDIF
 
-    IF (output_unit>0) THEN
-       WRITE (UNIT=output_unit,FMT="(/,/,T2,A)")&
+    IF (output_unit>0) WRITE (UNIT=output_unit,FMT="(/,/,T2,A)") &
             "SCF WAVEFUNCTION OPTIMIZATION"
-    END IF
-
-!   True the GAPW method is used
-    gapw = dft_control%qs_control%gapw
-    gapw_xc = dft_control%qs_control%gapw_xc
-
-    harris_flag = qs_env%use_harris
-
-    IF (harris_flag) THEN
-      CALL get_qs_env(qs_env=qs_env, harris_env=harris_env, error=error)
-    END IF
 
     CALL init_scf_run(scf_env=scf_env, qs_env=qs_env, globenv=globenv, &
                         calc_forces=calc_forces, scf_section=scf_section, error=error)
 
     CALL get_qs_env(qs_env=qs_env,&
-         matrix_h=matrix_h,&
-         matrix_s=matrix_s,energy=energy,&
-         particle_set=particle_set,&
-         pw_env=pw_env,&
-         qs_charges=qs_charges,&
-         ks_env=ks_env, &
-         error=error)
-
-     has_unit_metric=.FALSE.
-     IF (dft_control%qs_control%semi_empirical) THEN
-         IF (dft_control%qs_control%se_control%orthogonal_basis) THEN
-             has_unit_metric=.TRUE.
-         ENDIF
-     END IF
+                    matrix_h=matrix_h,&
+                    matrix_s=matrix_s,energy=energy,&
+                    particle_set=particle_set,&
+                    pw_env=pw_env,&
+                    qs_charges=qs_charges,&
+                    ks_env=ks_env, &
+                    harris_env=harris_env,&
+                    atomic_kind_set=atomic_kind_set,&
+                    matrix_ks=matrix_ks,rho=rho,rho_xc=rho_xc,mos=mos, &
+                    error=error)
 
     scf_work1 => scf_env%scf_work1
     scf_work2 => scf_env%scf_work2
     ortho => scf_env%ortho
-
-    CALL get_qs_env(qs_env,matrix_ks=matrix_ks,rho=rho,rho_xc=rho_xc,mos=mos)
     matrix_p => rho%rho_ao
 
-    ! do some assertions here on these matrices having the same structure, 
-    ! as is currently required
-    DO ispin=1,SIZE(matrix_s)
-      id_equal=(matrix_s(ispin)%matrix%sparsity_id==matrix_s(1)%matrix%sparsity_id)
-      CPPrecondition(id_equal,cp_failure_level,routineP,error,failure)
-    ENDDO
-    DO ispin=1,SIZE(matrix_p)
-      id_equal=(matrix_p(ispin)%matrix%sparsity_id==matrix_s(1)%matrix%sparsity_id)
-      CPPrecondition(id_equal,cp_failure_level,routineP,error,failure)
-    ENDDO
-    DO ispin=1,SIZE(matrix_h)
-      id_equal=(matrix_h(ispin)%matrix%sparsity_id==matrix_s(1)%matrix%sparsity_id)
-      CPPrecondition(id_equal,cp_failure_level,routineP,error,failure)
-    ENDDO
-    DO ispin=1,SIZE(matrix_ks)
-      id_equal=(matrix_ks(ispin)%matrix%sparsity_id==matrix_s(1)%matrix%sparsity_id)
-      CPPrecondition(id_equal,cp_failure_level,routineP,error,failure)
-    ENDDO
-    ! end sparsity check
+    ! do some assertions here on these matrices having the same structure
+    id_equal=ALL((/((matrix_s(i)%matrix%sparsity_id==matrix_s(1)%matrix%sparsity_id),i=1,SIZE(matrix_s))/))
+    CPPrecondition(id_equal,cp_failure_level,routineP,error,failure)
+    id_equal=ALL((/((matrix_p(i)%matrix%sparsity_id==matrix_s(1)%matrix%sparsity_id),i=1,SIZE(matrix_p))/))
+    CPPrecondition(id_equal,cp_failure_level,routineP,error,failure)
+    id_equal=ALL((/((matrix_h(i)%matrix%sparsity_id==matrix_s(1)%matrix%sparsity_id),i=1,SIZE(matrix_h))/))
+    CPPrecondition(id_equal,cp_failure_level,routineP,error,failure)
+    id_equal=ALL((/((matrix_ks(i)%matrix%sparsity_id==matrix_s(1)%matrix%sparsity_id),i=1,SIZE(matrix_ks))/))
+    CPPrecondition(id_equal,cp_failure_level,routineP,error,failure)
 
-    scf_env%iter_count = 0
-    diis_step = .FALSE.
-    use_jacobi = .FALSE.
 
     IF (output_unit>0) THEN
        WRITE (UNIT=output_unit,&
@@ -560,13 +521,28 @@ CONTAINS
             "Step","Update method","Time","Convergence","Total energy",&
             REPEAT("-",77)
     END IF
+
    
-!   *** SCF loop ***
+!   Some flags selecting different methods
+    diis_step = .FALSE.
+    use_jacobi = .FALSE.
+    energy_only = .FALSE.
+    EII_necessary = .TRUE.
+    gapw = dft_control%qs_control%gapw
+    gapw_xc = dft_control%qs_control%gapw_xc
+    harris_flag = qs_env%use_harris
+    has_unit_metric=.FALSE.
+    IF (dft_control%qs_control%semi_empirical) &
+       has_unit_metric=dft_control%qs_control%se_control%orthogonal_basis
+
+!   *** SCF loop, optimisation of the wfn coefficients
+    scf_env%iter_count = 0
 
     scf_loop: DO
+
        CALL timeset("scf_iter","I"," ",handle2)
 
-       IF (ionode .AND. output_unit > 0) CALL m_flush(output_unit)
+       IF (output_unit > 0) CALL m_flush(output_unit)
 
        scf_env%iter_count = scf_env%iter_count + 1
 
@@ -574,12 +550,11 @@ CONTAINS
 ! ** should also be the case for restricted calculations
 
        CALL qs_ks_update_qs_env(ks_env,qs_env=qs_env,&
-            error=error,&
-            calculate_forces=.FALSE.,just_energy=energy_only)
+            calculate_forces=.FALSE.,just_energy=energy_only,error=error)
 
        ! Frozen density approximation
-       IF (qs_env%wf_history%interpolation_method_nr==wfi_frozen_method_nr) THEN
-         IF (ASSOCIATED(qs_env%wf_history)) THEN
+       IF (ASSOCIATED(qs_env%wf_history)) THEN
+         IF (qs_env%wf_history%interpolation_method_nr==wfi_frozen_method_nr) THEN
            IF (.NOT. ASSOCIATED(qs_env%wf_history%past_states(1)%snapshot)) THEN
              CALL wfi_update(qs_env%wf_history, qs_env=qs_env, dt=1.0_dp, &
                              error=error)
@@ -595,17 +570,17 @@ CONTAINS
        DO ispin=1,dft_control%nspins
 
           IF (BTEST(cp_print_key_should_output(logger%iter_info,&
-               qs_env%input,"DFT%PRINT%AO_MATRICES/DENSITY",error=error),cp_p_file)) THEN
-             iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/DENSITY",&
+               dft_section,"PRINT%AO_MATRICES/DENSITY",error=error),cp_p_file)) THEN
+             iw = cp_print_key_unit_nr(logger,dft_section,"PRINT%AO_MATRICES/DENSITY",&
                   extension=".Log",error=error)
              CALL write_sparse_matrix(matrix_p(ispin)%matrix,4,6,qs_env,globenv,output_unit=iw)
-             CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
-                  "DFT%PRINT%AO_MATRICES/DENSITY", error=error)
+             CALL cp_print_key_finished_output(iw,logger,dft_section,&
+                  "PRINT%AO_MATRICES/DENSITY", error=error)
           END IF
 
           IF (BTEST(cp_print_key_should_output(logger%iter_info,&
-               qs_env%input,"DFT%PRINT%AO_MATRICES/KOHN_SHAM_MATRIX",error=error),cp_p_file)) THEN
-             iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/KOHN_SHAM_MATRIX",&
+               dft_section,"PRINT%AO_MATRICES/KOHN_SHAM_MATRIX",error=error),cp_p_file)) THEN
+             iw = cp_print_key_unit_nr(logger,dft_section,"PRINT%AO_MATRICES/KOHN_SHAM_MATRIX",&
                   extension=".Log",error=error)
              IF (dft_control%qs_control%semi_empirical) THEN
                 CALL write_sparse_matrix(matrix_ks(ispin)%matrix,4,6,qs_env,globenv,&
@@ -613,8 +588,8 @@ CONTAINS
              ELSE
                 CALL write_sparse_matrix(matrix_ks(ispin)%matrix,4,6,qs_env,globenv,output_unit=iw)
              END IF
-             CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
-                  "DFT%PRINT%AO_MATRICES/KOHN_SHAM_MATRIX", error=error)              
+             CALL cp_print_key_finished_output(iw,logger,dft_section,&
+                  "PRINT%AO_MATRICES/KOHN_SHAM_MATRIX", error=error)              
           END IF
 
        ENDDO
@@ -951,8 +926,6 @@ CONTAINS
        CALL write_mo_set(mos,atomic_kind_set,particle_set,globenv,&
             id_nr=1)
     END IF
-
-
 
 !   *** mixing methods need to undo mixing of the density matrix (restore original density) ***
     IF (scf_env%mixing_method.EQ.ao_mixing_nr) THEN
