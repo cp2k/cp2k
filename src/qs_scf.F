@@ -410,13 +410,12 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, handle2, i, ispin, &
-                                                iw, output_unit
+                                                output_unit
     LOGICAL :: diis_step, do_level_shift, EII_necessary, energy_only, &
       failure, gapw, gapw_xc, harris_flag, has_unit_metric, id_equal, &
-      should_stop, use_cholesky, use_jacobi
-    REAL(KIND=dp)                            :: diis_error, mo_mag_max, &
-                                                mo_mag_min, orthonormality, &
-                                                t1, t2, tot1_h, tot1_s
+      should_stop, use_jacobi
+    REAL(KIND=dp)                            :: diis_error, t1, t2, tot1_h, &
+                                                tot1_s
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_fm_p_type), DIMENSION(:), &
@@ -536,6 +535,7 @@ CONTAINS
        has_unit_metric=dft_control%qs_control%se_control%orthogonal_basis
 
 !   *** SCF loop, optimisation of the wfn coefficients
+!   *** qs_env%rho%rho_r and qs_env%rho%rho_g should be up to date here
     scf_env%iter_count = 0
 
     scf_loop: DO
@@ -545,9 +545,6 @@ CONTAINS
        IF (output_unit > 0) CALL m_flush(output_unit)
 
        scf_env%iter_count = scf_env%iter_count + 1
-
-! ** here qs_env%rho%rho_r and qs_env%rho%rho_g should be up to date
-! ** should also be the case for restricted calculations
 
        CALL qs_ks_update_qs_env(ks_env,qs_env=qs_env,&
             calculate_forces=.FALSE.,just_energy=energy_only,error=error)
@@ -565,64 +562,7 @@ CONTAINS
          END IF
        END IF
 
-!FM      CALL pw_env_flush_cache(pw_env,error=error)
-
-       DO ispin=1,dft_control%nspins
-
-          IF (BTEST(cp_print_key_should_output(logger%iter_info,&
-               dft_section,"PRINT%AO_MATRICES/DENSITY",error=error),cp_p_file)) THEN
-             iw = cp_print_key_unit_nr(logger,dft_section,"PRINT%AO_MATRICES/DENSITY",&
-                  extension=".Log",error=error)
-             CALL write_sparse_matrix(matrix_p(ispin)%matrix,4,6,qs_env,globenv,output_unit=iw)
-             CALL cp_print_key_finished_output(iw,logger,dft_section,&
-                  "PRINT%AO_MATRICES/DENSITY", error=error)
-          END IF
-
-          IF (BTEST(cp_print_key_should_output(logger%iter_info,&
-               dft_section,"PRINT%AO_MATRICES/KOHN_SHAM_MATRIX",error=error),cp_p_file)) THEN
-             iw = cp_print_key_unit_nr(logger,dft_section,"PRINT%AO_MATRICES/KOHN_SHAM_MATRIX",&
-                  extension=".Log",error=error)
-             IF (dft_control%qs_control%semi_empirical) THEN
-                CALL write_sparse_matrix(matrix_ks(ispin)%matrix,4,6,qs_env,globenv,&
-                     scale=evolt,output_unit=iw)
-             ELSE
-                CALL write_sparse_matrix(matrix_ks(ispin)%matrix,4,6,qs_env,globenv,output_unit=iw)
-             END IF
-             CALL cp_print_key_finished_output(iw,logger,dft_section,&
-                  "PRINT%AO_MATRICES/KOHN_SHAM_MATRIX", error=error)              
-          END IF
-
-       ENDDO
-
-       IF (BTEST(cp_print_key_should_output(logger%iter_info,&
-            scf_section,"PRINT%MO_ORTHONORMALITY",error=error),cp_p_file)) THEN
-          IF(scf_env%method==special_diag_method_nr) THEN
-            CALL calculate_orthonormality(orthonormality,mos)
-          ELSE
-            CALL calculate_orthonormality(orthonormality,mos,matrix_s(1)%matrix)
-          END IF
-          iw=cp_print_key_unit_nr(logger,scf_section,"PRINT%MO_ORTHONORMALITY",&
-               extension=".scfLog",error=error)
-          IF (iw>0) THEN
-             WRITE(output_unit,'(T8,A,T60,E20.4)')  &
-                    " Maximum deviation from MO S-orthonormality",orthonormality
-          ENDIF
-          CALL cp_print_key_finished_output(iw,logger,scf_section,&
-               "PRINT%MO_ORTHONORMALITY", error=error)
-       ENDIF
-
-       IF (BTEST(cp_print_key_should_output(logger%iter_info,&
-            scf_section,"PRINT%MO_MAGNITUDE",error=error),cp_p_file)) THEN
-          CALL calculate_magnitude(mos,mo_mag_min,mo_mag_max)
-          iw=cp_print_key_unit_nr(logger,scf_section,"PRINT%MO_MAGNITUDE",&
-               extension=".scfLog",error=error)
-          IF (iw>0) THEN
-             WRITE(output_unit,'(T8,A,T40,2E20.4)')  &
-                    " Minimum/Maximum MO magnitude ",mo_mag_min,mo_mag_max
-          ENDIF
-          CALL cp_print_key_finished_output(iw,logger,scf_section,&
-               "PRINT%MO_MAGNITUDE", error=error)
-       ENDIF
+       CALL qs_scf_loop_print(qs_env,scf_env,globenv,error)
 
        scf_env%p_mix = scf_control%p_mix
        scf_env%iter_param = 0.0_dp
@@ -669,7 +609,6 @@ CONTAINS
             IF ((scf_env%iter_count > 1).AND.(scf_env%iter_delta < scf_control%eps_jacobi)) THEN
                use_jacobi = .TRUE.
             ELSE
-               use_cholesky = scf_control%use_cholesky
                use_jacobi = .FALSE.
             END IF
 
@@ -679,7 +618,7 @@ CONTAINS
 
                CALL eigensolver(scf_work1(ispin)%matrix, mos(ispin)%mo_set,ortho,scf_work2,&
                     do_level_shift,scf_control%level_shift,&
-                    use_cholesky=use_cholesky,&
+                    use_cholesky=scf_control%use_cholesky,&
                     work_syevx=scf_control%work_syevx,&
                     use_jacobi=use_jacobi,&
                     jacobi_threshold=scf_control%jacobi_threshold,&
@@ -792,8 +731,7 @@ CONTAINS
           END IF
           CALL timestop(0.0_dp,handle2)
           EXIT scf_loop
-       ELSE IF (should_stop.OR.&
-            scf_env%iter_count == scf_control%max_scf) THEN
+       ELSE IF (should_stop.OR.  scf_env%iter_count == scf_control%max_scf) THEN
           IF (output_unit>0) THEN
              WRITE(UNIT=output_unit,FMT="(/,T3,A,/)")&
                   "*** SCF run NOT converged ***"
@@ -969,6 +907,123 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE scf_env_do_scf
+
+
+!!****f* qs_scf/qs_scf_loop_print *
+!!
+!!   NAME
+!!      qs_scf_loop_print
+!!
+!!   FUNCTION
+!!      collects the 'heavy duty' printing tasks out of the SCF loop
+!!
+!!   NOTES
+!!
+!!   INPUTS
+!!
+!!   MODIFICATION HISTORY
+!!     03.2006 created [Joost VandeVondele]
+!!
+!!*** **********************************************************************
+  SUBROUTINE qs_scf_loop_print(qs_env,scf_env,globenv,error)
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(qs_scf_env_type), POINTER           :: scf_env
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_scf_loop_print', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ispin, iw
+    REAL(KIND=dp)                            :: mo_mag_max, mo_mag_min, &
+                                                orthonormality
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mos
+    TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks, matrix_p, matrix_s
+    TYPE(section_vals_type), POINTER         :: dft_section, input, &
+                                                scf_section
+
+    logger => cp_error_get_logger(error)
+    CALL timeset(routineN,handle)
+
+    CALL get_qs_env(qs_env=qs_env,input=input, dft_control=dft_control, &
+                    error=error)
+
+    dft_section => section_vals_get_subs_vals(input,"DFT",error=error)
+    scf_section => section_vals_get_subs_vals(dft_section,"SCF",error=error)
+
+
+    CALL get_qs_env(qs_env=qs_env, matrix_s=matrix_s, &
+                    matrix_ks=matrix_ks,rho=rho,mos=mos, &
+                    error=error)
+
+    matrix_p => rho%rho_ao
+
+    DO ispin=1,dft_control%nspins
+
+      IF (BTEST(cp_print_key_should_output(logger%iter_info,&
+           dft_section,"PRINT%AO_MATRICES/DENSITY",error=error),cp_p_file)) THEN
+         iw = cp_print_key_unit_nr(logger,dft_section,"PRINT%AO_MATRICES/DENSITY",&
+              extension=".Log",error=error)
+         CALL write_sparse_matrix(matrix_p(ispin)%matrix,4,6,qs_env,globenv,output_unit=iw)
+         CALL cp_print_key_finished_output(iw,logger,dft_section,&
+              "PRINT%AO_MATRICES/DENSITY", error=error)
+      END IF
+
+      IF (BTEST(cp_print_key_should_output(logger%iter_info,&
+           dft_section,"PRINT%AO_MATRICES/KOHN_SHAM_MATRIX",error=error),cp_p_file)) THEN
+         iw = cp_print_key_unit_nr(logger,dft_section,"PRINT%AO_MATRICES/KOHN_SHAM_MATRIX",&
+              extension=".Log",error=error)
+         IF (dft_control%qs_control%semi_empirical) THEN
+            CALL write_sparse_matrix(matrix_ks(ispin)%matrix,4,6,qs_env,globenv,&
+                 scale=evolt,output_unit=iw)
+         ELSE
+            CALL write_sparse_matrix(matrix_ks(ispin)%matrix,4,6,qs_env,globenv,output_unit=iw)
+         END IF
+         CALL cp_print_key_finished_output(iw,logger,dft_section,&
+              "PRINT%AO_MATRICES/KOHN_SHAM_MATRIX", error=error)
+      END IF
+
+    ENDDO
+
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,&
+         scf_section,"PRINT%MO_ORTHONORMALITY",error=error),cp_p_file)) THEN
+       IF(scf_env%method==special_diag_method_nr) THEN
+         CALL calculate_orthonormality(orthonormality,mos)
+       ELSE
+         CALL calculate_orthonormality(orthonormality,mos,matrix_s(1)%matrix)
+       END IF
+       iw=cp_print_key_unit_nr(logger,scf_section,"PRINT%MO_ORTHONORMALITY",&
+            extension=".scfLog",error=error)
+       IF (iw>0) THEN
+          WRITE(iw,'(T8,A,T60,E20.4)')  &
+                 " Maximum deviation from MO S-orthonormality",orthonormality
+       ENDIF
+       CALL cp_print_key_finished_output(iw,logger,scf_section,&
+            "PRINT%MO_ORTHONORMALITY", error=error)
+    ENDIF
+
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,&
+         scf_section,"PRINT%MO_MAGNITUDE",error=error),cp_p_file)) THEN
+       CALL calculate_magnitude(mos,mo_mag_min,mo_mag_max)
+       iw=cp_print_key_unit_nr(logger,scf_section,"PRINT%MO_MAGNITUDE",&
+            extension=".scfLog",error=error)
+       IF (iw>0) THEN
+          WRITE(iw,'(T8,A,T40,2E20.4)')  &
+                 " Minimum/Maximum MO magnitude ",mo_mag_min,mo_mag_max
+       ENDIF
+       CALL cp_print_key_finished_output(iw,logger,scf_section,&
+            "PRINT%MO_MAGNITUDE", error=error)
+    ENDIF
+
+    CALL timestop(handle)
+
+  END SUBROUTINE qs_scf_loop_print
 
 ! *****************************************************************************
 
