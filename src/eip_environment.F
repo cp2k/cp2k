@@ -309,6 +309,8 @@ CONTAINS
     ALLOCATE(eip_env%eip_forces(3,natom), stat=stat)
     CPPostcondition(stat == 0, cp_failure_level, routineP, error, failure)
 
+    eip_env%eip_forces(:,:) = 0.0_dp
+
     CALL eip_env_set(eip_env=eip_env, subsystem=subsystem, cell=cell, &
                      cell_ref=cell_ref, use_ref_cell=use_ref_cell, &
                      local_molecules=local_molecules, &

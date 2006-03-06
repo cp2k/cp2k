@@ -692,10 +692,12 @@ CONTAINS
       eip_env%eip_potential_energy = 0.0_dp
       eip_env%eip_energy           = 0.0_dp
       eip_env%eip_energy_var       = 0.0_dp
-      eip_env%eip_forces(:,:)      = 0.0_dp
       eip_env%coord_avg            = 0.0_dp
       eip_env%coord_var            = 0.0_dp
       eip_env%count                = 0.0_dp
+      IF (ASSOCIATED(eip_env%eip_forces)) THEN
+        eip_env%eip_forces(:,:)      = 0.0_dp
+      END IF
       IF (ASSOCIATED(eip_env%subsystem)) THEN
         CALL cp_subsys_release(eip_env%subsystem, error=error)
       END IF

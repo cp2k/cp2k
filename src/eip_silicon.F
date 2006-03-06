@@ -171,7 +171,7 @@ CONTAINS
                               coord=eip_env%coord_avg, ener_var=ener_var, &
                               coord_var=eip_env%coord_var, count=eip_env%count)
 
-      CALL mp_sum(ener, force_env%globenv%para_env%group)
+      !CALL mp_sum(ener, force_env%globenv%para_env%group)
 
       !CALL get_part_ke(md_env, tbmd_energy%E_kinetic, int_grp=globalenv%para_env%group)
       CALL eip_env_get(eip_env=eip_env, subsystem=subsys, &
@@ -375,7 +375,7 @@ CONTAINS
                                coord=eip_env%coord_avg, ener_var=ener_var, &
                                coord_var=eip_env%coord_var, count=eip_env%count)
 
-      CALL mp_sum(ener, force_env%globenv%para_env%group)
+      !CALL mp_sum(ener, force_env%globenv%para_env%group)
 
       !CALL get_part_ke(md_env, tbmd_energy%E_kinetic, int_grp=globalenv%para_env%group)
       CALL eip_env_get(eip_env=eip_env, subsystem=subsys, &
