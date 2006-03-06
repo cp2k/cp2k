@@ -579,14 +579,14 @@ CONTAINS
 
        ! Frozen density approximation
        IF (qs_env%wf_history%interpolation_method_nr==wfi_frozen_method_nr) THEN
-         IF (.NOT. ASSOCIATED(qs_env%wf_history%past_states(1)%snapshot)) THEN
-           IF (ASSOCIATED(qs_env%wf_history)) THEN
-             CALL wfi_update(qs_env%wf_history,qs_env=qs_env,dt=1.0_dp,&
+         IF (ASSOCIATED(qs_env%wf_history)) THEN
+           IF (.NOT. ASSOCIATED(qs_env%wf_history%past_states(1)%snapshot)) THEN
+             CALL wfi_update(qs_env%wf_history, qs_env=qs_env, dt=1.0_dp, &
                              error=error)
+             CALL duplicate_rho_type(rho_input=rho, &
+                                     rho_output=qs_env%wf_history%past_states(1)%snapshot%rho_frozen, &
+                                     qs_env=qs_env, error=error)
            END IF
-           CALL duplicate_rho_type(rho_input=rho, &
-                                   rho_output=qs_env%wf_history%past_states(1)%snapshot%rho_frozen, &
-                                   qs_env=qs_env, error=error)
          END IF
        END IF
 
