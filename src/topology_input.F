@@ -187,15 +187,19 @@ SUBROUTINE read_constraints_section(topology, globenv, colvar, constraint_sectio
     TYPE(constraint_info_type), POINTER      :: cons_info
     TYPE(section_vals_type), POINTER         :: collective_section, &
                                                 fix_atom_section, &
-                                                g3x3_section, g4x6_section
+                                                g3x3_section, g4x6_section,&
+                                                hbonds_section
 
   cons_info    => topology%cons_info
   failure = .FALSE.
   IF (.NOT.failure) THEN
+     hbonds_section => section_vals_get_subs_vals(constraint_section,"HBONDS",error=error)
      g3x3_section => section_vals_get_subs_vals(constraint_section,"G3X3",error=error)
      g4x6_section => section_vals_get_subs_vals(constraint_section,"G4X6",error=error)
      fix_atom_section => section_vals_get_subs_vals(constraint_section,"FIXED_ATOMS",error=error)
      collective_section => section_vals_get_subs_vals(constraint_section,"COLLECTIVE",error=error)
+     ! HBONDS
+     CALL section_vals_get(hbonds_section,explicit=topology%const_hydr, error=error)
      ! G3X3
      CALL section_vals_get(g3x3_section,explicit=explicit, n_repetition=ncons, error=error)
      IF (explicit) THEN

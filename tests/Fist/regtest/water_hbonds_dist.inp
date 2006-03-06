@@ -1,0 +1,63 @@
+
+&FORCE_EVAL
+  &MM
+    &FORCEFIELD
+      parmfile ../sample_pot/water.pot
+      parmtype CHM
+      &CHARGE
+        ATOM OT
+        CHARGE -0.8476
+      &END CHARGE
+      &CHARGE
+        ATOM HT
+        CHARGE 0.4238
+      &END CHARGE
+    &END FORCEFIELD
+    &POISSON_MM
+      &EWALD
+        EWALD_TYPE pme
+        ALPHA .44
+        NS_MAX 25
+      &END EWALD
+    &END POISSON_MM
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC 24.955 24.955 24.955
+      UNIT ANGSTROM
+    &END CELL
+    &CONSTRAINT
+      &HBONDS
+      &END
+    &END CONSTRAINT
+    &TOPOLOGY
+      COORD_FILE ../sample_pdb/water_2.pdb
+      COORDINATE pdb
+    &END TOPOLOGY
+      &PRINT
+        &TOPOLOGY_INFO
+          PDB_INFO
+        &END
+      &END
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  FFTLIB FFTSG
+  PROGRAM FIST
+  PROJECT water_3
+  RUN_TYPE MD
+&END GLOBAL
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 10
+    TIMESTEP 2.5
+    TEMPERATURE 298
+    &NOSE
+      LENGTH 3
+      YOSHIDA 3
+      TIMECON 1000
+      MTS 2
+    &END NOSE
+  &END MD
+&END MOTION

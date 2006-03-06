@@ -2997,14 +2997,15 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'topology_constraint_pack', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=default_string_length)     :: element_symbol, molname, name
-    INTEGER :: dum, first, handle, i, iw, j, k, kk, last, nbond, ndist, &
-      nfixed_atoms, ng3x3, ng4x6, nmolecule, search1, search2, stat
+    CHARACTER(LEN=2)                         :: element_symbol
+    CHARACTER(LEN=default_string_length)     :: molname, name
+    INTEGER :: dum, first, handle, i, iw, j, k, kk, m, last, nbond, ndist, &
+      nfixed_atoms, ng3x3, ng4x6, nmolecule, search1, search2, stat, iglob, nrep
     INTEGER, DIMENSION(:), POINTER           :: molecule_list
     LOGICAL                                  :: failure, fix_atom_molname, &
                                                 fix_atom_qmmm
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: missed_molname
-    REAL(KIND=dp)                            :: xdum
+    REAL(KIND=dp)                            :: xdum, rvec(3), rmod
     TYPE(atom_type), DIMENSION(:), POINTER   :: atom_list
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(bond_type), DIMENSION(:), POINTER   :: bond_list
@@ -3027,6 +3028,9 @@ CONTAINS
       DIMENSION(:), POINTER                  :: lg4x6
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
+    CHARACTER(LEN=default_string_length), DIMENSION(:), POINTER :: atom_typeh
+    REAL(KIND=dp), POINTER, DIMENSION(:) :: hdist
+    TYPE(section_vals_type), POINTER         :: constraint_section, hbonds_section
 
     failure = .FALSE.
     NULLIFY(logger)
@@ -3036,7 +3040,8 @@ CONTAINS
     CALL timeset(routineN,'I','',handle)
     
     cons_info => topology%cons_info
-    
+    constraint_section => section_vals_get_subs_vals(subsys_section,"CONSTRAINT",error=error)
+    hbonds_section => section_vals_get_subs_vals(subsys_section,"CONSTRAINT%HBONDS",error=error)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 1. NULLIFY the molecule_set(imol)%lci via set_molecule_set
@@ -3057,9 +3062,21 @@ CONTAINS
     ! 3. Add more stuff to cons_info%const_dist_* if constraint hydrogen is on
     !-----------------------------------------------------------------------------
     IF(topology%const_hydr) THEN
+       topology%const_dist = .TRUE.
+       NULLIFY(atom_typeh, hdist)
+       CALL section_vals_val_get(hbonds_section,"ATOM_TYPE",n_rep_val=nrep,error=error)
+       IF (nrep/=0) &
+            CALL section_vals_val_get(hbonds_section,"ATOM_TYPE",c_vals=atom_typeh,error=error)
+       CALL section_vals_val_get(hbonds_section,"TARGETS",n_rep_val=nrep,error=error)
+       IF (nrep/=0) &
+            CALL section_vals_val_get(hbonds_section,"TARGETS",r_vals=hdist,error=error)
+       IF (ASSOCIATED(hdist)) THEN
+          CPPostcondition(SIZE(hdist)==SIZE(atom_typeh),cp_failure_level,routineP,error,failure)
+       END IF
        ndist = cons_info%nconst_dist
-       DO i=1,SIZE(molecule_kind_set)
-          molecule_kind => molecule_kind_set(i)
+       DO i=1,SIZE(molecule_set)
+          molecule_kind => molecule_set(i)%molecule_kind
+          iglob = molecule_set(i)%first_atom-1
           CALL get_molecule_kind(molecule_kind=molecule_kind,&
                atom_list=atom_list,&
                nbond=nbond,bond_list=bond_list)
@@ -3069,7 +3086,24 @@ CONTAINS
                   name=name,element_symbol=element_symbol) 
              IF((TRIM(name)=="H").OR.(TRIM(element_symbol)=="H")) THEN
                 DO k=1,nbond
-                   IF((bond_list(k)%a==j).OR.(bond_list(k)%b==j)) THEN
+                   IF ((bond_list(k)%a==j).OR.(bond_list(k)%b==j))  THEN
+                      rvec = particle_set(iglob+bond_list(k)%a)%r-particle_set(iglob+bond_list(k)%b)%r
+                      rmod = SQRT(DOT_PRODUCT(rvec,rvec))
+                      IF (ASSOCIATED(hdist)) THEN
+                         IF (SIZE(hdist)>0) THEN
+                            IF (bond_list(k)%a==j) atomic_kind => atom_list(bond_list(k)%b)%atomic_kind
+                            IF (bond_list(k)%b==j) atomic_kind => atom_list(bond_list(k)%a)%atomic_kind
+                            CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                                 name=name,element_symbol=element_symbol) 
+                            DO m = 1, SIZE(hdist)
+                               IF (TRIM(name)==TRIM(atom_typeh(m))) EXIT
+                               IF (TRIM(element_symbol)==TRIM(atom_typeh(m))) EXIT
+                            END DO
+                            IF (m<=SIZE(hdist)) THEN
+                               rmod = hdist(m)
+                            END IF
+                         END IF
+                      END IF
                       ndist = ndist + 1
                       CALL reallocate(cons_info%const_dist_mol,1,ndist)
                       CALL reallocate(cons_info%const_dist_a,1,ndist)
@@ -3078,7 +3112,7 @@ CONTAINS
                       cons_info%const_dist_mol(ndist)  = i
                       cons_info%const_dist_a(ndist)    = bond_list(k)%a
                       cons_info%const_dist_b(ndist)    = bond_list(k)%b
-                      cons_info%const_dist_dab(ndist)  = bond_list(k)%bond_kind%r0
+                      cons_info%const_dist_dab(ndist)  = rmod
                    END IF
                 END DO
              END IF
@@ -3086,7 +3120,6 @@ CONTAINS
        END DO
        cons_info%nconst_dist = ndist
     END IF
-
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
@@ -3187,7 +3220,6 @@ CONTAINS
           END IF
        END DO
     END IF
-
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------

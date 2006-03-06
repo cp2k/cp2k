@@ -871,13 +871,16 @@ CONTAINS
        !
        ! subsections
        !
-
        CALL keyword_create(keyword, name="SHAKE",&
             description="Set the tolerance for the shake constraint algorithm.",&
             usage="SHAKE real",&
             default_r_val=1.0E-6_dp,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+
+       CALL create_hbonds_section(subsection, error=error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
 
        CALL create_g3x3_section(subsection, error=error)
        CALL section_add_subsection(section, subsection, error=error)
@@ -1120,6 +1123,69 @@ CONTAINS
     END IF
 
   END SUBROUTINE create_g3x3_section
+
+!***************************************************************************
+!!****f* input_cp2k_subsys/create_hbonds_section [1.0] *
+!!
+!!   NAME
+!!     create_hbonds_section
+!!
+!!   FUNCTION
+!!     Create the constraint section specialized on H BONDS constraints
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - section: the section to create
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_hbonds_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_hbonds_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+    
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="HBONDS",&
+            description="This section is used to set bonds constraints involving Hydrogen atoms",&
+            n_keywords=3, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            error=error)
+
+       NULLIFY(keyword)
+       ! Character
+       CALL keyword_create(keyword, name="ATOM_TYPE",&
+            description="Defines the atoms' type forming a bond with an hydrogen. If not specified "//&
+            " the default bond value of the first molecule is used as constraint target",&
+            usage="ATOMS <CHARACTER>",&
+            n_var=-1,type_of_var=char_t,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       ! Real
+       CALL keyword_create(keyword, name="TARGETS",&
+            description="The constrained distances' values  for the types defines in ATOM_TYPE.",&
+            usage="TARGETS {real} {real} {real}", type_of_var=real_t, n_var=-1, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)              
+
+    END IF
+
+  END SUBROUTINE create_hbonds_section
+
 
 !***************************************************************************
 !!****f* input_cp2k_subsys/create_g4x6_section [1.0] *
