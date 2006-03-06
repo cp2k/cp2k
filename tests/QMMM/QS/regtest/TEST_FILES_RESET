@@ -163,3 +163,19 @@ crys_per_qmmm_spln.inp
 sio2-qmmm-gauss-1.inp
 sio2-qmmm-gauss-2.inp
 sio2-qmmm-gauss-3.inp
+# after moving wfi_update qs_Scf
+H2O-qmmm-gauss-2.inp
+H2O-qmmm-gauss-4.inp
+H2O-qmmm-gauss-5.inp
+H2O-qmmm-gauss-6.inp
+H2O-qmmm-gauss-7.inp
+H2O-qmmm-gauss-8.inp
+H2O-qmmm-gauss-9.inp
+H2O-qmmm-gauss-12.inp
+H2O-qmmm-none-1.inp
+C4H10-qmmm-gauss-3.inp
+C4H10-qmmm-gauss-4.inp
+C4H10-qmmm-gauss-5.inp
+C4H10-qmmm-gauss-6.inp
+C4H10-qmmm-gauss-7.inp
+C4H10-qmmm-grid-8.inp

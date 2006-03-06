@@ -3,3 +3,7 @@ h2o_lsd-ot.inp
 ch4-ot.inp
 #new input presumably numerics
 st.inp
+# after moving wfi_update in qs_scf
+h2o.inp
+h2o_lsd.inp
+st.inp

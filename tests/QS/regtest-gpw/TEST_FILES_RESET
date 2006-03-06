@@ -17,3 +17,18 @@ Ar-2.inp
 H2O-bloechl-restraint.inp
 #reset due to forces
 H2O-bloechl-restraint.inp
+#reset moving wfi_update in qs_scf
+H2O-MD-harris.inp
+H2O-2.inp
+H2O-3.inp
+H2O-4.inp
+H2O-meta.inp
+H2O-meta_res2.inp
+H2O-meta_res3.inp
+H2O-5.inp
+H2-geo-1.inp
+H2-geo-3.inp
+H2-geo-4.inp
+H2O-langevin-1.inp
+H2O-langevin-2.inp
+H2O-ata.inp

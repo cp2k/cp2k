@@ -17,3 +17,7 @@ H2O-OT-HMC-2.inp
 H2O-OT-LDMC-3.inp
 H2O-OT-4.inp
 H2O-OT-5.inp
+# reset after moving wfi_update in qs_scf
+H2O.inp
+H2O-OT-1.inp
+H2O-OT-2.inp
