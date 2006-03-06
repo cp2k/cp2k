@@ -572,8 +572,8 @@ CONTAINS
           CALL qs_scf_loop_do_special_diag(scf_env,mos,rho,matrix_ks,scf_control,scf_section, &
                                        diis_step,error)
        CASE(ot_method_nr) 
-          CALL qs_scf_loop_do_ot(scf_env,mos,rho,qs_env%mo_derivs,energy,matrix_s,energy_only, &
-                                   has_unit_metric,error)
+          CALL qs_scf_loop_do_ot(scf_env,mos,rho,qs_env%mo_derivs,energy%total, & 
+                                 matrix_s, energy_only, has_unit_metric,error)
        END SELECT
 
        ! another heavy weight print object, print controlled by dft_section
@@ -976,14 +976,14 @@ END SUBROUTINE qs_scf_loop_do_special_diag
 !!     03.2006 created [Joost VandeVondele]
 !!
 !!*** **********************************************************************
-SUBROUTINE qs_scf_loop_do_ot(scf_env,mos,rho,mo_derivs,energy,matrix_s,energy_only,has_unit_metric,error)
+SUBROUTINE qs_scf_loop_do_ot(scf_env,mos,rho,mo_derivs,total_energy,matrix_s,energy_only,has_unit_metric,error)
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mo_derivs
-    TYPE(qs_energy_type), POINTER            :: energy
+    REAL(KIND=dp), INTENT(IN)            :: total_energy
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
     LOGICAL, INTENT(OUT)                     :: energy_only
@@ -1004,7 +1004,7 @@ SUBROUTINE qs_scf_loop_do_ot(scf_env,mos,rho,mo_derivs,energy,matrix_s,energy_on
    ENDIF
 
    CALL ot_scf_mini(mos,mo_derivs,orthogonality_metric, &
-                    energy%total, energy_only,scf_env%iter_delta, &
+                    total_energy, energy_only,scf_env%iter_delta, &
                     scf_env%qs_ot_env)
 
    DO ispin=1,SIZE(mos)
