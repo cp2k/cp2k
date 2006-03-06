@@ -130,7 +130,7 @@ END SUBROUTINE m_datum
 
     WRITE(UNIT=cmdstr,FMT="(A,I8,A,I8,A)")&
       "echo -e ""\\n PID""",pid,""" <"//TRIM(checkpoint)//&
-      ">:"" `ps -o vsz -p",pid," | tail -1` KBytes""\\c"""
+      ">:"" `ps -o vsz --no-headers -p",pid," ` KBytes""\\c"""
 
     CALL system(cmdstr)
 

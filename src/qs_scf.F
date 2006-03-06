@@ -953,12 +953,6 @@ CONTAINS
     END IF
 
 
-!   *** add the converged wavefunction to the wavefunction history
-!   should possibly be moved down after de-mixing
-    IF (ASSOCIATED(qs_env%wf_history)) THEN
-        CALL wfi_update(qs_env%wf_history,qs_env=qs_env,dt=1.0_dp,&
-               error=error)
-    END IF
 
 !   *** mixing methods need to undo mixing of the density matrix (restore original density) ***
     IF (scf_env%mixing_method.EQ.ao_mixing_nr) THEN
@@ -983,6 +977,12 @@ CONTAINS
     ENDIF
 
     CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,error=error)
+
+!   *** add the converged wavefunction to the wavefunction history
+    IF (ASSOCIATED(qs_env%wf_history)) THEN
+        CALL wfi_update(qs_env%wf_history,qs_env=qs_env,dt=1.0_dp,&
+               error=error)
+    END IF
 
 ! *** print out info
     IF ((.NOT.should_stop).AND.&
