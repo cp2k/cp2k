@@ -453,13 +453,23 @@ CONTAINS
        sbc_list_neighbor_node => first_node(sbc_list_neighbor_list)
 
        ! Allocate temporary arrays
-       IF(nneighbor .GT. nneighbor_old) THEN
-         CALL reallocate(rac_tmp,1,3,1,nneighbor)
-         CALL reallocate(rac2_tmp,1,nneighbor)
-         CALL reallocate(rbc_tmp,1,3,1,nneighbor)
-         CALL reallocate(rbc2_tmp,1,nneighbor)
-         CALL reallocate(index_atom,1,nneighbor)
-         nneighbor_old = nneighbor
+!       IF(nneighbor .GT. nneighbor_old) THEN
+       IF(nneighbor > 0) THEN
+!         CALL reallocate(rac_tmp,1,3,1,nneighbor)
+!         CALL reallocate(rac2_tmp,1,nneighbor)
+!         CALL reallocate(rbc_tmp,1,3,1,nneighbor)
+!         CALL reallocate(rbc2_tmp,1,nneighbor)
+!         CALL reallocate(index_atom,1,nneighbor)
+!         nneighbor_old = nneighbor
+         ALLOCATE(rac_tmp(3,nneighbor),STAT=istat)
+         ALLOCATE(rac2_tmp(nneighbor),STAT=istat)
+         ALLOCATE(rbc_tmp(3,nneighbor),STAT=istat)
+         ALLOCATE(rbc2_tmp(nneighbor),STAT=istat)
+         ALLOCATE(index_atom(nneighbor),STAT=istat)
+         IF (istat /= 0 ) THEN
+             CALL stop_memory(routineN,moduleN,__LINE__,&
+                             "reduced_3c_list: rac,rac2,rbc,rbc2,index_atom")
+         END IF
        END IF
 
        knodeloop: DO kneighbor=1,nneighbor
@@ -539,13 +549,15 @@ CONTAINS
          END DO
        END IF
 
+       IF(nneighbor > 0) THEN
+         DEALLOCATE(index_atom, rac_tmp, rac2_tmp, rbc_tmp, rbc2_tmp,STAT=istat)
+         IF (istat /= 0 ) THEN
+              CALL stop_memory(routineN,moduleN,__LINE__,&
+                             "reduced_3c_list: rac,rac2,rbc,rbc2,index_atom")
+         END IF
+       END IF
     ENDDO  ! kkind
 
-    DEALLOCATE(index_atom, rac_tmp, rac2_tmp, rbc_tmp, rbc2_tmp,STAT=istat)
-    IF (istat /= 0 ) THEN
-             CALL stop_memory(routineN,moduleN,__LINE__,&
-                             "reduced_3c_list: rac,rac2,rbc,rbc2,index_atom")
-    END IF
 
     CALL timestop(0.0_dp,handle)
 
