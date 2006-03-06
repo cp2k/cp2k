@@ -152,17 +152,20 @@ CONTAINS
 
       CALL force_env_get(force_env=force_env, eip_env=eip_env, error=error)
       CALL eip_env_get(eip_env=eip_env, cell=cell, particle_set=particle_set, &
-                       error=error)
+                       subsystem=subsys, local_particles=local_particles, &
+                       atomic_kind_set=atomic_kind_set, error=error)
       CALL get_cell(cell=cell, abc=abc)
 
       eip_section => section_vals_get_subs_vals(eip_env%force_env_input, "EIP", &
                                                       error=error)
       natom = SIZE(particle_set)
+      !natom = local_particles%n_el(1)
 
       ALLOCATE(rxyz(3,natom), stat=stat)
       CPPostcondition(stat == 0, cp_failure_level, routineP, error, failure)
 
       DO i = 1,natom
+        !iparticle = local_particles%list(1)%array(i)
         rxyz(:,i) = particle_set(i)%r(:)*angstrom
       END DO
 
@@ -171,12 +174,7 @@ CONTAINS
                               coord=eip_env%coord_avg, ener_var=ener_var, &
                               coord_var=eip_env%coord_var, count=eip_env%count)
 
-      !CALL mp_sum(ener, force_env%globenv%para_env%group)
-
       !CALL get_part_ke(md_env, tbmd_energy%E_kinetic, int_grp=globalenv%para_env%group)
-      CALL eip_env_get(eip_env=eip_env, subsystem=subsys, &
-                       local_particles=local_particles, &
-                       atomic_kind_set=atomic_kind_set, error=error)
       CALL cp_subsys_get(subsys=subsys, atomic_kinds=atomic_kinds)
 
       nparticle_kind = atomic_kinds%n_els
@@ -205,6 +203,9 @@ CONTAINS
       DO i = 1,natom
         particle_set(i)%f(:) = eip_env%eip_forces(:,i)/evolt*angstrom
       END DO
+
+      DEALLOCATE(rxyz, stat=stat)
+      CPPostconditionNoFail(stat==0, cp_warning_level, routineP, error)
 
       ! Print
       IF (BTEST(cp_print_key_should_output(logger%iter_info, &
@@ -356,17 +357,20 @@ CONTAINS
 
       CALL force_env_get(force_env=force_env, eip_env=eip_env, error=error)
       CALL eip_env_get(eip_env=eip_env, cell=cell, particle_set=particle_set, &
-                       error=error)
+                       subsystem=subsys, local_particles=local_particles, &
+                       atomic_kind_set=atomic_kind_set, error=error)
       CALL get_cell(cell=cell, abc=abc)
 
       eip_section => section_vals_get_subs_vals(eip_env%force_env_input, "EIP", &
                                                       error=error)
       natom = SIZE(particle_set)
+      !natom = local_particles%n_el(1)
 
       ALLOCATE(rxyz(3,natom), stat=stat)
       CPPostcondition(stat == 0, cp_failure_level, routineP, error, failure)
 
       DO i = 1,natom
+        !iparticle = local_particles%list(1)%array(i)
         rxyz(:,i) = particle_set(i)%r(:)*angstrom
       END DO
 
@@ -375,12 +379,7 @@ CONTAINS
                                coord=eip_env%coord_avg, ener_var=ener_var, &
                                coord_var=eip_env%coord_var, count=eip_env%count)
 
-      !CALL mp_sum(ener, force_env%globenv%para_env%group)
-
       !CALL get_part_ke(md_env, tbmd_energy%E_kinetic, int_grp=globalenv%para_env%group)
-      CALL eip_env_get(eip_env=eip_env, subsystem=subsys, &
-                       local_particles=local_particles, &
-                       atomic_kind_set=atomic_kind_set, error=error)
       CALL cp_subsys_get(subsys=subsys, atomic_kinds=atomic_kinds)
 
       nparticle_kind = atomic_kinds%n_els
@@ -409,6 +408,9 @@ CONTAINS
       DO i = 1,natom
         particle_set(i)%f(:) = eip_env%eip_forces(:,i)/evolt*angstrom
       END DO
+
+      DEALLOCATE(rxyz, stat=stat)
+      CPPostconditionNoFail(stat==0, cp_warning_level, routineP, error)
 
       ! Print
       IF (BTEST(cp_print_key_should_output(logger%iter_info, &
