@@ -411,16 +411,11 @@ CONTAINS
 
     INTEGER                                  :: handle, handle2, i, ispin, &
                                                 output_unit
-    LOGICAL :: diis_step, do_level_shift, EII_necessary, energy_only, &
-      failure, gapw, gapw_xc, harris_flag, has_unit_metric, id_equal, &
-      should_stop, use_jacobi
-    REAL(KIND=dp)                            :: diis_error, t1, t2, tot1_h, &
-                                                tot1_s
+    LOGICAL :: diis_step, EII_necessary, energy_only, failure, gapw, gapw_xc, &
+      harris_flag, has_unit_metric, id_equal, should_stop, use_jacobi
+    REAL(KIND=dp)                            :: t1, t2, tot1_h, tot1_s
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: scf_work1
-    TYPE(cp_fm_type), POINTER                :: ortho, scf_work2
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(harris_env_type), POINTER           :: harris_env
@@ -436,7 +431,6 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_h, matrix_ks, &
                                                 matrix_p, matrix_s
-    TYPE(real_matrix_type), POINTER          :: orthogonality_metric
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: dft_section, input, &
                                                 scf_section
@@ -450,7 +444,7 @@ CONTAINS
 
     NULLIFY(dft_control,matrix_h,matrix_s,matrix_ks,matrix_p,rho,rho_xc,energy, &
             scf_control,logger,pw_env, qs_charges,ks_env,mos,atomic_kind_set, &
-            particle_set,scf_work1,ortho,scf_work2,harris_env,dft_section,input,&
+            particle_set,harris_env,dft_section,input,&
             scf_section)
 
     CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,error,failure)
@@ -498,9 +492,6 @@ CONTAINS
                     matrix_ks=matrix_ks,rho=rho,rho_xc=rho_xc,mos=mos, &
                     error=error)
 
-    scf_work1 => scf_env%scf_work1
-    scf_work2 => scf_env%scf_work2
-    ortho => scf_env%ortho
     matrix_p => rho%rho_ao
 
     ! do some assertions here on these matrices having the same structure
@@ -541,10 +532,9 @@ CONTAINS
     scf_loop: DO
 
        CALL timeset("scf_iter","I"," ",handle2)
+       scf_env%iter_count = scf_env%iter_count + 1
 
        IF (output_unit > 0) CALL m_flush(output_unit)
-
-       scf_env%iter_count = scf_env%iter_count + 1
 
        CALL qs_ks_update_qs_env(ks_env,qs_env=qs_env,&
             calculate_forces=.FALSE.,just_energy=energy_only,error=error)
@@ -562,131 +552,35 @@ CONTAINS
          END IF
        END IF
 
+       ! print 'heavy weight' or relatively expensive quantities
        CALL qs_scf_loop_print(qs_env,scf_env,globenv,error)
 
        scf_env%p_mix = scf_control%p_mix
        scf_env%iter_param = 0.0_dp
        IF (scf_env%mixing_method==ao_mixing_nr) scf_env%iter_param = scf_env%p_mix
 
+       ! this takes known energy and derivatives and produces new wfns and or density matrix
        SELECT CASE (scf_env%method)
-         CASE DEFAULT
-            CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+       CASE DEFAULT
+          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
                  routineP,"unknown scf method method:"//&
                  cp_to_string(scf_env%method),error,failure)
-
-         CASE(general_diag_method_nr) ! diagonalisation (default)
-
-            DO ispin=1,dft_control%nspins 
-             CALL copy_sm_to_fm(matrix_ks(ispin)%matrix,scf_work1(ispin)%matrix)
-            ENDDO
-
-            IF (scf_env%iter_count > 1) THEN
-               CALL qs_diis_b_step(scf_env%scf_diis_buffer,mos,scf_work1,&
-                    scf_work2,scf_env%iter_delta,diis_error,diis_step,&
-                    scf_control%eps_diis,s_matrix=matrix_s,scf_section=scf_section,&
-                    error=error)
-            END IF
-
-            do_level_shift = ((scf_control%level_shift /= 0.0_dp).AND.&
-               ((scf_control%density_guess == core_guess).OR.(scf_env%iter_count > 1)))
-
-            IF (diis_step) THEN
-               scf_env%p_mix = 1.0_dp
-               scf_env%iter_param = diis_error
-               IF (use_jacobi) THEN
-                  scf_env%iter_method = "DIIS/Jacobi"
-               ELSE
-                  scf_env%iter_method = "DIIS/Diag."
-               END IF
-            ELSE
-               IF (use_jacobi) THEN
-                  scf_env%iter_method = "Mixing/Jacobi"
-               ELSE
-                  scf_env%iter_method = "Mixing/Diag."
-               END IF
-            END IF
-
-            IF ((scf_env%iter_count > 1).AND.(scf_env%iter_delta < scf_control%eps_jacobi)) THEN
-               use_jacobi = .TRUE.
-            ELSE
-               use_jacobi = .FALSE.
-            END IF
-
-            scf_env%iter_delta=0.0_dp
-
-            DO ispin=1,dft_control%nspins
-
-               CALL eigensolver(scf_work1(ispin)%matrix, mos(ispin)%mo_set,ortho,scf_work2,&
-                    do_level_shift,scf_control%level_shift,&
-                    use_cholesky=scf_control%use_cholesky,&
-                    work_syevx=scf_control%work_syevx,&
-                    use_jacobi=use_jacobi,&
-                    jacobi_threshold=scf_control%jacobi_threshold,&
-                    smear=scf_control%smear, &
-                    error=error)
-
-               CALL write_mo_set(mos(ispin)%mo_set,atomic_kind_set,particle_set,&
-                    4,6,dft_section,globenv)
-
-               CALL calculate_density_matrix(mos(ispin)%mo_set,&
-                    scf_env%p_mix_new(ispin)%matrix,error=error)
-
-            ENDDO
-
-         CASE(special_diag_method_nr)
-           ! diagonalization for orthogonal basis sets
-            DO ispin=1,dft_control%nspins
-              CALL copy_sm_to_fm(matrix_ks(ispin)%matrix,scf_work1(ispin)%matrix)
-            ENDDO
-            IF (scf_env%iter_count > 1) THEN
-               CALL qs_diis_b_step(scf_env%scf_diis_buffer,mos,scf_work1,&
-                    scf_work2,scf_env%iter_delta,diis_error,diis_step,&
-                    scf_control%eps_diis,scf_section=scf_section,error=error)
-            END IF
-            do_level_shift = ((scf_control%level_shift /= 0.0_dp).AND.&
-               ((scf_control%density_guess == core_guess).OR.(scf_env%iter_count > 1)))
-            IF (diis_step) THEN
-               scf_env%p_mix = 1.0_dp
-               scf_env%iter_param = diis_error
-               scf_env%iter_method = "DIIS/Diag."
-            ELSE
-               scf_env%iter_method = "Mixing/Diag."
-            END IF
-            scf_env%iter_delta=0.0_dp
-            DO ispin=1,dft_control%nspins
-               CALL simple_eigensolver(scf_work1(ispin)%matrix,&
-                    mos(ispin)%mo_set,do_level_shift,scf_control%level_shift,&
-                    work_syevx=scf_control%work_syevx,&
-                    smear=scf_control%smear,error=error)
-               CALL write_mo_set(mos(ispin)%mo_set,atomic_kind_set,&
-                    particle_set,4,6,dft_section,globenv)
-               CALL calculate_density_matrix(mos(ispin)%mo_set,&
-                    scf_env%p_mix_new(ispin)%matrix,error=error)
-            ENDDO
-
-         CASE(ot_method_nr) ! orbital transforms
-
-! in case of LSD the first spin qs_ot_env will drive the minimization
-! in the case of a restricted calculation, it will make sure the spin orbitals are equal
-            IF (has_unit_metric) THEN
-               NULLIFY(orthogonality_metric)
-            ELSE
-               orthogonality_metric=>matrix_s(1)%matrix
-            ENDIF
-
-            CALL ot_scf_mini(mos,qs_env%mo_derivs,orthogonality_metric, &
-                             energy%total, energy_only,scf_env%iter_delta, &
-                             scf_env%qs_ot_env)
-
-            DO ispin=1,dft_control%nspins
-               CALL calculate_density_matrix(mos(ispin)%mo_set,&
-                     rho%rho_ao(ispin)%matrix,error=error)
-            ENDDO
-
-            scf_env%iter_method=scf_env%qs_ot_env(1)%OT_METHOD_FULL
-            scf_env%iter_param=scf_env%qs_ot_env(1)%ds_min
-
+       CASE(general_diag_method_nr) 
+          CALL qs_scf_loop_do_general_diag(scf_env,mos,rho,matrix_ks,matrix_s,scf_control,scf_section, &
+                                       diis_step,use_jacobi,error)
+       CASE(special_diag_method_nr)
+          CALL qs_scf_loop_do_special_diag(scf_env,mos,rho,matrix_ks,scf_control,scf_section, &
+                                       diis_step,error)
+       CASE(ot_method_nr) 
+          CALL qs_scf_loop_do_ot(scf_env,mos,rho,qs_env%mo_derivs,energy,matrix_s,energy_only, &
+                                   has_unit_metric,error)
        END SELECT
+
+       ! another heavy weight print object, print controlled by dft_section
+       DO ispin=1,SIZE(mos)
+          CALL write_mo_set(mos(ispin)%mo_set,atomic_kind_set,&
+                            particle_set,4,6,dft_section,globenv)
+       ENDDO
 
        ! ** calculation of the harris energy correction *** !
        IF (harris_flag) THEN
@@ -705,8 +599,7 @@ CONTAINS
 
        IF (scf_env%mixing_method.EQ.ao_mixing_nr) THEN
           CALL scf_env_density_mixing(scf_env%p_mix_new,scf_env%mixing_method,&
-                                      scf_env%p_mix,scf_env%iter_delta,&
-                                      qs_env=qs_env,error=error)
+                         scf_env%p_mix,scf_env%iter_delta, qs_env=qs_env,error=error)
        ENDIF
 
        t2 = m_walltime()
@@ -722,7 +615,7 @@ CONTAINS
           CALL harris_postprocessing(harris_env, error=error)
        END IF
 
-! ** convergence check
+       ! ** can we exit the SCF loop  ?
        CALL external_control(should_stop,"SCF",globenv,error)
        IF (scf_env%iter_delta < scf_control%eps_scf) THEN
           IF (output_unit>0) THEN
@@ -740,7 +633,7 @@ CONTAINS
           EXIT scf_loop
        END IF
 
-!   *** Write restart file ***
+       ! ** Write restart file **
        IF (scf_control%write_restart_each>0.AND.&
             MODULO(scf_env%iter_count,scf_control%write_restart_each)==0) THEN
           CALL write_mo_set(mos,atomic_kind_set,particle_set,globenv,&
@@ -750,7 +643,7 @@ CONTAINS
        IF (.NOT.BTEST(cp_print_key_should_output(logger%iter_info,&
             scf_section,"PRINT%ITERATION_INFO/TIME_CUMUL",error=error),cp_p_file)) t1 = m_walltime()  
 
-!   *** mixing methods have the new density matrix in p_mix_new
+       ! ** mixing methods have the new density matrix in p_mix_new **
        IF (scf_env%mixing_method.EQ.ao_mixing_nr) THEN
            DO ispin=1,dft_control%nspins
               CALL transfer_matrix(scf_env%p_mix_new(ispin)%matrix,&
@@ -908,6 +801,221 @@ CONTAINS
 
   END SUBROUTINE scf_env_do_scf
 
+!!****f* qs_scf/qs_scf_loop_do_general_diag *
+!!
+!!   NAME
+!!      qs_scf_loop_do_general_diag
+!!
+!!   FUNCTION
+!!      the inner loop of scf, specific to diagonalization with S matrix
+!!      basically, in goes the ks matrix out goes a new p matrix
+!!
+!!   NOTES
+!!
+!!   INPUTS
+!!
+!!   MODIFICATION HISTORY
+!!     03.2006 created [Joost VandeVondele]
+!!
+!!*** **********************************************************************
+SUBROUTINE qs_scf_loop_do_general_diag(scf_env,mos,rho,matrix_ks,matrix_s,scf_control,scf_section, &
+                                       diis_step,use_jacobi,error)
+
+    TYPE(qs_scf_env_type), POINTER           :: scf_env
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mos
+    TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks, matrix_s
+    TYPE(scf_control_type), POINTER          :: scf_control
+    TYPE(section_vals_type), POINTER         :: scf_section
+    LOGICAL, INTENT(INOUT)                   :: diis_step, use_jacobi
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    INTEGER                                  :: ispin
+    LOGICAL                                  :: do_level_shift
+    REAL(kind=dp)                            :: diis_error
+
+   DO ispin=1,SIZE(matrix_ks)
+    CALL copy_sm_to_fm(matrix_ks(ispin)%matrix,scf_env%scf_work1(ispin)%matrix)
+   ENDDO
+
+   IF (scf_env%iter_count > 1) THEN
+      CALL qs_diis_b_step(scf_env%scf_diis_buffer,mos,scf_env%scf_work1,&
+           scf_env%scf_work2,scf_env%iter_delta,diis_error,diis_step,&
+           scf_control%eps_diis,s_matrix=matrix_s,scf_section=scf_section,&
+           error=error)
+   END IF
+
+   do_level_shift = ((scf_control%level_shift /= 0.0_dp).AND.&
+      ((scf_control%density_guess == core_guess).OR.(scf_env%iter_count > 1)))
+
+   IF (diis_step) THEN
+      scf_env%p_mix = 1.0_dp
+      scf_env%iter_param = diis_error
+      IF (use_jacobi) THEN
+         scf_env%iter_method = "DIIS/Jacobi"
+      ELSE
+         scf_env%iter_method = "DIIS/Diag."
+      END IF
+   ELSE
+      IF (use_jacobi) THEN
+         scf_env%iter_method = "Mixing/Jacobi"
+      ELSE
+         scf_env%iter_method = "Mixing/Diag."
+      END IF
+   END IF
+
+   IF ((scf_env%iter_count > 1).AND.(scf_env%iter_delta < scf_control%eps_jacobi)) THEN
+      use_jacobi = .TRUE.
+   ELSE
+      use_jacobi = .FALSE.
+   END IF
+
+   scf_env%iter_delta=0.0_dp
+
+   DO ispin=1,SIZE(matrix_ks)
+
+      CALL eigensolver(scf_env%scf_work1(ispin)%matrix, mos(ispin)%mo_set,scf_env%ortho,&
+           scf_env%scf_work2,&
+           do_level_shift,scf_control%level_shift,&
+           use_cholesky=scf_control%use_cholesky,&
+           work_syevx=scf_control%work_syevx,&
+           use_jacobi=use_jacobi,&
+           jacobi_threshold=scf_control%jacobi_threshold,&
+           smear=scf_control%smear, &
+           error=error)
+
+      CALL calculate_density_matrix(mos(ispin)%mo_set,&
+           scf_env%p_mix_new(ispin)%matrix,error=error)
+
+   ENDDO
+
+END SUBROUTINE qs_scf_loop_do_general_diag
+
+!!****f* qs_scf/qs_scf_loop_do_special_diag *
+!!
+!!   NAME
+!!      qs_scf_loop_do_special_diag
+!!
+!!   FUNCTION
+!!      the inner loop of scf, specific to diagonalization without S matrix
+!!      basically, in goes the ks matrix out goes a new p matrix
+!!
+!!   NOTES
+!!
+!!   INPUTS
+!!
+!!   MODIFICATION HISTORY
+!!     03.2006 created [Joost VandeVondele]
+!!
+!!*** **********************************************************************
+SUBROUTINE qs_scf_loop_do_special_diag(scf_env,mos,rho,matrix_ks,scf_control,scf_section, &
+                                       diis_step,error)
+
+    TYPE(qs_scf_env_type), POINTER           :: scf_env
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mos
+    TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks
+    TYPE(scf_control_type), POINTER          :: scf_control
+    TYPE(section_vals_type), POINTER         :: scf_section
+    LOGICAL, INTENT(INOUT)                   :: diis_step
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    INTEGER                                  :: ispin
+    LOGICAL                                  :: do_level_shift
+    REAL(kind=dp)                            :: diis_error
+
+   DO ispin=1,SIZE(matrix_ks)
+     CALL copy_sm_to_fm(matrix_ks(ispin)%matrix,scf_env%scf_work1(ispin)%matrix)
+   ENDDO
+   IF (scf_env%iter_count > 1) THEN
+      CALL qs_diis_b_step(scf_env%scf_diis_buffer,mos,scf_env%scf_work1,&
+           scf_env%scf_work2,scf_env%iter_delta,diis_error,diis_step,&
+           scf_control%eps_diis,scf_section=scf_section,error=error)
+   END IF
+   do_level_shift = ((scf_control%level_shift /= 0.0_dp).AND.&
+      ((scf_control%density_guess == core_guess).OR.(scf_env%iter_count > 1)))
+   IF (diis_step) THEN
+      scf_env%p_mix = 1.0_dp
+      scf_env%iter_param = diis_error
+      scf_env%iter_method = "DIIS/Diag."
+   ELSE
+      scf_env%iter_method = "Mixing/Diag."
+   END IF
+   scf_env%iter_delta=0.0_dp
+   DO ispin=1,SIZE(matrix_ks)
+      CALL simple_eigensolver(scf_env%scf_work1(ispin)%matrix,&
+           mos(ispin)%mo_set,do_level_shift,scf_control%level_shift,&
+           work_syevx=scf_control%work_syevx,&
+           smear=scf_control%smear,error=error)
+      CALL calculate_density_matrix(mos(ispin)%mo_set,&
+           scf_env%p_mix_new(ispin)%matrix,error=error)
+   ENDDO
+
+END SUBROUTINE qs_scf_loop_do_special_diag
+
+!!****f* qs_scf/qs_scf_loop_do_ot *
+!!
+!!   NAME
+!!      qs_scf_loop_do_ot
+!!
+!!   FUNCTION
+!!      the inner loop of scf, specific to using to the orbital transformation method
+!!      basically, in goes the ks matrix out goes a new p matrix
+!!
+!!   NOTES
+!!
+!!   INPUTS
+!!
+!!   MODIFICATION HISTORY
+!!     03.2006 created [Joost VandeVondele]
+!!
+!!*** **********************************************************************
+SUBROUTINE qs_scf_loop_do_ot(scf_env,mos,rho,mo_derivs,energy,matrix_s,energy_only,has_unit_metric,error)
+    TYPE(qs_scf_env_type), POINTER           :: scf_env
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mos
+    TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: mo_derivs
+    TYPE(qs_energy_type), POINTER            :: energy
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s
+    LOGICAL, INTENT(OUT)                     :: energy_only
+    LOGICAL, INTENT(IN)                      :: has_unit_metric
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    INTEGER                                  :: ispin
+    TYPE(real_matrix_type), POINTER          :: orthogonality_metric
+
+! in case of LSD the first spin qs_ot_env will drive the minimization
+! in the case of a restricted calculation, it will make sure the spin orbitals are equal
+
+   IF (has_unit_metric) THEN
+      NULLIFY(orthogonality_metric)
+   ELSE
+      orthogonality_metric=>matrix_s(1)%matrix
+   ENDIF
+
+   CALL ot_scf_mini(mos,mo_derivs,orthogonality_metric, &
+                    energy%total, energy_only,scf_env%iter_delta, &
+                    scf_env%qs_ot_env)
+
+   DO ispin=1,SIZE(mos)
+      CALL calculate_density_matrix(mos(ispin)%mo_set,&
+            rho%rho_ao(ispin)%matrix,error=error)
+   ENDDO
+
+   scf_env%iter_method=scf_env%qs_ot_env(1)%OT_METHOD_FULL
+   scf_env%iter_param=scf_env%qs_ot_env(1)%ds_min
+
+END SUBROUTINE qs_scf_loop_do_ot
 
 !!****f* qs_scf/qs_scf_loop_print *
 !!
