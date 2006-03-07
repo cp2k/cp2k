@@ -257,8 +257,10 @@ CONTAINS
           WRITE ( iw, '( A )')'          ----------------------------------------------------------------------'
           WRITE ( iw, '( A,T71,I10)' )      ' METAVARS| Collective Variable Number',meta_env%metavar(i)%icolvar
           WRITE ( iw, '( A,T71,I10)' )      ' METAVARS| Subsys',meta_env%metavar(i)%isubsys
-          WRITE ( iw, '( A,T71,F10.6)' )    ' METAVARS| Lambda Parameter',meta_env%metavar(i)%lambda
-          WRITE ( iw, '( A,T66,F15.6)' )    ' METAVARS| Collective Variable Mass',meta_env%metavar(i)%mass
+          IF (meta_env%extended_lagrange) THEN
+             WRITE ( iw, '( A,T71,F10.6)' )    ' METAVARS| Lambda Parameter',meta_env%metavar(i)%lambda
+             WRITE ( iw, '( A,T66,F15.6)' )    ' METAVARS| Collective Variable Mass',meta_env%metavar(i)%mass
+          END IF
           WRITE ( iw, '( A,T71,F10.6)' )    ' METAVARS| Scaling factor',meta_env%metavar(i)%delta_s
           IF (meta_env%metavar(i)%do_wall_p) &
                WRITE ( iw, '( A,T61,F12.6)' )    ' METAVARS| Upper Wall Height',meta_env%metavar(i)%wall_p
@@ -311,8 +313,7 @@ CONTAINS
     failure=.FALSE.
     CALL section_vals_val_get(metavar_section,"SUBSYS",i_rep_section=icol,i_val=metavar%isubsys,error=error)
     CALL section_vals_val_get(metavar_section,"COLVAR",i_rep_section=icol,i_val=metavar%icolvar,error=error)
-    CALL section_vals_val_get(metavar_section,"MASS",i_rep_section=icol,r_val=metavar%mass,error=error)
-    CALL section_vals_val_get(metavar_section,"SCALE",i_rep_section=icol,r_val=metavar%delta_s,error=error)
+    !
     CALL section_vals_val_get(metavar_section,"WALL_PLUS",i_rep_section=icol,n_rep_val=n_rep,error=error)
     IF (n_rep /= 0) THEN
        metavar%do_wall_p=.TRUE.
@@ -323,17 +324,18 @@ CONTAINS
        metavar%do_wall_m=.TRUE.
        CALL section_vals_val_get(metavar_section,"WALL_MINUS",i_rep_section=icol,r_val=metavar%wall_m,error=error)
     END IF
-    CALL section_vals_val_get(metavar_section,"LAMBDA",i_rep_section=icol,r_val=metavar%lambda,error=error)
+    CALL section_vals_val_get(metavar_section,"SCALE",i_rep_section=icol,r_val=metavar%delta_s,error=error)
     !
     ! Check Input Inconsistencies..
     !
     IF(extended_lagrange)THEN
-       CALL section_vals_val_get(metavar_section,"MASS",i_rep_section=icol,  n_rep_val=n_rep, error=error)
+       CALL section_vals_val_get(metavar_section,"MASS",i_rep_section=icol,n_rep_val=n_rep, error=error)
        CPPostcondition(n_rep /= 0,cp_failure_level,routinep,error,failure)
-       CALL section_vals_val_get(metavar_section,"SCALE",i_rep_section=icol, n_rep_val=n_rep, error=error)
-       CPPostcondition(n_rep /= 0,cp_failure_level,routinep,error,failure)
+       CALL section_vals_val_get(metavar_section,"MASS",i_rep_section=icol,r_val=metavar%mass,error=error)
+       !
        CALL section_vals_val_get(metavar_section,"LAMBDA",i_rep_section=icol, n_rep_val=n_rep, error=error)
        CPPostcondition(n_rep /= 0,cp_failure_level,routinep,error,failure)
+       CALL section_vals_val_get(metavar_section,"LAMBDA",i_rep_section=icol,r_val=metavar%lambda,error=error)
     ENDIF
 
   END SUBROUTINE metavar_read

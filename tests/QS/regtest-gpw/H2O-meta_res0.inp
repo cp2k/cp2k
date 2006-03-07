@@ -80,15 +80,11 @@
     NT_HILLS 1
     WW 1.0e-3
     &METAVAR
-      LAMBDA 0.1
-      MASS 10.0
       SCALE 0.02
       COLVAR 1
       SUBSYS 1
     &END METAVAR
     &METAVAR
-      LAMBDA 0.1
-      MASS 10.0
       SCALE 0.02
       COLVAR 2
       SUBSYS 1

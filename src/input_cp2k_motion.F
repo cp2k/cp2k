@@ -996,7 +996,7 @@ CONTAINS
             description="Specifies the mass parameter of the collective variable in the"//&
             " extended lagrangian scheme.",&
             usage="MASS {real}",unit_str='amu',&
-            default_r_val=0.0_dp,error=error)
+            type_of_var=real_t,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
