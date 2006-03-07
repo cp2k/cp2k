@@ -120,7 +120,9 @@ MODULE sparse_matrix_types
             cp_sm_set,&
             cp_sm_sm_trace,&
             cp_sm_get_block_list,& 
-            cp_sm_maxabsval
+            cp_sm_maxabsval,&
+            create_dbm_from_sm,&
+            deallocate_dbm_from_sm
 
 ! *** Public functions ***
 
@@ -1661,7 +1663,8 @@ END SUBROUTINE cp_sm_scale_and_add
 
 ! *****************************************************************************
 
-  SUBROUTINE put_real_block_node(block_node,matrix,block_row,block_col,BLOCK)
+  SUBROUTINE put_real_block_node(block_node,matrix,block_row,block_col,BLOCK,&
+                                 add)
 
 !   Purpose: Set block node data set.
 
@@ -1675,13 +1678,21 @@ END SUBROUTINE cp_sm_scale_and_add
     INTEGER, INTENT(IN), OPTIONAL            :: block_col
     REAL(KIND=dp), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: BLOCK
+    LOGICAL, INTENT(IN), OPTIONAL            :: add
 
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "SUBROUTINE put_real_block_node (MODULE sparse_matrix_types)"
 
     INTEGER                                  :: ncol, nrow
+    LOGICAL                                  :: add_block
 
 !   ---------------------------------------------------------------------------
+
+    IF (PRESENT(add)) THEN
+      add_block = add
+    ELSE
+      add_block = .FALSE.
+    END IF
 
     IF (PRESENT(block_col)) block_node%block_col = block_col
 
@@ -1693,7 +1704,11 @@ END SUBROUTINE cp_sm_scale_and_add
       IF (PRESENT(BLOCK)) THEN
         IF (ASSOCIATED(BLOCK)) THEN
           IF ((SIZE(BLOCK,1) == nrow).AND.(SIZE(BLOCK,2) == ncol)) THEN
-            block_node%block(:,:) = BLOCK(:,:)
+            IF ( add_block ) THEN
+              block_node%block(:,:) = block_node%block(:,:) + BLOCK(:,:)
+            ELSE
+              block_node%block(:,:) = BLOCK(:,:)
+            END IF
           ELSE
             CALL stop_program(routine,"Incompatible block dimensions")
           END IF
@@ -1708,7 +1723,7 @@ END SUBROUTINE cp_sm_scale_and_add
 
 ! *****************************************************************************
 
-  SUBROUTINE put_real_matrix_block(matrix,block_row,block_col,BLOCK)
+  SUBROUTINE put_real_matrix_block(matrix,block_row,block_col,BLOCK,add)
 
 !   Purpose: Allocate and initialize a new block node or update an existing
 !            block node.
@@ -1721,14 +1736,22 @@ END SUBROUTINE cp_sm_scale_and_add
     INTEGER, INTENT(IN)                      :: block_row, block_col
     REAL(KIND=dp), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: BLOCK
+    LOGICAL, OPTIONAL, INTENT(IN)            :: add
 
     CHARACTER(LEN=*), PARAMETER :: routine = &
       "SUBROUTINE put_real_matrix_block (MODULE sparse_matrix_types)"
 
     INTEGER                                  :: ncol, nrow
     TYPE(real_block_node_type), POINTER      :: block_node
+    LOGICAL                                  :: add_block
 
 !   ---------------------------------------------------------------------------
+    IF ( PRESENT (add) ) THEN
+      add_block = add
+    ELSE
+      add_block = .FALSE.
+    ENDIF
+
 !   *** Check, if the requested block node already exists ***
 
     block_node => find_real_block_node(matrix,block_row,block_col)
@@ -1745,7 +1768,11 @@ END SUBROUTINE cp_sm_scale_and_add
       IF (PRESENT(BLOCK)) THEN
         IF (ASSOCIATED(BLOCK)) THEN
           IF ((SIZE(BLOCK,1) == nrow).AND.(SIZE(BLOCK,2) == ncol)) THEN
-            block_node%block(:,:) = BLOCK(:,:)
+            IF ( add_block ) THEN
+              block_node%block(:,:) = block_node%block(:,:) + BLOCK(:,:)
+            ELSE
+              block_node%block(:,:) = BLOCK(:,:)
+            END IF
           ELSE
             CALL stop_program(routine,"Incompatible block dimensions")
           END IF
@@ -2762,6 +2789,133 @@ SUBROUTINE cp_sm_sm_trace_vector(matrix1, matrix2, trace_vec, para_env, error)
   CALL mp_sum(trace_vec, para_env%group)
 
 END SUBROUTINE cp_sm_sm_trace_vector
+
+!***************************************************************************
+
+SUBROUTINE create_dbm_from_sm(dbm,sm,matrix_name,copy_in,para_env)
+
+!   Purpose: Create a diagonal block matrix from a real sparse matrix
+!            same structure.
+!   ***************************************************************************
+
+    TYPE(real_matrix_type), POINTER            :: dbm, sm
+    CHARACTER(LEN=*), INTENT(IN)               :: matrix_name
+    LOGICAL, INTENT(IN)                        :: copy_in
+    TYPE(cp_para_env_type),OPTIONAL,INTENT(IN) :: para_env
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_dbm_from_sm', &
+      routineP = moduleN//':'//routineN
+
+    TYPE(real_block_node_type), POINTER      :: block_node
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: block
+    INTEGER                                  :: iblock_row, iblock_col
+    INTEGER                                  :: handle
+!   ---------------------------------------------------------------------------
+
+    CALL timeset(routineN,"I","",handle)
+
+    CALL allocate_matrix(matrix=dbm,&
+                         nblock_row=sm%nblock_row,&
+                         nblock_col=sm%nblock_col,&
+                         nrow=sm%nrow,&
+                         ncol=sm%ncol,&
+                         first_row=sm%first_row,&
+                         last_row=sm%last_row,&
+                         first_col=sm%first_col,&
+                         last_col=sm%last_col,&
+                         matrix_name=matrix_name,&
+                         matrix_symmetry="symmetric",&
+                         sparsity_id=1111)
+
+    DO iblock_row = 1, sm%nblock_row
+       CALL add_block_node(matrix=dbm,&
+                           block_row=iblock_row,&
+                           block_col=iblock_row)
+    END DO
+
+    IF ( copy_in ) THEN
+
+      DO iblock_row=1,sm%nblock_row
+        block_node => first_block_node(sm,iblock_row)
+        DO WHILE (ASSOCIATED(block_node))
+          NULLIFY(block)
+          CALL get_block_node(block_node=block_node,&
+                              block_col=iblock_col,&
+                              block=block)
+          IF (iblock_row == iblock_col) THEN
+            CALL put_block_node(dbm,iblock_row,iblock_row,block)
+          END IF
+          block_node => next_block_node(block_node)
+        END DO
+      END DO
+      IF ( PRESENT(para_env) ) THEN
+        DO iblock_row=1,dbm%nblock_row
+          NULLIFY(block)
+          CALL get_block_node(matrix=dbm,&
+                              block_row=iblock_row,block_col=iblock_row,&
+                              BLOCK=block)
+          CALL mp_sum(block,para_env%group)
+        END DO
+      END IF
+
+    END IF
+
+    CALL timestop(0.0_dp,handle)
+
+END SUBROUTINE create_dbm_from_sm
+
+!***************************************************************************
+SUBROUTINE deallocate_dbm_from_sm(dbm,sm,copy_out,para_env)
+
+!   Purpose: Deallocate a diagonal block matrix 
+!   ***************************************************************************
+
+    TYPE(real_matrix_type), POINTER            :: dbm, sm
+    LOGICAL, INTENT(IN)                        :: copy_out
+    TYPE(cp_para_env_type),OPTIONAL,INTENT(IN) :: para_env
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_dbm_from_sm', &
+      routineP = moduleN//':'//routineN
+
+    TYPE(real_block_node_type), POINTER      :: block_node
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: block
+    INTEGER                                  :: iblock_row, iblock_col, handle
+!   ---------------------------------------------------------------------------
+
+  CALL timeset(routineN,"I","",handle)
+
+  IF ( copy_out ) THEN
+     IF ( PRESENT(para_env) ) THEN
+        DO iblock_row=1,dbm%nblock_row
+          NULLIFY(block)
+          CALL get_block_node(matrix=dbm,&
+                              block_row=iblock_row,block_col=iblock_row,&
+                              BLOCK=block)
+          CALL mp_sum(block,para_env%group)
+        END DO
+      END IF
+      DO iblock_row=1,sm%nblock_row
+        block_node => first_block_node(sm,iblock_row)
+        DO WHILE (ASSOCIATED(block_node))
+          CALL get_block_node(block_node=block_node,&
+                              block_col=iblock_col)
+          IF (iblock_row == iblock_col) THEN
+            CALL get_block_node(matrix=dbm,&
+                                block_row=iblock_row,block_col=iblock_row,&
+                                BLOCK=block)
+            CALL put_block_node(sm,iblock_row,iblock_row,block,.TRUE.)
+          END IF
+          block_node => next_block_node(block_node)
+        END DO
+      END DO
+  END IF
+
+  CALL deallocate_matrix(dbm)
+
+  CALL timestop(0.0_dp,handle)
+
+END SUBROUTINE deallocate_dbm_from_sm
+
 !***************************************************************************
 
 END MODULE sparse_matrix_types

@@ -216,7 +216,7 @@ CONTAINS
                                 element=fm_matrix_h, name="Full H-Matrix", error=error)
 
          CALL copy_sm_to_fm(real_matrix=tbmd_env%matrix_h, fm=fm_matrix_h, error=error)
-         CALL simple_eigensolver(matrix_ks=fm_matrix_h, mo_set=mos, &
+         CALL simple_eigensolver(matrix_ks=fm_matrix_h, mo_set=mos, work=fm_matrix_work,&
                                  do_level_shift=.FALSE., level_shift=0.0_dp, &
                                  work_syevx=1.0_dp, smear=0.0_dp, error=error)
       ELSE

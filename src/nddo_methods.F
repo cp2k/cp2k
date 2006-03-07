@@ -104,11 +104,14 @@ MODULE nddo_methods
   USE semi_empirical_utils,            ONLY: contract,&
                                              expand,&
                                              get_se_param
-  USE sparse_matrix_types,             ONLY: cp_sm_scale_and_add,&
+  USE sparse_matrix_types,             ONLY: allocate_matrix_set,&
+                                             cp_sm_scale_and_add,&
                                              cp_sm_sm_trace,&
                                              get_block_node,&
                                              real_matrix_p_type,&
-                                             transfer_matrix
+                                             transfer_matrix,&
+                                             create_dbm_from_sm,&
+                                             deallocate_dbm_from_sm
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: get_limit
@@ -193,6 +196,8 @@ CONTAINS
       POINTER                                :: force
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_h, matrix_p
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: diagmat_ks, diagmat_p
     TYPE(section_vals_type), POINTER         :: scf_section
     TYPE(semi_empirical_type), POINTER       :: se_kind_a, se_kind_b
 
@@ -200,6 +205,7 @@ CONTAINS
 
     failure=.FALSE.
     NULLIFY(matrix_h,matrix_p,dft_control,cell,force,particle_set,logger,scf_section)
+    NULLIFY(diagmat_ks,diagmat_p)
 
     CALL timeset(routineN,"I","",handle)
 
@@ -223,6 +229,8 @@ CONTAINS
 
     IF ( .NOT. failure ) THEN
 
+       CALL allocate_matrix_set(diagmat_ks,nspins)
+       CALL allocate_matrix_set(diagmat_p,nspins)
        DO ispin=1,nspins
           ! copy the core matrix into the fock matrix
           CALL transfer_matrix(matrix_h(1)%matrix,ks_matrix(ispin)%matrix)
@@ -247,6 +255,14 @@ CONTAINS
          CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                                   atom_of_kind=atom_of_kind)
        END IF
+
+       DO ispin=1,nspins
+          ! Allocate diagonal block matrices
+          CALL create_dbm_from_sm(diagmat_p(ispin)%matrix,matrix_p(ispin)%matrix,&
+                             "DIAGONAL BLOCK P MATRIX",.TRUE.,para_env)
+          CALL create_dbm_from_sm(diagmat_ks(ispin)%matrix,ks_matrix(ispin)%matrix,&
+                             "DIAGONAL BLOCK KS MATRIX",.FALSE.)
+       END DO
 
        DO ikind=1,nkind
           atomic_kind => atomic_kind_set(ikind)
@@ -291,24 +307,24 @@ CONTAINS
 
                CPPrecondition(nspins<3,cp_failure_level,routineP,error,failure)
                IF ( nspins >= 1 ) THEN
-                 CALL get_block_node(matrix=matrix_p(1)%matrix,&
+                 CALL get_block_node(matrix=diagmat_p(1)%matrix,&
                                      block_row=iatom,&
                                      block_col=iatom,&
                                      BLOCK=pa_block_a)
                  CPPostcondition(ASSOCIATED(pa_block_a),cp_failure_level,routineP,error,failure)
-                 CALL get_block_node(matrix=ks_matrix(1)%matrix,&
+                 CALL get_block_node(matrix=diagmat_ks(1)%matrix,&
                                      block_row=iatom,&
                                      block_col=iatom,&
                                      BLOCK=ksa_block_a)
                  CPPostcondition(ASSOCIATED(ksa_block_a),cp_failure_level,routineP,error,failure)
                END IF
                IF ( nspins >= 2 ) THEN
-                 CALL get_block_node(matrix=matrix_p(2)%matrix,&
+                 CALL get_block_node(matrix=diagmat_p(2)%matrix,&
                                      block_row=iatom,&
                                      block_col=iatom,&
                                      BLOCK=pa_block_b)
                  CPPostcondition(ASSOCIATED(pa_block_b),cp_failure_level,routineP,error,failure)
-                 CALL get_block_node(matrix=ks_matrix(2)%matrix,&
+                 CALL get_block_node(matrix=diagmat_ks(2)%matrix,&
                                      block_row=iatom,&
                                      block_col=iatom,&
                                      BLOCK=ksa_block_b)
@@ -332,24 +348,24 @@ CONTAINS
 
                    CPPrecondition(nspins<3,cp_failure_level,routineP,error,failure)
                    IF ( nspins >= 1 ) THEN
-                     CALL get_block_node(matrix=matrix_p(1)%matrix,&
+                     CALL get_block_node(matrix=diagmat_p(1)%matrix,&
                                          block_row=jatom,&
                                          block_col=jatom,&
                                          BLOCK=pb_block_a)
                      CPPostcondition(ASSOCIATED(pb_block_a),cp_failure_level,routineP,error,failure)
-                     CALL get_block_node(matrix=ks_matrix(1)%matrix,&
+                     CALL get_block_node(matrix=diagmat_ks(1)%matrix,&
                                          block_row=jatom,&
                                          block_col=jatom,&
                                          BLOCK=ksb_block_a)
                      CPPostcondition(ASSOCIATED(ksb_block_a),cp_failure_level,routineP,error,failure)
                    END IF
                    IF ( nspins >= 2 ) THEN
-                     CALL get_block_node(matrix=matrix_p(2)%matrix,&
+                     CALL get_block_node(matrix=diagmat_p(2)%matrix,&
                                          block_row=jatom,&
                                          block_col=jatom,&
                                          BLOCK=pb_block_b)
                      CPPostcondition(ASSOCIATED(pb_block_b),cp_failure_level,routineP,error,failure)
-                     CALL get_block_node(matrix=ks_matrix(2)%matrix,&
+                     CALL get_block_node(matrix=diagmat_ks(2)%matrix,&
                                          block_row=jatom,&
                                          block_col=jatom,&
                                          BLOCK=ksb_block_b)
@@ -455,9 +471,15 @@ CONTAINS
 
        END DO ! ikind
 
-       IF (calculate_forces) THEN
-          DEALLOCATE(atom_of_kind)
-       ENDIF
+       DO ispin = 1, nspins
+          CALL deallocate_dbm_from_sm(diagmat_p(ispin)%matrix,&
+                                      matrix_p(1)%matrix,.FALSE.)
+          CALL deallocate_dbm_from_sm(diagmat_ks(ispin)%matrix,&
+                                      ks_matrix(ispin)%matrix,.TRUE.,para_env)
+       END DO
+       DEALLOCATE(diagmat_ks,diagmat_p)
+
+       IF (calculate_forces) DEALLOCATE(atom_of_kind)
 
        IF (ewald) THEN
          ! calculate Coulomb long range forces

@@ -867,7 +867,8 @@ SUBROUTINE qs_scf_loop_do_special_diag(scf_env,mos,rho,matrix_ks,scf_control,scf
    scf_env%iter_delta=0.0_dp
    DO ispin=1,SIZE(matrix_ks)
       CALL simple_eigensolver(scf_env%scf_work1(ispin)%matrix,&
-           mos(ispin)%mo_set,do_level_shift,scf_control%level_shift,&
+           mos(ispin)%mo_set,scf_env%scf_work2,&
+           do_level_shift,scf_control%level_shift,&
            work_syevx=scf_control%work_syevx,&
            smear=scf_control%smear,error=error)
       CALL calculate_density_matrix(mos(ispin)%mo_set,&
@@ -1833,7 +1834,7 @@ END SUBROUTINE qs_scf_print_summary
        DO ispin=1,nspin
           IF(ortho_basis) THEN
             CALL simple_eigensolver(work1(ispin)%matrix,mo_array(ispin)%mo_set,&
-                 .FALSE.,0.0_dp,work_syevx=scf_control%work_syevx,&
+                 work2,.FALSE.,0.0_dp,work_syevx=scf_control%work_syevx,&
                  smear=0.0_dp,error=error)
           ELSE
             CALL eigensolver(work1(ispin)%matrix,mo_array(ispin)%mo_set,ortho,work2, &

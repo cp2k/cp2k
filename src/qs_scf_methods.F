@@ -330,11 +330,12 @@ CONTAINS
   END SUBROUTINE eigensolver
 
 ! *****************************************************************************
-  SUBROUTINE simple_eigensolver(matrix_ks,mo_set,do_level_shift,level_shift,&
-             work_syevx,smear,error)
+  SUBROUTINE simple_eigensolver(matrix_ks,mo_set,work,&
+             do_level_shift,level_shift,work_syevx,smear,error)
 
     TYPE(cp_fm_type), POINTER                :: matrix_ks
     TYPE(mo_set_type), POINTER               :: mo_set
+    TYPE(cp_fm_type), POINTER                :: work
     LOGICAL, INTENT(IN)                      :: do_level_shift
     REAL(KIND=dp), INTENT(IN)                :: level_shift, work_syevx, smear
     TYPE(cp_error_type), INTENT(inout), &
@@ -372,7 +373,8 @@ CONTAINS
       END DO
     END IF
 
-    CALL cp_fm_syevx(matrix_ks,mo_coeff,mo_eigenvalues,nmo,work_syevx)
+    CALL cp_fm_syevx(matrix_ks,work,mo_eigenvalues,nmo,work_syevx)
+    CALL cp_fm_to_fm(work,mo_coeff,nmo,1,1)
 
     IF (do_level_shift) THEN
       CALL correct_mo_eigenvalues(mo_set,level_shift)

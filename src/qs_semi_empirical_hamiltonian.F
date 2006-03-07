@@ -26,10 +26,13 @@ MODULE qs_semi_empirical_hamiltonian
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp
+  USE message_passing,                 ONLY: mp_sum
   USE nddo_methods,                    ONLY: build_nddo_fock_matrix
-  USE particle_types,                  ONLY: particle_type
+  USE particle_types,                  ONLY: get_particle_set,&
+                                             particle_type
   USE physcon,                         ONLY: evolt
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
@@ -51,12 +54,19 @@ MODULE qs_semi_empirical_hamiltonian
                                              expand,&
                                              get_se_param,&
                                              get_se_type
-  USE sparse_matrix_types,             ONLY: allocate_matrix_set,&
+  USE sparse_matrix_types,             ONLY: add_block_node,&
+                                             allocate_matrix_set,&
+                                             allocate_matrix,&
                                              cp_sm_scale_and_add,&
+                                             deallocate_matrix,&
                                              get_block_node,&
                                              real_matrix_p_type,&
-                                             replicate_matrix_structure
-  USE termination,                     ONLY: stop_program
+                                             real_matrix_type,&
+                                             replicate_matrix_structure,&
+                                             create_dbm_from_sm,&
+                                             deallocate_dbm_from_sm
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -88,7 +98,7 @@ CONTAINS
 
     INTEGER :: atom_a, atom_b, i, iab, iatom, icol, icor, ikind, ilist, &
       inode, irow, istat, itype, iw, j, jatom, jkind, natom, natorb_a, &
-      natorb_b, nkind, nlist, nnode
+      natorb_b, nkind, nlist, nnode, nsgf
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
     LOGICAL                                  :: defined, failure
     REAL(KIND=dp)                            :: delta, econst, eheat, eisol, &
@@ -120,12 +130,16 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_h, matrix_p, matrix_s
     TYPE(semi_empirical_type), POINTER       :: se_kind_a, se_kind_b
+    TYPE(real_matrix_type), POINTER          :: diagmat_h, diagmat_p
+    INTEGER, DIMENSION(:), ALLOCATABLE       :: first_sgf,last_sgf
+    Type(cp_para_env_type), Pointer          :: para_env
+
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
 
      NULLIFY ( matrix_h,matrix_s,matrix_p,rho,force,atomic_kind_set,sab_orb,&
-               particle_set )
+               diagmat_h,diagmat_p,particle_set )
 
      ! calculate overlap matrix
      IF(calculate_forces) THEN
@@ -138,7 +152,8 @@ CONTAINS
                      matrix_h=matrix_h,&
                      matrix_s=matrix_s,&
                      atomic_kind_set=atomic_kind_set,&
-                     dft_control=dft_control)
+                     dft_control=dft_control,&
+                     para_env=para_env)
 
      IF(calculate_forces) THEN
        CALL get_qs_env(qs_env=qs_env,&
@@ -156,6 +171,8 @@ CONTAINS
        delta = dft_control%qs_control%se_control%delta
        CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                                 atom_of_kind=atom_of_kind)
+       CALL create_dbm_from_sm(diagmat_p,matrix_p(1)%matrix,&
+                               "DIAGONAL BLOCK P MATRIX",.TRUE.,para_env)
      END IF
 
      ! Allocate the core Hamiltonian matrix
@@ -163,6 +180,10 @@ CONTAINS
      CALL replicate_matrix_structure(source=matrix_s(1)%matrix,&
                     TARGET=matrix_h(1)%matrix,&
                     target_name="CORE HAMILTONIAN MATRIX")
+
+     ! Allocate a diagonal block matrix
+     CALL create_dbm_from_sm(diagmat_h,matrix_s(1)%matrix,&
+                             "DIAGONAL BLOCK H MATRIX",.FALSE.)
 
      CALL get_qs_env(qs_env=qs_env,sab_orb=sab_orb)
 
@@ -243,13 +264,13 @@ CONTAINS
                CASE ("EHT")
                CASE ("MNDO","AM1","PM3")
                  NULLIFY(h_blocka)
-                 CALL get_block_node(matrix=matrix_h(1)%matrix,&
+                 CALL get_block_node(matrix=diagmat_h,&
                                      block_row=iatom,&
                                      block_col=iatom,&
                                      BLOCK=h_blocka)
                  CPPostcondition(ASSOCIATED(h_blocka),cp_failure_level,routineP,error,failure)
                  IF(calculate_forces) THEN
-                   CALL get_block_node(matrix=matrix_p(1)%matrix,&
+                   CALL get_block_node(matrix=diagmat_p,&
                                        block_row=iatom,&
                                        block_col=iatom,&
                                        BLOCK=pamat)
@@ -356,7 +377,7 @@ CONTAINS
                      enuclear = enuclear + enuc
                      ! one-centre one-electron terms
                      NULLIFY(h_blockb)
-                     CALL get_block_node(matrix=matrix_h(1)%matrix,&
+                     CALL get_block_node(matrix=diagmat_h,&
                                          block_row=jatom,&
                                          block_col=jatom,&
                                          BLOCK=h_blockb)
@@ -374,7 +395,7 @@ CONTAINS
                        CALL expand ( h_blockb, e2a )
                      END IF
                      IF(calculate_forces) THEN
-                       CALL get_block_node(matrix=matrix_p(1)%matrix,&
+                       CALL get_block_node(matrix=diagmat_p,&
                                            block_row=jatom,&
                                            block_col=jatom,&
                                            BLOCK=pbmat)
@@ -429,12 +450,15 @@ CONTAINS
 
      END DO ! ikind
 
+     CALL deallocate_dbm_from_sm(diagmat_h,matrix_h(1)%matrix,.TRUE.,para_env)
+
      CALL set_qs_env(qs_env=qs_env,matrix_h=matrix_h)
 
+     CALL mp_sum(enuclear,para_env%group)
      qs_env%energy%core_overlap = enuclear
      qs_env%energy%core_self    = econst
 
-    IF (BTEST(cp_print_key_should_output(logger%iter_info,&
+     IF (BTEST(cp_print_key_should_output(logger%iter_info,&
          qs_env%input,"DFT%PRINT%AO_MATRICES/CORE_HAMILTONIAN",error=error),cp_p_file)) THEN
        iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/CORE_HAMILTONIAN",&
             extension=".Log",error=error)
@@ -444,17 +468,13 @@ CONTAINS
             "DFT%PRINT%AO_MATRICES/CORE_HAMILTONIAN", error=error)
      END IF
 
-     !deallocate overlap matrix for orthogonal methods
-     IF ( dft_control%qs_control%se_control%orthogonal_basis ) THEN
-       !
-     END IF
-
      IF(calculate_forces) THEN
        IF (SIZE(matrix_p) == 2) THEN
           CALL cp_sm_scale_and_add(matrix_p(1)%matrix,1.0_dp,&
                matrix_p(2)%matrix,-1.0_dp)
        END IF
        DEALLOCATE(atom_of_kind)
+       CALL deallocate_dbm_from_sm(diagmat_p,matrix_p(1)%matrix,.FALSE.)
      END IF
 
   END SUBROUTINE build_se_core_matrix
