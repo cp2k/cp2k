@@ -133,6 +133,8 @@ MODULE md
      LOGICAL        :: restore_history
      LOGICAL        :: restore_momenta
      LOGICAL        :: semi_hybrid
+     LOGICAL        :: soft_start
+     LOGICAL        :: fill_wf_history
      INTEGER        :: md_method
      INTEGER        :: mc_method
   END TYPE simulation_parameters_type
@@ -230,6 +232,10 @@ CONTAINS
                simpar%restore_momenta
           WRITE ( iw, '( A,T75,L6,A )' ) ' HMC| SEMI_HYBRID ', &
                simpar%semi_hybrid
+          WRITE ( iw, '( A,T75,L6,A )' ) ' HMC| SOFT_START ', &
+               simpar%soft_start
+          WRITE ( iw, '( A,T75,L6,A )' ) ' HMC| FILL_WF_HISTORY ', &
+               simpar%fill_wf_history
 
           WRITE ( iw, '( A,T61,A )' ) ' HMC| MD Method ', &
                ADJUSTR ( method_name_types(simpar % md_method)(1:20))
@@ -493,6 +499,11 @@ CONTAINS
                l_val=simpar%restore_momenta, error=error)
           CALL section_vals_val_get(tmp_section, "SEMI_HYBRID", &
                l_val=simpar%semi_hybrid, error=error)
+          CALL section_vals_val_get(tmp_section, "SOFT_START", &
+               l_val=simpar%soft_start, error=error)
+          CALL section_vals_val_get(tmp_section, "FILL_WF_HISTORY", &
+               l_val=simpar%fill_wf_history, error=error)
+
           CALL section_vals_val_get(tmp_section, "MD_METHOD", &
                i_val=simpar%md_method, error=error)
           CALL section_vals_val_get(tmp_section, "MC_METHOD", &
@@ -578,6 +589,8 @@ CONTAINS
     simpar%restore_history = .TRUE.
     simpar%restore_momenta = .FALSE.
     simpar%semi_hybrid = .FALSE.
+    simpar%soft_start = .FALSE.
+    simpar%fill_wf_history = .TRUE.
     simpar%md_method = Harris_MD_method
     simpar%mc_method = Harris_MC_method
 

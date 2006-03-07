@@ -99,11 +99,12 @@ MODULE harris_metropolis_mc
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_mo_types,                     ONLY: read_mo_set
-!write_mo_set
   USE qs_wf_history_methods,           ONLY: wfi_duplicate_history
   USE qs_wf_history_types,             ONLY: qs_wf_history_type,&
                                              wfi_release,&
-                                             wfi_use_guess_method_nr
+                                             wfi_use_guess_method_nr, &
+                                             wfi_aspc, &
+                                             wfi_ps_method_nr
   USE termination,                     ONLY: external_control,&
                                              stop_memory
   USE timings,                         ONLY: timeset,&
@@ -224,6 +225,11 @@ CONTAINS
 !!                            approach is rejected.
 !!     - semi_hybrid: Results that the momenta are choosen at random, only in case 
 !!                    a MD approach is rejected.
+!!     - soft_start: Flushes the wavefunction history after each metropolis 
+!!                   criterion evaluation and iterates to convergence afterwards, 
+!!                   until it's refilled again.
+!!     - fill_wf_history: Iterates to convergence until the wavefunction 
+!!                        extrapolation pipeline is filled.
 !!     - md_method: Indicates which method is used for the MD approach.
 !!     - mc_method: Indicates according to which method the MC criterion is evaluated.
 !!     - error: variable to control error logging, stopping,... 
@@ -256,7 +262,7 @@ CONTAINS
     INTEGER, SAVE                            :: hmc
     LOGICAL :: accepted, ext_temp, failure, ionode, qs_ener, rand_vel, &
       restore_velocities, restore_wf_past, semi_hybrid, start_qs, tot_energy, &
-      use_harris_tmp, vel_scaling
+      use_harris_tmp, vel_scaling, soft_start, fill_wf_history
     REAL(KIND=dp) :: acceptance_rate, akin, denom, e_kinetic, Econs, &
       Ekin_new, Ekin_prev, Epot_new, Epot_prev, eps_default_tmp, eps_scf_tmp, &
       mass, md_run_start_time, new_ldmc_energy, prev_ldmc_energy, prob, &
@@ -366,6 +372,8 @@ CONTAINS
     restore_wf_past = simpar%restore_history
     restore_velocities = simpar%restore_momenta
     semi_hybrid = simpar%semi_hybrid
+    soft_start = simpar%soft_start
+    fill_wf_history = simpar%fill_wf_history
     md_method = simpar%md_method
     mc_method = simpar%mc_method
     motion_section => section_vals_get_subs_vals(globenv%input_file,"MOTION",error=error)
@@ -1046,7 +1054,9 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'harris_mc_md_approach', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ibead, iter, nbeads
+    INTEGER                                  :: handle, ibead, iter, nbeads, &
+                                                max_scf_tmp, &
+                                                max_scf_aspc_tmp
     INTEGER, POINTER                         :: itimes
     LOGICAL                                  :: should_stop
     REAL(KIND=dp)                            :: time_iter_start, &
@@ -1054,12 +1064,14 @@ CONTAINS
     REAL(KIND=dp), POINTER                   :: used_time
     TYPE(force_env_p_type), DIMENSION(:), &
       POINTER                                :: force_env_p
+    TYPE(qs_wf_history_type), POINTER        :: wf_history
+    TYPE(qs_environment_type), POINTER       :: qs_env
 
 !   ------------------------------------------------------------------------
 
     CALL timeset(routineN, "I", "", handle)
 
-    NULLIFY(force_env_p, itimes, used_time)
+    NULLIFY(force_env_p, itimes, used_time, wf_history, qs_env)
 
     CALL get_md_env(md_env, force_env_p=force_env_p, itimes=itimes, &
                     used_time=used_time)
@@ -1067,7 +1079,36 @@ CONTAINS
     time_iter_start=m_walltime()
     nbeads = SIZE(force_env_p)
 
+    qs_env => force_env_p(1)%force_env%qs_env
+    wf_history => qs_env%wf_history
+
+    max_scf_tmp = qs_env%scf_control%max_scf
+    max_scf_aspc_tmp = qs_env%scf_control%max_scf_aspc
+
     DO iter = 1, simpar%ld_steps
+      IF (simpar%soft_start) THEN
+        IF ((MIN(wf_history%memory_depth,wf_history%snapshot_count) &
+            >= iter)) THEN
+          qs_env%scf_control%max_scf = 1000
+          qs_env%scf_control%max_scf_aspc = 1000
+        ELSE
+          qs_env%scf_control%max_scf = max_scf_tmp
+          qs_env%scf_control%max_scf_aspc = max_scf_aspc_tmp
+        END IF
+      ELSE
+        IF (simpar%fill_wf_history) THEN
+          IF ((MIN(wf_history%memory_depth,wf_history%snapshot_count) &
+              > itimes)) THEN
+            !max_scf_tmp = qs_env%scf_control%max_scf
+            !max_scf_aspc_tmp = qs_env%scf_control%max_scf_aspc
+            qs_env%scf_control%max_scf = 1000
+            qs_env%scf_control%max_scf_aspc = 1000
+          ELSE
+            qs_env%scf_control%max_scf = max_scf_tmp
+            qs_env%scf_control%max_scf_aspc = max_scf_aspc_tmp
+          END IF
+        END IF
+      END IF
       itimes = itimes + 1
       CALL cp_iterate(logger%iter_info, last=.FALSE., &
                       iter_nr=itimes, error=error)

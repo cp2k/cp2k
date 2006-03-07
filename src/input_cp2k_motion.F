@@ -1780,7 +1780,7 @@ END SUBROUTINE create_nose_section
        CALL section_create(section,name="HMC",&
             description="This section specifies the parameters for the "//&
                         "Hybrid Metropolis Monte Carlo simulation",&
-            n_keywords=14, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=15, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
             error=error)
 
        NULLIFY(keyword)
@@ -1900,6 +1900,25 @@ END SUBROUTINE create_nose_section
             description="Results that the momenta are choosen at "//&
             "random, only in case a MD approach is rejected.", &
             usage="semi_hybrid TRUE", required=.FALSE., &
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., &
+            error=error)
+       CALL section_add_keyword(section, keyword, error=error)
+       CALL keyword_release(keyword, error=error)
+
+       CALL keyword_create(keyword, name="fill_wf_history", &
+            description="Iterates to convergence until the "//&
+            "wavefunction history pipeline is filled.", &
+            usage="fill_wf_history TRUE", required=.FALSE., &
+            default_l_val=.TRUE., lone_keyword_l_val=.TRUE., &
+            error=error)
+       CALL section_add_keyword(section, keyword, error=error)
+       CALL keyword_release(keyword, error=error)
+
+       CALL keyword_create(keyword, name="soft_start", &
+            description="Flushes the wavefunction history at each "//&
+            "metropolis criterion and iterates to convergence "//&
+            "afterwards until it's refilled again", &
+            usage="soft_start TRUE", required=.FALSE., &
             default_l_val=.FALSE., lone_keyword_l_val=.TRUE., &
             error=error)
        CALL section_add_keyword(section, keyword, error=error)
