@@ -304,6 +304,7 @@ OBJECTS_GENERIC =\
  qs_gapw_densities.o\
  qs_grid_atom.o\
  qs_harmonics_atom.o\
+ qs_initial_guess.o\
  qs_integrate_potential.o\
  qs_interactions.o\
  qs_kpp1_env_methods.o\
