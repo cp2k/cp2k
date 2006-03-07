@@ -7,3 +7,5 @@ st.inp
 h2o.inp
 h2o_lsd.inp
 st.inp
+# some spurious numerical changes
+st.inp
