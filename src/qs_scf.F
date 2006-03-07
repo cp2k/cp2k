@@ -160,6 +160,7 @@ MODULE qs_scf
                                              no_mixing_nr,&
                                              ot_method_nr,&
                                              qs_scf_env_type,&
+                                             scf_env_create,&
                                              scf_env_release,&
                                              special_diag_method_nr
   USE qs_wf_history_methods,           ONLY: wfi_extrapolate,&
@@ -168,8 +169,7 @@ MODULE qs_scf
   USE qs_wf_history_types,             ONLY: wfi_frozen_method_nr,&
                                              wfi_use_guess_method_nr
   USE scf_control_types,               ONLY: scf_control_type
-  USE sparse_matrix_types,             ONLY: deallocate_matrix_set,&
-                                             get_matrix_diagonal,&
+  USE sparse_matrix_types,             ONLY: get_matrix_diagonal,&
                                              real_matrix_p_type,&
                                              real_matrix_type,&
                                              set_matrix_diagonal,&
@@ -191,116 +191,14 @@ MODULE qs_scf
 
   LOGICAL, PARAMETER, PRIVATE :: debug_this_module=.FALSE.
 
-! *** Global variables ***
-
-  INTEGER, SAVE, PRIVATE :: last_scf_env_id=0
-
 ! *** Public subroutines ***
 
   PUBLIC :: scf, scf_env_cleanup, &
-            scf_env_create, scf_env_did_change, init_scf_run
+            init_scf_run
 
 ! *****************************************************************************
 
 CONTAINS
-
-! *****************************************************************************
-
-!!****f* qs_scf/scf_env_create [1.0] *
-!!
-!!   NAME
-!!     scf_env_create
-!!
-!!   SYNOPSIS
-!!     Subroutine scf_env_create(scf_env, qs_env, error)
-!!       Type(qs_scf_env_type), Pointer:: scf_env
-!!       Type(qs_environment_type), Intent (IN), Target:: qs_env
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine scf_env_create
-!!
-!!   FUNCTION
-!!     allocates and initialize an scf_env 
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - scf_env: the scf env to initialize
-!!     - qs_env: the qs_env this scf lives in
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     02.2003 created [fawzi]
-!!
-!!*** **********************************************************************
-  SUBROUTINE scf_env_create(scf_env, qs_env, error)
-    TYPE(qs_scf_env_type), POINTER           :: scf_env
-    TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'scf_env_create', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle, stat
-    LOGICAL                                  :: failure
-    TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(scf_control_type), POINTER          :: scf_control
-
-    CALL timeset(routineN,handle)
-
-    failure=.FALSE.
-    NULLIFY(scf_control,dft_control)
-
-    ALLOCATE(scf_env, stat=stat)
-    CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-    IF (.NOT.failure) THEN
-       CALL get_qs_env(qs_env=qs_env,&
-            scf_control=scf_control,&
-            dft_control=dft_control)
-
-       scf_env%ref_count=1
-       scf_env%print_count=0
-       last_scf_env_id=last_scf_env_id+1
-       scf_env%id_nr=last_scf_env_id
-       scf_env%print_count=0
-       scf_env%iter_count=0
-       scf_env%nelectron=0
-
-! sets the method
-       scf_env%method=general_diag_method_nr ! default with diagonalisation
-       IF (dft_control%qs_control%semi_empirical) THEN
-         IF (dft_control%qs_control%se_control%orthogonal_basis) &
-           scf_env%method=special_diag_method_nr
-       END IF
-       IF (scf_control%use_ot) scf_env%method=ot_method_nr
-
-       SELECT CASE(scf_env%method)
-       CASE(ot_method_nr)
-          scf_env%mixing_method=no_mixing_nr
-       CASE DEFAULT
-          scf_env%mixing_method=ao_mixing_nr
-       END SELECT
-
-       scf_env%iter_param=0.0_dp
-       scf_env%iter_delta=0.0_dp
-       scf_env%p_mix=scf_control%p_mix
-       scf_env%iter_method=""
-       scf_env%print_iter_line=.TRUE.
-
-       NULLIFY(scf_env%scf_work1, scf_env%scf_work2, scf_env%ortho,&
-            scf_env%p_mix_new, scf_env%ot_preconditioner, scf_env%qs_ot_env,&
-            scf_env%scf_diis_buffer)
-
-    END IF
-    CALL timestop(handle)
-
-  END SUBROUTINE scf_env_create
-!***************************************************************************
 
 !!****f* qs_scf/scf [1.0] *
 !!
@@ -343,7 +241,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(qs_scf_env_type), POINTER           :: scf_env
+    TYPE(scf_control_type), POINTER          :: scf_control
 
     NULLIFY(scf_env)
     failure=.FALSE.
@@ -351,10 +251,30 @@ CONTAINS
     IF (.NOT.failure) THEN
        CALL get_qs_env(qs_env,scf_env=scf_env,error=error)
        IF (.NOT.ASSOCIATED(scf_env)) THEN ! i.e. for MD this is associated on the second step (it so seems)
-          CALL scf_env_create(scf_env, qs_env=qs_env, error=error)
+          CALL scf_env_create(scf_env, error=error)
           CALL set_qs_env(qs_env,scf_env=scf_env,error=error)
           CALL scf_env_release(scf_env)
-          CALL get_qs_env(qs_env,scf_env=scf_env,error=error)
+
+          ! set some of the methods that might be used in this SCF.
+          ! this might not yet be the ideal place to set this kind of stuff (who knows?)
+          CALL get_qs_env(qs_env,scf_env=scf_env,scf_control=scf_control, &
+                          dft_control=dft_control, error=error)
+
+          scf_env%method=general_diag_method_nr 
+          IF (dft_control%qs_control%semi_empirical) THEN
+            IF (dft_control%qs_control%se_control%orthogonal_basis) &
+              scf_env%method=special_diag_method_nr
+          END IF
+          IF (scf_control%use_ot) scf_env%method=ot_method_nr
+  
+          SELECT CASE(scf_env%method)
+          CASE(ot_method_nr)
+             scf_env%mixing_method=no_mixing_nr
+          CASE DEFAULT
+             scf_env%mixing_method=ao_mixing_nr
+          END SELECT
+          scf_env%p_mix=scf_control%p_mix
+
        END IF
        CALL scf_env_do_scf(scf_env=scf_env, qs_env=qs_env, globenv=globenv, &
                              calc_forces=calc_forces, error=error)
@@ -427,8 +347,7 @@ CONTAINS
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_rho_type), POINTER               :: rho, rho_xc
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_h, matrix_ks, &
-                                                matrix_s
+      POINTER                                :: matrix_h, matrix_ks, matrix_s
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: dft_section, input, &
                                                 scf_section
@@ -555,7 +474,7 @@ CONTAINS
        SELECT CASE (scf_env%method)
        CASE DEFAULT
           CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-                 routineP,"unknown scf method method:"//&
+                 routineP,"unknown scf method: "//&
                  cp_to_string(scf_env%method),error,failure)
        CASE(general_diag_method_nr) 
           CALL qs_scf_loop_do_general_diag(scf_env,mos,rho,matrix_ks,matrix_s,scf_control,scf_section, &
@@ -589,10 +508,16 @@ CONTAINS
          END IF
        END IF
 
-       IF (scf_env%mixing_method.EQ.ao_mixing_nr) THEN
+       SELECT CASE(scf_env%mixing_method)
+       CASE(ao_mixing_nr)
           CALL scf_env_density_mixing(scf_env%p_mix_new,scf_env%mixing_method,&
                          scf_env%p_mix,scf_env%iter_delta, qs_env=qs_env,error=error)
-       ENDIF
+       CASE(no_mixing_nr)
+       CASE DEFAULT
+          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+                 routineP,"unknown scf mixing method: "//&
+                 cp_to_string(scf_env%mixing_method),error,failure)
+       END SELECT
 
        t2 = m_walltime()
 
@@ -2286,63 +2211,6 @@ END SUBROUTINE qs_scf_print_summary
     END IF
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE scf_env_cleanup
-!***************************************************************************
-
-!!****f* qs_scf/scf_env_did_change [1.0] *
-!!
-!!   NAME
-!!     scf_env_did_change
-!!
-!!   SYNOPSIS
-!!     Subroutine scf_env_did_change(scf_env, qs_env, s_mstruct_changed,&
-!!         error)
-!!       Type(qs_scf_env_type), Pointer:: scf_env
-!!       Type(qs_environment_type), Pointer:: qs_env
-!!       Logical, Intent (IN):: s_mstruct_changed
-!!       Type(cp_error_type), Optional, Intent (INOUT):: error
-!!     End Subroutine scf_env_did_change
-!!
-!!   FUNCTION
-!!     function to be called to inform the scf_env about changes
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - scf_env: the scf env to inform
-!!     - qs_env: the qs_env in which the scf_env lives
-!!     - s_mstruct_changed: treu if the structure of s changed
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!   MODIFICATION HISTORY
-!!     03.2003 created [fawzi]
-!!
-!!*** **********************************************************************
-SUBROUTINE scf_env_did_change(scf_env,error)
-    TYPE(qs_scf_env_type), POINTER           :: scf_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'scf_env_did_change', &
-      routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
-  failure=.FALSE.
-  
-  CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,error,failure)
-  CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,error,failure)
-  IF (.NOT.failure) THEN
-     IF (ASSOCIATED(scf_env%p_mix_new)) THEN
-        CALL deallocate_matrix_set(scf_env%p_mix_new)
-     END IF
-  END IF
-END SUBROUTINE scf_env_did_change
-
 !***************************************************************************
 
 END MODULE qs_scf

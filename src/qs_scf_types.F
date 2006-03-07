@@ -45,6 +45,7 @@ MODULE qs_scf_types
   PRIVATE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
+
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_scf_types'
 
   INTEGER, PARAMETER, PUBLIC :: &
@@ -53,8 +54,10 @@ MODULE qs_scf_types
                                 ot_method_nr=3
   INTEGER, PARAMETER, PUBLIC :: no_mixing_nr=0, ao_mixing_nr=1
 
-  PUBLIC :: qs_scf_env_type, qs_scf_env_p_type
-  PUBLIC :: scf_env_retain, scf_env_release
+  INTEGER, SAVE, PRIVATE :: last_scf_env_id=0
+
+  PUBLIC :: qs_scf_env_type
+  PUBLIC :: scf_env_retain, scf_env_release, scf_env_create, scf_env_did_change
 
 !!***
 !****************************************************************************
@@ -68,10 +71,8 @@ MODULE qs_scf_types
 !!     wrapper for temporary and cached objects used in the scf iteration
 !!
 !!   NOTES
-!!     -
 !!
 !!   ATTRIBUTES
-!!     - method: 1: diagonalization (default), 2: orbital transforms
 !!
 !!   AUTHOR
 !!     fawzi
@@ -80,7 +81,7 @@ MODULE qs_scf_types
 !!     02.2003 created [fawzi]
 !!
 !!   SOURCE
-  !***************************************************************************
+!***************************************************************************
 TYPE qs_scf_env_type
    INTEGER :: ref_count, id_nr, print_count, iter_count
    INTEGER :: nelectron, method, mixing_method
@@ -95,22 +96,30 @@ TYPE qs_scf_env_type
    TYPE(qs_ot_type), POINTER, DIMENSION(:)  :: qs_ot_env
    TYPE(qs_diis_buffer_type), POINTER :: scf_diis_buffer
 END TYPE qs_scf_env_type
-!!***
-  !****************************************************************************
 
-!!****s* qs_scf_types/qs_scf_env_p_type [1.0] *
+CONTAINS
+
+!!****f* qs_scf_types/scf_env_create [1.0] *
 !!
 !!   NAME
-!!     qs_scf_env_p_type
+!!     scf_env_create
+!!
+!!   SYNOPSIS
+!!     Subroutine scf_env_create(scf_env, qs_env, error)
+!!       Type(qs_scf_env_type), Pointer:: scf_env
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine scf_env_create
 !!
 !!   FUNCTION
-!!     type to have arrays of pointers
+!!     allocates and initialize an scf_env
 !!
 !!   NOTES
 !!     -
 !!
-!!   ATTRIBUTES
-!!     - scf_env: the pointer to the scf_env
+!!   ARGUMENTS
+!!     - scf_env: the scf env to initialize
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     fawzi
@@ -118,15 +127,52 @@ END TYPE qs_scf_env_type
 !!   MODIFICATION HISTORY
 !!     02.2003 created [fawzi]
 !!
-!!   SOURCE
-  !***************************************************************************
-  TYPE qs_scf_env_p_type
-     TYPE(qs_scf_env_type), POINTER :: scf_env
-  END TYPE qs_scf_env_p_type
-!!***
-  !****************************************************************************
+!!*** **********************************************************************
+  SUBROUTINE scf_env_create(scf_env,  error)
+    TYPE(qs_scf_env_type), POINTER           :: scf_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-CONTAINS
+    CHARACTER(len=*), PARAMETER :: routineN = 'scf_env_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, stat
+    LOGICAL                                  :: failure
+
+    CALL timeset(routineN,handle)
+
+    failure=.FALSE.
+
+    ALLOCATE(scf_env, stat=stat)
+    CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+    IF (.NOT.failure) THEN
+
+       scf_env%ref_count=1
+       scf_env%print_count=0
+       last_scf_env_id=last_scf_env_id+1
+       scf_env%id_nr=last_scf_env_id
+       scf_env%print_count=0
+       scf_env%iter_count=0
+       scf_env%nelectron=0
+       scf_env%iter_param=0.0_dp
+       scf_env%iter_delta=0.0_dp
+       scf_env%iter_method=""
+       scf_env%print_iter_line=.TRUE.
+
+       scf_env%method= -1
+       scf_env%mixing_method = -1
+       scf_env%p_mix=0.0_dp
+
+
+       NULLIFY(scf_env%scf_work1, scf_env%scf_work2, scf_env%ortho,&
+            scf_env%p_mix_new, scf_env%ot_preconditioner, scf_env%qs_ot_env,&
+            scf_env%scf_diis_buffer)
+
+    END IF
+
+    CALL timestop(handle)
+
+  END SUBROUTINE scf_env_create
 
 !!****f* qs_scf_types/scf_env_retain [1.0] *
 !!
@@ -176,6 +222,56 @@ SUBROUTINE scf_env_retain(scf_env,error)
   END IF
 END SUBROUTINE scf_env_retain
 !***************************************************************************
+
+!!****f* qs_scf_types/scf_env_did_change [1.0] *
+!!
+!!   NAME
+!!     scf_env_did_change
+!!
+!!   SYNOPSIS
+!!     Subroutine scf_env_did_change(scf_env, error)
+!!       Type(qs_scf_env_type), Pointer:: scf_env
+!!       Type(cp_error_type), Optional, Intent (INOUT):: error
+!!     End Subroutine scf_env_did_change
+!!
+!!   FUNCTION
+!!     function to be called to inform the scf_env about changes
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - scf_env: the scf env to inform
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!   MODIFICATION HISTORY
+!!     03.2003 created [fawzi]
+!!
+!!*** **********************************************************************
+SUBROUTINE scf_env_did_change(scf_env,error)
+    TYPE(qs_scf_env_type), POINTER           :: scf_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'scf_env_did_change', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+  failure=.FALSE.
+
+  CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,error,failure)
+  CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,error,failure)
+  IF (.NOT.failure) THEN
+     IF (ASSOCIATED(scf_env%p_mix_new)) THEN
+        CALL deallocate_matrix_set(scf_env%p_mix_new)
+     END IF
+  END IF
+END SUBROUTINE scf_env_did_change
 
 !!****f* qs_scf_types/scf_env_release [1.0] *
 !!

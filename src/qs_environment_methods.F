@@ -73,7 +73,7 @@ MODULE qs_environment_methods
   USE qs_matrix_pools,                 ONLY: mpools_rebuild_fm_pools,&
                                              mpools_rebuild_s_sm_pools
   USE qs_rho_methods,                  ONLY: qs_rho_rebuild
-  USE qs_scf,                          ONLY: scf_env_did_change
+  USE qs_scf_types,                    ONLY: scf_env_did_change
   USE scf_control_types,               ONLY: scf_control_type
   USE sparse_matrix_types,             ONLY: deallocate_matrix_set,&
                                              real_matrix_p_type
