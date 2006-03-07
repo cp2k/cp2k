@@ -436,6 +436,19 @@ CONTAINS
     IF (dft_control%qs_control%semi_empirical) &
        has_unit_metric=dft_control%qs_control%se_control%orthogonal_basis
 
+    ! Frozen density approximation
+    IF (ASSOCIATED(qs_env%wf_history)) THEN
+      IF (qs_env%wf_history%interpolation_method_nr==wfi_frozen_method_nr) THEN
+        IF (.NOT. ASSOCIATED(qs_env%wf_history%past_states(1)%snapshot)) THEN
+          CALL wfi_update(qs_env%wf_history, qs_env=qs_env, dt=1.0_dp, &
+                          error=error)
+          CALL duplicate_rho_type(rho_input=rho, &
+                                  rho_output=qs_env%wf_history%past_states(1)%snapshot%rho_frozen, &
+                                  qs_env=qs_env, error=error)
+        END IF
+      END IF
+    END IF
+
 !   *** SCF loop, optimisation of the wfn coefficients
 !   *** qs_env%rho%rho_r and qs_env%rho%rho_g should be up to date here
     scf_env%iter_count = 0
@@ -449,19 +462,6 @@ CONTAINS
 
        CALL qs_ks_update_qs_env(ks_env,qs_env=qs_env,&
             calculate_forces=.FALSE.,just_energy=energy_only,error=error)
-
-       ! Frozen density approximation
-       IF (ASSOCIATED(qs_env%wf_history)) THEN
-         IF (qs_env%wf_history%interpolation_method_nr==wfi_frozen_method_nr) THEN
-           IF (.NOT. ASSOCIATED(qs_env%wf_history%past_states(1)%snapshot)) THEN
-             CALL wfi_update(qs_env%wf_history, qs_env=qs_env, dt=1.0_dp, &
-                             error=error)
-             CALL duplicate_rho_type(rho_input=rho, &
-                                     rho_output=qs_env%wf_history%past_states(1)%snapshot%rho_frozen, &
-                                     qs_env=qs_env, error=error)
-           END IF
-         END IF
-       END IF
 
        ! print 'heavy weight' or relatively expensive quantities
        CALL qs_scf_loop_print(qs_env,scf_env,globenv,error)
