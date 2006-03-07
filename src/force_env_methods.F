@@ -24,7 +24,7 @@
 
 MODULE force_env_methods
   USE cell_types,                      ONLY: cell_type
-  USE constraint,                      ONLY: fix_atom_control
+  USE constraint_clv,                  ONLY: fix_atom_control
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_env,                     ONLY: cp_para_env_retain

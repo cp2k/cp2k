@@ -28,6 +28,9 @@ OBJECTS_GENERIC =\
  colvar_methods.o\
  colvar_types.o\
  constraint.o\
+ constraint_3x3.o\
+ constraint_4x6.o\
+ constraint_clv.o\
  convert_units.o\
  cp2k_runs.o\
  cp2k_units.o\
