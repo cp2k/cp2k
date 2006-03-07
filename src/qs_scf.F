@@ -428,7 +428,7 @@ CONTAINS
     TYPE(qs_rho_type), POINTER               :: rho, rho_xc
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_h, matrix_ks, &
-                                                matrix_p, matrix_s
+                                                matrix_s
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: dft_section, input, &
                                                 scf_section
@@ -437,7 +437,7 @@ CONTAINS
 
     failure=.FALSE.
 
-    NULLIFY(dft_control,matrix_h,matrix_s,matrix_ks,matrix_p,rho,rho_xc,energy, &
+    NULLIFY(dft_control,matrix_h,matrix_s,matrix_ks,rho,rho_xc,energy, &
             scf_control,logger,qs_charges,ks_env,mos,atomic_kind_set, &
             particle_set,harris_env,dft_section,input,&
             scf_section)
@@ -486,12 +486,10 @@ CONTAINS
                     matrix_ks=matrix_ks,rho=rho,rho_xc=rho_xc,mos=mos, &
                     error=error)
 
-    matrix_p => rho%rho_ao
-
     ! do some assertions here on these matrices having the same structure
     id_equal=ALL((/((matrix_s(i)%matrix%sparsity_id==matrix_s(1)%matrix%sparsity_id),i=1,SIZE(matrix_s))/))
     CPPrecondition(id_equal,cp_failure_level,routineP,error,failure)
-    id_equal=ALL((/((matrix_p(i)%matrix%sparsity_id==matrix_s(1)%matrix%sparsity_id),i=1,SIZE(matrix_p))/))
+    id_equal=ALL((/((rho%rho_ao(i)%matrix%sparsity_id==matrix_s(1)%matrix%sparsity_id),i=1,SIZE(rho%rho_ao))/))
     CPPrecondition(id_equal,cp_failure_level,routineP,error,failure)
     id_equal=ALL((/((matrix_h(i)%matrix%sparsity_id==matrix_s(1)%matrix%sparsity_id),i=1,SIZE(matrix_h))/))
     CPPrecondition(id_equal,cp_failure_level,routineP,error,failure)
