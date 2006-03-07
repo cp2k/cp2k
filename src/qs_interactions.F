@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000-2004  CP2K developers group                            !
+!   Copyright (C) 2000-2006  CP2K developers group                            !
 !-----------------------------------------------------------------------------!
 !!****** cp2k/qs_interactions [1.0] *
 !!
@@ -17,6 +17,7 @@
 !!     Joost VandeVondele : added exp_radius_very_extended
 !!     24.09.2002 overloaded init_interaction_radii for KG use (gt)
 !!     27.02.2004 integrated KG into QS version of init_interaction_radii (jgh)
+!!     07.03.2006 new routine to extend kind interaction radius for semi-empiric (jgh)
 !!
 !!***
 !******************************************************************************
@@ -30,8 +31,10 @@ MODULE qs_interactions
                                              gto_basis_set_type,&
                                              set_gto_basis_set
   USE cell_types,                      ONLY: cell_type,&
+                                             cell_min_image_radius,&
                                              get_cell
-  USE cp_control_types,                ONLY: qs_control_type
+  USE cp_control_types,                ONLY: qs_control_type,&
+                                             semi_empirical_control_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE external_potential_types,        ONLY: all_potential_type,&
@@ -64,7 +67,7 @@ MODULE qs_interactions
 
 ! *** Public subroutines ***
 
-  PUBLIC :: init_interaction_radii
+  PUBLIC :: init_interaction_radii, init_se_nlradius
 
 ! *** Public functions ***
 
@@ -441,6 +444,74 @@ CONTAINS
     IF (p_paw)  CALL write_paw_radii(cell,atomic_kind_set,force_env_section,error)
 
   END SUBROUTINE init_interaction_radii
+
+! *****************************************************************************
+  SUBROUTINE init_se_nlradius(se_control,cell,atomic_kind_set,&
+                   force_env_section,error)
+
+    TYPE(semi_empirical_control_type), &
+      POINTER                                :: se_control
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(section_vals_type), POINTER         :: force_env_section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'init_se_nlradius'
+
+    INTEGER                                  :: nkind, ikind
+    TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    REAL(KIND=dp)                            :: kind_radius
+    
+! ------------------------------------------------------------------------------
+
+    ! renormalize rc_exchange to minimum image radius
+    se_control%rc_exchange = 0.5_dp * cell_min_image_radius(cell,error)
+
+    NULLIFY (orb_basis_set,atomic_kind)
+
+    nkind = SIZE(atomic_kind_set)
+
+    DO ikind=1,nkind
+
+      atomic_kind => atomic_kind_set(ikind)
+
+      CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                           orb_basis_set=orb_basis_set)
+
+      IF (ASSOCIATED(orb_basis_set)) THEN
+
+        CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
+                               kind_radius=kind_radius)
+
+        kind_radius = MAX (kind_radius,&
+                           se_control%rc_coulomb,se_control%rc_exchange)
+
+        CALL set_gto_basis_set(gto_basis_set=orb_basis_set,&
+                               kind_radius=kind_radius)
+
+      END IF
+
+    END DO
+
+    CALL write_kind_radii(cell,atomic_kind_set,force_env_section,error)
+
+  END SUBROUTINE init_se_nlradius
+
+! *****************************************************************************
+
+  SUBROUTINE write_kind_radii(cell,atomic_kind_set,force_env_section,error)
+
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(section_vals_type), POINTER         :: force_env_section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+  END SUBROUTINE write_kind_radii
 
 ! *****************************************************************************
 

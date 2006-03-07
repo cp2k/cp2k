@@ -115,7 +115,8 @@ MODULE qs_environment
                                              qs_environment_type,&
                                              set_qs_env
   USE qs_force_types,                  ONLY: qs_force_type
-  USE qs_interactions,                 ONLY: init_interaction_radii
+  USE qs_interactions,                 ONLY: init_interaction_radii,&
+                                             init_se_nlradius
   USE qs_loc_control,                  ONLY: localized_wfn_control_type,&
                                              set_loc_centers,&
                                              set_loc_wfn_lists
@@ -604,6 +605,11 @@ CONTAINS
       SELECT CASE ( dft_control%qs_control%method )
         CASE DEFAULT
         CASE ("AM1","PM3","MNDO")
+          ! Neighbor lists have to be  
+          ! MAX(coulomb range, exchange range, orbital range)
+          ! set new kind radius
+          CALL init_se_nlradius(se_control,cell,atomic_kind_set,&
+                 qs_env%input,error)
           CALL init_rho0_nddo(qs_env, se_control, error)
       END SELECT
     ENDIF

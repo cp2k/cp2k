@@ -1095,49 +1095,49 @@ SUBROUTINE create_se_control_section(section,error)
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
       CALL section_create(section,"SE",&
-           description="parameters needed to set up the Semiempirical method",&
+           description="Parameters needed to set up the Semi-empirical methods",&
            n_keywords=7, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
            error=error)
 
       CALL keyword_create(keyword, name="orthogonal_basis",&
-           description="Use orthogonal basis",&
+           description="Assume orthogonal basis set",&
            usage="ORTHOGONAL_BASIS ",default_l_val=.FALSE., error=error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error)
 
      CALL keyword_create(keyword, name="EWALD",&
-          description="Do ewald",&
+          description="Use Ewald method for Coulomb interactions",&
            usage="EWALD ",default_l_val=.FALSE., error=error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error)
 
      CALL keyword_create(keyword, name="DELTA",&
-          description="??",&
+          description="Step size in finite difference force calculation",&
           usage="DELTA {real} ",default_r_val=1.e-6_dp, error=error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error)
 
      CALL keyword_create(keyword, name="ALPHA_GAUSS",&
-          description="??",&
+          description="Exponent of Gaussian in Ewald method",&
           usage="ALPHA_GAUSS {real} ",default_r_val=1._dp, error=error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error)
 
      CALL keyword_create(keyword, name="EPS_GAUSS",&
-          description="??",&
+          description="Accuracy of grid representation of Gaussian function",&
           usage="EPS_GAUSS {real} ",default_r_val=1.e-8_dp, error=error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error)
 
      CALL keyword_create(keyword, name="RC_EXCHANGE",&
-          description="??",&
+          description="Cutoff radius for Exchange interactions",&
           usage="RC_EXCHANGE {real} ",default_r_val=25._dp, error=error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error)
  
      CALL keyword_create(keyword, name="RC_COULOMB",&
-          description="??",&
-          usage="RC_COULOMB {real} ",default_r_val=10._dp, error=error)
+          description="Cutoff radius for Coulomb interactions",&
+          usage="RC_COULOMB {real} ",default_r_val=25._dp, error=error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error)
 
