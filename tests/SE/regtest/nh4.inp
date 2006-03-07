@@ -2,8 +2,6 @@
 &FORCE_EVAL
   &DFT
     CHARGE 1
-    &MGRID
-    &END MGRID
     &QS
       METHOD MNDO
     &END QS
@@ -16,6 +14,7 @@
     &CELL
       ABC 20.0 20.0 20.0
       UNIT ANGSTROM
+      PERIODIC NONE
     &END CELL
     &COORD
           H                 -1.01578458     .00000000     .00000000

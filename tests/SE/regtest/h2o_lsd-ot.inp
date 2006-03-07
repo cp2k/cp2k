@@ -2,8 +2,6 @@
 &FORCE_EVAL
   &DFT
     LSD
-    &MGRID
-    &END MGRID
     &QS
       EXTRAPOLATION use_guess
       METHOD AM1
@@ -19,6 +17,7 @@
     &CELL
       ABC 20.0 20.0 20.0
       UNIT ANGSTROM
+      PERIODIC NONE
     &END CELL
     &COORD
           O                   .00000000     .00000000     .00000000

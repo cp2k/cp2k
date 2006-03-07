@@ -9,3 +9,18 @@ h2o_lsd.inp
 st.inp
 # some spurious numerical changes
 st.inp
+# reset all Tests (new definition of interaction range)
+c2h4.inp
+ch2o.inp
+ch4.inp
+ch4-ot.inp
+ch4-restart.inp
+h2o.inp
+h2o_lsd.inp
+h2o_lsd-ot.inp
+H2O-MNDO.inp
+h2op.inp
+hcn.inp
+hf.inp
+nh4.inp
+st.inp

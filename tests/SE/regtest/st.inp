@@ -1,10 +1,7 @@
 
 &FORCE_EVAL
   &DFT
-    &MGRID
-    &END MGRID
     &QS
-      EPS_DEFAULT 1.E-20
       METHOD MNDO
     &END QS
     &SCF
@@ -15,6 +12,7 @@
     &CELL
       ABC 30.0 30.0 30.0
       UNIT ANGSTROM
+      PERIODIC NONE
     &END CELL
     &COORD
           C                   .00000000     .00000000     .00000000

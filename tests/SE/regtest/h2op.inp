@@ -3,8 +3,6 @@
   &DFT
     CHARGE 1
     LSD
-    &MGRID
-    &END MGRID
     &QS
       METHOD AM1
     &END QS
@@ -16,6 +14,7 @@
     &CELL
       ABC 20.0 20.0 20.0
       UNIT ANGSTROM
+      PERIODIC NONE
     &END CELL
     &COORD
           O                  -.13219527     .00026095     .00000000

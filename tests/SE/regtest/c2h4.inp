@@ -1,8 +1,6 @@
 
 &FORCE_EVAL
   &DFT
-    &MGRID
-    &END MGRID
     &QS
       METHOD MNDO
     &END QS
@@ -15,6 +13,7 @@
     &CELL
       ABC 20.0 20.0 20.0
       UNIT ANGSTROM
+      PERIODIC NONE
     &END CELL
     &COORD
           C                   .00000000     .00000000     .00000000
