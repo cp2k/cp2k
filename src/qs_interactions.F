@@ -31,7 +31,7 @@ MODULE qs_interactions
                                              gto_basis_set_type,&
                                              set_gto_basis_set
   USE cell_types,                      ONLY: cell_type,&
-                                             cell_min_image_radius,&
+                                             plane_distance,&
                                              get_cell
   USE cp_control_types,                ONLY: qs_control_type,&
                                              semi_empirical_control_type
@@ -468,7 +468,9 @@ CONTAINS
 ! ------------------------------------------------------------------------------
 
     ! renormalize rc_exchange to minimum image radius
-    se_control%rc_exchange = 0.5_dp * cell_min_image_radius(cell,error)
+    se_control%rc_exchange = 0.5_dp*MAX(plane_distance(1,0,0,cell),&
+                                        plane_distance(0,1,0,cell),&
+                                        plane_distance(0,0,1,cell))
 
     NULLIFY (orb_basis_set,atomic_kind)
 
