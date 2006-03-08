@@ -306,7 +306,7 @@ CONTAINS
 
     INTEGER                                  :: handle, handle2, i, ispin, &
                                                 output_unit
-    LOGICAL :: diis_step, EII_necessary, energy_only, failure, gapw, gapw_xc, &
+    LOGICAL :: diis_step, energy_only, failure, gapw, gapw_xc, &
       harris_flag, has_unit_metric, id_equal, should_stop, use_jacobi
     REAL(KIND=dp)                            :: t1, t2
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -376,7 +376,6 @@ CONTAINS
     has_unit_metric=.FALSE.
     IF (dft_control%qs_control%semi_empirical) &
        has_unit_metric=dft_control%qs_control%se_control%orthogonal_basis
-    EII_necessary = .TRUE.
 
     CALL get_qs_env(qs_env=qs_env,&
                     matrix_h=matrix_h,&
@@ -471,7 +470,6 @@ CONTAINS
        ! ** calculation of the harris energy correction *** !
        IF (harris_flag) THEN
          CALL harris_energy_correction(qs_env, harris_env, &
-                                       EII_necessary=EII_necessary, &
                                        globenv=globenv, fast=.TRUE., error=error)
          IF (scf_env%method .NE. ot_method_nr) THEN
            CALL harris_eigenvalue_trace_KS_Pmix(scf_env, qs_env, harris_env, error=error)

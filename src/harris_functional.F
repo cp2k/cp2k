@@ -46,7 +46,6 @@ MODULE harris_functional
                                              pw_integral_ab
   USE qs_core_energies,                ONLY: calculate_ecore_overlap,&
                                              calculate_ecore_self
-!calculate_ecore
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_ks_methods,                   ONLY: qs_vxc_create
@@ -97,10 +96,10 @@ CONTAINS
 !!     - qs_env: The QS environment, on which the Harris 
 !!               functional energy correction should be performed.
 !!     - harris_env: The harris environment in which all results are stored
-!!     - EII_necessary: Logical flag which indicates if EII has to be 
-!!                      computes or not
 !!     - globenv: The global environment which contains the initially parsed
 !!                file and the parallel environment.
+!!     - EII_necessary: Logical flag which indicates if EII has to be 
+!!                      computes or not
 !!     - fast: Logical which prevents some minor double calculations if the
 !!             Harris functional is driven on top of the QS SCF-cycle.
 !!     - error: variable to control error logging, stopping,... 
@@ -113,14 +112,14 @@ CONTAINS
 !!     06.2005 initial create [tdk]
 !!
 !!*** **********************************************************************
-  SUBROUTINE harris_energy_correction(qs_env, harris_env, EII_necessary, &
-                                      globenv, fast, error)
+  SUBROUTINE harris_energy_correction(qs_env, harris_env, globenv, &
+                                      EII_necessary, fast, error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(harris_env_type), POINTER           :: harris_env
-    LOGICAL, INTENT(INOUT), OPTIONAL         :: EII_necessary
     TYPE(global_environment_type), POINTER   :: globenv
-    LOGICAL, INTENT(IN), OPTIONAL            :: fast
+    LOGICAL, INTENT(IN), OPTIONAL            :: EII_necessary, &
+                                                fast
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
@@ -139,10 +138,8 @@ CONTAINS
     TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(qs_rho_type), POINTER               :: rho
-
 !rho_tot_gspace, &
-!TYPE(cp_para_env_type), POINTER                 :: para_env
-!TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: matrix_ks
+
 !   ------------------------------------------------------------------------
 
     CALL timeset(routineN, "I", "", handle)
@@ -253,7 +250,7 @@ CONTAINS
 
         harris_energy%EII = harris_energy%Ecore_overlap + harris_energy%Ecore_self + &
                             harris_energy%Ehartree_core
-        IF (PRESENT(EII_necessary)) EII_necessary=.FALSE.
+        !IF (PRESENT(EII_necessary)) EII_necessary=.FALSE.
       END IF
 
       harris_energy%Eharris_correction = - harris_energy%Ehartree_elec &
