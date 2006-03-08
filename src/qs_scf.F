@@ -370,6 +370,14 @@ CONTAINS
     CALL init_scf_run(scf_env=scf_env, qs_env=qs_env, globenv=globenv, &
                         calc_forces=calc_forces, scf_section=scf_section, error=error)
 
+    gapw = dft_control%qs_control%gapw
+    gapw_xc = dft_control%qs_control%gapw_xc
+    harris_flag = qs_env%use_harris
+    has_unit_metric=.FALSE.
+    IF (dft_control%qs_control%semi_empirical) &
+       has_unit_metric=dft_control%qs_control%se_control%orthogonal_basis
+    EII_necessary = .TRUE.
+
     CALL get_qs_env(qs_env=qs_env,&
                     matrix_h=matrix_h,&
                     matrix_s=matrix_s,energy=energy,&
@@ -391,27 +399,6 @@ CONTAINS
     id_equal=ALL((/((matrix_ks(i)%matrix%sparsity_id==matrix_s(1)%matrix%sparsity_id),i=1,SIZE(matrix_ks))/))
     CPPrecondition(id_equal,cp_failure_level,routineP,error,failure)
 
-
-    IF (output_unit>0) THEN
-       WRITE (UNIT=output_unit,&
-            FMT="(/,T3,A,T9,A,T36,A,T49,A,T68,A,/,T3,A)")&
-            "Step","Update method","Time","Convergence","Total energy",&
-            REPEAT("-",77)
-    END IF
-
-   
-!   Some flags selecting different methods
-    diis_step = .FALSE.
-    use_jacobi = .FALSE.
-    energy_only = .FALSE.
-    EII_necessary = .TRUE.
-    gapw = dft_control%qs_control%gapw
-    gapw_xc = dft_control%qs_control%gapw_xc
-    harris_flag = qs_env%use_harris
-    has_unit_metric=.FALSE.
-    IF (dft_control%qs_control%semi_empirical) &
-       has_unit_metric=dft_control%qs_control%se_control%orthogonal_basis
-
     ! Frozen density approximation
     IF (ASSOCIATED(qs_env%wf_history)) THEN
       IF (qs_env%wf_history%interpolation_method_nr==wfi_frozen_method_nr) THEN
@@ -424,6 +411,18 @@ CONTAINS
         END IF
       END IF
     END IF
+
+    IF (output_unit>0) THEN
+       WRITE (UNIT=output_unit,&
+            FMT="(/,T3,A,T9,A,T36,A,T49,A,T68,A,/,T3,A)")&
+            "Step","Update method","Time","Convergence","Total energy",&
+            REPEAT("-",77)
+    END IF
+
+!   Some flags selecting different methods
+    diis_step = .FALSE.
+    use_jacobi = .FALSE.
+    energy_only = .FALSE.
 
 !   *** SCF loop, optimisation of the wfn coefficients
 !   *** qs_env%rho%rho_r and qs_env%rho%rho_g should be up to date here
