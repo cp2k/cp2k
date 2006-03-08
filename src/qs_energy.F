@@ -124,7 +124,7 @@ CONTAINS
     END IF
 
     ! *** Perform a SCF run ***
-    CALL scf(qs_env=qs_env, globenv=globenv, calc_forces=calc_forces, error=error)
+    CALL scf(qs_env=qs_env, globenv=globenv, error=error)
 
     IF (PRESENT(consistent_energies)) THEN
       IF (consistent_energies) THEN

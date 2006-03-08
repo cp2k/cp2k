@@ -92,7 +92,8 @@ MODULE xas_methods
                                              set_mo_set,&
                                              write_mo_set
   USE qs_operators_ao,                 ONLY: p_xyz_ao
-  USE qs_scf,                          ONLY: init_scf_run,&
+  USE qs_scf,                          ONLY: init_scf_loop,&
+                                             init_scf_run,&
                                              scf_env_cleanup
   USE qs_scf_types,                    ONLY: qs_scf_env_type
   USE scf_control_types,               ONLY: scf_control_type
@@ -498,6 +499,9 @@ CONTAINS
          CALL get_qs_env(qs_env,scf_env=scf_env,error=error)
 
          CALL init_scf_run(scf_env=scf_env,qs_env=qs_env,&
+                 globenv=globenv, scf_section=scf_section, error=error)
+         ! this is not standing optimally here, but for he time being retains functionality
+         CALL init_scf_loop(scf_env=scf_env,qs_env=qs_env,&
                  globenv=globenv, scf_section=scf_section, error=error)
 
          CALL xas_do_tp_scf(xas_control,xas_env,iatom,scf_env,qs_env,globenv,error=error)

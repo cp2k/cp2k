@@ -68,7 +68,7 @@ MODULE qs_scf_methods
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_scf_methods'
   REAL(KIND=dp), PARAMETER             :: ratio=0.25_dp
 
-  PUBLIC :: eigensolver, simple_eigensolver, scf_env_density_mixing, calculate_ortho_matrix
+  PUBLIC :: eigensolver, simple_eigensolver, scf_env_density_mixing
 
 ! *****************************************************************************
 
@@ -162,35 +162,6 @@ CONTAINS
     CALL timestop(handle)
   END SUBROUTINE scf_env_density_mixing
 
-
-
-
-  SUBROUTINE calculate_ortho_matrix(ortho,matrix_s,work,ndep,eps_eigval)
-
-!   Purpose: Calculate the orthogonalization matrix (S**(-1/2))
-
-!   History: - Creation (01.05.2001, Matthias Krack)
-
-!   ***************************************************************************
-
-    TYPE(cp_fm_type), POINTER                :: ortho
-    TYPE(real_matrix_type), POINTER          :: matrix_s
-    TYPE(cp_fm_type), POINTER                :: work
-    INTEGER, INTENT(OUT)                     :: ndep
-    REAL(KIND=dp), INTENT(in)                :: eps_eigval
-
-    INTEGER                                  :: handle
-
-!   ---------------------------------------------------------------------------
-
-    CALL timeset("calculate_ortho_matrix","I"," ",handle)
-
-    CALL copy_sm_to_fm(matrix_s,ortho)
-    CALL cp_fm_power(ortho,work,-0.5_dp,eps_eigval,ndep)
-
-    CALL timestop(0.0_dp,handle)
-
-  END SUBROUTINE calculate_ortho_matrix
 
 ! *****************************************************************************
 

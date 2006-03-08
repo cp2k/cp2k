@@ -52,6 +52,7 @@ MODULE qs_scf
                                              get_atomic_kind_set
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose
+  USE cp_fm_diag,                      ONLY: cp_fm_power
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                              fm_pool_get_el_struct
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -130,8 +131,7 @@ MODULE qs_scf
   USE qs_rho_methods,                  ONLY: duplicate_rho_type,&
                                              qs_rho_update_rho
   USE qs_rho_types,                    ONLY: qs_rho_type
-  USE qs_scf_methods,                  ONLY: calculate_ortho_matrix,&
-                                             eigensolver,&
+  USE qs_scf_methods,                  ONLY: eigensolver,&
                                              scf_env_density_mixing,&
                                              simple_eigensolver
   USE qs_scf_post,                     ONLY: scf_post_calculation
@@ -165,12 +165,10 @@ MODULE qs_scf
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_scf'
 
-  LOGICAL, PARAMETER, PRIVATE :: debug_this_module=.FALSE.
-
 ! *** Public subroutines ***
 
   PUBLIC :: scf, scf_env_cleanup, &
-            init_scf_run
+            init_scf_run, init_scf_loop
 
 ! *****************************************************************************
 
@@ -206,10 +204,9 @@ CONTAINS
 !!     02.2003 introduced scf_env, moved real work to scf_env_do_scf [fawzi]
 !!
 !!*** **********************************************************************
-  SUBROUTINE scf(qs_env,globenv,calc_forces,error)
+  SUBROUTINE scf(qs_env,globenv,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(global_environment_type), POINTER   :: globenv
-    LOGICAL, INTENT(IN), OPTIONAL            :: calc_forces
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -220,12 +217,18 @@ CONTAINS
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(scf_control_type), POINTER          :: scf_control
+    TYPE(section_vals_type), POINTER         :: dft_section, input, &
+                                                scf_section
 
     NULLIFY(scf_env)
     failure=.FALSE.
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
-       CALL get_qs_env(qs_env,scf_env=scf_env,error=error)
+       CALL get_qs_env(qs_env,scf_env=scf_env,error=error,input=input)
+
+       dft_section => section_vals_get_subs_vals(input,"DFT",error=error)
+       scf_section => section_vals_get_subs_vals(dft_section,"SCF",error=error)
+
        IF (.NOT.ASSOCIATED(scf_env)) THEN ! i.e. for MD this is associated on the second step (it so seems)
           CALL scf_env_create(scf_env, error=error)
           CALL set_qs_env(qs_env,scf_env=scf_env,error=error)
@@ -252,8 +255,10 @@ CONTAINS
           scf_env%p_mix=scf_control%p_mix
 
        END IF
+       CALL init_scf_run(scf_env=scf_env, qs_env=qs_env, globenv=globenv, &
+                                      scf_section=scf_section, error=error)
        CALL scf_env_do_scf(scf_env=scf_env, qs_env=qs_env, globenv=globenv, &
-                             calc_forces=calc_forces, error=error)
+                             error=error)
     END IF
   END SUBROUTINE scf
 !***************************************************************************
@@ -292,12 +297,11 @@ CONTAINS
 !!     09.2005 Frozen density approximation [TdK]
 !!
 !!*** **********************************************************************
-  SUBROUTINE scf_env_do_scf(scf_env,qs_env,globenv,calc_forces,error)
+  SUBROUTINE scf_env_do_scf(scf_env,qs_env,globenv,error)
 
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(global_environment_type), POINTER   :: globenv
-    LOGICAL, INTENT(IN), OPTIONAL            :: calc_forces
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -306,8 +310,8 @@ CONTAINS
 
     INTEGER                                  :: handle, handle2, i, ispin, &
                                                 output_unit
-    LOGICAL :: diis_step, energy_only, failure, gapw, gapw_xc, &
-      harris_flag, has_unit_metric, id_equal, should_stop, use_jacobi
+    LOGICAL :: diis_step, energy_only, failure, gapw, gapw_xc, harris_flag, &
+      has_unit_metric, should_stop, use_jacobi
     REAL(KIND=dp)                            :: t1, t2
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -354,21 +358,11 @@ CONTAINS
     output_unit=cp_print_key_unit_nr(logger,scf_section,"PRINT%PROGRAM_RUN_INFO",&
          extension=".scfLog",error=error)
 
-    ! some special checks to eliminate the first problems with restricted
-    ! should move earlier I think
-    IF (dft_control%restricted) THEN
-       IF (scf_env%method .NE. ot_method_nr) THEN 
-          IF (output_unit>0) WRITE(output_unit,*) "OT only for restricted"
-          CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
-       ENDIF
-       CPPrecondition(dft_control%nspins.EQ.2,cp_failure_level,routineP,error,failure)
-    ENDIF
-
     IF (output_unit>0) WRITE (UNIT=output_unit,FMT="(/,/,T2,A)") &
             "SCF WAVEFUNCTION OPTIMIZATION"
 
-    CALL init_scf_run(scf_env=scf_env, qs_env=qs_env, globenv=globenv, &
-                        calc_forces=calc_forces, scf_section=scf_section, error=error)
+    CALL init_scf_loop(scf_env=scf_env, qs_env=qs_env, globenv=globenv, &
+                        scf_section=scf_section, error=error)
 
     gapw = dft_control%qs_control%gapw
     gapw_xc = dft_control%qs_control%gapw_xc
@@ -388,28 +382,6 @@ CONTAINS
                     matrix_ks=matrix_ks,rho=rho,rho_xc=rho_xc,mos=mos, &
                     error=error)
 
-    ! do some assertions here on these matrices having the same structure
-    id_equal=ALL((/((matrix_s(i)%matrix%sparsity_id==matrix_s(1)%matrix%sparsity_id),i=1,SIZE(matrix_s))/))
-    CPPrecondition(id_equal,cp_failure_level,routineP,error,failure)
-    id_equal=ALL((/((rho%rho_ao(i)%matrix%sparsity_id==matrix_s(1)%matrix%sparsity_id),i=1,SIZE(rho%rho_ao))/))
-    CPPrecondition(id_equal,cp_failure_level,routineP,error,failure)
-    id_equal=ALL((/((matrix_h(i)%matrix%sparsity_id==matrix_s(1)%matrix%sparsity_id),i=1,SIZE(matrix_h))/))
-    CPPrecondition(id_equal,cp_failure_level,routineP,error,failure)
-    id_equal=ALL((/((matrix_ks(i)%matrix%sparsity_id==matrix_s(1)%matrix%sparsity_id),i=1,SIZE(matrix_ks))/))
-    CPPrecondition(id_equal,cp_failure_level,routineP,error,failure)
-
-    ! Frozen density approximation
-    IF (ASSOCIATED(qs_env%wf_history)) THEN
-      IF (qs_env%wf_history%interpolation_method_nr==wfi_frozen_method_nr) THEN
-        IF (.NOT. ASSOCIATED(qs_env%wf_history%past_states(1)%snapshot)) THEN
-          CALL wfi_update(qs_env%wf_history, qs_env=qs_env, dt=1.0_dp, &
-                          error=error)
-          CALL duplicate_rho_type(rho_input=rho, &
-                                  rho_output=qs_env%wf_history%past_states(1)%snapshot%rho_frozen, &
-                                  qs_env=qs_env, error=error)
-        END IF
-      END IF
-    END IF
 
     IF (output_unit>0) THEN
        WRITE (UNIT=output_unit,&
@@ -1061,51 +1033,56 @@ END SUBROUTINE qs_scf_print_summary
 
   END SUBROUTINE qs_scf_loop_print
 
-! *****************************************************************************
-
-  SUBROUTINE init_scf_run(scf_env,qs_env,globenv,calc_forces,scf_section,error)
-
-!   Purpose: Initialise a SCF run.
-
-!   History: - Creation (30.04.2001, Matthias Krack)
-
-!   ***************************************************************************
+!!****f* qs_scf/init_scf_loop *
+!!
+!!   NAME
+!!       init_scf_loop
+!!
+!!   FUNCTION
+!!       inits those objects needed if you want to restart the scf with, say
+!!       only a new initial guess, or different density functional or ...
+!!       this will happen just before the scf loop starts
+!!
+!!   NOTES
+!!
+!!   INPUTS
+!!
+!!   MODIFICATION HISTORY
+!!     03.2006 created [Joost VandeVondele]
+!!
+!!*** **********************************************************************
+  SUBROUTINE init_scf_loop(scf_env,qs_env,globenv,scf_section,error)
 
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(global_environment_type), POINTER   :: globenv
-    LOGICAL, INTENT(IN), OPTIONAL            :: calc_forces
     TYPE(section_vals_type), POINTER         :: scf_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'init_scf_run', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'init_scf_loop', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, homo, i, ispin, iw, &
-                                                nao, ndep, nelectron_spin, &
-                                                number_of_OT_envs, &
-                                                output_unit, stat
-    LOGICAL :: do_rotation, failure, gth_potential_present, has_unit_metric, &
-      my_transition_potential
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(cp_fm_type), POINTER                :: mo_coeff, ortho, scf_work2
+    INTEGER                                  :: handle, i, ispin, &
+                                                number_of_OT_envs, stat
+    LOGICAL                                  :: do_rotation, failure, &
+                                                has_unit_metric
+    TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_h, matrix_ks, matrix_s
+      POINTER                                :: matrix_ks, matrix_s
     TYPE(real_matrix_type), POINTER          :: orthogonality_metric
     TYPE(scf_control_type), POINTER          :: scf_control
 
-    CALL timeset("init_scf_run","I"," ",handle)
+    CALL timeset("init_scf_loop","I"," ",handle)
 
-    NULLIFY(scf_control,atomic_kind_set,matrix_h,matrix_s,matrix_ks,dft_control,mos,&
-         ortho,scf_work2, mo_coeff)
+    NULLIFY(scf_control,matrix_s,matrix_ks,dft_control,mos,&
+         mo_coeff)
+
     failure=.FALSE.
-    my_transition_potential = .FALSE.
     logger => cp_error_get_logger(error)
     
     CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,error,failure)
@@ -1113,94 +1090,12 @@ END SUBROUTINE qs_scf_print_summary
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(qs_env%ref_count>0,cp_failure_level,routineP,error,failure)
 
-    CALL scf_env_check_i_alloc(scf_env=scf_env, qs_env=qs_env,&
-         error=error)
-
     CALL get_qs_env(qs_env=qs_env,&
          scf_control=scf_control,&
          dft_control=dft_control,&
-         atomic_kind_set=atomic_kind_set,&
          mos=mos,matrix_ks=matrix_ks,&
-         matrix_h=matrix_h,matrix_s=matrix_s, error=error)
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-         gth_potential_present=gth_potential_present)
+         matrix_s=matrix_s, error=error)
 
-    has_unit_metric=.FALSE.
-    IF (dft_control%qs_control%semi_empirical) THEN
-        IF (dft_control%qs_control%se_control%orthogonal_basis) THEN
-            has_unit_metric=.TRUE.
-        ENDIF
-    END IF
-
-    scf_work2 => scf_env%scf_work2
-    ortho => scf_env%ortho
-
-! updates the total number of electrons
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-         nelectron=scf_env%nelectron)
-    scf_env%nelectron = scf_env%nelectron - dft_control%charge
-! print occupation numbers
-    output_unit=cp_print_key_unit_nr(logger,scf_section,"PRINT%PROGRAM_RUN_INFO",&
-         extension=".scfLog",error=error)
-    IF (output_unit>0) THEN
-       DO ispin=1,dft_control%nspins
-          CALL get_mo_set(mo_set=mos(ispin)%mo_set,&
-               homo=homo, &
-               nelectron=nelectron_spin, &
-               nao=nao)
-          IF (dft_control%nspins > 1) THEN
-            WRITE (UNIT=output_unit,FMT="(/,T3,A,I2)") "Spin",ispin
-          END IF
-          WRITE (UNIT=output_unit,FMT="(/,(T3,A,T31,I10))")&
-            "Number of electrons:",nelectron_spin,&
-            "Number of occupied orbitals:",homo
-       ENDDO
-       WRITE (UNIT=output_unit,FMT="((T3,A,T31,I10))")&
-         "Number of orbital functions:",nao
-    END IF
-    CALL cp_print_key_finished_output(output_unit,logger,scf_section,&
-         "PRINT%PROGRAM_RUN_INFO", error=error)
-! calc ortho matrix
-    ndep = 0
-    IF (scf_env%method /= ot_method_nr .AND. &
-        scf_env%method /= special_diag_method_nr ) THEN
-       IF (scf_control%use_cholesky ) THEN
-          CALL copy_sm_to_fm(matrix_s(1)%matrix,ortho)
-          CALL cp_fm_cholesky_decompose(ortho)
-       ELSE
-          CALL calculate_ortho_matrix(ortho,matrix_s(1)%matrix,scf_work2,ndep,&
-               scf_control%eps_eigval)
-          output_unit=cp_print_key_unit_nr(logger,scf_section,"PRINT%PROGRAM_RUN_INFO",&
-               extension=".scfLog",error=error)
-          IF (output_unit>0) THEN
-             WRITE (UNIT=output_unit,FMT="(T3,A,I10)")&
-                  "Number of independent orbital functions:",nao - ndep
-          END IF
-          CALL cp_print_key_finished_output(output_unit,logger,scf_section,&
-               "PRINT%PROGRAM_RUN_INFO", error=error)
-       ENDIF
-    ENDIF
-
-    IF (BTEST(cp_print_key_should_output(logger%iter_info,&
-         qs_env%input,"DFT%PRINT%AO_MATRICES/ORTHO",error=error),cp_p_file)) THEN
-       iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/ORTHO",&
-            extension=".Log",error=error)
-       CALL write_fm_with_basis_info(ortho,4,6,qs_env,globenv,output_unit=iw)
-       CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
-            "DFT%PRINT%AO_MATRICES/ORTHO", error=error)
-    END IF
-
-    my_transition_potential = (dft_control%do_xas_calculation .AND. dft_control%xas_estate>0)
-    ! initializes rho and the mos
-    IF( my_transition_potential) THEN
-      ! initialize the density with the localized mos
-        CALL loc_initialize_rho(qs_env,error=error)  
-    ELSE
-      CALL scf_env_initial_rho_setup(scf_env,qs_env=qs_env,&
-           globenv=globenv, scf_section=scf_section, error=error)
-    END IF
-
-! *** method dependent initializations ***
     SELECT CASE (scf_env%method)
     CASE DEFAULT
       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
@@ -1214,6 +1109,12 @@ END SUBROUTINE qs_scf_print_summary
        END IF
        CALL qs_diis_b_clear(scf_env%scf_diis_buffer,error=error)
     CASE (ot_method_nr)
+        has_unit_metric=.FALSE.
+        IF (dft_control%qs_control%semi_empirical) THEN
+            IF (dft_control%qs_control%se_control%orthogonal_basis) THEN
+                has_unit_metric=.TRUE.
+            ENDIF
+        END IF
        IF (.NOT.ASSOCIATED(scf_env%qs_ot_env)) THEN
 
           ! restricted calculations require just on set of OT orbitals
@@ -1318,9 +1219,182 @@ END SUBROUTINE qs_scf_print_summary
 
     CALL timestop(0.0_dp,handle)
 
-  END SUBROUTINE init_scf_run
+  END SUBROUTINE init_scf_loop
 
-! *****************************************************************************
+!!****f* qs_scf/init_scf_run *
+!!
+!!   NAME
+!!      init_scf_run
+!!
+!!   FUNCTION
+!!      performs those initialisations that need to be done only once
+!!      (e.g. that only depend on the atomic positions)
+!!      this will be called in scf
+!!
+!!   NOTES
+!!
+!!   INPUTS
+!!
+!!   MODIFICATION HISTORY
+!!     03.2006 created [Joost VandeVondele]
+!!
+!!*** **********************************************************************
+  SUBROUTINE init_scf_run(scf_env, qs_env, globenv, scf_section,error)
+
+    TYPE(qs_scf_env_type), POINTER           :: scf_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(section_vals_type), POINTER         :: scf_section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'init_scf_run', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, homo, i, ispin, iw, &
+                                                nao, ndep, nelectron_spin, &
+                                                output_unit
+    LOGICAL                                  :: failure, &
+                                                gth_potential_present, &
+                                                id_equal, &
+                                                my_transition_potential
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mos
+    TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_h, matrix_ks, matrix_s
+    TYPE(scf_control_type), POINTER          :: scf_control
+
+    CALL timeset("init_scf_run","I"," ",handle)
+
+    NULLIFY(scf_control, atomic_kind_set, matrix_h, matrix_s, matrix_ks, &
+         dft_control, mos, rho)
+    failure=.FALSE.
+    my_transition_potential = .FALSE.
+    logger => cp_error_get_logger(error)
+    
+    CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(qs_env%ref_count>0,cp_failure_level,routineP,error,failure)
+
+    CALL scf_env_check_i_alloc(scf_env=scf_env, qs_env=qs_env,&
+         error=error)
+
+    CALL get_qs_env(qs_env=qs_env,&
+         scf_control=scf_control,&
+         dft_control=dft_control,&
+         atomic_kind_set=atomic_kind_set,&
+         mos=mos,matrix_ks=matrix_ks, rho=rho, &
+         matrix_h=matrix_h,matrix_s=matrix_s, error=error)
+
+    ! some special checks to eliminate the first problems with restricted
+    ! should move earlier I think
+    IF (dft_control%restricted) THEN
+       IF (scf_env%method .NE. ot_method_nr) THEN
+          IF (output_unit>0) WRITE(output_unit,*) "OT only for restricted"
+          CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+       ENDIF
+       CPPrecondition(dft_control%nspins.EQ.2,cp_failure_level,routineP,error,failure)
+    ENDIF
+
+    ! do some assertions here on these matrices having the same structure
+    id_equal=ALL((/((matrix_s(i)%matrix%sparsity_id==matrix_s(1)%matrix%sparsity_id),i=1,SIZE(matrix_s))/))
+    CPPrecondition(id_equal,cp_failure_level,routineP,error,failure)
+    id_equal=ALL((/((rho%rho_ao(i)%matrix%sparsity_id==matrix_s(1)%matrix%sparsity_id),i=1,SIZE(rho%rho_ao))/))
+    CPPrecondition(id_equal,cp_failure_level,routineP,error,failure)
+    id_equal=ALL((/((matrix_h(i)%matrix%sparsity_id==matrix_s(1)%matrix%sparsity_id),i=1,SIZE(matrix_h))/))
+    CPPrecondition(id_equal,cp_failure_level,routineP,error,failure)
+    id_equal=ALL((/((matrix_ks(i)%matrix%sparsity_id==matrix_s(1)%matrix%sparsity_id),i=1,SIZE(matrix_ks))/))
+    CPPrecondition(id_equal,cp_failure_level,routineP,error,failure)
+
+    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+         gth_potential_present=gth_potential_present)
+
+! updates the total number of electrons
+    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+         nelectron=scf_env%nelectron)
+    scf_env%nelectron = scf_env%nelectron - dft_control%charge
+! print occupation numbers
+    output_unit=cp_print_key_unit_nr(logger,scf_section,"PRINT%PROGRAM_RUN_INFO",&
+         extension=".scfLog",error=error)
+    IF (output_unit>0) THEN
+       DO ispin=1,dft_control%nspins
+          CALL get_mo_set(mo_set=mos(ispin)%mo_set,&
+               homo=homo, &
+               nelectron=nelectron_spin, &
+               nao=nao)
+          IF (dft_control%nspins > 1) THEN
+            WRITE (UNIT=output_unit,FMT="(/,T3,A,I2)") "Spin",ispin
+          END IF
+          WRITE (UNIT=output_unit,FMT="(/,(T3,A,T31,I10))")&
+            "Number of electrons:",nelectron_spin,&
+            "Number of occupied orbitals:",homo
+       ENDDO
+       WRITE (UNIT=output_unit,FMT="((T3,A,T31,I10))")&
+         "Number of orbital functions:",nao
+    END IF
+    CALL cp_print_key_finished_output(output_unit,logger,scf_section,&
+         "PRINT%PROGRAM_RUN_INFO", error=error)
+
+! calc ortho matrix
+    ndep = 0
+    IF (scf_env%method /= ot_method_nr .AND. &
+        scf_env%method /= special_diag_method_nr ) THEN
+       CALL copy_sm_to_fm(matrix_s(1)%matrix,scf_env%ortho)
+       IF (scf_control%use_cholesky ) THEN
+          CALL cp_fm_cholesky_decompose(scf_env%ortho)
+       ELSE 
+          CALL cp_fm_power(scf_env%ortho,scf_env%scf_work2,-0.5_dp,scf_control%eps_eigval,ndep)
+       ENDIF
+       IF (BTEST(cp_print_key_should_output(logger%iter_info,&
+            qs_env%input,"DFT%PRINT%AO_MATRICES/ORTHO",error=error),cp_p_file)) THEN
+          iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/ORTHO",&
+               extension=".Log",error=error)
+          CALL write_fm_with_basis_info(scf_env%ortho,4,6,qs_env,globenv,output_unit=iw)
+          CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
+               "DFT%PRINT%AO_MATRICES/ORTHO", error=error)
+       END IF
+    ENDIF
+    output_unit=cp_print_key_unit_nr(logger,scf_section,"PRINT%PROGRAM_RUN_INFO",&
+               extension=".scfLog",error=error)
+    IF (output_unit>0) THEN
+       WRITE (UNIT=output_unit,FMT="(T3,A,I10)")&
+                  "Number of independent orbital functions:",nao - ndep
+    END IF
+    CALL cp_print_key_finished_output(output_unit,logger,scf_section,&
+          "PRINT%PROGRAM_RUN_INFO", error=error)
+
+    my_transition_potential = (dft_control%do_xas_calculation .AND. dft_control%xas_estate>0)
+    ! initializes rho and the mos
+    IF( my_transition_potential) THEN
+      ! initialize the density with the localized mos
+        CALL loc_initialize_rho(qs_env,error=error)  
+    ELSE
+      CALL scf_env_initial_rho_setup(scf_env,qs_env=qs_env,&
+           globenv=globenv, scf_section=scf_section, error=error)
+    END IF
+
+    ! Frozen density approximation
+    IF (ASSOCIATED(qs_env%wf_history)) THEN
+      IF (qs_env%wf_history%interpolation_method_nr==wfi_frozen_method_nr) THEN
+        IF (.NOT. ASSOCIATED(qs_env%wf_history%past_states(1)%snapshot)) THEN
+          CALL wfi_update(qs_env%wf_history, qs_env=qs_env, dt=1.0_dp, &
+                          error=error)
+          CALL duplicate_rho_type(rho_input=rho, &
+                                  rho_output=qs_env%wf_history%past_states(1)%snapshot%rho_frozen, &
+                                  qs_env=qs_env, error=error)
+        END IF
+      END IF
+    END IF
+
+    CALL timestop(0.0_dp,handle)
+
+  END SUBROUTINE init_scf_run
 
 !!****f* qs_scf/scf_env_check_i_alloc [1.0] *
 !!
