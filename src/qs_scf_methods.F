@@ -53,7 +53,8 @@ MODULE qs_scf_methods
                                              real_block_node_type,&
                                              real_matrix_p_type,&
                                              real_matrix_type
-  USE termination,                     ONLY: stop_program
+  USE termination,                     ONLY: stop_program,&
+                                             stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -65,6 +66,7 @@ MODULE qs_scf_methods
 ! *** Global parameters ***
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_scf_methods'
+  REAL(KIND=dp), PARAMETER             :: ratio=0.25_dp
 
   PUBLIC :: eigensolver, simple_eigensolver, scf_env_density_mixing, calculate_ortho_matrix
 
@@ -342,11 +344,12 @@ CONTAINS
       OPTIONAL                               :: error
 
     INTEGER                                  :: handle, homo, imo, lfomo, &
-                                                nao, nelectron, nmo
+                                                nao, nelectron, nmo, istat
     LOGICAL                                  :: mo_uocc
     REAL(KIND=dp)                            :: alpha, maxocc
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues, mo_occupation
     TYPE(cp_fm_type), POINTER                :: mo_coeff
+    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: eigvals
 
 !   ---------------------------------------------------------------------------
 
@@ -372,9 +375,20 @@ CONTAINS
          CALL cp_fm_set_element(matrix_ks,imo,imo,alpha)
       END DO
     END IF
+    
+    ALLOCATE(eigvals(nao),STAT=istat)
+    IF (istat.NE.0) CALL stop_memory("simple_eigensolver","eigvals",nao)
 
-    CALL cp_fm_syevx(matrix_ks,work,mo_eigenvalues,nmo,work_syevx)
+    IF ( REAL(nmo,dp)/REAL(nao,dp) < ratio ) THEN
+      CALL cp_fm_syevx(matrix_ks,work,eigvals,nmo,work_syevx,error)
+    ELSE
+      CALL cp_fm_syevd(matrix_ks,work,eigvals,error)
+    END IF
+    mo_eigenvalues(1:nmo) = eigvals(1:nmo)
     CALL cp_fm_to_fm(work,mo_coeff,nmo,1,1)
+
+    DEALLOCATE(eigvals,STAT=istat)
+    IF (istat.NE.0) CALL stop_memory("simple_eigensolver","eigvals")
 
     IF (do_level_shift) THEN
       CALL correct_mo_eigenvalues(mo_set,level_shift)
