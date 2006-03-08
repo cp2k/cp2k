@@ -396,24 +396,28 @@ SUBROUTINE cp2k_read(globenv,error)
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
-    IF (.NOT. failure) THEN
-       !   *** Initialize random number generator ***
 
-       CALL section_vals_val_get(globenv%input_file,"GLOBAL%SEED",&
-            i_val=globenv%idum)
-       initial_random = ran2(globenv%idum)
+    IF (.NOT.failure) THEN
 
-       !   *** Initialize the parallel random number generator ***
+      ! Initialize random number generator
 
-       CALL init_rng()
-       iw = cp_print_key_unit_nr(logger,globenv%input_file,"GLOBAL%PRINT/RNG_MATRICES",&
-            extension=".Log",error=error)
-       IF (iw>0) THEN
-          CALL write_rng_matrices(iw)
-       END IF
-       CALL cp_print_key_finished_output(iw,logger,globenv%input_file,&
-            "GLOBAL%PRINT/RNG_MATRICES",error=error)
+      CALL section_vals_val_get(globenv%input_file,"GLOBAL%SEED",&
+                                 i_val=globenv%idum)
+      initial_random = ran2(globenv%idum)
+
+      ! Initialize the parallel random number generator
+
+      CALL init_rng()
+      iw = cp_print_key_unit_nr(logger,globenv%input_file,"GLOBAL%PRINT/RNG_MATRICES",&
+                                extension=".Log",error=error)
+      IF (iw > 0) THEN
+        CALL write_rng_matrices(iw)
+      END IF
+      CALL cp_print_key_finished_output(iw,logger,globenv%input_file,&
+                                        "GLOBAL%PRINT/RNG_MATRICES",&
+                                        error=error)
     END IF
+
   END SUBROUTINE cp2k_setup
 !***************************************************************************
 

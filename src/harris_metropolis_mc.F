@@ -93,7 +93,8 @@ MODULE harris_metropolis_mc
   USE parallel_rng_types,              ONLY: create_rng_stream,&
                                              delete_rng_stream,&
                                              next_random_number,&
-                                             rng_stream_type
+                                             rng_stream_type,&
+                                             UNIFORM
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type
   USE qs_environment_types,            ONLY: get_qs_env,&
@@ -338,8 +339,11 @@ CONTAINS
     CPPrecondition(ASSOCIATED(globenv), cp_failure_level, routineP, error, failure)
     CPPrecondition(ASSOCIATED(force_env_p), cp_failure_level, routineP, error, failure)
 
-    CALL create_rng_stream(rng_stream=rng_stream, name="MonteCarlo acceptance", &
-         extended_precision=.TRUE., error=error)
+    CALL create_rng_stream(rng_stream=rng_stream,&
+                           name="MonteCarlo acceptance",&
+                           distribution_type=UNIFORM,&
+                           extended_precision=.TRUE.,&
+                           error=error)
 
     IF (globenv%prog_name_id == do_qs) THEN
        CALL force_env_get(force_env=force_env_p(1)%force_env, in_use=force_env_in_use, qs_env=qs_env, &
@@ -702,7 +706,7 @@ CONTAINS
           random_number = 0.0_dp
        ELSE
           ! Random Number
-          random_number = next_random_number(rng_stream=rng_stream, error=error); 
+          random_number = next_random_number(rng_stream=rng_stream,error=error)
 
           IF (.NOT. ext_temp) THEN
              ! *** Calculate the current temperature ***
@@ -1006,7 +1010,7 @@ CONTAINS
     DEALLOCATE(tmp_particle_set, STAT=istat)
     CPPostcondition(istat==0, cp_failure_level, routineP, error, failure)
 
-    CALL delete_rng_stream(rng_stream=rng_stream, error=error)
+    CALL delete_rng_stream(rng_stream=rng_stream,error=error)
 
     CALL wfi_release(wf_history=tmp_wf_history, error=error)
 

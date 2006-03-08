@@ -533,8 +533,7 @@ CONTAINS
 
     CALL keyword_create(keyword, name="random_number_generator",variants=(/"rng"/),&
          description=" Tests the parallel random number generator",&
-         usage="random_number_generator",default_l_val=.FALSE.,&
-         lone_keyword_l_val=.TRUE.,error=error)
+         usage="rng 100000",default_i_val=0,error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 

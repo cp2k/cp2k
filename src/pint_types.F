@@ -48,9 +48,10 @@ MODULE pint_types
   USE machine,                         ONLY: m_flush
   USE parallel_rng_types,              ONLY: create_rng_stream,&
                                              delete_rng_stream,&
-                                             next_gauss,&
+                                             next_random_number,&
                                              next_rng_seed,&
-                                             rng_stream_type
+                                             rng_stream_type,&
+                                             GAUSSIAN
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: write_particle_coordinates
   USE replica_methods,                 ONLY: rep_env_calc_e_f,&
@@ -229,7 +230,10 @@ CONTAINS
 
        seed(:,:) = next_rng_seed()
        CALL create_rng_stream(pint_env%randomG,&
-            name="pint_randomG", extended_precision=.TRUE., seed=seed)
+                              name="pint_randomG",&
+                              distribution_type=GAUSSIAN,&
+                              extended_precision=.TRUE.,&
+                              seed=seed)
 
        ALLOCATE(pint_env%e_pot_bead(pint_env%p),stat=stat)
        CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
@@ -1105,15 +1109,17 @@ SUBROUTINE pint_init_v(pint_env,kT,error)
   IF (PRESENT(kT)) mykt=kT
   DO idim=1,SIZE(pint_env%uv,2)
      DO ib=1,SIZE(pint_env%uv,1)
-        pint_env%uv(ib,idim)=next_gauss(pint_env%randomG,&
-             kT/pint_env%mass_fict(ib,idim))
+        pint_env%uv(ib,idim) = next_random_number(rng_stream=pint_env%randomG,&
+                                                  variance=kT/pint_env%mass_fict(ib,idim),&
+                                                  error=error)
      END DO
   END DO
   DO idim=1,SIZE(pint_env%tv,3)
      DO ib=1,SIZE(pint_env%tv,2)
         DO inos=1,SIZE(pint_env%tv,1)
-           pint_env%tv(inos,ib,idim)=next_gauss(pint_env%randomG,&
-                kT/pint_env%Q(ib))
+           pint_env%tv(inos,ib,idim) = next_random_number(rng_stream=pint_env%randomG,&
+                                                          variance=kT/pint_env%Q(ib),&
+                                                          error=error)
         END DO
      END DO
   END DO
@@ -1882,8 +1888,9 @@ SUBROUTINE pint_start(pint_env,error)
      IF (centroid_speed) THEN
         CALL pint_u2x(pint_env,ux=pint_env%uv,x=pint_env%v,error=error)
         DO idim=1,pint_env%ndim
-           rv=next_gauss(pint_env%randomG,pint_env%mass(idim)*pint_env%kT,&
-                error=error)/pint_env%mass(idim)
+           rv = next_random_number(rng_stream=pint_env%randomG,&
+                                   variance=pint_env%mass(idim)*pint_env%kT,&
+                                   error=error)/pint_env%mass(idim)
            DO ib=1,pint_env%p
               pint_env%v(ib,idim)=pint_env%v(ib,idim)+rv
            END DO
@@ -2000,9 +2007,11 @@ SUBROUTINE pint_start(pint_env,error)
      IF (randomize_pos) THEN
         DO idim=1,pint_env%ndim
            DO ib=1,pint_env%p
-              pint_env%x(ib,idim)=pint_env%x(ib,idim)+&
-                   next_gauss(pint_env%randomG,pint_env%beta/SQRT(12._dp*pint_env%mass(idim)),&
-                   error=error)
+              pint_env%x(ib,idim) = pint_env%x(ib,idim) +&
+                                    next_random_number(rng_stream=pint_env%randomG,&
+                                                       variance=pint_env%beta/&
+                                                                &SQRT(12.0_dp*pint_env%mass(idim)),&
+                                    error=error)
            END DO
         END DO
      END IF

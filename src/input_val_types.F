@@ -702,9 +702,9 @@ SUBROUTINE val_write(val,unit_nr,unit,unit_str,fmt,error)
                  WRITE(unit=unit_nr,fmt="("//TRIM(myfmt)//")",advance="NO")
               END IF
               IF (ASSOCIATED(my_unit)) THEN
-                 WRITE(rcval,*)cp_unit_from_cp2k1(val%r_val(i),my_unit,error=error)
+                 WRITE(rcval,"(ES25.16)")cp_unit_from_cp2k1(val%r_val(i),my_unit,error=error)
               ELSE
-                 WRITE(rcval,*)val%r_val(i)
+                 WRITE(rcval,"(ES25.16)")val%r_val(i)
               END IF
               WRITE(unit=unit_nr,fmt="(' ',A)",advance="NO")TRIM(rcval)
            END DO
@@ -858,7 +858,7 @@ END SUBROUTINE val_write
         END IF
       CASE (lchar_t)
         IF (ASSOCIATED(val%c_val)) THEN
-           CALL val_get(val,c_val=string)
+          CALL val_get(val,c_val=string)
         ELSE
           CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
         END IF

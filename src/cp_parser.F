@@ -20,7 +20,7 @@
 !!   MODIFICATION HISTORY
 !!     22.11.1999 first version of the old parser (called qs_parser)
 !!                Matthias Krack
-!!     06.2004 removed module varibles, cp_parser_type, new module [fawzi]
+!!     06.2004 removed module variables, cp_parser_type, new module [fawzi]
 !!
 !!   SOURCE
 !******************************************************************************
@@ -56,7 +56,7 @@ MODULE cp_parser
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_parser'
 
-  INTEGER, PARAMETER, PUBLIC :: max_line_length = default_path_length+40
+  INTEGER, PARAMETER, PUBLIC :: max_line_length = 2*default_path_length
 
 ! *** Global variables ***
 

@@ -151,7 +151,7 @@ CONTAINS
     INTEGER :: iparticle, iparticle_kind, iparticle_local, istat, isubsys, &
       nmolecule, nmolecule_kind, nparticle, nparticle_kind, nparticle_local
     REAL(KIND=dp)                            :: c, c1, c2, c3, c4, dm, dt, &
-                                                gam, mass, w_norm
+                                                gam, mass, sigma
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: pos, vel, w
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
@@ -171,10 +171,6 @@ CONTAINS
       DIMENSION(:), POINTER                  :: nhc_coef
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
     TYPE(mol_new_list_type), POINTER         :: molecules
-    TYPE(molecule_kind_type), DIMENSION(:), &
-      POINTER                                :: molecule_kind_set
-    TYPE(molecule_type), DIMENSION(:), &
-      POINTER                                :: molecule_set
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -212,12 +208,10 @@ CONTAINS
       nparticle_kind = atomic_kinds%n_els
       atomic_kind_set => atomic_kinds%els
       nmolecule_kind = molecule_kinds%n_els
-      molecule_kind_set => molecule_kinds%els
 
       nparticle = particles%n_els
       particle_set => particles%els
       nmolecule = molecules % n_els
-      molecule_set => molecules % els
 
 !     *** Allocate work storage for positions ***
 
@@ -249,16 +243,17 @@ CONTAINS
         atomic_kind => atomic_kind_set(iparticle_kind)
         CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
         nparticle_local = local_particles%n_el(iparticle_kind)
-        w_norm = SQRT(simpar%var_w*mass)
+        sigma = simpar%var_w*mass
         dm = 0.5_dp*dt/mass
         c3 = dm/c2
         DO iparticle_local=1,nparticle_local
           iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
           rng_stream => local_particles%local_particle_set(iparticle_kind)%&
                         &rng(iparticle_local)%stream
-          w(1,iparticle) = w_norm*(next_random_number(rng_stream) - 0.5_dp)
-          w(2,iparticle) = w_norm*(next_random_number(rng_stream) - 0.5_dp)
-          w(3,iparticle) = w_norm*(next_random_number(rng_stream) - 0.5_dp)
+          w(1,iparticle) = next_random_number(rng_stream,variance=sigma)
+          w(2,iparticle) = next_random_number(rng_stream,variance=sigma)
+          w(3,iparticle) = next_random_number(rng_stream,variance=sigma)
+IF (iparticle == 1) write(*,"(I6,3ES25.16)") iparticle,w(:,iparticle)
           vel(:,iparticle) = particle_set(iparticle)%v(:) +&
                              c3*particle_set(iparticle)%f(:)
           pos(:,iparticle) = particle_set(iparticle)%r(:) +&
@@ -277,7 +272,6 @@ CONTAINS
 
 !     *** Update forces ***
 
-!      CALL force_env_set(force_env_p(1)%force_env,box_changed=.false.)
       CALL force_env_calc_energy_force(force_env_p(1)%force_env,error=error)
 
 !     *** Update Verlet (second part) ***
@@ -3035,7 +3029,7 @@ SUBROUTINE update_veps ( box, npt, simpar, pv_kin, kin, virial, infree )
     REAL(KIND=dp), INTENT(IN)                :: infree
 
     INTEGER                                  :: ii
-    REAL(KIND=dp)                            :: fdotr, mass, v, v0, v0i, vi
+    REAL(KIND=dp)                            :: fdotr, v, v0, v0i, vi
     REAL(KIND=dp), DIMENSION(3, 3)           :: unit
 
 ! dbg ISOTROPIC LIMIT

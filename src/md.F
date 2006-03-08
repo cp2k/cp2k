@@ -254,36 +254,24 @@ CONTAINS
        END IF
     END IF
 
-    !MK begin setup Langevin
+    !MK Begin setup Langevin dynamics
+
     IF (simpar%ensemble == langevin_ensemble) THEN
 
-       IF (globenv%ionode.AND.(globenv%print_level >= 0)) THEN
-          tmp_r=cp_unit_from_cp2k(simpar%gamma,"fs^-1",error=error)
-          WRITE (iw,"(T2,A,T71,ES10.3)")&
-               "LD| Gamma [1/fs] ",tmp_r
-       END IF
+      ! Normalization factor using a normal Gaussian random number distribution
 
-       !MK Normalization factor uniform random number distribution [-0.5,0.5]
+      simpar%var_w = 2.0_dp*simpar%temp_ext*simpar%dt*simpar%gamma
 
-       simpar%var_w = 24.0_dp*simpar%temp_ext*simpar%dt*simpar%gamma
-
-       !MK Normalization factor Gaussian random number distribution
-       !MK simpar%var_w = 2.0_dp*simpar%temp_ext*simpar%dt*simpar%gamma
-
-       IF (globenv%ionode.AND.(globenv%print_level >= 0)) THEN
-          WRITE ( iw, '( A,T65,ES16.8 )' ) ' LD| External temperature T [a.u.] ', &
-               simpar % temp_ext
-          WRITE ( iw, '( A,T65,ES16.8 )' ) ' LD| Timestep dt [a.u.] ', &
-               simpar % dt
-          WRITE ( iw, '( A,T65,ES16.8 )' ) ' LD| Gamma [a.u.] ', &
-               simpar % gamma
-          !WRITE ( iw, '( A,T65,ES16.8 )' ) ' LD| W ', &
-          !      simpar % var_w
-          WRITE ( iw, *)
-       END IF
+      IF (globenv%ionode.AND.(globenv%print_level >= 0)) THEN
+        tmp_r = cp_unit_from_cp2k(simpar%gamma,"fs^-1",error=error)
+        WRITE (UNIT=iw,FMT="(T2,A,T71,ES10.3)")&
+          "LD| Gamma [1/fs] ",tmp_r,&
+          "LD| Variance [a.u.]",simpar%var_w
+      END IF
 
     END IF
-    !MK End setup Langevin
+
+    !MK End setup Langevin dynamics
 
     !..write some information to output
     IF (globenv % ionode .AND. globenv % print_level>=0) THEN

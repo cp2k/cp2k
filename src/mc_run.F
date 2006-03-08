@@ -75,7 +75,8 @@ MODULE mc_run
                                              molecule_kind_type
   USE parallel_rng_types,              ONLY: create_rng_stream,&
                                              delete_rng_stream,&
-                                             rng_stream_type
+                                             rng_stream_type,&
+                                             UNIFORM
   USE physcon,                         ONLY: angstrom
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
@@ -173,7 +174,9 @@ CONTAINS
       IF ( isos /= 0 ) CALL stop_memory ( 'allocstruc', 'mc_par', 0 )
  
 ! initialize the random numbers
-      CALL create_rng_stream(rng_stream,'first')
+      CALL create_rng_stream(rng_stream=rng_stream,&
+                             name="first",&
+                             distribution_type=UNIFORM)
 
 ! read the input of the Monte Carlo section
       CALL read_mc_section ( mc_par, globenv ,error)

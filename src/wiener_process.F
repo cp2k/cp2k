@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2005  CP2K developers group                          !
+!   Copyright (C) 2000 - 2006  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 !!****** cp2k/wiener_process [1.0] *
@@ -39,8 +39,10 @@ MODULE wiener_process
   USE md_environment_types,            ONLY: get_md_env,&
                                              md_environment_type
   USE parallel_rng_types,              ONLY: create_rng_stream,&
-                                             next_rng_seed
+                                             next_rng_seed,&
+                                             GAUSSIAN
   USE particle_list_types,             ONLY: particle_list_type
+  USE string_utilities,                ONLY: compress
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -98,7 +100,7 @@ CONTAINS
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
 
-! -------------------------------------------------------------------------
+    ! -------------------------------------------------------------------------
 
     failure = .FALSE.
     NULLIFY(work_section)
@@ -167,13 +169,13 @@ CONTAINS
           DO iparticle_kind=1,nparticle_kind
             nparticle_local = local_particles%n_el(iparticle_kind)
             DO iparticle_local=1,nparticle_local
-              iparticle = local_particles%list(iparticle_kind)%&
-                          &array(iparticle_local)
-              WRITE (UNIT=name,FMT="(A,I6)") "RNG for particle",iparticle
-              CALL create_rng_stream(local_particles%&
-                                     &local_particle_set(iparticle_kind)%&
-                                     &rng(iparticle_local)%stream,&
+              iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
+              WRITE (UNIT=name,FMT="(A,I8)") "Wiener process for particle",iparticle
+              CALL compress(name)
+              CALL create_rng_stream(rng_stream=local_particles%local_particle_set(iparticle_kind)%&
+                                                &rng(iparticle_local)%stream,&
                                      name=name,&
+                                     distribution_type=GAUSSIAN,&
                                      extended_precision=.TRUE.,&
                                      seed=seed(:,:,iparticle))
             END DO
@@ -181,13 +183,18 @@ CONTAINS
 
           DEALLOCATE (seed,STAT=istat)
           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-          !
-          ! Possibly restart rng
-          !
-          NULLIFY(work_section)
-          work_section => section_vals_get_subs_vals(subsys_section,"RNG_INIT",error=error)
-          CALL init_local_particle_set(local_particles, atomic_kinds%n_els, particles%n_els,&
-               work_section=work_section, error=error)
+
+          ! Possibly restart Wiener process
+
+          NULLIFY (work_section)
+          work_section => section_vals_get_subs_vals(section_vals=subsys_section,&
+                                                     subsection_name="RNG_INIT",&
+                                                     error=error)
+          CALL init_local_particle_set(distribution_1d=local_particles,&
+                                       nparticle_kind=nparticle_kind,&
+                                       nparticle=nparticle,&
+                                       work_section=work_section,&
+                                       error=error)
 
         END DO
 
@@ -196,5 +203,7 @@ CONTAINS
     END IF
 
   END SUBROUTINE create_wiener_process
+
+  ! ***************************************************************************
 
 END MODULE wiener_process

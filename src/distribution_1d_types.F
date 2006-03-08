@@ -33,7 +33,9 @@
 !!
 !!   SOURCE
 !****************************************************************************
+
 MODULE distribution_1d_types
+
   USE cp_array_i_utils,                ONLY: cp_1d_i_bsearch,&
                                              cp_1d_i_p_type
   USE cp_para_env,                     ONLY: cp_para_env_release,&
@@ -47,6 +49,7 @@ MODULE distribution_1d_types
                                              mp_sum
   USE parallel_rng_types,              ONLY: delete_rng_stream,&
                                              read_rng_stream,&
+                                             rng_record_length,&
                                              rng_stream_p_type
   USE string_utilities,                ONLY: ascii_to_string
   USE timings,                         ONLY: timeset,&
@@ -397,10 +400,14 @@ SUBROUTINE distribution_1d_release(distribution_1d,error)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
      END IF
   END IF
-END SUBROUTINE distribution_1d_release
-!***************************************************************************
 
-SUBROUTINE init_local_particle_set(distribution_1d,nparticle_kind,nparticle,work_section,error)
+END SUBROUTINE distribution_1d_release
+
+  ! ***************************************************************************
+
+  SUBROUTINE init_local_particle_set(distribution_1d,nparticle_kind,&
+                                     nparticle,work_section,error)
+
     TYPE(distribution_1d_type), POINTER      :: distribution_1d
     INTEGER, INTENT(in)                      :: nparticle_kind, nparticle
     TYPE(section_vals_type), POINTER         :: work_section
@@ -410,50 +417,39 @@ SUBROUTINE init_local_particle_set(distribution_1d,nparticle_kind,nparticle,work
     CHARACTER(LEN=*), PARAMETER :: routineN = 'init_local_particle_set', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=404)                       :: string
+    CHARACTER(LEN=rng_record_length)         :: rng_record
     INTEGER                                  :: i, iparticle, iparticle_kind, &
-                                                iparticle_local, istat, &
-                                                nparticle_local
-    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: ascii
-    INTEGER, DIMENSION(:), POINTER           :: my_ascii
+                                                iparticle_local, nparticle_local
     LOGICAL                                  :: explicit, failure
 
-! -------------------------------------------------------------------------
+    ! -------------------------------------------------------------------------
 
     failure = .FALSE.
 
     CPPrecondition (ASSOCIATED(distribution_1d),cp_failure_level,routineP,error,failure)
 
     IF (ASSOCIATED(work_section)) THEN
-       CALL section_vals_get(work_section, explicit=explicit, error=error)
-       IF (explicit) THEN
-          ALLOCATE (ascii(LEN(string),nparticle),STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)      
-          DO i = 1, nparticle
-             CALL section_vals_val_get(work_section,"_DEFAULT_KEYWORD_",i_rep_val=i,&
-                  i_vals=my_ascii, error=error)
-             ascii(:,i) = my_ascii
+      CALL section_vals_get(work_section,explicit=explicit,error=error)
+      IF (explicit) THEN
+        DO iparticle_kind=1,nparticle_kind
+          nparticle_local = distribution_1d%n_el(iparticle_kind)
+          DO iparticle_local=1,nparticle_local
+            iparticle = distribution_1d%list(iparticle_kind)%array(iparticle_local)
+            IF (iparticle == distribution_1d%list(iparticle_kind)%array(iparticle_local)) THEN
+              CALL section_vals_val_get(section_vals=work_section,&
+                                        keyword_name="_DEFAULT_KEYWORD_",&
+                                        i_rep_val=iparticle,&
+                                        c_val=rng_record,&
+                                        error=error)
+              CALL read_rng_stream(rng_stream=distribution_1d%&
+                                              &local_particle_set(iparticle_kind)%&
+                                              &rng(iparticle_local)%stream,&
+                                   rng_record=rng_record,&
+                                   error=error)
+            END IF
           END DO
-          
-          DO iparticle_kind=1,nparticle_kind
-             nparticle_local = distribution_1d%n_el(iparticle_kind)
-             DO iparticle_local=1,nparticle_local
-                iparticle = distribution_1d%list(iparticle_kind)%&
-                     &array(iparticle_local)
-                IF (iparticle == distribution_1d%list(iparticle_kind)%&
-                     &array(iparticle_local)) THEN
-                   CALL ascii_to_string(ascii(:,iparticle),string)
-                   CALL read_rng_stream(rng_stream=distribution_1d%&
-                        &local_particle_set(iparticle_kind)%&
-                        &rng(iparticle_local)%stream,&
-                        rng_record=string,&
-                        error=error)
-                END IF
-             END DO
-          END DO
-          DEALLOCATE (ascii,STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-       END IF
+        END DO
+      END IF
     END IF
 
   END SUBROUTINE init_local_particle_set

@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2005  CP2K developers group                          !
+!   Copyright (C) 2000 - 2006  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 !!****** cp2k/parallel_rng_types [1.0] *
@@ -23,7 +23,7 @@
 !!
 !!     Usage hint:
 !!
-!!     CALL create_rng_stream(rng_stream,name,...)
+!!     CALL create_rng_stream(rng_stream,name,...,error=error)
 !!
 !!     to generate the first stream. Optionally, you may define a different
 !!     seed or create a stream of extended precision (53 bits). Then
@@ -31,20 +31,22 @@
 !!     CALL create_rng_stream(next_rng_stream,name,last_rng_stream=rng_stream)
 !!
 !!     to create all the following RNG streams w.r.t. the previous stream.
-!!     Finally,
+!!     The command line
 !!
-!!     x = next_random_number(rng_stream,error)
+!!     x = next_random_number(rng_stream,error=error)
 !!
 !!     will provide the next real random number x between 0 and 1 and
 !!
-!!     ix = next_random_number(rng_stream,low,high,error)
+!!     ix = next_random_number(rng_stream,low,high,error=error)
 !!
 !!     the next integer random number ix between low and high from stream
-!!     rng_stream.
-!!     Do not forget to delete each created RNG stream when it is no longer
-!!     needed by
+!!     rng_stream. The default distribution type is a uniform distribution
+!!     [0,1], but also other distribution types are available (see below).
 !!
-!!     CALL delete_rng_stream(rng_stream,error)
+!!     Finally, do not forget to delete each created RNG stream when it is
+!!     no longer needed by
+!!
+!!     CALL delete_rng_stream(rng_stream,error=error)
 !!
 !!     to avoid memory leaks!
 !!
@@ -62,6 +64,7 @@
 !******************************************************************************
 
 MODULE parallel_rng_types
+
   USE kinds,                           ONLY: dp
 #include "cp_common_uses.h"
 
@@ -71,9 +74,17 @@ MODULE parallel_rng_types
 
   ! Global parameters in this module
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'parallel_rng_types',&
-                                 rng_record_format = "(A40,2L2,18F20.1)"
-  INTEGER, PARAMETER          :: rng_record_length = 404
+  CHARACTER(LEN=*), PARAMETER :: moduleN = 'parallel_rng_types',&
+                                 rng_record_format = "(A40,I2,3L2,ES25.16,18F20.1)"
+  INTEGER, PARAMETER          :: rng_record_length = 433
+
+  ! Distribution types:
+
+  ! GAUSSIAN: Gaussian distribution with zero mean and unit variance
+  ! UNIFORM:  Uniform distribution [0,1] with 1/2 mean (default)
+
+  INTEGER, PARAMETER          :: GAUSSIAN = 1,&
+                                 UNIFORM  = 2
 
   REAL(KIND=dp), PARAMETER :: norm  = 2.328306549295727688e-10_dp,&
                               m1    = 4294967087.0_dp,&
@@ -98,8 +109,12 @@ MODULE parallel_rng_types
   TYPE rng_stream_type
     PRIVATE
     CHARACTER(LEN=40)             :: name
+    INTEGER                       :: distribution_type
     REAL(KIND=dp), DIMENSION(3,2) :: bg,cg,ig
     LOGICAL                       :: antithetic,extended_precision
+    ! only used for distribution type GAUSSIAN
+    REAL(KIND=dp)                 :: buffer
+    LOGICAL                       :: buffer_filled
   END TYPE rng_stream_type
 
   TYPE rng_stream_p_type
@@ -120,6 +135,12 @@ MODULE parallel_rng_types
                      next_real_random_number
   END INTERFACE
 
+  ! Public parameters
+
+  PUBLIC :: rng_record_length,&
+            GAUSSIAN,&
+            UNIFORM
+
   ! Public data types
 
   PUBLIC :: rng_stream_p_type,&
@@ -134,7 +155,6 @@ MODULE parallel_rng_types
             get_rng_stream,&
             init_rng,&
             next_random_number,&
-            next_gauss,&
             next_rng_seed,&
             read_rng_stream,&
             reset_rng_stream,&
@@ -172,8 +192,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3, 2)           :: x
     REAL(KIND=dp), DIMENSION(3, 3)           :: u1, u2, v1, v2, w1, w2
 
-! Local parameter
-! -------------------------------------------------------------------------
+    ! -------------------------------------------------------------------------
 
     failure = .FALSE.
 
@@ -241,8 +260,7 @@ CONTAINS
     INTEGER                                  :: i
     LOGICAL                                  :: failure
 
-! Local parameter
-! -------------------------------------------------------------------------
+    ! -------------------------------------------------------------------------
 
     failure = .FALSE.
 
@@ -279,8 +297,9 @@ CONTAINS
 
   ! ***************************************************************************
 
-  SUBROUTINE create_rng_stream(rng_stream,name,last_rng_stream,seed,&
-                               antithetic,extended_precision,error)
+  SUBROUTINE create_rng_stream(rng_stream,name,last_rng_stream,&
+                               distribution_type,seed,antithetic,&
+                               extended_precision,error)
 
     ! Create a new RNG stream.
     ! last_rng_stream is used as a reference stream, if it is specified.
@@ -293,6 +312,7 @@ CONTAINS
     TYPE(rng_stream_type), POINTER           :: rng_stream
     CHARACTER(LEN=*), INTENT(IN)             :: name
     TYPE(rng_stream_type), OPTIONAL, POINTER :: last_rng_stream
+    INTEGER, INTENT(IN), OPTIONAL            :: distribution_type
     REAL(KIND=dp), DIMENSION(3, 2), &
       INTENT(IN), OPTIONAL                   :: seed
     LOGICAL, INTENT(IN), OPTIONAL            :: antithetic, extended_precision
@@ -305,8 +325,7 @@ CONTAINS
     INTEGER                                  :: istat
     LOGICAL                                  :: failure
 
-! Local parameter
-! -------------------------------------------------------------------------
+    ! -------------------------------------------------------------------------
 
     failure = .FALSE.
 
@@ -335,6 +354,23 @@ CONTAINS
       rng_stream%cg = rng_stream%ig
       rng_stream%bg = rng_stream%ig
 
+      IF (PRESENT(distribution_type)) THEN
+        SELECT CASE (distribution_type)
+        CASE (GAUSSIAN)
+          rng_stream%distribution_type = GAUSSIAN
+        CASE (UNIFORM)
+          rng_stream%distribution_type = UNIFORM
+        CASE DEFAULT
+          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+                         routineP,"Invalid distribution type specified",&
+                         error,failure)
+        END SELECT
+      ELSE IF (PRESENT(last_rng_stream)) THEN
+        rng_stream%distribution_type = last_rng_stream%distribution_type
+      ELSE
+        rng_stream%distribution_type = UNIFORM
+      END IF
+
       IF (PRESENT(antithetic)) THEN
         rng_stream%antithetic = antithetic
       ELSE IF (PRESENT(last_rng_stream)) THEN
@@ -350,6 +386,11 @@ CONTAINS
       ELSE
         rng_stream%extended_precision = .FALSE.
       END IF
+
+      ! Initialize buffer for distribution type GAUSSIAN
+
+      rng_stream%buffer = 0.0_dp
+      rng_stream%buffer_filled = .FALSE.
 
     END IF
 
@@ -371,8 +412,7 @@ CONTAINS
     INTEGER                                  :: istat
     LOGICAL                                  :: failure
 
-! Local parameter
-! -------------------------------------------------------------------------
+    ! -------------------------------------------------------------------------
 
     failure = .FALSE.
 
@@ -402,8 +442,7 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-! Local parameter
-! -------------------------------------------------------------------------
+    ! -------------------------------------------------------------------------
 
     failure = .FALSE.
 
@@ -413,8 +452,11 @@ CONTAINS
       rng_record = " "
       WRITE (UNIT=rng_record,FMT=rng_record_format)&
         rng_stream%name,&
+        rng_stream%distribution_type,&
         rng_stream%antithetic,&
         rng_stream%extended_precision,&
+        rng_stream%buffer_filled,&
+        rng_stream%buffer,&
         rng_stream%cg,&
         rng_stream%bg,&
         rng_stream%ig
@@ -424,13 +466,14 @@ CONTAINS
 
   ! ***************************************************************************
 
-  SUBROUTINE get_rng_stream(rng_stream,name,bg,cg,ig,antithetic,&
-                            extended_precision,error)
+  SUBROUTINE get_rng_stream(rng_stream,name,distribution_type,bg,cg,ig,&
+                            antithetic,extended_precision,error)
 
     ! Get the components of a RNG stream.
 
     TYPE(rng_stream_type), POINTER           :: rng_stream
     CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: name
+    INTEGER, INTENT(OUT), OPTIONAL           :: distribution_type
     INTEGER, DIMENSION(3, 2), INTENT(OUT), &
       OPTIONAL                               :: bg, cg, ig
     LOGICAL, INTENT(OUT), OPTIONAL           :: antithetic, extended_precision
@@ -442,8 +485,7 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-! Local parameter
-! -------------------------------------------------------------------------
+    ! -------------------------------------------------------------------------
 
     failure = .FALSE.
 
@@ -451,6 +493,9 @@ CONTAINS
 
     IF (.NOT.failure) THEN
       IF (PRESENT(name)) name = rng_stream%name
+      IF (PRESENT(distribution_type)) THEN
+        distribution_type = rng_stream%distribution_type
+      END IF
       IF (PRESENT(bg)) bg = rng_stream%bg
       IF (PRESENT(cg)) cg = rng_stream%cg
       IF (PRESENT(ig)) ig = rng_stream%ig
@@ -588,7 +633,7 @@ CONTAINS
 
     INTEGER                                  :: i
 
-! -------------------------------------------------------------------------
+    ! -------------------------------------------------------------------------
 
     DO i=1,3
       CALL mat_vec_mod_m(a,b(:,i),c(:,i),m)
@@ -612,8 +657,9 @@ CONTAINS
     INTEGER                                  :: i
     REAL(KIND=dp), DIMENSION(3, 3)           :: u, v, w
 
-! -------------------------------------------------------------------------
-! Initialize: u = v = a; b = I
+    ! -------------------------------------------------------------------------
+
+    ! Initialize: u = v = a; b = I
 
     w = a
 
@@ -691,7 +737,7 @@ CONTAINS
     INTEGER                                  :: i, j
     REAL(KIND=dp)                            :: a1, a2, c
 
-! -------------------------------------------------------------------------
+    ! -------------------------------------------------------------------------
 
     v = 0.0_dp
 
@@ -735,16 +781,16 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: r
 
-! Local parameter
-! -------------------------------------------------------------------------
+    ! -------------------------------------------------------------------------
 
     failure = .FALSE.
 
     CPPrecondition(ASSOCIATED(rng_stream),cp_failure_level,routineP,error,failure)
+    CPPrecondition((rng_stream%distribution_type == UNIFORM),cp_failure_level,routineP,error,failure)
 
     IF (.NOT.failure) THEN
       IF (PRESENT(error)) THEN
-        r = next_real_random_number(rng_stream,error)
+        r = next_real_random_number(rng_stream,error=error)
       ELSE
         r = next_real_random_number(rng_stream)
       END IF
@@ -755,87 +801,70 @@ CONTAINS
 
   ! ***************************************************************************
 
-  FUNCTION next_real_random_number(rng_stream,error) RESULT(u)
+  FUNCTION next_real_random_number(rng_stream,variance,error) RESULT(u)
 
-    ! Get the next real random number between 0 and 1 from the stream
-    ! rng_stream.
+    ! Get the next real random number from the stream rng_stream.
+    ! variance: variance of the Gaussian distribution (defaults to 1)
 
     TYPE(rng_stream_type), POINTER           :: rng_stream
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: variance
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
+
     REAL(KIND=dp)                            :: u
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'next_real_random_number', &
       routineP = moduleN//':'//routineN
 
+    REAL(KIND=dp)                            :: f, r, u1, u2, var
     LOGICAL                                  :: failure
 
-! Local parameter
-! -------------------------------------------------------------------------
+    ! -------------------------------------------------------------------------
 
     failure = .FALSE.
 
     CPPrecondition(ASSOCIATED(rng_stream),cp_failure_level,routineP,error,failure)
 
     IF (.NOT.failure) THEN
-      IF (rng_stream%extended_precision) THEN
-        u = rn53(rng_stream)
-      ELSE
-        u = rn32(rng_stream)
-      END IF
+      SELECT CASE (rng_stream%distribution_type)
+      CASE (GAUSSIAN)
+        var = 1.0_dp
+        IF (PRESENT(variance)) var = variance
+        ! take the random number from the buffer, if the buffer is filled
+        IF (rng_stream%buffer_filled) THEN
+          u = SQRT(var)*rng_stream%buffer
+          rng_stream%buffer_filled = .FALSE.
+        ELSE
+          DO
+            IF (rng_stream%extended_precision) THEN
+              u1 = 2.0_dp*rn53(rng_stream) - 1.0_dp
+              u2 = 2.0_dp*rn53(rng_stream) - 1.0_dp
+            ELSE
+              u1 = 2.0_dp*rn32(rng_stream) - 1.0_dp
+              u2 = 2.0_dp*rn32(rng_stream) - 1.0_dp
+            END IF
+            r = u1*u1 + u2*u2
+            IF ((r > 0.0_dp).AND.(r < 1.0_dp)) EXIT
+          END DO
+          ! Box-Muller transformation
+          f = SQRT(-2.0_dp*LOG(r)/r)
+          u = SQRT(var)*f*u1
+          ! save the second random number for the next call
+          rng_stream%buffer = f*u2
+          rng_stream%buffer_filled = .TRUE.
+        END IF
+      CASE (UNIFORM)
+        IF (rng_stream%extended_precision) THEN
+          u = rn53(rng_stream)
+        ELSE
+          u = rn32(rng_stream)
+        END IF
+      END SELECT
     END IF
 
   END FUNCTION next_real_random_number
 
   ! ***************************************************************************
-
-  !!****f* parallel_rng_types/next_gauss *
-  !!
-  !!   NAME
-  !!     next_gauss
-  !!
-  !!   FUNCTION
-  !!     returns a gaussian distribued random number (box-muller transformation)
-  !!
-  !!   NOTES
-  !!
-  !!   INPUTS
-  !!     - rgn_stream: the stream you take the random number from
-  !!     - var: variance of the gaussian (defaults to 1)
-  !!     - error: variable to control error logging, stopping,... 
-  !!       see module cp_error_handling 
-  !!
-  !!   AUTHOR
-  !!     fawzi
-  !!
-  !!*** *********************************************************************
-  FUNCTION next_gauss(rng_stream,var,error) RESULT(res)
-    TYPE(rng_stream_type), POINTER           :: rng_stream
-    REAL(kind=dp), INTENT(in), OPTIONAL      :: var
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
-    REAL(kind=dp)                            :: res
-
-    REAL(kind=dp)                            :: fac, my_var, r, v1, v2
-
-    my_var=1._dp
-    IF (PRESENT(var)) my_var=var
-    DO
-       IF (rng_stream%extended_precision) THEN
-          v1 = 2.0_dp*rn53(rng_stream) - 1.0_dp
-          v2 = 2.0_dp*rn53(rng_stream) - 1.0_dp
-       ELSE
-          v1 = 2.0_dp*rn32(rng_stream) - 1.0_dp
-          v2 = 2.0_dp*rn32(rng_stream) - 1.0_dp
-       END IF
-       r = v1*v1 + v2*v2
-       IF (r<1._dp.AND.r/=0._dp) EXIT
-    END DO
-    fac = SQRT(-2.0_dp*LOG(r)/r*my_var)
-    res = v1*fac
-    ! v2*fac would also be gaussian distribued, dropping it we use
-    ! the stream less efficiently
-  END FUNCTION next_gauss
 
   FUNCTION next_rng_seed(seed,error) RESULT(next_seed)
 
@@ -849,7 +878,7 @@ CONTAINS
       OPTIONAL                               :: error
     REAL(KIND=dp), DIMENSION(3, 2)           :: next_seed
 
-! -------------------------------------------------------------------------
+    ! -------------------------------------------------------------------------
 
     IF (PRESENT(seed)) THEN
       IF (PRESENT(error)) THEN
@@ -883,8 +912,7 @@ CONTAINS
     INTEGER                                  :: istat
     LOGICAL                                  :: failure
 
-! Local parameter
-! -------------------------------------------------------------------------
+    ! -------------------------------------------------------------------------
 
     failure = .FALSE.
 
@@ -896,8 +924,11 @@ CONTAINS
     IF (.NOT.failure) THEN
       READ (UNIT=rng_record,FMT=rng_record_format)&
         rng_stream%name,&
+        rng_stream%distribution_type,&
         rng_stream%antithetic,&
         rng_stream%extended_precision,&
+        rng_stream%buffer_filled,&
+        rng_stream%buffer,&
         rng_stream%cg,&
         rng_stream%bg,&
         rng_stream%ig
@@ -920,8 +951,7 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-! Local parameter
-! -------------------------------------------------------------------------
+    ! -------------------------------------------------------------------------
 
     failure = .FALSE.
 
@@ -942,7 +972,7 @@ CONTAINS
 
     TYPE(rng_stream_type), POINTER           :: rng_stream
 
-! -------------------------------------------------------------------------
+    ! -------------------------------------------------------------------------
 
     rng_stream%cg = rng_stream%bg
 
@@ -964,8 +994,7 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(3, 2)           :: u
 
-! Local parameter
-! -------------------------------------------------------------------------
+    ! -------------------------------------------------------------------------
 
     failure = .FALSE.
 
@@ -997,8 +1026,9 @@ CONTAINS
     INTEGER                                  :: k
     REAL(KIND=dp)                            :: p1, p2
 
-! -------------------------------------------------------------------------
-! Component 1
+    ! -------------------------------------------------------------------------
+
+    ! Component 1
 
     p1 = a12*rng_stream%cg(2,1) - a13n*rng_stream%cg(1,1)
     k = INT(p1/m1)
@@ -1039,7 +1069,7 @@ CONTAINS
     TYPE(rng_stream_type), POINTER           :: rng_stream
     REAL(KIND=dp)                            :: u
 
-! -------------------------------------------------------------------------
+    ! -------------------------------------------------------------------------
 
     u = rn32(rng_stream)
 
@@ -1057,14 +1087,15 @@ CONTAINS
 
   ! ***************************************************************************
 
-  SUBROUTINE set_rng_stream(rng_stream,name,bg,cg,ig,seed,antithetic,&
-                            extended_precision,error)
+  SUBROUTINE set_rng_stream(rng_stream,name,distribution_type,bg,cg,ig,&
+                            seed,antithetic,extended_precision,error)
 
     ! Set the components of a RNG stream.
     ! NOTE: The manipulation of an active RNG stream is discouraged.
 
     TYPE(rng_stream_type), POINTER           :: rng_stream
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: name
+    INTEGER, INTENT(IN), OPTIONAL            :: distribution_type
     REAL(KIND=dp), DIMENSION(3, 2), &
       INTENT(IN), OPTIONAL                   :: bg, cg, ig, seed
     LOGICAL, INTENT(IN), OPTIONAL            :: antithetic, extended_precision
@@ -1076,8 +1107,7 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-! Local parameter
-! -------------------------------------------------------------------------
+    ! -------------------------------------------------------------------------
 
     failure = .FALSE.
 
@@ -1085,6 +1115,9 @@ CONTAINS
 
     IF (.NOT.failure) THEN
       IF (PRESENT(name)) rng_stream%name = name
+      IF (PRESENT(distribution_type)) THEN
+        rng_stream%distribution_type = distribution_type
+      END IF
       IF (PRESENT(bg)) rng_stream%bg = bg
       IF (PRESENT(cg)) rng_stream%cg = cg
       IF (PRESENT(ig)) rng_stream%ig = ig
@@ -1120,8 +1153,9 @@ CONTAINS
     CHARACTER(LEN=40)                        :: fmtstr
     INTEGER                                  :: i, j
 
-! -------------------------------------------------------------------------
-! Print the transformation matrices for both components
+    ! -------------------------------------------------------------------------
+
+    ! Print the transformation matrices for both components
 
     WRITE (UNIT=output_unit,FMT="(/,/,T2,A)")&
       "TRANSFORMATION MATRICES FOR THE PARALLEL (PSEUDO)RANDOM NUMBER "//&
@@ -1163,8 +1197,7 @@ CONTAINS
 
     LOGICAL                                  :: failure
 
-! Local parameter
-! -------------------------------------------------------------------------
+    ! -------------------------------------------------------------------------
 
     failure = .FALSE.
 
@@ -1175,16 +1208,27 @@ CONTAINS
       WRITE (UNIT=output_unit,FMT="(/,T2,A,/)")&
         "Random number stream <"//TRIM(rng_stream%name)//">:"
 
+      SELECT CASE (rng_stream%distribution_type)
+      CASE (GAUSSIAN)
+        WRITE (UNIT=output_unit,FMT="(T4,A)")&
+          "Distribution type: "//&
+          "Normal Gaussian distribution with zero mean"
+      CASE (UNIFORM)
+        WRITE (UNIT=output_unit,FMT="(T4,A)")&
+          "Distribution type: "//&
+          "Uniform distribution [0,1] with 1/2 mean"
+      END SELECT
+
       IF (rng_stream%antithetic) THEN
-        WRITE (UNIT=output_unit,FMT="(T4,A)") "Antithetic:    yes"
+        WRITE (UNIT=output_unit,FMT="(T4,A)") "Antithetic:        yes"
       ELSE
-        WRITE (UNIT=output_unit,FMT="(T4,A)") "Antithetic:     no"
+        WRITE (UNIT=output_unit,FMT="(T4,A)") "Antithetic:        no"
       END IF
 
       IF (rng_stream%extended_precision) THEN
-        WRITE (UNIT=output_unit,FMT="(T4,A)") "Precision:  53 Bit"
+        WRITE (UNIT=output_unit,FMT="(T4,A)") "Precision:         53 Bit"
       ELSE
-        WRITE (UNIT=output_unit,FMT="(T4,A)") "Precision:  32 Bit"
+        WRITE (UNIT=output_unit,FMT="(T4,A)") "Precision:         32 Bit"
       END IF
 
       WRITE (UNIT=output_unit,FMT="(/,T4,A,/,/,(T4,A,3F20.1))")&

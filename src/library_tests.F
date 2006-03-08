@@ -70,11 +70,21 @@ MODULE library_tests
                                              mp_max,&
                                              mp_sum,&
                                              mp_sync
-  USE parallel_rng_types,              ONLY: &
-       advance_rng_state, create_rng_stream, delete_rng_stream, &
-       next_random_number, reset_rng_stream, reset_rng_substream, &
-       reset_to_next_rng_substream, rng_stream_type, set_rng_stream, &
-       write_rng_matrices
+  USE parallel_rng_types,              ONLY: advance_rng_state,&
+                                             create_rng_stream,&
+                                             delete_rng_stream,&
+                                             dump_rng_stream,&
+                                             next_random_number,&
+                                             reset_rng_stream,&
+                                             reset_rng_substream,&
+                                             reset_to_next_rng_substream,&
+                                             rng_record_length,&
+                                             rng_stream_type,&
+                                             set_rng_stream,&
+                                             write_rng_matrices,&
+                                             write_rng_stream,&
+                                             GAUSSIAN,&
+                                             UNIFORM
   USE pw_grid_types,                   ONLY: FULLSPACE,&
                                              HALFSPACE,&
                                              pw_grid_type
@@ -150,11 +160,13 @@ CONTAINS
     IF ( runtest ( 7 ) /= 0 ) CALL rs_test ( globenv, error )
     !
     IF ( runtest ( 8 ) /= 0 ) CALL mpi_test ( globenv%group )
-    !
-    IF ( runtest ( 9 ) /= 0 ) CALL rng_test ( globenv )
-    !
+
+    IF (runtest(9) /= 0) THEN
+      CALL rng_test(runtest(9),globenv,error)
+    END IF
+
     IF (runtest(10) /= 0) THEN
-       CALL eigensolver_test(runtest(10),runtest(11),globenv,error)
+      CALL eigensolver_test(runtest(10),runtest(11),globenv,error)
     END IF
 
   END SUBROUTINE lib_test
@@ -205,7 +217,6 @@ SUBROUTINE test_input ( globenv , error)
 
     INTEGER                                  :: iw
     INTEGER, DIMENSION(:), POINTER           :: i_vals
-    LOGICAL                                  :: l_val
     TYPE(section_vals_type), POINTER         :: test_section
 
 !
@@ -224,8 +235,7 @@ SUBROUTINE test_input ( globenv , error)
   CALL section_vals_val_get(test_section,'clebsch_gordon',i_val=runtest ( 6 ),error=error )
   CALL section_vals_val_get(test_section,'rs_grids',i_val=runtest ( 7 ),error=error )
   CALL section_vals_val_get(test_section,'mpi',i_val=runtest ( 8 ),error=error )
-  CALL section_vals_val_get(test_section,'rng',l_val=l_val,error=error )
-  IF (l_val) runtest ( 9 )=1
+  CALL section_vals_val_get(test_section,'rng',i_val=runtest(9),error=error )
   CALL section_vals_val_get(test_section,'eigensolver',i_vals=i_vals,error=error )
   runtest(10)=i_vals(1)
   runtest(11) = MIN(MAX(1,i_vals(2)),i_vals(1))
@@ -1387,22 +1397,28 @@ SUBROUTINE simple_copy(buf1,buf2,N)
   ENDDO
 END SUBROUTINE simple_copy
 
-!******************************************************************************
+  ! ***************************************************************************
 
-  SUBROUTINE rng_test(globenv)
+  SUBROUTINE rng_test(n,globenv,error)
 
-    ! Test the parallel (pseudo)random number generator.
+    ! Test the parallel (pseudo)random number generator (RNG).
 
+    INTEGER, INTENT(IN)                      :: n
     TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
+    CHARACTER(LEN=rng_record_length)         :: rng_record
     INTEGER                                  :: i, output_unit, sumi
-    REAL(KIND=dp)                            :: sum, sum3
+    LOGICAL                                  :: ionode
+    REAL(KIND=dp)                            :: sum, sum3, t, tmax, tmin, &
+                                                tsum, tsum2
     REAL(KIND=dp), DIMENSION(3, 2)           :: germe
     TYPE(rng_stream_type), POINTER           :: cantor, g1, g2, g3, galois, &
                                                 laplace, poisson
 
-! -------------------------------------------------------------------------
+    ! -------------------------------------------------------------------------
 
+    ionode = globenv%ionode
     output_unit = globenv%scr
 
     NULLIFY (g1)
@@ -1413,7 +1429,7 @@ END SUBROUTINE simple_copy
     NULLIFY (laplace)
     NULLIFY (poisson)
 
-    IF (globenv%ionode) CALL write_rng_matrices(output_unit)
+    IF (ionode) CALL write_rng_matrices(output_unit)
 
     CALL create_rng_stream(g1,"g1")
     CALL create_rng_stream(g2,"g2",g1)
@@ -1476,9 +1492,15 @@ END SUBROUTINE simple_copy
     END DO
     sum = sum + sum3/10000.0_dp
 
-    germe = 1
+    IF (ionode) THEN
+      CALL write_rng_stream(g1,output_unit,error=error)
+      CALL write_rng_stream(g2,output_unit,error=error)
+      CALL write_rng_stream(g3,output_unit,error=error)
+    END IF
 
-    CALL create_rng_stream(poisson,name="Poisson",seed=germe)
+    germe(:,:) = 1
+
+    CALL create_rng_stream(poisson,"Poisson",seed=germe)
     CALL create_rng_stream(laplace,"Laplace",poisson)
     CALL create_rng_stream(galois,"Galois",laplace)
     CALL create_rng_stream(cantor,"Cantor",galois)
@@ -1513,11 +1535,94 @@ END SUBROUTINE simple_copy
                 next_random_number(galois) +&
                 next_random_number(cantor)
 
-    IF (globenv%ionode) THEN
+    IF (ionode) THEN
+
       WRITE (UNIT=output_unit,FMT="(/,(T2,A))")&
         "This test routine should print the number 39.697547"
       WRITE (UNIT=output_unit,FMT="(T2,A,F10.6)")&
         "Actual test result is                    ",sum
+
+      CALL write_rng_stream(poisson,output_unit,error=error)
+      CALL write_rng_stream(laplace,output_unit,error=error)
+      CALL write_rng_stream(galois,output_unit,error=error)
+      CALL write_rng_stream(cantor,output_unit,error=error)
+
+      WRITE (UNIT=output_unit,FMT="(/,/,T2,A,/)")&
+        "Dump the RNG records:"
+      CALL dump_rng_stream(poisson,rng_record)
+      WRITE (UNIT=output_unit,FMT="(A)") rng_record
+      CALL dump_rng_stream(laplace,rng_record)
+      WRITE (UNIT=output_unit,FMT="(A)") rng_record
+      CALL dump_rng_stream(galois,rng_record)
+      WRITE (UNIT=output_unit,FMT="(A)") rng_record
+      CALL dump_rng_stream(cantor,rng_record)
+      WRITE (UNIT=output_unit,FMT="(A)") rng_record
+
+    END IF
+
+    ! Check distributions
+
+    WRITE (UNIT=output_unit,FMT="(/,/,T2,A,I10,A)")&
+        "Check distributions using",n," random numbers:"
+
+    ! Test uniform distribution [0,1]
+
+    CALL create_rng_stream(rng_stream=g1,&
+                           name="Test uniform distribution [0,1]",&
+                           distribution_type=UNIFORM,&
+                           extended_precision=.TRUE.)
+
+    tmax = -HUGE(0.0_dp)
+    tmin = +HUGE(0.0_dp)
+    tsum = 0.0_dp
+    tsum2 = 0.0_dp
+
+    DO i=1,n
+      t = next_random_number(g1)
+      tsum = tsum + t
+      tsum2 = tsum2 + t*t
+      IF (t > tmax) tmax = t
+      IF (t < tmin) tmin = t
+    END DO
+
+    IF (ionode) THEN
+      CALL write_rng_stream(g1,output_unit,error=error)
+      WRITE (UNIT=output_unit,FMT="(/,(T4,A,F12.6))")&
+        "Minimum: ",tmin,&
+        "Maximum: ",tmax,&
+        "Average: ",tsum/REAL(n,KIND=dp),&
+        "Variance:",tsum2/REAL(n,KIND=dp)
+    END IF
+
+    ! Test normal Gaussian distribution
+
+    CALL create_rng_stream(rng_stream=g2,&
+                           name="Test normal Gaussian distribution",&
+                           distribution_type=GAUSSIAN,&
+                           extended_precision=.TRUE.)
+    IF (ionode) THEN
+    END IF
+
+    tmax = -HUGE(0.0_dp)
+    tmin = +HUGE(0.0_dp)
+    tsum = 0.0_dp
+    tsum2 = 0.0_dp
+
+    DO i=1,n
+      t = next_random_number(g2)
+      tsum = tsum + t
+      tsum2 = tsum2 + t*t
+      IF (t > tmax) tmax = t
+      IF (t < tmin) tmin = t
+    END DO
+
+    IF (ionode) THEN
+      CALL write_rng_stream(g2,output_unit,error=error)
+      WRITE (UNIT=output_unit,FMT="(/,(T4,A,F12.6))")&
+        "Minimum: ",tmin,&
+        "Maximum: ",tmax,&
+        "Average: ",tsum/REAL(n,KIND=dp),&
+        "Variance:",tsum2/REAL(n,KIND=dp)
     END IF
 
     ! Delete RNG streams
@@ -1555,7 +1660,7 @@ END SUBROUTINE simple_copy
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(rng_stream_type), POINTER           :: rng_stream
 
-! -------------------------------------------------------------------------
+    ! -------------------------------------------------------------------------
 
     group = globenv%group
     ionode = globenv%ionode
@@ -1625,7 +1730,10 @@ END SUBROUTINE simple_copy
     IF (ionode) THEN
       IF (nrow_global > 0) THEN
         NULLIFY (rng_stream)
-        CALL create_rng_stream(rng_stream=rng_stream,name="rng_stream")
+        CALL create_rng_stream(rng_stream=rng_stream,&
+                               name="rng_stream",&
+                               distribution_type=UNIFORM,&
+                               extended_precision=.TRUE.)
       ELSE
         CALL open_file(file_name="MATRIX",&
                        file_action="READ",&

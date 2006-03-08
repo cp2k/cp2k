@@ -12,7 +12,7 @@
    Clebsch_Gordon 1
    RS_GRIDS       1
    MPI            6
-   RNG            1
+   RNG            10000 # length of random number sequence
    EIGENSOLVER    400 100
 &END
 

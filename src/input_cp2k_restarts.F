@@ -68,11 +68,13 @@ MODULE input_cp2k_restarts
                                              mp_bcast,&
                                              mp_sum
   USE metadynamics_types,              ONLY: meta_env_type
-  USE parallel_rng_types,              ONLY: dump_rng_stream
+  USE parallel_rng_types,              ONLY: dump_rng_stream,&
+                                             rng_record_length
   USE particle_list_types,             ONLY: particle_list_type
   USE physcon,                         ONLY: bohr
   USE qmmm_ff_fist,                    ONLY: qmmm_ff_precond_only_qm
-  USE string_utilities,                ONLY: string_to_ascii
+  USE string_utilities,                ONLY: ascii_to_string,&
+                                             string_to_ascii
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -817,7 +819,11 @@ CONTAINS
 !!     01.2006 created [teo]
 !!
 !!*** **********************************************************************
+
   SUBROUTINE update_rng(rng_section,force_env,error)
+
+    ! Write current status of the parallel random number generator (RNG)
+
     TYPE(section_vals_type), POINTER         :: rng_section
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(cp_error_type), INTENT(INOUT), &
@@ -826,9 +832,9 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'update_rng', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=404)                       :: string
-    INTEGER :: iparticle, iparticle_kind, iparticle_local, isubsys, &
-      nparticle, nparticle_kind, nparticle_local, stat
+    CHARACTER(LEN=rng_record_length)         :: rng_record
+    INTEGER :: iparticle, iparticle_kind, iparticle_local, istat, isubsys, &
+      nparticle, nparticle_kind, nparticle_local
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: ascii
     LOGICAL                                  :: failure
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
@@ -838,52 +844,60 @@ CONTAINS
     TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(particle_list_type), POINTER        :: particles
 
-! Write current status of Parallel Random number generator
+    ! -------------------------------------------------------------------------
 
     CALL force_env_get(force_env, subsys=subsys, para_env=para_env, error=error)
-    !
-    ! The structure for multiple subsys has to be still decided..
-    !
+
+    ! The structure for multiple subsys has to be still decided
+
     CPPostcondition(SIZE(subsys)==1,cp_failure_level,routineP,error,failure)
+
     DO isubsys=1,SIZE(subsys)
-       CALL cp_subsys_get(subsys=subsys(isubsys)%subsys,&
-            atomic_kinds=atomic_kinds,&
-            local_particles=local_particles,&
-            particles=particles,&
-            error=error)
 
-       IF (.NOT.ASSOCIATED(local_particles%local_particle_set)) CYCLE
-       
-       nparticle_kind = atomic_kinds%n_els
-       nparticle = particles%n_els
-       !     
-       ALLOCATE (ascii(LEN(string),nparticle),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ascii = 0
-       
-       DO iparticle=1,nparticle
-          DO iparticle_kind=1,nparticle_kind
-             nparticle_local = local_particles%n_el(iparticle_kind)
-             DO iparticle_local=1,nparticle_local
-                IF (iparticle == local_particles%list(iparticle_kind)%&
-                     &array(iparticle_local)) THEN
-                   CALL dump_rng_stream(local_particles%&
-                        &local_particle_set(iparticle_kind)%&
-                        rng(iparticle_local)%stream,string)
-                   CALL string_to_ascii(string,ascii(:,iparticle))
-                END IF
-             END DO
+      CALL cp_subsys_get(subsys=subsys(isubsys)%subsys,&
+                         atomic_kinds=atomic_kinds,&
+                         local_particles=local_particles,&
+                         particles=particles,&
+                         error=error)
+
+      IF (.NOT.ASSOCIATED(local_particles%local_particle_set)) CYCLE
+
+      nparticle_kind = atomic_kinds%n_els
+      nparticle = particles%n_els
+
+      ALLOCATE (ascii(rng_record_length,nparticle),STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      ascii = 0
+
+      DO iparticle=1,nparticle
+        DO iparticle_kind=1,nparticle_kind
+          nparticle_local = local_particles%n_el(iparticle_kind)
+          DO iparticle_local=1,nparticle_local
+            IF (iparticle == local_particles%list(iparticle_kind)%array(iparticle_local)) THEN
+              CALL dump_rng_stream(rng_stream=local_particles%local_particle_set(iparticle_kind)%&
+                                              &rng(iparticle_local)%stream,&
+                                   rng_record=rng_record)
+              CALL string_to_ascii(rng_record,ascii(:,iparticle))
+            END IF
           END DO
-       END DO
+        END DO
+      END DO
 
-       CALL mp_sum(ascii,para_env%group)       
-       CALL section_rng_val_set(rng_section, particles, ascii, error)
+      CALL mp_sum(ascii,para_env%group)
 
-       DEALLOCATE (ascii,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      CALL section_rng_val_set(rng_section=rng_section,&
+                               particles=particles,&
+                               ascii=ascii,&
+                               error=error)
+
+      DEALLOCATE (ascii,STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
     END DO
 
   END SUBROUTINE update_rng
+
+  ! ***************************************************************************
 
 !!****f* input_cp2k_restarts/update_subsys [1.0] *
 !!
@@ -1066,7 +1080,7 @@ CONTAINS
        ldum = qmmm_ff_precond_only_qm(my_tag)
        line = TRIM(name)
        DO k = 1, 3
-          WRITE(rcval,*) particles%els(irk)%r(k)/conv_factor
+          WRITE(rcval,"(ES25.16)") particles%els(irk)%r(k)/conv_factor
           line = TRIM(line)//" "//TRIM(rcval)
        END DO
        line = TRIM(line)//" "//TRIM(my_tag)
@@ -1187,7 +1201,6 @@ CONTAINS
     velocity_section%values(ik,1)%list => vals
   END SUBROUTINE section_velocity_val_set
 
-
 !!****f* input_cp2k_restarts/section_rng_val_set [1.0] *
 !!
 !!   NAME
@@ -1208,8 +1221,10 @@ CONTAINS
 !!
 !!   MODIFICATION HISTORY
 !!     02.2006 created [teo]
+!!     - string dump (again) instead of integer ASCII code (07.03.06,MK)
 !!
 !!*** **********************************************************************
+
   SUBROUTINE section_rng_val_set(rng_section, particles, ascii, error)
 
     TYPE(section_vals_type), POINTER         :: rng_section
@@ -1221,60 +1236,74 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'section_rng_val_set', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ik, irk, Nlist, stat
-    INTEGER, DIMENSION(:), POINTER           :: my_ascii
+    CHARACTER(LEN=rng_record_length)         :: rng_record
+    INTEGER                                  :: ik, irk, Nlist
     LOGICAL                                  :: failure
     TYPE(cp_sll_val_type), POINTER           :: new_pos, vals
     TYPE(section_type), POINTER              :: section
     TYPE(val_type), POINTER                  :: my_val, old_val
 
-    failure=.FALSE.
-    NULLIFY(my_val, old_val, section, vals,my_ascii)
+    ! -------------------------------------------------------------------------
+
+    failure = .FALSE.
+
     CPPrecondition(ASSOCIATED(rng_section),cp_failure_level,routineP,error,failure)
-    CPPrecondition(rng_section%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition((rng_section%ref_count > 0),cp_failure_level,routineP,error,failure)
+
+    NULLIFY (my_val,old_val,section,vals)
+
     section => rng_section%section
-    ik=section_get_keyword_index(section,"_DEFAULT_KEYWORD_",error=error)
+
+    ik = section_get_keyword_index(section,"_DEFAULT_KEYWORD_",error=error)
+
     CALL cp_assert(ik/=-2,cp_failure_level,cp_assertion_failed,routineP,&
-         "section "//TRIM(section%name)//" does not contain keyword "//&
-         "_DEFAULT_KEYWORD_",error,failure)
+                   "section "//TRIM(section%name)//" does not contain keyword "//&
+                   "_DEFAULT_KEYWORD_",error,failure)
+
     DO
-       IF (SIZE(rng_section%values,2)==1) EXIT
-       CALL section_vals_add_values(rng_section,error=error)
+      IF (SIZE(rng_section%values,2)==1) EXIT
+      CALL section_vals_add_values(rng_section,error=error)
     END DO
-    vals  => rng_section%values(ik,1)%list
+
+    vals => rng_section%values(ik,1)%list
     Nlist = 0
+
     IF (ASSOCIATED(vals)) THEN
-       Nlist = cp_sll_val_get_length(vals,error)
+      Nlist = cp_sll_val_get_length(vals,error)
     END IF
+
     DO irk=1,particles%n_els
-       ALLOCATE(my_ascii(SIZE(ascii,1)),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       my_ascii = ascii(:,irk)
-       CALL val_create(my_val,i_vals_ptr=my_ascii,error=error)
-       
-       IF (Nlist /= 0) THEN
-          IF (irk==1) THEN
-             new_pos => vals
-          ELSE
-             new_pos => new_pos%rest
-          END IF
-          old_val => new_pos%first_el
-          CALL val_release(old_val,error=error)
-          new_pos%first_el => my_val
-       ELSE
-          IF (irk==1) THEN
-             NULLIFY(new_pos)
-             CALL cp_sll_val_create(new_pos,first_el=my_val,error=error)
-             vals => new_pos         
-          ELSE
-             NULLIFY(new_pos%rest)
-             CALL cp_sll_val_create(new_pos%rest,first_el=my_val,error=error)
-             new_pos => new_pos%rest
-          END IF
-       END IF
-       NULLIFY(my_val)
+
+      CALL ascii_to_string(ascii(:,irk),rng_record)
+      CALL val_create(val=my_val,lc_val=rng_record,error=error)
+
+      IF (Nlist /= 0) THEN
+        IF (irk == 1) THEN
+          new_pos => vals
+        ELSE
+          new_pos => new_pos%rest
+        END IF
+        old_val => new_pos%first_el
+        CALL val_release(old_val,error=error)
+        new_pos%first_el => my_val
+      ELSE
+        IF (irk == 1) THEN
+          NULLIFY (new_pos)
+          CALL cp_sll_val_create(new_pos,first_el=my_val,error=error)
+          vals => new_pos
+        ELSE
+          NULLIFY (new_pos%rest)
+          CALL cp_sll_val_create(new_pos%rest,first_el=my_val,error=error)
+          new_pos => new_pos%rest
+        END IF
+      END IF
+
+      NULLIFY (my_val)
+
     END DO
+
     rng_section%values(ik,1)%list => vals
+
   END SUBROUTINE section_rng_val_set
 
 !!****f* input_cp2k_restarts/meta_hills_val_set_ss [1.0] *

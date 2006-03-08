@@ -497,6 +497,7 @@ CONTAINS
     CALL write_particle_distances(particle_set,cell,qs_env%input,error)
 
 !   *** Initialize the atomic interaction radii ***
+
     CALL init_interaction_radii(dft_control%qs_control,cell,atomic_kind_set,&
                                 qs_env%input,error)
 
