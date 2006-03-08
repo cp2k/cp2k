@@ -34,8 +34,7 @@ MODULE cell_types
   USE mathconstants,                   ONLY: degree
   USE mathlib,                         ONLY: angle,&
                                              det_3x3,&
-                                             inv_3x3,&
-                                             vector_product
+                                             inv_3x3
   USE physcon,                         ONLY: bohr
   USE termination,                     ONLY: stop_program
 #include "cp_common_uses.h"
@@ -87,8 +86,7 @@ MODULE cell_types
   PUBLIC :: plane_distance,&
             pbc,&
             real_to_scaled,&
-            scaled_to_real,&
-            cell_min_image_radius
+            scaled_to_real
 
 ! *** Public data types ***
 
@@ -934,50 +932,6 @@ SUBROUTINE cell_release(cell,error)
      END IF
   END IF
 END SUBROUTINE cell_release
-
-!***************************************************************************
-
-FUNCTION cell_min_image_radius(cell,error) RESULT(radius)
-    TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-    REAL(dp)                                 :: radius
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cell_min_image_radius', &
-      routineP = moduleN//':'//routineN
-
-    REAL(dp),DIMENSION(3)                    :: x,y,z,r
-
-    x = cell%hmat(:,1)
-    y = cell%hmat(:,2)
-    z = cell%hmat(:,3)
-
-    r(1) = plane_dist(x,y,z)
-    r(2) = plane_dist(x,z,y)
-    r(3) = plane_dist(y,z,x)
-
-    radius = MAXVAL ( r )
-
-END FUNCTION cell_min_image_radius
-
-FUNCTION plane_dist(a,b,c) RESULT(dist)
-    REAL(dp),DIMENSION(3)                    :: a,b,c
-    REAL(dp)                                 :: dist
-
-    REAL(dp),DIMENSION(3,3)                  :: zmat
-    REAL(dp),DIMENSION(3)                    :: zvec,rvec
-
-    rvec(:) = vector_product(a,b)
-    zmat(:,1) = rvec(:)
-    zmat(:,2) = a(:)
-    zmat(:,3) = b(:)
-
-    zmat = inv_3x3(zmat)
-    zvec = matmul(zmat,c)
-
-    dist = ABS(zvec(1)) * SQRT (DOT_PRODUCT(rvec,rvec))
-
-END FUNCTION plane_dist
 
 !***************************************************************************
 
