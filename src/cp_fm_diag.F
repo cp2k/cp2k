@@ -87,6 +87,8 @@ CONTAINS
     myprow=context%mepos(1)
     mypcol=context%mepos(2)
     n = matrix%matrix_struct%nrow_global
+    IF (SIZE(eigenvalues,1).LT.n) &
+        CALL stop_program("cp_fm_syevd","Incorrect size for eigenvalue array")
 
     m => matrix%local_data
 
