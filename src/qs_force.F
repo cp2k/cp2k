@@ -28,7 +28,6 @@ MODULE qs_force
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
-!JCS
   USE global_types,                    ONLY: MEDIUM,&
                                              global_environment_type
   USE harris_env_types,                ONLY: harris_env_set,&
@@ -41,6 +40,9 @@ MODULE qs_force
   USE message_passing,                 ONLY: mp_sum
   USE mulliken,                        ONLY: mulliken_restraint
   USE particle_types,                  ONLY: particle_type
+  USE qs_core_energies,                ONLY: calculate_ecore_overlap,&
+                                             calculate_ecore_self
+!JCS
   USE qs_core_hamiltonian,             ONLY: build_core_hamiltonian_matrix
   USE qs_energy,                       ONLY: qs_energies
   USE qs_environment_methods,          ONLY: qs_env_rebuild_pw_env
@@ -269,9 +271,9 @@ CONTAINS
     ENDIF
     CALL set_qs_env(qs_env=qs_env,matrix_w=matrix_w)
 
-    IF (.NOT. harris_flag) THEN
 
-!   *** compute core forces (also overwrites matrix_w) ***
+    IF (.NOT. harris_flag) THEN ! harris computes the forces differenctly
+      !*** compute core forces (also overwrites matrix_w) ***
       IF (dft_control%qs_control%semi_empirical) THEN
         CALL build_se_core_matrix(qs_env=qs_env,globenv=globenv,&
                                   calculate_forces=.TRUE.,error=error)
@@ -279,16 +281,20 @@ CONTAINS
         CALL build_core_hamiltonian_matrix(qs_env=qs_env,&
                                            globenv=globenv,&
                                            calculate_forces=.TRUE.,error=error)
+        CALL calculate_ecore_self(qs_env)
+        CALL calculate_ecore_overlap(qs_env, globenv, &
+                                             calculate_forces=.TRUE.,&
+                                             error=error)
       END IF
 
 
-!   *** compute grid-based forces ***
+      ! *** compute grid-based forces ***
       CALL qs_ks_update_qs_env(ks_env=ks_env,&
                                qs_env=qs_env,&
                                calculate_forces=.TRUE.)
 
 
-!   *** distribute forces ***
+      !  *** replicate forces ***
       DO ikind=1,SIZE(force)
         CALL mp_sum(force(ikind)%overlap,globenv%group)
         CALL mp_sum(force(ikind)%kinetic,globenv%group)
@@ -330,12 +336,12 @@ CONTAINS
         particle_set(iatom)%f = -force(ikind)%total(1:3,i)
       END DO
 
-!JCS
-!   *** distribute virial ***
+      !JCS
+      !   *** distribute virial ***
       IF (virial%pv_availability) THEN
         CALL mp_sum(virial%pv_virial,globenv%group)
       END IF
-!JCS
+      !JCS
       output_unit = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%DERIVATIVES",&
            extension=".Log",error=error)
       IF(dft_control%qs_control%semi_empirical .AND. obasis) THEN

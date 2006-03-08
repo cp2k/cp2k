@@ -94,8 +94,6 @@ MODULE qs_scf
                                              init_preconditioner,&
                                              make_preconditioner
   USE qs_charges_types,                ONLY: qs_charges_type
-  USE qs_core_energies,                ONLY: calculate_ecore_overlap,&
-                                             calculate_ecore_self
   USE qs_diis,                         ONLY: qs_diis_b_clear,&
                                              qs_diis_b_create,&
                                              qs_diis_b_step
@@ -1139,31 +1137,6 @@ END SUBROUTINE qs_scf_print_summary
 
     scf_work2 => scf_env%scf_work2
     ortho => scf_env%ortho
-
-! update ecore
-    IF (.NOT.dft_control%qs_control%semi_empirical) THEN
-      CALL calculate_ecore_self(qs_env)
-      IF (PRESENT(calc_forces)) THEN
-        CALL calculate_ecore_overlap(qs_env, globenv, &
-                                     calculate_forces=calc_forces,&
-                                     error=error)
-      ELSE
-        CALL calculate_ecore_overlap(qs_env, globenv, &
-                                     calculate_forces=dft_control%forces,&
-                                     error=error)
-      END IF
-      output_unit=cp_print_key_unit_nr(logger,scf_section,"PRINT%DETAILED_ENERGY",&
-           extension=".scfLog",error=error)
-      IF (output_unit>0) THEN
-         WRITE (UNIT=output_unit,FMT="(/,(T3,A,T60,F20.10))")&
-              "Overlap energy of the core charge distribution:",&
-              qs_env%energy%core_overlap,&
-              "Self energy of the core charge distribution:   ",&
-              qs_env%energy%core_self
-      END IF
-      CALL cp_print_key_finished_output(output_unit,logger,scf_section,&
-            "PRINT%DETAILED_ENERGY", error=error)
-    END IF
 
 ! updates the total number of electrons
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&

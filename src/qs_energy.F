@@ -22,7 +22,10 @@
 MODULE qs_energy
   USE cp_control_types,                ONLY: dft_control_type
   USE global_types,                    ONLY: global_environment_type
+  USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
+  USE qs_core_energies,                ONLY: calculate_ecore_overlap,&
+                                             calculate_ecore_self
   USE qs_core_hamiltonian,             ONLY: build_core_hamiltonian_matrix
   USE qs_environment_methods,          ONLY: qs_env_rebuild_pw_env,&
                                              qs_env_update_s_mstruct
@@ -82,6 +85,7 @@ CONTAINS
     LOGICAL                                  :: right_iteration_level
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(qs_ks_env_type), POINTER            :: new_ks_env
+    TYPE(section_vals_type), POINTER         :: input
 
 !   ---------------------------------------------------------------------------
 
@@ -99,22 +103,25 @@ CONTAINS
     END IF
 !JCS
 
-    CALL build_qs_neighbor_lists(qs_env,globenv,force_env_section=qs_env%input,error=error)
+    CALL get_qs_env(qs_env=qs_env,input=input, dft_control=dft_control, &
+                    error=error)
 
-    CALL get_qs_env ( qs_env=qs_env, dft_control=dft_control )
+    CALL build_qs_neighbor_lists(qs_env,globenv,force_env_section=input,error=error)
+
 
     ! *** Calculate the overlap and the core Hamiltonian integral matrix ***
     IF ( dft_control%qs_control%semi_empirical ) THEN
-       CALL build_se_core_matrix(qs_env=qs_env,&
-                                 globenv=globenv,&
+       CALL build_se_core_matrix(qs_env=qs_env, globenv=globenv,&
                                  calculate_forces=.FALSE.,error=error)
+       CALL qs_env_update_s_mstruct(qs_env)
     ELSE
-      CALL build_core_hamiltonian_matrix(qs_env=qs_env,&
-                                       globenv=globenv,&
-                                       calculate_forces=.FALSE.,error=error)
+       CALL build_core_hamiltonian_matrix(qs_env=qs_env, globenv=globenv,&
+                                          calculate_forces=.FALSE.,error=error)
+       CALL qs_env_update_s_mstruct(qs_env)
+       CALL calculate_ecore_self(qs_env)
+       CALL calculate_ecore_overlap(qs_env, globenv, &
+                                      calculate_forces=.FALSE.,error=error)
     END IF
-
-    CALL qs_env_update_s_mstruct(qs_env)
 
     ! *** Perform a SCF run ***
     CALL scf(qs_env=qs_env, globenv=globenv, calc_forces=calc_forces, error=error)

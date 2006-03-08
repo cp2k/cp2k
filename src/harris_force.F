@@ -59,7 +59,8 @@ MODULE harris_force
                                              pw_p_type,&
                                              pw_release,&
                                              pw_zero
-  USE qs_core_energies,                ONLY: calculate_ecore_overlap
+  USE qs_core_energies,                ONLY: calculate_ecore_overlap,&
+                                             calculate_ecore_self
   USE qs_core_hamiltonian,             ONLY: build_core_hamiltonian_matrix
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
@@ -225,12 +226,17 @@ CONTAINS
       ! *** d/dR[Sum of eigenvalues] = d/dR[trace(H_in * rho_out)] *** !
       CALL build_core_hamiltonian_matrix(qs_env=qs_env, globenv=globenv, &
                                          calculate_forces=.TRUE.,error=error)
+      CALL calculate_ecore_self(qs_env)
+      CALL calculate_ecore_overlap(qs_env, globenv, &
+                                           calculate_forces=.TRUE.,&
+                                           error=error)
 
       DO ikind = 1,SIZE(force)
         CALL mp_sum(force(ikind)%kinetic, globenv%group)
         CALL mp_sum(force(ikind)%overlap, globenv%group)
         CALL mp_sum(force(ikind)%gth_ppl, globenv%group)
         CALL mp_sum(force(ikind)%gth_ppnl, globenv%group)
+        CALL mp_sum(force(ikind)%core_overlap, globenv%group)
       END DO
 
       DO iatom = 1, natom
@@ -240,6 +246,8 @@ CONTAINS
         harris_force%f_overlap(iatom, 1:3) = force(ikind)%overlap(1:3,i)
         harris_force%f_gth_pp(iatom, 1:3)  = force(ikind)%gth_ppl(1:3,i) &
                                            + force(ikind)%gth_ppnl(1:3,i)
+        harris_force%f_ovrl(iatom, 1:3) = force(ikind)%core_overlap(1:3,i)
+        harris_force%f_self(iatom, 1:3) = 0.0_dp
       END DO
 
       CALL zero_qs_force(force)
@@ -429,16 +437,11 @@ CONTAINS
       CALL get_qs_env(qs_env=qs_env, force=force, error=error)
       harris_force%f_total(:) = 0.0_dp
 
-      DO ikind = 1,SIZE(force)
-        CALL mp_sum(force(ikind)%core_overlap, globenv%group)
-      END DO
 
       DO iatom = 1, natom
         ikind = kind_of(iatom)
         i = atom_of_kind(iatom)
 
-        harris_force%f_ovrl(iatom, 1:3) = force(ikind)%core_overlap(1:3,i)
-        harris_force%f_self(iatom, 1:3) = 0.0_dp
         harris_force%f_EII(iatom, 1:3) = harris_force%f_ovrl(iatom, 1:3) &
                                        + harris_force%f_self(iatom, 1:3) &
                                        + harris_force%f_rho_core(iatom, 1:3)
