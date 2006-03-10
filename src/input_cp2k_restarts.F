@@ -932,7 +932,7 @@ CONTAINS
 
     INTEGER                                  :: handle, i, isubsys, my_unit, &
                                                 stat
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure, use_ref_cell
     REAL(KIND=dp)                            :: conv_factor
     REAL(KIND=dp), DIMENSION(:), POINTER     :: work
     TYPE(cell_type), POINTER                 :: cell, cell_ref
@@ -944,7 +944,12 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(work, work_section, particles, subsys, cell, cell_ref)
     CALL timeset(routineN,"I",'',handle)
-    CALL force_env_get(force_env, subsys=subsys, cell = cell, cell_ref = cell_ref,  error=error)
+    CALL force_env_get(force_env,&
+                       subsys=subsys,&
+                       cell=cell,&
+                       cell_ref=cell_ref,&
+                       use_ref_cell=use_ref_cell,&
+                       error=error)
     !
     ! The structure for multiple subsys has to be still decided..
     !
@@ -989,8 +994,8 @@ CONTAINS
        CALL section_vals_val_unset(work_section,"ABC",error=error)
        !
        ! CELL_REF
-       ! 
-       IF (ASSOCIATED(cell_ref)) THEN
+       !
+       IF (use_ref_cell.AND.ASSOCIATED(cell_ref)) THEN
           work_section => section_vals_get_subs_vals(subsys_section,"CELL%CELL_REF",error=error)
           CALL section_vals_val_set(work_section,"UNITS",i_val=my_unit,error=error)
           ALLOCATE(work(3),stat=stat)

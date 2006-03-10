@@ -334,7 +334,7 @@ END SUBROUTINE force_env_release
 RECURSIVE SUBROUTINE force_env_get(force_env, in_use, &
      fist_env, qs_env, kg_env, meta_env, dyn_coeff_set, subsys, para_env, &
      potential_energy, kinetic_energy, cell, cell_ref, sub_force_env, qmmm_env,&
-     tbmd_env, eip_env, virial, box_changed, globenv, input, error)
+     tbmd_env, eip_env, virial, box_changed, use_ref_cell, globenv, input, error)
     TYPE(force_env_type), POINTER            :: force_env
     INTEGER, INTENT(out), OPTIONAL           :: in_use
     TYPE(fist_environment_type), OPTIONAL, &
@@ -362,7 +362,8 @@ RECURSIVE SUBROUTINE force_env_get(force_env, in_use, &
     TYPE(eip_environment_type), OPTIONAL, &
       POINTER                                :: eip_env
     TYPE(virial_type), OPTIONAL, POINTER     :: virial
-    LOGICAL, INTENT(out), OPTIONAL           :: box_changed
+    LOGICAL, INTENT(out), OPTIONAL           :: box_changed, &
+                                                use_ref_cell
     TYPE(global_environment_type), &
       OPTIONAL, POINTER                      :: globenv
     TYPE(section_vals_type), OPTIONAL, &
@@ -398,14 +399,14 @@ RECURSIVE SUBROUTINE force_env_get(force_env, in_use, &
         CPPreconditionNoFail(.NOT.PRESENT(kg_env),cp_warning_level,routineP,error)
         CPPreconditionNoFail(.NOT.PRESENT(tbmd_env),cp_warning_level,routineP,error)
         CPPreconditionNoFail(.NOT.PRESENT(eip_env),cp_warning_level,routineP,error)
-
         CALL get_qs_env(force_env%qs_env,&
-             energy=qs_energy,&
-             cell=cell,&
-             cell_ref=cell_ref,&
-             input=input,&
-             error=error)
-        IF (PRESENT(potential_energy)) potential_energy=qs_energy%total
+                        energy=qs_energy,&
+                        cell=cell,&
+                        cell_ref=cell_ref,&
+                        use_ref_cell=use_ref_cell,&
+                        input=input,&
+                        error=error)
+        IF (PRESENT(potential_energy)) potential_energy = qs_energy%total
         CPPrecondition(.NOT.PRESENT(kinetic_energy),cp_failure_level,routineP,error,failure)
      CASE (use_fist_force)
         CPPrecondition(ASSOCIATED(force_env%fist_env),cp_failure_level,routineP,error,failure)
@@ -419,19 +420,21 @@ RECURSIVE SUBROUTINE force_env_get(force_env, in_use, &
                           cell=cell,&
                           cell_ref=cell_ref,&
                           error=error)
-        IF ( PRESENT ( potential_energy ) ) potential_energy=thermo%pot
-        IF ( PRESENT ( kinetic_energy ) ) kinetic_energy=thermo%kin
+        IF (PRESENT(potential_energy)) potential_energy = thermo%pot
+        IF (PRESENT(kinetic_energy)) kinetic_energy = thermo%kin
+        IF (PRESENT(use_ref_cell)) use_ref_cell = .FALSE.
      CASE (use_tbmd_force)
         CPPrecondition(ASSOCIATED(force_env%tbmd_env), cp_failure_level, routineP, error, failure)
-
         CPPreconditionNoFail(.NOT. PRESENT(qs_env), cp_warning_level, routineP, error)
         CPPreconditionNoFail(.NOT. PRESENT(kg_env), cp_warning_level, routineP, error)
         CPPreconditionNoFail(.NOT. PRESENT(fist_env), cp_warning_level, routineP, error)
         CPPreconditionNoFail(.NOT.PRESENT(eip_env), cp_warning_level, routineP, error)
-
-        CALL tbmd_env_get(force_env%tbmd_env, tbmd_energy=tbmd_energy, cell=cell, &
-                          cell_ref=cell_ref, error=error)
-
+        CALL tbmd_env_get(force_env%tbmd_env,&
+                          tbmd_energy=tbmd_energy,&
+                          cell=cell, &
+                          cell_ref=cell_ref,&
+                          use_ref_cell=use_ref_cell,&
+                          error=error)
         IF (PRESENT(potential_energy)) THEN
           potential_energy = tbmd_energy%E_bandstructure + tbmd_energy%E_repulsion &
                                                          + tbmd_energy%E_correction
@@ -439,16 +442,17 @@ RECURSIVE SUBROUTINE force_env_get(force_env, in_use, &
         IF (PRESENT(kinetic_energy)) kinetic_energy = tbmd_energy%E_kinetic
      CASE (use_eip_force)
         CPPrecondition(ASSOCIATED(force_env%eip_env), cp_failure_level, routineP, error, failure)
-
         CPPreconditionNoFail(.NOT. PRESENT(qs_env), cp_warning_level, routineP, error)
         CPPreconditionNoFail(.NOT. PRESENT(kg_env), cp_warning_level, routineP, error)
         CPPreconditionNoFail(.NOT. PRESENT(fist_env), cp_warning_level, routineP, error)
         CPPreconditionNoFail(.NOT.PRESENT(tbmd_env), cp_warning_level, routineP, error)
-
-        CALL eip_env_get(force_env%eip_env, cell=cell, cell_ref=cell_ref, &
-                         eip_potential_energy=eip_potential_energy, &
-                         eip_kinetic_energy=eip_kinetic_energy, error=error)
-
+        CALL eip_env_get(force_env%eip_env,&
+                         cell=cell,&
+                         cell_ref=cell_ref, &
+                         use_ref_cell=use_ref_cell,&
+                         eip_potential_energy=eip_potential_energy,&
+                         eip_kinetic_energy=eip_kinetic_energy,&
+                         error=error)
         IF (PRESENT(potential_energy)) THEN
           potential_energy = eip_potential_energy
         END IF
@@ -461,14 +465,14 @@ RECURSIVE SUBROUTINE force_env_get(force_env, in_use, &
         CPPreconditionNoFail(.NOT.PRESENT(fist_env),cp_warning_level,routineP,error)
         CPPreconditionNoFail(.NOT.PRESENT(tbmd_env),cp_warning_level,routineP,error)
         CPPreconditionNoFail(.NOT.PRESENT(eip_env),cp_warning_level,routineP,error)
-
         NULLIFY(dft_control)
         CALL get_kg_env(force_env%kg_env,&
-             energy=kg_energy,&
-             cell=cell,&
-             cell_ref=cell_ref,&
-             dft_control=dft_control,&
-             error=error)
+                        energy=kg_energy,&
+                        cell=cell,&
+                        cell_ref=cell_ref,&
+                        use_ref_cell=use_ref_cell,&
+                        dft_control=dft_control,&
+                        error=error)
         IF(dft_control % qs_control % method == "KG_GPW") THEN
            NULLIFY(my_qs_env,qs_energy)
            CALL get_kg_env(force_env%kg_env,&
@@ -484,18 +488,21 @@ RECURSIVE SUBROUTINE force_env_get(force_env, in_use, &
      CASE (use_qmmm)
           IF (PRESENT(cell)) THEN
                CALL force_env_get(force_env%sub_force_env(1)%force_env,&
-                                           cell=cell,error=error)
+                                  cell=cell,&
+                                  error=error)
           ENDIF
           IF (PRESENT(kinetic_energy)) THEN
              CALL force_env_get(force_env%sub_force_env(1)%force_env,&
-                  kinetic_energy=kinetic_energy,error=error)
+                                kinetic_energy=kinetic_energy,&
+                                error=error)
           END IF
           IF (PRESENT(potential_energy)) THEN
                CALL force_env_get(force_env%sub_force_env(1)%force_env,&
-                                           potential_energy=penergy_mm,&
-                                           error=error)
+                                  potential_energy=penergy_mm,&
+                                  error=error)
                CALL force_env_get(force_env%sub_force_env(2)%force_env,&
-                                 potential_energy=penergy_qm,error=error)
+                                  potential_energy=penergy_qm,&
+                                  error=error)
                potential_energy = penergy_qm+penergy_mm
           ENDIF
      CASE DEFAULT

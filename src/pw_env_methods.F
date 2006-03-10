@@ -297,8 +297,11 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
           cell_ref=cell_ref,cell=cell,para_env=para_env, input=input,&
           error=error)
      CALL get_qs_env ( qs_env, use_ref_cell = use_ref_cell )
-     IF ( use_ref_cell ) my_cell => cell_ref
-     IF ( .NOT. use_ref_cell ) my_cell => cell
+     IF (use_ref_cell) THEN
+       my_cell => cell_ref
+     ELSE
+       my_cell => cell
+     END IF
      rel_cutoff = dft_control%qs_control%relative_cutoff
      cutoff => dft_control%qs_control%e_cutoff
      CALL section_vals_val_get(input,"DFT%XC%XC_GRID%USE_FINER_GRID",&
@@ -310,7 +313,6 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
      !                     XXXXXXXXX same holds for radius
      CALL init_gaussian_gridlevel(pw_env%gridlevel_info,&
           ngrid_levels=ngrid_level,cutoff=cutoff,rel_cutoff=rel_cutoff)
-
      ! init pw_grids and pools
      ALLOCATE(pw_pools(ngrid_level),stat=stat)
      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -372,7 +374,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
               old_pw_grid => pw_grid
            END IF
         ELSE
-           CALL pw_grid_setup(cell_ref,pw_grid,cutilev,&
+           CALL pw_grid_setup(my_cell,pw_grid,cutilev,&
                 info=output_unit, blocked=.FALSE., &
                 ref_grid=old_pw_grid,ncommensurate=ncommensurate,&
                 icommensurate=igrid_level, rs_dims=(/para_env%num_pe,1/))
