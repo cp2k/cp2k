@@ -22,7 +22,7 @@ MODULE topology
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE atoms_input,                     ONLY: read_atoms_input
   USE cell_types,                      ONLY: read_cell
-  USE colvar_types,                    ONLY: colvar_type
+  USE colvar_types,                    ONLY: colvar_p_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE global_types,                    ONLY: global_environment_type
@@ -98,7 +98,7 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
   SUBROUTINE topology_control (atomic_kind_set,particle_set,&
-       molecule_kind_set,molecule_set,colvar,globenv, qmmm, qmmm_env, error)
+       molecule_kind_set,molecule_set,colvar_p,globenv, qmmm, qmmm_env, error)
 
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -108,7 +108,7 @@ CONTAINS
       POINTER                                :: molecule_kind_set
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
-    TYPE(colvar_type), DIMENSION(:), POINTER :: colvar
+    TYPE(colvar_p_type), DIMENSION(:), POINTER :: colvar_p
     TYPE(global_environment_type), POINTER   :: globenv
     LOGICAL, INTENT(IN), OPTIONAL            :: qmmm
     TYPE(qmmm_env_mm_type), OPTIONAL, &
@@ -171,7 +171,7 @@ CONTAINS
     !-----------------------------------------------------------------------------
     ! 4. Read in the constraints section
     !-----------------------------------------------------------------------------
-    CALL read_constraints_section(topology,globenv,colvar,constraint_section,error)
+    CALL read_constraints_section(topology,globenv,colvar_p,constraint_section,error)
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------

@@ -26,7 +26,7 @@ MODULE molecule_types_new
   USE molecule_kind_types,             ONLY: molecule_kind_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
-
+  USE colvar_types, ONLY: colvar_type, colvar_release
   IMPLICIT NONE
 
   PRIVATE
@@ -36,23 +36,24 @@ MODULE molecule_types_new
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'molecule_types_new'
 
 ! *** Data types ***
-  TYPE local_dist_constraint_type
-    REAL(KIND = dp)               :: lambda,scale,scale_old,sigma
-    REAL(KIND = dp), DIMENSION(3) :: f,ra_old,rb_old
-  END TYPE local_dist_constraint_type
+  TYPE local_colvar_constraint_type
+     TYPE(colvar_type),POINTER     :: colvar
+     REAL(KIND = dp)               :: lambda, scale, scale_old, sigma
+     REAL(KIND = dp), DIMENSION(3) :: f, ra_old, rb_old
+  END TYPE local_colvar_constraint_type
 
   TYPE local_g3x3_constraint_type
     REAL(KIND = dp)               :: scale,scale_old
     REAL(KIND = dp), DIMENSION(3) :: fa,fb,fc,&
-                              ra_old,rb_old,rc_old,&
-                              va,vb,vc,lambda
+                                     ra_old,rb_old,rc_old,&
+                                     va,vb,vc,lambda
   END TYPE local_g3x3_constraint_type
 
   TYPE local_g4x6_constraint_type
     REAL(KIND = dp)               :: scale,scale_old
     REAL(KIND = dp), DIMENSION(3) :: fa,fb,fc,fd,fe,ff,&
-                              ra_old,rb_old,rc_old,rd_old,re_old,rf_old,&
-                              va,vb,vc,vd,ve,vf
+                                     ra_old,rb_old,rc_old,rd_old,re_old,rf_old,&
+                                     va,vb,vc,vd,ve,vf
     REAL(KIND = dp), DIMENSION(6) :: lambda
   END TYPE local_g4x6_constraint_type
 
@@ -62,7 +63,7 @@ MODULE molecule_types_new
   END TYPE local_molecule_type
 
   TYPE local_constraint_type
-    TYPE ( local_dist_constraint_type ), DIMENSION ( : ) , POINTER :: ldist
+    TYPE ( local_colvar_constraint_type ), DIMENSION ( : ) , POINTER :: lcolv
     TYPE ( local_g3x3_constraint_type ), DIMENSION ( : ) , POINTER :: lg3x3
     TYPE ( local_g4x6_constraint_type ), DIMENSION ( : ) , POINTER :: lg4x6
   END TYPE local_constraint_type
@@ -77,7 +78,7 @@ MODULE molecule_types_new
 
 ! *** Public data types ***
 
-  PUBLIC :: local_dist_constraint_type,&
+  PUBLIC :: local_colvar_constraint_type,&
             local_g3x3_constraint_type,&
             local_g4x6_constraint_type,&
             local_constraint_type,&
@@ -126,6 +127,7 @@ CONTAINS
       NULLIFY (molecule_set(imolecule)%molecule_kind)
       NULLIFY (molecule_set(imolecule)%lmi)
       NULLIFY (molecule_set(imolecule)%lci)
+      
       molecule_set(imolecule)%first_atom = 0
       molecule_set(imolecule)%last_atom = 0
     END DO
@@ -147,7 +149,7 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_molecule_set'
 
-    INTEGER                                  :: imolecule, istat
+    INTEGER                                  :: imolecule, istat, j
 
 !   ---------------------------------------------------------------------------
 
@@ -165,10 +167,14 @@ CONTAINS
                                               "molecule_set(i)%lmi")
          ENDIF
          IF (ASSOCIATED(molecule_set(imolecule)%lci)) THEN
-             IF (ASSOCIATED(molecule_set(imolecule)%lci%ldist)) THEN
-                 DEALLOCATE (molecule_set(imolecule)%lci%ldist,STAT=istat)
-                 IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                                  "molecule_set(i)%lci%ldist")
+            IF (ASSOCIATED(molecule_set(imolecule)%lci%lcolv)) THEN
+               DO j = 1, SIZE(molecule_set(imolecule)%lci%lcolv)
+                  CALL colvar_release(molecule_set(imolecule)%lci%lcolv(j)%colvar)             
+                  NULLIFY(molecule_set(imolecule)%lci%lcolv(j)%colvar)
+               END DO
+               DEALLOCATE (molecule_set(imolecule)%lci%lcolv,STAT=istat)
+               IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                                  "molecule_set(i)%lci%lcolv")
              ENDIF
              IF (ASSOCIATED(molecule_set(imolecule)%lci%lg3x3)) THEN
                  DEALLOCATE (molecule_set(imolecule)%lci%lg3x3,STAT=istat)
@@ -201,7 +207,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE get_molecule(molecule,molecule_kind,lmi,lg3x3,lg4x6,ldist,&
+  SUBROUTINE get_molecule(molecule,molecule_kind,lmi,lg3x3,lg4x6,lcolv,&
                           first_atom,last_atom)
 
 !   Purpose: Get components from a molecule data set.
@@ -219,8 +225,8 @@ CONTAINS
       OPTIONAL, POINTER                      :: lg3x3( : )
     TYPE(local_g4x6_constraint_type), &
       OPTIONAL, POINTER                      :: lg4x6( : )
-    TYPE(local_dist_constraint_type), &
-      OPTIONAL, POINTER                      :: ldist( : )
+    TYPE(local_colvar_constraint_type), &
+      OPTIONAL, POINTER, DIMENSION(:)        :: lcolv
     INTEGER, OPTIONAL                        :: first_atom, last_atom
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'get_molecule'
@@ -233,9 +239,9 @@ CONTAINS
       IF (PRESENT(last_atom)) last_atom = molecule%last_atom
       IF (PRESENT(molecule_kind)) molecule_kind => molecule%molecule_kind
       IF (PRESENT(lmi))           lmi           => molecule%lmi
-      IF ( PRESENT ( ldist ) ) THEN
+      IF ( PRESENT ( lcolv ) ) THEN
          IF ( ASSOCIATED ( molecule%lci ) ) THEN 
-           ldist => molecule%lci%ldist
+           lcolv => molecule%lci%lcolv
          ELSE
            CALL stop_program(routineN,moduleN,__LINE__,&
                            "The pointer lci is not associated")
@@ -269,7 +275,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE set_molecule(molecule,molecule_kind,lmi,lci,ldist,lg3x3,lg4x6)
+  SUBROUTINE set_molecule(molecule,molecule_kind,lmi,lci,lcolv,lg3x3,lg4x6)
 
 !   Purpose: Set a molecule data set.
 
@@ -284,8 +290,8 @@ CONTAINS
       POINTER                                :: lmi
     TYPE(local_constraint_type), OPTIONAL, &
       POINTER                                :: lci
-    TYPE(local_dist_constraint_type), &
-      OPTIONAL, POINTER                      :: ldist( : )
+    TYPE(local_colvar_constraint_type), &
+      OPTIONAL, POINTER, DIMENSION(:)        :: lcolv
     TYPE(local_g3x3_constraint_type), &
       OPTIONAL, POINTER                      :: lg3x3( : )
     TYPE(local_g4x6_constraint_type), &
@@ -300,9 +306,9 @@ CONTAINS
       IF (PRESENT(molecule_kind)) molecule%molecule_kind => molecule_kind
       IF (PRESENT(lmi))           molecule%lmi           => lmi
       IF (PRESENT(lci))           molecule%lci           => lci
-      IF (PRESENT(ldist) ) THEN 
+      IF (PRESENT(lcolv) ) THEN 
          IF ( ASSOCIATED ( molecule%lci ) ) THEN
-           molecule%lci%ldist => ldist
+           molecule%lci%lcolv => lcolv
          ELSE
            CALL stop_program(routineN,moduleN,__LINE__,&
                            "The pointer lci is not associated")

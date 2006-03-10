@@ -25,6 +25,7 @@
 MODULE topology_input
   USE colvar_types,                    ONLY: angle_colvar_id,&
                                              colvar_type,&
+                                             colvar_p_type,&
                                              dist_colvar_id,&
                                              torsion_colvar_id
   USE global_types,                    ONLY: global_environment_type
@@ -162,13 +163,13 @@ END SUBROUTINE read_topology_section
 !!
 !******************************************************************************
 
-SUBROUTINE read_constraints_section(topology, globenv, colvar, constraint_section, error)
+SUBROUTINE read_constraints_section(topology, globenv, colvar_p, constraint_section, error)
 
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
     TYPE(global_environment_type), &
       OPTIONAL, POINTER                      :: globenv
-    TYPE(colvar_type), DIMENSION(:), POINTER :: colvar
+    TYPE(colvar_p_type), DIMENSION(:), POINTER :: colvar_p
     TYPE(section_vals_type), POINTER         :: constraint_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -333,13 +334,13 @@ SUBROUTINE read_constraints_section(topology, globenv, colvar, constraint_sectio
      ! INTERNAL
      CALL section_vals_get(collective_section,explicit=explicit, n_repetition=ncons, error=error)
      IF (explicit) THEN
-        CPPostcondition(ncons<=SIZE(colvar),cp_failure_level,routineP,error,failure)
+        CPPostcondition(ncons<=SIZE(colvar_p),cp_failure_level,routineP,error,failure)
         isize = 0
         ! DISTANCE
         DO ig = 1, ncons
            CALL section_vals_val_get(collective_section,"COLVAR",i_rep_section=ig, i_val=icolvar, error=error)
-           CPPostcondition(icolvar<=SIZE(colvar),cp_failure_level,routineP,error,failure)
-           IF (colvar(icolvar)%type_id==dist_colvar_id) isize = isize + 1
+           CPPostcondition(icolvar<=SIZE(colvar_p),cp_failure_level,routineP,error,failure)
+           IF (colvar_p(icolvar)%colvar%type_id==dist_colvar_id) isize = isize + 1
         END DO
 
         IF (isize /= 0) THEN
@@ -358,14 +359,14 @@ SUBROUTINE read_constraints_section(topology, globenv, colvar, constraint_sectio
            DO ig = 1, ncons
               ! DISTANCE
               CALL section_vals_val_get(collective_section,"COLVAR",i_rep_section=ig, i_val=icolvar, error=error)
-              IF (colvar(icolvar)%type_id==dist_colvar_id) THEN
+              IF (colvar_p(icolvar)%colvar%type_id==dist_colvar_id) THEN
                  isize = isize + 1
                  CALL section_vals_val_get(collective_section,"MOLECULE",i_val=cons_info%const_dist_mol(isize),&
                       i_rep_section=ig,error=error)
                  CALL section_vals_val_get(collective_section,"TARGET",&
                       r_val=cons_info%const_dist_dab(isize),i_rep_section=ig, error=error)
-                 cons_info%const_dist_a(isize) = colvar(icolvar)%dist_param%i_at
-                 cons_info%const_dist_b(isize) = colvar(icolvar)%dist_param%j_at
+                 cons_info%const_dist_a(isize) = colvar_p(icolvar)%colvar%dist_param%i_at
+                 cons_info%const_dist_b(isize) = colvar_p(icolvar)%colvar%dist_param%j_at
               END IF
            END DO
         END IF
@@ -373,8 +374,8 @@ SUBROUTINE read_constraints_section(topology, globenv, colvar, constraint_sectio
         isize = 0
         DO ig = 1, ncons
            CALL section_vals_val_get(collective_section,"COLVAR",i_rep_section=ig, i_val=icolvar, error=error)
-           CPPostcondition(icolvar<=SIZE(colvar),cp_failure_level,routineP,error,failure)
-           IF (colvar(icolvar)%type_id==angle_colvar_id) isize = isize + 1
+           CPPostcondition(icolvar<=SIZE(colvar_p),cp_failure_level,routineP,error,failure)
+           IF (colvar_p(icolvar)%colvar%type_id==angle_colvar_id) isize = isize + 1
         END DO
         IF (isize /= 0) THEN
            ! Not implemented yet
@@ -384,8 +385,8 @@ SUBROUTINE read_constraints_section(topology, globenv, colvar, constraint_sectio
         isize = 0
         DO ig = 1, ncons
            CALL section_vals_val_get(collective_section,"COLVAR",i_rep_section=ig, i_val=icolvar, error=error)
-           CPPostcondition(icolvar<=SIZE(colvar),cp_failure_level,routineP,error,failure)
-           IF (colvar(icolvar)%type_id==torsion_colvar_id) isize = isize + 1
+           CPPostcondition(icolvar<=SIZE(colvar_p),cp_failure_level,routineP,error,failure)
+           IF (colvar_p(icolvar)%colvar%type_id==torsion_colvar_id) isize = isize + 1
         END DO
         IF (isize /= 0) THEN
            ! Not implemented yet

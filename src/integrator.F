@@ -366,10 +366,10 @@ CONTAINS
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
     TYPE(virial_type), POINTER               :: virial
-
+    TYPE(cell_type), POINTER                 :: cell
 !   ---------------------------------------------------------------------------
 
-    NULLIFY (dyn_coeff_set,coeffs_of_kind,coeffs,nhc_coef,para_env)
+    NULLIFY (dyn_coeff_set,coeffs_of_kind,coeffs,nhc_coef,para_env,cell)
     CALL get_md_env(md_env=md_env,simpar=simpar,force_env_p=force_env_p,&
                     nhc_coef=nhc_coef, para_env = para_env)
     dt = simpar%dt
@@ -378,7 +378,7 @@ CONTAINS
        "MD_ENV with more than (or less) than one force_env not supported atm!")
     END IF
     CALL force_env_get(force_env=force_env_p(1)%force_env,subsys=subsys,&
-                       dyn_coeff_set=dyn_coeff_set, virial = virial )
+                       dyn_coeff_set=dyn_coeff_set, virial = virial, cell=cell)
 
     DO isubsys=1,SIZE(subsys)
 
@@ -412,7 +412,7 @@ CONTAINS
       vel(:,:) = 0.0_dp
 
       IF (simpar%constraint) CALL getold(local_molecules, molecule_set,  &
-                                         molecule_kind_set, particle_set)
+                                         molecule_kind_set, particle_set, cell, error)
 
 !     *** Velocity Verlet (first part) ***
 
@@ -804,10 +804,10 @@ CONTAINS
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
     TYPE(virial_type), POINTER               :: virial
-
+    TYPE(cell_type), POINTER                 :: cell
 !   ---------------------------------------------------------------------------
 
-    NULLIFY (dyn_coeff_set,coeffs_of_kind,coeffs,nhc_coef)
+    NULLIFY (dyn_coeff_set,coeffs_of_kind,coeffs,nhc_coef,cell)
     CALL get_md_env(md_env=md_env,simpar=simpar,force_env_p=force_env_p,&
                     nhc_part=nhc,nhc_coef=nhc_coef,para_env=para_env)
     dt = simpar%dt
@@ -816,7 +816,7 @@ CONTAINS
        "MD_ENV with more than (or less) than one force_env not supported atm!")
     END IF
     CALL force_env_get(force_env=force_env_p(1)%force_env,subsys=subsys,&
-                       dyn_coeff_set=dyn_coeff_set, virial=virial)
+                       dyn_coeff_set=dyn_coeff_set, virial=virial, cell=cell)
 
     DO isubsys=1,SIZE(subsys)
 
@@ -855,7 +855,7 @@ CONTAINS
                   atomic_kind_set, particle_set, local_molecules, para_env % group )
 
       IF (simpar%constraint) CALL getold(local_molecules, molecule_set,  &
-                                         molecule_kind_set, particle_set)
+                                         molecule_kind_set, particle_set, cell, error)
 
 !     *** Velocity Verlet (first part) ***
 
@@ -1146,7 +1146,7 @@ CONTAINS
         iroll = 1
         CALL set ( atomic_kind_set, particle_set, local_particles, cell, npt, 'F' )
         CALL getold ( local_molecules, molecule_set,  &
-                      molecule_kind_set, particle_set)
+                      molecule_kind_set, particle_set, cell, error)
       ENDIF
 
 
@@ -1520,7 +1520,7 @@ CONTAINS
         iroll = 1
         CALL set ( atomic_kind_set, particle_set, local_particles, cell, npt, 'F' )
         CALL getold ( local_molecules, molecule_set,  &
-                      molecule_kind_set, particle_set)
+                      molecule_kind_set, particle_set, cell, error)
       ENDIF
 
 
@@ -1817,7 +1817,7 @@ CONTAINS
         iroll = 1
         CALL set ( atomic_kind_set, particle_set, local_particles, cell, npt, 'F' )
         CALL getold ( local_molecules, molecule_set,  &
-                      molecule_kind_set, particle_set)
+                      molecule_kind_set, particle_set, cell, error)
       ENDIF
 
 
@@ -2378,7 +2378,7 @@ END SUBROUTINE deallocate_old
         CALL set ( atomic_kind_set, particle_set,  &
                    local_particles, cell, npt, 'F' )
         CALL getold ( local_molecules, molecule_set,  &
-                      molecule_kind_set, particle_set)
+                      molecule_kind_set, particle_set, cell, error)
       ENDIF
 
       SR: DO WHILE (ABS(roll_tol)>=1.E-10_dp) ! SHAKE-ROLL LOOP

@@ -27,8 +27,8 @@ MODULE cp_subsystem_types
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_release,&
                                              atomic_kind_list_retain,&
                                              atomic_kind_list_type
-  USE colvar_types,                    ONLY: colvar_dealloc_ref,&
-                                             colvar_type
+  USE colvar_types,                    ONLY: colvar_release,&
+                                             colvar_p_type
   USE cp_para_env,                     ONLY: cp_para_env_release,&
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -92,18 +92,17 @@ MODULE cp_subsystem_types
 !!   SOURCE
   !***************************************************************************
   TYPE cp_subsystem_type
-!     PRIVATE !FM removed for convenience, but to as if it where there
      INTEGER :: ref_count, id_nr
      TYPE (atomic_kind_list_type), POINTER :: atomic_kinds
      TYPE (particle_list_type), POINTER :: particles
      TYPE (distribution_1d_type), POINTER :: local_particles
      TYPE (cp_para_env_type), POINTER :: para_env
-!new
+     !new
      TYPE (mol_new_list_type), POINTER :: molecules_new
      TYPE (mol_kind_new_list_type), POINTER :: molecule_kinds_new
      TYPE (distribution_1d_type), POINTER :: local_molecules_new
-! definitions of the collective variables
-     TYPE (colvar_type), DIMENSION(:), POINTER :: colvar
+     ! definitions of the collective variables
+     TYPE (colvar_p_type), DIMENSION(:), POINTER :: colvar_p
   END TYPE cp_subsystem_type
 !!***
   !****************************************************************************
@@ -216,7 +215,7 @@ SUBROUTINE cp_subsys_create(subsys, para_env, error)
      NULLIFY(subsys%atomic_kinds, subsys%particles, &
           subsys%local_particles, subsys%molecules_new,&
           subsys%molecule_kinds_new, subsys%local_molecules_new)
-     NULLIFY(subsys%colvar)
+     NULLIFY(subsys%colvar_p)
   END IF
 END SUBROUTINE cp_subsys_create
 !***************************************************************************
@@ -323,11 +322,13 @@ SUBROUTINE cp_subsys_release(subsys, error)
         CALL mol_new_list_release(subsys%molecules_new, error=error)
         CALL distribution_1d_release(subsys%local_molecules_new,error=error)
         CALL cp_para_env_release(subsys%para_env, error=error)
-        IF(ASSOCIATED(subsys%colvar)) THEN
-           DO i=1,SIZE(subsys%colvar)
-              CALL colvar_dealloc_ref(subsys%colvar(i),error)
+        IF(ASSOCIATED(subsys%colvar_p)) THEN
+           DO i=1,SIZE(subsys%colvar_p)
+              IF (ASSOCIATED(subsys%colvar_p(i)%colvar)) THEN
+                 CALL colvar_release(subsys%colvar_p(i)%colvar,error)
+              END IF
            ENDDO
-           DEALLOCATE(subsys%colvar,STAT=stat)
+           DEALLOCATE(subsys%colvar_p,STAT=stat)
            CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         END IF
         DEALLOCATE(subsys, stat=stat)
@@ -383,7 +384,7 @@ END SUBROUTINE cp_subsys_release
 !!*** **********************************************************************
 SUBROUTINE cp_subsys_set(subsys, atomic_kinds, particles, local_particles,&
                          molecules_new, molecule_kinds_new, local_molecules_new, &
-                         para_env, colvar, error)
+                         para_env, colvar_p, error)
     TYPE(cp_subsystem_type), POINTER         :: subsys
     TYPE(atomic_kind_list_type), OPTIONAL, &
       POINTER                                :: atomic_kinds
@@ -399,8 +400,8 @@ SUBROUTINE cp_subsys_set(subsys, atomic_kinds, particles, local_particles,&
       POINTER                                :: local_molecules_new
     TYPE(cp_para_env_type), OPTIONAL, &
       POINTER                                :: para_env
-    TYPE(colvar_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: colvar
+    TYPE(colvar_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: colvar_p
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -449,9 +450,9 @@ SUBROUTINE cp_subsys_set(subsys, atomic_kinds, particles, local_particles,&
         CALL cp_para_env_release(subsys%para_env, error=error)
         subsys%para_env => para_env
      END IF
-     IF (PRESENT(colvar)) THEN
-        CPPrecondition(.NOT.ASSOCIATED(subsys%colvar),cp_failure_level,routineP,error,failure)
-        subsys%colvar=>colvar
+     IF (PRESENT(colvar_p)) THEN
+        CPPrecondition(.NOT.ASSOCIATED(subsys%colvar_p),cp_failure_level,routineP,error,failure)
+        subsys%colvar_p=>colvar_p
      ENDIF
   END IF
 END SUBROUTINE cp_subsys_set
@@ -503,7 +504,7 @@ END SUBROUTINE cp_subsys_set
 !!*** **********************************************************************
 SUBROUTINE cp_subsys_get(subsys, id_nr, ref_count, atomic_kinds, particles,&
      local_particles, molecules_new, molecule_kinds_new, local_molecules_new, &
-     para_env, colvar, error)
+     para_env, colvar_p, error)
     TYPE(cp_subsystem_type), POINTER         :: subsys
     INTEGER, INTENT(out), OPTIONAL           :: id_nr, ref_count
     TYPE(atomic_kind_list_type), OPTIONAL, &
@@ -520,8 +521,8 @@ SUBROUTINE cp_subsys_get(subsys, id_nr, ref_count, atomic_kinds, particles,&
       POINTER                                :: local_molecules_new
     TYPE(cp_para_env_type), OPTIONAL, &
       POINTER                                :: para_env
-    TYPE(colvar_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: colvar
+    TYPE(colvar_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: colvar_p
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -544,7 +545,7 @@ SUBROUTINE cp_subsys_get(subsys, id_nr, ref_count, atomic_kinds, particles,&
      IF (PRESENT(molecule_kinds_new)) molecule_kinds_new => subsys%molecule_kinds_new
      IF (PRESENT(local_molecules_new)) local_molecules_new => subsys%local_molecules_new
      IF (PRESENT(para_env)) para_env => subsys%para_env
-     IF (PRESENT(colvar)) colvar => subsys%colvar
+     IF (PRESENT(colvar_p)) colvar_p => subsys%colvar_p
   END IF
 END SUBROUTINE cp_subsys_get
 !***************************************************************************

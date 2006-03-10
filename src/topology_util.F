@@ -48,12 +48,13 @@ MODULE topology_util
   USE memory_utilities,                ONLY: reallocate
   USE molecule_kind_types,             ONLY: &
        allocate_molecule_kind_set, atom_type, bend_type, bond_type, &
-       dist_constraint_type, fixd_constraint_type, g3x3_constraint_type, &
+       colvar_constraint_type, fixd_constraint_type, g3x3_constraint_type, &
        g4x6_constraint_type, get_molecule_kind, impr_type, &
-       molecule_kind_type, onfo_type, set_molecule_kind, torsion_type, ub_type
+       molecule_kind_type, onfo_type, set_molecule_kind, torsion_type, ub_type,&
+       colvar_counters
   USE molecule_types_new,              ONLY: &
        allocate_molecule_set, get_molecule, local_constraint_type, &
-       local_dist_constraint_type, local_g3x3_constraint_type, &
+       local_colvar_constraint_type, local_g3x3_constraint_type, &
        local_g4x6_constraint_type, local_molecule_type, molecule_type, &
        set_molecule, set_molecule_set
   USE particle_types,                  ONLY: allocate_particle_set,&
@@ -74,6 +75,7 @@ MODULE topology_util
                                              constraint_info_type,&
                                              topology_parameters_type
   USE util,                            ONLY: find_boundary
+  USE colvar_types, ONLY: dist_colvar_id, colvar_create, colvar_setup
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -2999,8 +3001,10 @@ CONTAINS
 
     CHARACTER(LEN=2)                         :: element_symbol
     CHARACTER(LEN=default_string_length)     :: molname, name
-    INTEGER :: dum, first, handle, i, iw, j, k, kk, m, last, nbond, ndist, &
-      nfixed_atoms, ng3x3, ng4x6, nmolecule, search1, search2, stat, iglob, nrep
+    TYPE(colvar_counters)                    :: ncolv
+    INTEGER :: dum, first, handle, i, iw, j, k, kk, m, ndist, last, nbond, &
+      nfixed_atoms, ng3x3, ng4x6, nmolecule, search1, search2, stat, iglob, nrep,&
+      first_atom
     INTEGER, DIMENSION(:), POINTER           :: molecule_list
     LOGICAL                                  :: failure, fix_atom_molname, &
                                                 fix_atom_qmmm
@@ -3011,8 +3015,8 @@ CONTAINS
     TYPE(bond_type), DIMENSION(:), POINTER   :: bond_list
     TYPE(constraint_info_type), POINTER      :: cons_info
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(dist_constraint_type), &
-      DIMENSION(:), POINTER                  :: dist_list
+    TYPE(colvar_constraint_type), &
+      DIMENSION(:), POINTER                  :: colv_list
     TYPE(fixd_constraint_type), &
       DIMENSION(:), POINTER                  :: fixd_list
     TYPE(g3x3_constraint_type), &
@@ -3020,8 +3024,8 @@ CONTAINS
     TYPE(g4x6_constraint_type), &
       DIMENSION(:), POINTER                  :: g4x6_list
     TYPE(local_constraint_type), POINTER     :: lci
-    TYPE(local_dist_constraint_type), &
-      DIMENSION(:), POINTER                  :: ldist
+    TYPE(local_colvar_constraint_type), &
+      DIMENSION(:), POINTER                  :: lcolv
     TYPE(local_g3x3_constraint_type), &
       DIMENSION(:), POINTER                  :: lg3x3
     TYPE(local_g4x6_constraint_type), &
@@ -3051,7 +3055,7 @@ CONTAINS
        NULLIFY(lci)
        ALLOCATE(lci,STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       NULLIFY(lci%ldist)
+       NULLIFY(lci%lcolv)
        NULLIFY(lci%lg3x3)
        NULLIFY(lci%lg4x6)
        CALL set_molecule(molecule,lci=lci)
@@ -3223,7 +3227,7 @@ CONTAINS
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
-    ! 5. Set the distance constraint molecule_kind_set(ikind)%dist_list
+    ! 5. Set the distance constraint molecule_kind_set(ikind)%colv_list
     !-----------------------------------------------------------------------------
     IF(topology%const_dist) THEN
        DO i=1,SIZE(molecule_kind_set)
@@ -3233,31 +3237,42 @@ CONTAINS
           CALL find_boundary(cons_info%const_dist_mol,cons_info%nconst_dist,&
                first,last,i)
           ndist = last-first+1
-          ALLOCATE(dist_list(ndist),STAT=stat)
+          ALLOCATE(colv_list(ndist),STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           DO j=1,nmolecule
              molecule => molecule_set(molecule_list(j))
-             ALLOCATE(ldist(ndist),STAT=stat)
+             CALL get_molecule ( molecule, first_atom = first_atom)
+             ALLOCATE(lcolv(ndist),STAT=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
              DO k=1,ndist
-                ldist(k)%lambda = 0.0_dp
-                ldist(k)%scale = 0.0_dp
-                ldist(k)%scale_old = 0.0_dp
-                ldist(k)%sigma = 0.0_dp
-                ldist(k)%f(:) = 0.0_dp
-                ldist(k)%ra_old(:) = 0.0_dp
-                ldist(k)%rb_old(:) = 0.0_dp
+                lcolv(k)%lambda = 0.0_dp
+                lcolv(k)%scale = 0.0_dp
+                lcolv(k)%scale_old = 0.0_dp
+                lcolv(k)%sigma = 0.0_dp
+                lcolv(k)%f(:) = 0.0_dp
+                lcolv(k)%ra_old(:) = 0.0_dp
+                lcolv(k)%rb_old(:) = 0.0_dp
+                ! Set Up colvar variable
+                NULLIFY(lcolv(k)%colvar)
+                CALL colvar_create(lcolv(k)%colvar,dist_colvar_id,error)
+                lcolv(k)%colvar%dist_param%i_at = cons_info%const_dist_a(k)+first_atom-1
+                lcolv(k)%colvar%dist_param%j_at = cons_info%const_dist_b(k)+first_atom-1
+                CALL colvar_setup(lcolv(k)%colvar, error)
              END DO
-             CALL set_molecule(molecule=molecule,ldist=ldist)
+             CALL set_molecule(molecule=molecule,lcolv=lcolv)
           END DO
           ndist = 0
           DO j=first,last
              ndist = ndist + 1
-             dist_list(ndist)%a   = cons_info%const_dist_a(j)
-             dist_list(ndist)%b   = cons_info%const_dist_b(j)
-             dist_list(ndist)%dab = cons_info%const_dist_dab(j)
+             ALLOCATE(colv_list(ndist)%i_atoms(2),stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             colv_list(ndist)%type_id        = dist_colvar_id
+             colv_list(ndist)%i_atoms(1)     = cons_info%const_dist_a(j)
+             colv_list(ndist)%i_atoms(2)     = cons_info%const_dist_b(j)
+             colv_list(ndist)%expected_value = cons_info%const_dist_dab(j)
           END DO
-          CALL set_molecule_kind(molecule_kind,dist_list=dist_list,ndist=ndist)
+          ncolv%ndist = ndist
+          CALL set_molecule_kind(molecule_kind,colv_list=colv_list,ncolv=ncolv)
        END DO
     END IF
 

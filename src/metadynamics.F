@@ -25,8 +25,9 @@
 !!
 !****************************************************************************
 MODULE metadynamics
-  USE colvar_methods,                  ONLY: colvar_eval_f
-  USE colvar_types,                    ONLY: colvar_type
+  USE colvar_methods,                  ONLY: colvar_eval_glob_f
+  USE colvar_types,                    ONLY: colvar_type,&
+       colvar_p_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_env,                     ONLY: cp_para_env_retain
@@ -377,7 +378,7 @@ CONTAINS
     LOGICAL                                  :: explicit, failure
     REAL(kind=dp)                            :: dt, ekin_w, fac_t, fft, norm, &
                                                 rval, scal, ss0_test, tol_ekin
-    TYPE(colvar_type), DIMENSION(:), POINTER :: colvar
+    TYPE(colvar_p_type), DIMENSION(:), POINTER :: colvar_p
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
@@ -387,7 +388,7 @@ CONTAINS
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
-    NULLIFY(colvar,subsys,cv,ss0_section, vvp_section)
+    NULLIFY(colvar_p,subsys,cv,ss0_section, vvp_section)
     failure=.FALSE.
     CPPrecondition(ASSOCIATED(meta_env),cp_failure_level,routineP,error,failure)
     CALL force_env_get(force_env, subsys=subsys, error=error)
@@ -400,8 +401,8 @@ CONTAINS
        cv => meta_env%metavar(i_c)
        isubsys = cv%isubsys
        icolvar = cv%icolvar
-       CALL colvar_eval_f(isubsys,icolvar,force_env,error=error)
-       cv%ss = subsys(isubsys)%subsys%colvar(icolvar)%ss
+       CALL colvar_eval_glob_f(isubsys,icolvar,force_env,error=error)
+       cv%ss = subsys(isubsys)%subsys%colvar_p(icolvar)%colvar%ss
        !
        ! Restart for Extended Lagrangian Metadynamics
        !
@@ -443,11 +444,11 @@ CONTAINS
           isubsys=cv%isubsys
           icolvar=cv%icolvar
           NULLIFY(particles)
-          CALL cp_subsys_get(subsys(isubsys)%subsys, colvar=colvar, &
+          CALL cp_subsys_get(subsys(isubsys)%subsys, colvar_p=colvar_p, &
                particles=particles,error=error)
-          DO ii=1,colvar(icolvar)%n_atom_s
-             i=colvar(icolvar)%i_atom(ii)
-             particles%els(i)%f=particles%els(i)%f+cv%ff_hills*colvar(icolvar)%dsdr(:,ii)
+          DO ii=1,colvar_p(icolvar)%colvar%n_atom_s
+             i=colvar_p(icolvar)%colvar%i_atom(ii)
+             particles%els(i)%f=particles%els(i)%f+cv%ff_hills*colvar_p(icolvar)%colvar%dsdr(:,ii)
           ENDDO
        ENDDO
     ELSE
@@ -460,11 +461,11 @@ CONTAINS
           icolvar      = cv%icolvar
           ! forces on the atoms
           NULLIFY(particles)
-          CALL cp_subsys_get(subsys(isubsys)%subsys, colvar=colvar, &
+          CALL cp_subsys_get(subsys(isubsys)%subsys, colvar_p=colvar_p, &
                particles=particles,error=error)
-          DO ii=1,colvar(icolvar)%n_atom_s
-             i=colvar(icolvar)%i_atom(ii)
-             particles%els(i)%f=particles%els(i)%f- cv%ff_s*colvar(icolvar)%dsdr(:,ii)
+          DO ii=1,colvar_p(icolvar)%colvar%n_atom_s
+             i=colvar_p(icolvar)%colvar%i_atom(ii)
+             particles%els(i)%f=particles%els(i)%f- cv%ff_s*colvar_p(icolvar)%colvar%dsdr(:,ii)
           ENDDO
           !  velocity verlet on the s0
           fft    = cv%ff_s+cv%ff_hills
@@ -510,22 +511,22 @@ CONTAINS
           NULLIFY(particles)
           isubsys=cv%isubsys
           icolvar=cv%icolvar
-          CALL cp_subsys_get(subsys(isubsys)%subsys, colvar=colvar, &
+          CALL cp_subsys_get(subsys(isubsys)%subsys, colvar_p=colvar_p, &
                particles=particles,error=error)
           scal=0.0_dp
           norm=0.0_dp
-          DO ii=1,colvar(icolvar)%n_atom_s
-             i=colvar(icolvar)%i_atom(ii)
-             scal=scal+particles%els(i)%v(1)*colvar(icolvar)%dsdr(1,ii)
-             scal=scal+particles%els(i)%v(2)*colvar(icolvar)%dsdr(2,ii)
-             scal=scal+particles%els(i)%v(3)*colvar(icolvar)%dsdr(3,ii)
-             norm=norm+colvar(icolvar)%dsdr(1,ii)**2
-             norm=norm+colvar(icolvar)%dsdr(2,ii)**2
-             norm=norm+colvar(icolvar)%dsdr(3,ii)**2
+          DO ii=1,colvar_p(icolvar)%colvar%n_atom_s
+             i=colvar_p(icolvar)%colvar%i_atom(ii)
+             scal=scal+particles%els(i)%v(1)*colvar_p(icolvar)%colvar%dsdr(1,ii)
+             scal=scal+particles%els(i)%v(2)*colvar_p(icolvar)%colvar%dsdr(2,ii)
+             scal=scal+particles%els(i)%v(3)*colvar_p(icolvar)%colvar%dsdr(3,ii)
+             norm=norm+colvar_p(icolvar)%colvar%dsdr(1,ii)**2
+             norm=norm+colvar_p(icolvar)%colvar%dsdr(2,ii)**2
+             norm=norm+colvar_p(icolvar)%colvar%dsdr(3,ii)**2
           ENDDO
-          DO ii=1,colvar(icolvar)%n_atom_s
-             i=colvar(icolvar)%i_atom(ii)
-             particles%els(i)%v(:)=particles%els(i)%v(:)-2.0_dp*colvar(icolvar)%dsdr(:,ii)*scal/norm
+          DO ii=1,colvar_p(icolvar)%colvar%n_atom_s
+             i=colvar_p(icolvar)%colvar%i_atom(ii)
+             particles%els(i)%v(:)=particles%els(i)%v(:)-2.0_dp*colvar_p(icolvar)%colvar%dsdr(:,ii)*scal/norm
           ENDDO
        ENDIF
     ENDDO
@@ -585,12 +586,13 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: rvals, tnp, ww_history
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(hills_env_type), POINTER            :: hills_env
-    REAL(dp)                                 :: ddp(meta_env%n_colvar)
+    REAL(dp), POINTER, DIMENSION(:)          :: ddp
     TYPE(metavar_type), DIMENSION(:), &
       POINTER                                :: colvars
     TYPE(section_vals_type), POINTER         :: hills_history
 
     failure=.FALSE.
+    NULLIFY(ddp)
     hills_env       => meta_env%hills_env
     logger          => cp_error_get_logger(error)
     ss_history      => hills_env%ss_history
@@ -599,6 +601,8 @@ CONTAINS
     n_hills         => hills_env%n_hills
     colvars         => meta_env%metavar
 
+    ALLOCATE(ddp(meta_env%n_colvar), stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
     n_colvar=meta_env%n_colvar
     n_step=meta_env%n_steps
     NULLIFY(tmp, tnp, hills_history, rvals)
@@ -765,6 +769,8 @@ CONTAINS
           colvars(i)%ff_hills=colvars(i)%ff_hills-ddp(i)/delta_s_history(i,ih)*dfunc
        ENDDO
     ENDDO
+    DEALLOCATE(ddp, stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
   END SUBROUTINE hills
 
 END MODULE metadynamics

@@ -180,7 +180,7 @@ CONTAINS
 
       CALL topology_control(atomic_kind_set, particle_set, &
                             molecule_kind_set, molecule_set, &
-                            subsystem%colvar, globenv, error=error)
+                            subsystem%colvar_p, globenv, error=error)
 
       !CALL read_atomic_kind_set(atomic_kind_set, globenv)
 

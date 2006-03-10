@@ -70,7 +70,7 @@ MODULE force_fields
   USE memory_utilities,                ONLY: reallocate
   USE message_passing,                 ONLY: mp_bcast
   USE molecule_kind_types,             ONLY: &
-       atom_type, bend_type, bond_type, dist_constraint_type, &
+       atom_type, bend_type, bond_type, colvar_constraint_type, &
        g3x3_constraint_type, g4x6_constraint_type, get_molecule_kind, &
        impr_type, molecule_kind_type, onfo_type, set_molecule_kind, &
        torsion_type, ub_type
@@ -97,6 +97,7 @@ MODULE force_fields
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE colvar_types, ONLY: dist_colvar_id
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -3212,8 +3213,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: atm2_a, atm2_b, atm2_c, atm_a, atm_b, atm_c, atm_d, central, &
-      counter, handle, i, ibend, ibond, idist, ig3x3, ig4x6, iimpr, ikind, &
-      itorsion, iub, iw, j, k, nbend, nbond, ndist, newkind, ng3x3, ng4x6, &
+      counter, handle, i, ibend, ibond, ig3x3, ig4x6, iimpr, ikind, &
+      itorsion, iub, iw, j, k, nbend, nbond, icolv, newkind, ng3x3, ng4x6, &
       nimpr, ntorsion, nub, stat
     INTEGER, POINTER                         :: bad1(:), bad2(:)
     LOGICAL                                  :: failure, unsetme, valid_kind
@@ -3226,8 +3227,8 @@ CONTAINS
                                                 new_bond_kind_set
     TYPE(bond_type), DIMENSION(:), POINTER   :: bond_list, new_bond_list
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(dist_constraint_type), &
-      DIMENSION(:), POINTER                  :: dist_list
+    TYPE(colvar_constraint_type), &
+      DIMENSION(:), POINTER                  :: colv_list
     TYPE(g3x3_constraint_type), &
       DIMENSION(:), POINTER                  :: g3x3_list
     TYPE(g4x6_constraint_type), &
@@ -3261,23 +3262,26 @@ CONTAINS
     DO ikind=1,SIZE(molecule_kind_set)
        molecule_kind => molecule_kind_set(ikind)
        CALL get_molecule_kind(molecule_kind=molecule_kind,&
-            ndist=ndist,&
-            dist_list=dist_list,&
+            colv_list=colv_list,&
             nbond=nbond,&
             bond_kind_set=bond_kind_set,&
             bond_list=bond_list)
-       DO idist=1,ndist
-          atm_a = dist_list(idist)%a
-          atm_b = dist_list(idist)%b
-          DO ibond=1,nbond
-             unsetme = .FALSE.
-             atm2_a = bond_list(ibond)%a
-             atm2_b = bond_list(ibond)%b
-             IF(atm2_a==atm_a .AND. atm2_b==atm_b) unsetme=.TRUE.
-             IF(atm2_a==atm_b .AND. atm2_b==atm_a) unsetme=.TRUE.
-             IF(unsetme) bond_list(ibond)%name = "UNSET"
+       IF (ASSOCIATED(colv_list)) THEN
+          DO icolv=1,SIZE(colv_list)
+             IF (colv_list(icolv)%type_id == dist_colvar_id) THEN
+                atm_a = colv_list(icolv)%i_atoms(1)
+                atm_b = colv_list(icolv)%i_atoms(2)
+                DO ibond=1,nbond
+                   unsetme = .FALSE.
+                   atm2_a = bond_list(ibond)%a
+                   atm2_b = bond_list(ibond)%b
+                   IF(atm2_a==atm_a .AND. atm2_b==atm_b) unsetme=.TRUE.
+                   IF(atm2_a==atm_b .AND. atm2_b==atm_a) unsetme=.TRUE.
+                   IF(unsetme) bond_list(ibond)%name = "UNSET"
+                END DO
+             END IF
           END DO
-       END DO
+       END IF
     END DO
 
 
@@ -3288,44 +3292,47 @@ CONTAINS
     DO ikind=1,SIZE(molecule_kind_set)
        molecule_kind => molecule_kind_set(ikind)
        CALL get_molecule_kind(molecule_kind=molecule_kind,&
-            ndist=ndist,&
-            dist_list=dist_list,&
+            colv_list=colv_list,&
             nbend=nbend,&
             bend_kind_set=bend_kind_set,&
             bend_list=bend_list)
-       DO ibend=1,nbend
-          counter=0
-          unsetme = .FALSE.
-          atm_a = bend_list(ibend)%a
-          atm_b = bend_list(ibend)%b
-          atm_c = bend_list(ibend)%c
-          central = 0
-          DO idist=1,ndist
-             atm2_a = dist_list(idist)%a
-             atm2_b = dist_list(idist)%b
-             ! Check to see if we have a central bend atom in dist list
-             IF ( central == 0 ) THEN
-                IF ( atm2_a == atm_b ) central = atm2_a
-                IF ( atm2_b == atm_b ) central = atm2_b
-             ENDIF
-             ! If so, check the other two atoms for a match
-             IF ( atm2_a == central ) THEN 
-                IF(atm2_b==atm_a.OR.atm2_b==atm_c) counter=counter+1
-                ! If so, check the other two atoms for a match
-             ELSEIF ( atm2_b == central ) THEN
-                IF(atm2_a==atm_a.OR.atm2_a==atm_c) counter=counter+1
-                ! If not, check the other two atoms for a match
-             ELSE
-                IF(atm2_a==atm_a.OR.atm2_a==atm_c) counter=counter+1
-                IF(atm2_b==atm_a.OR.atm2_b==atm_c) counter=counter+1
+       IF (ASSOCIATED(colv_list)) THEN
+          DO ibend=1,nbend
+             counter=0
+             unsetme = .FALSE.
+             atm_a = bend_list(ibend)%a
+             atm_b = bend_list(ibend)%b
+             atm_c = bend_list(ibend)%c
+             central = 0
+             DO icolv=1,SIZE(colv_list)
+                IF (colv_list(icolv)%type_id == dist_colvar_id) THEN
+                   atm2_a = colv_list(icolv)%i_atoms(1)
+                   atm2_b = colv_list(icolv)%i_atoms(2)
+                   ! Check to see if we have a central bend atom in dist list
+                   IF ( central == 0 ) THEN
+                      IF ( atm2_a == atm_b ) central = atm2_a
+                      IF ( atm2_b == atm_b ) central = atm2_b
+                   ENDIF
+                   ! If so, check the other two atoms for a match
+                   IF ( atm2_a == central ) THEN 
+                      IF(atm2_b==atm_a.OR.atm2_b==atm_c) counter=counter+1
+                      ! If so, check the other two atoms for a match
+                   ELSEIF ( atm2_b == central ) THEN
+                      IF(atm2_a==atm_a.OR.atm2_a==atm_c) counter=counter+1
+                      ! If not, check the other two atoms for a match
+                   ELSE
+                      IF(atm2_a==atm_a.OR.atm2_a==atm_c) counter=counter+1
+                      IF(atm2_b==atm_a.OR.atm2_b==atm_c) counter=counter+1
+                   ENDIF
+                END IF
+             END DO
+             ! must have central atom to be involved in bend
+             IF ( central /= 0 ) THEN
+                IF(counter>=4) unsetme=.TRUE.
+                IF(unsetme) bend_list(ibend)%name = "UNSET"
              ENDIF
           END DO
-          ! must have central atom to be involved in bend
-          IF ( central /= 0 ) THEN
-             IF(counter>=4) unsetme=.TRUE.
-             IF(unsetme) bend_list(ibend)%name = "UNSET"
-          ENDIF
-       END DO
+       END IF
     END DO
 
 

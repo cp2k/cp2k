@@ -30,7 +30,21 @@ MODULE colvar_methods
                                              coord_colvar_id,&
                                              dist_colvar_id,&
                                              plane_distance_colvar_id,&
-                                             torsion_colvar_id
+                                             torsion_colvar_id,&
+                                             colvar_create,&
+                                             colvar_setup
+  USE distribution_1d_types,           ONLY: distribution_1d_type
+  USE molecule_kind_types,             ONLY: colvar_constraint_type,&
+                                             g3x3_constraint_type,&
+                                             g4x6_constraint_type,&
+                                             get_molecule_kind,&
+                                             molecule_kind_type,&
+                                             colvar_counters
+  USE molecule_types_new,              ONLY: get_molecule,&
+                                             local_colvar_constraint_type,&
+                                             local_g3x3_constraint_type,&
+                                             local_g4x6_constraint_type,&
+                                             molecule_type  
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
@@ -46,6 +60,7 @@ MODULE colvar_methods
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
   USE particle_list_types,             ONLY: particle_list_type
+  USE particle_types,                  ONLY: particle_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -55,7 +70,9 @@ MODULE colvar_methods
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'colvar_methods'
 
-  PUBLIC :: colvar_read, colvar_eval_f
+  PUBLIC :: colvar_read,&
+            colvar_eval_glob_f,&
+            colvar_eval_mol_f
 
   !***
   !****************************************************************************
@@ -88,7 +105,7 @@ CONTAINS
   !!
   !!*** **********************************************************************
   SUBROUTINE colvar_read(colvar, icol, colvar_section, globenv, error)
-    TYPE(colvar_type), INTENT(inout)         :: colvar
+    TYPE(colvar_type), POINTER               :: colvar
     INTEGER, INTENT(IN)                      :: icol
     TYPE(section_vals_type), POINTER         :: colvar_section
     TYPE(global_environment_type), POINTER   :: globenv
@@ -117,36 +134,37 @@ CONTAINS
     angle_section        => section_vals_get_subs_vals(colvar_section,"ANGLE",i_rep_section=icol,error=error)
     torsion_section      => section_vals_get_subs_vals(colvar_section,"TORSION",i_rep_section=icol,error=error)
     coordination_section => section_vals_get_subs_vals(colvar_section,"COORDINATION",i_rep_section=icol,error=error)
-    plane_dist_section   => section_vals_get_subs_vals(colvar_section,"DISTANCE_POINT_PLANE",i_rep_section=icol,error=error)
+    plane_dist_section   => section_vals_get_subs_vals(colvar_section,"DISTANCE_POINT_PLANE",i_rep_section=icol,&
+                            error=error)
 
     CALL section_vals_get(distance_section,explicit=my_subsection(1),error=error)
     CALL section_vals_get(angle_section,explicit=my_subsection(2),error=error)
     CALL section_vals_get(torsion_section,explicit=my_subsection(3),error=error)
     CALL section_vals_get(coordination_section,explicit=my_subsection(4),error=error)
     CALL section_vals_get(plane_dist_section,explicit=my_subsection(5),error=error)
-
-    ! only one colvar can be present
+    ! Only one colvar can be present
     CPPostcondition(COUNT(my_subsection) == 1,cp_failure_level,routinep,error,failure)
+    CPPostcondition(.NOT.ASSOCIATED(colvar),cp_failure_level,routinep,error,failure)
 
     IF      (my_subsection(1)) THEN
        ! Distance
-       colvar%type_id=dist_colvar_id
+       CALL colvar_create(colvar, dist_colvar_id, error)
        CALL section_vals_val_get(distance_section,"ATOMS",i_vals=iatms,error=error)
        colvar%dist_param%i_at = iatms(1)
        colvar%dist_param%j_at = iatms(2)
     ELSE IF (my_subsection(2)) THEN
        ! Angle
-       colvar%type_id=angle_colvar_id
+       CALL colvar_create(colvar, angle_colvar_id, error)
        CALL section_vals_val_get(angle_section,"ATOMS",i_vals=iatms,error=error)
        colvar%angle_param%i_at_angle = iatms
     ELSE IF (my_subsection(3)) THEN
        ! Torsion
-       colvar%type_id=torsion_colvar_id
+       CALL colvar_create(colvar, torsion_colvar_id, error)
        CALL section_vals_val_get(torsion_section,"ATOMS",i_vals=iatms,error=error)
        colvar%torsion_param%i_at_tors = iatms
     ELSE IF (my_subsection(4)) THEN
        ! Coordination
-       colvar%type_id=coord_colvar_id
+       CALL colvar_create(colvar, coord_colvar_id, error)
        CALL section_vals_val_get(coordination_section,"ATOMS_FROM",i_vals=iatms,error=error)
        colvar%coord_param%n_atoms_from = SIZE(iatms)
        ALLOCATE(colvar%coord_param%i_at_from(SIZE(iatms)),stat=stat)
@@ -162,7 +180,7 @@ CONTAINS
        CALL section_vals_val_get(coordination_section,"ND",i_val=colvar%coord_param%ndcrd,error=error)
     ELSE IF (my_subsection(5)) THEN
        ! Distance point from plane
-       colvar%type_id=plane_distance_colvar_id
+       CALL colvar_create(colvar, plane_distance_colvar_id, error)
        CALL section_vals_val_get(plane_dist_section,"ATOMS_PLANE",i_vals=iatms,error=error)
        CPPostcondition(SIZE(iatms) == 3,cp_failure_level,routinep,error,failure)
        colvar%plane_distance_param%plane = iatms
@@ -170,56 +188,7 @@ CONTAINS
        colvar%plane_distance_param%point = iatm
     END IF
 
-    SELECT CASE(colvar%type_id)
-    CASE(dist_colvar_id)
-       colvar%n_atom_s=2
-       ALLOCATE(colvar%dsdr(3,colvar%n_atom_s), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
-       ALLOCATE(colvar%i_atom(colvar%n_atom_s), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
-       colvar%i_atom(1)=colvar%dist_param%i_at
-       colvar%i_atom(2)=colvar%dist_param%j_at
-    CASE(coord_colvar_id)
-       colvar%n_atom_s=colvar%coord_param%n_atoms_from+colvar%coord_param%n_atoms_to
-       ALLOCATE(colvar%dsdr(3,colvar%n_atom_s), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
-       ALLOCATE(colvar%i_atom(colvar%n_atom_s), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
-       DO ii=1,colvar%coord_param%n_atoms_from
-          colvar%i_atom(ii)=colvar%coord_param%i_at_from(ii)
-       ENDDO
-       DO ii=1,colvar%coord_param%n_atoms_to
-          colvar%i_atom(colvar%coord_param%n_atoms_from+ii)=colvar%coord_param%i_at_to(ii)
-       ENDDO
-    CASE(angle_colvar_id)
-       colvar%n_atom_s=3
-       ALLOCATE(colvar%dsdr(3,colvar%n_atom_s), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
-       ALLOCATE(colvar%i_atom(colvar%n_atom_s), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
-       DO ii=1,3
-          colvar%i_atom(ii)=colvar%angle_param%i_at_angle(ii)
-       ENDDO
-    CASE(torsion_colvar_id)
-       colvar%n_atom_s=4
-       ALLOCATE(colvar%dsdr(3,colvar%n_atom_s), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
-       ALLOCATE(colvar%i_atom(colvar%n_atom_s), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
-       DO ii=1,4
-          colvar%i_atom(ii)=colvar%torsion_param%i_at_tors(ii)
-       ENDDO
-    CASE(plane_distance_colvar_id)
-       colvar%n_atom_s=4
-       ALLOCATE(colvar%dsdr(3,colvar%n_atom_s), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
-       ALLOCATE(colvar%i_atom(colvar%n_atom_s), stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
-       DO ii=1,3
-          colvar%i_atom(ii)=colvar%plane_distance_param%plane(ii)
-       ENDDO
-       colvar%i_atom(4)=colvar%plane_distance_param%point
-    END SELECT
+    CALL colvar_setup(colvar, error)
 
     iw = cp_print_key_unit_nr(logger,colvar_section,&
          "PRINT%PROGRAM_RUN_INFO",extension=".colvarLog",error=error)
@@ -227,18 +196,25 @@ CONTAINS
        WRITE ( iw, '( A )')'          ----------------------------------------------------------------------'
        SELECT CASE(colvar%type_id)
        CASE(angle_colvar_id)
-          WRITE ( iw, '( A,T71,3I5)' )   ' COLVARS| ANGLE          >>> ATOMS:',colvar%angle_param%i_at_angle
+          WRITE ( iw, '( A,T71,3I5)' )   ' COLVARS| ANGLE          >>> ATOMS:',&
+               colvar%angle_param%i_at_angle
        CASE(plane_distance_colvar_id)
-          WRITE ( iw, '( A,T61,3I5)' )   ' COLVARS| PLANE DISTANCE    - PLANE  >>> ATOMS:',colvar%plane_distance_param%plane
-          WRITE ( iw, '( A,T61,1I5)' )   ' COLVARS| PLANE DISTANCE    - POINT  >>>  ATOM:',colvar%plane_distance_param%point
+          WRITE ( iw, '( A,T61,3I5)' )   ' COLVARS| PLANE DISTANCE    - PLANE  >>> ATOMS:',&
+               colvar%plane_distance_param%plane
+          WRITE ( iw, '( A,T61,1I5)' )   ' COLVARS| PLANE DISTANCE    - POINT  >>>  ATOM:',&
+               colvar%plane_distance_param%point
        CASE(torsion_colvar_id)
-          WRITE ( iw, '( A,T61,4I5)' )   ' COLVARS| TORSION       >>> ATOMS:',colvar%torsion_param%i_at_tors
+          WRITE ( iw, '( A,T61,4I5)' )   ' COLVARS| TORSION       >>> ATOMS:',&
+               colvar%torsion_param%i_at_tors
        CASE(dist_colvar_id)
-          WRITE ( iw, '( A,T71,2I5)' )   ' COLVARS| BOND          >>> ATOMS:',colvar%dist_param%i_at,colvar%dist_param%j_at
+          WRITE ( iw, '( A,T71,2I5)' )   ' COLVARS| BOND          >>> ATOMS:',&
+               colvar%dist_param%i_at,colvar%dist_param%j_at
        CASE(coord_colvar_id)
-          WRITE ( iw, '( A,T71,I10)' )  (' COLVARS| COORDINATION  >>> FROM ATOM:', colvar%coord_param%i_at_from(kk),&
+          WRITE ( iw, '( A,T71,I10)' )  (' COLVARS| COORDINATION  >>> FROM ATOM:',&
+               colvar%coord_param%i_at_from(kk),&
                kk=1,SIZE(colvar%coord_param%i_at_from))
-          WRITE ( iw, '( A,T71,I10)' )  (' COLVARS| COORDINATION  >>>   TO ATOM:', colvar%coord_param%i_at_to(kk),&
+          WRITE ( iw, '( A,T71,I10)' )  (' COLVARS| COORDINATION  >>>   TO ATOM:',&
+               colvar%coord_param%i_at_to(kk),&
                kk=1,SIZE(colvar%coord_param%i_at_to))
           WRITE ( iw, '( A,T71,F10.5)' ) ' COLVARS| R0',colvar%coord_param%r_0
           WRITE ( iw, '( A,T71,I10)' )   ' COLVARS| NN',colvar%coord_param%nncrd
@@ -250,13 +226,68 @@ CONTAINS
          "PRINT%PROGRAM_RUN_INFO", error=error)    
 
     CALL timestop(0.0_dp,handle)
-
   END SUBROUTINE colvar_read
 
-  !!****f* colvar/colvar_eval_f [1.0] *
+  !!****f* colvar/colvar_eval_mol_f [1.0] *
   !!
   !!   NAME
-  !!     colvar_eval_f
+  !!     colvar_eval_mol_f
+  !!
+  !!   FUNCTION
+  !!     evaluates the force (dsdr) given and due to the given colvar
+  !!     variables in a molecular environment
+  !!
+  !!   NOTES
+  !!     -
+  !!
+  !!   ARGUMENTS
+  !!     - colvar: the collective variable to evaluate
+  !!     - error: variable to control error logging, stopping,... 
+  !!       see module cp_error_handling 
+  !!
+  !!   AUTHOR
+  !!     Teodoro Laino
+  !!
+  !!*** **********************************************************************
+  SUBROUTINE colvar_eval_mol_f(colvar, cell, particles, error)
+    TYPE(colvar_type),POINTER                   :: colvar
+    TYPE(particle_type), POINTER , DIMENSION(:) :: particles
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'colvar_eval_mol_f', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure, colvar_ok
+    failure=.FALSE.
+
+    colvar_ok=ASSOCIATED(colvar)
+    CPAssert(colvar_ok,cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       SELECT CASE(colvar%type_id)
+       CASE (dist_colvar_id)
+          CALL dist_colvar(colvar,cell,particles=particles,error=error)
+       CASE (coord_colvar_id)
+          CALL coord_colvar(colvar,cell,particles=particles, error=error)
+       CASE (torsion_colvar_id)
+          CALL torsion_colvar(colvar, cell, particles=particles, error=error)
+       CASE (angle_colvar_id)
+          CALL angle_colvar(colvar, cell, particles=particles, error=error)
+       CASE (plane_distance_colvar_id)
+          CALL plane_distance_colvar(colvar,cell, particles=particles, error=error)
+       CASE default
+          CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+       END SELECT
+    END IF
+
+  END SUBROUTINE colvar_eval_mol_f
+  !***************************************************************************
+
+  !!****f* colvar/colvar_eval_glob_f [1.0] *
+  !!
+  !!   NAME
+  !!     colvar_eval_glob_f
   !!
   !!   FUNCTION
   !!     evaluates the force (dsdr) given and due to the given colvar
@@ -273,43 +304,45 @@ CONTAINS
   !!     Alessandro Laio and fawzi
   !!
   !!*** **********************************************************************
-  SUBROUTINE colvar_eval_f(isubsys,icolvar,force_env,error)
+  SUBROUTINE colvar_eval_glob_f(isubsys,icolvar,force_env,error)
     INTEGER                                  :: isubsys, icolvar
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'colvar_eval_f', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'colvar_eval_glob_f', &
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: colvar_ok, failure
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
+    TYPE(colvar_type), POINTER                 :: colvar
 
     failure=.FALSE.
-    NULLIFY(subsys,cell)
+    NULLIFY(subsys,cell,colvar)
     CALL force_env_get(force_env,subsys=subsys,cell=cell,error=error)
-    colvar_ok=ASSOCIATED(subsys(isubsys)%subsys%colvar)
+    colvar_ok=ASSOCIATED(subsys(isubsys)%subsys%colvar_p)
     CPAssert(colvar_ok,cp_failure_level,routineP,error,failure)
 
     IF (.NOT. failure) THEN
-       SELECT CASE(subsys(isubsys)%subsys%colvar(icolvar)%type_id)
+       colvar => subsys(isubsys)%subsys%colvar_p(icolvar)%colvar
+       SELECT CASE(colvar%type_id)
        CASE (dist_colvar_id)
-          CALL dist_colvar(icolvar,subsys(isubsys)%subsys,cell,error=error)
+          CALL dist_colvar(colvar,cell,subsys=subsys(isubsys)%subsys,error=error)
        CASE (coord_colvar_id)
-          CALL coord_colvar(icolvar,subsys(isubsys)%subsys,cell, error=error)
+          CALL coord_colvar(colvar,cell,subsys=subsys(isubsys)%subsys, error=error)
        CASE (torsion_colvar_id)
-          CALL torsion_colvar(icolvar,subsys(isubsys)%subsys,cell, error=error)
+          CALL torsion_colvar(colvar,cell,subsys=subsys(isubsys)%subsys, error=error)
        CASE (angle_colvar_id)
-          CALL angle_colvar(icolvar,subsys(isubsys)%subsys,cell, error=error)
+          CALL angle_colvar(colvar,cell,subsys=subsys(isubsys)%subsys, error=error)
        CASE (plane_distance_colvar_id)
-          CALL plane_distance_colvar(icolvar,subsys(isubsys)%subsys,cell, error=error)
+          CALL plane_distance_colvar(colvar,cell,subsys=subsys(isubsys)%subsys, error=error)
        CASE default
           CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
        END SELECT
     END IF
-  END SUBROUTINE colvar_eval_f
+  END SUBROUTINE colvar_eval_glob_f
   !***************************************************************************
 
   !!****f* colvar/plane_distance_colvar [1.0] *
@@ -326,10 +359,12 @@ CONTAINS
   !!     Teodoro Laino 02.2006 [created]
   !!
   !!*** **********************************************************************
-  SUBROUTINE plane_distance_colvar(icolvar,subsys,cell,error)
-    INTEGER                                  :: icolvar
-    TYPE(cp_subsystem_type), POINTER         :: subsys
+  SUBROUTINE plane_distance_colvar(colvar,cell,subsys,particles,error)
+
+    TYPE(colvar_type), POINTER                 :: colvar
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_subsystem_type), POINTER, OPTIONAL :: subsys
+    TYPE(particle_type), POINTER, DIMENSION(:), OPTIONAL :: particles
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -340,25 +375,30 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(dp) :: a, b, dsdxpn(3), dxpndxi(3,3), dxpndxj(3,3), dxpndxk(3,3), &
       r12, xpij(3), xpkj(3), xpl(3), xpn(3)
-    TYPE(colvar_type), POINTER               :: colvar
-    TYPE(particle_list_type), POINTER        :: particles_i
+    TYPE(particle_list_type), POINTER          :: particles_i
+    TYPE(particle_type), POINTER, DIMENSION(:) :: my_particles
 
     failure=.FALSE.
     NULLIFY(particles_i)
-    colvar=>subsys%colvar(icolvar)
 
     CPPrecondition(colvar%type_id==plane_distance_colvar_id,cp_failure_level,routineP,error,failure)
-    CALL cp_subsys_get(subsys,particles=particles_i,error=error)
+    IF (PRESENT(particles)) THEN
+       my_particles => particles
+    ELSE
+       CPPrecondition(PRESENT(subsys),cp_failure_level,routineP,error,failure)
+       CALL cp_subsys_get(subsys,particles=particles_i,error=error)
+       my_particles => particles_i%els
+    END IF
 
     i=colvar%plane_distance_param%plane(1)
     j=colvar%plane_distance_param%plane(2)
     k=colvar%plane_distance_param%plane(3)
     l=colvar%plane_distance_param%point
-    xpij=particles_i%els(i)%r(1:3)-particles_i%els(j)%r(1:3)
-    xpkj=particles_i%els(k)%r(1:3)-particles_i%els(j)%r(1:3)
-    xpl =particles_i%els(l)%r(1:3)-(particles_i%els(i)%r(1:3)+&
-         particles_i%els(j)%r(1:3)+&
-         particles_i%els(k)%r(1:3))/3.0_dp
+    xpij=my_particles(i)%r(1:3)-my_particles(j)%r(1:3)
+    xpkj=my_particles(k)%r(1:3)-my_particles(j)%r(1:3)
+    xpl =my_particles(l)%r(1:3)-(my_particles(i)%r(1:3)+&
+         my_particles(j)%r(1:3)+&
+         my_particles(k)%r(1:3))/3.0_dp
     xpn(1)  = xpij(2)*xpkj(3)-xpij(3)*xpkj(2)
     xpn(2)  = xpij(3)*xpkj(1)-xpij(1)*xpkj(3)
     xpn(3)  = xpij(1)*xpkj(2)-xpij(2)*xpkj(1)
@@ -421,9 +461,10 @@ CONTAINS
   !!     Teodoro Laino 02.2006 [created]
   !!
   !!*** **********************************************************************
-  SUBROUTINE angle_colvar(icolvar,subsys,cell,error)
-    INTEGER                                  :: icolvar
-    TYPE(cp_subsystem_type), POINTER         :: subsys
+  SUBROUTINE angle_colvar(colvar,cell,subsys,particles,error)
+    TYPE(colvar_type), POINTER               :: colvar
+    TYPE(cp_subsystem_type), POINTER ,OPTIONAL        :: subsys
+    TYPE(particle_type), POINTER, DIMENSION(:), OPTIONAL :: particles
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -435,21 +476,26 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(dp)                                 :: a, b, fmod, t0, t1, t2, t3, &
                                                 xij(3), xkj(3)
-    TYPE(colvar_type), POINTER               :: colvar
     TYPE(particle_list_type), POINTER        :: particles_i
+    TYPE(particle_type), POINTER, DIMENSION(:) :: my_particles
 
     failure=.FALSE.
     NULLIFY(particles_i)
-    colvar=>subsys%colvar(icolvar)
 
     CPPrecondition(colvar%type_id==angle_colvar_id,cp_failure_level,routineP,error,failure)
-    CALL cp_subsys_get(subsys,particles=particles_i,error=error)
+    IF (PRESENT(particles)) THEN
+       my_particles => particles
+    ELSE
+       CPPrecondition(PRESENT(subsys),cp_failure_level,routineP,error,failure)
+       CALL cp_subsys_get(subsys,particles=particles_i,error=error)
+       my_particles => particles_i%els
+    END IF
 
     i=colvar%angle_param%i_at_angle(1)
     j=colvar%angle_param%i_at_angle(2)
     k=colvar%angle_param%i_at_angle(3)
-    xij=particles_i%els(i)%r(1:3)-particles_i%els(j)%r(1:3)
-    xkj=particles_i%els(k)%r(1:3)-particles_i%els(j)%r(1:3)
+    xij=my_particles(i)%r(1:3)-my_particles(j)%r(1:3)
+    xkj=my_particles(k)%r(1:3)-my_particles(j)%r(1:3)
     a = SQRT(DOT_PRODUCT(xij,xij))
     b = SQRT(DOT_PRODUCT(xkj,xkj))
     t0 = 1.0_dp/(a*b)
@@ -484,9 +530,10 @@ CONTAINS
   !!     Alessandro Laio, Fawzi Mohamed
   !!
   !!*** **********************************************************************
-  SUBROUTINE dist_colvar(icolvar,subsys,cell,error)
-    INTEGER                                  :: icolvar
-    TYPE(cp_subsystem_type), POINTER         :: subsys
+  SUBROUTINE dist_colvar(colvar,cell,subsys,particles,error)
+    TYPE(colvar_type), POINTER               :: colvar
+    TYPE(cp_subsystem_type), POINTER, OPTIONAL         :: subsys
+    TYPE(particle_type), POINTER, DIMENSION(:), OPTIONAL :: particles
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -498,20 +545,26 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(dp)                                 :: r12, ss(3), xij(3), xpi(3), &
                                                 xpj(3)
-    TYPE(colvar_type), POINTER               :: colvar
     TYPE(particle_list_type), POINTER        :: particles_i
+    TYPE(particle_type), POINTER, DIMENSION(:) :: my_particles
 
     failure=.FALSE.
     NULLIFY(particles_i)
-    colvar=>subsys%colvar(icolvar)
 
     CPPrecondition(colvar%type_id==dist_colvar_id,cp_failure_level,routineP,error,failure)
-    CALL cp_subsys_get(subsys,particles=particles_i,error=error)
+    IF (PRESENT(particles)) THEN
+       my_particles => particles
+    ELSE
+       CPPrecondition(PRESENT(subsys),cp_failure_level,routineP,error,failure)
+       CALL cp_subsys_get(subsys,particles=particles_i,error=error)
+       my_particles => particles_i%els
+    END IF
+
 
     i=colvar%dist_param%i_at
     j=colvar%dist_param%j_at
-    xpi=particles_i%els(i)%r(1:3)
-    xpj=particles_i%els(j)%r(1:3)
+    xpi=my_particles(i)%r(1:3)
+    xpj=my_particles(j)%r(1:3)
     ss=MATMUL(cell%h_inv,xpi-xpj)
     ss=ss-NINT(ss)
     xij=MATMUL(cell%hmat,ss)
@@ -538,9 +591,10 @@ CONTAINS
   !!     Alessandro Laio, Fawzi Mohamed
   !!
   !!*** **********************************************************************
-  SUBROUTINE coord_colvar(icolvar,subsys,cell,error)
-    INTEGER                                  :: icolvar
-    TYPE(cp_subsystem_type), POINTER         :: subsys
+  SUBROUTINE coord_colvar(colvar,cell,subsys,particles,error)
+    TYPE(colvar_type), POINTER               :: colvar
+    TYPE(cp_subsystem_type), POINTER,OPTIONAL         :: subsys
+    TYPE(particle_type), POINTER, DIMENSION(:), OPTIONAL :: particles
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -555,13 +609,10 @@ CONTAINS
                                                 num, r12, r_0, rdist, ss(3), &
                                                 xij(3)
     REAL(dp), DIMENSION(3)                   :: xpi, xpj
-    TYPE(colvar_type), POINTER               :: colvar
     TYPE(particle_list_type), POINTER        :: particles_i
-
-!
+    TYPE(particle_type), POINTER, DIMENSION(:) :: my_particles
 
     failure=.FALSE.
-    colvar=>subsys%colvar(icolvar)
     n_atoms_to=colvar%coord_param%n_atoms_to
     n_atoms_from=colvar%coord_param%n_atoms_from
     nncrd=colvar%coord_param%nncrd
@@ -569,16 +620,22 @@ CONTAINS
     r_0=colvar%coord_param%r_0
     NULLIFY(particles_i)
     CPPrecondition(colvar%type_id==coord_colvar_id,cp_failure_level,routineP,error,failure)
-    CALL cp_subsys_get(subsys,particles=particles_i,error=error)
+    IF (PRESENT(particles)) THEN
+       my_particles => particles
+    ELSE
+       CPPrecondition(PRESENT(subsys),cp_failure_level,routineP,error,failure)
+       CALL cp_subsys_get(subsys,particles=particles_i,error=error)
+       my_particles => particles_i%els
+    END IF
 
     ncoord=0.0_dp
     colvar%dsdr=0.0_dp
     DO ii=1,n_atoms_from
        i=colvar%coord_param%i_at_from(ii)
-       xpi(:)=particles_i%els(i)%r(1:3)
+       xpi(:)=my_particles(i)%r(1:3)
        DO jj=1,n_atoms_to
           i=colvar%coord_param%i_at_to(jj)
-          xpj(:)=particles_i%els(i)%r(1:3)
+          xpj(:)=my_particles(i)%r(1:3)
           ss=MATMUL(cell%h_inv,xpi(:)-xpj(:))
           ss=ss-NINT(ss)
           xij=MATMUL(cell%hmat,ss)
@@ -615,9 +672,11 @@ CONTAINS
   !!     Alessandro Laio, Fawzi Mohamed
   !!
   !!*** **********************************************************************
-  SUBROUTINE torsion_colvar(icolvar,subsys,cell,error)
-    INTEGER                                  :: icolvar
-    TYPE(cp_subsystem_type), POINTER         :: subsys
+  SUBROUTINE torsion_colvar(colvar,cell,subsys,particles,error)
+
+    TYPE(colvar_type), POINTER               :: colvar
+    TYPE(cp_subsystem_type), POINTER,OPTIONAL         :: subsys
+    TYPE(particle_type), POINTER, DIMENSION(:), OPTIONAL :: particles
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -634,21 +693,24 @@ CONTAINS
       ycb, ydb, ydc, yia, yib, yic, yid, yt, ytu, yu, zba, zca, zcb, zdb, &
       zdc, zia, zib, zic, zid, zt, ztu, zu
     REAL(dp), DIMENSION(3, 4)                :: rr
-    TYPE(colvar_type), POINTER               :: colvar
     TYPE(particle_list_type), POINTER        :: particles_i
+    TYPE(particle_type), POINTER, DIMENSION(:) :: my_particles
 
-! locals (tinker)
-!
-
+    
     failure=.FALSE.
-    colvar=>subsys%colvar(icolvar)
     NULLIFY(particles_i)
     CPPrecondition(colvar%type_id==torsion_colvar_id,cp_failure_level,routineP,error,failure)
-    CALL cp_subsys_get(subsys,particles=particles_i,error=error)
+    IF (PRESENT(particles)) THEN
+       my_particles => particles
+    ELSE
+       CPPrecondition(PRESENT(subsys),cp_failure_level,routineP,error,failure)
+       CALL cp_subsys_get(subsys,particles=particles_i,error=error)
+       my_particles => particles_i%els
+    END IF
 
     DO ii=1,4
        i=colvar%torsion_param%i_at_tors(ii)
-       rr(:,ii)=particles_i%els(i)%r(1:3)
+       rr(:,ii)=my_particles(i)%r(1:3)
     ENDDO
 
     ! temporary: from tinker improper torsion routines

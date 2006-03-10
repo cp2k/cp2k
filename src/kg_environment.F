@@ -251,7 +251,7 @@ CONTAINS
     ! topology
     CALL topology_control (atomic_kind_set,particle_set,&
                            molecule_kind_set,molecule_set,&
-                           kg_env%subsys%colvar,globenv, error=error)
+                           kg_env%subsys%colvar_p,globenv, error=error)
 
     ! Read/write the atomic kind set
     CALL read_atomic_kind_set(atomic_kind_set,globenv,error)

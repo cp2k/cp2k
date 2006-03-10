@@ -31,7 +31,6 @@ MODULE cp_subsystem_methods
   USE cell_types,                      ONLY: cell_retain,&
                                              cell_type
   USE colvar_methods,                  ONLY: colvar_read
-  USE colvar_types,                    ONLY: colvar_init
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsystem_types,              ONLY: cp_subsys_create,&
                                              cp_subsys_get,&
@@ -110,13 +109,13 @@ CONTAINS
 
     failure=.FALSE.
     CALL section_vals_get(colvar_section,n_repetition=ncol,error=error)
-    ALLOCATE(subsys%colvar(ncol),stat=stat)
+    ALLOCATE(subsys%colvar_p(ncol),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
-     DO ig= 1, ncol
-       CALL colvar_init(subsys%colvar(ig),error=error)
-       CALL colvar_read(subsys%colvar(ig),ig,colvar_section, globenv, error=error)
-     ENDDO
+       DO ig= 1, ncol
+          NULLIFY(subsys%colvar_p(ig)%colvar)
+          CALL colvar_read(subsys%colvar_p(ig)%colvar,ig,colvar_section, globenv, error=error)
+       ENDDO
     ENDIF
   END SUBROUTINE cp_subsys_read_colvar
 !!****f* cp_subsystem_methods/create_small_subsystem [1.0] *

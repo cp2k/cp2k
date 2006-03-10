@@ -18,7 +18,7 @@
 !!   SOURCE
 !******************************************************************************
 MODULE constraint
-
+  USE cell_types,                      ONLY: cell_type
   USE constraint_3x3,                  ONLY: rattle_3x3,&
                                              rattle_roll_3x3,&
                                              shake_3x3,&
@@ -38,13 +38,14 @@ MODULE constraint
   USE kinds,                           ONLY: dp
   USE md,                              ONLY: simulation_parameters_type
   USE message_passing,                 ONLY: mp_sum
-  USE molecule_kind_types,             ONLY: dist_constraint_type,&
+  USE molecule_kind_types,             ONLY: colvar_constraint_type,&
                                              g3x3_constraint_type,&
                                              g4x6_constraint_type,&
                                              get_molecule_kind,&
-                                             molecule_kind_type
+                                             molecule_kind_type,&
+                                             colvar_counters
   USE molecule_types_new,              ONLY: get_molecule,&
-                                             local_dist_constraint_type,&
+                                             local_colvar_constraint_type,&
                                              local_g3x3_constraint_type,&
                                              local_g4x6_constraint_type,&
                                              molecule_type
@@ -55,6 +56,8 @@ MODULE constraint
   USE util,                            ONLY: matmul_3x3,&
                                              transpose_3d
   USE virial_types,                    ONLY: virial_type
+  USE colvar_types, ONLY: dist_colvar_id
+  USE colvar_methods, ONLY: colvar_eval_mol_f
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -95,7 +98,8 @@ CONTAINS
 
     INTEGER                                  :: handle, i, ikind, imol, &
                                                 ishake, n3x3con, n4x6con, &
-                                                ndcon, nkind, nmol_per_kind
+                                                nkind, nmol_per_kind
+    TYPE(colvar_counters)                    :: ncolv
     REAL(KIND=dp)                            :: max_sigma
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
@@ -109,7 +113,7 @@ CONTAINS
           i = local_molecules % list ( ikind ) % array ( imol )
           molecule => molecule_set ( i ) 
           molecule_kind => molecule % molecule_kind
-          CALL get_molecule_kind ( molecule_kind, ndist = ndcon,  &
+          CALL get_molecule_kind ( molecule_kind, ncolv = ncolv,  &
                ng3x3 = n3x3con, ng4x6=n4x6con )
 
           ! 3x3
@@ -124,7 +128,7 @@ CONTAINS
           ! collective variables
           !
           ishake = 0       
-          IF ( ndcon /= 0 ) THEN
+          IF ( ncolv%ndist /= 0 ) THEN
              max_sigma = -1.0E+10_dp
              CONS: DO WHILE (ABS(max_sigma)>=simpar%shake_tol)
                 max_sigma = 0.0_dp
@@ -170,7 +174,8 @@ CONTAINS
 
     INTEGER                                  :: handle, i, ikind, imol, &
                                                 irattle, n3x3con, n4x6con, &
-                                                ndcon, nkind, nmol_per_kind
+                                                 nkind, nmol_per_kind
+    TYPE(colvar_counters)                    :: ncolv
     REAL(KIND=dp)                            :: max_sigma
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
@@ -183,7 +188,7 @@ CONTAINS
           i = local_molecules % list ( ikind ) % array ( imol )
           molecule => molecule_set ( i ) 
           molecule_kind => molecule % molecule_kind
-          CALL get_molecule_kind ( molecule_kind, ndist = ndcon, ng3x3 = n3x3con, ng4x6 = n4x6con )
+          CALL get_molecule_kind ( molecule_kind, ncolv = ncolv, ng3x3 = n3x3con, ng4x6 = n4x6con )
 
           ! 3x3
           IF ( n3x3con /= 0 ) CALL rattle_3x3 ( molecule, particle_set, vel, simpar )
@@ -193,7 +198,7 @@ CONTAINS
 
           irattle = 0
           ! dist
-          IF ( ndcon /= 0 ) THEN
+          IF ( ncolv%ndist /= 0 ) THEN
              max_sigma = -1.0E+10_dp
              CONS: DO WHILE ( ABS ( max_sigma ) >= simpar % shake_tol )
                 max_sigma = 0.0_dp
@@ -244,7 +249,8 @@ CONTAINS
 
     INTEGER                                  :: handle, i, ikind, imol, &
                                                 ishake, n3x3con, n4x6con, &
-                                                ndcon, nkind, nmol_per_kind
+                                                nkind, nmol_per_kind
+    TYPE(colvar_counters)                    :: ncolv
     REAL(KIND=dp)                            :: max_sigma
     REAL(KIND=dp), DIMENSION(3, 3)           :: r_shake, v_shake
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
@@ -265,7 +271,7 @@ CONTAINS
           i = local_molecules % list ( ikind ) % array ( imol )
           molecule => molecule_set ( i ) 
           molecule_kind => molecule % molecule_kind
-          CALL get_molecule_kind ( molecule_kind, ndist = ndcon,  &
+          CALL get_molecule_kind ( molecule_kind, ncolv = ncolv,  &
                ng3x3 = n3x3con, ng4x6=n4x6con )
 
           ! 3x3
@@ -281,7 +287,7 @@ CONTAINS
           ishake = 0
 
           ! dist
-          IF ( ndcon /= 0 ) THEN
+          IF ( ncolv%ndist /= 0 ) THEN
              max_sigma = -1.0E+10_dp
              CONS: DO WHILE (ABS(max_sigma)>=simpar%shake_tol)
                 max_sigma = 0.0_dp
@@ -341,7 +347,8 @@ CONTAINS
 
     INTEGER                                  :: handle, i, ikind, imol, &
                                                 irattle, n3x3con, n4x6con, &
-                                                ndcon, nkind, nmol_per_kind
+                                                nkind, nmol_per_kind
+    TYPE(colvar_counters)                    :: ncolv
     REAL(KIND=dp)                            :: max_sigma
     REAL(KIND=dp), DIMENSION(3, 3)           :: r_rattle
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
@@ -362,7 +369,7 @@ CONTAINS
           i = local_molecules % list ( ikind ) % array ( imol )
           molecule => molecule_set ( i ) 
           molecule_kind => molecule % molecule_kind
-          CALL get_molecule_kind ( molecule_kind, ndist = ndcon,  &
+          CALL get_molecule_kind ( molecule_kind, ncolv = ncolv,  &
                ng3x3 = n3x3con, ng4x6 = n4x6con )
           ! 3x3
           IF ( n3x3con /= 0 ) CALL rattle_roll_3x3 ( molecule, particle_set, vel, r_rattle, &
@@ -373,7 +380,7 @@ CONTAINS
                simpar, veps )
           irattle = 0 
           ! dist
-          IF ( ndcon /= 0 )  THEN
+          IF ( ncolv%ndist /= 0 )  THEN
              max_sigma = -1.0E+10_dp
              CONS: DO WHILE (ABS(max_sigma)>=simpar%shake_tol)
                 max_sigma = 0.0_dp
@@ -407,24 +414,28 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE getold( local_molecules, molecule_set, molecule_kind_set, particle_set )
+  SUBROUTINE getold( local_molecules, molecule_set, molecule_kind_set, particle_set ,&
+       cell, error)
 
     TYPE(distribution_1d_type), POINTER      :: local_molecules
     TYPE(molecule_type), POINTER             :: molecule_set( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
     TYPE(particle_type), POINTER             :: particle_set( : )
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'getold', &
       routineP = moduleN//':'//routineN
     INTEGER                                  :: first_atom, i, iconst, ikind, &
                                                 imol, index, n3x3con, &
-                                                n4x6con, ndcon, nkind, &
+                                                n4x6con, nkind, &
                                                 nmol_per_kind
-    TYPE(dist_constraint_type), POINTER      :: dist_list( : )
+    TYPE(colvar_constraint_type), POINTER      :: colv_list( : )
     TYPE(g3x3_constraint_type), POINTER      :: g3x3_list( : )
     TYPE(g4x6_constraint_type), POINTER      :: g4x6_list( : )
-    TYPE(local_dist_constraint_type), &
-      POINTER                                :: ldist( : )
+    TYPE(local_colvar_constraint_type), &
+      POINTER                                :: lcolv( : )
     TYPE(local_g3x3_constraint_type), &
       POINTER                                :: lg3x3( : )
     TYPE(local_g4x6_constraint_type), &
@@ -439,17 +450,23 @@ CONTAINS
           i = local_molecules % list ( ikind ) % array ( imol )
           molecule => molecule_set ( i )
           molecule_kind => molecule % molecule_kind
-          CALL get_molecule_kind ( molecule_kind, ndist=ndcon, ng3x3=n3x3con, ng4x6=n4x6con, & 
-               dist_list=dist_list, g3x3_list=g3x3_list, g4x6_list=g4x6_list )
+          CALL get_molecule_kind ( molecule_kind, ng3x3=n3x3con, ng4x6=n4x6con, & 
+               colv_list=colv_list, g3x3_list=g3x3_list, g4x6_list=g4x6_list )
           CALL get_molecule ( molecule, first_atom=first_atom, &
-               ldist=ldist, lg3x3=lg3x3, lg4x6=lg4x6 )
+               lcolv=lcolv, lg3x3=lg3x3, lg4x6=lg4x6 )
           ! distance constraints
-          DO iconst = 1, ndcon
-             index = dist_list ( iconst ) % a + first_atom - 1
-             ldist ( iconst ) % ra_old = particle_set ( index ) % r 
-             index = dist_list ( iconst ) % b + first_atom - 1
-             ldist ( iconst ) % rb_old = particle_set ( index ) % r 
-          ENDDO
+          IF (ASSOCIATED(colv_list)) THEN
+             DO iconst = 1, SIZE(colv_list)
+                CALL colvar_eval_mol_f(lcolv ( iconst ) % colvar, cell,&
+                     particles=particle_set, error=error)
+                IF ( colv_list ( iconst ) % type_id == dist_colvar_id ) THEN
+                   index = colv_list ( iconst ) % i_atoms(1) + first_atom - 1
+                   lcolv ( iconst ) % ra_old = particle_set ( index ) % r 
+                   index = colv_list ( iconst ) % i_atoms(2) + first_atom - 1
+                   lcolv ( iconst ) % rb_old = particle_set ( index ) % r 
+                END IF
+             ENDDO
+          END IF
           ! 3x3 constraints
           DO iconst = 1, n3x3con
              index = g3x3_list ( iconst ) % a + first_atom - 1
@@ -502,14 +519,14 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pv_constraint', &
       routineP = moduleN//':'//routineN
     INTEGER :: first_atom, i, iconst, ikind, imol, index_a, index_b, index_c, &
-      index_d, ndist, ng3x3, ng4x6, nkind, nmol_per_kind
+      index_d, ng3x3, ng4x6, nkind, nmol_per_kind
     REAL(KIND=dp) :: fc1( 3 ), fc2( 3 ), fc3( 3 ), fc4( 3 ), lambda, &
       lambda_3x3( 3 ), lambda_4x6( 6 ), pv( 3, 3 )
-    TYPE(dist_constraint_type), POINTER      :: dist_list( : )
+    TYPE(colvar_constraint_type), POINTER      :: colv_list( : )
     TYPE(g3x3_constraint_type), POINTER      :: g3x3_list( : )
     TYPE(g4x6_constraint_type), POINTER      :: g4x6_list( : )
-    TYPE(local_dist_constraint_type), &
-      POINTER                                :: ldist( : )
+    TYPE(local_colvar_constraint_type), &
+      POINTER                                :: lcolv( : )
     TYPE(local_g3x3_constraint_type), &
       POINTER                                :: lg3x3( : )
     TYPE(local_g4x6_constraint_type), &
@@ -525,46 +542,50 @@ CONTAINS
           i = local_molecules % list ( ikind ) % array ( imol )
           molecule => molecule_set ( i ) 
           molecule_kind => molecule % molecule_kind
-          CALL get_molecule_kind ( molecule_kind, ndist = ndist, ng3x3 = ng3x3, &
+          CALL get_molecule_kind ( molecule_kind, ng3x3 = ng3x3, &
                ng4x6 = ng4x6, g3x3_list=g3x3_list, g4x6_list=g4x6_list, &
-               dist_list = dist_list )
+               colv_list = colv_list )
           CALL get_molecule ( molecule, first_atom = first_atom, lg3x3=lg3x3, &
-               lg4x6 = lg4x6, ldist = ldist )
+               lg4x6 = lg4x6, lcolv = lcolv )
           ! dist
-          DO iconst = 1, ndist
-             !  pv gets updated with FULL multiplier
-             lambda = ldist ( iconst ) % lambda
-
-             index_a = dist_list ( iconst ) % a + first_atom -1
-             index_b = dist_list ( iconst ) % b + first_atom -1
-             !pv(1,1)
-             pv(1,1) = pv(1,1) + lambda*ldist ( iconst ) %f(1)*particle_set ( index_a ) % r ( 1 )
-             pv(1,1) = pv(1,1) - lambda*ldist ( iconst ) %f(1)*particle_set ( index_b ) % r ( 1 )
-             !pv(1,2)
-             pv(1,2) = pv(1,2) + lambda*ldist ( iconst ) %f(1)*particle_set ( index_a ) % r ( 2 )
-             pv(1,2) = pv(1,2) - lambda*ldist ( iconst ) %f(1)*particle_set ( index_b ) % r ( 2 )
-             !pv(1,3)
-             pv(1,3) = pv(1,3) + lambda*ldist ( iconst ) %f(1)*particle_set ( index_a ) % r ( 3 )
-             pv(1,3) = pv(1,3) - lambda*ldist ( iconst ) %f(1)*particle_set ( index_b ) % r ( 3 )
-             !pv(2,1)
-             pv(2,1) = pv(2,1) + lambda*ldist ( iconst ) %f(2)*particle_set ( index_a ) % r ( 1 )
-             pv(2,1) = pv(2,1) - lambda*ldist ( iconst ) %f(2)*particle_set ( index_b ) % r ( 1 )
-             !pv(2,2)
-             pv(2,2) = pv(2,2) + lambda*ldist ( iconst ) %f(2)*particle_set ( index_a ) % r ( 2 )
-             pv(2,2) = pv(2,2) - lambda*ldist ( iconst ) %f(2)*particle_set ( index_b ) % r ( 2 )
-             !pv(2,3)
-             pv(2,3) = pv(2,3) + lambda*ldist ( iconst ) %f(2)*particle_set ( index_a ) % r ( 3 )
-             pv(2,3) = pv(2,3) - lambda*ldist ( iconst ) %f(2)*particle_set ( index_b ) % r ( 3 )
-             !pv(3,1)
-             pv(3,1) = pv(3,1) + lambda*ldist ( iconst ) %f(3)*particle_set ( index_a ) % r ( 1 )
-             pv(3,1) = pv(3,1) - lambda*ldist ( iconst ) %f(3)*particle_set ( index_b ) % r ( 1 )
-             !pv(3,2)
-             pv(3,2) = pv(3,2) + lambda*ldist ( iconst ) %f(3)*particle_set ( index_a ) % r ( 2 )
-             pv(3,2) = pv(3,2) - lambda*ldist ( iconst ) %f(3)*particle_set ( index_b ) % r ( 2 )
-             !pv(3,3)
-             pv(3,3) = pv(3,3) + lambda*ldist ( iconst ) %f(3)*particle_set ( index_a ) % r ( 3 )
-             pv(3,3) = pv(3,3) - lambda*ldist ( iconst ) %f(3)*particle_set ( index_b ) % r ( 3 )
-          END DO
+          IF (ASSOCIATED(colv_list)) THEN
+             DO iconst = 1, SIZE(colv_list)
+                IF ( colv_list ( iconst ) % type_id == dist_colvar_id ) THEN
+                   !  pv gets updated with FULL multiplier
+                   
+                   lambda = lcolv ( iconst ) % lambda
+                   index_a = colv_list ( iconst ) % i_atoms(1) + first_atom -1
+                   index_b = colv_list ( iconst ) % i_atoms(2) + first_atom -1
+                   !pv(1,1)
+                   pv(1,1) = pv(1,1) + lambda*lcolv ( iconst ) %f(1)*particle_set ( index_a ) % r ( 1 )
+                   pv(1,1) = pv(1,1) - lambda*lcolv ( iconst ) %f(1)*particle_set ( index_b ) % r ( 1 )
+                   !pv(1,2)
+                   pv(1,2) = pv(1,2) + lambda*lcolv ( iconst ) %f(1)*particle_set ( index_a ) % r ( 2 )
+                   pv(1,2) = pv(1,2) - lambda*lcolv ( iconst ) %f(1)*particle_set ( index_b ) % r ( 2 )
+                   !pv(1,3)
+                   pv(1,3) = pv(1,3) + lambda*lcolv ( iconst ) %f(1)*particle_set ( index_a ) % r ( 3 )
+                   pv(1,3) = pv(1,3) - lambda*lcolv ( iconst ) %f(1)*particle_set ( index_b ) % r ( 3 )
+                   !pv(2,1)
+                   pv(2,1) = pv(2,1) + lambda*lcolv ( iconst ) %f(2)*particle_set ( index_a ) % r ( 1 )
+                   pv(2,1) = pv(2,1) - lambda*lcolv ( iconst ) %f(2)*particle_set ( index_b ) % r ( 1 )
+                   !pv(2,2)
+                   pv(2,2) = pv(2,2) + lambda*lcolv ( iconst ) %f(2)*particle_set ( index_a ) % r ( 2 )
+                   pv(2,2) = pv(2,2) - lambda*lcolv ( iconst ) %f(2)*particle_set ( index_b ) % r ( 2 )
+                   !pv(2,3)
+                   pv(2,3) = pv(2,3) + lambda*lcolv ( iconst ) %f(2)*particle_set ( index_a ) % r ( 3 )
+                   pv(2,3) = pv(2,3) - lambda*lcolv ( iconst ) %f(2)*particle_set ( index_b ) % r ( 3 )
+                   !pv(3,1)
+                   pv(3,1) = pv(3,1) + lambda*lcolv ( iconst ) %f(3)*particle_set ( index_a ) % r ( 1 )
+                   pv(3,1) = pv(3,1) - lambda*lcolv ( iconst ) %f(3)*particle_set ( index_b ) % r ( 1 )
+                   !pv(3,2)
+                   pv(3,2) = pv(3,2) + lambda*lcolv ( iconst ) %f(3)*particle_set ( index_a ) % r ( 2 )
+                   pv(3,2) = pv(3,2) - lambda*lcolv ( iconst ) %f(3)*particle_set ( index_b ) % r ( 2 )
+                   !pv(3,3)
+                   pv(3,3) = pv(3,3) + lambda*lcolv ( iconst ) %f(3)*particle_set ( index_a ) % r ( 3 )
+                   pv(3,3) = pv(3,3) - lambda*lcolv ( iconst ) %f(3)*particle_set ( index_b ) % r ( 3 )
+                END IF
+             END DO
+          END IF
           ! 3x3
           DO iconst = 1, ng3x3
 
