@@ -350,7 +350,7 @@ CONTAINS
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_rho_type), POINTER               :: rho, rho_xc
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_h, matrix_ks, matrix_s
+      POINTER                                :: matrix_ks, matrix_s
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: dft_section, input, &
                                                 scf_section
@@ -360,7 +360,7 @@ CONTAINS
     failure=.FALSE.
     converged=.TRUE.
 
-    NULLIFY(dft_control,matrix_h,matrix_s,matrix_ks,rho,rho_xc,energy, &
+    NULLIFY(dft_control,matrix_s,matrix_ks,rho,rho_xc,energy, &
             scf_control,logger,qs_charges,ks_env,mos,atomic_kind_set, &
             particle_set,harris_env,dft_section,input,&
             scf_section)
@@ -373,8 +373,16 @@ CONTAINS
     logger => cp_error_get_logger(error)
     t1 = m_walltime()
 
-    CALL get_qs_env(qs_env=qs_env,input=input, dft_control=dft_control, &
-                    scf_control=scf_control,error=error)
+    CALL get_qs_env(qs_env=qs_env,&
+                    matrix_s=matrix_s,energy=energy,&
+                    particle_set=particle_set,&
+                    qs_charges=qs_charges,&
+                    ks_env=ks_env, &
+                    harris_env=harris_env,&
+                    atomic_kind_set=atomic_kind_set,&
+                    matrix_ks=matrix_ks,rho=rho,rho_xc=rho_xc,mos=mos, &
+                    input=input, dft_control=dft_control, scf_control=scf_control, &
+                    error=error)
 
     dft_section => section_vals_get_subs_vals(input,"DFT",error=error)
     scf_section => section_vals_get_subs_vals(dft_section,"SCF",error=error)
@@ -395,17 +403,6 @@ CONTAINS
     has_unit_metric=.FALSE.
     IF (dft_control%qs_control%semi_empirical) &
        has_unit_metric=dft_control%qs_control%se_control%orthogonal_basis
-
-    CALL get_qs_env(qs_env=qs_env,&
-                    matrix_h=matrix_h,&
-                    matrix_s=matrix_s,energy=energy,&
-                    particle_set=particle_set,&
-                    qs_charges=qs_charges,&
-                    ks_env=ks_env, &
-                    harris_env=harris_env,&
-                    atomic_kind_set=atomic_kind_set,&
-                    matrix_ks=matrix_ks,rho=rho,rho_xc=rho_xc,mos=mos, &
-                    error=error)
 
     IF (output_unit>0) THEN
        WRITE (UNIT=output_unit,&
@@ -591,9 +588,7 @@ CONTAINS
        CALL calculate_rho_atom_coeff(qs_env,rho%rho_ao)
        CALL qs_rho_update_rho(rho_xc, qs_env=qs_env, gapw=gapw_xc, error=error)
     ENDIF
-
     CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,error=error)
-
 
     CALL timestop(0.0_dp,handle)
 
