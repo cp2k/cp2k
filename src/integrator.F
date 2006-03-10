@@ -253,7 +253,6 @@ CONTAINS
           w(1,iparticle) = next_random_number(rng_stream,variance=sigma)
           w(2,iparticle) = next_random_number(rng_stream,variance=sigma)
           w(3,iparticle) = next_random_number(rng_stream,variance=sigma)
-IF (iparticle == 1) write(*,"(I6,3ES25.16)") iparticle,w(:,iparticle)
           vel(:,iparticle) = particle_set(iparticle)%v(:) +&
                              c3*particle_set(iparticle)%f(:)
           pos(:,iparticle) = particle_set(iparticle)%r(:) +&
