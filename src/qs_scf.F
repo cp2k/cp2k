@@ -213,7 +213,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'scf', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: converged, failure, &
+                                                should_stop
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(scf_control_type), POINTER          :: scf_control
@@ -224,7 +225,8 @@ CONTAINS
     failure=.FALSE.
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
-       CALL get_qs_env(qs_env,scf_env=scf_env,error=error,input=input)
+       CALL get_qs_env(qs_env,scf_env=scf_env,error=error,input=input, &
+                       dft_control=dft_control, scf_control=scf_control)
 
        dft_section => section_vals_get_subs_vals(input,"DFT",error=error)
        scf_section => section_vals_get_subs_vals(dft_section,"SCF",error=error)
@@ -255,11 +257,28 @@ CONTAINS
           scf_env%p_mix=scf_control%p_mix
 
        END IF
+
        CALL init_scf_run(scf_env=scf_env, qs_env=qs_env, globenv=globenv, &
                                       scf_section=scf_section, error=error)
+
        CALL scf_env_do_scf(scf_env=scf_env, qs_env=qs_env, globenv=globenv, &
-                             error=error)
+                           converged=converged, should_stop=should_stop, error=error)
+
+       !   *** add the converged wavefunction to the wavefunction history
+       IF (ASSOCIATED(qs_env%wf_history)) THEN
+           CALL wfi_update(qs_env%wf_history,qs_env=qs_env,dt=1.0_dp, error=error)
+       END IF
+       
+       ! *** compute properties that depend on the converged wavefunction
+       IF ( .NOT. ( should_stop .OR. dft_control%qs_control%semi_empirical ) ) THEN
+              CALL scf_post_calculation(dft_section, scf_env, qs_env, globenv, error)
+       END IF
+       
+       ! *** cleanup
+       CALL scf_env_cleanup(scf_env,qs_env=qs_env,error=error)
+
     END IF
+
   END SUBROUTINE scf
 !***************************************************************************
 
@@ -285,6 +304,7 @@ CONTAINS
 !!   ARGUMENTS
 !!     - scf_env: the scf_env where to perform the scf procedure
 !!     - qs_env: the qs_env, the scf_env lives in
+!!     - converged: will be true / false if converged is reached
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
 !!
@@ -297,11 +317,12 @@ CONTAINS
 !!     09.2005 Frozen density approximation [TdK]
 !!
 !!*** **********************************************************************
-  SUBROUTINE scf_env_do_scf(scf_env,qs_env,globenv,error)
+  SUBROUTINE scf_env_do_scf(scf_env,qs_env,globenv,converged,should_stop,error)
 
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(global_environment_type), POINTER   :: globenv
+    LOGICAL, INTENT(OUT)                     :: converged, should_stop
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -310,8 +331,10 @@ CONTAINS
 
     INTEGER                                  :: handle, handle2, i, ispin, &
                                                 output_unit
-    LOGICAL :: diis_step, energy_only, failure, gapw, gapw_xc, harris_flag, &
-      has_unit_metric, should_stop, use_jacobi
+    LOGICAL                                  :: diis_step, energy_only, &
+                                                failure, gapw, gapw_xc, &
+                                                harris_flag, has_unit_metric, &
+                                                use_jacobi
     REAL(KIND=dp)                            :: t1, t2
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -335,6 +358,7 @@ CONTAINS
     CALL timeset(routineN,"I"," ",handle)
 
     failure=.FALSE.
+    converged=.TRUE.
 
     NULLIFY(dft_control,matrix_h,matrix_s,matrix_ks,rho,rho_xc,energy, &
             scf_control,logger,qs_charges,ks_env,mos,atomic_kind_set, &
@@ -364,6 +388,7 @@ CONTAINS
     CALL init_scf_loop(scf_env=scf_env, qs_env=qs_env, globenv=globenv, &
                         scf_section=scf_section, error=error)
 
+    ! short cut flags setting the different methods
     gapw = dft_control%qs_control%gapw
     gapw_xc = dft_control%qs_control%gapw_xc
     harris_flag = qs_env%use_harris
@@ -382,7 +407,6 @@ CONTAINS
                     matrix_ks=matrix_ks,rho=rho,rho_xc=rho_xc,mos=mos, &
                     error=error)
 
-
     IF (output_unit>0) THEN
        WRITE (UNIT=output_unit,&
             FMT="(/,T3,A,T9,A,T36,A,T49,A,T68,A,/,T3,A)")&
@@ -390,7 +414,7 @@ CONTAINS
             REPEAT("-",77)
     END IF
 
-!   Some flags selecting different methods
+!   Some flags needed to be set at the beginning of the loop
     diis_step = .FALSE.
     use_jacobi = .FALSE.
     energy_only = .FALSE.
@@ -491,6 +515,7 @@ CONTAINS
              WRITE(UNIT=output_unit,FMT="(/,T3,A,/)")&
                   "*** SCF run NOT converged ***"
           END IF
+          converged=.FALSE.
           CALL timestop(0.0_dp,handle2)
           EXIT scf_loop
        END IF
@@ -569,20 +594,6 @@ CONTAINS
 
     CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,error=error)
 
-!   *** add the converged wavefunction to the wavefunction history
-    IF (ASSOCIATED(qs_env%wf_history)) THEN
-        CALL wfi_update(qs_env%wf_history,qs_env=qs_env,dt=1.0_dp,&
-               error=error)
-    END IF
-
-! *** print out info
-    IF ((.NOT.should_stop).AND.&
-        (.NOT.dft_control%qs_control%semi_empirical)) THEN
-       CALL scf_post_calculation(dft_section, scf_env, qs_env, globenv, error)
-    END IF
-
-! *** cleanup
-    CALL scf_env_cleanup(scf_env,qs_env=qs_env,error=error)
 
     CALL timestop(0.0_dp,handle)
 
@@ -1068,7 +1079,6 @@ END SUBROUTINE qs_scf_print_summary
     LOGICAL                                  :: do_rotation, failure, &
                                                 has_unit_metric
     TYPE(cp_fm_type), POINTER                :: mo_coeff
-    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
@@ -1083,7 +1093,6 @@ END SUBROUTINE qs_scf_print_summary
          mo_coeff)
 
     failure=.FALSE.
-    logger => cp_error_get_logger(error)
     
     CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,error,failure)
