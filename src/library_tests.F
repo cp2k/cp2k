@@ -1600,8 +1600,6 @@ END SUBROUTINE simple_copy
                            name="Test normal Gaussian distribution",&
                            distribution_type=GAUSSIAN,&
                            extended_precision=.TRUE.)
-    IF (ionode) THEN
-    END IF
 
     tmax = -HUGE(0.0_dp)
     tmin = +HUGE(0.0_dp)
