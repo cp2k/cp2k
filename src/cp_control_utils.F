@@ -455,8 +455,15 @@ CONTAINS
                                 i_val=qs_control%ddapc_restraint_control%functional_form,error=error)
       CALL section_vals_val_get(ddapc_restraint_section,"ATOMS", &
                                 n_rep_val=n_rep,error=error)
-      qs_control%ddapc_restraint_control%natoms=n_rep
-      IF (n_rep<1) CALL stop_program(routine, "Need at least 1 atom to use ddapc contraints")
+      jj = 0
+      DO k = 1,n_rep
+         CALL section_vals_val_get(ddapc_restraint_section,"ATOMS",i_rep_val=k,i_vals=tmplist, error=error)
+         DO  j = 1,SIZE(tmplist)
+           jj = jj+1
+         END DO
+      END DO
+      IF (jj<1) CALL stop_program(routine, "Need at least 1 atom to use ddapc contraints")
+      qs_control%ddapc_restraint_control%natoms=jj
       ALLOCATE(qs_control%ddapc_restraint_control%atoms(qs_control%ddapc_restraint_control%natoms))
       jj = 0
       DO k = 1,n_rep
@@ -466,6 +473,7 @@ CONTAINS
            qs_control%ddapc_restraint_control%atoms (jj) = tmplist(j)
          END DO
       END DO
+
     ENDIF
 
 !    CALL read_se_control_section()
