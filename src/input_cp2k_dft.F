@@ -1224,7 +1224,7 @@ SUBROUTINE create_ddapc_restraint_section(section,error)
 
       CALL keyword_create(keyword, name="ATOMS",&
            description="Specifies the list of atoms that is summed in the restraint",&
-           usage="LIST {integer} {integer} .. {integer}", required=.TRUE.,&
+           usage="ATOMS {integer} {integer} .. {integer}", required=.TRUE.,&
            n_var=-1, type_of_var=integer_t, error=error)
       CALL section_add_keyword(section,keyword,error=error)
       CALL keyword_release(keyword,error=error)
