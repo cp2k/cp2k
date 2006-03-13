@@ -451,7 +451,8 @@ CONTAINS
                END IF 
 
                IF(xas_control%smear/=0.0_dp) THEN
-                  CALL xas_smearing(mos(ispin)%mo_set,xas_control,dft_control%xas_estate,ispin,ionode,error=error)
+                  CALL xas_smearing(mos(ispin)%mo_set,xas_control,&
+                       dft_control%xas_estate,ispin,ionode,error=error)
                END IF
 
                CALL write_mo_set(mos(ispin)%mo_set,atomic_kind_set,particle_set,&
@@ -500,7 +501,7 @@ CONTAINS
           EXIT scf_loop
        END IF
 
-    IF (.NOT.BTEST(cp_print_key_should_output(logger%iter_info,&
+       IF (.NOT.BTEST(cp_print_key_should_output(logger%iter_info,&
          scf_section,"PRINT%ITERATION_INFO/TIME_CUMUL",error=error),cp_p_file)) t1 = m_walltime()
 
 !   *** mixing methods have the new density matrix in p_mix_new
@@ -785,6 +786,10 @@ CONTAINS
     ALLOCATE (first_sgf(natom),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     CALL get_particle_set(particle_set=particle_set, first_sgf=first_sgf)
+    ALLOCATE(centers_wfn(3,xas_control%nexc_search),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    centers_wfn=0.0_dp
+    
 
     IF(.NOT.xas_env%scf_method==xas_scf_general) THEN
       CALL get_xas_env(xas_env=xas_env, &
@@ -795,23 +800,26 @@ CONTAINS
       CALL qs_loc_driver(qs_env,qs_loc_env,onlyspin1=.TRUE.,error=error)
       ra(1:3) = particle_set(iatom)%r(1:3)
 
+      NULLIFY(atomic_kind)
+      atomic_kind =>  particle_set(iatom)%atomic_kind
+      CALL get_atomic_kind(atomic_kind=atomic_kind,&
+           kind_number=ikind)
+      my_kind = mykind_of_kind(ikind)
+  write(*,*) 'kind ',  ikind , my_kind
+
       max_overlap = 0.0_dp
       DO istate = 1,xas_control%nexc_search
          centers_wfn(1,istate) =  localized_wfn_control%centers_set(1)%array(1,istate)
          centers_wfn(2,istate) =  localized_wfn_control%centers_set(1)%array(2,istate)
          centers_wfn(3,istate) =  localized_wfn_control%centers_set(1)%array(3,istate)
-         
-         NULLIFY(atomic_kind)
-         atomic_kind =>  particle_set(iatom)%atomic_kind
-         CALL get_atomic_kind(atomic_kind=atomic_kind,&
-              kind_number=ikind)
-         my_kind = mykind_of_kind(ikind)
+   write(*,*) 'center i =',istate , centers_wfn(1,istate),centers_wfn(2,istate),centers_wfn(3,istate)      
 
          rc(1:3) = centers_wfn(1:3,istate)
          rac = pbc(ra,rc,cell)
          dist = rac(1)*rac(1) + rac(2)*rac(2) + rac(3)*rac(3)
-         
-         IF(dist < 0.5_dp) THEN
+      write(*,*) 'dist ', dist,sqrt(dist)
+
+         IF(dist < 1.0_dp) THEN
            CALL cp_fm_get_submatrix(mo_coeff,vecbuffer,1,istate,&
               nao,1,transpose=.TRUE.,error=error)
            sto_state_overlap=0.0_dp
@@ -832,6 +840,10 @@ CONTAINS
          END IF
       END DO  !  istate
   
+      CALL cp_fm_get_submatrix(mo_coeff,vecbuffer2,1,my_state,&
+                nao,1,transpose=.TRUE.,error=error)
+ write(*,*) 'my state loc ', my_state, ' exc state ',dft_control%xas_estate
+
       
     ! Rotate the wfn to get the eigenstate of the KS hamiltonian
     ! Only ispin=1 should be needed
@@ -847,12 +859,15 @@ CONTAINS
       CALL get_mo_set(mos(1)%mo_set, mo_coeff=mo_coeff)
       CALL cp_fm_get_submatrix(mo_coeff,vecbuffer,1,dft_control%xas_estate,&
                 nao,1,transpose=.TRUE.,error=error)
-      CALL cp_fm_set_submatrix(excvec_coeff,vecbuffer,1,1,&
-                nao,1,transpose=.TRUE.,error=error)
-      CALL cp_fm_get_submatrix(mo_coeff,vecbuffer2,1,my_state,&
-                nao,1,transpose=.TRUE.,error=error)
-!      CALL cp_fm_set_submatrix(excvec_coeff,vecbuffer2,1,1,&
+  do i = 1,nao
+       write(*,*) 'icomp ', i, vecbuffer(1,i),vecbuffer2(1,i)
+  end do 
+
+!      CALL cp_fm_set_submatrix(excvec_coeff,vecbuffer,1,1,&
 !                nao,1,transpose=.TRUE.,error=error)
+      CALL cp_fm_set_submatrix(excvec_coeff,vecbuffer2,1,1,&
+                nao,1,transpose=.TRUE.,error=error)
+!      
     END IF
 
 
@@ -923,6 +938,8 @@ CONTAINS
     DEALLOCATE(vecbuffer,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(vecbuffer2,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(centers_wfn,first_sgf,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
 

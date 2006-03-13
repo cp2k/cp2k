@@ -168,25 +168,17 @@ CONTAINS
     ALLOCATE(s(lds,lds,ncoset(nder+1)),STAT= istat)
     CPPostcondition(istat==0,cp_failure_level,routineN,error,failure)
 
-!    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-!         "s",lds*ncoset(nder+1)*dp_size)
-
     ALLOCATE(spa_sbt(np_car,ntotsgfb,0:nthread-1), STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineN,error,failure)
-!    CALL reallocate(spa_sbt,1,np_car,1,ntotsgfb,0,nthread-1)
     ALLOCATE(spa_tmpt(maxnprja*ncoset(maxlprj),maxcob*maxder,0:nthread-1),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineN,error,failure)
-!    CALL reallocate(spa_tmpt,1,maxnprja*ncoset(maxlprj),1,maxcob*maxder,0,nthread-1)
     ALLOCATE(sdpa_tmpt(maxnprja*ncoset(maxlprj+1),maxcob,4,0:nthread-1),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineN,error,failure)
-!    CALL reallocate(sdpa_tmpt,1,maxnprja*ncoset(maxlprj+1),1,maxcob,1,4,0,nthread-1)
-!    ALLOCATE(ovc(np_car,maxcob*nsetb*maxder),STAT=istat)
-!    CPPostcondition(istat==0,cp_failure_level,routineN,error,failure)
-    CALL reallocate(ovc,1,np_car,1,maxcob*nsetb*maxder)
+    ALLOCATE(ovc(np_car,maxcob*nsetb*maxder),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineN,error,failure)
     ovc = 0.0_dp
-!    ALLOCATE(ovs(np_sph,maxcob*nsetb*maxder),STAT=istat)
-!    CPPostcondition(istat==0,cp_failure_level,routineN,error,failure)
-    CALL reallocate(ovs,1,np_sph,1,maxcob*nsetb*maxder)
+    ALLOCATE(ovs(np_sph,maxcob*nsetb*maxder),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineN,error,failure)
     ovs = 0.0_dp
 
 
@@ -387,8 +379,6 @@ CONTAINS
     
     DEALLOCATE(s,spa_sbt,spa_tmpt,sdpa_tmpt,ovc,ovs ,STAT = istat)
     CPPostcondition(istat==0,cp_failure_level,routineN,error,failure)
-!    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-!         "s,spa_sbt,spa_tmpt,sdpa_tmpt,ovc,ovs")
 
   END SUBROUTINE build_oce_block
 
