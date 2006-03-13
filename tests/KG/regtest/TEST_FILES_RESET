@@ -17,3 +17,7 @@ nai-2.inp
 nai-1.inp
 #reset after list-directed IO
 nai-1.inp
+# removal of the NR random number generator (ran2,gasdev)
+h2o.inp
+nai-1.inp
+nai-2.inp

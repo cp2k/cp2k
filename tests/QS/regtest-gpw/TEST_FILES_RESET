@@ -38,3 +38,24 @@ H2O-langevin-1.inp
 H2O-langevin-2.inp
 # bug fix for restart
 H2O-langevin-2.inp
+# removal of the NR random number generator (ran2,gasdev)
+H2O-MD-harris.inp
+H2O-MD-harris.frozen.inp
+H2O-2.inp
+H2O-3.inp
+H2O-4.inp
+H2O-meta.inp
+H2O-meta_res0.inp
+H2O-meta_res1.inp
+H2O-meta_res2.inp
+H2O-meta_res3.inp
+H2O-5.inp
+H2O-6.inp
+H2O-debug-2.inp
+H2O-debug-3.inp
+He2H-bloechl-md.inp
+H2O-langevin-1.inp
+H2O-langevin-2.inp
+H2O-ref-1.inp
+H2O-ref-2.inp
+H2O-ata.inp

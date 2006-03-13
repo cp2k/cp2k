@@ -29,10 +29,10 @@ MODULE init_extended_system_variables
   USE message_passing,                 ONLY: mp_allgather,&
                                              mp_bcast,&
                                              mp_sum
+  USE parallel_rng_types,              ONLY: next_random_number
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE util,                            ONLY: gasdev
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -114,7 +114,7 @@ SUBROUTINE init_nhc_variables ( nhc,tau_nhc,temp_ext, globenv )
 ! Map deterministically determined random number to nhc % v
         DO i = 1, nhc % num_nhc
            DO j = 1, nhc % nhc_len
-              nhc % nvt(j,i) % v = gasdev ( globenv % idum )
+              nhc%nvt(j,i)%v = next_random_number(globenv%gaussian_rng_stream)
            END DO
         END DO
   
@@ -158,7 +158,7 @@ SUBROUTINE init_nhc_variables ( nhc,tau_nhc,temp_ext, globenv )
 
     CASE DEFAULT
       DO i=1,tot_rn
-        array_of_rn(i) = gasdev ( globenv % idum )
+        array_of_rn(i) = next_random_number(globenv%gaussian_rng_stream)
       END DO
 ! Map deterministically determined random number to nhc % v
       DO i = 1, nhc % num_nhc
@@ -266,7 +266,7 @@ SUBROUTINE init_barostat_variables ( npt, tau_cell, temp_ext, deth, nfree, ensem
 ! initializing velocities
     DO i = 1, SIZE ( npt,1)
        DO j = i, SIZE ( npt,2)
-          v = gasdev ( globenv % idum)
+          v = next_random_number(globenv%gaussian_rng_stream)
 ! symmetrizing the initial barostat velocities to ensure
 ! no rotation of the cell under NPT_F
           npt(j,i) % v = v

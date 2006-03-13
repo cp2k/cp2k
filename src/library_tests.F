@@ -70,18 +70,11 @@ MODULE library_tests
                                              mp_max,&
                                              mp_sum,&
                                              mp_sync
-  USE parallel_rng_types,              ONLY: advance_rng_state,&
+  USE parallel_rng_types,              ONLY: check_rng,&
                                              create_rng_stream,&
                                              delete_rng_stream,&
-                                             dump_rng_stream,&
                                              next_random_number,&
-                                             reset_rng_stream,&
-                                             reset_rng_substream,&
-                                             reset_to_next_rng_substream,&
-                                             rng_record_length,&
                                              rng_stream_type,&
-                                             set_rng_stream,&
-                                             write_rng_matrices,&
                                              write_rng_stream,&
                                              GAUSSIAN,&
                                              UNIFORM
@@ -1407,196 +1400,70 @@ END SUBROUTINE simple_copy
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    CHARACTER(LEN=rng_record_length)         :: rng_record
-    INTEGER                                  :: i, output_unit, sumi
+    INTEGER                                  :: i, output_unit
     LOGICAL                                  :: ionode
-    REAL(KIND=dp)                            :: sum, sum3, t, tmax, tmin, &
+    REAL(KIND=dp)                            :: t, tend, tmax, tmin, tstart, &
                                                 tsum, tsum2
-    REAL(KIND=dp), DIMENSION(3, 2)           :: germe
-    TYPE(rng_stream_type), POINTER           :: cantor, g1, g2, g3, galois, &
-                                                laplace, poisson
+    TYPE(rng_stream_type), POINTER           :: rng_stream
 
     ! -------------------------------------------------------------------------
 
     ionode = globenv%ionode
     output_unit = globenv%scr
 
-    NULLIFY (g1)
-    NULLIFY (g2)
-    NULLIFY (g3)
-    NULLIFY (cantor)
-    NULLIFY (galois)
-    NULLIFY (laplace)
-    NULLIFY (poisson)
+    NULLIFY (rng_stream)
 
-    IF (ionode) CALL write_rng_matrices(output_unit)
+    ! Check correctness
 
-    CALL create_rng_stream(g1,"g1")
-    CALL create_rng_stream(g2,"g2",g1)
-    CALL create_rng_stream(g3,"g3",g2)
+    CALL check_rng(output_unit,ionode,error=error)
 
-    sum = next_random_number(g2) + next_random_number(g3)
-
-    CALL advance_rng_state(g1,5,3)
-    sum = sum + next_random_number(g1)
-
-    CALL reset_rng_stream(g1)
-    DO i=1,35
-       CALL advance_rng_state(g1,0,1)
-    END DO
-    sum = sum + next_random_number(g1)
-
-    CALL reset_rng_stream(g1)
-
-    sumi = 0
-    DO i=1,35
-      sumi = sumi + next_random_number(g1,1,10)
-    END DO
-    sum = sum + sumi/100.0_dp
-
-    sum3 = 0.0_dp
-    DO i=1,100
-      sum3 = sum3 + next_random_number(g3)
-    END DO
-    sum = sum + sum3/10.0_dp
-
-    CALL reset_rng_stream(g3)
-    DO i=1,5
-      sum = sum + next_random_number(g3)
-    END DO
-
-    CALL reset_rng_stream(g3)
-    DO i=1,4
-      CALL reset_to_next_rng_substream(g3)
-    END DO
-    DO i=1,5
-      sum = sum + next_random_number(g3)
-    END DO
-
-    CALL reset_rng_substream(g3)
-    DO i=1,5
-      sum = sum + next_random_number(g3)
-    END DO
-
-    CALL reset_to_next_rng_substream(g2)
-    sum3 = 0.0_dp
-    DO i=1,100000
-      sum3 = sum3 + next_random_number(g2)
-    END DO
-    sum = sum + sum3/10000.0_dp
-
-    CALL set_rng_stream(g3,antithetic=.TRUE.)
-    sum3 = 0.0_dp
-    DO i=1,100000
-      sum3 = sum3 + next_random_number(g3)
-    END DO
-    sum = sum + sum3/10000.0_dp
+    ! Check performance
 
     IF (ionode) THEN
-      CALL write_rng_stream(g1,output_unit,error=error)
-      CALL write_rng_stream(g2,output_unit,error=error)
-      CALL write_rng_stream(g3,output_unit,error=error)
+      WRITE (UNIT=output_unit,FMT="(/,/,T2,A,I10,A)")&
+          "Check distributions using",n," random numbers:"
     END IF
-
-    germe(:,:) = 1
-
-    CALL create_rng_stream(poisson,"Poisson",seed=germe)
-    CALL create_rng_stream(laplace,"Laplace",poisson)
-    CALL create_rng_stream(galois,"Galois",laplace)
-    CALL create_rng_stream(cantor,"Cantor",galois)
-
-    sum = sum + next_random_number(poisson) +&
-                next_random_number(laplace) +&
-                next_random_number(galois) +&
-                next_random_number(cantor)
-
-    CALL advance_rng_state(galois,-127,0)
-    sum = sum + next_random_number(galois)
-
-    CALL reset_to_next_rng_substream(galois)
-    CALL set_rng_stream(galois,extended_precision=.TRUE.)
-    sum3 = 0.0_dp
-    DO i=1,100000
-      sum3 = sum3 + next_random_number(galois)
-    END DO
-    sum = sum + sum3/10000.0_dp
-
-    CALL set_rng_stream(galois,antithetic=.TRUE.)
-    sum3 = 0.0_dp
-    DO i=1,100000
-      sum3 = sum3 + next_random_number(galois)
-    END DO
-    sum = sum + sum3/10000.0_dp
-    CALL set_rng_stream(galois,antithetic=.FALSE.)
-
-    CALL set_rng_stream(galois,extended_precision=.FALSE.)
-    sum = sum + next_random_number(poisson) +&
-                next_random_number(laplace) +&
-                next_random_number(galois) +&
-                next_random_number(cantor)
-
-    IF (ionode) THEN
-
-      WRITE (UNIT=output_unit,FMT="(/,(T2,A))")&
-        "This test routine should print the number 39.697547"
-      WRITE (UNIT=output_unit,FMT="(T2,A,F10.6)")&
-        "Actual test result is                    ",sum
-
-      CALL write_rng_stream(poisson,output_unit,error=error)
-      CALL write_rng_stream(laplace,output_unit,error=error)
-      CALL write_rng_stream(galois,output_unit,error=error)
-      CALL write_rng_stream(cantor,output_unit,error=error)
-
-      WRITE (UNIT=output_unit,FMT="(/,/,T2,A,/)")&
-        "Dump the RNG records:"
-      CALL dump_rng_stream(poisson,rng_record)
-      WRITE (UNIT=output_unit,FMT="(A)") rng_record
-      CALL dump_rng_stream(laplace,rng_record)
-      WRITE (UNIT=output_unit,FMT="(A)") rng_record
-      CALL dump_rng_stream(galois,rng_record)
-      WRITE (UNIT=output_unit,FMT="(A)") rng_record
-      CALL dump_rng_stream(cantor,rng_record)
-      WRITE (UNIT=output_unit,FMT="(A)") rng_record
-
-    END IF
-
-    ! Check distributions
-
-    WRITE (UNIT=output_unit,FMT="(/,/,T2,A,I10,A)")&
-        "Check distributions using",n," random numbers:"
 
     ! Test uniform distribution [0,1]
 
-    CALL create_rng_stream(rng_stream=g1,&
+    CALL create_rng_stream(rng_stream=rng_stream,&
                            name="Test uniform distribution [0,1]",&
                            distribution_type=UNIFORM,&
                            extended_precision=.TRUE.)
+
+    IF (ionode) THEN
+      CALL write_rng_stream(rng_stream,output_unit,write_all=.TRUE.,error=error)
+    END IF
 
     tmax = -HUGE(0.0_dp)
     tmin = +HUGE(0.0_dp)
     tsum = 0.0_dp
     tsum2 = 0.0_dp
 
+    tstart = m_cputime()
     DO i=1,n
-      t = next_random_number(g1)
+      t = next_random_number(rng_stream)
       tsum = tsum + t
       tsum2 = tsum2 + t*t
       IF (t > tmax) tmax = t
       IF (t < tmin) tmin = t
     END DO
+    tend = m_cputime()
 
     IF (ionode) THEN
-      CALL write_rng_stream(g1,output_unit,error=error)
       WRITE (UNIT=output_unit,FMT="(/,(T4,A,F12.6))")&
         "Minimum: ",tmin,&
         "Maximum: ",tmax,&
         "Average: ",tsum/REAL(n,KIND=dp),&
-        "Variance:",tsum2/REAL(n,KIND=dp)
+        "Variance:",tsum2/REAL(n,KIND=dp),&
+        "Time [s]:",tend - tstart
     END IF
+
+    CALL delete_rng_stream(rng_stream)
 
     ! Test normal Gaussian distribution
 
-    CALL create_rng_stream(rng_stream=g2,&
+    CALL create_rng_stream(rng_stream=rng_stream,&
                            name="Test normal Gaussian distribution",&
                            distribution_type=GAUSSIAN,&
                            extended_precision=.TRUE.)
@@ -1606,32 +1473,27 @@ END SUBROUTINE simple_copy
     tsum = 0.0_dp
     tsum2 = 0.0_dp
 
+    tstart = m_cputime()
     DO i=1,n
-      t = next_random_number(g2)
+      t = next_random_number(rng_stream)
       tsum = tsum + t
       tsum2 = tsum2 + t*t
       IF (t > tmax) tmax = t
       IF (t < tmin) tmin = t
     END DO
+    tend = m_cputime()
 
     IF (ionode) THEN
-      CALL write_rng_stream(g2,output_unit,error=error)
+      CALL write_rng_stream(rng_stream,output_unit,error=error)
       WRITE (UNIT=output_unit,FMT="(/,(T4,A,F12.6))")&
         "Minimum: ",tmin,&
         "Maximum: ",tmax,&
         "Average: ",tsum/REAL(n,KIND=dp),&
-        "Variance:",tsum2/REAL(n,KIND=dp)
+        "Variance:",tsum2/REAL(n,KIND=dp),&
+        "Time [s]:",tend - tstart
     END IF
 
-    ! Delete RNG streams
-
-    CALL delete_rng_stream(g1)
-    CALL delete_rng_stream(g2)
-    CALL delete_rng_stream(g3)
-    CALL delete_rng_stream(cantor)
-    CALL delete_rng_stream(galois)
-    CALL delete_rng_stream(laplace)
-    CALL delete_rng_stream(poisson)
+    CALL delete_rng_stream(rng_stream)
 
   END SUBROUTINE rng_test
 
@@ -1812,6 +1674,7 @@ END SUBROUTINE simple_copy
                      eigenvectors=eigenvectors,&
                      eigenvalues=eigenvalues,&
                      error=error)
+
     IF (ionode) THEN
       WRITE (UNIT=output_unit,FMT="(/,T3,A,/)") "Eigenvalues (SYEVD)"
       DO i=1,neig
@@ -1833,6 +1696,7 @@ END SUBROUTINE simple_copy
                      neig=neig,&
                      work_syevx=1.0_dp,&
                      error=error)
+
     IF (ionode) THEN
       WRITE (UNIT=output_unit,FMT="(/,T3,A,/)") "Eigenvalues (SYEVX)"
       DO i=1,neig

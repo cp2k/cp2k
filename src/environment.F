@@ -57,7 +57,11 @@ MODULE environment
   USE orbital_pointers,                ONLY: deallocate_orbital_pointers
   USE orbital_transformation_matrices, ONLY: deallocate_spherical_harmonics
   USE parallel_rng_types,              ONLY: init_rng,&
-                                             write_rng_matrices
+                                             check_rng,&
+                                             create_rng_stream,&
+                                             write_rng_matrices,&
+                                             write_rng_stream,&
+                                             GAUSSIAN
   USE physcon,                         ONLY: write_physcon
   USE string_utilities,                ONLY: ascii_to_string,&
                                              string_to_ascii
@@ -71,7 +75,6 @@ MODULE environment
                                              timestop,&
                                              trace_debug,&
                                              use_HPM
-  USE util,                            ONLY: ran2
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -380,30 +383,29 @@ SUBROUTINE cp2k_read(globenv,error)
 !!     fawzi
 !!
 !!*** **********************************************************************
+
   SUBROUTINE cp2k_setup(globenv,error)
+
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp2k_setup', &
-      routineP = moduleN//':'//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'cp2k_setup', &
+                                   routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: initial_random, iw
+    INTEGER                                  :: input_seed, iw
     LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
+    REAL(KIND=dp), DIMENSION(3,2)            :: initial_seed
 
-    failure=.FALSE.
+    ! -------------------------------------------------------------------------
+
+    failure = .FALSE.
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
 
     IF (.NOT.failure) THEN
-
-      ! Initialize random number generator
-
-      CALL section_vals_val_get(globenv%input_file,"GLOBAL%SEED",&
-                                 i_val=globenv%idum)
-      initial_random = ran2(globenv%idum)
 
       ! Initialize the parallel random number generator
 
@@ -416,9 +418,40 @@ SUBROUTINE cp2k_read(globenv,error)
       CALL cp_print_key_finished_output(iw,logger,globenv%input_file,&
                                         "GLOBAL%PRINT/RNG_MATRICES",&
                                         error=error)
+
+      ! Initialize a global normally Gaussian distributed (pseudo)random number stream
+
+      CALL section_vals_val_get(globenv%input_file,"GLOBAL%SEED",i_val=input_seed)
+      initial_seed(:,:) = REAL(input_seed,KIND=dp)
+      CALL create_rng_stream(rng_stream=globenv%gaussian_rng_stream,&
+                             name="Global Gaussian random numbers",&
+                             distribution_type=GAUSSIAN,&
+                             seed=initial_seed,&
+                             extended_precision=.TRUE.,&
+                             error=error)
+
+      iw = cp_print_key_unit_nr(logger,globenv%input_file,"GLOBAL%PRINT/RNG_CHECK",&
+                                extension=".Log",error=error)
+      IF (iw > 0) THEN
+        CALL check_rng(iw,globenv%ionode,error)
+      END IF
+      CALL cp_print_key_finished_output(iw,logger,globenv%input_file,&
+                                        "GLOBAL%PRINT/RNG_CHECK",&
+                                        error=error)
+
+      iw = cp_print_key_unit_nr(logger,globenv%input_file,"GLOBAL%PRINT/GLOBAL_GAUSSIAN_RNG",&
+                                extension=".Log",error=error)
+      IF (iw > 0) THEN
+        CALL write_rng_stream(globenv%gaussian_rng_stream,iw,write_all=.TRUE.,error=error)
+      END IF
+      CALL cp_print_key_finished_output(iw,logger,globenv%input_file,&
+                                        "GLOBAL%PRINT/GLOBAL_GAUSSIAN_RNG",&
+                                        error=error)
+
     END IF
 
   END SUBROUTINE cp2k_setup
+
 !***************************************************************************
 
 !!****f* environment/read_global_section [1.0] *

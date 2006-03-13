@@ -110,7 +110,6 @@ MODULE harris_metropolis_mc
                                              stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE util,                            ONLY: gasdev
   USE velocity_verlet_control,         ONLY: velocity_verlet
   USE wiener_process,                  ONLY: create_wiener_process
 #include "cp_common_uses.h"
@@ -812,10 +811,13 @@ CONTAINS
                    IF (particles%els(i)%is_fixed) THEN
                       particles%els(i)%v = 0.0_dp
                    ELSE
-                      sigma = SQRT(simpar%temp_ext/mass)
-                      particles%els(i)%v(1) = gasdev(globenv%idum) * sigma
-                      particles%els(i)%v(2) = gasdev(globenv%idum) * sigma
-                      particles%els(i)%v(3) = gasdev(globenv%idum) * sigma
+                      sigma = simpar%temp_ext/mass
+                      particles%els(i)%v(1) = next_random_number(globenv%gaussian_rng_stream,&
+                                                                 variance=sigma)
+                      particles%els(i)%v(2) = next_random_number(globenv%gaussian_rng_stream,&
+                                                                 variance=sigma)
+                      particles%els(i)%v(3) = next_random_number(globenv%gaussian_rng_stream,&
+                                                                 variance=sigma)
                       vcom(1) = vcom(1) + mass * particles%els(i)%v(1)
                       vcom(2) = vcom(2) + mass * particles%els(i)%v(2)
                       vcom(3) = vcom(3) + mass * particles%els(i)%v(3)

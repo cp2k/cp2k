@@ -27,3 +27,18 @@ H2O-OT-4.inp
 H2O-OT-HMC-1.inp
 H2O-OT-HMC-2.inp
 H2O-OT-LDMC-3.inp
+# removal of the NR random number generator (ran2,gasdev)
+H2O.inp
+H2O-OT-1.inp
+H2O-OT-2.inp
+H2O-OT-3.inp
+H2O-OT-4.inp
+H2O-OT-5.inp
+H2O-OT-HMC-1.inp
+H2O-OT-HMC-2.inp
+H2O-OT-LDMC-3.inp
+N3-2.inp
+N3-3.inp
+N3-4.inp
+N3-5.inp
+N3-6.inp

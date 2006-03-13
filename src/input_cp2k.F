@@ -342,10 +342,14 @@ CONTAINS
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
-    CALL keyword_create(keyword, name="SEED",&
-         description="Seed of the random generator used for the velocities. "//&
-         "Should be negative",&
-         usage="SEED -2", default_i_val=-1, error=error)
+    CALL keyword_create(keyword,&
+                        name="SEED",&
+                        description="Initial seed for the global (pseudo)random number "//&
+                                    "generator to create a stream of normally Gaussian "//&
+                                    "distributed random numbers.",&
+                        usage="SEED 4137",&
+                        default_i_val=2000,&
+                        error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
@@ -381,9 +385,29 @@ CONTAINS
          default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
     CALL section_add_keyword(print_key,keyword,error=error)
     CALL keyword_release(keyword,error=error)
-    CALL keyword_create(keyword,"rng_matrices",&
-         description="if the printkey is active prints the random number generator matrices",&
-         default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+    CALL keyword_create(keyword,"RNG_MATRICES",&
+                        description="Prints the transformation matrices used by the "//&
+                                    " random number generator",&
+                        default_l_val=.FALSE.,&
+                        lone_keyword_l_val=.TRUE.,&
+                        error=error)
+    CALL section_add_keyword(print_key,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword,"RNG_CHECK",&
+                        description="Performs a check of the global (pseudo)random "//&
+                                    "number generator (RNG) and prints the result",&
+                        default_l_val=.FALSE.,&
+                        lone_keyword_l_val=.TRUE.,&
+                        error=error)
+    CALL section_add_keyword(print_key,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword,"GLOBAL_GAUSSIAN_RNG",&
+                        description="Prints the initial status of the global Gaussian "//&
+                                    "(pseudo)random number stream which is mostly used for "//&
+                                    "the velocity initialization",&
+                        default_l_val=.FALSE.,&
+                        lone_keyword_l_val=.TRUE.,&
+                        error=error)
     CALL section_add_keyword(print_key,keyword,error=error)
     CALL keyword_release(keyword,error=error)
     CALL section_add_subsection(section,print_key,error=error)
@@ -532,8 +556,8 @@ CONTAINS
     CALL keyword_release(keyword,error=error)
 
     CALL keyword_create(keyword, name="random_number_generator",variants=(/"rng"/),&
-         description=" Tests the parallel random number generator",&
-         usage="rng 100000",default_i_val=0,error=error)
+         description=" Tests the parallel random number generator (RNG)",&
+         usage="rng 1000000",default_i_val=0,error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 

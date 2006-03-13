@@ -21,6 +21,7 @@
 !!     - JGH (28.11.2001) : added pp_library_path to type
 !!     - Merged with MODULE print_keys (17.01.2002, MK)
 !!     - input_file, reference counting, create (08.2004, fawzi)
+!!     - new (parallel) random number generator (11.03.06,MK)
 !!
 !!   SOURCE
 !******************************************************************************
@@ -37,38 +38,50 @@ MODULE global_types
                                              default_string_length,&
                                              dp
   USE machine,                         ONLY: m_walltime
+  USE parallel_rng_types,              ONLY: delete_rng_stream,&
+                                             rng_stream_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
 
   PRIVATE
 
-! *** Public parameters ***
+  ! Global parameters
 
-! *** Print level parameters ***
-  INTEGER, PARAMETER, PUBLIC :: SILENT = 0,&
-                        LOW = 1,&
+  CHARACTER(LEN=*), PARAMETER, PRIVATE :: moduleN = 'global_types'
+
+  INTEGER, PARAMETER :: BLACS_GRID_SQUARE = 1,&
+                        BLACS_GRID_ROW    = 2,&
+                        BLACS_GRID_COL    = 3,&
+                        SILENT = 0,&
+                        LOW    = 1,&
                         MEDIUM = 2,&
-                        HIGH = 3,&
-                        DEBUG = 4
+                        HIGH   = 3,&
+                        DEBUG  = 4
 
-  PUBLIC :: BLACS_GRID_SQUARE, BLACS_GRID_ROW, BLACS_GRID_COL
+  INTEGER, SAVE :: last_globenv_id=0
 
-! *** Public data types
+  ! Public parameters
+
+  PUBLIC :: BLACS_GRID_SQUARE,&
+            BLACS_GRID_ROW,&
+            BLACS_GRID_COL,&
+            SILENT,&
+            LOW,&
+            MEDIUM,&
+            HIGH,&
+            DEBUG
+
+  ! Public data types
 
   PUBLIC :: global_environment_type
 
-! *** Public subroutines ***
+  ! Public subroutines
 
-  PUBLIC :: cp_para_env_from_globenv, globenv_create, globenv_retain, &
-       globenv_release
-
-  INTEGER, PARAMETER :: BLACS_GRID_SQUARE=1, &
-                        BLACS_GRID_ROW=2, &
-                        BLACS_GRID_COL=3
-
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'global_types'
-  INTEGER, SAVE, PRIVATE :: last_globenv_id=0
+  PUBLIC :: cp_para_env_from_globenv,&
+            globenv_create,&
+            globenv_retain,&
+            globenv_release
 
 !!*** ************************************************************************
 
@@ -93,13 +106,14 @@ MODULE global_types
 !!       the whole input_file
 !!
 !!     Personally I think that all the other attributes should go away
-!!     (and maybe add  a logger)[fawzi]
+ !!     (and maybe add  a logger)[fawzi]
 !!
 !!   SOURCE
 !!
   TYPE global_environment_type
      INTEGER :: id_nr, ref_count
      TYPE(cp_para_env_type), POINTER         :: para_env
+     TYPE(rng_stream_type), POINTER          :: gaussian_rng_stream
      CHARACTER(LEN=default_path_length)      :: input_file_name
      CHARACTER(LEN=default_string_length)    :: default_fft_library,&
                                                 project_name,&
@@ -193,6 +207,7 @@ CONTAINS
        globenv%blacs_grid_layout=BLACS_GRID_SQUARE
        globenv%cp2k_start_time=m_walltime()
        NULLIFY(globenv%input_file)
+       NULLIFY (globenv%gaussian_rng_stream)
     END IF
   END SUBROUTINE globenv_create
 !***************************************************************************
@@ -277,6 +292,9 @@ SUBROUTINE globenv_release(globenv, error)
      IF (globenv%ref_count==0) THEN
         CALL section_vals_release(globenv%input_file,error=error)
         CALL cp_para_env_release(globenv%para_env,error=error)
+        IF (ASSOCIATED(globenv%gaussian_rng_stream)) THEN
+          CALL delete_rng_stream(globenv%gaussian_rng_stream)
+        END IF
         IF (globenv%close_output_unit) THEN
            IF (globenv%ionode) CALL close_file(globenv%scr)
         END IF

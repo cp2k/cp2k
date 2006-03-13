@@ -26,7 +26,7 @@ MODULE util
   IMPLICIT NONE
 
   PRIVATE
-  PUBLIC :: sort, ran2, get_unit, gasdev, close_unit, &
+  PUBLIC :: sort, get_unit, close_unit, &
        get_share, get_limit, include_list, getinv3x3,  &
        matmul_3x3, dotprod_3d, crossprod_3d, matvec_3x3, &
        transpose_3d,locate, find_boundary
@@ -312,118 +312,6 @@ SUBROUTINE sort2i ( iarr, n, index )
   GO TO 1
 
 END SUBROUTINE sort2i
-
-!******************************************************************************
-
-!!< from second edition of numerical recipes
-!!    call with negative idum to initialize
-!!>   then do not alter idum from successive calls
-
-FUNCTION ran2 ( idum, icontrol )
-
-
-    INTEGER, INTENT(INOUT)                   :: idum
-    INTEGER, INTENT(IN), OPTIONAL            :: icontrol
-    REAL(KIND=dp)                            :: ran2
-
-    INTEGER                                  :: ia1, ia2, im1, im2, imm1, &
-                                                iq1, iq2, ir1, ir2, ndiv, ntab
-    REAL(KIND=dp)                            :: am, eps, rnmx
-
-  PARAMETER (im1=2147483563,im2=2147483399,am=1.0_dp/im1,imm1=im1-1, &
-       ia1=40014,ia2=40692,iq1=53668,iq2=52774,ir1=12211,ir2=3791,ntab=32, &
-       ndiv=1+imm1/ntab,eps=1.2E-7_dp,rnmx=1.0_dp-eps)
-  INTEGER idum2, j, k, iv(ntab), iy, iounit
-  SAVE iv, iy, idum2
-  DATA idum2/123456789/, iv/ntab*0/, iy/0/, iounit/10/
-
-!------------------------------------------------------------------------------
-
-!
-!       if icontrol=0, generate a random number normally
-!       if icontrol=1, load old random number table, dont get a new #
-!       if icontrol=2, save current random number table and dont get a
-!                      new random number
-!
-
-  IF ( .NOT. PRESENT ( icontrol)) THEN
-     IF (idum<=0) THEN
-        idum = MAX(-idum,1)
-        idum2 = idum
-        DO j = ntab + 8, 1, -1
-           k = idum/iq1
-           idum = ia1*(idum-k*iq1) - k*ir1
-           IF (idum<0) idum = idum + im1
-           IF (j<=ntab) iv(j) = idum
-        END DO
-        iy = iv(1)
-     END IF
-     k = idum/iq1
-     idum = ia1*(idum-k*iq1) - k*ir1
-     IF (idum<0) idum = idum + im1
-     k = idum2/iq2
-     idum2 = ia2*(idum2-k*iq2) - k*ir2
-     IF (idum2<0) idum2 = idum2 + im2
-     j = 1 + iy/ndiv
-     iy = iv(j) - idum2
-     iv(j) = idum
-     IF (iy<1) iy = iy + imm1
-     ran2 = MIN(am*iy,rnmx)
-  ELSE IF (icontrol==1) THEN
-     OPEN (unit=iounit,file='random.table')
-     DO j = 1, ntab
-        READ (iounit,*) iv(j)
-     END DO
-     READ (iounit,*) iy
-     READ (iounit,*) idum
-     READ (iounit,*) idum2
-     CLOSE (iounit)
-  ELSE IF (icontrol==2) THEN
-     OPEN (unit=iounit,file='random.table')
-     DO j = 1, ntab
-        WRITE (iounit,*) iv(j)
-     END DO
-     WRITE (iounit,*) iy
-     WRITE (iounit,*) idum
-     WRITE (iounit,*) idum2
-     CLOSE (iounit)
-  END IF
-
-END FUNCTION ran2
-
-!******************************************************************************
-
-FUNCTION gasdev(idum)
-
-
-! Return value
-    INTEGER, INTENT(INOUT)                   :: idum
-    REAL(KIND=dp)                            :: gasdev
-
-    INTEGER                                  :: iset
-    REAL(KIND=dp)                            :: fac, gset, r, v1, v2
-
-  DATA iset/0/
-  SAVE iset, gset
-
-!------------------------------------------------------------------------------
-
-  IF (iset==0) THEN
-1    CONTINUE
-     v1 = 2.0_dp*ran2(idum) - 1.0_dp
-     v2 = 2.0_dp*ran2(idum) - 1.0_dp
-     r = v1*v1 + v2*v2
-     IF (r>=1.0_dp.OR.r==0._dp) GO TO 1
-     fac = SQRT(-2.0_dp*LOG(r)/r)
-     gset = v1*fac
-     gasdev = v2*fac
-     iset = 1
-  ELSE
-     gasdev = gset
-     iset = 0
-  END IF
-
-END FUNCTION gasdev
 
 !******************************************************************************
 

@@ -45,10 +45,10 @@ MODULE dynamical_coeff_types
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_max,&
                                              mp_sum
+  USE parallel_rng_types,              ONLY: next_random_number
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
-  USE util,                            ONLY: gasdev,&
-                                             locate
+  USE util,                            ONLY: locate
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -713,7 +713,7 @@ SUBROUTINE dyn_coeff_set_init_vel(kg_coeff_target_temp,dyn_coeff_set,mbuffer,glo
   IF (globenv%ionode) THEN
     DO iel=1,dyn_coeff_set%nel_tot
       DO icoef=1,dyn_coeff_set%ncoef_atom_max
-        vbuffer(iel,icoef)=gasdev(globenv%idum)
+        vbuffer(iel,icoef) = next_random_number(globenv%gaussian_rng_stream)
         IF (gmass) THEN
           vcom=vcom+dyn_coeff_set%global_mass*vbuffer(iel,icoef)
           denom=denom+dyn_coeff_set%global_mass

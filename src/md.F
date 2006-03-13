@@ -42,7 +42,7 @@ MODULE md
                                              dp
   USE message_passing,                 ONLY: mp_bcast
   USE particle_types,                  ONLY: particle_type
-  USE util,                            ONLY: gasdev
+  USE parallel_rng_types,              ONLY: next_random_number
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -700,9 +700,9 @@ CONTAINS
                 part ( i ) % v ( 2 ) = 0.0_dp
                 part ( i ) % v ( 3 ) = 0.0_dp
              ELSE
-                part ( i ) % v ( 1 ) = gasdev ( globenv % idum )
-                part ( i ) % v ( 2 ) = gasdev ( globenv % idum )
-                part ( i ) % v ( 3 ) = gasdev ( globenv % idum )
+                part(i)%v(1) = next_random_number(globenv%gaussian_rng_stream)
+                part(i)%v(2) = next_random_number(globenv%gaussian_rng_stream)
+                part(i)%v(3) = next_random_number(globenv%gaussian_rng_stream)
                 vcom ( 1 ) = vcom ( 1 ) + mass * part ( i ) % v ( 1 )
                 vcom ( 2 ) = vcom ( 2 ) + mass * part ( i ) % v ( 2 )
                 vcom ( 3 ) = vcom ( 3 ) + mass * part ( i ) % v ( 3 )

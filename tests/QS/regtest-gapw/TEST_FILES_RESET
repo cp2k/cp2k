@@ -10,3 +10,5 @@ CO_xastpxhh.inp
 #reset for better initial guess
 CO_xastpxhh.inp
 CO_xastpxfh.inp
+# removal of the NR random number generator (ran2,gasdev)
+He2-all-md.inp
