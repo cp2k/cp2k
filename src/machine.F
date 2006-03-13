@@ -21,65 +21,65 @@
 !******************************************************************************
 
 MODULE machine
-
+  USE  kinds,  ONLY        : dp
 #if defined ( __AIX )
   USE machine_aix, ONLY    : & 
-       m_walltime, m_cputime, m_datum, m_flush, &
+       m_cputime, m_datum, m_flush, &
        m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
        print_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c
 #elif defined ( __IRIX )
   USE machine_irix, ONLY   : &
-       m_walltime, m_cputime, m_datum, m_flush, &
+       m_cputime, m_datum, m_flush, &
        m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
        print_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c
 #elif defined ( __G95 )
   USE machine_g95, ONLY    : &
-       m_walltime, m_cputime, m_datum, m_flush, &
+       m_cputime, m_datum, m_flush, &
        m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
        print_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c
 #elif defined ( __INTEL )
   USE machine_intel, ONLY  : &
-       m_walltime, m_cputime, m_datum, m_flush, &
+       m_cputime, m_datum, m_flush, &
        m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
        print_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c
 #elif defined ( __PGI )
   USE machine_pgi, ONLY    : &
-       m_walltime, m_cputime, m_datum, m_flush, &
+       m_cputime, m_datum, m_flush, &
        m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
        print_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c
 #elif defined ( __XT3 )
   USE machine_xt3, ONLY    : &
-       m_walltime, m_cputime, m_datum, m_flush, &
+       m_cputime, m_datum, m_flush, &
        m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
        print_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c
 #elif defined ( __T3E )
   USE machine_t3e, ONLY    : &
-       m_walltime, m_cputime, m_datum, m_flush, &
+       m_cputime, m_datum, m_flush, &
        m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
        print_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c
 #elif defined ( __DEC )
   USE machine_dec, ONLY    : &
-       m_walltime, m_cputime, m_datum, m_flush, &
+       m_cputime, m_datum, m_flush, &
        m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
        print_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c
 #elif defined ( __ABSOFT )
   USE machine_absoft, ONLY : &
-       m_walltime, m_cputime, m_datum, m_flush, &
+       m_cputime, m_datum, m_flush, &
        m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
        print_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c
 #elif defined ( __SUN )
   USE machine_sun, ONLY    : &
-       m_walltime, m_cputime, m_datum, m_flush, &
+       m_cputime, m_datum, m_flush, &
        m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
        print_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c
 #elif defined ( __NAG )
   USE machine_nag, ONLY    : &
-       m_walltime, m_cputime, m_datum, m_flush, &
+       m_cputime, m_datum, m_flush, &
        m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
        print_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c
 #elif defined ( __SX )
   USE machine_sx, ONLY    : &
-       m_walltime, m_cputime, m_datum, m_flush, &
+       m_cputime, m_datum, m_flush, &
        m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
        print_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c
 #endif
@@ -91,6 +91,45 @@ MODULE machine
   PUBLIC :: m_walltime, m_cputime, m_datum, m_flush, &
        m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
        print_memory, m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c
+
+CONTAINS
+
+!!****f* machine/m_walltime *
+!!
+!!   NAME
+!!     m_walltime
+!!
+!!   FUNCTION
+!!     returns time from a real-time clock, protected against rolling 
+!!     early/easily 
+!!
+!!   NOTES
+!!     same implementation for all machines. 
+!!     might still roll, if not called often
+!!
+!!   INPUTS
+!!
+!!   MODIFICATION HISTORY
+!!     03.2006 created [Joost VandeVondele]
+!!
+!!*** **********************************************************************
+FUNCTION m_walltime() RESULT (wt)
+    REAL(KIND=dp)                            :: wt
+
+    INTEGER                                  :: count, count_rate, count_max
+ 
+    INTEGER, SAVE :: last_count=-1
+    INTEGER, SAVE :: cycles=0
+
+    ! count lies in [0,count_max]
+    CALL SYSTEM_CLOCK(count=count,count_rate=count_rate,count_max=count_max)
+    IF (count<last_count) cycles=cycles+1
+    last_count=count
+
+    wt = ( REAL(count,KIND=dp)+REAL(cycles,KIND=dp)*(1.0_dp+REAL(count_max,KIND=dp)) ) &
+         / REAL(count_rate,KIND=dp)
+
+END FUNCTION m_walltime
 
 END MODULE machine
 !!*****

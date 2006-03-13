@@ -27,7 +27,7 @@ MODULE machine_aix
 
   PRIVATE
 
-  PUBLIC :: m_walltime, m_cputime, m_datum, m_flush, print_memory, &
+  PUBLIC :: m_cputime, m_datum, m_flush, print_memory, &
             m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
             m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c
 
@@ -130,18 +130,6 @@ FUNCTION m_cputime() RESULT (ct)
   CALL CPU_TIME(wtl)
   ct=wtl
 END FUNCTION m_cputime
-!******************************************************************************
-!!  wall clock time in seconds
-FUNCTION m_walltime() RESULT (wt)
-  REAL(KIND=dp) :: wt,omp_get_wtime
-  INTEGER count,count_rate
-#if defined(__OMPWTIME)
-  wt = omp_get_wtime() ! this should not work in serial, or so but seems to work, presumably xlf_r
-#else
-  CALL SYSTEM_CLOCK(count=count,count_rate=count_rate)
-  wt = REAL(count,KIND=dp)/count_rate
-#endif
-END FUNCTION m_walltime
 !******************************************************************************
 !!  time and date
 SUBROUTINE m_datum(cal_date)

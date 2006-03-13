@@ -27,7 +27,7 @@ MODULE machine_t3e
 
   PRIVATE
 
-  PUBLIC :: m_walltime, m_cputime, m_datum, m_flush, print_memory, &
+  PUBLIC :: m_cputime, m_datum, m_flush, print_memory, &
             m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
             m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c
 
@@ -75,16 +75,6 @@ FUNCTION m_cputime() RESULT (ct)
 
   ct = tsecnd()
 END FUNCTION m_cputime
-!******************************************************************************
-!!  wall clock time in seconds
-FUNCTION m_walltime() RESULT (wt)
-    REAL(KIND=dp)                            :: wt
-
-    REAL(KIND=dp)                            :: time
-
-  EXTERNAL time
-  wt = time()
-END FUNCTION m_walltime
 !******************************************************************************
 !!  time and date
 SUBROUTINE m_datum(cal_date)

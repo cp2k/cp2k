@@ -27,7 +27,7 @@ MODULE machine_sun
 
   PRIVATE
 
-  PUBLIC :: m_walltime, m_cputime, m_datum, m_flush, print_memory, &
+  PUBLIC :: m_cputime, m_datum, m_flush, print_memory, &
             m_hostnm, m_getcwd, m_getlog, m_getuid, m_getpid, m_getarg, &
             m_iargc, m_abort, m_chdir, m_loc_r, m_loc_c
 
@@ -79,18 +79,6 @@ FUNCTION m_cputime() RESULT (ct)
   CALL cpu_time(cto)
   ct = cto
 END FUNCTION m_cputime
-!******************************************************************************
-!!  wall clock time in seconds
-FUNCTION m_walltime() RESULT (wt)
-    REAL(KIND=dp)                            :: wt
-
-    INTEGER*8                                :: count, count_rate
-
-! wt = omp_get_wtime() ! omp call is fast and accurate
-
-  CALL SYSTEM_CLOCK(count=count,count_rate=count_rate)
-  wt=REAL(count,dp)/REAL(count_rate,dp)
-END FUNCTION m_walltime
 !******************************************************************************
 !!  time and date
 SUBROUTINE m_datum(cal_date)
