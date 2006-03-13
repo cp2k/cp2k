@@ -7,3 +7,6 @@ CO_xastphh.inp
 CO_xastpxfh.inp
 CO_xastpval.inp
 CO_xastpxhh.inp
+#reset for better initial guess
+CO_xastpxhh.inp
+CO_xastpxfh.inp
