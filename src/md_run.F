@@ -156,11 +156,9 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_mol_dyn2', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=256)                       :: cwd, datx
     INTEGER                                  :: handle, i, ibead, in_use, &
-                                                ires, istat, istep, isubsys, &
-                                                iter_level, nbeads, strend, &
-                                                strstart
+                                                istat, istep, isubsys, &
+                                                iter_level, nbeads
     INTEGER, POINTER                         :: itimes
     LOGICAL                                  :: failure, should_stop
     REAL(KIND=dp)                            :: time_iter_start, &
@@ -376,47 +374,11 @@ CONTAINS
       time_iter_stop=m_walltime()
       used_time = time_iter_stop - time_iter_start
       time_iter_start=time_iter_stop
-      CALL md_energy ( md_env, globenv, error ) ! also writes trajectories
-      IF (BTEST(cp_print_key_should_output(logger%iter_info,&
-           motion_section,"MD%PRINT%RESTART",error=error),cp_p_file)) THEN
-         CALL update_input(md_env=md_env,globenv=globenv,force_env_section=force_env_section,&
-              error=error)
 
-         ires = cp_print_key_unit_nr(logger,motion_section,"MD%PRINT%RESTART",&
-              extension=".restart",  do_backup=.TRUE., &
-              error=error)
-         IF (ires>0) THEN  
-              WRITE (UNIT=ires,FMT="(T2,A)") "# Version information for this restart file "
-              CALL m_datum(datx)
-              WRITE (UNIT=ires,FMT="(T2,A)") "# current date "//TRIM(datx)
-              CALL m_getcwd(cwd)
-              WRITE (UNIT=ires,FMT="(T2,A)") "# current working dir "//TRIM(cwd)
-
-              WRITE (UNIT=ires,FMT="(T2,A,T31,A50)")&
-                "# Program compiled at",&
-                ADJUSTR(compile_date(1:MIN(50,LEN(compile_date))))
-              WRITE (UNIT=ires,FMT="(T2,A,T31,A50)")&
-                "# Program compiled on",&
-                ADJUSTR(compile_host(1:MIN(50,LEN(compile_host))))
-              WRITE (UNIT=ires,FMT="(T2,A,T31,A50)")&
-                "# Program compiled for",&
-                ADJUSTR(compile_arch(1:MIN(50,LEN(compile_arch))))
-              strend=MAX(1,LEN(compile_lastcvs)-2)
-              strstart=MAX(2,strend-50)
-              WRITE (UNIT=ires,FMT="(T2,A,T31,A50)")&
-                "# Last CVS entry",&
-                ADJUSTR(compile_lastcvs(strstart:strend))
-
-            CALL section_vals_write(globenv%input_file,unit_nr=ires,&
-                  hide_root=.TRUE., error=error)         
-
-         ENDIF
-
-         CALL cp_print_key_finished_output(ires,logger,motion_section,&
-              "MD%PRINT%RESTART", error=error)
-      END IF
+      CALL md_output(md_env,force_env_section,motion_section,globenv,error)
 
     END DO 
+
     CALL cp_rm_iter_level(logger%iter_info,n_rlevel_att=iter_level,&
          error=error)
 
@@ -434,6 +396,86 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE qs_mol_dyn2
+
+!!****f* md_run/md_output *
+!!
+!!   NAME
+!!     md_output 
+!!
+!!   FUNCTION
+!!     collects the part of the MD that, basically, does the output
+!!
+!!   NOTES
+!!
+!!   INPUTS
+!!
+!!   MODIFICATION HISTORY
+!!     03.2006 created [Joost VandeVondele]
+!!
+!!*** **********************************************************************
+SUBROUTINE md_output(md_env,force_env_section,motion_section,globenv,error)
+    TYPE(md_environment_type), POINTER       :: md_env
+    TYPE(section_vals_type), POINTER         :: force_env_section, &
+                                                motion_section
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'md_output', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=256)                       :: cwd, datx
+    INTEGER                                  :: handle, ires, strend, strstart
+    TYPE(cp_logger_type), POINTER            :: logger
+
+    CALL timeset(routineN,handle)
+
+    logger => cp_error_get_logger(error)
+
+    CALL md_energy ( md_env, globenv, error ) ! also writes trajectories
+
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,&
+           motion_section,"MD%PRINT%RESTART",error=error),cp_p_file)) THEN
+
+       ires = cp_print_key_unit_nr(logger,motion_section,"MD%PRINT%RESTART",&
+                 extension=".restart",  do_backup=.TRUE., &
+                 error=error)
+
+       CALL update_input(md_env=md_env,globenv=globenv,force_env_section=force_env_section,&
+                 error=error)
+       IF (ires>0) THEN
+          WRITE (UNIT=ires,FMT="(T2,A)") "# Version information for this restart file "
+          CALL m_datum(datx)
+          WRITE (UNIT=ires,FMT="(T2,A)") "# current date "//TRIM(datx)
+          CALL m_getcwd(cwd)
+          WRITE (UNIT=ires,FMT="(T2,A)") "# current working dir "//TRIM(cwd)
+
+          WRITE (UNIT=ires,FMT="(T2,A,T31,A50)")&
+                   "# Program compiled at",&
+                   ADJUSTR(compile_date(1:MIN(50,LEN(compile_date))))
+          WRITE (UNIT=ires,FMT="(T2,A,T31,A50)")&
+                   "# Program compiled on",&
+                   ADJUSTR(compile_host(1:MIN(50,LEN(compile_host))))
+          WRITE (UNIT=ires,FMT="(T2,A,T31,A50)")&
+                   "# Program compiled for",&
+                   ADJUSTR(compile_arch(1:MIN(50,LEN(compile_arch))))
+                 strend=MAX(1,LEN(compile_lastcvs)-2)
+                 strstart=MAX(2,strend-50)
+          WRITE (UNIT=ires,FMT="(T2,A,T31,A50)")&
+                   "# Last CVS entry",&
+                   ADJUSTR(compile_lastcvs(strstart:strend))
+
+          CALL section_vals_write(globenv%input_file,unit_nr=ires,&
+                     hide_root=.TRUE., error=error)
+        ENDIF
+
+        CALL cp_print_key_finished_output(ires,logger,motion_section,&
+                      "MD%PRINT%RESTART", error=error)
+    ENDIF 
+
+    CALL timestop(handle)
+
+END SUBROUTINE md_output
 
 ! *****************************************************************************
 
