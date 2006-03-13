@@ -38,7 +38,6 @@ MODULE qs_ot_eigensolver
                                              cp_fm_to_fm,&
                                              cp_fm_type
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
-  USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp
   USE preconditioner,                  ONLY: preconditioner_in_use,&
                                              preconditioner_type
@@ -55,9 +54,14 @@ MODULE qs_ot_eigensolver
   USE sparse_matrix_types,             ONLY: real_matrix_type
   USE timings,                         ONLY: timeset,&
                                              timestop
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
 
+
+! *** Global parameters ***
+
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ot_eigensolver'
 
 ! *** Public subroutines ***
 
@@ -73,7 +77,7 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE ot_eigensolver(matrix_h,matrix_s,matrix_orthogonal_space, &
                             matrix_c,preconditioner,eps_gradient, &
-                            iter_max,globenv,size_ortho_space)
+                            iter_max,size_ortho_space,error)
 
     TYPE(real_matrix_type), POINTER          :: matrix_h, matrix_s
     TYPE(cp_fm_type), OPTIONAL, POINTER      :: matrix_orthogonal_space
@@ -82,14 +86,18 @@ CONTAINS
       POINTER                                :: preconditioner
     REAL(KIND=dp)                            :: eps_gradient
     INTEGER                                  :: iter_max
-    TYPE(global_environment_type), POINTER   :: globenv
     INTEGER, OPTIONAL                        :: size_ortho_space
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'ot_eigensolver', &
+      routineP = moduleN//':'//routineN
 
     REAL(KIND=dp), PARAMETER                 :: rone = 1.0_dp, rzero = 0.0_dp
 
     INTEGER                                  :: handle, ieigensolver, k, n, &
-                                                ortho_k, ortho_space_k
-    LOGICAL                                  :: energy_only, ortho
+                                                output_unit, ortho_k, ortho_space_k
+    LOGICAL                                  :: energy_only, ionode, ortho
     REAL(KIND=dp)                            :: delta, energy
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: matrix_hc
@@ -98,11 +106,21 @@ CONTAINS
                                                 matrix_buf2_ortho, &
                                                 matrix_os_ortho, &
                                                 matrix_s_ortho
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
 
 !   ---------------------------------------------------------------------------
 
     CALL timeset("ot_eigensolver","I","",handle)
+
+    logger => cp_error_get_logger(error)
+    ionode = logger%para_env%mepos==logger%para_env%source
+    IF (ionode) THEN
+       output_unit= cp_logger_get_default_unit_nr(logger)
+    ELSE
+       output_unit = -1
+    END IF
+
     NULLIFY(qs_ot_env,fm_struct_tmp,matrix_s_ortho,matrix_os_ortho, &
                       matrix_buf1_ortho,matrix_buf2_ortho)
     ALLOCATE(qs_ot_env(1))
@@ -241,17 +259,17 @@ CONTAINS
       CALL qs_ot_get_orbitals(matrix_c,qs_ot_env(1)%matrix_x,qs_ot_env(1))
 
       IF (delta < eps_gradient) THEN
-          IF (globenv%ionode) THEN
-             WRITE(globenv%scr,*) " Reached convergence in ",ieigensolver, &
+          IF (ionode) THEN
+             WRITE(output_unit,*) " Reached convergence in ",ieigensolver, &
                                   " iterations "
           ENDIF
           EXIT eigensolver_loop
       ENDIF
       IF (ieigensolver .GE. iter_max) THEN
-         IF (globenv%ionode) THEN 
-           WRITE(globenv%scr,*) "WARNING : did not converge in ot_eigensolver"
-           WRITE(globenv%scr,*) "number of iterations ",ieigensolver
-           WRITE(globenv%scr,*) "current gradient / target gradient",delta," / ",eps_gradient
+         IF (ionode) THEN 
+           WRITE(output_unit,*) "WARNING : did not converge in ot_eigensolver"
+           WRITE(output_unit,*) "number of iterations ",ieigensolver
+           WRITE(output_unit,*) "current gradient / target gradient",delta," / ",eps_gradient
          ENDIF
          EXIT eigensolver_loop
       ENDIF

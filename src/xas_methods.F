@@ -347,7 +347,7 @@ CONTAINS
       CALL get_xas_env(xas_env=xas_env, qs_loc_env=qs_loc_env)
       CALL qs_loc_env_init(qs_loc_env,my_localized_wfn_control,qs_env,onlyspin1=.TRUE.,error=error)
     END IF
-    CALL qs_loc_driver(qs_env,qs_loc_env,ionode,onlyspin1=.TRUE.,error=error)
+    CALL qs_loc_driver(qs_env,qs_loc_env,onlyspin1=.TRUE.,error=error)
 
     ! scratch array for the state
     ALLOCATE(vecbuffer(1,nao),STAT=istat)
@@ -414,7 +414,7 @@ CONTAINS
              isgf = first_sgf(iatom) + j - 1
              component = component + stogto_overlap(my_kind)%array(i,j)*vecbuffer(1,isgf)
            END DO
-             sto_state_overlap(istate) = sto_state_overlap(istate) + &
+           sto_state_overlap(istate) = sto_state_overlap(istate) + &
                    component * component
          END DO
          IF(sto_state_overlap(istate)>max_overlap(iatom)) THEN
@@ -506,6 +506,9 @@ CONTAINS
 
          CALL xas_do_tp_scf(xas_control,xas_env,iatom,scf_env,qs_env,globenv,error=error)
 
+
+
+!         CALL qs_loc_driver(qs_env,qs_loc_env,onlyspin1=.TRUE.,error=error)
 !dbg 
 !  write(*,*) iat, state_to_be_excited
 ! stop 'check'
@@ -516,7 +519,7 @@ CONTAINS
 !   *** Write last wavefunction to screen ***
          DO ispin=1,dft_control%nspins
            CALL write_mo_set(mos(ispin)%mo_set,atomic_kind_set,particle_set,&
-           4,6,dft_section,globenv)
+           4,6,dft_section,error=error)
          ENDDO
 
          CALL get_xas_env(xas_env=xas_env,all_vectors=all_vectors,nvirtual2=nvirtual2,&
@@ -560,7 +563,9 @@ CONTAINS
       DO ispin = 1,nspins
        CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff,&
             nao=nao, nmo=nmo)
-       CALL cp_fm_to_fm(groundstate_coeff(ispin)%matrix,mo_coeff,nmo,1,1)
+!       CALL cp_fm_to_fm(groundstate_coeff(ispin)%matrix,mo_coeff,nmo,1,1)
+! not sure that orthogonality is conserved
+       CALL cp_fm_to_fm(groundstate_coeff(ispin)%matrix,mo_coeff,nexc_search,1,1)
       END DO
 
     END DO

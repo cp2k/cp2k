@@ -22,9 +22,11 @@
 
 
 MODULE xas_tp_scf
-  USE atomic_kind_types,               ONLY: atomic_kind_type
+  USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                             get_atomic_kind
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
+  USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
@@ -54,7 +56,8 @@ MODULE xas_tp_scf
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_flush,&
                                              m_walltime
-  USE particle_types,                  ONLY: particle_type
+  USE particle_types,                  ONLY: get_particle_set,&
+                                             particle_type
   USE preconditioner,                  ONLY: destroy_preconditioner,&
                                              init_preconditioner,&
                                              make_preconditioner,&
@@ -68,7 +71,7 @@ MODULE xas_tp_scf
                                              qs_ks_update_qs_env
   USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE qs_loc_control,                  ONLY: localized_wfn_control_type
-  USE qs_loc_methods,                  ONLY: optimize_loc_berry
+  USE qs_loc_methods,                  ONLY: qs_loc_driver
   USE qs_loc_types,                    ONLY: get_qs_loc_env,&
                                              qs_loc_env_new_type
   USE qs_mo_methods,                   ONLY: calculate_density_matrix,&
@@ -155,20 +158,19 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: handle, handle2, homo, i, ic_max, ir_max, ispin, istat, &
-      istate, iter_count, m, n, nao, nmo, nvirtual1, nvirtual2, output_unit, &
-      uno_iter
+      istate, iter_count, m, n, nao, nmo, nvirtual1, nvirtual2, output_unit
     INTEGER, DIMENSION(:), POINTER           :: col_indices
     LOGICAL :: diis_step, do_level_shift, energy_only, failure, gapw, &
       id_equal, ionode, should_stop, uniform_occupation, use_cholesky, &
       use_jacobi
-    REAL(dp), DIMENSION(6)                   :: weights
-    REAL(dp), DIMENSION(:, :), POINTER       :: centers_wfn
+!    REAL(dp), DIMENSION(6)                   :: weights
+!    REAL(dp), DIMENSION(:, :), POINTER       :: centers_wfn
     REAL(KIND=dp)                            :: a_max, b_max, diis_error, &
                                                 IP_energy, ra(3), rac(3), &
                                                 rc(3), t1, t2, tot1_h, &
-                                                tot1_s, uno_eps
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: all_evals, eigenvalues, &
-                                                occupation_numbers, uno_evals
+                                                tot1_s
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: eigenvalues, &
+                                                occupation_numbers
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: vecbuffer, vecbuffer2
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -179,8 +181,7 @@ CONTAINS
       POINTER                                :: op_fm_set
     TYPE(cp_fm_type), POINTER                :: all_vectors, excvec_coeff, &
                                                 excvec_overlap, fm_work, &
-                                                mo_coeff, ortho, scf_work2, &
-                                                uno_orbs
+                                                mo_coeff, ortho, scf_work2
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(localized_wfn_control_type), &
@@ -189,7 +190,6 @@ CONTAINS
       POINTER                                :: mos
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(preconditioner_type), POINTER       :: preconditioner
     TYPE(qs_charges_type), POINTER           :: qs_charges
     TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_ks_env_type), POINTER            :: ks_env
@@ -198,8 +198,6 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_h, matrix_ks, &
                                                 matrix_p, matrix_s
-    TYPE(real_matrix_p_type), &
-      DIMENSION(:, :), POINTER               :: op_sm_set
     TYPE(real_matrix_type), POINTER          :: orthogonality_metric
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: dft_section, input, &
@@ -211,8 +209,6 @@ CONTAINS
     NULLIFY(particle_set,vecbuffer,vecbuffer2, occupation_numbers)
     NULLIFY( scf_work1,ortho,scf_work2,excvec_coeff,excvec_overlap,mo_coeff)
     NULLIFY(fm_work, col_indices, eigenvalues)
-    NULLIFY(centers_wfn,qs_loc_env,localized_wfn_control)
-    NULLIFY(op_sm_set,op_fm_set,moloc_coeff,cell)
     NULLIFY( dft_section, scf_section,input,qs_charges)
 
     logger => cp_error_get_logger(error)
@@ -289,8 +285,8 @@ CONTAINS
     ! end sparsity check
 
     ! Some elements from the xas_env
-     CALL get_xas_env(xas_env=xas_env,excvec_coeff=excvec_coeff,nvirtual2=nvirtual2,&
-          excvec_overlap=excvec_overlap,fm_work=fm_work,centers_wfn=centers_wfn)
+     CALL get_xas_env(xas_env=xas_env,excvec_coeff=excvec_coeff,&
+          excvec_overlap=excvec_overlap,fm_work=fm_work)
      CPPrecondition(ASSOCIATED(excvec_overlap),cp_failure_level,routineP,error,failure)
 
     iter_count = 0
@@ -327,7 +323,7 @@ CONTAINS
        SELECT CASE (xas_env%scf_method)
          CASE DEFAULT
             CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-                 routineP,"unknown scf method method:"//&
+                 routineP,"unknown scf method method for core level spectroscopy"//&
                  cp_to_string(xas_env%scf_method),error,failure)
 
          CASE(xas_scf_general) ! diagonalisation (default)
@@ -388,28 +384,28 @@ CONTAINS
                  CALL get_mo_set(mos(1)%mo_set, mo_coeff=mo_coeff,nao=nao,nmo=nmo,&
                       eigenvalues=eigenvalues,homo=homo)
 !TEST : Calculate the centers of the wavefunctions to check the localization
-                 IF(.FALSE.) THEN
-                   CALL get_xas_env(xas_env=xas_env, qs_loc_env=qs_loc_env)
-                   CALL get_qs_loc_env(qs_loc_env=qs_loc_env,&
-                        localized_wfn_control=localized_wfn_control,&
-                        moloc_coeff=moloc_coeff,&
-                        op_sm_set=op_sm_set,op_fm_set=op_fm_set,&
-                        cell=cell, weights=weights)
- 
-                   CALL cp_fm_to_fm(mo_coeff,moloc_coeff(1)%matrix,xas_control%nexc_search,1,1 )
-                   CALL optimize_loc_berry(do_loc_none, localized_wfn_control, &
-                        moloc_coeff(1)%matrix, op_sm_set, &
-                        op_fm_set, cell, weights, 1, ionode, error=error)
-
-                   ra(1:3) = particle_set(iatom)%r(1:3)
-                   DO istate = 1,xas_control%nexc_search
-                      centers_wfn(1,istate) = localized_wfn_control%centers_set(1)%array(1,istate)
-                      centers_wfn(2,istate) = localized_wfn_control%centers_set(1)%array(2,istate)
-                      centers_wfn(3,istate) = localized_wfn_control%centers_set(1)%array(3,istate)
-                      rc(1:3) = centers_wfn(1:3,istate)
-                      rac = pbc(ra,rc,cell)
-                   END DO 
-                 END IF
+!                 IF(.FALSE.) THEN
+!                   CALL get_xas_env(xas_env=xas_env, qs_loc_env=qs_loc_env)
+!                   CALL get_qs_loc_env(qs_loc_env=qs_loc_env,&
+!                        localized_wfn_control=localized_wfn_control,&
+!                        moloc_coeff=moloc_coeff,&
+!                        op_sm_set=op_sm_set,op_fm_set=op_fm_set,&
+!                        cell=cell, weights=weights)
+! 
+!                   CALL cp_fm_to_fm(mo_coeff,moloc_coeff(1)%matrix,xas_control%nexc_search,1,1 )
+!                   CALL optimize_loc_berry(do_loc_none, localized_wfn_control, &
+!                        moloc_coeff(1)%matrix, op_sm_set, &
+!                        op_fm_set, cell, weights, 1, ionode, error=error)
+!
+!                   ra(1:3) = particle_set(iatom)%r(1:3)
+!                   DO istate = 1,xas_control%nexc_search
+!                      centers_wfn(1,istate) = localized_wfn_control%centers_set(1)%array(1,istate)
+!                      centers_wfn(2,istate) = localized_wfn_control%centers_set(1)%array(2,istate)
+!                      centers_wfn(3,istate) = localized_wfn_control%centers_set(1)%array(3,istate)
+!                      rc(1:3) = centers_wfn(1:3,istate)
+!                      rac = pbc(ra,rc,cell)
+!                   END DO 
+!                 END IF
 !TEST
 
                  CALL cp_sm_fm_multiply(matrix_s(1)%matrix,mo_coeff,fm_work,ncol=nmo)
@@ -417,8 +413,6 @@ CONTAINS
                       fm_work,0.0_dp,excvec_overlap,b_first_col=1,error=error)
                  CALL cp_fm_get_info ( matrix=excvec_overlap, col_indices = col_indices,&
                         nrow_global = m, ncol_global = n )
-!        CALL cp_fm_get_info ( matrix=excvec_coeff, nrow_global = m, ncol_global = n )
-!        CALL cp_fm_get_info ( matrix=fm_work, nrow_global = m, ncol_global = n )
                  CALL cp_fm_get_submatrix(excvec_overlap,vecbuffer2,1,1,&
                       1,xas_control%nexc_search,transpose=.FALSE.,error=error)
 
@@ -461,77 +455,12 @@ CONTAINS
                END IF
 
                CALL write_mo_set(mos(ispin)%mo_set,atomic_kind_set,particle_set,&
-                    4,6,dft_section,globenv)
+                    4,6,dft_section,error=error)
 
                CALL calculate_density_matrix(mos(ispin)%mo_set,&
                     scf_env%p_mix_new(ispin)%matrix,error=error)
 
             ENDDO
-
-         CASE(xas_scf_ot) ! orbital transforms
-! in case of LSD the first spin qs_ot_env will drive the minimization
-! in the case of a restricted calculation, it will make sure the spin orbitals are equal
-            orthogonality_metric=>matrix_s(1)%matrix
-
-            CALL ot_scf_mini(mos,qs_env%mo_derivs,orthogonality_metric, &
-                             energy%total, energy_only,scf_env%iter_delta, &
-                             scf_env%qs_ot_env)
-
-            DO ispin=1,dft_control%nspins
-              IF(ispin == 1) THEN
-! ** use the maximum overlap criterion to find the index of the excited orbital
-                 CALL get_mo_set(mos(1)%mo_set, mo_coeff=mo_coeff,nao=nao,nmo=nmo,&
-                      eigenvalues=eigenvalues,homo=homo)
-
-                 CALL cp_sm_fm_multiply(matrix_s(1)%matrix,mo_coeff,fm_work,ncol=nmo)
-
-                 CALL cp_fm_gemm("T","N",1,xas_control%nexc_search,nao,1.0_dp,excvec_coeff,&
-                      fm_work,0.0_dp,excvec_overlap,b_first_col=1,error=error)
-                 CALL cp_fm_get_info ( matrix=excvec_overlap, col_indices = col_indices)
-
-                 CALL cp_fm_get_submatrix(excvec_overlap,vecbuffer2,1,1,&
-                      1,xas_control%nexc_search,transpose=.TRUE.,error=error)
-
-                 uniform_occupation = .FALSE.
-                 CALL get_mo_set(mos(1)%mo_set,&
-                        occupation_numbers=occupation_numbers)
-
-                 b_max = 0.0_dp
- 
-                 DO i = 1,xas_control%nexc_search
-                   a_max = ABS(vecbuffer2(1,i))
-                   IF(a_max > b_max)THEN
-                      ic_max = i 
-                      b_max = a_max
-                   ENDIF
-                 END DO
-
-                 IF(ic_max /= dft_control% xas_estate) THEN
-                   ir_max = dft_control% xas_estate
-                   dft_control% xas_estate = ic_max
-
-                   occupation_numbers(dft_control%xas_estate) = xas_control%occ_estate
-                   occupation_numbers(ir_max) = 1.0_dp
-                   occupation_numbers(homo) =  xas_control%occ_homo
-                 END IF
-
-                 ! IOnization Potential
-                 IP_energy = eigenvalues(dft_control% xas_estate)
-
-                 CALL set_mo_set(mos(1)%mo_set,&
-                      uniform_occupation=uniform_occupation)
-                 CALL cp_fm_get_submatrix(mo_coeff,vecbuffer,1,dft_control%xas_estate,&
-                      nao,1,transpose=.TRUE.,error=error)
-                 CALL cp_fm_set_submatrix(excvec_coeff,vecbuffer,1,1,&
-                      nao,1,transpose=.TRUE.,error=error)
-               END IF
-
-               CALL calculate_density_matrix(mos(ispin)%mo_set,&
-                     rho%rho_ao(ispin)%matrix,error=error)
-            ENDDO
-
-            scf_env%iter_method=scf_env%qs_ot_env(1)%OT_METHOD_FULL
-            scf_env%iter_param=scf_env%qs_ot_env(1)%ds_min
 
        END SELECT
 
@@ -584,11 +513,7 @@ CONTAINS
 
 
 ! ** update qs_env%rho
-       CALL qs_rho_update_rho(rho, qs_env=qs_env, gapw=gapw, error=error)
-       IF(gapw) THEN
-         CALL calculate_rho_atom_coeff(qs_env,rho%rho_ao)
-       ENDIF
-
+       CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
        CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,error=error)      
 
        CALL timestop(0.0_dp,handle2)
@@ -654,81 +579,7 @@ CONTAINS
     DEALLOCATE(vecbuffer,vecbuffer2,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-    IF(.NOT.xas_env%scf_method==xas_scf_general) THEN
-    ! Rotate the wfn to get the eugenstate of the KS hamiltonian
-    ! Only ispin=1 should be needed
-      DO ispin=1,dft_control%nspins
-        CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff,nao=nao,nmo=nmo,&
-             eigenvalues=eigenvalues,homo=homo)
-        CALL calculate_subspace_eigenvalues(mo_coeff,&
-             matrix_ks(ispin)%matrix,eigenvalues, &
-             para_env=qs_env%para_env, &
-             do_rotation=.TRUE.)
-      END DO  ! ispin
-    END IF
-
-    !Calculate the virtual states from the KS matrix matrix_ks(1)
-    IF(nvirtual2 .GT. 0) THEN
-      NULLIFY(mo_coeff,uno_orbs,uno_evals,preconditioner)
-      ALLOCATE(preconditioner,STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-      CALL init_preconditioner(preconditioner,para_env=qs_env%para_env,&
-           blacs_env=qs_env%blacs_env)
-      CALL get_mo_set(mos(1)%mo_set, mo_coeff=mo_coeff,nao=nao,nmo=nmo)
-      CALL make_preconditioner(preconditioner, &
-                  precon_type=ot_precond_full_kinetic, &
-                  matrix_h=matrix_ks(1)%matrix,matrix_s=matrix_s(1)%matrix,&
-                  matrix_t=qs_env%kinetic(1)%matrix, &
-                  mo_coeff=mo_coeff,energy_gap=0.2_dp)
-
-      CALL get_xas_env(xas_env=xas_env,unoccupied_orbs=uno_orbs,&
-           unoccupied_evals=uno_evals,unoccupied_eps=uno_eps,unoccupied_max_iter=uno_iter)
-      CALL cp_fm_init_random(uno_orbs,nvirtual2)
-      CALL ot_eigensolver(matrix_h=matrix_ks(1)%matrix,matrix_s=matrix_s(1)%matrix, &
-           matrix_c=uno_orbs,matrix_orthogonal_space=mo_coeff,&
-           preconditioner=preconditioner,eps_gradient=uno_eps,&
-           iter_max=uno_iter,globenv=globenv,size_ortho_space=nmo)
-      CALL calculate_subspace_eigenvalues(uno_orbs,matrix_ks(1)%matrix,&
-           uno_evals,para_env=qs_env%para_env,do_rotation=.TRUE.)
-      CALL destroy_preconditioner(preconditioner)
-      DEALLOCATE(preconditioner,STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    END IF
-
-    ! Prapare arrays for the calculation of the spectrum
-    IF(.NOT. xas_control%xas_method == xas_dscf) THEN
-      ! Copy the final vectors in the array
-      NULLIFY(all_vectors,all_evals)
-      CALL get_xas_env(xas_env=xas_env,all_vectors=all_vectors,&
-           all_evals=all_evals,nvirtual1=nvirtual1)
-      CALL get_mo_set(mos(1)%mo_set, eigenvalues=eigenvalues,mo_coeff=mo_coeff,&
-           nao=nao,nmo=nmo,homo=homo)
-
-      IF(xas_control%emission) THEN
-        CALL cp_fm_to_fm(mo_coeff,all_vectors,ncol=nvirtual1,&
-             source_start=1,target_start=1)
-      ELSE
-        CALL cp_fm_to_fm(mo_coeff,all_vectors,ncol=nvirtual1,&
-             source_start=homo+1,target_start=1)
-      END IF
-      IF(nvirtual2 .GT. 0) THEN
-        CALL cp_fm_to_fm(uno_orbs,all_vectors,ncol=nvirtual2,&
-             source_start=1,target_start=1+nvirtual1)
-      END IF
-
-      IF(xas_control%emission) THEN
-        DO istate = 1,nvirtual1
-          all_evals(istate) = eigenvalues(istate)
-        ENDDO
-      ELSE
-        DO istate = 1,nvirtual1
-          all_evals(istate) = eigenvalues(homo+istate)
-        ENDDO
-      END IF
-      DO istate = 1,nvirtual2
-        all_evals(istate+nvirtual1) = uno_evals(istate)
-      END DO 
-    END IF
+    CALL cls_prepare_states(xas_control,xas_env,qs_env,iatom,error=error)
 
     CALL cp_print_key_finished_output(output_unit,logger,scf_section,&
          "PRINT%PROGRAM_RUN_INFO", error=error)    
@@ -851,5 +702,232 @@ CONTAINS
     
   END SUBROUTINE xas_smearing
 !***************************************************************************
+
+  SUBROUTINE cls_prepare_states(xas_control,xas_env,qs_env,iatom,error)
+
+    TYPE(xas_control_type)                   :: xas_control
+    TYPE(xas_environment_type), POINTER      :: xas_env
+    INTEGER, INTENT(IN)                      :: iatom
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'cls_prepare_states', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER :: handle, homo, i,j, ikind, isgf, ispin, istat, &
+      istate, m, my_kind, my_state, n, natom, nao, nmo, &
+      nvirtual1, nvirtual2, uno_iter
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf
+    INTEGER, DIMENSION(:), POINTER           :: mykind_of_kind
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: component, dist, sto_state_overlap,&
+                                                max_overlap,&
+                                                ra(3), rac(3),rc(3), uno_eps
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: all_evals, eigenvalues, &
+                                                uno_evals
+    REAL(dp), DIMENSION(:, :), POINTER       :: centers_wfn
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: vecbuffer,vecbuffer2
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_2d_r_p_type), DIMENSION(:), &
+      POINTER                                :: stogto_overlap
+    TYPE(cp_fm_type), POINTER                :: all_vectors, excvec_coeff, &
+                                                excvec_overlap, mo_coeff,uno_orbs
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(localized_wfn_control_type), &
+      POINTER                                :: localized_wfn_control
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mos
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(preconditioner_type), POINTER       :: preconditioner
+    TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_h, matrix_ks, &
+                                                matrix_s
+
+    CALL timeset(routineN,"I"," ",handle)
+
+    NULLIFY(atomic_kind,dft_control,matrix_h,matrix_s,matrix_ks)
+    NULLIFY(cell,particle_set,preconditioner,vecbuffer,vecbuffer2)
+    NULLIFY(dft_control,mos,mo_coeff,eigenvalues)
+    NULLIFY(centers_wfn,mykind_of_kind,qs_loc_env,localized_wfn_control)
+    NULLIFY(all_evals,all_vectors,excvec_coeff,excvec_overlap,uno_evals)
+
+    failure=.FALSE.
+
+    CPPrecondition(ASSOCIATED(xas_env),cp_failure_level,routineP,error,failure)
+
+    CALL get_qs_env(qs_env=qs_env,&
+         cell=cell,dft_control=dft_control,matrix_h=matrix_h,&
+         matrix_ks=matrix_ks, matrix_s=matrix_s,mos=mos,&
+         particle_set=particle_set)
+
+    ! Some elements from the xas_env
+     CALL get_xas_env(xas_env=xas_env,&
+          all_vectors=all_vectors,all_evals=all_evals,&
+          excvec_coeff=excvec_coeff,&
+          nvirtual2=nvirtual2,nvirtual1=nvirtual1,&
+          excvec_overlap=excvec_overlap)
+     CPPrecondition(ASSOCIATED(excvec_overlap),cp_failure_level,routineP,error,failure)
+
+     CALL get_mo_set(mos(1)%mo_set, mo_coeff=mo_coeff,nao=nao,nmo=nmo,&
+                     eigenvalues=eigenvalues,homo=homo)
+
+    ALLOCATE(vecbuffer(1,nao),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    vecbuffer = 0.0_dp
+    ALLOCATE(vecbuffer2(1,nao),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    vecbuffer2 = 0.0_dp
+    natom=SIZE(particle_set,1)
+    ALLOCATE (first_sgf(natom),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    CALL get_particle_set(particle_set=particle_set, first_sgf=first_sgf)
+
+    IF(.NOT.xas_env%scf_method==xas_scf_general) THEN
+      CALL get_xas_env(xas_env=xas_env, &
+           mykind_of_kind=mykind_of_kind, qs_loc_env=qs_loc_env,&
+            stogto_overlap=stogto_overlap)
+      CALL get_qs_loc_env(qs_loc_env=qs_loc_env,&
+            localized_wfn_control=localized_wfn_control)
+      CALL qs_loc_driver(qs_env,qs_loc_env,onlyspin1=.TRUE.,error=error)
+      ra(1:3) = particle_set(iatom)%r(1:3)
+
+      max_overlap = 0.0_dp
+      DO istate = 1,xas_control%nexc_search
+         centers_wfn(1,istate) =  localized_wfn_control%centers_set(1)%array(1,istate)
+         centers_wfn(2,istate) =  localized_wfn_control%centers_set(1)%array(2,istate)
+         centers_wfn(3,istate) =  localized_wfn_control%centers_set(1)%array(3,istate)
+         
+         NULLIFY(atomic_kind)
+         atomic_kind =>  particle_set(iatom)%atomic_kind
+         CALL get_atomic_kind(atomic_kind=atomic_kind,&
+              kind_number=ikind)
+         my_kind = mykind_of_kind(ikind)
+
+         rc(1:3) = centers_wfn(1:3,istate)
+         rac = pbc(ra,rc,cell)
+         dist = rac(1)*rac(1) + rac(2)*rac(2) + rac(3)*rac(3)
+         
+         IF(dist < 0.5_dp) THEN
+           CALL cp_fm_get_submatrix(mo_coeff,vecbuffer,1,istate,&
+              nao,1,transpose=.TRUE.,error=error)
+           sto_state_overlap=0.0_dp
+           DO i = 1,SIZE(stogto_overlap(my_kind)%array,1)
+             component = 0.0_dp
+             DO j = 1,SIZE(stogto_overlap(my_kind)%array,2)
+               isgf = first_sgf(iatom) + j - 1
+               component = component + stogto_overlap(my_kind)%array(i,j)*vecbuffer(1,isgf)
+             END DO  ! j size
+             sto_state_overlap = sto_state_overlap + &
+                   component * component
+           END DO  ! i size
+           IF(sto_state_overlap .GT. max_overlap) THEN
+             max_overlap = sto_state_overlap
+             my_state = istate
+           END IF
+         
+         END IF
+      END DO  !  istate
+  
+      
+    ! Rotate the wfn to get the eigenstate of the KS hamiltonian
+    ! Only ispin=1 should be needed
+      DO ispin=1,dft_control%nspins
+        CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff,nao=nao,nmo=nmo,&
+             eigenvalues=eigenvalues,homo=homo)
+        CALL calculate_subspace_eigenvalues(mo_coeff,&
+             matrix_ks(ispin)%matrix,eigenvalues, &
+             para_env=qs_env%para_env, &
+             do_rotation=.TRUE.)
+      END DO  ! ispin
+
+      CALL get_mo_set(mos(1)%mo_set, mo_coeff=mo_coeff)
+      CALL cp_fm_get_submatrix(mo_coeff,vecbuffer,1,dft_control%xas_estate,&
+                nao,1,transpose=.TRUE.,error=error)
+      CALL cp_fm_set_submatrix(excvec_coeff,vecbuffer,1,1,&
+                nao,1,transpose=.TRUE.,error=error)
+      CALL cp_fm_get_submatrix(mo_coeff,vecbuffer2,1,my_state,&
+                nao,1,transpose=.TRUE.,error=error)
+!      CALL cp_fm_set_submatrix(excvec_coeff,vecbuffer2,1,1,&
+!                nao,1,transpose=.TRUE.,error=error)
+    END IF
+
+
+
+    !Calculate the virtual states from the KS matrix matrix_ks(1)
+    IF(nvirtual2 .GT. 0) THEN
+      NULLIFY(mo_coeff,uno_orbs,uno_evals,preconditioner)
+      ALLOCATE(preconditioner,STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+      CALL init_preconditioner(preconditioner,para_env=qs_env%para_env,&
+           blacs_env=qs_env%blacs_env)
+      CALL get_mo_set(mos(1)%mo_set, mo_coeff=mo_coeff,nao=nao,nmo=nmo)
+      CALL make_preconditioner(preconditioner, &
+                  precon_type=ot_precond_full_kinetic, &
+                  matrix_h=matrix_ks(1)%matrix,matrix_s=matrix_s(1)%matrix,&
+                  matrix_t=qs_env%kinetic(1)%matrix, &
+                  mo_coeff=mo_coeff,energy_gap=0.2_dp)
+
+      CALL get_xas_env(xas_env=xas_env,unoccupied_orbs=uno_orbs,&
+           unoccupied_evals=uno_evals,unoccupied_eps=uno_eps,unoccupied_max_iter=uno_iter)
+      CALL cp_fm_init_random(uno_orbs,nvirtual2)
+      CALL ot_eigensolver(matrix_h=matrix_ks(1)%matrix,matrix_s=matrix_s(1)%matrix, &
+           matrix_c=uno_orbs,matrix_orthogonal_space=mo_coeff,&
+           preconditioner=preconditioner,eps_gradient=uno_eps,&
+           iter_max=uno_iter,size_ortho_space=nmo,error=error)
+      CALL calculate_subspace_eigenvalues(uno_orbs,matrix_ks(1)%matrix,&
+           uno_evals,para_env=qs_env%para_env,do_rotation=.TRUE.)
+      CALL destroy_preconditioner(preconditioner)
+      DEALLOCATE(preconditioner,STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    END IF
+
+    ! Prapare arrays for the calculation of the spectrum
+    IF(.NOT. xas_control%xas_method == xas_dscf) THEN
+      ! Copy the final vectors in the array
+      NULLIFY(all_vectors,all_evals)
+      CALL get_xas_env(xas_env=xas_env,all_vectors=all_vectors,&
+           all_evals=all_evals,nvirtual1=nvirtual1)
+      CALL get_mo_set(mos(1)%mo_set, eigenvalues=eigenvalues,mo_coeff=mo_coeff,&
+           nao=nao,nmo=nmo,homo=homo)
+
+      IF(xas_control%emission) THEN
+        CALL cp_fm_to_fm(mo_coeff,all_vectors,ncol=nvirtual1,&
+             source_start=1,target_start=1)
+      ELSE
+        CALL cp_fm_to_fm(mo_coeff,all_vectors,ncol=nvirtual1,&
+             source_start=homo+1,target_start=1)
+      END IF
+      IF(nvirtual2 .GT. 0) THEN
+        CALL cp_fm_to_fm(uno_orbs,all_vectors,ncol=nvirtual2,&
+             source_start=1,target_start=1+nvirtual1)
+      END IF
+
+      IF(xas_control%emission) THEN
+        DO istate = 1,nvirtual1
+          all_evals(istate) = eigenvalues(istate)
+        ENDDO
+      ELSE
+        DO istate = 1,nvirtual1
+          all_evals(istate) = eigenvalues(homo+istate)
+        ENDDO
+      END IF
+      DO istate = 1,nvirtual2
+        all_evals(istate+nvirtual1) = uno_evals(istate)
+      END DO 
+    END IF
+
+    DEALLOCATE(vecbuffer,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE(vecbuffer2,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+
+    CALL timestop(0.0_dp,handle)
+
+  END SUBROUTINE
 
 END MODULE xas_tp_scf

@@ -38,6 +38,7 @@ MODULE qs_rho_methods
   USE qs_collocate_density,            ONLY: calculate_rho_elec
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
+  USE qs_rho_atom_methods,             ONLY: calculate_rho_atom_coeff
   USE qs_rho_types,                    ONLY: qs_rho_release,&
                                              qs_rho_type
   USE sparse_matrix_types,             ONLY: add_matrices,&
@@ -306,10 +307,9 @@ END SUBROUTINE qs_rho_rebuild
 !!     08.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, gapw, error)
+SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, error)
     TYPE(qs_rho_type), POINTER               :: rho_struct
     TYPE(qs_environment_type), POINTER       :: qs_env
-    LOGICAL, INTENT(IN), OPTIONAL            :: gapw
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -317,15 +317,14 @@ SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, gapw, error)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ispin, nspins
-    LOGICAL                                  :: failure, my_gapw
+    LOGICAL                                  :: failure, gapw, gapw_xc
     REAL(KIND=dp)                            :: dum
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(qs_rho_type), POINTER               :: rho_xc
 
     failure=.FALSE.
-    my_gapw = .FALSE.
-    IF(PRESENT(gapw)) my_gapw = gapw
 
-    NULLIFY(dft_control)
+    NULLIFY(dft_control,rho_xc)
 
     CPPrecondition(ASSOCIATED(rho_struct),cp_failure_level,routineP,error,failure)
     CPPrecondition(rho_struct%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -333,6 +332,8 @@ SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, gapw, error)
 
       CALL get_qs_env(qs_env, dft_control=dft_control)
       nspins=dft_control%nspins
+      gapw = dft_control%qs_control%gapw
+      gapw_xc = dft_control%qs_control%gapw_xc
     END IF
     IF (.NOT.failure) THEN
       ! get tmp grids
@@ -344,7 +345,7 @@ SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, gapw, error)
                 rho=rho_struct%rho_r(ispin),&
                 rho_gspace=rho_struct%rho_g(ispin),&
                 total_rho=rho_struct%tot_rho_r(ispin),&
-                qs_env=qs_env,soft_valid=my_gapw,error=error)
+                qs_env=qs_env,soft_valid=gapw,error=error)
         END DO
       END IF
       rho_struct%rho_r_valid=.TRUE.
@@ -357,7 +358,7 @@ SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, gapw, error)
                  rho=rho_struct%tau_r(ispin),&
                  rho_gspace=rho_struct%tau_g(ispin),&
                  total_rho=dum, &  ! presumably not meaningful
-                 qs_env=qs_env, soft_valid=my_gapw, &
+                 qs_env=qs_env, soft_valid=gapw, &
                  compute_tau=.TRUE., error=error)
          END DO
          rho_struct%tau_r_valid=.TRUE.
@@ -367,7 +368,39 @@ SUBROUTINE qs_rho_update_rho(rho_struct, qs_env, gapw, error)
 !FM           long_description=.TRUE., local=.true., error=error)
 !FM      WRITE (123,"(5F30.20)") rho_struct%rho_r(1)%pw%cr3d
 !FM      stop "pippo"
+
+     ! GAPW o GAPW_XC require the calculation of hard and soft local densities
+      IF(gapw ) THEN
+         CALL calculate_rho_atom_coeff(qs_env,rho_struct%rho_ao)
+      ENDIF
+      IF(gapw_xc ) THEN
+         CALL get_qs_env(qs_env=qs_env,rho_xc=rho_xc)
+         CALL calculate_rho_atom_coeff(qs_env,rho_struct%rho_ao)
+         DO ispin=1,nspins
+           CALL calculate_rho_elec(matrix_p=rho_xc%rho_ao(ispin)%matrix,&
+                rho=rho_xc%rho_r(ispin),&
+                rho_gspace=rho_xc%rho_g(ispin),&
+                total_rho=rho_xc%tot_rho_r(ispin),&
+                qs_env=qs_env,soft_valid=gapw_xc,error=error)
+         END DO
+         rho_xc%rho_r_valid=.TRUE.
+         rho_xc%rho_g_valid=.TRUE.
+         ! if needed compute also the kinetic energy density
+         IF (dft_control%use_kinetic_energy_density) THEN
+           DO ispin=1,nspins
+             CALL calculate_rho_elec(matrix_p=rho_xc%rho_ao(ispin)%matrix,&
+                 rho=rho_xc%tau_r(ispin),&
+                 rho_gspace=rho_xc%tau_g(ispin),&
+                 total_rho=dum, &  ! presumably not meaningful
+                 qs_env=qs_env, soft_valid=gapw_xc, &
+                 compute_tau=.TRUE., error=error)
+           END DO
+           rho_xc%tau_r_valid=.TRUE.
+           rho_xc%tau_g_valid=.TRUE.
+         ENDIF
+      ENDIF
     END IF
+    
 END SUBROUTINE qs_rho_update_rho
 
 !***************************************************************************

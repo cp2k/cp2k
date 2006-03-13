@@ -420,7 +420,7 @@ CONTAINS
 
        IF (my_localized_wfn) THEN
 
-          CALL qs_loc_driver(qs_env,qs_loc_env_new,ionode,error=error)
+          CALL qs_loc_driver(qs_env,qs_loc_env_new,error=error)
  
        ELSEIF (p_loc) THEN
           DO ispin=1,dft_control%nspins
@@ -560,8 +560,8 @@ CONTAINS
                   matrix_orthogonal_space=mo_coeff, &
                   eps_gradient=scf_control%eps_lumos, &
                   preconditioner=preconditioner, &
-                  iter_max=scf_control%max_iter_lumos,globenv=globenv,&
-                  size_ortho_space=homo)
+                  iter_max=scf_control%max_iter_lumos,&
+                  size_ortho_space=homo,error=error)
 
              CALL calculate_subspace_eigenvalues(unoccupied_orbs(ispin)%matrix,ks_rmpv(ispin)%matrix,&
                   unoccupied_evals(ispin)%evals, para_env=qs_env%para_env,scr=output_unit, &
@@ -806,7 +806,8 @@ CONTAINS
 
 !   *** Write last wavefunction to screen ***
        DO ispin=1,dft_control%nspins
-          CALL write_mo_set(mos(ispin)%mo_set,atomic_kind_set,particle_set,4,6,dft_section,globenv)
+          CALL write_mo_set(mos(ispin)%mo_set,atomic_kind_set,particle_set,4,6,&
+               dft_section,error=error)
        ENDDO
 
 !   *** Integrated absolute spin density and spin contamination ***
@@ -820,7 +821,7 @@ CONTAINS
           CALL coeff_copy(rho%rho_r(1),wf_r)
           CALL coeff_reduce(rho%rho_r(2),wf_r)
           total_abs_spin_dens=calculate_total_abs_rho(wf_r)
-          IF (globenv%ionode) WRITE(UNIT=output_unit,fmt='(/,(T3,A,T60,F20.10))') &
+          IF (ionode) WRITE(UNIT=output_unit,fmt='(/,(T3,A,T60,F20.10))') &
                "Integrated absolute spin density  : ",total_abs_spin_dens
           CALL pw_pool_give_back_coeff(auxbas_pw_pool,wf_r, error=error)
           !
@@ -919,7 +920,7 @@ CONTAINS
           CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&
                error=error)
           CALL calc_stupid_dipole(qs_env%subsys,rho%rho_r,qs_env%rho_core%pw,&
-               aux_bas_pool=auxbas_pw_pool,cell=cell,globenv=globenv,&
+               aux_bas_pool=auxbas_pw_pool,cell=cell,&
                unit_nr=unit_nr,&
                print_header=.FALSE.,&
                error=error)
@@ -1067,14 +1068,13 @@ CONTAINS
 !!
 !!*** **********************************************************************
 SUBROUTINE calc_stupid_dipole(subsystem, rho_r, rho_core_g,aux_bas_pool,&
-     cell,globenv,unit_nr,print_header,error)
+     cell,unit_nr,print_header,error)
     TYPE(cp_subsystem_type), POINTER         :: subsystem
     TYPE(coeff_type), DIMENSION(:), &
       INTENT(in)                             :: rho_r
     TYPE(pw_type), POINTER                   :: rho_core_g
     TYPE(pw_pool_type), POINTER              :: aux_bas_pool
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(global_environment_type), POINTER   :: globenv
     INTEGER, INTENT(in)                      :: unit_nr
     LOGICAL, INTENT(in), OPTIONAL            :: print_header
     TYPE(cp_error_type), INTENT(inout), &

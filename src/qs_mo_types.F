@@ -611,7 +611,9 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: nset_info, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: l, nshell_info
     INTEGER, DIMENSION(:, :, :), POINTER     :: nso_info
+    LOGICAL                                  :: ionode
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: vecbuffer
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
 
 !   *** Local paramters ***
@@ -622,6 +624,8 @@ CONTAINS
     nspin = SIZE(mo_array)
 
     nao = mo_array(1)%mo_set%nao
+    logger => cp_error_get_logger(error)
+    ionode = logger%para_env%mepos==logger%para_env%source
 
     IF (globenv%ionode) THEN
 
@@ -978,7 +982,7 @@ CONTAINS
 
       IF (globenv%print_level > LOW) THEN
         CALL write_mo_set(mo_array(ispin)%mo_set,atomic_kind_set,particle_set,&
-                          4,6,dft_section,globenv)
+                          4,6,dft_section,error=error)
       END IF
 
 
@@ -1018,7 +1022,7 @@ CONTAINS
   ! ***************************************************************************
 
   SUBROUTINE write_mo_set_to_output_unit(mo_set,atomic_kind_set,particle_set,&
-                                         before,after,dft_section,globenv,error)
+                                         before,after,dft_section,error)
     
     ! Purpose: Write the MO eigenvalues, MO occupation numbers and
     !          MO mo_coeff.
@@ -1042,7 +1046,6 @@ CONTAINS
       POINTER                                :: particle_set
     INTEGER, INTENT(IN)                      :: before, after
     TYPE(section_vals_type), POINTER         :: dft_section
-    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -1060,13 +1063,14 @@ CONTAINS
       nrow_global, nset, nsgf, right, to, width
     INTEGER, DIMENSION(:), POINTER           :: nshell
     INTEGER, DIMENSION(:, :), POINTER        :: l
-    LOGICAL                                  :: p_cart, p_eval, p_evec, p_occ
+    LOGICAL                                  :: ionode,p_cart, p_eval, p_evec, p_occ
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: cmatrix, smatrix
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
+    ionode = logger%para_env%mepos==logger%para_env%source
     CALL section_vals_val_get(dft_section,"PRINT%MO%EIGENVALUES",l_val=p_eval,error=error)
     CALL section_vals_val_get(dft_section,"PRINT%MO%EIGENVECTORS",l_val=p_evec,error=error)
     CALL section_vals_val_get(dft_section,"PRINT%MO%OCCUPATION_NUMBERS",l_val=p_occ,error=error)
@@ -1083,7 +1087,7 @@ CONTAINS
                "smatrix",nrow_global*ncol_global*dp_size)
        END IF
        CALL cp_fm_get_submatrix(mo_set%mo_coeff,smatrix)
-       IF (.NOT.globenv%ionode) THEN
+       IF (.NOT.ionode) THEN
           DEALLOCATE(smatrix,STAT=istat)
           IF (istat /= 0) THEN
              CALL stop_memory(routineN,moduleN,__LINE__,"smatrix")

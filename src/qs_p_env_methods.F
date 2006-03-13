@@ -1075,14 +1075,7 @@ END SUBROUTINE p_env_did_change
           CALL transfer_matrix(p1(ispin)%matrix,p_env%rho1%rho_ao(ispin)%matrix)
        ENDDO
        CALL qs_rho_update_rho(rho_struct=p_env%rho1, &
-                              qs_env=qs_env, gapw=gapw, error=error)
-       IF(gapw .OR. gapw_xc) THEN
-         CALL calculate_rho_atom_coeff(qs_env,p_env%rho1%rho_ao,&
-                                       rho_atom_set=p_env%local_rho_set%rho_atom_set)
-       ENDIF
-       IF(gapw_xc ) THEN
-          CALL qs_rho_update_rho(rho_struct=p_env%rho1_xc, qs_env=qs_env, gapw=gapw_xc, error=error)
-       END IF
+                              qs_env=qs_env, error=error)
 
        IF (fdiff) THEN
           CALL kpp1_calc_k_p_p1_fdiff(kpp1_env=p_env%kpp1_env,qs_env=qs_env,&

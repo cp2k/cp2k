@@ -1243,7 +1243,7 @@ CONTAINS
 !            *** Calculate the coefficients of the one center expansions ***
               CALL set_up_oce(atomic_kind_set,reduced_3c_oce,oce,&
                               ikind,iatom,jkind,jatom,rab,&
-                              oceh,oces,nder,dist_list)
+                              oceh,oces,nder,dist_list,error=error)
             END IF
 
             IF(rho0_present) THEN

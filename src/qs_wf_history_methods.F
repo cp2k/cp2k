@@ -917,14 +917,14 @@ END FUNCTION wfi_get_method_label
 !!
 !!*** **********************************************************************
 SUBROUTINE wfi_extrapolate(globenv,wf_history, qs_env, dt, extrapolation_method_nr, &
-     orthogonal_wf, kg_gpw, gapw, gapw_xc, kg_fm_mol_set, error)
+     orthogonal_wf, kg_gpw, kg_fm_mol_set, error)
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(qs_wf_history_type), POINTER        :: wf_history
     TYPE(qs_environment_type), POINTER       :: qs_env
     REAL(KIND=dp), INTENT(in)                :: dt
     INTEGER, INTENT(out), OPTIONAL           :: extrapolation_method_nr
     LOGICAL, INTENT(out), OPTIONAL           :: orthogonal_wf
-    LOGICAL, INTENT(IN), OPTIONAL            :: kg_gpw, gapw, gapw_xc
+    LOGICAL, INTENT(IN), OPTIONAL            :: kg_gpw
     TYPE(kg_fm_mol_set_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: kg_fm_mol_set
     TYPE(cp_error_type), INTENT(inout), &
@@ -936,8 +936,8 @@ SUBROUTINE wfi_extrapolate(globenv,wf_history, qs_env, dt, extrapolation_method_
     INTEGER                                  :: actual_extrapolation_method_nr&
                                                 , handle, i, ispin, k, n, &
                                                 nmo, nvec
-    LOGICAL                                  :: failure, ionode, my_gapw, &
-                                                my_gapw_xc, my_kg_gpw, &
+    LOGICAL                                  :: failure, ionode, &
+                                                my_kg_gpw, &
                                                 my_orthogonal_wf
     REAL(KIND=dp)                            :: alpha, beta, t0, t1, t2
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
@@ -955,10 +955,6 @@ SUBROUTINE wfi_extrapolate(globenv,wf_history, qs_env, dt, extrapolation_method_
 
   NULLIFY(mos, ao_mo_fm_pools, t0_state, t1_state, matrix_s, mo_coeff, rho, rho_xc)
   failure=.FALSE.
-  my_gapw = .FALSE. 
-  my_gapw_xc = .FALSE. 
-  IF(PRESENT(gapw)) my_gapw = gapw
-  IF(PRESENT(gapw_xc)) my_gapw_xc = gapw_xc
   my_kg_gpw = .FALSE. 
   IF(PRESENT(kg_gpw)) my_kg_gpw = kg_gpw
 
@@ -1051,16 +1047,9 @@ SUBROUTINE wfi_extrapolate(globenv,wf_history, qs_env, dt, extrapolation_method_
                   density_matrix=rho%rho_ao(ispin)%matrix,error=error)
           END DO
         END IF
-        CALL qs_rho_update_rho(rho, qs_env=qs_env, gapw = my_gapw, error=error)
-        IF(my_gapw) THEN
-           CALL calculate_rho_atom_coeff(qs_env,rho%rho_ao)
-        ENDIF
-        IF(my_gapw_xc) THEN
-            CALL qs_rho_update_rho(rho_xc,qs_env=qs_env, gapw=my_gapw_xc, error=error)
-            CALL calculate_rho_atom_coeff(qs_env,rho%rho_ao)
-        END IF
-
+        CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
         CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE., error=error)
+
         IF(my_kg_gpw) THEN
            ! ** Updates the molecular rho for each molecule independently ***
            CALL get_qs_env(qs_env=qs_env, kg_sub_pw_env=kg_sub_pw_env)
@@ -1076,16 +1065,9 @@ SUBROUTINE wfi_extrapolate(globenv,wf_history, qs_env, dt, extrapolation_method_
         END DO
         !FM updating rho_ao directly with t0_state%rho_ao would have the
         !FM wrong matrix structure
-        CALL qs_rho_update_rho(rho, qs_env=qs_env, gapw = my_gapw, error=error)
-        IF(my_gapw) THEN
-           CALL calculate_rho_atom_coeff(qs_env,rho%rho_ao)
-        ENDIF
-        IF(my_gapw_xc) THEN
-            CALL qs_rho_update_rho(rho_xc,qs_env=qs_env, gapw=my_gapw_xc, error=error)
-            CALL calculate_rho_atom_coeff(qs_env,rho%rho_ao)
-        END IF
-
+        CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
         CALL qs_ks_did_change(qs_env%ks_env, rho_changed=.TRUE., error=error)
+
         IF(my_kg_gpw) THEN
            ! ** Updates the molecular rho for each molecule independently ***
            CALL get_qs_env(qs_env=qs_env, kg_sub_pw_env=kg_sub_pw_env)
@@ -1141,14 +1123,7 @@ SUBROUTINE wfi_extrapolate(globenv,wf_history, qs_env, dt, extrapolation_method_
                      density_matrix=rho%rho_ao(ispin)%matrix,error=error)
              END DO
            END IF
-           CALL qs_rho_update_rho(rho, qs_env=qs_env, gapw=my_gapw, error=error)
-           IF(my_gapw) THEN
-             CALL calculate_rho_atom_coeff(qs_env,rho%rho_ao)
-           ENDIF
-           IF(my_gapw_xc) THEN
-              CALL qs_rho_update_rho(rho_xc,qs_env=qs_env, gapw=my_gapw_xc, error=error)
-              CALL calculate_rho_atom_coeff(qs_env,rho%rho_ao)
-           END IF
+           CALL qs_rho_update_rho(rho, qs_env=qs_env,  error=error)
 
            CALL qs_ks_did_change(qs_env%ks_env,&
                 rho_changed=.TRUE., error=error)
@@ -1185,16 +1160,9 @@ SUBROUTINE wfi_extrapolate(globenv,wf_history, qs_env, dt, extrapolation_method_
                   error=error)
                 ! purify ?
           END DO
-          CALL qs_rho_update_rho(rho, qs_env=qs_env, gapw=my_gapw, error=error)
-          IF(my_gapw) THEN
-              CALL calculate_rho_atom_coeff(qs_env,rho%rho_ao)
-          ENDIF
-          IF(my_gapw_xc) THEN
-             CALL qs_rho_update_rho(rho_xc,qs_env=qs_env, gapw=my_gapw_xc, error=error)
-             CALL calculate_rho_atom_coeff(qs_env,rho%rho_ao)
-          END IF
-
+          CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
           CALL qs_ks_did_change(qs_env%ks_env, rho_changed=.TRUE., error=error)
+
           IF(my_kg_gpw) THEN
              ! ** Updates the molecular rho for each molecule independently ***
              CALL get_qs_env(qs_env=qs_env, kg_sub_pw_env=kg_sub_pw_env)
@@ -1244,15 +1212,9 @@ SUBROUTINE wfi_extrapolate(globenv,wf_history, qs_env, dt, extrapolation_method_
                      density_matrix=rho%rho_ao(ispin)%matrix,error=error)
              END DO
            END IF
-           CALL qs_rho_update_rho(rho, qs_env=qs_env, gapw=my_gapw, error=error)
-           IF(my_gapw) THEN
-              CALL calculate_rho_atom_coeff(qs_env,rho%rho_ao)
-           ENDIF
-           IF(my_gapw_xc) THEN
-              CALL qs_rho_update_rho(rho_xc,qs_env=qs_env, gapw=my_gapw_xc, error=error)
-              CALL calculate_rho_atom_coeff(qs_env,rho%rho_ao)
-           END IF
+           CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
            CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE., error=error)
+
            IF(my_kg_gpw) THEN
              ! ** Updates the molecular rho for each molecule independently ***
              CALL get_qs_env(qs_env=qs_env, kg_sub_pw_env=kg_sub_pw_env)
@@ -1326,16 +1288,9 @@ SUBROUTINE wfi_extrapolate(globenv,wf_history, qs_env, dt, extrapolation_method_
                    density_matrix=rho%rho_ao(ispin)%matrix,error=error)
            END DO
         END IF
-        CALL qs_rho_update_rho(rho, qs_env=qs_env, gapw=my_gapw, error=error)
-        IF(my_gapw) THEN
-            CALL calculate_rho_atom_coeff(qs_env,rho%rho_ao)
-        ENDIF
-        IF(my_gapw_xc) THEN
-            CALL qs_rho_update_rho(rho_xc,qs_env=qs_env, gapw=my_gapw_xc, error=error)
-            CALL calculate_rho_atom_coeff(qs_env,rho%rho_ao)
-        END IF
-
+        CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
         CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE., error=error)
+
         IF(my_kg_gpw) THEN
            ! ** Updates the molecular rho for each molecule independently ***
            CALL get_qs_env(qs_env=qs_env, kg_sub_pw_env=kg_sub_pw_env)
@@ -1396,13 +1351,9 @@ SUBROUTINE wfi_extrapolate(globenv,wf_history, qs_env, dt, extrapolation_method_
                                       density_matrix=rho%rho_ao(ispin)%matrix,&
                                       error=error)
       END DO
-      CALL qs_rho_update_rho(rho,qs_env=qs_env,gapw=my_gapw,error=error)
-      IF (my_gapw) CALL calculate_rho_atom_coeff(qs_env,rho%rho_ao)
-      IF (my_gapw_xc) THEN
-        CALL qs_rho_update_rho(rho_xc,qs_env=qs_env, gapw=my_gapw_xc, error=error)
-        CALL calculate_rho_atom_coeff(qs_env,rho%rho_ao)
-      END IF
+      CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
       CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE.,error=error)
+
       !MK
       ! IF (my_kg_gpw) THEN
       !   ! Updates the molecular rho for each molecule independently

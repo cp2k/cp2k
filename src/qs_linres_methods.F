@@ -175,7 +175,7 @@ CONTAINS
     CALL qs_loc_env_init(qs_loc_env,localized_wfn_control,qs_env,error=error)
     ! The localized orbitals are copied in the mos, 
     ! The orbital centers are stored in linres_control%localized_wfn_control
-    CALL qs_loc_driver(qs_env,qs_loc_env,ionode,error=error)
+    CALL qs_loc_driver(qs_env,qs_loc_env,error=error)
     CALL qs_loc_env_release(qs_loc_env, error=error)
 !    CALL qs_loc_env_destroy(qs_loc_env, error=error)
 !    DEALLOCATE(qs_loc_env,STAT=istat)

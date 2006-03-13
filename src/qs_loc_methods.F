@@ -651,11 +651,10 @@ CONTAINS
 !!
 !!*** **********************************************************************
 
-  SUBROUTINE qs_loc_driver(qs_env,qs_loc_env,ionode,onlyspin1,error)
+  SUBROUTINE qs_loc_driver(qs_env,qs_loc_env,onlyspin1,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
-    LOGICAL, INTENT(IN)                      :: ionode
     LOGICAL, INTENT(IN), OPTIONAL            :: onlyspin1
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -667,7 +666,7 @@ CONTAINS
                                                 istate, iter, lb, loc_method, &
                                                 my_nspins, nao, nmosub, ub
     INTEGER, DIMENSION(:), POINTER           :: state_list
-    LOGICAL                                  :: failure, my_one_spin
+    LOGICAL                                  :: failure, ionode, my_one_spin
     REAL(dp), DIMENSION(6)                   :: weights
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: centers, vecbuffer
     TYPE(cell_type), POINTER                 :: cell
@@ -676,6 +675,7 @@ CONTAINS
     TYPE(cp_fm_p_type), DIMENSION(:, :), &
       POINTER                                :: op_fm_set
     TYPE(cp_fm_type), POINTER                :: mo_coeff
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(localized_wfn_control_type), &
       POINTER                                :: localized_wfn_control
@@ -687,6 +687,9 @@ CONTAINS
     failure = .FALSE.
     my_one_spin = .FALSE.
     IF(PRESENT(onlyspin1)) my_one_spin = onlyspin1
+
+    logger => cp_error_get_logger(error)
+    ionode = logger%para_env%mepos==logger%para_env%source
 
     NULLIFY(cell, localized_wfn_control, moloc_coeff, op_sm_set, op_fm_set)
     NULLIFY(mos, dft_control)
@@ -906,21 +909,16 @@ CONTAINS
     gapw = dft_control%qs_control%gapw
 
     DO ispin=1,SIZE(mos)
-!       CALL get_mo_set(mos(ispin)%mo_set,mo_coeff=mo_coeff,&
-!            nmo=nmo)
-!       CALL qs_env_reorthogonalize_vectors(qs_env,&
-!            v_matrix=mo_coeff,ispin=ispin,&
-!            n_col=nmo, error=error)
        CALL calculate_density_matrix(mo_set=mos(ispin)%mo_set,&
             density_matrix=rho%rho_ao(ispin)%matrix,error=error)
     END DO
 
-    CALL qs_rho_update_rho(rho,qs_env=qs_env, gapw=gapw, error=error)
-    IF(gapw) THEN
-      CALL calculate_rho_atom_coeff(qs_env,rho%rho_ao)
-    ENDIF
-    CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE.,&
-           error=error)
+    CALL qs_rho_update_rho(rho,qs_env=qs_env, error=error)
+!    IF(gapw) THEN
+!      CALL calculate_rho_atom_coeff(qs_env,rho%rho_ao)
+!    ENDIF
+!    CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE.,&
+!           error=error)
    
     CALL timestop(0.0_dp,handle)
 

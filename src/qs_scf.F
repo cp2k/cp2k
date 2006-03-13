@@ -418,33 +418,33 @@ CONTAINS
 
        CALL init_scf_loop(scf_env=scf_env, qs_env=qs_env, globenv=globenv, &
                            scf_section=scf_section, error=error)
-   
+
        !   Some flags needed to be set at the beginning of the loop
        diis_step = .FALSE.
        use_jacobi = .FALSE.
        energy_only = .FALSE.
-   
+
        !   *** SCF loop, optimisation of the wfn coefficients
        !   *** qs_env%rho%rho_r and qs_env%rho%rho_g should be up to date here
        scf_env%iter_count = 0
-   
+
        scf_loop: DO
-   
+
           CALL timeset("scf_iter","I"," ",handle2)
           scf_env%iter_count = scf_env%iter_count + 1
-   
+
           IF (output_unit > 0) CALL m_flush(output_unit)
-   
+
           CALL qs_ks_update_qs_env(ks_env,qs_env=qs_env,&
                calculate_forces=.FALSE.,just_energy=energy_only,error=error)
-   
+
           ! print 'heavy weight' or relatively expensive quantities
           CALL qs_scf_loop_print(qs_env,scf_env,globenv,error)
-   
+
           scf_env%p_mix = scf_control%p_mix
           scf_env%iter_param = 0.0_dp
           IF (scf_env%mixing_method==ao_mixing_nr) scf_env%iter_param = scf_env%p_mix
-   
+
           ! this takes known energy and derivatives and produces new wfns and or density matrix
           SELECT CASE (scf_env%method)
           CASE DEFAULT
@@ -461,13 +461,13 @@ CONTAINS
              CALL qs_scf_loop_do_ot(scf_env,mos,rho,qs_env%mo_derivs,energy%total, & 
                                     matrix_s, energy_only, has_unit_metric,error)
           END SELECT
-   
+
           ! another heavy weight print object, print controlled by dft_section
           DO ispin=1,SIZE(mos)
              CALL write_mo_set(mos(ispin)%mo_set,atomic_kind_set,&
-                               particle_set,4,6,dft_section,globenv)
+                               particle_set,4,6,dft_section,error=error)
           ENDDO
-   
+
           ! ** calculation of the harris energy correction *** !
           IF (harris_flag) THEN
             CALL harris_energy_correction(qs_env, harris_env, &
@@ -481,7 +481,7 @@ CONTAINS
               energy%total = harris_env%harris_energy%Eharris
             END IF
           END IF
-   
+
           SELECT CASE(scf_env%mixing_method)
           CASE(ao_mixing_nr)
              CALL scf_env_density_mixing(scf_env%p_mix_new,scf_env%mixing_method,&
@@ -492,20 +492,20 @@ CONTAINS
                     routineP,"unknown scf mixing method: "//&
                     cp_to_string(scf_env%mixing_method),error,failure)
           END SELECT
-   
+
           t2 = m_walltime()
-   
+
           IF ((output_unit>0).and.scf_env%print_iter_line) THEN
              WRITE (UNIT=output_unit,&
                   FMT="(T2,I5,2X,A,T22,E10.2,T32,F8.2,T40,2F20.10)")&
                   scf_env%iter_count,TRIM(scf_env%iter_method),&
                   scf_env%iter_param,t2 - t1,scf_env%iter_delta,energy%total
           END IF
-   
+
           IF (harris_flag) THEN
              CALL harris_postprocessing(harris_env, error=error)
           END IF
-   
+
           ! ** can we exit the SCF loop  ?
           CALL external_control(should_stop,"SCF",globenv,error)
           IF (scf_env%iter_delta < scf_control%eps_scf) THEN
@@ -524,17 +524,17 @@ CONTAINS
              CALL timestop(0.0_dp,handle2)
              EXIT scf_loop
           END IF
-   
+
           ! ** Write restart file **
           IF (scf_control%write_restart_each>0.AND.&
                MODULO(scf_env%iter_count,scf_control%write_restart_each)==0) THEN
              CALL write_mo_set(mos,atomic_kind_set,particle_set,globenv,&
                   id_nr=1)
           END IF
-   
+
           IF (.NOT.BTEST(cp_print_key_should_output(logger%iter_info,&
                scf_section,"PRINT%ITERATION_INFO/TIME_CUMUL",error=error),cp_p_file)) t1 = m_walltime()  
-   
+
           ! ** mixing methods have the new density matrix in p_mix_new **
           IF (scf_env%mixing_method.EQ.ao_mixing_nr) THEN
               DO ispin=1,dft_control%nspins
@@ -542,40 +542,32 @@ CONTAINS
                                           rho%rho_ao(ispin)%matrix)
               END DO
           ENDIF
-   
+
           ! ** update qs_env%rho
-          CALL qs_rho_update_rho(rho, qs_env=qs_env, gapw=gapw, error=error)
-          IF(gapw ) THEN
-            CALL calculate_rho_atom_coeff(qs_env,rho%rho_ao)
-          ENDIF
-          IF(gapw_xc ) THEN
-            CALL calculate_rho_atom_coeff(qs_env,rho%rho_ao)
-            CALL qs_rho_update_rho(rho_xc, qs_env=qs_env, gapw=gapw_xc, error=error)
-          ENDIF
-   
+          CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
           CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,error=error)
-   
+
           CALL timestop(0.0_dp,handle2)
-   
+
        END DO scf_loop
 
        CALL cleanup_scf_loop(scf_env,error)
-   
+
        !   *** now, print out energies and charges corresponding to the obtained wfn
        !   (this actually seems not 100% consistent at this point)
        CALL qs_scf_print_summary(output_unit,rho,qs_charges,energy,scf_env, &
                                  dft_control,qs_env%qmmm,gapw,gapw_xc)
-   
+
        IF (harris_flag) THEN
          energy%total = harris_env%harris_energy%Eharris
        END IF
-   
+
        !   *** Write restart file ***
        IF (scf_control%write_restart_each>=0) THEN
           CALL write_mo_set(mos,atomic_kind_set,particle_set,globenv,&
                id_nr=1)
        END IF
-   
+
        !   *** mixing methods need to undo mixing of the density matrix (restore original density) ***
        IF (scf_env%mixing_method.EQ.ao_mixing_nr) THEN
            CALL scf_env_density_mixing(scf_env%p_mix_new,scf_env%mixing_method,&
@@ -586,18 +578,11 @@ CONTAINS
                                  rho%rho_ao(ispin)%matrix)
            END DO
        ENDIF
-   
+
        !   *** update rspace rho since the mo changed
        !   *** this might not always be needed (i.e. no post calculation / no forces )
        !   *** but guarantees that rho and wfn are consistent at this point
-       CALL qs_rho_update_rho(rho, qs_env=qs_env, gapw = gapw, error=error)
-       IF(gapw) THEN
-          CALL calculate_rho_atom_coeff(qs_env,rho%rho_ao)
-       END IF
-       IF(gapw_xc ) THEN
-          CALL calculate_rho_atom_coeff(qs_env,rho%rho_ao)
-          CALL qs_rho_update_rho(rho_xc, qs_env=qs_env, gapw=gapw_xc, error=error)
-       ENDIF
+       CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
        CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,error=error)
 
        IF (.NOT. scf_control%outer_scf%have_scf) EXIT scf_outer_loop
@@ -1420,6 +1405,7 @@ END SUBROUTINE qs_scf_print_summary
        CALL outer_loop_extrapolate(qs_env,error)
     ENDIF
 
+
     my_transition_potential = (dft_control%do_xas_calculation .AND. dft_control%xas_estate>0)
     ! initializes rho and the mos
     IF( my_transition_potential) THEN
@@ -1744,7 +1730,7 @@ END SUBROUTINE qs_scf_print_summary
           CALL wfi_extrapolate(globenv,qs_env%wf_history, &
                qs_env=qs_env, dt=1.0_dp, &
                extrapolation_method_nr=extrapolation_method_nr,&
-               orthogonal_wf=orthogonal_wf, gapw=gapw, gapw_xc=gapw_xc, error=error)
+               orthogonal_wf=orthogonal_wf, error=error)
           ! wfi_use_guess_method_nr the wavefunctions are not yet initialized
           IF ((.NOT.orthogonal_wf).AND.&
               (scf_env%method == ot_method_nr).AND.&
@@ -1771,14 +1757,7 @@ END SUBROUTINE qs_scf_print_summary
           CALL calculate_first_density_matrix(scf_env=scf_env,qs_env=qs_env,&
                globenv=globenv, error=error)
           IF (.NOT.(qs_env%scf_control%density_guess==densities_guess)) THEN
-            CALL qs_rho_update_rho(qs_env%rho,qs_env=qs_env, gapw=gapw, error=error)
-            IF(gapw) THEN
-               CALL calculate_rho_atom_coeff(qs_env,qs_env%rho%rho_ao)
-            ENDIF
-            IF(gapw_xc) THEN
-               CALL qs_rho_update_rho(qs_env%rho_xc,qs_env=qs_env, gapw=gapw_xc, error=error)
-               CALL calculate_rho_atom_coeff(qs_env,qs_env%rho%rho_ao)
-            END IF
+            CALL qs_rho_update_rho(qs_env%rho,qs_env=qs_env, error=error)
             CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE.,&
                  error=error)
           END IF

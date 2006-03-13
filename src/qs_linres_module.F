@@ -287,10 +287,7 @@ CONTAINS
                      rho%rho_ao(ispin)%matrix,error=error)
          ENDDO
 ! ** update qs_env%rho
-         CALL qs_rho_update_rho(rho, qs_env=qs_env, gapw=dft_control%qs_control%gapw, error=error)
-         IF(dft_control%qs_control%gapw ) THEN
-           CALL calculate_rho_atom_coeff(qs_env,rho%rho_ao)
-         ENDIF
+         CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
        END IF
 
        CALL section_vals_val_get(lr_section,"OPT_METHOD",i_val=linres_control%opt_method,error=error)

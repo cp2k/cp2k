@@ -69,13 +69,15 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE build_oce_block(oceh,oces,atom_ka,atom_kb,rab,dab,nder)
+  SUBROUTINE build_oce_block(oceh,oces,atom_ka,atom_kb,rab,dab,nder,error)
 
     TYPE(block_p_type), DIMENSION(:),POINTER   :: oceh, oces
     TYPE(atomic_kind_type), POINTER            :: atom_ka, atom_kb
     INTEGER,INTENT(IN)                         :: nder
     REAL(dp)                                   :: dab
     REAL(dp), DIMENSION(3)                     :: rab
+    TYPE(cp_error_type), INTENT(inout), &
+         OPTIONAL                              :: error
 
 
 !   *** Local parameters ***
@@ -108,7 +110,7 @@ CONTAINS
                 lx,ly,lz, m, m1, maxcob,maxder, maxlb, maxlprj, maxnprja,maxsoa, &
                 n, ncob, np_car,np_sph, nseta, nsetb, nsoatot, ntotsgfb
     INTEGER :: ithread,nthread, omp_get_max_threads,omp_get_thread_num
-    LOGICAL :: paw_atom_a,paw_atom_b,calculate_forces
+    LOGICAL :: paw_atom_a,paw_atom_b,calculate_forces,failure
 
 #if defined(__AIX) && defined(__INIT_WITH_NANS)
     REAL(dp) :: nans_dp
@@ -117,6 +119,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
+   failure = .FALSE.
    NULLIFY(orb_basis_a,paw_proj_a)
    CALL get_atomic_kind(atomic_kind=atom_ka,orb_basis_set=orb_basis_a,&
                         paw_proj_set=paw_proj_a,paw_atom=paw_atom_a)
@@ -161,15 +164,32 @@ CONTAINS
 
     lm = MAX(maxlb, maxlprj)
     lds = ncoset(lm+nder+1)
-    ALLOCATE(s(lds,lds,ncoset(nder+1)),STAT= istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-         "s",lds*ncoset(nder+1)*dp_size)
 
-    CALL reallocate(spa_sbt,1,np_car,1,ntotsgfb,0,nthread-1)
-    CALL reallocate(spa_tmpt,1,maxnprja*ncoset(maxlprj),1,maxcob*maxder,0,nthread-1)
-    CALL reallocate(sdpa_tmpt,1,maxnprja*ncoset(maxlprj+1),1,maxcob,1,4,0,nthread-1)
+    ALLOCATE(s(lds,lds,ncoset(nder+1)),STAT= istat)
+    CPPostcondition(istat==0,cp_failure_level,routineN,error,failure)
+
+!    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+!         "s",lds*ncoset(nder+1)*dp_size)
+
+    ALLOCATE(spa_sbt(np_car,ntotsgfb,0:nthread-1), STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineN,error,failure)
+!    CALL reallocate(spa_sbt,1,np_car,1,ntotsgfb,0,nthread-1)
+    ALLOCATE(spa_tmpt(maxnprja*ncoset(maxlprj),maxcob*maxder,0:nthread-1),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineN,error,failure)
+!    CALL reallocate(spa_tmpt,1,maxnprja*ncoset(maxlprj),1,maxcob*maxder,0,nthread-1)
+    ALLOCATE(sdpa_tmpt(maxnprja*ncoset(maxlprj+1),maxcob,4,0:nthread-1),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineN,error,failure)
+!    CALL reallocate(sdpa_tmpt,1,maxnprja*ncoset(maxlprj+1),1,maxcob,1,4,0,nthread-1)
+!    ALLOCATE(ovc(np_car,maxcob*nsetb*maxder),STAT=istat)
+!    CPPostcondition(istat==0,cp_failure_level,routineN,error,failure)
     CALL reallocate(ovc,1,np_car,1,maxcob*nsetb*maxder)
+    ovc = 0.0_dp
+!    ALLOCATE(ovs(np_sph,maxcob*nsetb*maxder),STAT=istat)
+!    CPPostcondition(istat==0,cp_failure_level,routineN,error,failure)
     CALL reallocate(ovs,1,np_sph,1,maxcob*nsetb*maxder)
+    ovs = 0.0_dp
+
+
 
     ithread = 0
 !$  ithread = omp_get_thread_num()
@@ -366,8 +386,9 @@ CONTAINS
     ENDDO  !jset
     
     DEALLOCATE(s,spa_sbt,spa_tmpt,sdpa_tmpt,ovc,ovs ,STAT = istat)
-    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-         "s,spa_sbt,spa_tmpt,sdpa_tmpt,ovc,ovs")
+    CPPostcondition(istat==0,cp_failure_level,routineN,error,failure)
+!    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+!         "s,spa_sbt,spa_tmpt,sdpa_tmpt,ovc,ovs")
 
   END SUBROUTINE build_oce_block
 
@@ -408,7 +429,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE set_up_oce(atomic_kind_set,reduced_3c_oce,oce,&
                         ikind,iatom,jkind,jatom,rab,&
-                        oceh,oces,nder,dist_list)
+                        oceh,oces,nder,dist_list,error)
 
 
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -423,6 +444,8 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: nder
     TYPE(dist_list_4oce_type), &
       DIMENSION(:), POINTER                  :: dist_list
+    TYPE(cp_error_type), INTENT(inout), &
+         OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'set_up_oce'
 
@@ -510,7 +533,7 @@ CONTAINS
                                 at_a,&
                                 at_b,&
                                 rac,dac,&
-                                nder)
+                                nder,error=error)
 
 !         *** This block has been done ***
           oce%couple(katom,iatom)%block_created = .TRUE.
@@ -577,7 +600,7 @@ CONTAINS
                               at_a,&
                               at_b,&
                               rbc,dbc,&
-                              nder)
+                              nder,error=error)
 !         *** This block has been done ***
           oce%couple(katom,jatom)%block_created = .TRUE.
           dist_list(katom)%ndist =dist_list(katom)%ndist + 1
