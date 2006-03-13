@@ -125,6 +125,11 @@ MODULE qs_scf
                                              ot_scf_init,&
                                              ot_scf_mini,&
                                              ot_scf_read_input
+  USE qs_outer_scf,                    ONLY: outer_loop_extrapolate,&
+                                             outer_loop_gradient,&
+                                             outer_loop_optimize,&
+                                             outer_loop_update_qs_env,&
+                                             outer_loop_variables_count
   USE qs_overlap,                      ONLY: write_fm_with_basis_info,&
                                              write_sparse_matrix
   USE qs_rho_atom_methods,             ONLY: calculate_rho_atom_coeff
@@ -331,11 +336,9 @@ CONTAINS
 
     INTEGER                                  :: handle, handle2, i, ispin, &
                                                 output_unit
-    LOGICAL                                  :: diis_step, energy_only, &
-                                                failure, gapw, gapw_xc, &
-                                                harris_flag, has_unit_metric, &
-                                                use_jacobi
-    REAL(KIND=dp)                            :: t1, t2
+    LOGICAL :: diis_step, energy_only, failure, gapw, gapw_xc, harris_flag, &
+      has_unit_metric, outer_loop_converged, use_jacobi
+    REAL(KIND=dp)                            :: outer_loop_eps, t1, t2
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_logger_type), POINTER            :: logger
@@ -393,8 +396,6 @@ CONTAINS
     IF (output_unit>0) WRITE (UNIT=output_unit,FMT="(/,/,T2,A)") &
             "SCF WAVEFUNCTION OPTIMIZATION"
 
-    CALL init_scf_loop(scf_env=scf_env, qs_env=qs_env, globenv=globenv, &
-                        scf_section=scf_section, error=error)
 
     ! short cut flags setting the different methods
     gapw = dft_control%qs_control%gapw
@@ -410,185 +411,225 @@ CONTAINS
             "Step","Update method","Time","Convergence","Total energy",&
             REPEAT("-",77)
     END IF
+ 
+    ! *** outer loop of the scf, can treat other variables, such as lagrangian multipliers
+    scf_env%outer_scf%iter_count=0
+    scf_outer_loop: DO
 
-!   Some flags needed to be set at the beginning of the loop
-    diis_step = .FALSE.
-    use_jacobi = .FALSE.
-    energy_only = .FALSE.
-
-!   *** SCF loop, optimisation of the wfn coefficients
-!   *** qs_env%rho%rho_r and qs_env%rho%rho_g should be up to date here
-    scf_env%iter_count = 0
-
-    scf_loop: DO
-
-       CALL timeset("scf_iter","I"," ",handle2)
-       scf_env%iter_count = scf_env%iter_count + 1
-
-       IF (output_unit > 0) CALL m_flush(output_unit)
-
-       CALL qs_ks_update_qs_env(ks_env,qs_env=qs_env,&
-            calculate_forces=.FALSE.,just_energy=energy_only,error=error)
-
-       ! print 'heavy weight' or relatively expensive quantities
-       CALL qs_scf_loop_print(qs_env,scf_env,globenv,error)
-
-       scf_env%p_mix = scf_control%p_mix
-       scf_env%iter_param = 0.0_dp
-       IF (scf_env%mixing_method==ao_mixing_nr) scf_env%iter_param = scf_env%p_mix
-
-       ! this takes known energy and derivatives and produces new wfns and or density matrix
-       SELECT CASE (scf_env%method)
-       CASE DEFAULT
-          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-                 routineP,"unknown scf method: "//&
-                 cp_to_string(scf_env%method),error,failure)
-       CASE(general_diag_method_nr) 
-          CALL qs_scf_loop_do_general_diag(scf_env,mos,rho,matrix_ks,matrix_s,scf_control,scf_section, &
-                                       diis_step,use_jacobi,error)
-       CASE(special_diag_method_nr)
-          CALL qs_scf_loop_do_special_diag(scf_env,mos,rho,matrix_ks,scf_control,scf_section, &
-                                       diis_step,error)
-       CASE(ot_method_nr) 
-          CALL qs_scf_loop_do_ot(scf_env,mos,rho,qs_env%mo_derivs,energy%total, & 
-                                 matrix_s, energy_only, has_unit_metric,error)
-       END SELECT
-
-       ! another heavy weight print object, print controlled by dft_section
-       DO ispin=1,SIZE(mos)
-          CALL write_mo_set(mos(ispin)%mo_set,atomic_kind_set,&
-                            particle_set,4,6,dft_section,globenv)
-       ENDDO
-
-       ! ** calculation of the harris energy correction *** !
-       IF (harris_flag) THEN
-         CALL harris_energy_correction(qs_env, harris_env, &
-                                       globenv=globenv, fast=.TRUE., error=error)
-         IF (scf_env%method .NE. ot_method_nr) THEN
-           CALL harris_eigenvalue_trace_KS_Pmix(scf_env, qs_env, harris_env, error=error)
-         ELSE
-           CALL harris_eigenvalue_calculation(qs_env=qs_env, harris_env=harris_env, error=error)
-         END IF
-         IF (globenv%run_type_id == qs_debug_run) THEN
-           energy%total = harris_env%harris_energy%Eharris
-         END IF
-       END IF
-
-       SELECT CASE(scf_env%mixing_method)
-       CASE(ao_mixing_nr)
-          CALL scf_env_density_mixing(scf_env%p_mix_new,scf_env%mixing_method,&
-                         scf_env%p_mix,scf_env%iter_delta, qs_env=qs_env,error=error)
-       CASE(no_mixing_nr)
-       CASE DEFAULT
-          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
-                 routineP,"unknown scf mixing method: "//&
-                 cp_to_string(scf_env%mixing_method),error,failure)
-       END SELECT
-
-       t2 = m_walltime()
-
-       IF ((output_unit>0).and.scf_env%print_iter_line) THEN
-          WRITE (UNIT=output_unit,&
-               FMT="(T2,I5,2X,A,T22,E10.2,T32,F8.2,T40,2F20.10)")&
-               scf_env%iter_count,TRIM(scf_env%iter_method),&
-               scf_env%iter_param,t2 - t1,scf_env%iter_delta,energy%total
-       END IF
-
-       IF (harris_flag) THEN
-          CALL harris_postprocessing(harris_env, error=error)
-       END IF
-
-       ! ** can we exit the SCF loop  ?
-       CALL external_control(should_stop,"SCF",globenv,error)
-       IF (scf_env%iter_delta < scf_control%eps_scf) THEN
-          IF (output_unit>0) THEN
-             WRITE(UNIT=output_unit,FMT="(/,T3,A,I5,A/)")&
-                  "*** SCF run converged in ",scf_env%iter_count," steps ***"
+       CALL init_scf_loop(scf_env=scf_env, qs_env=qs_env, globenv=globenv, &
+                           scf_section=scf_section, error=error)
+   
+       !   Some flags needed to be set at the beginning of the loop
+       diis_step = .FALSE.
+       use_jacobi = .FALSE.
+       energy_only = .FALSE.
+   
+       !   *** SCF loop, optimisation of the wfn coefficients
+       !   *** qs_env%rho%rho_r and qs_env%rho%rho_g should be up to date here
+       scf_env%iter_count = 0
+   
+       scf_loop: DO
+   
+          CALL timeset("scf_iter","I"," ",handle2)
+          scf_env%iter_count = scf_env%iter_count + 1
+   
+          IF (output_unit > 0) CALL m_flush(output_unit)
+   
+          CALL qs_ks_update_qs_env(ks_env,qs_env=qs_env,&
+               calculate_forces=.FALSE.,just_energy=energy_only,error=error)
+   
+          ! print 'heavy weight' or relatively expensive quantities
+          CALL qs_scf_loop_print(qs_env,scf_env,globenv,error)
+   
+          scf_env%p_mix = scf_control%p_mix
+          scf_env%iter_param = 0.0_dp
+          IF (scf_env%mixing_method==ao_mixing_nr) scf_env%iter_param = scf_env%p_mix
+   
+          ! this takes known energy and derivatives and produces new wfns and or density matrix
+          SELECT CASE (scf_env%method)
+          CASE DEFAULT
+             CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+                    routineP,"unknown scf method: "//&
+                    cp_to_string(scf_env%method),error,failure)
+          CASE(general_diag_method_nr) 
+             CALL qs_scf_loop_do_general_diag(scf_env,mos,rho,matrix_ks,matrix_s,scf_control,scf_section, &
+                                          diis_step,use_jacobi,error)
+          CASE(special_diag_method_nr)
+             CALL qs_scf_loop_do_special_diag(scf_env,mos,rho,matrix_ks,scf_control,scf_section, &
+                                          diis_step,error)
+          CASE(ot_method_nr) 
+             CALL qs_scf_loop_do_ot(scf_env,mos,rho,qs_env%mo_derivs,energy%total, & 
+                                    matrix_s, energy_only, has_unit_metric,error)
+          END SELECT
+   
+          ! another heavy weight print object, print controlled by dft_section
+          DO ispin=1,SIZE(mos)
+             CALL write_mo_set(mos(ispin)%mo_set,atomic_kind_set,&
+                               particle_set,4,6,dft_section,globenv)
+          ENDDO
+   
+          ! ** calculation of the harris energy correction *** !
+          IF (harris_flag) THEN
+            CALL harris_energy_correction(qs_env, harris_env, &
+                                          globenv=globenv, fast=.TRUE., error=error)
+            IF (scf_env%method .NE. ot_method_nr) THEN
+              CALL harris_eigenvalue_trace_KS_Pmix(scf_env, qs_env, harris_env, error=error)
+            ELSE
+              CALL harris_eigenvalue_calculation(qs_env=qs_env, harris_env=harris_env, error=error)
+            END IF
+            IF (globenv%run_type_id == qs_debug_run) THEN
+              energy%total = harris_env%harris_energy%Eharris
+            END IF
           END IF
-          CALL timestop(0.0_dp,handle2)
-          EXIT scf_loop
-       ELSE IF (should_stop.OR.  scf_env%iter_count == scf_control%max_scf) THEN
-          IF (output_unit>0) THEN
-             WRITE(UNIT=output_unit,FMT="(/,T3,A,/)")&
-                  "*** SCF run NOT converged ***"
+   
+          SELECT CASE(scf_env%mixing_method)
+          CASE(ao_mixing_nr)
+             CALL scf_env_density_mixing(scf_env%p_mix_new,scf_env%mixing_method,&
+                            scf_env%p_mix,scf_env%iter_delta, qs_env=qs_env,error=error)
+          CASE(no_mixing_nr)
+          CASE DEFAULT
+             CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+                    routineP,"unknown scf mixing method: "//&
+                    cp_to_string(scf_env%mixing_method),error,failure)
+          END SELECT
+   
+          t2 = m_walltime()
+   
+          IF ((output_unit>0).and.scf_env%print_iter_line) THEN
+             WRITE (UNIT=output_unit,&
+                  FMT="(T2,I5,2X,A,T22,E10.2,T32,F8.2,T40,2F20.10)")&
+                  scf_env%iter_count,TRIM(scf_env%iter_method),&
+                  scf_env%iter_param,t2 - t1,scf_env%iter_delta,energy%total
           END IF
-          converged=.FALSE.
+   
+          IF (harris_flag) THEN
+             CALL harris_postprocessing(harris_env, error=error)
+          END IF
+   
+          ! ** can we exit the SCF loop  ?
+          CALL external_control(should_stop,"SCF",globenv,error)
+          IF (scf_env%iter_delta < scf_control%eps_scf) THEN
+             IF (output_unit>0) THEN
+                WRITE(UNIT=output_unit,FMT="(/,T3,A,I5,A/)")&
+                     "*** SCF run converged in ",scf_env%iter_count," steps ***"
+             END IF
+             CALL timestop(0.0_dp,handle2)
+             EXIT scf_loop
+          ELSE IF (should_stop.OR.  scf_env%iter_count == scf_control%max_scf) THEN
+             IF (output_unit>0) THEN
+                WRITE(UNIT=output_unit,FMT="(/,T3,A,/)")&
+                     "*** SCF run NOT converged ***"
+             END IF
+             converged=.FALSE.
+             CALL timestop(0.0_dp,handle2)
+             EXIT scf_loop
+          END IF
+   
+          ! ** Write restart file **
+          IF (scf_control%write_restart_each>0.AND.&
+               MODULO(scf_env%iter_count,scf_control%write_restart_each)==0) THEN
+             CALL write_mo_set(mos,atomic_kind_set,particle_set,globenv,&
+                  id_nr=1)
+          END IF
+   
+          IF (.NOT.BTEST(cp_print_key_should_output(logger%iter_info,&
+               scf_section,"PRINT%ITERATION_INFO/TIME_CUMUL",error=error),cp_p_file)) t1 = m_walltime()  
+   
+          ! ** mixing methods have the new density matrix in p_mix_new **
+          IF (scf_env%mixing_method.EQ.ao_mixing_nr) THEN
+              DO ispin=1,dft_control%nspins
+                 CALL transfer_matrix(scf_env%p_mix_new(ispin)%matrix,&
+                                          rho%rho_ao(ispin)%matrix)
+              END DO
+          ENDIF
+   
+          ! ** update qs_env%rho
+          CALL qs_rho_update_rho(rho, qs_env=qs_env, gapw=gapw, error=error)
+          IF(gapw ) THEN
+            CALL calculate_rho_atom_coeff(qs_env,rho%rho_ao)
+          ENDIF
+          IF(gapw_xc ) THEN
+            CALL calculate_rho_atom_coeff(qs_env,rho%rho_ao)
+            CALL qs_rho_update_rho(rho_xc, qs_env=qs_env, gapw=gapw_xc, error=error)
+          ENDIF
+   
+          CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,error=error)
+   
           CALL timestop(0.0_dp,handle2)
-          EXIT scf_loop
-       END IF
+   
+       END DO scf_loop
 
-       ! ** Write restart file **
-       IF (scf_control%write_restart_each>0.AND.&
-            MODULO(scf_env%iter_count,scf_control%write_restart_each)==0) THEN
+       CALL cleanup_scf_loop(scf_env,error)
+   
+       !   *** now, print out energies and charges corresponding to the obtained wfn
+       !   (this actually seems not 100% consistent at this point)
+       CALL qs_scf_print_summary(output_unit,rho,qs_charges,energy,scf_env, &
+                                 dft_control,qs_env%qmmm,gapw,gapw_xc)
+   
+       IF (harris_flag) THEN
+         energy%total = harris_env%harris_energy%Eharris
+       END IF
+   
+       !   *** Write restart file ***
+       IF (scf_control%write_restart_each>=0) THEN
           CALL write_mo_set(mos,atomic_kind_set,particle_set,globenv,&
                id_nr=1)
        END IF
-
-       IF (.NOT.BTEST(cp_print_key_should_output(logger%iter_info,&
-            scf_section,"PRINT%ITERATION_INFO/TIME_CUMUL",error=error),cp_p_file)) t1 = m_walltime()  
-
-       ! ** mixing methods have the new density matrix in p_mix_new **
+   
+       !   *** mixing methods need to undo mixing of the density matrix (restore original density) ***
        IF (scf_env%mixing_method.EQ.ao_mixing_nr) THEN
+           CALL scf_env_density_mixing(scf_env%p_mix_new,scf_env%mixing_method,&
+                                       scf_env%p_mix,scf_env%iter_delta,&
+                                       qs_env=qs_env,invert=.TRUE.,error=error)
            DO ispin=1,dft_control%nspins
               CALL transfer_matrix(scf_env%p_mix_new(ispin)%matrix,&
-                                       rho%rho_ao(ispin)%matrix)
+                                 rho%rho_ao(ispin)%matrix)
            END DO
        ENDIF
-
-       ! ** update qs_env%rho
-       CALL qs_rho_update_rho(rho, qs_env=qs_env, gapw=gapw, error=error)
-       IF(gapw ) THEN
-         CALL calculate_rho_atom_coeff(qs_env,rho%rho_ao)
-       ENDIF
+   
+       !   *** update rspace rho since the mo changed
+       !   *** this might not always be needed (i.e. no post calculation / no forces )
+       !   *** but guarantees that rho and wfn are consistent at this point
+       CALL qs_rho_update_rho(rho, qs_env=qs_env, gapw = gapw, error=error)
+       IF(gapw) THEN
+          CALL calculate_rho_atom_coeff(qs_env,rho%rho_ao)
+       END IF
        IF(gapw_xc ) THEN
-         CALL calculate_rho_atom_coeff(qs_env,rho%rho_ao)
-         CALL qs_rho_update_rho(rho_xc, qs_env=qs_env, gapw=gapw_xc, error=error)
+          CALL calculate_rho_atom_coeff(qs_env,rho%rho_ao)
+          CALL qs_rho_update_rho(rho_xc, qs_env=qs_env, gapw=gapw_xc, error=error)
        ENDIF
-
        CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,error=error)
 
-       CALL timestop(0.0_dp,handle2)
+       IF (.NOT. scf_control%outer_scf%have_scf) EXIT scf_outer_loop
 
-    END DO scf_loop
+       scf_env%outer_scf%iter_count=scf_env%outer_scf%iter_count+1
+       outer_loop_converged=.FALSE.
 
-!   *** now, print out energies and charges corresponding to the obtained wfn
-!   (this actually seems not 100% consistent at this point)
-    CALL qs_scf_print_summary(output_unit,rho,qs_charges,energy,scf_env, &
-                              dft_control,qs_env%qmmm,gapw,gapw_xc)
+       CALL outer_loop_gradient(qs_env,scf_env,error)
+       outer_loop_eps=SQRT(SUM(scf_env%outer_scf%gradient(:,scf_env%outer_scf%iter_count)**2))/ &
+                           SIZE(scf_env%outer_scf%gradient,1)              
+       IF (outer_loop_eps<scf_control%outer_scf%eps_scf) outer_loop_converged=.TRUE.
 
-    IF (harris_flag) THEN
-      energy%total = harris_env%harris_energy%Eharris
-    END IF
+       WRITE(output_unit,'(/,T2,A,I4,A,F20.9,A,F20.9/)') "outer SCF iter = ",scf_env%outer_scf%iter_count, & 
+                                              " gradient = ",outer_loop_eps," energy =",energy%total
 
-!   *** Write restart file ***
-    IF (scf_control%write_restart_each>=0) THEN
-       CALL write_mo_set(mos,atomic_kind_set,particle_set,globenv,&
-            id_nr=1)
-    END IF
+       IF (outer_loop_converged) THEN
+            WRITE(6,'(/,T2,A,I4,A,/)') "outer SCF loop converged in",scf_env%outer_scf%iter_count," iterations"
+            EXIT scf_outer_loop
+       ENDIF
 
-!   *** mixing methods need to undo mixing of the density matrix (restore original density) ***
-    IF (scf_env%mixing_method.EQ.ao_mixing_nr) THEN
-        CALL scf_env_density_mixing(scf_env%p_mix_new,scf_env%mixing_method,&
-                                    scf_env%p_mix,scf_env%iter_delta,&
-                                    qs_env=qs_env,invert=.TRUE.,error=error)
-        DO ispin=1,dft_control%nspins
-           CALL transfer_matrix(scf_env%p_mix_new(ispin)%matrix,&
-                              rho%rho_ao(ispin)%matrix)
-        END DO
-    ENDIF
+       IF (scf_env%outer_scf%iter_count>scf_control%outer_scf%max_scf .OR. should_stop ) THEN
+            WRITE(6,'(/,T2,A,/)') "outer SCF loop FAILED to converge"
+            EXIT scf_outer_loop
+       ENDIF
 
-!   *** update rspace rho since the mo changed
-!   *** this might not always be needed (i.e. no post calculation / no forces )
-!   *** but guarantees that rho and wfn are consistent at this point
-    CALL qs_rho_update_rho(rho, qs_env=qs_env, gapw = gapw, error=error)
-    IF(gapw) THEN
-       CALL calculate_rho_atom_coeff(qs_env,rho%rho_ao)
-    END IF
-    IF(gapw_xc ) THEN
-       CALL calculate_rho_atom_coeff(qs_env,rho%rho_ao)
-       CALL qs_rho_update_rho(rho_xc, qs_env=qs_env, gapw=gapw_xc, error=error)
-    ENDIF
-    CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,error=error)
+       CALL outer_loop_optimize(scf_env,scf_control,error)
+
+       CALL outer_loop_update_qs_env(qs_env,scf_env,error)
+
+       CALL qs_ks_did_change(ks_env,potential_changed=.TRUE.,error=error)
+
+    END DO scf_outer_loop
 
     CALL timestop(0.0_dp,handle)
 
@@ -1306,6 +1347,7 @@ END SUBROUTINE qs_scf_print_summary
        CPPrecondition(dft_control%nspins.EQ.2,cp_failure_level,routineP,error,failure)
     ENDIF
 
+
     ! do some assertions here on these matrices having the same structure
     id_equal=ALL((/((matrix_s(i)%matrix%sparsity_id==matrix_s(1)%matrix%sparsity_id),i=1,SIZE(matrix_s))/))
     CPPrecondition(id_equal,cp_failure_level,routineP,error,failure)
@@ -1373,6 +1415,11 @@ END SUBROUTINE qs_scf_print_summary
     CALL cp_print_key_finished_output(output_unit,logger,scf_section,&
           "PRINT%PROGRAM_RUN_INFO", error=error)
 
+    ! extrapolate outer loop variables
+    IF (scf_control%outer_scf%have_scf) THEN
+       CALL outer_loop_extrapolate(qs_env,error)
+    ENDIF
+
     my_transition_potential = (dft_control%do_xas_calculation .AND. dft_control%xas_estate>0)
     ! initializes rho and the mos
     IF( my_transition_potential) THEN
@@ -1435,7 +1482,8 @@ END SUBROUTINE qs_scf_print_summary
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, homo, ispin, nao, &
-                                                nrow_block, stat
+                                                nhistory, nrow_block, &
+                                                nvariables, stat
     LOGICAL                                  :: failure, &
                                                 gth_potential_present, &
                                                 my_transition_potential, &
@@ -1457,6 +1505,7 @@ END SUBROUTINE qs_scf_print_summary
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, matrix_s
+    TYPE(scf_control_type), POINTER          :: scf_control
 
 !   ---------------------------------------------------------------------------
 
@@ -1464,7 +1513,7 @@ END SUBROUTINE qs_scf_print_summary
 
     NULLIFY(matrix_ks, ao_mo_fm_pools, matrix_s, ao_mo_fmstruct, ao_ao_fmstruct,&
             dft_control, mos, occupation_numbers, S_sm_pools, ks_env)
-    NULLIFY(atomic_kind_set, mo_derivs, mo_coeff)
+    NULLIFY(atomic_kind_set, mo_derivs, mo_coeff, scf_control)
 
     failure=.FALSE.
 
@@ -1620,6 +1669,18 @@ END SUBROUTINE qs_scf_print_summary
        CALL qs_ks_release(ks_env)
     END IF
 
+    ! If there is an outer scf loop allocate the space for the variables
+    CALL get_qs_env(qs_env=qs_env,scf_control=scf_control, dft_control=dft_control)
+    IF (scf_control%outer_scf%have_scf) THEN
+       nhistory = scf_control%outer_scf%max_scf + 1
+       nvariables = outer_loop_variables_count(scf_control,error)
+       ALLOCATE(scf_env%outer_scf%variables(nvariables,nhistory),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(scf_env%outer_scf%gradient(nvariables,nhistory),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(scf_env%outer_scf%energy(nhistory),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ENDIF
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE scf_env_check_i_alloc
@@ -1797,11 +1858,79 @@ END SUBROUTINE qs_scf_print_summary
        SELECT CASE(scf_env%method)
        CASE(ot_method_nr)
           DO ispin=1,SIZE(scf_env%ot_preconditioner)
-             CALL destroy_preconditioner(scf_env%ot_preconditioner(ispin)%preconditioner) 
+             CALL destroy_preconditioner(scf_env%ot_preconditioner(ispin)%preconditioner)
              DEALLOCATE(scf_env%ot_preconditioner(ispin)%preconditioner)
           ENDDO
           DEALLOCATE(scf_env%ot_preconditioner,stat=stat)
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+       CASE(general_diag_method_nr)
+          !
+       CASE(special_diag_method_nr)
+          !
+       CASE DEFAULT
+          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+               routineP,"unknown scf method method:"//&
+               cp_to_string(scf_env%method),error,failure)
+       END SELECT
+
+       IF (ASSOCIATED(scf_env%outer_scf%variables)) THEN
+          DEALLOCATE(scf_env%outer_scf%variables,stat=stat)
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+       ENDIF
+       IF (ASSOCIATED(scf_env%outer_scf%gradient)) THEN
+          DEALLOCATE(scf_env%outer_scf%gradient,stat=stat)
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+       ENDIF
+       IF (ASSOCIATED(scf_env%outer_scf%energy)) THEN
+          DEALLOCATE(scf_env%outer_scf%energy,stat=stat)
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+       ENDIF
+
+
+    END IF
+    CALL timestop(0.0_dp,handle)
+
+  END SUBROUTINE scf_env_cleanup
+
+!!****f* qs_scf/cleanup_scf_loop [1.0] *
+!!
+!!   NAME
+!!     cleanup_scf_loop
+!!
+!!   FUNCTION
+!!     perform cleanup operations at the end of an scf loop
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!
+!!
+!!   MODIFICATION HISTORY
+!!     03.2006 created [Joost VandeVondele]
+!!
+!!*** **********************************************************************
+  SUBROUTINE cleanup_scf_loop(scf_env,error)
+    TYPE(qs_scf_env_type), POINTER           :: scf_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cleanup_scf_loop', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, ispin, stat
+    LOGICAL                                  :: failure
+
+    CALL timeset(routineN,"I"," ",handle)
+
+    failure=.FALSE.
+
+    CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,error,failure)
+    IF (.NOT.failure) THEN
+! *** method dependent cleanup
+       SELECT CASE(scf_env%method)
+       CASE(ot_method_nr)
           DO ispin=1,SIZE(scf_env%qs_ot_env)
              CALL ot_scf_destroy(scf_env%qs_ot_env(ispin))
           ENDDO
@@ -1819,7 +1948,7 @@ END SUBROUTINE qs_scf_print_summary
 
     END IF
     CALL timestop(0.0_dp,handle)
-  END SUBROUTINE scf_env_cleanup
+  END SUBROUTINE cleanup_scf_loop
 !***************************************************************************
 
 END MODULE qs_scf

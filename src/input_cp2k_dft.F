@@ -2062,6 +2062,10 @@ SUBROUTINE create_tddfpt_section(section,error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
+       CALL create_outer_scf_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
        NULLIFY(keyword)
        CALL keyword_create(keyword, name="WRITE_RESTART_EACH",&
             description="How often the wavefunction restart file should be "//&
@@ -2259,6 +2263,111 @@ SUBROUTINE create_tddfpt_section(section,error)
     END IF
   END SUBROUTINE create_scf_section
 !***************************************************************************
+
+!!****f* input_cp2k_dft/create_outer_scf_section *
+!!
+!!   NAME
+!!     create_outer_scf_section
+!!
+!!   FUNCTION
+!!     creates the structure of the section with scf parameters
+!!     controlling an other loop
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - section: will contain the scf section
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
+!!
+!!   AUTHOR
+!!     Joost VandeVondele [2006.03]
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_outer_scf_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_outer_scf_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,"OUTER_SCF",&
+            description="parameters controlling the outer scf loop ",&
+            n_keywords=8, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+
+       NULLIFY(keyword)
+
+       CALL keyword_create(keyword, name="TYPE",&
+            description="Specifies which kind of outer scf should be employed",&
+            usage="TYPE DDAPC_CONSTRAINT ",&
+            default_i_val=outer_scf_ddapc_constraint,&
+            enum_c_vals=s2a( "DDAPC_CONSTRAINT"),&
+            enum_desc=s2a("Enforce a constraint on the DDAPC, requires the corresponding section"),&
+            enum_i_vals=(/outer_scf_ddapc_constraint/),&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="OPTIMIZER",&
+            description="Method used to bring the outer loop to a stationary point",&
+            usage="OPTIMIZER SD",&
+            default_i_val=outer_scf_optimizer_sd,&
+            enum_c_vals=s2a("SD","DIIS"),&
+            enum_desc=s2a("Takes steps in the direction of the gradient, multiplied by step_size", &
+                          "Uses a Direct Inversion in the Iterative Subspace method"),&
+            enum_i_vals=(/outer_scf_optimizer_sd,outer_scf_optimizer_diis/),&
+            error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="EPS_SCF",&
+            description="The target gradient of the outer scf variables. "//&
+                        "Notice that the EPS_SCF of the inner loop also determines "//&
+                        "the value that can be reached in the outer loop, "//&
+                        "typically EPS_SCF of the outer loop must be smaller "//&
+                        "than EPS_SCF of the inner loop.", &
+            usage="EPS_SCF 1.0E-6 ", default_r_val=1.0E-5_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="DIIS_BUFFER_LENGTH",&
+            description="Maximum number of DIIS vectors used ", &
+            usage="DIIS_BUFFER_LENGTH 5", default_i_val=3,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="EXTRAPOLATION_ORDER",&
+            description="Number of past states used in the extrapolation of the variables during e.g. MD", &
+            usage="EXTRAPOLATION_ORDER 5", default_i_val=3,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="MAX_SCF",&
+            description="The maximum number of outer loops ", &
+            usage="MAX_SCF 20", default_i_val=50,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="STEP_SIZE",&
+            description="The initial step_size used in the optimizer (currently steepest descent)."//&
+                        "Note that in cases where a sadle point is sought for (DDAPC_CONSTRAINT),"//&
+                        " this can be negative", &
+            usage="STEP_SIZE -1.0", default_r_val=0.5_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+    END IF
+
+  END SUBROUTINE create_outer_scf_section
 
 !!****f* input_cp2k_dft/create_properties_section [1.0] *
 !!

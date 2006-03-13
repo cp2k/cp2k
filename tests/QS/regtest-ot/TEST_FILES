@@ -65,3 +65,6 @@ H-2.inp            1
 # test mulliken constraints
 C2H4-init.inp      1
 C2H4.inp           1
+# test ddapc constraints
+He2_ddapc_constraint.inp 1
+He2_ddapc_constraint-2.inp 1

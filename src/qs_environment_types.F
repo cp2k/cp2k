@@ -307,6 +307,8 @@ MODULE qs_environment_types
     TYPE(cp_ddapc_type), POINTER                          :: cp_ddapc_env
     TYPE(cp_ddapc_ewald_type), POINTER                    :: cp_ddapc_ewald
     TYPE(virial_type), POINTER                            :: virial
+    REAL(KIND = dp), DIMENSION(:,:), POINTER              :: outer_scf_history
+    INTEGER                                               :: outer_scf_ihistory
   END TYPE qs_environment_type
 
 ! *****************************************************************************
@@ -357,7 +359,8 @@ CONTAINS
                         rhoz_set,ecoul_1c,VH_3c_list,rho0_s_rs,rho0_s_gs, &
                         requires_mo_derivs,mo_derivs,tddfpt_control, &
                         neighbor_list_id,kg_sub_pw_env,linres_control,xas_env,&
-                        virial,cp_ddapc_env,cp_ddapc_ewald,error)
+                        virial,cp_ddapc_env,cp_ddapc_ewald,outer_scf_history, &
+                        outer_scf_ihistory,error)
 
 !   Purpose: Get the QUICKSTEP environment.
 
@@ -454,6 +457,9 @@ CONTAINS
     TYPE(cp_ddapc_type), OPTIONAL, POINTER   :: cp_ddapc_env
     TYPE(cp_ddapc_ewald_type), OPTIONAL, &
       POINTER                                :: cp_ddapc_ewald
+    REAL(KIND=dp), DIMENSION(:, :), &
+      OPTIONAL, POINTER                      :: outer_scf_history
+    INTEGER, INTENT(out), OPTIONAL           :: outer_scf_ihistory
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
@@ -475,7 +481,8 @@ CONTAINS
 !    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(qs_env%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(qs_env%subsys),cp_failure_level,routineP,error,failure)
-
+    IF (PRESENT(outer_scf_history)) outer_scf_history=>qs_env%outer_scf_history
+    IF (PRESENT(outer_scf_ihistory)) outer_scf_ihistory=qs_env%outer_scf_ihistory
     IF (PRESENT(cell)) cell => qs_env%cell
     IF (PRESENT(super_cell)) super_cell => qs_env%super_cell
     IF (PRESENT(cell_ref)) cell_ref => qs_env%cell_ref
@@ -639,6 +646,8 @@ CONTAINS
     NULLIFY (qs_env%virial)
     NULLIFY (qs_env%cp_ddapc_env)
     NULLIFY (qs_env%cp_ddapc_ewald)
+    NULLIFY (qs_env%outer_scf_history)
+    qs_env%outer_scf_ihistory=0
     qs_env%neighbor_list_id=-1
 
     CALL local_rho_set_create(qs_env%local_rho_set, error=error)
@@ -674,7 +683,8 @@ CONTAINS
                         nddo_mpole,rhoz_set,rhoz_tot,ecoul_1c,VH_3c_list,error, &
                         requires_mo_derivs,mo_derivs,neighbor_list_id,&
                         kg_sub_pw_env,linres_control,xas_env,virial,&
-                        cp_ddapc_env,cp_ddapc_ewald)
+                        cp_ddapc_env,cp_ddapc_ewald,outer_scf_history,&
+                        outer_scf_ihistory)
 
 !   Purpose: Set the QUICKSTEP environment.
 
@@ -754,6 +764,9 @@ CONTAINS
     TYPE(cp_ddapc_type), OPTIONAL, POINTER   :: cp_ddapc_env
     TYPE(cp_ddapc_ewald_type), OPTIONAL, &
       POINTER                                :: cp_ddapc_ewald
+    REAL(KIND=dp), DIMENSION(:, :), &
+      OPTIONAL, POINTER                      :: outer_scf_history
+    INTEGER, INTENT(IN), OPTIONAL            :: outer_scf_ihistory
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_qs_env', &
       routineP = moduleN//':'//routineN
@@ -809,6 +822,8 @@ CONTAINS
     IF (PRESENT(matrix_s)) qs_env%matrix_s => matrix_s
     IF (PRESENT(matrix_w)) qs_env%matrix_w => matrix_w
     IF (PRESENT(oce)) qs_env%oce => oce
+    IF (PRESENT(outer_scf_history)) qs_env%outer_scf_history=>outer_scf_history
+    IF (PRESENT(outer_scf_ihistory)) qs_env%outer_scf_ihistory=outer_scf_ihistory
     IF (PRESENT(requires_mo_derivs)) qs_env%requires_mo_derivs=requires_mo_derivs
     IF (PRESENT(mo_derivs)) qs_env%mo_derivs=>mo_derivs
     IF (PRESENT(rho)) THEN ! accepts also null pointers !
@@ -1118,6 +1133,11 @@ SUBROUTINE qs_env_release(qs_env,error)
            DEALLOCATE(qs_env%sac_ppnl,stat=stat)
            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
         END IF
+        IF (ASSOCIATED(qs_env%outer_scf_history)) THEN
+           DEALLOCATE(qs_env%outer_scf_history,stat=stat)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+           qs_env%outer_scf_ihistory=0
+        ENDIF
         IF (ASSOCIATED(qs_env%sbc_ppnl)) THEN
            DO i=1,SIZE(qs_env%sbc_ppnl)
               CALL deallocate_neighbor_list_set(&

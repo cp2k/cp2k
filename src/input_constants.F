@@ -443,4 +443,10 @@ MODULE input_constants
   ! ddapc restraint forms
   INTEGER, PARAMETER, PUBLIC :: do_ddapc_restraint=773, do_ddapc_constraint=774
 
+  ! outer scf types
+  INTEGER, PARAMETER, PUBLIC :: outer_scf_ddapc_constraint=123
+
+  ! outer scf optimizers
+  INTEGER, PARAMETER, PUBLIC :: outer_scf_optimizer_sd=1001,outer_scf_optimizer_diis=1002
+
 END MODULE input_constants

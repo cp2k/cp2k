@@ -34,15 +34,9 @@ MODULE qs_ks_methods
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE cell_types,                      ONLY: cell_type
-  USE coefficient_types,               ONLY: coeff_add,&
-                                             coeff_copy,&
-                                             coeff_init,&
-                                             coeff_scale,&
-                                             coeff_subtract,&
-                                             coeff_sumup,&
-                                             coeff_transform_space,&
-                                             coeff_type,&
-                                             coeff_zero
+  USE coefficient_types,               ONLY: &
+       coeff_add, coeff_copy, coeff_init, coeff_scale, coeff_subtract, &
+       coeff_sumup, coeff_transform_space, coeff_type, coeff_zero
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_ddapc,                        ONLY: cp_ddapc_apply
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
@@ -213,6 +207,7 @@ CONTAINS
 
        ks_env%s_mstruct_changed=.TRUE.
        ks_env%rho_changed=.TRUE.
+       ks_env%potential_changed=.TRUE.
        ks_env%forces_up_to_date=.FALSE.
        ks_env%n_evals=0
        ks_env%ref_count=1
@@ -1021,7 +1016,8 @@ SUBROUTINE qs_ks_update_qs_env(ks_env,qs_env, kg_env, &
   CPPrecondition(ks_env%ref_count>0,cp_failure_level,routineP,error,failure)
 
   IF (.NOT. failure) THEN
-     IF (ks_env%rho_changed .OR. ks_env%s_mstruct_changed .OR.&
+     IF (ks_env%rho_changed .OR. ks_env%s_mstruct_changed .OR. &
+          ks_env%potential_changed .OR. &
           (c_forces.AND..NOT.ks_env%forces_up_to_date)) THEN
         did_update=.TRUE.
         CALL get_qs_env(qs_env,matrix_ks=matrix_ks,rho=rho,&
@@ -1038,7 +1034,8 @@ SUBROUTINE qs_ks_update_qs_env(ks_env,qs_env, kg_env, &
                                para_env=para_env)
           energy%core=energy%core+ecore
         END DO
-
+        ! the ks matrix we be rebuild so this is fine now
+        ks_env%potential_changed=.FALSE.
         IF ( dft_control%qs_control%semi_empirical ) THEN
           CALL build_se_fock_matrix(ks_env,qs_env=qs_env,&
                ks_matrix=matrix_ks,rho=rho,energy=energy,&
@@ -1118,10 +1115,11 @@ END SUBROUTINE qs_ks_update_qs_env
 !!     4.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE qs_ks_did_change(ks_env,s_mstruct_changed,rho_changed,full_reset,error)
+SUBROUTINE qs_ks_did_change(ks_env,s_mstruct_changed,rho_changed,potential_changed,full_reset,error)
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     LOGICAL, INTENT(in), OPTIONAL            :: s_mstruct_changed, &
-                                                rho_changed, full_reset
+                                                rho_changed, &
+                                                potential_changed, full_reset
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -1138,6 +1136,9 @@ SUBROUTINE qs_ks_did_change(ks_env,s_mstruct_changed,rho_changed,full_reset,erro
      IF (PRESENT(rho_changed)) THEN
         IF (rho_changed) ks_env%rho_changed=.TRUE.
      END IF
+     IF (PRESENT(potential_changed)) THEN
+        IF (potential_changed) ks_env%potential_changed=.TRUE.
+     END IF
      IF (PRESENT(s_mstruct_changed)) THEN
         IF (s_mstruct_changed) THEN
            ks_env%s_mstruct_changed=.TRUE.
@@ -1145,6 +1146,7 @@ SUBROUTINE qs_ks_did_change(ks_env,s_mstruct_changed,rho_changed,full_reset,erro
      END IF
      IF (PRESENT(full_reset)) THEN
         IF (full_reset) THEN
+           ks_env%potential_changed=.TRUE.
            ks_env%s_mstruct_changed=.TRUE.
         END IF
      END IF

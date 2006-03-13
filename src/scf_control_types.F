@@ -29,7 +29,10 @@ MODULE scf_control_types
                                              cp_print_key_unit_nr
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: atomic_guess,&
-                                             core_guess
+                                             core_guess,&
+                                             outer_scf_ddapc_constraint,&
+                                             outer_scf_optimizer_diis,&
+                                             outer_scf_optimizer_sd
   USE input_cp2k_dft,                  ONLY: create_scf_section
   USE input_enumeration_types,         ONLY: enum_i2c,&
                                              enumeration_type
@@ -38,6 +41,7 @@ MODULE scf_control_types
   USE input_section_types,             ONLY: section_get_keyword,&
                                              section_release,&
                                              section_type,&
+                                             section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -54,7 +58,7 @@ MODULE scf_control_types
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'scf_control_types'
   INTEGER, SAVE, PRIVATE :: last_scf_c_id_nr=0
 
-  PUBLIC :: scf_control_type
+  PUBLIC :: scf_control_type, outer_scf_control_type
   PUBLIC :: scf_c_create, scf_c_retain, scf_c_release, scf_c_read_parameters,&
        scf_c_write_parameters
 
@@ -103,7 +107,18 @@ MODULE scf_control_types
 !!
 !!   SOURCE
 !***************************************************************************
+  TYPE outer_scf_control_type
+     LOGICAL               :: have_scf
+     INTEGER               :: max_scf
+     REAL(KIND = dp)       :: eps_scf,step_size
+     INTEGER               :: TYPE 
+     INTEGER               :: optimizer
+     INTEGER               :: diis_buffer_length
+     INTEGER               :: extrapolation_order
+  END TYPE outer_scf_control_type
+
   TYPE scf_control_type
+     TYPE(outer_scf_control_type) :: outer_scf
      INTEGER               :: density_guess
      REAL(KIND = dp)       :: eps_eigval,eps_scf,level_shift,p_mix,smear,&
                               work_syevx,eps_lumos, eps_diis,eps_jacobi,&
@@ -193,6 +208,14 @@ CONTAINS
        scf_control%write_restart_each=10
        scf_control%added_mos=0
        scf_control%max_scf_aspc = 1
+
+       scf_control%outer_scf%have_scf=.FALSE.
+       scf_control%outer_scf%max_scf=0
+       scf_control%outer_scf%eps_scf=0.0_dp
+       scf_control%outer_scf%step_size=0.0_dp
+       scf_control%outer_scf%type=-1
+       scf_control%outer_scf%optimizer=-1
+       scf_control%outer_scf%diis_buffer_length=-1
     END IF
   END SUBROUTINE scf_c_create
 !***************************************************************************
@@ -342,8 +365,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER, DIMENSION(:), POINTER           :: added_mos
-    LOGICAL                                  :: failure
-    TYPE(section_vals_type), POINTER         :: scf_section
+    LOGICAL                                  :: explicit, failure
+    TYPE(section_vals_type), POINTER         :: outer_scf_section, scf_section
 
     failure=.FALSE.
     CPPrecondition(ASSOCIATED(scf_control),cp_failure_level,routineP,error,failure)
@@ -413,6 +436,31 @@ CONTAINS
             (scf_control%density_guess==core_guess)) THEN
           CALL stop_program("scf_c_read_parameters","Use GUESS {ATOMIC,RESTART,RANDOM} with OT")
        ENDIF
+
+       outer_scf_section => section_vals_get_subs_vals(scf_section,&
+                            "OUTER_SCF",error=error)
+
+       CALL section_vals_get(outer_scf_section,explicit=explicit,error=error)
+       IF (explicit) THEN
+          scf_control%outer_scf%have_scf=.TRUE.
+          CALL section_vals_val_get(outer_scf_section,"EPS_SCF",&
+                     r_val=scf_control%outer_scf%eps_scf,error=error)
+          CALL section_vals_val_get(outer_scf_section,"STEP_SIZE",&
+                     r_val=scf_control%outer_scf%step_size,error=error)
+          CALL section_vals_val_get(outer_scf_section,"DIIS_BUFFER_LENGTH",&
+                     i_val=scf_control%outer_scf%diis_buffer_length,error=error)
+          CALL section_vals_val_get(outer_scf_section,"TYPE",&
+                     i_val=scf_control%outer_scf%type,error=error)
+          CALL section_vals_val_get(outer_scf_section,"OPTIMIZER",&
+                     i_val=scf_control%outer_scf%optimizer,error=error)
+          CALL section_vals_val_get(outer_scf_section,"MAX_SCF",&
+                     i_val=scf_control%outer_scf%max_scf,error=error)
+          CALL section_vals_val_get(outer_scf_section,"EXTRAPOLATION_ORDER",&
+                     i_val=scf_control%outer_scf%extrapolation_order,error=error)
+       ELSE
+          scf_control%outer_scf%have_scf=.FALSE.
+       ENDIF
+
     END IF
   END SUBROUTINE scf_c_read_parameters
 !***************************************************************************
@@ -504,6 +552,30 @@ CONTAINS
                "added MOs          ",scf_control%added_mos
 
           CALL section_release(scf_sect,error=error)
+          IF (scf_control%outer_scf%have_scf) THEN
+             WRITE(output_unit,"(T25,56('-'),/,T25,A)") "Outer loop SCF in use "
+             SELECT CASE(scf_control%outer_scf%type)
+             CASE (outer_scf_ddapc_constraint)
+               WRITE(output_unit,'(T25,A)') "DDAPC constraint enforced"
+             CASE DEFAULT
+               CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+             END SELECT
+             WRITE(output_unit,'(T25,A,T72,ES9.2)') "eps_scf",scf_control%outer_scf%eps_scf
+             WRITE(output_unit,'(T25,A,T72,I9)') "max_scf",scf_control%outer_scf%max_scf
+             SELECT CASE(scf_control%outer_scf%optimizer)
+             CASE (outer_scf_optimizer_sd)
+               WRITE(output_unit,'(T25,A)') "Steepest descent optimization"
+             CASE (outer_scf_optimizer_diis)
+               WRITE(output_unit,'(T25,A)') "DIIS optimization"
+               WRITE(output_unit,'(T25,A,T72,I9)') "DIIS buffer length", &
+                                     scf_control%outer_scf%diis_buffer_length
+             CASE DEFAULT
+               CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+             END SELECT
+             WRITE(output_unit,'(T25,A,T72,ES9.2)') "step_size",scf_control%outer_scf%step_size
+          ELSE
+             WRITE(output_unit,'(T2,A)') "No outer SCF"
+          ENDIF
        END IF
        CALL cp_print_key_finished_output(output_unit,logger,scf_section,&
             "PRINT%PROGRAM_RUN_INFO", error=error)

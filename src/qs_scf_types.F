@@ -56,7 +56,7 @@ MODULE qs_scf_types
 
   INTEGER, SAVE, PRIVATE :: last_scf_env_id=0
 
-  PUBLIC :: qs_scf_env_type
+  PUBLIC :: qs_scf_env_type,qs_outer_scf_type
   PUBLIC :: scf_env_retain, scf_env_release, scf_env_create, scf_env_did_change
 
 !!***
@@ -82,9 +82,24 @@ MODULE qs_scf_types
 !!
 !!   SOURCE
 !***************************************************************************
+TYPE qs_outer_scf_type
+   INTEGER :: iter_count
+
+   ! these are the variable of outer loop.
+   ! right now, we assume that they can be easily written as 
+   ! small arrays, but we might want to go the cp_fm_types
+   ! at a later stage
+   ! also, we just store the full iteration history
+   REAL(KIND=dp), DIMENSION(:), POINTER :: energy
+   REAL(KIND=dp), DIMENSION(:,:), POINTER :: variables
+   REAL(KIND=dp), DIMENSION(:,:), POINTER :: gradient
+   
+END TYPE qs_outer_scf_type
+
 TYPE qs_scf_env_type
+   TYPE(qs_outer_scf_type) :: outer_scf
    INTEGER :: ref_count, id_nr, print_count, iter_count
-   INTEGER :: nelectron, method, mixing_method
+   INTEGER :: nelectron, method, mixing_method 
    REAL(KIND = dp) :: iter_param, iter_delta, p_mix
    CHARACTER (len=15) :: iter_method
    LOGICAL :: print_iter_line
@@ -163,6 +178,9 @@ CONTAINS
        scf_env%mixing_method = -1
        scf_env%p_mix=0.0_dp
 
+       scf_env%outer_scf%iter_count=0
+       NULLIFY(scf_env%outer_scf%variables, &
+            scf_env%outer_scf%gradient,scf_env%outer_scf%energy)
 
        NULLIFY(scf_env%scf_work1, scf_env%scf_work2, scf_env%ortho,&
             scf_env%p_mix_new, scf_env%ot_preconditioner, scf_env%qs_ot_env,&
@@ -342,11 +360,26 @@ SUBROUTINE scf_env_release(scf_env,error)
            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
         END IF
         CALL qs_diis_b_release(scf_env%scf_diis_buffer,error=error)
+
+        IF (ASSOCIATED(scf_env%outer_scf%variables)) THEN
+           DEALLOCATE(scf_env%outer_scf%variables,stat=stat)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        ENDIF
+        IF (ASSOCIATED(scf_env%outer_scf%gradient)) THEN
+           DEALLOCATE(scf_env%outer_scf%gradient,stat=stat)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        ENDIF
+        IF (ASSOCIATED(scf_env%outer_scf%energy)) THEN
+           DEALLOCATE(scf_env%outer_scf%energy,stat=stat)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        ENDIF
+
         DEALLOCATE(scf_env, stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
      END IF
   END IF
   NULLIFY(scf_env)
+
 END SUBROUTINE scf_env_release
 !***************************************************************************
 

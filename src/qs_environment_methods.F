@@ -72,6 +72,7 @@ MODULE qs_environment_methods
   USE qs_ks_methods,                   ONLY: qs_ks_did_change
   USE qs_matrix_pools,                 ONLY: mpools_rebuild_fm_pools,&
                                              mpools_rebuild_s_sm_pools
+  USE qs_outer_scf,                    ONLY: outer_loop_variables_count
   USE qs_rho_methods,                  ONLY: qs_rho_rebuild
   USE qs_scf_types,                    ONLY: scf_env_did_change
   USE scf_control_types,               ONLY: scf_control_type
@@ -138,8 +139,10 @@ SUBROUTINE qs_env_setup(qs_env,error)
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_env_setup', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle
+    INTEGER                                  :: handle, nhistory, nvariables, &
+                                                stat
     LOGICAL                                  :: failure
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: outer_scf_history
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -178,6 +181,16 @@ SUBROUTINE qs_env_setup(qs_env,error)
        CALL qs_charges_create(qs_charges,nspins=dft_control%nspins,error=error)
        CALL set_qs_env(qs_env, qs_charges=qs_charges,error=error)
        CALL qs_charges_release(qs_charges,error=error)
+
+       ! outer scf setup
+       IF (scf_control%outer_scf%have_scf) THEN
+          nvariables=outer_loop_variables_count(scf_control,error=error)
+          nhistory=scf_control%outer_scf%extrapolation_order
+          ALLOCATE(outer_scf_history(nvariables,nhistory),stat=stat)
+          CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          CALL set_qs_env(qs_env,outer_scf_history=outer_scf_history)
+          CALL set_qs_env(qs_env,outer_scf_ihistory=0)
+       ENDIF
   
        ! set up pw_env
        CALL qs_env_rebuild_pw_env(qs_env, error=error)

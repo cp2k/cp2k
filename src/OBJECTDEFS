@@ -342,6 +342,7 @@ OBJECTS_GENERIC =\
  qs_ot_eigensolver.o\
  qs_ot_minimizer.o\
  qs_ot_scf.o\
+ qs_outer_scf.o\
  qs_overlap.o\
  qs_p_env_methods.o\
  qs_p_env_types.o\

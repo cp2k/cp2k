@@ -62,6 +62,7 @@ MODULE qs_ks_types
 !!       ks_env lives has changed
 !!     - rho_changed: if the rho stored in the qs_env has changed
 !!     - forces_up_to_date: if the 
+!!     - potential_changed: if some external potentian changed (such as due to the constraint)
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -76,7 +77,7 @@ MODULE qs_ks_types
 !***************************************************************************
   TYPE qs_ks_env_type
      LOGICAL :: s_mstruct_changed, &
-                rho_changed, &
+                rho_changed, potential_changed,&
                 forces_up_to_date
      INTEGER :: n_evals, &
                 id_nr, ref_count
