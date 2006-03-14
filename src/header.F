@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 -2003 CP2K developers group                            !
+!   Copyright (C) 2000 -2006 CP2K developers group                            !
 !-----------------------------------------------------------------------------!
 !!****** cp2k/header [1.0] *
 !!
@@ -158,22 +158,40 @@ CONTAINS
          "**                                                                           **",&
          "**                                                ... make the atoms dance   **",&
          "**                                                                           **",&
-         "**            Copyright (C) by CP2K Developers Group (2000 - 2005)           **",&
+         "**            Copyright (C) by CP2K Developers Group (2000 - 2006)           **",&
          "**                                                                           **",&
+         !
+         ! add QS related method papers here. Also update the webpages.
+         !
          "*******************************************************************************",&
          "** G. Lippert, J. Hutter, and M. Parrinello,                                 **",&
          "** A hybrid Gaussian and plane wave density functional scheme,               **",&
          "** Molecular Physics, Vol. 92, Issue 3, 477-487 (1997)                       **",&
-         ! GAPW references
+         "** http://dx.doi.org/10.1080/002689797170220                                 **",&
          "*******************************************************************************",&
          "** G. Lippert, J. Hutter, and M. Parrinello                                  **",&
          "** The Gaussian and augmented-plane-wave density functional method for       **",&
          "** ab initio molecular dynamics simulations                                  **",&
          "** Theoretical Chemistry Accounts, Vol. 103, Issue 2, 124-140 (1999)         **",&
+         "** http://dx.doi.org/10.1007/s002140050523                                   **",&
          "*******************************************************************************",&
          "** M. Krack and M. Parrinello                                                **",&
          "** All-electron ab-initio molecular dynamics                                 **",&
          "** Physical Chemistry Chemical Physics, Vol. 2, Issue 10, 2105-2112 (2000)   **",&
+         "** http://dx.doi.org/10.1039/b001167n                                        **",&
+         "*******************************************************************************",&
+         "** J. VandeVondele and J. Hutter                                             **",&
+         "** An efficient orbital transformation method for                            **",&
+         "** electronic structure calculations.                                        **",&
+         "** J. Chem. Phys. 118, 4365 (2003)                                           **",&
+         "** http://dx.doi.org/10.1063/1.1543154                                       **",&
+         "*******************************************************************************",&
+         "** J. VandeVondele, M. Krack, F. Mohamed,                                    **",&
+         "** M. Parrinello, T. Chassaing and J. Hutter                                 **",&
+         "** Quickstep: fast and accurate density functional calculations using        **",&
+         "** a mixed Gaussian and plane waves approach.                                **",&
+         "** Comp. Phys. Comm. 167, 103 (2005).                                        **",&
+         "** http://dx.doi.org/10.1016/j.cpc.2004.12.014                               **",&
          "*******************************************************************************"
 
   END SUBROUTINE qs_header
