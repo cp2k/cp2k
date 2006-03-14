@@ -80,14 +80,15 @@ MODULE particle_types
   END TYPE local_particle_type
 
   TYPE particle_type
-     TYPE(atomic_kind_type), POINTER       :: atomic_kind ! atomic kind info
-     TYPE(local_particle_type), POINTER    :: lpi         ! local particle info
+     TYPE(atomic_kind_type), POINTER       :: atomic_kind ! atomic kind information
+     TYPE(local_particle_type), POINTER    :: lpi         ! local particle information
      REAL(KIND = dp), DIMENSION(3)         :: f,&         ! force
                                               r,&         ! position
                                               v           ! velocity
 ! particle dependent terms for EAM
      REAL(KIND = dp)                       :: rho, f_embed
      LOGICAL                               :: is_fixed    ! force is set to zero
+     CHARACTER(len=default_string_length)  :: molname
   END TYPE particle_type
 
 ! *** Public data types ***
@@ -196,6 +197,7 @@ END SUBROUTINE clone_particle
       particle_set(iparticle)%r(:) = 0.0_dp
       particle_set(iparticle)%v(:) = 0.0_dp
       particle_set(iparticle)%is_fixed = .FALSE.
+      particle_set(iparticle)%molname = ""
     END DO
 
   END SUBROUTINE allocate_particle_set
