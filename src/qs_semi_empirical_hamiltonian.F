@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations
-!   Copyright (C) 2004  CP2K developers group
+!   Copyright (C) 2004-2006  CP2K developers group
 !-----------------------------------------------------------------------------!
 
 
@@ -48,7 +48,8 @@ MODULE qs_semi_empirical_hamiltonian
                                              write_sparse_matrix
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE semi_empirical_integrals,        ONLY: drotnuc,&
-                                             rotnuc
+                                             rotnuc,&
+                                             set_taper_fn
   USE semi_empirical_types,            ONLY: semi_empirical_type
   USE semi_empirical_utils,            ONLY: contract,&
                                              expand,&
@@ -103,7 +104,7 @@ CONTAINS
     LOGICAL                                  :: defined, failure
     REAL(KIND=dp)                            :: delta, econst, eheat, eisol, &
                                                 enuc, enuclear, kh, udd, uff, &
-                                                upp, uss
+                                                upp, uss, rc, range
     REAL(KIND=dp), DIMENSION(10)             :: e1b, e2a, pvec
     REAL(KIND=dp), DIMENSION(10, 3)          :: de1b, de2a
     REAL(KIND=dp), DIMENSION(16)             :: ha, hb, ua
@@ -154,6 +155,11 @@ CONTAINS
                      atomic_kind_set=atomic_kind_set,&
                      dft_control=dft_control,&
                      para_env=para_env)
+
+     ! set values for tapering function (only applies to long range interactions
+     rc = dft_control%qs_control%se_control%rc_interaction
+     range = dft_control%qs_control%se_control%rc_range
+     CALL set_taper_fn (2._dp*rc,range)
 
      IF(calculate_forces) THEN
        CALL get_qs_env(qs_env=qs_env,&

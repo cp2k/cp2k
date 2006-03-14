@@ -476,14 +476,21 @@ CONTAINS
 
     ENDIF
 
-!    CALL read_se_control_section()
-    CALL section_vals_val_get(se_section,"ORTHOGONAL_BASIS",l_val=qs_control%se_control%orthogonal_basis,error=error)
-    CALL section_vals_val_get(se_section,"EWALD",l_val=qs_control%se_control%ewald,error=error)
-    CALL section_vals_val_get(se_section,"DELTA",r_val=qs_control%se_control%delta,error=error)
-    CALL section_vals_val_get(se_section,"ALPHA_GAUSS",r_val=qs_control%se_control%alpha_gauss,error=error)
-    CALL section_vals_val_get(se_section,"EPS_GAUSS",r_val=qs_control%se_control%eps_gauss,error=error)
-    CALL section_vals_val_get(se_section,"RC_EXCHANGE",r_val=qs_control%se_control%rc_exchange,error=error)
-    CALL section_vals_val_get(se_section,"RC_COULOMB",r_val=qs_control%se_control%rc_coulomb,error=error)
+!   CALL read_se_control_section()
+    CALL section_vals_val_get(se_section,"ORTHOGONAL_BASIS",&
+                 l_val=qs_control%se_control%orthogonal_basis,error=error)
+    CALL section_vals_val_get(se_section,"EWALD",&
+                 l_val=qs_control%se_control%ewald,error=error)
+    CALL section_vals_val_get(se_section,"DELTA",&
+                 r_val=qs_control%se_control%delta,error=error)
+    CALL section_vals_val_get(se_section,"ALPHA_GAUSS",&
+                 r_val=qs_control%se_control%alpha_gauss,error=error)
+    CALL section_vals_val_get(se_section,"EPS_GAUSS",&
+                 r_val=qs_control%se_control%eps_gauss,error=error)
+    CALL section_vals_val_get(se_section,"RC_INTERACTION",&
+                 r_val=qs_control%se_control%rc_interaction,error=error)
+    CALL section_vals_val_get(se_section,"RC_RANGE",&
+                 r_val=qs_control%se_control%rc_range,error=error)
     IF(qs_control %method_id == do_method_mndo .OR. &
        qs_control %method_id == do_method_am1 .OR. &
        qs_control %method_id == do_method_pm3) THEN

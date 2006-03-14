@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2004 CP2K developers group                                  !
+!   Copyright (C) 2004-2006 CP2K developers group                             !
 !-----------------------------------------------------------------------------!
 !!****** cp2k/semi_empirical_integrals [1.0] *
 !!
@@ -15,6 +15,7 @@
 !!
 !!   MODIFICATION HISTORY
 !!     JGH (27.10.2004) : separate routine for nuclear attraction integrals
+!!     JGH (13.03.2006) : tapering function
 !!
 !!***
 !******************************************************************************
@@ -30,7 +31,10 @@ MODULE semi_empirical_integrals
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'semi_empirical_integrals'
 
-  PUBLIC :: rotint, rotnuc, drotint, drotnuc
+  PUBLIC :: rotint, rotnuc, drotint, drotnuc, set_taper_fn
+
+  REAL(KIND=dp), SAVE                  :: r0, al
+  LOGICAL, SAVE                        :: taper_fn_init = .FALSE.
 
 ! *****************************************************************************
 
@@ -76,7 +80,7 @@ CONTAINS
          ! j.le.i  and  l.le.k     and l varies most rapidly and i least
          ! rapidly.  (anti-normal computer storage)
          rij = SQRT(rij)
- 
+
          ! COMPUTE INTEGRALS IN DIATOMIC FRAME
          CALL terep(sepi,sepj,rij,ri)
  
@@ -795,7 +799,7 @@ CONTAINS
       aqj, aqq, axx, da, db, ddi, ddj, dxdx, dxqxz, dzdz, dze, dzqxx, dzqzz, &
       edz, ee, eqxx, eqzz, qa, qb, qqi, qqj, qxxdz, qxxe, qxxqxx, qxxqyy, &
       qxxqzz, qxzdx, qxzqxz, qzzdz, qzze, qzzqxx, qzzqzz, r, rsq, www, xxx, &
-      yyy, zi, zj, zzz
+      yyy, zi, zj, zzz, ft
     REAL(dp), DIMENSION(72)                  :: arg, sqr
 
       ri = 0._dp
@@ -1125,6 +1129,10 @@ CONTAINS
  
       END IF
 
+      ! Tapering function
+      ft = taper ( rij )
+      ri(:) = ft*ri(:)
+
   END SUBROUTINE terep
 
 ! *****************************************************************************
@@ -1154,7 +1162,7 @@ CONTAINS
     LOGICAL                                  :: si, sj
     REAL(dp) :: ade, adi, adj, aed, aee, aeq, ami, amj, aqe, aqi, aqj, da, &
       db, ddi, ddj, dze, edz, ee, eqxx, eqzz, qa, qb, qqi, qqj, qxxe, qzze, &
-      r, rsq, xxx, zi, zj
+      r, rsq, xxx, zi, zj, ft
     REAL(dp), DIMENSION(14)                  :: arg, ri, sqr
 
       ri = 0._dp
@@ -1341,6 +1349,11 @@ CONTAINS
 
       ssss = ri(1)
 
+      ! Tapering function
+      ft = taper ( rij )
+      core(:,:) = ft*core(:,:)
+      ssss = ft*ssss
+
   END SUBROUTINE nucint
 
 ! *****************************************************************************
@@ -1398,6 +1411,30 @@ CONTAINS
 
   END SUBROUTINE drotnuc
 
+! *****************************************************************************
+  SUBROUTINE set_taper_fn ( rc, range )
+    REAL(KIND=dp), INTENT(IN)            :: rc, range
+
+    taper_fn_init = .TRUE.
+    r0 = rc - 0.5_dp * range
+    al = 24._dp/range
+
+  END SUBROUTINE set_taper_fn
+
+  FUNCTION taper ( rij ) RESULT(ft)
+    REAL(KIND=dp), INTENT(IN)            :: rij
+    REAL(KIND=dp)                        :: ft
+
+    REAL(KIND=dp)                        :: ep
+
+    IF ( taper_fn_init ) THEN
+      ep = exp(-al*(rij-r0))
+      ft = ep/(1._dp+ep)
+    ELSE
+      ft = 1._dp
+    END IF
+
+  END FUNCTION taper
 ! *****************************************************************************
 
 END MODULE semi_empirical_integrals

@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations
-!   Copyright (C) 2004  CP2K developers group
+!   Copyright (C) 2004-2006 CP2K developers group
 !-----------------------------------------------------------------------------!
 
 
@@ -483,6 +483,7 @@ CONTAINS
 
        IF (ewald) THEN
          ! calculate Coulomb long range forces
+         energy%hartree=0._dp
          CALL nddo_ewald (ks_env,qs_env,ks_matrix,rho,energy,&
               calculate_forces,just_energy,error)
        ELSE
@@ -1284,7 +1285,7 @@ CONTAINS
           Qlm(1)=Qlm(1)+nddo_mpole%mp_rho(iatom)%Qlm_z
           Qlm_cart => nddo_mpole%mp_rho(iatom)%Qlm_car_s
           Qlm_cart = 0._dp
-          DO lshell = 0,lmax0
+          DO lshell = 0,2*lmax0
             DO ic = 1,nco(lshell)
               ico = ic + ncoset(lshell-1)
               lx = indco(1,ico)
@@ -1582,7 +1583,7 @@ CONTAINS
     CALL timeset("integrate_vhg0_rspace","I","",handle)
 
     NULLIFY(atomic_kind_set,dft_control,para_env,particle_set,cell,&
-            force,pw_env,nddo_mpole)
+            pw_env,nddo_mpole)
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
@@ -1595,11 +1596,12 @@ CONTAINS
 
     nspins = dft_control%nspins
 
+    NULLIFY(norm_l)
     CALL get_rho0_mpole(rho0_mpole=nddo_mpole,lmax_0=lmax0,&
                         zet0_s=zet0,igrid_zet0_s=igrid,&
                         norm_g0l_s=norm_l)
 
-    NULLIFY(rs_pools )
+    NULLIFY(rs_pools)
     CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineN,error,failure)
     CALL pw_env_get(pw_env, rs_pools=rs_pools, error=error)
 
@@ -1616,7 +1618,7 @@ CONTAINS
 
     ! set up the rs grid at level igrid
     NULLIFY(rs_v)
-    CALL rs_pool_create_rs(rs_pool,rs_v,force_env_section=qs_env%input, error=error)
+    CALL rs_pool_create_rs(rs_pool,rs_v,force_env_section=qs_env%input,error=error)
     CALL rs_grid_zero(rs_v)
     CALL rs_pw_transfer(rs_v,v_rspace%pw,pw2rs)
 
@@ -1633,9 +1635,11 @@ CONTAINS
     CALL reallocate(habt,1,nch_max,1,1,0,nthread)
     CALL reallocate(hdabt,1,3,1,nch_max,1,1,0,nthread)
     CALL reallocate(hadbt,1,3,1,nch_max,1,1,0,nthread)
+    NULLIFY(hab_spht,hdab_spht)
     CALL reallocate(hab_spht,1,nch_max,0,nthread)
     CALL reallocate(hdab_spht,1,3,1,nch_max,0,nthread)
 
+    NULLIFY(tasks)
     ncurr = -1
 
     DO ikind = 1,SIZE(atomic_kind_set,1)
@@ -1781,6 +1785,7 @@ CONTAINS
       DEALLOCATE (tasks,STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineN,error,failure)
     END IF
+
     DEALLOCATE (habt,hdabt,hadbt,hab_spht,hdab_spht,pab,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineN,error,failure)
 

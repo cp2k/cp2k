@@ -27,6 +27,7 @@
 !!                        pw_greens_fn
 !!     12.2004 condensed from pws, greens_fn and green_fns, by apsi and JGH,
 !!             made thread safe, new input [fawzi]
+!!     14-Mar-2006 : added short range screening function for SE codes
 !!
 !!   SOURCE
 !****************************************************************************
@@ -153,7 +154,8 @@ MODULE pw_poisson_types
   TYPE greens_fn_type
      INTEGER :: method
      INTEGER :: special_dimension
-     INTEGER :: id_nr,  ref_count
+     INTEGER :: id_nr
+     INTEGER :: ref_count
      REAL (KIND=dp) :: radius
      REAL (KIND=dp) :: MT_alpha
      REAL (KIND=dp) :: MT_rel_cutoff
@@ -164,6 +166,9 @@ MODULE pw_poisson_types
      REAL (KIND=dp) :: p3m_alpha
      REAL (KIND=dp), DIMENSION ( :, : ), POINTER :: p3m_coeff
      REAL (KIND=dp), DIMENSION ( :, : ), POINTER :: p3m_bm2
+     LOGICAL :: sr_screening
+     REAL (KIND=dp) :: sr_alpha
+     REAL (KIND=dp) :: sr_rc
      TYPE ( pw_type ), POINTER :: influence_fn
      TYPE ( pw_type ), POINTER :: screen_fn
      TYPE ( pw_type ), POINTER :: p3m_charge
@@ -345,6 +350,9 @@ CONTAINS
        green%p3m=.FALSE.
        green%p3m_order=0
        green%p3m_alpha=0.0_dp
+       green%sr_screening=.FALSE.
+       green%sr_alpha=1.0_dp
+       green%sr_rc=0.0_dp
 
        NULLIFY (green%influence_fn,green%p3m_charge)
        NULLIFY (green%p3m_coeff,green%p3m_bm2)

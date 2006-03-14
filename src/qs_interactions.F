@@ -467,8 +467,8 @@ CONTAINS
     
 ! ------------------------------------------------------------------------------
 
-    ! renormalize rc_exchange to minimum image radius
-    se_control%rc_exchange = 0.5_dp*MAX(plane_distance(1,0,0,cell),&
+    ! renormalize rc_interaction to minimum image radius
+    se_control%rc_interaction = 0.5_dp*MAX(plane_distance(1,0,0,cell),&
                                         plane_distance(0,1,0,cell),&
                                         plane_distance(0,0,1,cell))
 
@@ -488,8 +488,7 @@ CONTAINS
         CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
                                kind_radius=kind_radius)
 
-        kind_radius = MAX (kind_radius,&
-                           se_control%rc_coulomb,se_control%rc_exchange)
+        kind_radius = MAX (kind_radius,se_control%rc_interaction)
 
         CALL set_gto_basis_set(gto_basis_set=orb_basis_set,&
                                kind_radius=kind_radius)
@@ -512,6 +511,53 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
+
+    CHARACTER(LEN=10)                        :: bas
+    CHARACTER(LEN=8)                         :: unit_of_length_name
+    CHARACTER(LEN=default_string_length)     :: name
+    INTEGER                                  :: ikind, nkind, output_unit
+    INTEGER, DIMENSION(:), POINTER           :: npgf
+    REAL(KIND=dp)                            :: kind_radius, unit_of_length
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
+
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
+    NULLIFY(orb_basis_set)
+    bas="ORBITAL   "
+
+    CALL get_cell(cell=cell,&
+                  unit_of_length=unit_of_length,&
+                  unit_of_length_name=unit_of_length_name)
+
+    nkind = SIZE(atomic_kind_set)
+
+!   *** Print the kind radii ***
+    output_unit = cp_print_key_unit_nr(logger,force_env_section,&
+         "SUBSYS%PRINT%RADII/KIND_RADII",extension=".Log",error=error)
+    IF (output_unit>0) THEN
+      WRITE (UNIT=output_unit,FMT="(/,T2,A,T56,A,T63,A,T75,A)")&
+        "RADII: "//TRIM(bas)//" BASIS in "//TRIM(unit_of_length_name),&
+        "Kind","Label","Radius"
+      DO ikind=1,nkind
+        atomic_kind => atomic_kind_set(ikind)
+        CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                             name=name,&
+                             orb_basis_set=orb_basis_set)
+        IF(ASSOCIATED(orb_basis_set)) THEN
+          CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
+                                 kind_radius=kind_radius)
+          WRITE (UNIT=output_unit,FMT="(T55,I5,T63,A5,T69,F12.6)")&
+            ikind,name,kind_radius/unit_of_length
+        ELSE
+           WRITE (UNIT=output_unit,FMT="(T55,I5,T63,A5,T72,A9)")&
+              ikind,name,"no basis"
+        END IF
+      END DO
+    END IF
+    CALL cp_print_key_finished_output(output_unit,logger,force_env_section,&
+         "SUBSYS%PRINT%RADII/KIND_RADII",error=error)
 
   END SUBROUTINE write_kind_radii
 

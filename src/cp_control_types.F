@@ -48,8 +48,8 @@ MODULE cp_control_types
      REAL(KIND = dp)       :: delta
      REAL(KIND = dp)       :: alpha_gauss
      REAL(KIND = dp)       :: eps_gauss
-     REAL(KIND = dp)       :: rc_exchange
-     REAL(KIND = dp)       :: rc_coulomb
+     REAL(KIND = dp)       :: rc_interaction
+     REAL(KIND = dp)       :: rc_range
   END TYPE semi_empirical_control_type
 
 ! *** Control parameters for GAPW method within QUICKSTEP ***
