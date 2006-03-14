@@ -40,21 +40,40 @@ MODULE harris_metropolis_mc
                                              cp_print_key_unit_nr,&
                                              cp_rm_iter_level
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
-                                             cp_subsystem_p_type
+                                             cp_subsystem_p_type, &
+                                             cp_subsys_release, &
+                                             cp_subsystem_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_initialize,&
                                              dyn_coeff_set_p_type
+  USE eip_environment,                 ONLY: eip_init
+  USE eip_environment_types,           ONLY: eip_env_create, &
+                                             eip_env_release, &
+                                             eip_environment_type, &
+                                             eip_env_retain, &
+                                             eip_env_get
   USE extended_system_types,           ONLY: extended_system_type,&
                                              extended_type_init,&
                                              lnhc_dealloc,&
                                              lnhc_init,&
-                                             lnhc_parameters_type,&
                                              npt_dealloc
+  USE fist_environment,                ONLY: fist_init
+  USE fist_environment_types,          ONLY: fist_environment_type, &
+                                             get_fist_env, &
+                                             set_fist_env, &
+                                             fist_env_create, &
+                                             fist_env_retain, &
+                                             fist_env_release
   USE force_env_methods,               ONLY: force_env_calc_energy_force
   USE force_env_types,                 ONLY: force_env_get,&
+                                             force_env_set,&
                                              force_env_p_type,&
                                              force_env_type,&
-                                             use_qs_force
+                                             use_kg_force, &
+                                             use_qs_force, &
+                                             use_tbmd_force, &
+                                             use_eip_force, &
+                                             use_fist_force
   USE global_types,                    ONLY: global_environment_type
   USE init_extended_system_types,      ONLY: initialize_nhc_baro,&
                                              initialize_nhc_coef,&
@@ -64,13 +83,33 @@ MODULE harris_metropolis_mc
   USE input_constants,                 ONLY: do_kg,&
                                              do_qs,&
                                              langevin_ensemble,&
-                                             restart_guess
+                                             restart_guess, &
+                                             do_tbmd, &
+                                             do_eip, &
+                                             do_fist, &
+                                             Fist_MD_method, &
+                                             KG_MD_method, &
+                                             KG_DFT_MD_method, &
+                                             QS_MD_method, &
+                                             Harris_MD_method, &
+                                             EIP_MD_method, &
+                                             SE_MD_method, &
+                                             KG_DFT_MC_method, &
+                                             QS_MC_method, &
+                                             Harris_MC_method, &
+                                             EIP_MC_method, &
+                                             SE_MC_method, &
+                                             TBMD_MC_method
   USE input_cp2k_restarts,             ONLY: write_restart
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get,&
                                              section_vals_write
-  USE kg_environment_types,            ONLY: kg_environment_type
+  USE kg_environment,                  ONLY: kg_init
+  USE kg_environment_types,            ONLY: kg_env_create,&
+                                             kg_env_release,&
+                                             kg_env_retain,&
+                                             kg_environment_type
   USE kinds,                           ONLY: dp,&
                                              dp_size
   USE machine,                         ONLY: m_flush,&
@@ -88,6 +127,9 @@ MODULE harris_metropolis_mc
   USE md_run,                          ONLY: temperature_control
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_sum
+  USE metadynamics,                    ONLY: metadyn_read
+  USE metadynamics_types,              ONLY: meta_env_type, &
+                                             meta_env_release
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
   USE mol_new_list_types,              ONLY: mol_new_list_type
   USE parallel_rng_types,              ONLY: UNIFORM,&
@@ -97,18 +139,33 @@ MODULE harris_metropolis_mc
                                              rng_stream_type
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type
+  USE qs_environment,                  ONLY: qs_init
   USE qs_environment_types,            ONLY: get_qs_env,&
-                                             qs_environment_type
+                                             qs_environment_type, &
+                                             qs_env_create,&
+                                             qs_env_retain,&
+                                             qs_env_release
   USE qs_mo_types,                     ONLY: read_mo_set
   USE qs_wf_history_methods,           ONLY: wfi_duplicate_history
   USE qs_wf_history_types,             ONLY: qs_wf_history_type,&
                                              wfi_release,&
-                                             wfi_use_guess_method_nr
+                                             wfi_use_guess_method_nr, &
+                                             wfi_use_prev_p_method_nr
+  USE tbmd_energy_types,               ONLY: tbmd_energy_type, &
+                                             tbmd_energy_get
+  USE tbmd_environment,                ONLY: tbmd_init
+  USE tbmd_environment_types,          ONLY: tbmd_env_create,&
+                                             tbmd_env_release,&
+                                             tbmd_env_retain,&
+                                             tbmd_environment_type, &
+                                             tbmd_env_get
   USE termination,                     ONLY: external_control,&
                                              stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE velocity_verlet_control,         ONLY: velocity_verlet
+  USE virial_types,                    ONLY: virial_create, &
+                                             virial_retain
   USE wiener_process,                  ONLY: create_wiener_process
 #include "cp_common_uses.h"
 
@@ -168,16 +225,178 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'harris_mc_ld', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
+    INTEGER                                  :: stat, &
+                                                handle, &
+                                                md_method, &
+                                                mc_prog_name_id
     TYPE(force_env_p_type), DIMENSION(:), &
       POINTER                                :: force_env_p
+    TYPE(meta_env_type), POINTER             :: meta_env
+    TYPE(section_vals_type), POINTER         :: metadyn_section, &
+                                                hmc_section
+    !TYPE(cp_error_type)                      :: suberror
+    TYPE(kg_environment_type), POINTER       :: kg_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(tbmd_environment_type), POINTER     :: tbmd_env
+    TYPE(eip_environment_type), POINTER      :: eip_env
+    TYPE(fist_environment_type), POINTER     :: fist_env
+    TYPE(cp_subsystem_p_type), DIMENSION(:), &
+      POINTER                                :: subsys
+    TYPE(cp_subsystem_type), POINTER         :: subsystem
 
 !   ------------------------------------------------------------------------
+
+    NULLIFY(force_env_p, meta_env, metadyn_section, hmc_section, kg_env, &
+            qs_env, tbmd_env, eip_env, subsys, subsystem, fist_env)
+
+    CALL timeset(routineN, "I", "", handle)
+
+    hmc_section => section_vals_get_subs_vals(globenv%input_file, &
+         "MOTION%MD%HMC", error=error)
+    CALL section_vals_val_get(hmc_section, "MD_METHOD", &
+         i_val=md_method, error=error)
+
+    mc_prog_name_id = globenv%prog_name_id
+
+    SELECT CASE(md_method)
+    CASE(FIST_MD_method)
+      globenv%prog_name_id = do_fist
+    CASE(EIP_MD_method)
+      globenv%prog_name_id = do_eip
+    CASE(SE_MD_method)
+      globenv%prog_name_id = do_qs
+    CASE(KG_MD_method)
+      globenv%prog_name_id = do_kg
+    CASE(KG_DFT_MD_method)
+      globenv%prog_name_id = do_kg
+    CASE(QS_MD_method)
+      globenv%prog_name_id = do_qs
+    CASE(Harris_MD_method)
+      globenv%prog_name_id = do_qs
+    CASE DEFAULT
+      PRINT *, "The default DFT/QS-method is used for the MC energy evaluation."
+      globenv%prog_name_id = do_qs
+    END SELECT
+    
+    IF (mc_prog_name_id .NE. globenv%prog_name_id) THEN
+      SELECT CASE (globenv%prog_name_id)
+      CASE (do_fist)
+        CALL fist_env_create(fist_env, para_env = globenv%para_env)
+        CALL set_fist_env(fist_env, qmmm=.FALSE., error=error)
+
+        ! *** Read the input and the database files and perform further  ***
+        ! *** initializations for the setup of the FIST environment ***
+
+        CALL fist_init(fist_env, globenv, error)
+
+        CALL get_fist_env(fist_env=fist_env, subsys=subsystem, error=error)
+        CALL cp_subsys_release(subsys=subsystem, error=error)
+
+        CALL force_env_get(force_env=force_env, subsys=subsys, error=error)
+        CALL set_fist_env(fist_env=fist_env, subsys=subsys(1)%subsys)
+
+        !force_env%in_use=use_fist_force
+        force_env%fist_env => fist_env
+        CALL fist_env_retain(fist_env, error = error)
+        CALL virial_create(force_env%virial, virial_in_use = .TRUE.)
+
+        CALL fist_env_release (fist_env, error = error)
+      CASE (do_kg)
+        CALL kg_env_create(kg_env, para_env=globenv%para_env, &
+                           error=error)
+
+        CALL kg_init(kg_env, globenv, error)
+
+        CALL cp_subsys_release(subsys=kg_env%subsys, error=error)
+
+        CALL force_env_get(force_env=force_env, subsys=subsys, error=error)
+        kg_env%subsys => subsys(1)%subsys
+
+        !force_env%in_use = use_kg_force
+        force_env%kg_env => kg_env
+        CALL kg_env_retain(kg_env, error=error)
+        CALL virial_create(force_env%virial, virial_in_use = .FALSE.)
+        kg_env%virial => force_env%virial
+        CALL virial_retain(kg_env%virial)
+
+        CALL kg_env_release(kg_env, error=error)
+      CASE (do_qs)
+        CALL qs_env_create(qs_env, globenv%para_env)
+         
+        !   *** Read the input and the database files and perform further  ***
+        !   *** initializations for the setup of the QUICKSTEP environment ***
+        CALL qs_init(qs_env, globenv, error=error)
+
+        CALL cp_subsys_release(subsys=qs_env%subsys, error=error)
+
+        CALL force_env_get(force_env=force_env, subsys=subsys, error=error)
+        qs_env%subsys => subsys(1)%subsys
+
+        !force_env%in_use = use_qs_force
+        force_env%qs_env => qs_env
+        CALL qs_env_retain(qs_env,error=error)
+        CALL virial_create(force_env%virial, virial_in_use = .TRUE.)
+        qs_env%virial => force_env%virial
+        CALL virial_retain(qs_env%virial)
+
+        CALL qs_env_release(qs_env, error=error)
+      CASE (do_tbmd)
+        CALL tbmd_env_create(tbmd_env, error=error)
+
+        CALL tbmd_init(tbmd_env, globenv, error=error)
+
+        CALL cp_subsys_release(subsys=tbmd_env%subsystem, error=error)
+
+        CALL force_env_get(force_env=force_env, subsys=subsys, error=error)
+        tbmd_env%subsystem => subsys(1)%subsys
+
+        !force_env%in_use = use_tbmd_force
+        force_env%tbmd_env => tbmd_env
+        CALL tbmd_env_retain(tbmd_env, error=error)
+        CALL virial_create(force_env%virial, virial_in_use = .FALSE.)
+        tbmd_env%virial => force_env%virial
+        CALL virial_retain(tbmd_env%virial)
+
+        CALL tbmd_env_release(tbmd_env, error=error)
+      CASE (do_eip)
+        CALL eip_env_create(eip_env, error=error)
+
+        CALL eip_init(eip_env, globenv, error=error)
+
+        CALL cp_subsys_release(subsys=eip_env%subsystem, error=error)
+
+        CALL force_env_get(force_env=force_env, subsys=subsys, error=error)
+        eip_env%subsystem => subsys(1)%subsys
+
+        !force_env%in_use = use_eip_force
+        force_env%eip_env => eip_env
+        CALL eip_env_retain(eip_env, error=error)
+        CALL virial_create(force_env%virial, virial_in_use = .FALSE.)
+        eip_env%virial => force_env%virial
+        CALL virial_retain(eip_env%virial)
+
+        CALL eip_env_release(eip_env, error=error)
+      CASE DEFAULT
+        CALL cp_unimplemented_error(fromWhere=routineP, &
+              message="This program isn't integrated in HMC yet.", &
+              error=error, error_level=cp_failure_level)
+      END SELECT
+      !IF (ASSOCIATED(force_env)) THEN
+      !  NULLIFY(meta_env)
+      !  metadyn_section => section_vals_get_subs_vals(globenv%input_file, &
+      !                     "MOTION%METADYN", error=suberror)
+      !  CALL metadyn_read(meta_env, globenv, metadyn_section, error=suberror)
+      !  CALL force_env_set(force_env, meta_env=meta_env, error=suberror)
+      !  CALL meta_env_release(meta_env, error=suberror)
+      !END IF
+    END IF
 
     ALLOCATE(force_env_p(1), stat=stat)
     CPPostconditionNoFail(stat==0,cp_failure_level,routineP,error)
     force_env_p(1)%force_env => force_env
     CALL harris_mc_md(force_env_p=force_env_p, globenv=globenv, error=error)
+
+    CALL timestop(0.0_dp, handle)
 
   END SUBROUTINE harris_mc_ld
 !***************************************************************************
@@ -253,14 +472,16 @@ CONTAINS
 
     INTEGER :: accept, atom, force_env_in_use, handle, i, iatom, ibead, &
       ikind, in_use, iparticles, ires, istat, istep, isubsys, iter_level, iw, &
-      max_scf_aspc_tmp, max_scf_tmp, mc_method, md_method, myi, nbeads, reject
+      max_scf_tmp, max_scf_aspc_tmp, mc_method, md_method, myi, nbeads, reject, &
+      wf_interpolation_method_tmp
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     INTEGER, POINTER                         :: accepted_md, itimes, &
                                                 md_approach_nr
     INTEGER, SAVE                            :: hmc
-    LOGICAL :: accepted, ext_temp, failure, fill_wf_history, ionode, qs_ener, &
-      rand_vel, restore_velocities, restore_wf_past, semi_hybrid, soft_start, &
-      start_qs, tot_energy, use_harris_tmp, vel_scaling
+    LOGICAL :: accepted, ext_temp, failure, ionode, qs_ener, rand_vel, &
+      restore_velocities, restore_wf_past, semi_hybrid, start_qs, tot_energy, &
+      use_harris_tmp, vel_scaling, soft_start, fill_wf_history, &
+      interMMC_extrapolation
     REAL(KIND=dp) :: acceptance_rate, akin, denom, e_kinetic, Econs, &
       Ekin_new, Ekin_prev, Epot_new, Epot_prev, eps_default_tmp, eps_scf_tmp, &
       mass, md_run_start_time, new_ldmc_energy, prev_ldmc_energy, prob, &
@@ -282,8 +503,6 @@ CONTAINS
     TYPE(dyn_coeff_set_p_type), &
       DIMENSION(:), POINTER                  :: dyn_coeff_set
     TYPE(extended_system_type)               :: extended_type
-    TYPE(kg_environment_type), POINTER       :: kg_env
-    TYPE(lnhc_parameters_type), POINTER      :: nhc_baro, nhc_part
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds_new
     TYPE(mol_new_list_type), POINTER         :: molecules_new
@@ -300,12 +519,16 @@ CONTAINS
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
     TYPE(unit_convert_type), POINTER         :: unit
+    TYPE(kg_environment_type), POINTER       :: kg_env
+    TYPE(tbmd_environment_type), POINTER     :: tbmd_env
+    TYPE(eip_environment_type), POINTER      :: eip_env
+    TYPE(tbmd_energy_type), POINTER          :: tbmd_energy
 
 !   ------------------------------------------------------------------------
 
     CALL timeset(routineN, "I", "", handle)
     NULLIFY(force_env_section, motion_section, restart_section, subsys_section, md_approach_nr,&
-         accepted_md)
+            accepted_md)
     force_env_section => section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL",error=error)
     motion_section => section_vals_get_subs_vals(globenv%input_file,"MOTION",error=error)
     restart_section => section_vals_get_subs_vals(globenv%input_file,"EXT_RESTART",error=error)
@@ -319,11 +542,11 @@ CONTAINS
     accept = 0
     reject = 0
 
-    NULLIFY(logger, simpar, subsys, dyn_coeff_set, md_env, nhc_baro, &
-         nhc_part, molecule_kinds_new, molecules_new, local_molecules, &
-         particles, itimes, used_time, rng_stream, tmp_particle_set, t, &
-         local_particles, atomic_kind, atomic_kinds, atom_list, unit, &
-         tmp_wf_history, dft_control, qs_env, kg_env, particle_set, atomic_kind_set)
+    NULLIFY(logger, simpar, subsys, dyn_coeff_set, md_env, molecule_kinds_new, &
+            molecules_new, local_molecules, particles, itimes, used_time, rng_stream, &
+            tmp_particle_set, t, local_particles, atomic_kind, atomic_kinds, &
+            atom_list, unit, tmp_wf_history, dft_control, qs_env, particle_set, &
+            atomic_kind_set, kg_env, tbmd_env, eip_env, tbmd_energy)
     NULLIFY(dft_section, input, motion_section)
     logger => cp_error_get_logger(error)
 
@@ -341,17 +564,6 @@ CONTAINS
                            distribution_type=UNIFORM,&
                            extended_precision=.TRUE.,&
                            error=error)
-
-    IF (globenv%prog_name_id == do_qs) THEN
-       CALL force_env_get(force_env=force_env_p(1)%force_env, in_use=force_env_in_use, qs_env=qs_env, &
-            error=error)
-    ELSE IF (globenv%prog_name_id == do_kg) THEN
-       CPPrecondition(.FALSE., cp_failure_level, routineP, error, failure)       
-    END IF
-    IF (force_env_in_use == use_qs_force) THEN
-       CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, particle_set=particle_set, &
-            atomic_kind_set=atomic_kind_set,input=input, error=error)
-    END IF
 
     nbeads = SIZE(force_env_p)
     DO i = 1, nbeads
@@ -375,9 +587,27 @@ CONTAINS
     semi_hybrid = simpar%semi_hybrid
     soft_start = simpar%soft_start
     fill_wf_history = simpar%fill_wf_history
+    interMMC_extrapolation = simpar%MMC_extrapolation
     md_method = simpar%md_method
     mc_method = simpar%mc_method
     motion_section => section_vals_get_subs_vals(globenv%input_file,"MOTION",error=error)
+
+    SELECT CASE(mc_method)
+    CASE(EIP_MC_method)
+      globenv%prog_name_id = do_eip
+    CASE(SE_MC_method)
+      globenv%prog_name_id = do_qs
+    CASE(TBMD_MC_method)
+      globenv%prog_name_id = do_tbmd
+    CASE(KG_DFT_MC_method)
+      globenv%prog_name_id = do_kg
+    CASE(QS_MC_method)
+      globenv%prog_name_id = do_qs
+    CASE(Harris_MC_method)
+      globenv%prog_name_id = do_qs
+    CASE DEFAULT
+      globenv%prog_name_id = do_qs
+    END SELECT
 
     CALL extended_type_init(extended_type)
     ALLOCATE(extended_type%nhc_part(nbeads), STAT=istat)
@@ -391,6 +621,24 @@ CONTAINS
        CALL lnhc_init(extended_type%nhc_baro(ibead))
        CALL lnhc_init(extended_type%nhc_coef(ibead))
     ENDDO
+
+    IF (globenv%prog_name_id == do_qs) THEN
+       CALL force_env_get(force_env=force_env_p(1)%force_env, in_use=force_env_in_use, qs_env=qs_env, &
+            error=error)
+    ELSE IF (globenv%prog_name_id == do_kg) THEN
+       CALL force_env_get(force_env=force_env_p(1)%force_env, in_use=force_env_in_use, kg_env=kg_env, &
+            error=error)
+    ELSE IF (globenv%prog_name_id == do_tbmd) THEN
+       CALL force_env_get(force_env=force_env_p(1)%force_env, in_use=force_env_in_use, tbmd_env=tbmd_env, &
+            error=error)
+    ELSE IF (globenv%prog_name_id == do_eip) THEN
+       CALL force_env_get(force_env=force_env_p(1)%force_env, in_use=force_env_in_use, eip_env=eip_env, &
+            error=error)
+    END IF
+    IF (force_env_in_use == use_qs_force) THEN
+       CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, particle_set=particle_set, &
+            atomic_kind_set=atomic_kind_set,input=input, error=error)
+    END IF
 
     DO ibead = 1, nbeads
 
@@ -577,6 +825,13 @@ CONTAINS
        END IF
     END DO
 
+    ! Inter MMC extrapolation
+    IF (interMMC_extrapolation) THEN
+      IF ((mc_method == QS_MC_method) .OR. (mc_method == Harris_MC_method)) THEN
+        wf_interpolation_method_tmp = dft_control%qs_control%wf_interpolation_method_nr
+      END IF
+    END IF
+
     istep = 1
     DO WHILE (istep < simpar%nsteps)
        ! previous energy
@@ -598,6 +853,13 @@ CONTAINS
                calc_force=.FALSE., error=error)
        END IF
 
+       ! Inter MMC extrapolation
+       IF (interMMC_extrapolation) THEN
+         IF ((mc_method == QS_MC_method) .OR. (mc_method == Harris_MC_method)) THEN
+           dft_control%qs_control%wf_interpolation_method_nr = wf_interpolation_method_tmp
+         END IF
+       END IF
+
        IF (globenv%prog_name_id == do_kg) THEN
           Epot_prev = force_env_p(1)%force_env%kg_env%energy%total
           CALL compute_conserved_quantity(md_env=md_env, cons=Econs, epot=Epot_prev, ekin=Ekin_prev)
@@ -606,9 +868,26 @@ CONTAINS
           ELSE
              prev_ldmc_energy = Econs
           END IF
-       ELSE
+       ELSE IF (globenv%prog_name_id == do_qs) THEN
           Epot_prev = force_env_p(1)%force_env%qs_env%energy%total
           CALL compute_conserved_quantity(md_env=md_env, cons=Econs, epot=Epot_prev, ekin=Ekin_prev)
+          IF (.NOT. tot_energy) THEN
+             prev_ldmc_energy = Epot_prev
+          ELSE
+             prev_ldmc_energy = Econs
+          END IF
+       ELSE IF (globenv%prog_name_id == do_tbmd) THEN
+          CALL tbmd_env_get(tbmd_env=tbmd_env, tbmd_energy=tbmd_energy, error=error)
+          CALL tbmd_energy_get(tbmd_energy=tbmd_energy, E_tb=Econs, E_kinetic=Ekin_prev, error=error)
+          Epot_prev = Econs - Ekin_prev
+          IF (.NOT. tot_energy) THEN
+             prev_ldmc_energy = Epot_prev
+          ELSE
+             prev_ldmc_energy = Econs
+          END IF
+       ELSE IF (globenv%prog_name_id == do_eip) THEN
+          CALL eip_env_get(eip_env=eip_env, eip_energy=Econs, eip_potential_energy=Epot_prev, &
+                           error=error)
           IF (.NOT. tot_energy) THEN
              prev_ldmc_energy = Epot_prev
           ELSE
@@ -625,9 +904,68 @@ CONTAINS
        END IF
        !END IF
 
+       SELECT CASE(md_method)
+       CASE(FIST_MD_method)
+         globenv%prog_name_id = do_fist
+         force_env_p(1)%force_env%in_use=use_fist_force
+       CASE(KG_MD_method)
+         globenv%prog_name_id = do_kg
+         force_env_p(1)%force_env%in_use=use_kg_force
+       CASE(KG_DFT_MD_method)
+         globenv%prog_name_id = do_kg
+         force_env_p(1)%force_env%in_use=use_kg_force
+       CASE(QS_MD_method)
+         globenv%prog_name_id = do_qs
+         force_env_p(1)%force_env%in_use=use_qs_force
+       CASE(Harris_MD_method)
+         globenv%prog_name_id = do_qs
+         force_env_p(1)%force_env%in_use=use_qs_force
+       CASE(EIP_MD_method)
+         globenv%prog_name_id = do_eip
+         force_env_p(1)%force_env%in_use=use_eip_force
+       CASE(SE_MD_method)
+         globenv%prog_name_id = do_qs
+         force_env_p(1)%force_env%in_use=use_qs_force
+       CASE DEFAULT
+         globenv%prog_name_id = do_qs
+         force_env_p(1)%force_env%in_use=use_qs_force
+       END SELECT
+
        ! MC MD-approach
        md_approach_nr = md_approach_nr+1
        CALL harris_mc_md_approach(md_env, globenv, simpar, logger, error)
+
+       SELECT CASE(mc_method)
+       CASE(EIP_MC_method)
+         globenv%prog_name_id = do_eip
+         force_env_p(1)%force_env%in_use=use_eip_force
+       CASE(SE_MC_method)
+         globenv%prog_name_id = do_qs
+         force_env_p(1)%force_env%in_use=use_qs_force
+       CASE(TBMD_MC_method)
+         globenv%prog_name_id = do_tbmd
+         force_env_p(1)%force_env%in_use=use_tbmd_force
+       CASE(KG_DFT_MC_method)
+         globenv%prog_name_id = do_kg
+         force_env_p(1)%force_env%in_use=use_kg_force
+       CASE(QS_MC_method)
+         globenv%prog_name_id = do_qs
+         force_env_p(1)%force_env%in_use=use_qs_force
+       CASE(Harris_MC_method)
+         globenv%prog_name_id = do_qs
+         force_env_p(1)%force_env%in_use=use_qs_force
+       CASE DEFAULT
+         globenv%prog_name_id = do_qs
+         force_env_p(1)%force_env%in_use=use_qs_force
+       END SELECT
+
+       ! Inter MMC extrapolation
+       IF (interMMC_extrapolation) THEN
+         IF ((mc_method == QS_MC_method) .OR. (mc_method == Harris_MC_method)) THEN
+           wf_interpolation_method_tmp = dft_control%qs_control%wf_interpolation_method_nr
+           dft_control%qs_control%wf_interpolation_method_nr = wfi_use_prev_p_method_nr
+         END IF
+       END IF
 
        ! Compare energies
        IF (qs_ener .AND. (globenv%prog_name_id == do_qs)) THEN
@@ -656,9 +994,26 @@ CONTAINS
           ELSE
              new_ldmc_energy = Econs
           END IF
-       ELSE
+       ELSE IF (globenv%prog_name_id == do_qs) THEN
           Epot_new = force_env_p(1)%force_env%qs_env%energy%total
           CALL compute_conserved_quantity(md_env=md_env, cons=Econs, epot=Epot_new, ekin=Ekin_new)
+          IF (.NOT. tot_energy) THEN
+             new_ldmc_energy = Epot_new
+          ELSE
+             new_ldmc_energy = Econs
+          END IF
+       ELSE IF (globenv%prog_name_id == do_tbmd) THEN
+          CALL tbmd_env_get(tbmd_env=tbmd_env, tbmd_energy=tbmd_energy, error=error)
+          CALL tbmd_energy_get(tbmd_energy=tbmd_energy, E_tb=Econs, E_kinetic=Ekin_new, error=error)
+          Epot_new = Econs - Ekin_new
+          IF (.NOT. tot_energy) THEN
+             new_ldmc_energy = Epot_new
+          ELSE
+             new_ldmc_energy = Econs
+          END IF
+       ELSE IF (globenv%prog_name_id == do_eip) THEN
+          CALL eip_env_get(eip_env=eip_env, eip_energy=Econs, eip_potential_energy=Epot_new, &
+                           error=error)
           IF (.NOT. tot_energy) THEN
              new_ldmc_energy = Epot_new
           ELSE
@@ -1054,26 +1409,28 @@ CONTAINS
     max_scf_aspc_tmp = qs_env%scf_control%max_scf_aspc
 
     DO iter = 1, simpar%ld_steps
-      IF (simpar%soft_start) THEN
-        IF ((MIN(wf_history%memory_depth,wf_history%snapshot_count) &
-            >= iter)) THEN
-          qs_env%scf_control%max_scf = 1000
-          qs_env%scf_control%max_scf_aspc = 1000
-        ELSE
-          qs_env%scf_control%max_scf = max_scf_tmp
-          qs_env%scf_control%max_scf_aspc = max_scf_aspc_tmp
-        END IF
-      ELSE
-        IF (simpar%fill_wf_history) THEN
+      IF ((globenv%prog_name_id == do_qs) .OR. (globenv%prog_name_id == do_kg)) THEN
+        IF (simpar%soft_start) THEN
           IF ((MIN(wf_history%memory_depth,wf_history%snapshot_count) &
-              > itimes)) THEN
-            !max_scf_tmp = qs_env%scf_control%max_scf
-            !max_scf_aspc_tmp = qs_env%scf_control%max_scf_aspc
+              >= iter)) THEN
             qs_env%scf_control%max_scf = 1000
             qs_env%scf_control%max_scf_aspc = 1000
           ELSE
             qs_env%scf_control%max_scf = max_scf_tmp
             qs_env%scf_control%max_scf_aspc = max_scf_aspc_tmp
+          END IF
+        ELSE
+          IF (simpar%fill_wf_history) THEN
+            IF ((MIN(wf_history%memory_depth,wf_history%snapshot_count) &
+                > itimes)) THEN
+              !max_scf_tmp = qs_env%scf_control%max_scf
+              !max_scf_aspc_tmp = qs_env%scf_control%max_scf_aspc
+              qs_env%scf_control%max_scf = 1000
+              qs_env%scf_control%max_scf_aspc = 1000
+            ELSE
+              qs_env%scf_control%max_scf = max_scf_tmp
+              qs_env%scf_control%max_scf_aspc = max_scf_aspc_tmp
+            END IF
           END IF
         END IF
       END IF

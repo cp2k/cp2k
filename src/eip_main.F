@@ -80,7 +80,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    TYPE(eip_environment_type), POINTER     :: eip_env
+    TYPE(eip_environment_type), POINTER      :: eip_env
 
 !   ---------------------------------------------------------------------------
 

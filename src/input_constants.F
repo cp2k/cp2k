@@ -407,7 +407,7 @@ MODULE input_constants
                                 lr_ls_3pnt=2, lr_ls_gold=3 
 
   ! Hybrid MC
-  CHARACTER (LEN=default_string_length), PARAMETER, DIMENSION(10), PUBLIC :: method_name_types=&
+  CHARACTER (LEN=default_string_length), PARAMETER, DIMENSION(14), PUBLIC :: method_name_types=&
        (/"FIST_MD   ",&
          "KG_MD     ",&
          "KG_DFT_MD ",&
@@ -417,12 +417,18 @@ MODULE input_constants
          "QS_MC     ",&
          "Harris_MC ",&
          "EIP_MD    ",&
-         "SE_MD     "/)
+         "SE_MD     ",&
+         "TBMD_MD   ",&
+         "EIP_MC    ",&
+         "SE_MC     ",&
+         "TBMD_MC   "/)
   INTEGER, PARAMETER, PUBLIC :: FIST_MD_method=1, KG_MD_method=2, &
                                 KG_DFT_MD_method=3, QS_MD_method=4, &
                                 Harris_MD_method=5, KG_DFT_MC_method=6, &
                                 QS_MC_method=7, Harris_MC_method=8, &
-                                EIP_MD_method=9, SE_MD_method=10
+                                EIP_MD_method=9, SE_MD_method=10, &
+                                TBMD_MD_method=11, EIP_MC_method=12, &
+                                SE_MC_method=13, TBMD_MC_method=14
 
   ! Tight-Binding parametrization models
   INTEGER, PARAMETER, PUBLIC :: use_gsp=1,&

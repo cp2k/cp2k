@@ -48,7 +48,9 @@ MODULE cp2k_runs
        bsse_run, do_farming, do_fist, do_kg, do_pint, do_qmmm, do_qs, &
        do_tbmd, do_eip, do_test, electronic_spectra_run, energy_force_run, &
        energy_run, geo_opt_run, hmc_run, ldmc_run, linear_response_run, &
-       mol_dyn_run, mon_car_run, none_run, qs_debug_run
+       mol_dyn_run, mon_car_run, none_run, qs_debug_run, KG_DFT_MC_method, &
+       QS_MC_method, Harris_MC_method, EIP_MC_method, SE_MC_method, &
+       TBMD_MC_method, do_eip, do_tbmd
   USE input_cp2k,                      ONLY: create_cp2k_root_section,&
                                              create_global_section
   USE input_cp2k_check,                ONLY: check_cp2k_input
@@ -89,7 +91,8 @@ MODULE cp2k_runs
   IMPLICIT NONE
 
   PRIVATE
-  PUBLIC  :: cp2k_run, write_cp2k_html_manual, write_xml_file, run_input
+  PUBLIC  :: cp2k_run, write_cp2k_html_manual, write_xml_file, run_input, &
+             farming_run
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp2k_runs'
 CONTAINS
 
@@ -141,7 +144,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=512)                       :: unknown_string
-    INTEGER                                  :: unit_nr
+    INTEGER                                  :: unit_nr, &
+                                                mc_method
     LOGICAL                                  :: echo_input, failure, &
                                                 I_was_ionode, was_present
     TYPE(cp_error_type)                      :: error, suberror
@@ -154,7 +158,8 @@ CONTAINS
     TYPE(meta_env_type), POINTER             :: meta_env
     TYPE(section_type), POINTER              :: input_structure
     TYPE(section_vals_type), POINTER         :: glob_section, input_file, &
-                                                metadyn_section
+                                                metadyn_section, &
+                                                hmc_section
 
     cp2k_run_OK = .FALSE.
     failure=.FALSE.
@@ -246,13 +251,39 @@ CONTAINS
           CALL cp_error_init(suberror)
           CALL cp2k_read(globenv)
           CALL cp2k_setup(globenv,suberror)
+
+          IF ((globenv%run_type_id == hmc_run) .OR. &
+              (globenv%run_type_id == ldmc_run)) THEN
+            hmc_section => section_vals_get_subs_vals(globenv%input_file, &
+                           "MOTION%MD%HMC", error=error)
+            CALL section_vals_val_get(hmc_section, "MC_METHOD", &
+                                      i_val=mc_method, error=error)
+            SELECT CASE(mc_method)
+            CASE(EIP_MC_method)
+              globenv%prog_name_id = do_eip
+            CASE(SE_MC_method)
+              globenv%prog_name_id = do_qs
+            CASE(TBMD_MC_method)
+              globenv%prog_name_id = do_tbmd
+            CASE(KG_DFT_MC_method)
+              globenv%prog_name_id = do_kg
+            CASE(QS_MC_method)
+              globenv%prog_name_id = do_qs
+            CASE(Harris_MC_method)
+              globenv%prog_name_id = do_qs
+            CASE DEFAULT
+              PRINT *, "The standard DFT/QS method is used for HMC energy evaluation."
+              globenv%prog_name_id = do_qs
+            END SELECT
+          END IF
+
           SELECT CASE (globenv%prog_name_id)
           CASE (do_pint)
              CALL do_pint_run(para_env,globenv%input_file,error=suberror)
           CASE (do_farming)
              CALL farming_run ( globenv, suberror )
           CASE (do_fist)
-             CALL fist_create_force_env ( force_env, globenv,  error = suberror )
+             CALL fist_create_force_env ( force_env, globenv, error = suberror )
           CASE (do_kg)
              CALL kg_create_force_env ( force_env, globenv, error=suberror)
           CASE (do_qmmm)
