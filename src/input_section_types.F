@@ -1979,9 +1979,10 @@ RECURSIVE SUBROUTINE section_vals_write(section_vals,unit_nr,hide_root,error)
     CHARACTER(len=*), PARAMETER :: routineN = 'section_vals_write', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i_rep_s, ik, isec, ival, nr, &
-                                                nval
-    INTEGER, SAVE                            :: indent
+    CHARACTER(len=default_string_length)     :: myfmt
+    INTEGER                                  :: handle, i_rep_s, ik, isec, &
+                                                ival, nr, nval
+    INTEGER, SAVE                            :: indent = 1
     LOGICAL                                  :: defaultSection, failure, &
                                                 my_hide_root
     TYPE(cp_error_type)                      :: suberror
@@ -1991,8 +1992,8 @@ RECURSIVE SUBROUTINE section_vals_write(section_vals,unit_nr,hide_root,error)
     TYPE(section_vals_type), POINTER         :: sval
     TYPE(val_type), POINTER                  :: val
 
-  DATA indent/1/
-  CHARACTER(len=default_string_length) :: myfmt
+    CALL timeset(routineN,handle)
+
 
   failure=.FALSE.
   my_hide_root=.FALSE.
@@ -2102,6 +2103,9 @@ RECURSIVE SUBROUTINE section_vals_write(section_vals,unit_nr,hide_root,error)
      END DO
   END IF
   CALL cp_error_dealloc_ref(suberror)
+
+  CALL timestop(handle)
+
 END SUBROUTINE section_vals_write
 
 ! *****************************************************************************

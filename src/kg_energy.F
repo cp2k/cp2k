@@ -429,8 +429,8 @@ scf_loop: DO
   CPPostconditionNoFail(stat==0,cp_warning_level,routine,error)
   
   IF (BTEST(cp_print_key_should_output(logger%iter_info,&
-       globenv%input_file,"MOTION%MD%PRINT%RESTART",error=error),cp_p_file)) THEN
-     ires = cp_print_key_unit_nr(logger,globenv%input_file,"MOTION%MD%PRINT%RESTART",&
+       globenv%input_file,"MOTION%PRINT%RESTART",error=error),cp_p_file)) THEN
+     ires = cp_print_key_unit_nr(logger,globenv%input_file,"MOTION%PRINT%RESTART",&
           extension=".restart",  do_backup=.TRUE., &
           error=error)
      
@@ -441,7 +441,7 @@ scf_loop: DO
           hide_root=.TRUE., error=error)         
      
      CALL cp_print_key_finished_output(ires,logger,globenv%input_file,&
-          "MOTION%MD%PRINT%RESTART", error=error)
+          "MOTION%PRINT%RESTART", error=error)
   END IF
   
   CALL diis_info_destroy(diis_info)

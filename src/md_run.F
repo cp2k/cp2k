@@ -435,9 +435,9 @@ SUBROUTINE md_output(md_env,force_env_section,motion_section,globenv,error)
     CALL md_energy ( md_env, globenv, error ) ! also writes trajectories
 
     IF (BTEST(cp_print_key_should_output(logger%iter_info,&
-           motion_section,"MD%PRINT%RESTART",error=error),cp_p_file)) THEN
+           motion_section,"PRINT%RESTART",error=error),cp_p_file)) THEN
 
-       ires = cp_print_key_unit_nr(logger,motion_section,"MD%PRINT%RESTART",&
+       ires = cp_print_key_unit_nr(logger,motion_section,"PRINT%RESTART",&
                  extension=".restart",  do_backup=.TRUE., &
                  error=error)
 
@@ -470,7 +470,7 @@ SUBROUTINE md_output(md_env,force_env_section,motion_section,globenv,error)
         ENDIF
 
         CALL cp_print_key_finished_output(ires,logger,motion_section,&
-                      "MD%PRINT%RESTART", error=error)
+                      "PRINT%RESTART", error=error)
     ENDIF 
 
     CALL timestop(handle)

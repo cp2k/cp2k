@@ -131,6 +131,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'update_input', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: handle
     LOGICAL                                  :: failure, lcond
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(force_env_p_type), DIMENSION(:), &
@@ -139,6 +140,8 @@ CONTAINS
     TYPE(kg_environment_type), POINTER       :: my_kg_env
     TYPE(meta_env_type), POINTER             :: my_meta_env
     TYPE(section_vals_type), POINTER         :: motion_section
+
+    CALL timeset(routineN,handle)
 
     failure = .FALSE.
     NULLIFY(logger,motion_section,my_force_env,my_kg_env,my_meta_env,force_env_p)
@@ -185,6 +188,8 @@ CONTAINS
     !
     IF (ASSOCIATED(my_force_env)) &
          CALL update_force_eval(force_env_section,my_force_env,logger,error)
+
+    CALL timestop(handle)
 
   END SUBROUTINE update_input
 
@@ -844,7 +849,7 @@ CONTAINS
     TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(particle_list_type), POINTER        :: particles
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     CALL force_env_get(force_env, subsys=subsys, para_env=para_env, error=error)
 
@@ -1248,7 +1253,7 @@ CONTAINS
     TYPE(section_type), POINTER              :: section
     TYPE(val_type), POINTER                  :: my_val, old_val
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     failure = .FALSE.
 

@@ -90,11 +90,11 @@ MODULE harris_metropolis_mc
                                              mp_sum
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
   USE mol_new_list_types,              ONLY: mol_new_list_type
-  USE parallel_rng_types,              ONLY: create_rng_stream,&
+  USE parallel_rng_types,              ONLY: UNIFORM,&
+                                             create_rng_stream,&
                                              delete_rng_stream,&
                                              next_random_number,&
-                                             rng_stream_type,&
-                                             UNIFORM
+                                             rng_stream_type
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type
   USE qs_environment_types,            ONLY: get_qs_env,&
@@ -103,9 +103,7 @@ MODULE harris_metropolis_mc
   USE qs_wf_history_methods,           ONLY: wfi_duplicate_history
   USE qs_wf_history_types,             ONLY: qs_wf_history_type,&
                                              wfi_release,&
-                                             wfi_use_guess_method_nr, &
-                                             wfi_aspc, &
-                                             wfi_ps_method_nr
+                                             wfi_use_guess_method_nr
   USE termination,                     ONLY: external_control,&
                                              stop_memory
   USE timings,                         ONLY: timeset,&
@@ -255,14 +253,14 @@ CONTAINS
 
     INTEGER :: accept, atom, force_env_in_use, handle, i, iatom, ibead, &
       ikind, in_use, iparticles, ires, istat, istep, isubsys, iter_level, iw, &
-      max_scf_tmp, max_scf_aspc_tmp, mc_method, md_method, myi, nbeads, reject
+      max_scf_aspc_tmp, max_scf_tmp, mc_method, md_method, myi, nbeads, reject
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     INTEGER, POINTER                         :: accepted_md, itimes, &
                                                 md_approach_nr
     INTEGER, SAVE                            :: hmc
-    LOGICAL :: accepted, ext_temp, failure, ionode, qs_ener, rand_vel, &
-      restore_velocities, restore_wf_past, semi_hybrid, start_qs, tot_energy, &
-      use_harris_tmp, vel_scaling, soft_start, fill_wf_history
+    LOGICAL :: accepted, ext_temp, failure, fill_wf_history, ionode, qs_ener, &
+      rand_vel, restore_velocities, restore_wf_past, semi_hybrid, soft_start, &
+      start_qs, tot_energy, use_harris_tmp, vel_scaling
     REAL(KIND=dp) :: acceptance_rate, akin, denom, e_kinetic, Econs, &
       Ekin_new, Ekin_prev, Epot_new, Epot_prev, eps_default_tmp, eps_scf_tmp, &
       mass, md_run_start_time, new_ldmc_energy, prev_ldmc_energy, prob, &
@@ -550,8 +548,8 @@ CONTAINS
     CALL md_energy(md_env, globenv) ! inits the print env at itimes == 0
 
     IF (BTEST(cp_print_key_should_output(logger%iter_info,&
-         motion_section,"MD%PRINT%RESTART",error=error),cp_p_file)) THEN
-       ires = cp_print_key_unit_nr(logger,motion_section,"MD%PRINT%RESTART",&
+         motion_section,"PRINT%RESTART",error=error),cp_p_file)) THEN
+       ires = cp_print_key_unit_nr(logger,motion_section,"PRINT%RESTART",&
             extension=".restart", do_backup=.TRUE., error=error)
 
          CALL update_input(md_env=md_env,globenv=globenv,force_env_section=force_env_section,&
@@ -561,7 +559,7 @@ CONTAINS
               hide_root=.TRUE., error=error)         
 
        CALL cp_print_key_finished_output(ires,logger,motion_section,&
-            "MD%PRINT%RESTART", error=error)
+            "PRINT%RESTART", error=error)
     END IF
 
     ! Save the wavefunction history to be able to restore it in case the 
@@ -910,8 +908,8 @@ CONTAINS
           END IF
 
           IF (BTEST(cp_print_key_should_output(logger%iter_info,&
-               motion_section,"MD%PRINT%RESTART",error=error),cp_p_file)) THEN
-             ires = cp_print_key_unit_nr(logger,motion_section,"MD%PRINT%RESTART",&
+               motion_section,"PRINT%RESTART",error=error),cp_p_file)) THEN
+             ires = cp_print_key_unit_nr(logger,motion_section,"PRINT%RESTART",&
                   extension=".restart", do_backup=.TRUE., error=error)
 
              CALL update_input(md_env=md_env,globenv=globenv,force_env_section=force_env_section,&
@@ -921,7 +919,7 @@ CONTAINS
                   hide_root=.TRUE., error=error)         
 
              CALL cp_print_key_finished_output(ires,logger,motion_section,&
-                  "MD%PRINT%RESTART", error=error)
+                  "PRINT%RESTART", error=error)
           END IF
 
        ELSE
@@ -975,8 +973,8 @@ CONTAINS
     CALL md_energy(md_env, globenv)
 
     IF (BTEST(cp_print_key_should_output(logger%iter_info,&
-         motion_section,"MD%PRINT%RESTART",error=error),cp_p_file)) THEN
-       ires = cp_print_key_unit_nr(logger,motion_section,"MD%PRINT%RESTART",&
+         motion_section,"PRINT%RESTART",error=error),cp_p_file)) THEN
+       ires = cp_print_key_unit_nr(logger,motion_section,"PRINT%RESTART",&
             extension=".restart", do_backup=.TRUE., error=error)
 
          CALL update_input(md_env=md_env,globenv=globenv,force_env_section=force_env_section,&
@@ -986,7 +984,7 @@ CONTAINS
               hide_root=.TRUE., error=error)         
 
        CALL cp_print_key_finished_output(ires,logger,motion_section,&
-            "MD%PRINT%RESTART", error=error)
+            "PRINT%RESTART", error=error)
     END IF
 
     IF (ionode .AND. globenv%print_level >= 1) THEN
@@ -1060,9 +1058,9 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'harris_mc_md_approach', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ibead, iter, nbeads, &
-                                                max_scf_tmp, &
-                                                max_scf_aspc_tmp
+    INTEGER                                  :: handle, ibead, iter, &
+                                                max_scf_aspc_tmp, &
+                                                max_scf_tmp, nbeads
     INTEGER, POINTER                         :: itimes
     LOGICAL                                  :: should_stop
     REAL(KIND=dp)                            :: time_iter_start, &
@@ -1070,8 +1068,8 @@ CONTAINS
     REAL(KIND=dp), POINTER                   :: used_time
     TYPE(force_env_p_type), DIMENSION(:), &
       POINTER                                :: force_env_p
-    TYPE(qs_wf_history_type), POINTER        :: wf_history
     TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(qs_wf_history_type), POINTER        :: wf_history
 
 !   ------------------------------------------------------------------------
 

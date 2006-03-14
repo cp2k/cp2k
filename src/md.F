@@ -41,8 +41,8 @@ MODULE md
   USE kinds,                           ONLY: default_path_length,&
                                              dp
   USE message_passing,                 ONLY: mp_bcast
-  USE particle_types,                  ONLY: particle_type
   USE parallel_rng_types,              ONLY: next_random_number
+  USE particle_types,                  ONLY: particle_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -351,7 +351,7 @@ CONTAINS
        WRITE ( iw, '( A,T25,i5,T31,A50 )' ) ' MD| Energies',iprint(SIZE(iprint)), &
             ADJUSTR ( TRIM(filename) )
 
-       print_key => section_vals_get_subs_vals(motion_section,"MD%PRINT%RESTART",error=error)
+       print_key => section_vals_get_subs_vals(motion_section,"PRINT%RESTART",error=error)
        NULLIFY(iprint)
        CALL section_vals_val_get(print_key,"EACH",i_vals=iprint,error=error)
        filename = cp_print_key_generate_filename(logger,print_key,&
