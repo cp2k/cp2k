@@ -82,36 +82,41 @@ MODULE force_field_types
 
   TYPE input_info_type
     CHARACTER (LEN=default_string_length), POINTER :: charge_atm(:)
-    REAL(KIND=dp), POINTER                            :: charge(:)
+    REAL(KIND=dp), POINTER                         :: charge(:)
+    CHARACTER (LEN=default_string_length), POINTER :: bond_kind(:)
     CHARACTER (LEN=default_string_length), POINTER :: bond_a(:)
     CHARACTER (LEN=default_string_length), POINTER :: bond_b(:)
-    REAL(KIND=dp), POINTER                            :: bond_k(:,:)
-    REAL(KIND=dp), POINTER                            :: bond_r0(:)
+    REAL(KIND=dp), POINTER                         :: bond_k(:,:)
+    REAL(KIND=dp), POINTER                         :: bond_r0(:)
+    CHARACTER (LEN=default_string_length), POINTER :: bend_kind(:)
     CHARACTER (LEN=default_string_length), POINTER :: bend_a(:)
     CHARACTER (LEN=default_string_length), POINTER :: bend_b(:)
     CHARACTER (LEN=default_string_length), POINTER :: bend_c(:)
-    REAL(KIND=dp), POINTER                            :: bend_k(:)
-    REAL(KIND=dp), POINTER                            :: bend_theta0(:)
+    REAL(KIND=dp), POINTER                         :: bend_k(:)
+    REAL(KIND=dp), POINTER                         :: bend_theta0(:)
+    CHARACTER (LEN=default_string_length), POINTER :: ub_kind(:)
     CHARACTER (LEN=default_string_length), POINTER :: ub_a(:)
     CHARACTER (LEN=default_string_length), POINTER :: ub_b(:)
     CHARACTER (LEN=default_string_length), POINTER :: ub_c(:)
-    REAL(KIND=dp), POINTER                            :: ub_k(:)
-    REAL(KIND=dp), POINTER                            :: ub_r0(:)
+    REAL(KIND=dp), POINTER                         :: ub_k(:)
+    REAL(KIND=dp), POINTER                         :: ub_r0(:)
+    CHARACTER (LEN=default_string_length), POINTER :: torsion_kind(:)
     CHARACTER (LEN=default_string_length), POINTER :: torsion_a(:)
     CHARACTER (LEN=default_string_length), POINTER :: torsion_b(:)
     CHARACTER (LEN=default_string_length), POINTER :: torsion_c(:)
     CHARACTER (LEN=default_string_length), POINTER :: torsion_d(:)
-    REAL(KIND=dp), POINTER                            :: torsion_k(:)
-    REAL(KIND=dp), POINTER                            :: torsion_m(:)
-    REAL(KIND=dp), POINTER                            :: torsion_cosphi0(:)
+    REAL(KIND=dp), POINTER                         :: torsion_k(:)
+    REAL(KIND=dp), POINTER                         :: torsion_m(:)
+    REAL(KIND=dp), POINTER                         :: torsion_cosphi0(:)
+    CHARACTER (LEN=default_string_length), POINTER :: impr_kind(:)
     CHARACTER (LEN=default_string_length), POINTER :: impr_a(:)
     CHARACTER (LEN=default_string_length), POINTER :: impr_b(:)
     CHARACTER (LEN=default_string_length), POINTER :: impr_c(:)
     CHARACTER (LEN=default_string_length), POINTER :: impr_d(:)
-    REAL(KIND=dp), POINTER                            :: impr_k(:)
-    REAL(KIND=dp), POINTER                            :: impr_phi0(:)
-    TYPE (pair_potential_p_type), POINTER             :: nonbonded
-    TYPE (pair_potential_p_type), POINTER             :: nonbonded14
+    REAL(KIND=dp), POINTER                         :: impr_k(:)
+    REAL(KIND=dp), POINTER                         :: impr_phi0(:)
+    TYPE (pair_potential_p_type), POINTER          :: nonbonded
+    TYPE (pair_potential_p_type), POINTER          :: nonbonded14
   END TYPE input_info_type
 
   TYPE charmm_info_type
@@ -600,20 +605,24 @@ SUBROUTINE init_inp_info(inp_info)
 
   NULLIFY(inp_info%charge_atm)
   NULLIFY(inp_info%charge)
+  NULLIFY(inp_info%bond_kind)
   NULLIFY(inp_info%bond_a)
   NULLIFY(inp_info%bond_b)
   NULLIFY(inp_info%bond_k)
   NULLIFY(inp_info%bond_r0)
+  NULLIFY(inp_info%bend_kind)
   NULLIFY(inp_info%bend_a)
   NULLIFY(inp_info%bend_b)
   NULLIFY(inp_info%bend_c)
   NULLIFY(inp_info%bend_k)
   NULLIFY(inp_info%bend_theta0)
+  NULLIFY(inp_info%ub_kind)
   NULLIFY(inp_info%ub_a)
   NULLIFY(inp_info%ub_b)
   NULLIFY(inp_info%ub_c)
   NULLIFY(inp_info%ub_k)
   NULLIFY(inp_info%ub_r0)
+  NULLIFY(inp_info%torsion_kind)
   NULLIFY(inp_info%torsion_a)
   NULLIFY(inp_info%torsion_b)
   NULLIFY(inp_info%torsion_c)
@@ -621,6 +630,7 @@ SUBROUTINE init_inp_info(inp_info)
   NULLIFY(inp_info%torsion_k)
   NULLIFY(inp_info%torsion_m)
   NULLIFY(inp_info%torsion_cosphi0)
+  NULLIFY(inp_info%impr_kind)
   NULLIFY(inp_info%impr_a)
   NULLIFY(inp_info%impr_b)
   NULLIFY(inp_info%impr_c)
@@ -897,6 +907,10 @@ SUBROUTINE deallocate_inp_info(inp_info, error)
     DEALLOCATE(inp_info%charge,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   END IF
+  IF(ASSOCIATED(inp_info%bond_kind)) THEN
+    DEALLOCATE(inp_info%bond_kind,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  END IF
   IF(ASSOCIATED(inp_info%bond_a)) THEN
     DEALLOCATE(inp_info%bond_a,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -911,6 +925,10 @@ SUBROUTINE deallocate_inp_info(inp_info, error)
   END IF
   IF(ASSOCIATED(inp_info%bond_r0)) THEN
     DEALLOCATE(inp_info%bond_r0,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  END IF
+  IF(ASSOCIATED(inp_info%bend_kind)) THEN
+    DEALLOCATE(inp_info%bend_kind,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   END IF
   IF(ASSOCIATED(inp_info%bend_a)) THEN
@@ -933,6 +951,10 @@ SUBROUTINE deallocate_inp_info(inp_info, error)
     DEALLOCATE(inp_info%bend_theta0,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   END IF
+  IF(ASSOCIATED(inp_info%ub_kind)) THEN
+    DEALLOCATE(inp_info%ub_kind,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  END IF
   IF(ASSOCIATED(inp_info%ub_a)) THEN
     DEALLOCATE(inp_info%ub_a,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -951,6 +973,10 @@ SUBROUTINE deallocate_inp_info(inp_info, error)
   END IF
   IF(ASSOCIATED(inp_info%ub_r0)) THEN
     DEALLOCATE(inp_info%ub_r0,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  END IF
+  IF(ASSOCIATED(inp_info%torsion_kind)) THEN
+    DEALLOCATE(inp_info%torsion_kind,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   END IF
   IF(ASSOCIATED(inp_info%torsion_a)) THEN
@@ -979,6 +1005,10 @@ SUBROUTINE deallocate_inp_info(inp_info, error)
   END IF
   IF(ASSOCIATED(inp_info%torsion_cosphi0)) THEN
     DEALLOCATE(inp_info%torsion_cosphi0,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  END IF
+  IF(ASSOCIATED(inp_info%impr_kind)) THEN
+    DEALLOCATE(inp_info%impr_kind,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   END IF
   IF(ASSOCIATED(inp_info%impr_a)) THEN

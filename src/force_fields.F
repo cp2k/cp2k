@@ -283,7 +283,7 @@ CONTAINS
 
     INTEGER                                  :: ipbv, nbends, nbmhft, nbonds, &
                                                 nchg, neam, ngd, nipbv, nlj, &
-                                                ntors, ntot, nwl
+                                                ntors, ntot, nwl, nubs
     LOGICAL                                  :: explicit, failure
     TYPE(input_info_type), POINTER           :: inp_info
     TYPE(section_vals_type), POINTER         :: tmp_section, tmp_section2
@@ -381,29 +381,45 @@ CONTAINS
        CALL section_vals_get(tmp_section,explicit=explicit,n_repetition=nbonds,error=error)
        IF (explicit) THEN
           ntot=0
+          CALL reallocate(inp_info%bond_kind,1,nbonds)
           CALL reallocate(inp_info%bond_a,1,nbonds)
           CALL reallocate(inp_info%bond_b,1,nbonds)
           CALL reallocate(inp_info%bond_k,1,3,1,nbonds)
           CALL reallocate(inp_info%bond_r0,1,nbonds)        
-          CALL read_bonds_section(inp_info%bond_a, inp_info%bond_b, inp_info%bond_k,&
+          CALL read_bonds_section(inp_info%bond_kind,inp_info%bond_a, inp_info%bond_b, inp_info%bond_k,&
                inp_info%bond_r0, tmp_section, ntot, error)
        END IF
        tmp_section => section_vals_get_subs_vals(ff_section,"BEND",error=error)
        CALL section_vals_get(tmp_section,explicit=explicit,n_repetition=nbends,error=error)
        IF (explicit) THEN
           ntot=0
+          CALL reallocate(inp_info%bend_kind,1,nbends)
           CALL reallocate(inp_info%bend_a,1,nbends)
           CALL reallocate(inp_info%bend_b,1,nbends)
           CALL reallocate(inp_info%bend_c,1,nbends)
           CALL reallocate(inp_info%bend_k,1,nbends)
           CALL reallocate(inp_info%bend_theta0,1,nbends)
-          CALL read_bends_section(inp_info%bend_a, inp_info%bend_b, inp_info%bend_c,&
+          CALL read_bends_section(inp_info%bend_kind,inp_info%bend_a, inp_info%bend_b, inp_info%bend_c,&
                inp_info%bend_k, inp_info%bend_theta0, tmp_section, ntot, error)
+       END IF
+       tmp_section => section_vals_get_subs_vals(ff_section,"BEND",error=error)
+       CALL section_vals_get(tmp_section,explicit=explicit,n_repetition=nubs,error=error)
+       IF (explicit) THEN
+          ntot=0
+          CALL reallocate(inp_info%ub_kind,1,nubs)
+          CALL reallocate(inp_info%ub_a,1,nubs)
+          CALL reallocate(inp_info%ub_b,1,nubs)
+          CALL reallocate(inp_info%ub_c,1,nubs)
+          CALL reallocate(inp_info%ub_k,1,nubs)
+          CALL reallocate(inp_info%ub_r0,1,nubs)
+          CALL read_ubs_section(inp_info%ub_kind,inp_info%ub_a, inp_info%ub_b, inp_info%ub_c,&
+               inp_info%ub_k, inp_info%ub_r0, tmp_section, ntot, error)
        END IF
        tmp_section => section_vals_get_subs_vals(ff_section,"TORSION",error=error)
        CALL section_vals_get(tmp_section,explicit=explicit,n_repetition=ntors,error=error)
        IF (explicit) THEN
           ntot=0
+          CALL reallocate(inp_info%torsion_kind,1,ntors)
           CALL reallocate(inp_info%torsion_a,1,ntors)
           CALL reallocate(inp_info%torsion_b,1,ntors)
           CALL reallocate(inp_info%torsion_c,1,ntors)
@@ -411,7 +427,7 @@ CONTAINS
           CALL reallocate(inp_info%torsion_k,1,ntors)
           CALL reallocate(inp_info%torsion_m,1,ntors)
           CALL reallocate(inp_info%torsion_cosphi0,1,ntors)
-          CALL read_torsions_section( inp_info%torsion_a, inp_info%torsion_b, inp_info%torsion_c,&
+          CALL read_torsions_section(inp_info%torsion_kind,inp_info%torsion_a, inp_info%torsion_b, inp_info%torsion_c,&
                inp_info%torsion_d,inp_info%torsion_k,inp_info%torsion_cosphi0, inp_info%torsion_m,&
                tmp_section, ntot, error )
        END IF
@@ -903,7 +919,9 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE read_bonds_section(bond_a, bond_b, bond_k, bond_r0, section, start, error)
+  SUBROUTINE read_bonds_section(bond_kind,bond_a, bond_b, bond_k, bond_r0, section, start, error)
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(:), POINTER                  :: bond_kind
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: bond_a, bond_b
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: bond_k
@@ -926,6 +944,8 @@ CONTAINS
     NULLIFY(Kvals, atm_names)
     CALL section_vals_get(section,n_repetition=n_items,error=error)
     DO isec = 1, n_items         
+       CALL section_vals_val_get(section,"KIND",i_rep_section=isec,c_vals=atm_names,error=error)
+       bond_kind(start+isec) = atm_names(1)
        CALL section_vals_val_get(section,"ATOMS",i_rep_section=isec,c_vals=atm_names,error=error)
        bond_a(start+isec) = atm_names(1)
        bond_b(start+isec) = atm_names(2)
@@ -955,7 +975,9 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE read_bends_section(bend_a, bend_b, bend_c, bend_k, bend_theta0, section, start, error)
+  SUBROUTINE read_bends_section(bend_kind,bend_a, bend_b, bend_c, bend_k, bend_theta0, section, start, error)
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(:), POINTER                  :: bend_kind
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: bend_a, bend_b, bend_c
     REAL(KIND=dp), DIMENSION(:), POINTER     :: bend_k, bend_theta0
@@ -977,6 +999,8 @@ CONTAINS
     NULLIFY(Kvals, atm_names)
     CALL section_vals_get(section,n_repetition=n_items,error=error)
     DO isec = 1, n_items         
+       CALL section_vals_val_get(section,"KIND",i_rep_section=isec,c_vals=atm_names,error=error)
+       bend_kind(start+isec) = atm_names(1)
        CALL section_vals_val_get(section,"ATOMS",i_rep_section=isec,c_vals=atm_names,error=error)
        bend_a(start+isec) = atm_names(1)
        bend_b(start+isec) = atm_names(2)
@@ -987,6 +1011,58 @@ CONTAINS
        CALL section_vals_val_get(section,"THETA0",i_rep_section=isec,r_val=bend_theta0(start+isec),error=error)
     END DO
   END SUBROUTINE read_bends_section
+
+
+!******************************************************************************
+!!****** force_fields/read_ubs_section [1.0] *
+!!
+!!   NAME
+!!   
+!!
+!!   FUNCTION
+!!    
+!!
+!!   AUTHOR
+!!     
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!******************************************************************************
+  SUBROUTINE read_ubs_section(ub_kind,ub_a, ub_b, ub_c, ub_k, ub_r0, section, start, error)
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(:), POINTER                  :: ub_kind
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(:), POINTER                  :: ub_a, ub_b, ub_c
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: ub_k, ub_r0
+    TYPE(section_vals_type), POINTER         :: section
+    INTEGER, INTENT(IN)                      :: start
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'read_ubs_section', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(:), POINTER                  :: atm_names
+    INTEGER                                  :: isec, n_items
+    LOGICAL                                  :: failure
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: Kvals
+
+    failure = .FALSE.
+    NULLIFY(Kvals, atm_names)
+    CALL section_vals_get(section,n_repetition=n_items,error=error)
+    DO isec = 1, n_items         
+       CALL section_vals_val_get(section,"KIND",i_rep_section=isec,c_vals=atm_names,error=error)
+       ub_kind(start+isec) = atm_names(1)
+       CALL section_vals_val_get(section,"ATOMS",i_rep_section=isec,c_vals=atm_names,error=error)
+       ub_a(start+isec) = atm_names(1)
+       ub_b(start+isec) = atm_names(2)
+       ub_c(start+isec) = atm_names(3)
+       !CALL section_vals_val_get(section,"UB%K",i_rep_section=isec,r_val=ub_k(start+isec),error=error)
+       !CALL section_vals_val_get(section,"UB%R0",i_rep_section=isec,r_val=ub_k(start+isec),error=error)
+    END DO
+  END SUBROUTINE read_ubs_section
 
 !******************************************************************************
 !!****** force_fields/read_torsions_section [1.0] *
@@ -1004,8 +1080,10 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE read_torsions_section( torsion_a, torsion_b, torsion_c, torsion_d, torsion_k,&
+  SUBROUTINE read_torsions_section(torsion_kind,torsion_a, torsion_b, torsion_c, torsion_d, torsion_k,&
        torsion_cosphi0, torsion_m, section, start, error )
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(:), POINTER                  :: torsion_kind
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: torsion_a, torsion_b, &
                                                 torsion_c, torsion_d
@@ -1028,6 +1106,8 @@ CONTAINS
     NULLIFY( atm_names)
     CALL section_vals_get(section,n_repetition=n_items,error=error)
     DO isec = 1, n_items         
+       CALL section_vals_val_get(section,"KIND",i_rep_section=isec,c_vals=atm_names,error=error)
+       torsion_kind(start+isec) = atm_names(1)
        CALL section_vals_val_get(section,"ATOMS",i_rep_section=isec,c_vals=atm_names,error=error)
        torsion_a(start+isec) = atm_names(1)
        torsion_b(start+isec) = atm_names(2)
@@ -2133,7 +2213,7 @@ CONTAINS
                      (TRIM(inp_info%bond_b(k))==TRIM(name_atm_b))) .OR. &
                      ((TRIM(inp_info%bond_a(k))==TRIM(name_atm_b)) .AND. &
                      (TRIM(inp_info%bond_b(k))==TRIM(name_atm_a))) ) THEN
-                   bond_list(j)%bond_kind%name = "INPUT"
+                   bond_list(j)%bond_kind%name = inp_info%bond_kind(k)
                    bond_list(j)%bond_kind%k    = inp_info%bond_k(:,k)
                    bond_list(j)%bond_kind%r0   = inp_info%bond_r0(k)
                    IF (found) CALL Pwarning("Multiple Bond declarations: "//TRIM(name_atm_a)//&
@@ -2224,7 +2304,7 @@ CONTAINS
                      ((TRIM(inp_info%bend_a(k))==TRIM(name_atm_c)) .AND. &
                      (TRIM(inp_info%bend_b(k))==TRIM(name_atm_b)) .AND. &
                      (TRIM(inp_info%bend_c(k))==TRIM(name_atm_a))) ) THEN
-                   bend_list(j)%bend_kind%name   = "INPUT"
+                   bend_list(j)%bend_kind%name   = inp_info%bend_kind(k)
                    bend_list(j)%bend_kind%k      = inp_info%bend_k(k)
                    bend_list(j)%bend_kind%theta0 = inp_info%bend_theta0(k)
                    IF (found) CALL Pwarning("Multiple Bend declarations: "//TRIM(name_atm_a)//&
@@ -2319,7 +2399,7 @@ CONTAINS
                      ((TRIM(inp_info%ub_a(k))==TRIM(name_atm_c)) .AND. &
                      (TRIM(inp_info%ub_b(k))==TRIM(name_atm_b)) .AND. &
                      (TRIM(inp_info%ub_c(k))==TRIM(name_atm_a))) ) THEN
-                   ub_list(j)%ub_kind%name   = "INPUT"
+                   ub_list(j)%ub_kind%name   = inp_info%ub_kind(k)
                    ub_list(j)%ub_kind%k      = inp_info%ub_k(k)
                    ub_list(j)%ub_kind%r0     = inp_info%ub_r0(k)
                    IF (found) CALL Pwarning("Multiple UB declarations: "//TRIM(name_atm_a)//&
@@ -2451,7 +2531,7 @@ CONTAINS
                         (TRIM(inp_info%torsion_b(k))==TRIM(name_atm_c)) .AND. &
                         (TRIM(inp_info%torsion_c(k))==TRIM(name_atm_b)) .AND. &
                         (TRIM(inp_info%torsion_d(k))==TRIM(name_atm_a))) ) THEN
-                      torsion_list(j)%torsion_kind%name    = "INPUT"
+                      torsion_list(j)%torsion_kind%name    = inp_info%torsion_kind(k)
                       torsion_list(j)%torsion_kind%k       = inp_info%torsion_k(k)
                       torsion_list(j)%torsion_kind%cosphi0 = inp_info%torsion_cosphi0(k)
                       IF (found) CALL Pwarning("Multiple Torsion declarations: "//TRIM(name_atm_a)//&
@@ -2586,7 +2666,7 @@ CONTAINS
                      (TRIM(inp_info%impr_b(k))==TRIM(name_atm_c)) .AND. &
                      (TRIM(inp_info%impr_c(k))==TRIM(name_atm_b)) .AND. &
                      (TRIM(inp_info%impr_d(k))==TRIM(name_atm_a))) ) THEN
-                   impr_list(j)%impr_kind%name = "INPUT"
+                   impr_list(j)%impr_kind%name = inp_info%impr_kind(k)
                    impr_list(j)%impr_kind%k    = inp_info%impr_k(k)
                    impr_list(j)%impr_kind%phi0 = inp_info%impr_phi0(k)
                    IF (found) CALL Pwarning("Multiple Improper declarations: "//TRIM(name_atm_a)//&
@@ -2758,7 +2838,12 @@ CONTAINS
              IF(iw>0) WRITE(iw,*) "    spline_bond_env ",j," : ",&
                   TRIM(name_atm_a)," ",&
                   TRIM(name_atm_b)
+             !potparm_bond%pot(i,j)%pot%type       = 'UNSET'
+             CALL pair_potential_single_clean( potparm_bond%pot(i,j)%pot )
              potparm_bond%pot(i,j)%pot%type       = 'UNSET'
+             potparm_bond%pot(i,j)%pot%at1        = name_atm_a
+             potparm_bond%pot(i,j)%pot%at2        = name_atm_b
+             potparm_bond%pot(i,j)%pot%rcutsq     = default_rcutsq
           ELSE
              allocate_spline_bond_env = .TRUE.
           END IF
@@ -2771,7 +2856,7 @@ CONTAINS
        END DO
     END DO
     NULLIFY(spline_bond_env)
-    IF (allocate_spline_bond_env) THEN
+!   IF (allocate_spline_bond_env) THEN
        nkinds = SIZE ( potparm_bond%pot, 1 )
        CALL spline_env_create ( spline_bond_env, nkinds, error )
        CALL spline_nonbond_control ( spline_bond_env, potparm_bond, &
@@ -2787,7 +2872,7 @@ CONTAINS
              potparm_bond %pot( ikind, jkind )%pot % pair_spline_data => spline_data
           END DO
        END DO
-    END IF
+!   END IF
 
 
     !-----------------------------------------------------------------------------
@@ -2813,9 +2898,9 @@ CONTAINS
           atomic_kind => particle_set(atm_b+first-1)%atomic_kind
           CALL get_atomic_kind(atomic_kind=atomic_kind,&
                name=name_atm_b, kind_number = jkind )
-          found = .FALSE.
           only_qm = qmmm_ff_precond_only_qm(id1=name_atm_a, id2=name_atm_b)
           onfo_list(j)%onfo_kind%name   = "CHARMM"
+          onfo_list(j)%onfo_kind%name   = potparm_bond%pot(ikind,jkind)%pot%type
 
           CALL spline_data_retain (potparm_bond%pot(ikind, jkind )%pot % pair_spline_data,error=error)
           CALL spline_data_release(onfo_list(j)%onfo_kind%spline_data, error=error)
@@ -3925,6 +4010,14 @@ CONTAINS
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
     END DO
+
+    !---------------------------------------------------------------------------
+    !---------------------------------------------------------------------------
+    ! 12. Count the number of UNSET NONBOND14 kinds there are
+    !-                NEED TO REMOVE EXTRAS HERE   - IKUO
+    !---------------------------------------------------------------------------
+
+
     CALL cp_print_key_finished_output(iw,logger,mm_section,&
          "PRINT%FF_INFO",error=error)
     CALL timestop(0.0_dp,handle)

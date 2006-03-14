@@ -22,6 +22,7 @@ MODULE mol_force
 
   USE kinds,                           ONLY: default_string_length,&
                                              dp
+  USE termination,                     ONLY: stop_program
 
   PRIVATE
   PUBLIC :: force_bonds, force_bends, force_torsions, force_imp_torsions
@@ -231,6 +232,8 @@ SUBROUTINE force_torsions ( is32, dist1, dist2, u1, u2, iw1, iw2, &
 
 ! compute fscalar
      fscalar = - a(1) + 3.0_dp * a(3) + 4.0_dp * a(2) * cosphi - 12.0_dp * a(3) * cosphi ** 2
+  CASE DEFAULT
+     CALL stop_program ("mol_force.F","unmatched torsion kind")
   END SELECT 
 
 ! compute the gradients

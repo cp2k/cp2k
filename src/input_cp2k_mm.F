@@ -35,6 +35,7 @@ MODULE input_cp2k_mm
                                              section_release,&
                                              section_type
   USE input_val_types,                 ONLY: char_t,&
+                                             lchar_t,&
                                              integer_t,&
                                              real_t
   USE kinds,                           ONLY: dp
@@ -421,17 +422,24 @@ CONTAINS
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,name="TORSION",&
-            description="This section specifies the torsion potential of the MM system."//&
-            "JORGENSEN type potential supported.",&
+            description="specifies the torsion potential of the MM system.",&
             n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
             error=error)
 
        NULLIFY(keyword)
        
        CALL keyword_create(keyword, name="ATOMS",&
-            description="Defines the atomic kinds involved in the bond.",&
+            description="Defines the atomic kinds involved in the tors.",&
             usage="ATOMS {KIND1} {KIND2} {KIND3} {KIND4}", required=.TRUE., type_of_var=char_t,&
             n_var=4, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="KIND",&
+            description="kind of tors",&
+            usage="KIND {KIND1}", required=.FALSE., type_of_var=lchar_t,&
+            default_lc_val="CHARMM",&
+            n_var=1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -489,6 +497,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
+    TYPE(section_type), POINTER              :: subsection
     TYPE(keyword_type), POINTER              :: keyword
 
     failure=.FALSE.
@@ -496,20 +505,26 @@ CONTAINS
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,name="BEND",&
-            description="This section specifies the bend potential of the MM system."//&
-            "HARMONIC type potential supported.",&
-            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            description="specifies the bend potential of the MM system.",&
+            n_keywords=1, n_subsections=1, repeats=.TRUE., required=.TRUE.,&
             error=error)
 
-       NULLIFY(keyword)
+       NULLIFY(keyword,subsection)
        
        CALL keyword_create(keyword, name="ATOMS",&
-            description="Defines the atomic kinds involved in the bond.",&
+            description="Defines the atomic kinds involved in the bend.",&
             usage="ATOMS {KIND1} {KIND2} {KIND3}", required=.TRUE., type_of_var=char_t,&
             n_var=3, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="KIND",&
+            description="kind of bend",&
+            usage="KIND {KIND1}", required=.FALSE., type_of_var=lchar_t,&
+            default_lc_val="CHARMM",&
+            n_var=1, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="K",&
             description="Defines the force constant of the potential",&
@@ -525,7 +540,31 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL section_create(subsection,name="UB",&
+            description="specifies the UB potential of the MM system.",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            error=error)
+
+       CALL keyword_create(keyword, name="K",&
+            description="force constant",&
+            usage="K {real}", required=.TRUE., type_of_var=real_t,&
+            default_r_val=0.0_dp,&
+            n_var=-1, unit_str="hartree*bohr^-2",error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="R0",&
+            description="Defines the equilibrium distance.",&
+            usage="R0 {real}", required=.TRUE., type_of_var=real_t,&
+            n_var=1, unit_str="bohr", error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
     END IF
+
   END SUBROUTINE create_BEND_section
 
 !***************************************************************************
@@ -565,7 +604,7 @@ CONTAINS
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,name="BOND",&
-            description="This section specifies the potential of the bond of the MM system",&
+            description="specifies the bond potential the MM system",&
             n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
             error=error)
 
@@ -575,6 +614,14 @@ CONTAINS
             description="Defines the atomic kinds involved in the bond.",&
             usage="ATOMS {KIND1} {KIND2}", required=.TRUE., type_of_var=char_t,&
             n_var=2, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="KIND",&
+            description="kind of bond",&
+            usage="KIND {KIND1}", required=.FALSE., type_of_var=lchar_t,&
+            default_lc_val="CHARMM",&
+            n_var=1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

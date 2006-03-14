@@ -36,7 +36,6 @@ MODULE pair_potential
                                              spline_data_type,&
                                              spline_environment_type,&
                                              splineh
-  USE termination,                     ONLY: stop_program
 
   IMPLICIT NONE
 
@@ -102,11 +101,8 @@ FUNCTION ener_pot ( pot, qi, qj, r, vdw_scale14 )
      pp =  pot % eam % phi ( index ) + &
           qq * pot % eam % phip ( index )
      ener_pot = pp - pot % energy_cutoff
-  ELSE IF (pot%type=='NULL') THEN
+  ELSE 
      ener_pot = 0.0_dp
-  ELSE
-     CALL stop_program("pair_potential%ener_pot","Potential type unknown "//&
-                                                 "pot%type = "//TRIM(pot%type))
   END IF
 
 END FUNCTION ener_pot
