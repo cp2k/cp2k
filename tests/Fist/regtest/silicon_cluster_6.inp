@@ -1,0 +1,97 @@
+#
+# this one depends on the previous geo_opt runs that are not checked for correctness
+# if this fails, also check the previous runs
+#
+&FORCE_EVAL
+  &MM
+    &FORCEFIELD
+      &NONBONDED
+        &WILLIAMS
+          atoms SI O
+          A 208920748.3395
+          B 4.87318
+          C 1549614.30961
+          RCUT 36.0
+        &END WILLIAMS
+        &WILLIAMS
+          atoms SI H
+          A 0.0
+          B 0.0
+          C 0.0
+          RCUT 36.0
+        &END WILLIAMS
+        &WILLIAMS
+          atoms SI SI
+          A 0.0
+          B 0.0
+          C 0.0
+          RCUT 36.0
+        &END WILLIAMS
+        &WILLIAMS
+          atoms O H
+          A 1350000.7166855
+          B 3.24430
+          C 1450.53575
+          RCUT 36.0
+        &END WILLIAMS
+        &WILLIAMS
+          atoms O O
+          A 16115719.1363
+          B 2.76000
+          C 2030750.05696
+          RCUT 36.0
+        &END WILLIAMS
+        &WILLIAMS
+          atoms H H
+          A 0.0
+          B 0.0
+          C 0.0
+          RCUT 36.0
+        &END WILLIAMS
+      &END NONBONDED
+    &END FORCEFIELD
+    &POISSON_MM
+      &EWALD
+        EWALD_TYPE ewald
+        ALPHA .44
+        GMAX 21
+      &END EWALD
+    &END POISSON_MM
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC 11.24 10.80 8.40
+      UNIT ANGSTROM
+    &END CELL
+    &TOPOLOGY
+      CONN_FILE silicon_cluster.psf
+      CONNECTIVITY PSF
+      COORD_FILE silicon_cluster.pdb
+      COORDINATE PDB
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  FFTLIB FFTSG
+  PRINT_LEVEL MEDIUM
+  PROGRAM FIST
+  PROJECT res_silica
+  RUN_TYPE MD
+&END GLOBAL
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 5
+    TIMESTEP 0.5
+    TEMPERATURE 298
+    &NOSE
+      LENGTH 3
+      YOSHIDA 3
+      TIMECON 1000
+      MTS 2
+    &END NOSE
+  &END MD
+&END MOTION
+&EXT_RESTART
+ RESTART_FILE_NAME res_silica-1.restart
+&END
