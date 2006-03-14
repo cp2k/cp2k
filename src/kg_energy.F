@@ -35,7 +35,7 @@ MODULE kg_energy
                                              dyn_coeff_type,&
                                              get_dyn_coeff
   USE global_types,                    ONLY: global_environment_type
-  USE input_cp2k_restarts,             ONLY: update_input
+  USE input_cp2k_restarts,             ONLY: write_restart
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_write
@@ -428,21 +428,8 @@ scf_loop: DO
   DEALLOCATE(vxc_r,stat=stat)
   CPPostconditionNoFail(stat==0,cp_warning_level,routine,error)
   
-  IF (BTEST(cp_print_key_should_output(logger%iter_info,&
-       globenv%input_file,"MOTION%PRINT%RESTART",error=error),cp_p_file)) THEN
-     ires = cp_print_key_unit_nr(logger,globenv%input_file,"MOTION%PRINT%RESTART",&
-          extension=".restart",  do_backup=.TRUE., &
+  CALL write_restart(kg_env=kg_env, globenv=globenv,force_env_section=kg_env%input,&
           error=error)
-     
-     CALL update_input(kg_env=kg_env, globenv=globenv,force_env_section=kg_env%input,&
-          error=error)
-     IF (ires>0) &
-     CALL section_vals_write(globenv%input_file,unit_nr=ires,&
-          hide_root=.TRUE., error=error)         
-     
-     CALL cp_print_key_finished_output(ires,logger,globenv%input_file,&
-          "MOTION%PRINT%RESTART", error=error)
-  END IF
   
   CALL diis_info_destroy(diis_info)
 

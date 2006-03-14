@@ -53,6 +53,7 @@ MODULE geo_opt
                                              default_lbfgs_method_id
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
+  USE input_cp2k_restarts,             ONLY: write_restart
   USE kinds,                           ONLY: dp
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: write_particle_distances
@@ -212,6 +213,7 @@ MODULE geo_opt
               CALL cp_opt_gopt_stop(optimizer, error=error)
               EXIT
            END IF
+           CALL write_restart(force_env=force_env,globenv=globenv,force_env_section=force_env_section)
         END DO
 
         ! write out more data for the minimum

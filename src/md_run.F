@@ -58,7 +58,7 @@ MODULE md_run
                                              initialize_npt
   USE init_extended_system_variables,  ONLY: init_nhc_forces
   USE input_constants,                 ONLY: langevin_ensemble
-  USE input_cp2k_restarts,             ONLY: update_input
+  USE input_cp2k_restarts,             ONLY: write_restart
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get,&
@@ -424,54 +424,15 @@ SUBROUTINE md_output(md_env,force_env_section,motion_section,globenv,error)
     CHARACTER(LEN=*), PARAMETER :: routineN = 'md_output', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=256)                       :: cwd, datx
-    INTEGER                                  :: handle, ires, strend, strstart
-    TYPE(cp_logger_type), POINTER            :: logger
+    INTEGER                                  :: handle
 
     CALL timeset(routineN,handle)
 
-    logger => cp_error_get_logger(error)
 
     CALL md_energy ( md_env, globenv, error ) ! also writes trajectories
 
-    IF (BTEST(cp_print_key_should_output(logger%iter_info,&
-           motion_section,"PRINT%RESTART",error=error),cp_p_file)) THEN
-
-       ires = cp_print_key_unit_nr(logger,motion_section,"PRINT%RESTART",&
-                 extension=".restart",  do_backup=.TRUE., &
+    CALL write_restart(md_env=md_env,globenv=globenv,force_env_section=force_env_section,&
                  error=error)
-
-       CALL update_input(md_env=md_env,globenv=globenv,force_env_section=force_env_section,&
-                 error=error)
-       IF (ires>0) THEN
-          WRITE (UNIT=ires,FMT="(T2,A)") "# Version information for this restart file "
-          CALL m_datum(datx)
-          WRITE (UNIT=ires,FMT="(T2,A)") "# current date "//TRIM(datx)
-          CALL m_getcwd(cwd)
-          WRITE (UNIT=ires,FMT="(T2,A)") "# current working dir "//TRIM(cwd)
-
-          WRITE (UNIT=ires,FMT="(T2,A,T31,A50)")&
-                   "# Program compiled at",&
-                   ADJUSTR(compile_date(1:MIN(50,LEN(compile_date))))
-          WRITE (UNIT=ires,FMT="(T2,A,T31,A50)")&
-                   "# Program compiled on",&
-                   ADJUSTR(compile_host(1:MIN(50,LEN(compile_host))))
-          WRITE (UNIT=ires,FMT="(T2,A,T31,A50)")&
-                   "# Program compiled for",&
-                   ADJUSTR(compile_arch(1:MIN(50,LEN(compile_arch))))
-                 strend=MAX(1,LEN(compile_lastcvs)-2)
-                 strstart=MAX(2,strend-50)
-          WRITE (UNIT=ires,FMT="(T2,A,T31,A50)")&
-                   "# Last CVS entry",&
-                   ADJUSTR(compile_lastcvs(strstart:strend))
-
-          CALL section_vals_write(globenv%input_file,unit_nr=ires,&
-                     hide_root=.TRUE., error=error)
-        ENDIF
-
-        CALL cp_print_key_finished_output(ires,logger,motion_section,&
-                      "PRINT%RESTART", error=error)
-    ENDIF 
 
     CALL timestop(handle)
 

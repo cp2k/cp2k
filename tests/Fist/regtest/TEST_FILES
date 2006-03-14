@@ -57,6 +57,9 @@ water_IPBV.inp            2
 water_IPBV_flex.inp       2
 silicon_cluster.inp       0
 silicon_cluster_2.inp     2
+silicon_cluster_3.inp     2
+silicon_cluster_4.inp     2
+silicon_cluster_5.inp     2
 al2o3.inp                 2
 nh3_4x6.inp               2
 nh3_4x6_npt.inp           2

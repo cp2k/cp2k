@@ -42,6 +42,7 @@ MODULE bfgs_optimizer
   USE gopt_f_types,                    ONLY: gopt_param_type
   USE input_constants,                 ONLY: dump_xmol
   USE input_section_types,             ONLY: section_vals_type
+  USE input_cp2k_restarts,             ONLY: write_restart
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_flush
   USE mathlib,                         ONLY: diamat_all
@@ -260,6 +261,7 @@ CONTAINS
        ! check for an external exit command 
        CALL external_control(should_stop,"GEO",globenv,error)
        IF(should_stop) EXIT
+       CALL write_restart(force_env=force_env,globenv=globenv,force_env_section=force_env_section)
 
        IF (output_unit>0)THEN
           WRITE(UNIT=output_unit,FMT="(/,T2,26('-'))")

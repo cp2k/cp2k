@@ -65,7 +65,7 @@ MODULE harris_metropolis_mc
                                              do_qs,&
                                              langevin_ensemble,&
                                              restart_guess
-  USE input_cp2k_restarts,             ONLY: update_input
+  USE input_cp2k_restarts,             ONLY: write_restart
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get,&
@@ -547,20 +547,8 @@ CONTAINS
 
     CALL md_energy(md_env, globenv) ! inits the print env at itimes == 0
 
-    IF (BTEST(cp_print_key_should_output(logger%iter_info,&
-         motion_section,"PRINT%RESTART",error=error),cp_p_file)) THEN
-       ires = cp_print_key_unit_nr(logger,motion_section,"PRINT%RESTART",&
-            extension=".restart", do_backup=.TRUE., error=error)
-
-         CALL update_input(md_env=md_env,globenv=globenv,force_env_section=force_env_section,&
+    CALL write_restart(md_env=md_env,globenv=globenv,force_env_section=force_env_section,&
               error=error)
-         IF (ires>0) &
-         CALL section_vals_write(globenv%input_file,unit_nr=ires,&
-              hide_root=.TRUE., error=error)         
-
-       CALL cp_print_key_finished_output(ires,logger,motion_section,&
-            "PRINT%RESTART", error=error)
-    END IF
 
     ! Save the wavefunction history to be able to restore it in case the 
     ! first MD approach is rejected
@@ -906,21 +894,9 @@ CONTAINS
                 END DO
              END DO
           END IF
-
-          IF (BTEST(cp_print_key_should_output(logger%iter_info,&
-               motion_section,"PRINT%RESTART",error=error),cp_p_file)) THEN
-             ires = cp_print_key_unit_nr(logger,motion_section,"PRINT%RESTART",&
-                  extension=".restart", do_backup=.TRUE., error=error)
-
-             CALL update_input(md_env=md_env,globenv=globenv,force_env_section=force_env_section,&
+ 
+          CALL write_restart(md_env=md_env,globenv=globenv,force_env_section=force_env_section,&
               error=error)
-             IF (ires>0) &
-             CALL section_vals_write(globenv%input_file,unit_nr=ires,&
-                  hide_root=.TRUE., error=error)         
-
-             CALL cp_print_key_finished_output(ires,logger,motion_section,&
-                  "PRINT%RESTART", error=error)
-          END IF
 
        ELSE
           IF (restore_wf_past) THEN
@@ -972,20 +948,8 @@ CONTAINS
     used_time = time_iter_stop - time_iter_start
     CALL md_energy(md_env, globenv)
 
-    IF (BTEST(cp_print_key_should_output(logger%iter_info,&
-         motion_section,"PRINT%RESTART",error=error),cp_p_file)) THEN
-       ires = cp_print_key_unit_nr(logger,motion_section,"PRINT%RESTART",&
-            extension=".restart", do_backup=.TRUE., error=error)
-
-         CALL update_input(md_env=md_env,globenv=globenv,force_env_section=force_env_section,&
+    CALL write_restart(md_env=md_env,globenv=globenv,force_env_section=force_env_section,&
               error=error)
-         IF (ires>0) &
-         CALL section_vals_write(globenv%input_file,unit_nr=ires,&
-              hide_root=.TRUE., error=error)         
-
-       CALL cp_print_key_finished_output(ires,logger,motion_section,&
-            "PRINT%RESTART", error=error)
-    END IF
 
     IF (ionode .AND. globenv%print_level >= 1) THEN
        accept = accept+1

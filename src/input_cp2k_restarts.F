@@ -21,6 +21,18 @@
 !******************************************************************************
 
 MODULE input_cp2k_restarts
+  USE environment,                     ONLY: compile_arch,&
+                                             compile_date,&
+                                             compile_host,&
+                                             compile_lastcvs
+
+  USE cp_output_handling,              ONLY: cp_add_iter_level,&
+                                             cp_iterate,&
+                                             cp_p_file,&
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
+                                             cp_print_key_unit_nr,&
+                                             cp_rm_iter_level
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
@@ -53,7 +65,8 @@ MODULE input_cp2k_restarts
                                              section_vals_type,&
                                              section_vals_val_get,&
                                              section_vals_val_set,&
-                                             section_vals_val_unset
+                                             section_vals_val_unset, &
+                                             section_vals_write
   USE input_val_types,                 ONLY: val_create,&
                                              val_release,&
                                              val_type
@@ -61,6 +74,8 @@ MODULE input_cp2k_restarts
                                              kg_environment_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
+  USE machine,                         ONLY: m_datum,&
+                                             m_getcwd
   USE md_environment_types,            ONLY: get_md_env,&
                                              md_environment_type
   USE memory_utilities,                ONLY: reallocate
@@ -85,7 +100,7 @@ MODULE input_cp2k_restarts
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_restarts'
 
-  PUBLIC :: update_input            
+  PUBLIC :: write_restart
   
 !!*****
 !******************************************************************************
@@ -93,6 +108,99 @@ MODULE input_cp2k_restarts
 CONTAINS
 
 ! *****************************************************************************
+
+!!****f* input_cp2k_restarts/write_restart [1.0] *
+!!
+!!   NAME
+!!     write_restart
+!!
+!!   FUNCTION
+!!     checks if a restart needs to be written and does so, updating all necessary fields
+!!     in the input file. This is a relatively simple wrapper routine.
+!!
+!!   NOTES
+!!     
+!!
+!!   ARGUMENTS
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Joost VandeVondele
+!!
+!!   MODIFICATION HISTORY
+!!     03.2006 created [Joost VandeVondele]
+!!
+!!*** **********************************************************************
+  SUBROUTINE write_restart(md_env,force_env,kg_env,meta_env,globenv,force_env_section,error)
+    TYPE(md_environment_type), OPTIONAL, &
+      POINTER                                :: md_env
+    TYPE(force_env_type), OPTIONAL, POINTER  :: force_env
+    TYPE(kg_environment_type), OPTIONAL, &
+      POINTER                                :: kg_env
+    TYPE(meta_env_type), OPTIONAL, POINTER   :: meta_env
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(section_vals_type), POINTER         :: force_env_section
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'write_restart', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER :: handle,ires,strstart,strend
+    CHARACTER(LEN=256)                       :: cwd, datx
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(section_vals_type), POINTER         :: motion_section
+
+    CALL timeset(routineN,handle)
+
+
+    logger => cp_error_get_logger(error)
+
+    motion_section => section_vals_get_subs_vals(globenv%input_file,"MOTION",error=error)
+
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,&
+           motion_section,"PRINT%RESTART",error=error),cp_p_file)) THEN
+
+       ires = cp_print_key_unit_nr(logger,motion_section,"PRINT%RESTART",&
+                 extension=".restart",  do_backup=.TRUE., &
+                 error=error)
+
+       CALL update_input(md_env,force_env,kg_env,meta_env,globenv,force_env_section,error)
+
+       IF (ires>0) THEN
+          WRITE (UNIT=ires,FMT="(T2,A)") "# Version information for this restart file "
+          CALL m_datum(datx)
+          WRITE (UNIT=ires,FMT="(T2,A)") "# current date "//TRIM(datx)
+          CALL m_getcwd(cwd)
+          WRITE (UNIT=ires,FMT="(T2,A)") "# current working dir "//TRIM(cwd)
+
+          WRITE (UNIT=ires,FMT="(T2,A,T31,A50)")&
+                   "# Program compiled at",&
+                   ADJUSTR(compile_date(1:MIN(50,LEN(compile_date))))
+          WRITE (UNIT=ires,FMT="(T2,A,T31,A50)")&
+                   "# Program compiled on",&
+                   ADJUSTR(compile_host(1:MIN(50,LEN(compile_host))))
+          WRITE (UNIT=ires,FMT="(T2,A,T31,A50)")&
+                   "# Program compiled for",&
+                   ADJUSTR(compile_arch(1:MIN(50,LEN(compile_arch))))
+                 strend=MAX(1,LEN(compile_lastcvs)-2)
+                 strstart=MAX(2,strend-50)
+          WRITE (UNIT=ires,FMT="(T2,A,T31,A50)")&
+                   "# Last CVS entry",&
+                   ADJUSTR(compile_lastcvs(strstart:strend))
+
+          CALL section_vals_write(globenv%input_file,unit_nr=ires,&
+                     hide_root=.TRUE., error=error)
+        ENDIF
+
+        CALL cp_print_key_finished_output(ires,logger,motion_section,&
+                      "PRINT%RESTART", error=error)
+    ENDIF
+
+    CALL timestop(handle)
+
+  END SUBROUTINE write_restart
 
 !!****f* input_cp2k_restarts/update_input [1.0] *
 !!

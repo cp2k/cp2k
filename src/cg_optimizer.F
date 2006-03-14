@@ -42,6 +42,7 @@ MODULE cg_optimizer
                                              gopt_param_type
   USE input_constants,                 ONLY: dump_xmol
   USE input_section_types,             ONLY: section_vals_type
+  USE input_cp2k_restarts,             ONLY: write_restart
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_flush
   USE memory_utilities,                ONLY: reallocate
@@ -297,6 +298,7 @@ CONTAINS
           END IF
           CALL external_control(should_stop,"GEO",globenv,error)
           IF(should_stop) EXIT
+          CALL write_restart(force_env=force_env,globenv=globenv,force_env_section=force_env_section)
           !
           ! Convergence check
           !       
