@@ -170,10 +170,13 @@ CONTAINS
 
     ALLOCATE(spa_sbt(np_car,ntotsgfb,0:nthread-1), STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineN,error,failure)
+    spa_sbt(1:np_car,1:ntotsgfb,0:nthread-1) =0.0_dp
     ALLOCATE(spa_tmpt(maxnprja*ncoset(maxlprj),maxcob*maxder,0:nthread-1),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineN,error,failure)
+    spa_tmpt(1:maxnprja*ncoset(maxlprj),1:maxcob*maxder,0:nthread-1) =0.0_dp
     ALLOCATE(sdpa_tmpt(maxnprja*ncoset(maxlprj+1),maxcob,4,0:nthread-1),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineN,error,failure)
+    sdpa_tmpt(1:maxnprja*ncoset(maxlprj+1),1:maxcob,1:4,0:nthread-1) =0.0_dp
     ALLOCATE(ovc(np_car,maxcob*nsetb*maxder),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineN,error,failure)
     ovc = 0.0_dp

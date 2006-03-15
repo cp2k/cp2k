@@ -889,7 +889,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ispin
-    LOGICAL                                  :: failure, gapw
+    LOGICAL                                  :: failure
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
@@ -899,14 +899,12 @@ CONTAINS
 
     CALL timeset(routineN,"I"," ",handle)
     failure=.FALSE.
-    gapw = .FALSE.
 
     NULLIFY(dft_control,mos)
 
     CALL get_qs_env(qs_env=qs_env,&
          dft_control=dft_control,&
          mos=mos,rho=rho)
-    gapw = dft_control%qs_control%gapw
 
     DO ispin=1,SIZE(mos)
        CALL calculate_density_matrix(mo_set=mos(ispin)%mo_set,&
@@ -914,11 +912,6 @@ CONTAINS
     END DO
 
     CALL qs_rho_update_rho(rho,qs_env=qs_env, error=error)
-!    IF(gapw) THEN
-!      CALL calculate_rho_atom_coeff(qs_env,rho%rho_ao)
-!    ENDIF
-!    CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE.,&
-!           error=error)
    
     CALL timestop(0.0_dp,handle)
 

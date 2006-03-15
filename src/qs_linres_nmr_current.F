@@ -96,7 +96,8 @@ MODULE qs_linres_nmr_current
   USE qs_linres_nmr_op,                ONLY: fac_vecp,&
                                              set_vecp,&
                                              set_vecp_rev
-  USE qs_linres_nmr_shift,             ONLY: interpolate_shift_pwgrid
+  USE qs_linres_nmr_shift,             ONLY: interpolate_shift_pwgrid,&
+                                             mult_G_ov_G2_grid
   USE qs_linres_types,                 ONLY: nmr_env_type
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
@@ -339,8 +340,14 @@ CONTAINS
          ! Apply the p operator
            CALL cp_sm_fm_multiply(nmr_env%op_p_ao(idir)%matrix,psi1(ispin)%matrix,&
                 p_psi1(ispin)%matrix,ncol=nmo,alpha=-1.0_dp,error=error)
-           density_matrix => nmr_env%jp1_ao
-           CALL set_matrix(density_matrix,0.0_dp)
+           IF(idir==ii_B) THEN
+             CALL  cp_fm_scale_and_add(1.0_dp,p_psi1(ispin)%matrix,&
+                   -1.0_dp,nmr_env%psi1_p(ispin,iii_B)%matrix,error=error)
+           ELSEIF(idir==iii_B)THEN
+             CALL  cp_fm_scale_and_add(1.0_dp,p_psi1(ispin)%matrix,&
+                   1.0_dp,nmr_env%psi1_p(ispin,ii_B)%matrix,error=error)
+           END IF
+
 
          ! Contribution to the current density matrix that does not depend 
          !   on the position r where J(r) is computed
@@ -351,6 +358,12 @@ CONTAINS
            ELSE
              alpha = maxocc
            END IF
+
+! First compute the contribution to the CHI tensor coming from the softt density
+!           CALL chi_soft_grid(nmr_env,qs_env,psi1,p_psi1,ispin,i_B,idir,error=error)
+
+           density_matrix => nmr_env%jp1_ao
+           CALL set_matrix(density_matrix,0.0_dp)
            CALL cp_sm_plus_fm_fm_t(sparse_matrix=density_matrix,&
                             matrix_v=nmr_env%p_psi0(ispin,idir)%matrix,&
                             matrix_g=psi1(ispin)%matrix,ncol=homo,&
@@ -360,6 +373,7 @@ CONTAINS
                             matrix_v=mo_coeff,&
                             matrix_g=p_psi1(ispin)%matrix,ncol=homo,&
                             alpha=-alpha)
+
           
            ! For the position dependent term two more density matrix are needed
            density_matrix_2_ii => nmr_env%jp2_ao(1)%matrix
@@ -425,17 +439,18 @@ CONTAINS
 
             jrho_tot = calculate_total_rho(rho_gspace)
 
+!           !Field gradient
             ! loop over the Gvec  components: x,y,z
             DO idir2 = 1,3
-              IF(idir /= idir2) THEN
-                ! in reciprocal space multiply (G_idir2(i)/G(i)^2)J_(idir)(G(i))
-!                CALL mult_G_ov_G2_grid(cell,rho_gspace,pw_gspace_work,idir2,error=error)
+                IF(idir /= idir2) THEN
+                  ! in reciprocal space multiply (G_idir2(i)/G(i)^2)J_(idir)(G(i))
+                  CALL mult_G_ov_G2_grid(cell,auxbas_pw_pool,rho_gspace,pw_gspace_work,idir2,error=error)
 
-                ! scale and add to the correct component of the shift column
-                 CALL set_vecp_rev(idir,idir2,idir3)
-                 scale_fac=fac_vecp(idir3,idir2,idir)
-                 CALL coeff_scale(pw_gspace_work,scale_fac)
-                 CALL coeff_sumup(pw_gspace_work,shift_pw_gspace(idir3))
+                  ! scale and add to the correct component of the shift column
+                   CALL set_vecp_rev(idir,idir2,idir3)
+                   scale_fac=fac_vecp(idir3,idir2,idir)
+                   CALL coeff_scale(pw_gspace_work,scale_fac)
+                   CALL coeff_sumup(pw_gspace_work,shift_pw_gspace(idir3))
               END IF
             END DO
 
@@ -543,7 +558,7 @@ CONTAINS
       itask, ithread, j, jatom, jkind, jpgf, jset, k, kind_i, maxco, maxsgf, &
       maxsgf_set, n, na1, na2, natom_pairs, nb1, nb2, ncoi, ncoj, nkind, &
       nlist, nnode, npme, nseta, nsetb, nthread, omp_get_max_threads, &
-      omp_get_thread_num, sgfb, sgfi, sgfj, stat, tp
+      omp_get_thread_num, sgfi, sgfj, stat, tp
     INTEGER, DIMENSION(:), POINTER :: la_max, la_min, lb, lb_max, lb_min, &
       li_max, li_min, lj_max, lj_min, npgfa, npgfb, nsgfa, nsgfb, nsgfi, &
       nsgfj, ntasks, ub
@@ -1169,7 +1184,7 @@ CONTAINS
                          0.0_dp,work(1,1),maxco)
               CALL dgemm("N","T",ncoi,ncoj,nsgfj(jset),&
                          1.0_dp,work(1,1),maxco,&
-                         sphi_j(1,sgfb),SIZE(sphi_j,1),&
+                         sphi_j(1,sgfj),SIZE(sphi_j,1),&
                          0.0_dp,jpab(1,1),maxco)
 !!
               CALL dgemm("N","N",ncoi,nsgfj(jset),nsgfi(iset),&
@@ -1178,7 +1193,7 @@ CONTAINS
                          0.0_dp,work(1,1),maxco)
               CALL dgemm("N","T",ncoi,ncoj,nsgfj(jset),&
                          1.0_dp,work(1,1),maxco,&
-                         sphi_j(1,sgfb),SIZE(sphi_j,1),&
+                         sphi_j(1,sgfj),SIZE(sphi_j,1),&
                          0.0_dp,jpab_ii(1,1),maxco)
 !!
               CALL dgemm("N","N",ncoi,nsgfj(jset),nsgfi(iset),&
@@ -1187,7 +1202,7 @@ CONTAINS
                          0.0_dp,work(1,1),maxco)
               CALL dgemm("N","T",ncoi,ncoj,nsgfj(jset),&
                          1.0_dp,work(1,1),maxco,&
-                         sphi_j(1,sgfb),SIZE(sphi_j,1),&
+                         sphi_j(1,sgfj),SIZE(sphi_j,1),&
                          0.0_dp,jpab_iii(1,1),maxco)
 !!
               DO itask = atasks(1,ijsets),atasks(2,ijsets)

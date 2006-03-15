@@ -56,6 +56,7 @@ MODULE xas_tp_scf
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_flush,&
                                              m_walltime
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE particle_types,                  ONLY: get_particle_set,&
                                              particle_type
   USE preconditioner,                  ONLY: destroy_preconditioner,&
@@ -82,10 +83,13 @@ MODULE xas_tp_scf
                                              set_mo_set,&
                                              write_mo_set
   USE qs_ot_eigensolver,               ONLY: ot_eigensolver
-  USE qs_ot_scf,                       ONLY: ot_scf_mini
-  USE qs_rho_atom_methods,             ONLY: calculate_rho_atom_coeff
+!  USE qs_ot_scf,                       ONLY: ot_scf_mini
+!  USE qs_rho_atom_methods,             ONLY: calculate_rho_atom_coeff
   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
   USE qs_rho_types,                    ONLY: qs_rho_type
+  USE qs_scf,                          ONLY: init_scf_run,&
+                                             scf_env_do_scf,&
+                                             scf_env_cleanup
   USE qs_scf_methods,                  ONLY: eigensolver,&
                                              scf_env_density_mixing
   USE qs_scf_types,                    ONLY: ao_mixing_nr,&
@@ -99,6 +103,7 @@ MODULE xas_tp_scf
                                              timestop
   USE xas_control,                     ONLY: xas_control_type
   USE xas_env_types,                   ONLY: get_xas_env,&
+                                             set_xas_env,&
                                              xas_environment_type
 #include "cp_common_uses.h"
 
@@ -109,7 +114,7 @@ MODULE xas_tp_scf
 
 ! *** Public subroutines ***
 
-  PUBLIC :: xas_do_tp_scf 
+  PUBLIC :: xas_do_tp_scf, xes_scf_once 
  
 !****************************************************************************
 
@@ -143,13 +148,15 @@ CONTAINS
 !!
 !!*** **********************************************************************
 
-  SUBROUTINE xas_do_tp_scf (xas_control,xas_env,iatom,scf_env,qs_env,globenv,error)
+  SUBROUTINE xas_do_tp_scf (xas_control,xas_env,iatom,scf_env,qs_env,globenv,&
+             converged,should_stop,error)
 
     TYPE(xas_control_type)                   :: xas_control
     TYPE(xas_environment_type), POINTER      :: xas_env
     INTEGER, INTENT(IN)                      :: iatom
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(qs_environment_type), POINTER       :: qs_env
+    LOGICAL, INTENT(OUT)                     :: converged,should_stop
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -161,7 +168,7 @@ CONTAINS
       istate, iter_count, m, n, nao, nmo, nvirtual1, nvirtual2, output_unit
     INTEGER, DIMENSION(:), POINTER           :: col_indices
     LOGICAL :: diis_step, do_level_shift, energy_only, failure, gapw, &
-      id_equal, ionode, should_stop, uniform_occupation, use_cholesky, &
+      id_equal, ionode, uniform_occupation, use_cholesky, &
       use_jacobi
 !    REAL(dp), DIMENSION(6)                   :: weights
 !    REAL(dp), DIMENSION(:, :), POINTER       :: centers_wfn
@@ -214,6 +221,7 @@ CONTAINS
     logger => cp_error_get_logger(error)
     t1 = m_walltime()
     failure=.FALSE.
+    converged = .TRUE.
 
     CPPrecondition(ASSOCIATED(xas_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(xas_env%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -227,7 +235,6 @@ CONTAINS
          dft_control=dft_control,&
          scf_control=scf_control,&
          input=input)
-
 
     ionode = logger%para_env%source==logger%para_env%mepos
     energy_only = .FALSE.
@@ -499,6 +506,7 @@ CONTAINS
           END IF
           CALL timestop(0.0_dp,handle2)
           EXIT scf_loop
+          converged = .FALSE.
        END IF
 
        IF (.NOT.BTEST(cp_print_key_should_output(logger%iter_info,&
@@ -753,7 +761,7 @@ CONTAINS
     NULLIFY(atomic_kind,dft_control,matrix_h,matrix_s,matrix_ks)
     NULLIFY(cell,particle_set,preconditioner,vecbuffer,vecbuffer2)
     NULLIFY(dft_control,mos,mo_coeff,eigenvalues)
-    NULLIFY(centers_wfn,mykind_of_kind,qs_loc_env,localized_wfn_control)
+    NULLIFY(centers_wfn,mykind_of_kind,qs_loc_env,localized_wfn_control,stogto_overlap)
     NULLIFY(all_evals,all_vectors,excvec_coeff,excvec_overlap,uno_evals)
 
     failure=.FALSE.
@@ -945,6 +953,111 @@ CONTAINS
 
     CALL timestop(0.0_dp,handle)
 
-  END SUBROUTINE
+  END SUBROUTINE cls_prepare_states
+
+  SUBROUTINE xes_scf_once(qs_env,xas_env,scf_section,globenv,converged,should_stop,error)
+
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(xas_environment_type), POINTER      :: xas_env
+    TYPE(section_vals_type), POINTER         :: scf_section
+    TYPE(global_environment_type), POINTER   :: globenv
+    LOGICAL, INTENT(OUT)                     :: converged,should_stop
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'xes_scf_once', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER :: handle, homo, ispin, istate, nvirtual, nvirtual1, &
+               nvirtual2, nao, nelectron, nmo, output_unit,writerestart
+    LOGICAL :: failure, ionode
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: all_evals, eigenvalues
+    TYPE(cp_fm_type), POINTER                :: mo_coeff
+    TYPE(cp_fm_type), POINTER                :: all_vectors
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mos
+    TYPE(qs_scf_env_type), POINTER           :: scf_env
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks
+    TYPE(scf_control_type), POINTER          :: scf_control
+
+
+    failure = .FALSE.
+    NULLIFY(dft_control,scf_control,matrix_ks,mos,para_env)
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
+    ionode = logger%para_env%mepos==logger%para_env%source
+    IF (ionode) output_unit= cp_logger_get_default_unit_nr(logger)
+
+    CALL timeset(routineN,"I"," ",handle)
+
+    CPPrecondition(ASSOCIATED(xas_env),cp_failure_level,routineP,error,failure)
+    IF(.NOT. failure) THEN
+      CALL get_qs_env(qs_env=qs_env,dft_control=dft_control, scf_control=scf_control,&
+         matrix_ks=matrix_ks,mos=mos,para_env=para_env)
+
+      CALL get_mo_set(mos(1)%mo_set,nelectron=nelectron)
+      homo = nelectron - 1
+
+      CALL set_mo_set(mos(1)%mo_set,homo=homo)
+
+      NULLIFY(scf_env)
+      CALL get_qs_env(qs_env,scf_env=scf_env,error=error)
+      dft_control%xas_estate=1
+      CALL init_scf_run(scf_env=scf_env,qs_env=qs_env,&
+           globenv=globenv, scf_section=scf_section, error=error)
+
+      writerestart = scf_control%write_restart_each
+      scf_control%write_restart_each = -1
+      CALL scf_env_do_scf(scf_env=scf_env, qs_env=qs_env, globenv=globenv, &
+           converged=converged, should_stop=should_stop, error=error)
+      CALL scf_env_cleanup(scf_env,qs_env=qs_env,error=error)
+      scf_control%write_restart_each= writerestart
+
+!   The eigenstate of the KS Hamiltonian are nedeed
+      NULLIFY(mo_coeff,eigenvalues)
+      IF(scf_control%use_ot) THEN
+         IF (output_unit>0) THEN
+          WRITE (UNIT=output_unit,FMT="(/,T10,A,/)")&
+               "Get eigenstates and eigenvalues from ground state MOs"
+         END IF
+         DO ispin = 1,dft_control%nspins
+           CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff,nao=nao,nmo=nmo,&
+                eigenvalues=eigenvalues,homo=homo)
+           CALL calculate_subspace_eigenvalues(mo_coeff,&
+                matrix_ks(ispin)%matrix,eigenvalues, &
+                para_env=para_env, &
+                do_rotation=.TRUE.)
+         END DO
+      END IF
+      NULLIFY(all_vectors,all_evals)
+      CALL get_xas_env(xas_env=xas_env,all_vectors=all_vectors,&
+           all_evals=all_evals,nvirtual1=nvirtual1,nvirtual2=nvirtual2)
+      CALL get_mo_set(mos(1)%mo_set, eigenvalues=eigenvalues,mo_coeff=mo_coeff,&
+           nao=nao,nmo=nmo,homo=homo)
+
+      CALL cp_fm_to_fm(mo_coeff,all_vectors,ncol=nvirtual1,&
+             source_start=1,target_start=1)
+      DO istate = 1,nvirtual1
+          all_evals(istate) = eigenvalues(istate)
+      ENDDO
+
+      IF(nvirtual2/=0) THEN
+        IF (output_unit>0) THEN
+          WRITE (UNIT=output_unit,FMT="(/,T10,A,/)")&
+               "WARNING: for this XES calculation the # of XAS added MOD should be 0"
+        END IF
+        nvirtual2=0
+        nvirtual = nvirtual1
+        CALL set_xas_env(xas_env=xas_env,nvirtual=nvirtual,nvirtual2=nvirtual2)
+      END IF
+
+    END IF  ! failure
+    CALL timestop(0.0_dp,handle)
+
+  END SUBROUTINE xes_scf_once
 
 END MODULE xas_tp_scf

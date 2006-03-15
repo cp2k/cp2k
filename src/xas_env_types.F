@@ -227,10 +227,13 @@ CONTAINS
      END IF
   END SUBROUTINE get_xas_env
 
-  SUBROUTINE set_xas_env(xas_env,iter_count, qs_loc_env,error)
+  SUBROUTINE set_xas_env(xas_env,iter_count,nvirtual,nvirtual1,nvirtual2, qs_loc_env,error)
 
     TYPE(xas_environment_type), POINTER      :: xas_env
     INTEGER, INTENT(IN), OPTIONAL            :: iter_count
+    INTEGER, INTENT(IN), OPTIONAL            :: nvirtual
+    INTEGER, INTENT(IN), OPTIONAL            :: nvirtual1
+    INTEGER, INTENT(IN), OPTIONAL            :: nvirtual2
     TYPE(qs_loc_env_new_type), OPTIONAL, &
       POINTER                                :: qs_loc_env
     TYPE(cp_error_type), INTENT(inout), &
@@ -248,6 +251,9 @@ CONTAINS
     IF(.NOT. failure) THEN
    
       IF (PRESENT(iter_count)) xas_env%iter_count = iter_count
+      IF (PRESENT(nvirtual)) xas_env%nvirtual = nvirtual
+      IF (PRESENT(nvirtual1)) xas_env%nvirtual1 = nvirtual1
+      IF (PRESENT(nvirtual2)) xas_env%nvirtual2 = nvirtual2
       IF (PRESENT(qs_loc_env)) THEN
         CALL  qs_loc_env_retain(qs_loc_env, error=error)
         IF(ASSOCIATED(xas_env%qs_loc_env)) &

@@ -158,7 +158,8 @@ CONTAINS
 
     TYPE(cell_type), POINTER                 :: cell
     TYPE(pw_pool_type), POINTER              :: pw_pool
-    TYPE(coeff_type), POINTER                :: rho_gspace, funcG_times_rho
+    TYPE(coeff_type), POINTER                :: rho_gspace
+    TYPE(coeff_type)                         :: funcG_times_rho
     INTEGER, INTENT(IN)                      :: idir
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error

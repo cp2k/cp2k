@@ -1140,7 +1140,7 @@ SUBROUTINE create_se_control_section(section,error)
           usage="RC_RANGE {real} ",default_r_val=8._dp, error=error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error)
- 
+
     END IF
 
 END SUBROUTINE create_se_control_section
@@ -3603,7 +3603,7 @@ END SUBROUTINE create_ot_section
            default_i_val=xas_dip_vel,&
            enum_c_vals=s2a( "LENGTH","VELOCITY" ),&
            enum_desc=s2a("Length form <i|e r |j>","Velocity form <i|d/dr|j>"),&
-           enum_i_vals=(/xas_dip_len,xas_dip_vel/),error=error)
+           enum_i_vals=(/xas_dip_len2,xas_dip_vel/),error=error)
       CALL section_add_keyword(section,keyword,error=error)
 
       CALL keyword_release(keyword,error=error)
