@@ -50,7 +50,7 @@ MODULE cp2k_runs
        energy_run, geo_opt_run, hmc_run, ldmc_run, linear_response_run, &
        mol_dyn_run, mon_car_run, none_run, qs_debug_run, KG_DFT_MC_method, &
        QS_MC_method, Harris_MC_method, EIP_MC_method, SE_MC_method, &
-       TBMD_MC_method, do_eip, do_tbmd
+       TBMD_MC_method
   USE input_cp2k,                      ONLY: create_cp2k_root_section,&
                                              create_global_section
   USE input_cp2k_check,                ONLY: check_cp2k_input

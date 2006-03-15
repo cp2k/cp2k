@@ -30,6 +30,7 @@ MODULE topology_input
                                              torsion_colvar_id
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: do_conn_psf,&
+                                             do_conn_mol_psf,&
                                              do_coord_off
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
@@ -111,7 +112,6 @@ SUBROUTINE read_topology_section ( topology, topology_section, globenv, error )
      CALL section_vals_val_get(topology_section,"CHARGE_BETA",l_val=topology % charge_beta,error=error)
      CALL section_vals_val_get(topology_section,"PARA_RES",l_val=topology % para_res,error=error)
      CALL section_vals_val_get(topology_section,"DUMP_TOP",l_val=topology % dump_topology,error=error)
-     CALL section_vals_val_get(topology_section,"DUMP_TOP",l_val=topology % dump_topology,error=error)
      CALL section_vals_val_get(topology_section,"REORDER",l_val=topology % reorder_atom,error=error)
      CALL section_vals_val_get(topology_section,"MOL_CHECK",l_val=topology % molecules_check,error=error)
      ! Character
@@ -128,6 +128,7 @@ SUBROUTINE read_topology_section ( topology, topology_section, globenv, error )
      IF (topology % coord_type /= do_coord_off) topology%coordinate = .TRUE.
      CALL section_vals_val_get(topology_section,"CONNECTIVITY",i_val=topology % conn_type,error=error)
      IF (topology % conn_type == do_conn_psf) topology % connectivity = .TRUE.
+     IF (topology % conn_type == do_conn_mol_psf) topology % connectivity = .TRUE.
      CALL section_vals_val_get(topology_section,"EXCLUDE_VDW",i_val=topology % exclude_vdw,error=error)
      CALL section_vals_val_get(topology_section,"EXCLUDE_EI",i_val=topology % exclude_ei,error=error)
      CALL section_vals_val_get(topology_section,"EXCLUDE_CHECK",i_val=topology % exclude_check,error=error)

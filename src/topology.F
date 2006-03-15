@@ -29,10 +29,13 @@ MODULE topology
   USE input_constants,                 ONLY: do_conn_generate,&
                                              do_conn_off,&
                                              do_conn_psf,&
+                                             do_conn_mol_psf,&
                                              do_coord_pdb,&
                                              do_coord_xyz
-  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                             section_vals_type
+  USE input_section_types,             ONLY: section_vals_get,&
+                                             section_vals_get_subs_vals,&
+                                             section_vals_type,&
+                                             section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE molecule_kind_types,             ONLY: molecule_kind_type
@@ -277,6 +280,7 @@ CONTAINS
     TYPE(qmmm_env_mm_type), OPTIONAL, &
       POINTER                                :: qmmm_env
     TYPE(section_vals_type), POINTER         :: subsys_section
+    TYPE(section_vals_type), POINTER         :: section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -284,8 +288,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, iw
+    INTEGER                                  :: i_rep, n_rep,imol,nmol
     LOGICAL                                  :: failure, found, my_qmmm
     TYPE(cp_logger_type), POINTER            :: logger
+    CHARACTER(len=default_string_length)     :: filename
 
     failure = .FALSE.
     NULLIFY(logger)
@@ -301,18 +307,29 @@ CONTAINS
     !-----------------------------------------------------------------------------
     ! 1. If reading in from external file, make sure its there first
     !-----------------------------------------------------------------------------
-    IF(topology%connectivity) THEN
-       !------------------------------------------------------
-       !Make sure the file really do exist before proceding
-       IF(globenv%ionode) THEN
-          INQUIRE(FILE=topology%conn_file_name,EXIST=found)
-          IF(found) THEN
-             IF(iw>0) WRITE(iw,*) 'Using connectivity file ',topology%conn_file_name
-          ELSE
-             CALL stop_program ("connectivity_control","connectivity file missing")
-          END IF
-       END IF
-    END IF
+!    IF(topology%connectivity) THEN
+!       !------------------------------------------------------
+!       !Make sure the file really do exist before proceding
+!       IF(globenv%ionode) THEN
+!
+!          INQUIRE(FILE=topology%conn_file_name,EXIST=found)
+!          IF(found) THEN
+!             IF(iw>0) WRITE(iw,*) 'Using connectivity file ',topology%conn_file_name
+!          ELSE
+!
+!             section => section_vals_get_subs_vals(globenv%input_file,&
+!                        "FORCE_EVAL%SUBSYS%TOPOLOGY%MOL_SET",error=error)
+!             CALL section_vals_get(section,n_repetition=n_rep,error=error)
+!             DO i_rep=1,n_rep
+!                CALL section_vals_val_get(section,"CONN_FILE",&
+!                          c_val=filename,i_rep_section=i_rep,error=error)
+!                INQUIRE(FILE=file_name,EXIST=found)
+!                IF(.NOT.found) THEN
+!                  CALL stop_program ("connectivity_control","connectivity file missing")
+!             END DO
+!          END IF
+!       END IF
+!    END IF
 
 
     !-----------------------------------------------------------------------------
@@ -320,8 +337,24 @@ CONTAINS
     ! 2. Read in or generate the connectivity information any way we can 
     !-----------------------------------------------------------------------------
     SELECT CASE (topology%conn_type)
+    CASE (do_conn_mol_psf)
+       section => section_vals_get_subs_vals(globenv%input_file,&
+                  "FORCE_EVAL%SUBSYS%TOPOLOGY%MOL_SET",error=error)
+       CALL section_vals_get(section,n_repetition=n_rep,error=error)
+       DO i_rep=1,n_rep
+         CALL section_vals_val_get(section,"NMOL",i_val=nmol,&
+                                    i_rep_section=i_rep,error=error)
+         CALL section_vals_val_get(section,"CONN_FILE",c_val=filename,&
+                                    i_rep_section=i_rep,error=error)
+         DO imol=1,nmol
+           CALL read_topology_psf(filename,topology,globenv,subsys_section,error)
+         END DO
+       END DO
+       CALL topology_generate_molecule(topology,my_qmmm,qmmm_env,globenv,subsys_section,error)
+       IF(topology%molecules_check) &
+            CALL topology_molecules_check(topology,globenv,subsys_section,error)
     CASE (do_conn_psf)
-       CALL read_topology_psf(topology,globenv,subsys_section,error)
+       CALL read_topology_psf(topology%conn_file_name,topology,globenv,subsys_section,error)
        CALL topology_generate_molecule(topology,my_qmmm,qmmm_env,globenv,subsys_section,error)
        IF(topology%molecules_check) &
             CALL topology_molecules_check(topology,globenv,subsys_section,error)

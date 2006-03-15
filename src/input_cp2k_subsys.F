@@ -1282,6 +1282,7 @@ CONTAINS
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
+    TYPE(section_type), POINTER              :: subsection
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_topology_section', &
       routineP = moduleN//':'//routineN
@@ -1320,7 +1321,7 @@ CONTAINS
        CALL keyword_create(keyword, name="PARA_RES",&
             description="For a protein, each residue is now considered a molecule",&
             usage="PARA_RES logical",&
-            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+            default_l_val=.TRUE.,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -1372,12 +1373,12 @@ CONTAINS
  
        CALL keyword_create(keyword, name="CONNECTIVITY",&
             variants=(/ "CONNECTI"/),&
-            description="Set up the way in which connectivities will be read. "// &
+            description="Set up the way to determine connectivities."// &
             "Default generates topology",&
             usage="CONNECTIVITY (PSF||GENERATE||OFF)", &
-            enum_c_vals=s2a( "PSF","GENERATE","OFF"),&
-            enum_i_vals=(/do_conn_psf, do_conn_generate,&
-                          do_conn_off/),&
+            enum_c_vals=s2a("PSF","GENERATE","OFF","MOL_PSF"),&
+            enum_i_vals=(/do_conn_psf,do_conn_generate,&
+                          do_conn_off,do_conn_mol_psf/),&
             default_i_val=do_conn_generate,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -1422,7 +1423,6 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        
-       ! Integer
        CALL keyword_create(keyword, name="EXCLUDE_CHECK",&
             variants=(/"EXCLUDE_CH"/),&
             description="Used in conjunction with PARA_RES. Determines "//&
@@ -1435,7 +1435,6 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       ! Real
        CALL keyword_create(keyword, name="BONDPARM_FACTOR",&
             description="Used in conjunction with BONDPARM to help "//&
                         "determine wheather there is bonding between "//&
@@ -1443,6 +1442,32 @@ CONTAINS
             usage="bondparm_factor {real}", default_r_val=1.1_dp,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+       NULLIFY(subsection)
+       CALL section_create(subsection,name="MOL_SET",&
+            description="MOL_SET section.",&
+            n_keywords=2, n_subsections=0, repeats=.TRUE., required=.FALSE.,&
+            error=error)
+
+       CALL keyword_create(keyword, name="NMOL",&
+            description="number of molecules ",&
+            usage="NMOL {integer}", default_i_val=1,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="CONN_FILE",&
+            description="filename that contains the molecular connectivity.",&
+            usage="CONN_FILE FILENAME",required=.TRUE.,&
+            type_of_var=lchar_t,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
     END IF
 

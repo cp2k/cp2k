@@ -273,6 +273,7 @@ MODULE input_constants
                                 do_conn_psf=0,&
                                 do_conn_generate=1,&
                                 do_conn_off=2,&
+                                do_conn_mol_psf=3,&
                                 do_coord_pdb=0,&
                                 do_coord_xyz=1,&
                                 do_coord_off=2

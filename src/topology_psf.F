@@ -1,8 +1,7 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2001  CP2K developers group                                 !
+!   Copyright (C) 2006  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
-
 
 !!****** cp2k/topology_psf [1.0] *
 !!
@@ -14,10 +13,8 @@
 !!     data structures
 !!
 !!   AUTHOR
-!!     IKUO 08.01.2003
 !!
 !!   MODIFICATION HISTORY
-!!     none
 !!
 !!   SOURCE
 !******************************************************************************
@@ -71,7 +68,8 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
 
-  SUBROUTINE read_topology_psf (topology,globenv,subsys_section, error)
+  SUBROUTINE read_topology_psf (filename,topology,globenv,subsys_section, error)
+    CHARACTER(LEN=default_string_length),INTENT(IN)     :: filename
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
     TYPE(global_environment_type), &
@@ -88,11 +86,17 @@ CONTAINS
                                                 iphi, itheta, iw, jatom, &
                                                 natom, nbond, nphi, ntheta, &
                                                 stat
+    INTEGER                                  :: natom_prev, nbond_prev,&
+                                                ntheta_prev, nphi_prev
+    INTEGER                                  :: index_now
     LOGICAL                                  :: failure, found
     TYPE(atom_info_type), POINTER            :: atom_info
     TYPE(connectivity_info_type), POINTER    :: conn_info
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_parser_type), POINTER            :: parser
+
+    LOGICAL, SAVE                            :: first_time = .TRUE.
+
 
     failure = .FALSE.
     NULLIFY(parser, logger)
@@ -100,11 +104,48 @@ CONTAINS
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/PSF_INFO",&
          extension=".subsysLog",error=error)    
     CALL timeset(routineN,'I','',handle)
-    CALL parser_create(parser,topology%conn_file_name,para_env=globenv%para_env)
+    CALL parser_create(parser,filename,para_env=globenv%para_env)
     
     atom_info => topology%atom_info
     conn_info => topology%conn_info
+
+    IF(first_time) THEN
+       IF (ASSOCIATED(atom_info%label_molname)) &
+         DEALLOCATE(atom_info%label_molname,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       NULLIFY(atom_info%label_molname)
+     
+       IF (ASSOCIATED(atom_info%label_resid)) &
+         DEALLOCATE(atom_info%label_resid,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       NULLIFY(atom_info%label_resid)
+     
+       IF (ASSOCIATED(atom_info%label_resname)) &
+         DEALLOCATE(atom_info%label_resname,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       NULLIFY(atom_info%label_resname)
+       
+       IF (ASSOCIATED(atom_info%label_atmname)) &
+         DEALLOCATE(atom_info%label_atmname,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       NULLIFY(atom_info%label_atmname)
+     
+       IF (ASSOCIATED(atom_info%atm_charge)) &
+         DEALLOCATE(atom_info%atm_charge,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       NULLIFY(atom_info%atm_charge)
+     
+       IF (ASSOCIATED(atom_info%atm_mass)) &
+         DEALLOCATE(atom_info%atm_mass,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       NULLIFY(atom_info%atm_mass)
+
+       first_time = .FALSE.
+    END IF
     
+    natom_prev = 0
+    IF(ASSOCIATED(atom_info%label_molname)) natom_prev = SIZE(atom_info%label_molname)
+
     IF(iw>0) WRITE(iw,*) 'Parsing the NATOM section'
 
     label = '!NATOM'
@@ -116,52 +157,33 @@ CONTAINS
        CALL parser_get_object  (parser,natom)
        IF(iw>0) WRITE(iw,*) 'NATOM = ',natom
        !malloc the memory that we need
-       IF (ASSOCIATED(atom_info%label_molname)) DEALLOCATE(atom_info%label_molname,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE(atom_info%label_molname(natom),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-     
-       IF (ASSOCIATED(atom_info%label_resid)) DEALLOCATE(atom_info%label_resid,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE(atom_info%label_resid(natom),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-     
-       IF (ASSOCIATED(atom_info%label_resname)) DEALLOCATE(atom_info%label_resname,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE(atom_info%label_resname(natom),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       
-       IF (ASSOCIATED(atom_info%label_atmname)) DEALLOCATE(atom_info%label_atmname,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE(atom_info%label_atmname(natom),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-     
-       IF (ASSOCIATED(atom_info%atm_charge)) DEALLOCATE(atom_info%atm_charge,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE(atom_info%atm_charge(natom),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-     
-       IF (ASSOCIATED(atom_info%atm_mass)) DEALLOCATE(atom_info%atm_mass,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE(atom_info%atm_mass(natom),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CALL reallocate(atom_info%label_molname,1,natom_prev+natom)
+       CALL reallocate(atom_info%label_resid,1,natom_prev+natom)
+       CALL reallocate(atom_info%label_resname,1,natom_prev+natom)
+       CALL reallocate(atom_info%label_atmname,1,natom_prev+natom)
+       CALL reallocate(atom_info%atm_charge,1,natom_prev+natom)
+       CALL reallocate(atom_info%atm_mass,1,natom_prev+natom)
      
        !Read in the atom info
        DO iatom=1,natom
+          index_now=iatom+natom_prev
           CALL parser_get_object(parser,i,newline=.TRUE.)
-          CALL parser_get_object(parser,atom_info%label_molname(iatom))
-          CALL parser_get_object(parser,atom_info%label_resid(iatom))
-          CALL parser_get_object(parser,atom_info%label_resname(iatom))
+          CALL parser_get_object(parser,atom_info%label_molname(index_now))
+          CALL parser_get_object(parser,atom_info%label_resid(index_now))
+          CALL parser_get_object(parser,atom_info%label_resname(index_now))
           CALL parser_get_object(parser,dummy_field)
-          CALL parser_get_object(parser,atom_info%label_atmname(iatom))
-          CALL parser_get_object(parser,atom_info%atm_charge(iatom))
-          CALL parser_get_object(parser,atom_info%atm_mass(iatom))
-          CALL uppercase ( atom_info%label_atmname(iatom) )
+          CALL parser_get_object(parser,atom_info%label_atmname(index_now))
+          CALL parser_get_object(parser,atom_info%atm_charge(index_now))
+          CALL parser_get_object(parser,atom_info%atm_mass(index_now))
+          CALL uppercase ( atom_info%label_atmname(index_now) )
        END DO
     END IF
 
-    !------------------------------------------------------------------------------
-    !------------------------------------------------------------------------------
+    !---------------------------------------------------------------------------
+    !---------------------------------------------------------------------------
+    nbond_prev = 0
+    IF(ASSOCIATED(conn_info%bond_a)) nbond_prev = SIZE(conn_info%bond_a)
+
     IF(iw>0) WRITE(iw,*) 'Parsing the NBOND section'
     label = '!NBOND'
     CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
@@ -173,26 +195,28 @@ CONTAINS
        
        IF(iw>0) WRITE(iw,*) 'NBOND = ',nbond
        !malloc the memory that we need
-       ALLOCATE(conn_info%bond_a(nbond),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE(conn_info%bond_b(nbond),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CALL reallocate(conn_info%bond_a,1,nbond_prev+nbond)
+       CALL reallocate(conn_info%bond_b,1,nbond_prev+nbond)
        !Read in the atom info
        DO ibond=1,nbond,4
           CALL parser_get_next_line(parser,1,error=error)
           i=0
           DO WHILE ((i<4).AND.((ibond+i)<=nbond))
-             CALL parser_get_object(parser,conn_info%bond_a(ibond+i))
-             CALL parser_get_object(parser,conn_info%bond_b(ibond+i))
+             index_now=nbond_prev+ibond+i
+             CALL parser_get_object(parser,conn_info%bond_a(index_now))
+             CALL parser_get_object(parser,conn_info%bond_b(index_now))
+             conn_info%bond_a(index_now)=conn_info%bond_a(index_now)+natom_prev
+             conn_info%bond_b(index_now)=conn_info%bond_b(index_now)+natom_prev
              i=i+1
           END DO
        END DO
     END IF
     
-    !------------------------------------------------------------------------------
-    !------------------------------------------------------------------------------
+    !---------------------------------------------------------------------------
+    !---------------------------------------------------------------------------
     i = 0
-    DO ibond=1,nbond
+    IF(ASSOCIATED(conn_info%c_bond_a)) i = SIZE(conn_info%c_bond_a)
+    DO ibond=1+nbond_prev,nbond+nbond_prev
        iatom = conn_info%bond_a(ibond)
        jatom = conn_info%bond_b(ibond)
        IF(topology%para_res) THEN
@@ -214,8 +238,11 @@ CONTAINS
        END IF
     END DO
 
-    !------------------------------------------------------------------------------
-    !------------------------------------------------------------------------------
+    !---------------------------------------------------------------------------
+    !---------------------------------------------------------------------------
+    ntheta_prev = 0
+    IF(ASSOCIATED(conn_info%theta_a)) ntheta_prev = SIZE(conn_info%theta_a)
+
     IF(iw>0) WRITE(iw,*) 'Parsing the NTHETA section'
     label = '!NTHETA'
     CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
@@ -226,43 +253,40 @@ CONTAINS
        CALL parser_get_object  (parser,ntheta)
        IF(iw>0) WRITE(iw,*) 'NTHETA = ',ntheta
        !malloc the memory that we need
-       ALLOCATE(conn_info%theta_a(ntheta),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE(conn_info%theta_b(ntheta),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE(conn_info%theta_c(ntheta),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CALL reallocate(conn_info%theta_a,1,ntheta_prev+ntheta)
+       CALL reallocate(conn_info%theta_b,1,ntheta_prev+ntheta)
+       CALL reallocate(conn_info%theta_c,1,ntheta_prev+ntheta)
+       CALL reallocate(conn_info%ub_a,1,ntheta_prev+ntheta)
+       CALL reallocate(conn_info%ub_b,1,ntheta_prev+ntheta)
+       CALL reallocate(conn_info%ub_c,1,ntheta_prev+ntheta)
        !Read in the atom info
        DO itheta=1,ntheta,3
           CALL parser_get_next_line(parser,1,error=error)
           i=0
           DO WHILE ((i<3).AND.((itheta+i)<=ntheta))
-             CALL parser_get_object(parser,conn_info%theta_a(itheta+i))
-             CALL parser_get_object(parser,conn_info%theta_b(itheta+i))
-             CALL parser_get_object(parser,conn_info%theta_c(itheta+i))
+             index_now=ntheta_prev+itheta+i
+             CALL parser_get_object(parser,conn_info%theta_a(index_now))
+             CALL parser_get_object(parser,conn_info%theta_b(index_now))
+             CALL parser_get_object(parser,conn_info%theta_c(index_now))
+             conn_info%theta_a(index_now)=conn_info%theta_a(index_now)+natom_prev
+             conn_info%theta_b(index_now)=conn_info%theta_b(index_now)+natom_prev
+             conn_info%theta_c(index_now)=conn_info%theta_c(index_now)+natom_prev
              i=i+1
           END DO
        END DO
     END IF
 
-    !------------------------------------------------------------------------------
-    !------------------------------------------------------------------------------
-    ALLOCATE(conn_info%ub_a(ntheta),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
-    ALLOCATE(conn_info%ub_b(ntheta),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
-    ALLOCATE(conn_info%ub_c(ntheta),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
+    !---------------------------------------------------------------------------
+    !---------------------------------------------------------------------------
     conn_info%ub_a(:) = conn_info%theta_a(:)
     conn_info%ub_b(:) = conn_info%theta_b(:)
     conn_info%ub_c(:) = conn_info%theta_c(:)
+    !---------------------------------------------------------------------------
+    !---------------------------------------------------------------------------
+    nphi_prev = 0
+    IF(ASSOCIATED(conn_info%phi_a)) nphi_prev = SIZE(conn_info%phi_a)
 
-    !------------------------------------------------------------------------------
-    !------------------------------------------------------------------------------
-    IF(iw>0) WRITE(iw,*) 'Parsing the NPHI (ie dihedrals) section'
+    IF(iw>0) WRITE(iw,*) 'Parsing the NPHI section'
     label = '!NPHI'
     CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
     IF ( .NOT. found ) THEN
@@ -272,40 +296,41 @@ CONTAINS
        CALL parser_get_object  (parser,nphi)
        IF(iw>0) WRITE(iw,*) 'NPHI = ',nphi
        !malloc the memory that we need
-       ALLOCATE(conn_info%phi_a(nphi),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE(conn_info%phi_b(nphi),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE(conn_info%phi_c(nphi),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE(conn_info%phi_d(nphi),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CALL reallocate(conn_info%phi_a,1,nphi_prev+nphi)
+       CALL reallocate(conn_info%phi_b,1,nphi_prev+nphi)
+       CALL reallocate(conn_info%phi_c,1,nphi_prev+nphi)
+       CALL reallocate(conn_info%phi_d,1,nphi_prev+nphi)
+       CALL reallocate(conn_info%onfo_a,1,nphi_prev+nphi)
+       CALL reallocate(conn_info%onfo_b,1,nphi_prev+nphi)
        !Read in the atom info
        DO iphi=1,nphi,2
           CALL parser_get_next_line(parser,1,error=error)
           i=0
           DO WHILE ((i<2).AND.((iphi+i)<=nphi))
-             CALL parser_get_object(parser,conn_info%phi_a(iphi+i))
-             CALL parser_get_object(parser,conn_info%phi_b(iphi+i))
-             CALL parser_get_object(parser,conn_info%phi_c(iphi+i))
-             CALL parser_get_object(parser,conn_info%phi_d(iphi+i))
+             index_now=nphi_prev+iphi+i
+             CALL parser_get_object(parser,conn_info%phi_a(index_now))
+             CALL parser_get_object(parser,conn_info%phi_b(index_now))
+             CALL parser_get_object(parser,conn_info%phi_c(index_now))
+             CALL parser_get_object(parser,conn_info%phi_d(index_now))
+             conn_info%phi_a(index_now)=conn_info%phi_a(index_now)+natom_prev
+             conn_info%phi_b(index_now)=conn_info%phi_b(index_now)+natom_prev
+             conn_info%phi_c(index_now)=conn_info%phi_c(index_now)+natom_prev
+             conn_info%phi_d(index_now)=conn_info%phi_d(index_now)+natom_prev
              i=i+1
           END DO
        END DO
     END IF
 
-    !------------------------------------------------------------------------------
-    !------------------------------------------------------------------------------
-    ALLOCATE(conn_info%onfo_a(nphi),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(conn_info%onfo_b(nphi),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    !---------------------------------------------------------------------------
+    !---------------------------------------------------------------------------
     conn_info%onfo_a(:) = conn_info%phi_a(:)
     conn_info%onfo_b(:) = conn_info%phi_d(:)
+    !---------------------------------------------------------------------------
+    !---------------------------------------------------------------------------
+    nphi_prev = 0
+    IF(ASSOCIATED(conn_info%impr_a)) nphi_prev = SIZE(conn_info%impr_a)
 
-    !------------------------------------------------------------------------------
-    !------------------------------------------------------------------------------
-    IF(iw>0) WRITE(iw,*) 'Parsing the NIMPHI (ie dihedrals) section'
+    IF(iw>0) WRITE(iw,*) 'Parsing the NIMPHI section'
     label = '!NIMPHI'
     CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
     IF ( .NOT. found ) THEN
@@ -315,23 +340,24 @@ CONTAINS
        CALL parser_get_object  (parser,nphi)
        IF(iw>0) WRITE(iw,*) 'NIMPR = ',nphi
        !malloc the memory that we need
-       ALLOCATE(conn_info%impr_a(nphi),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE(conn_info%impr_b(nphi),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)       
-       ALLOCATE(conn_info%impr_c(nphi),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE(conn_info%impr_d(nphi),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CALL reallocate(conn_info%impr_a,1,nphi_prev+nphi)
+       CALL reallocate(conn_info%impr_b,1,nphi_prev+nphi)
+       CALL reallocate(conn_info%impr_c,1,nphi_prev+nphi)
+       CALL reallocate(conn_info%impr_d,1,nphi_prev+nphi)
        !Read in the atom info
        DO iphi=1,nphi,2
           CALL parser_get_next_line(parser,1,error=error)
           i=0
           DO WHILE ((i<2).AND.((iphi+i)<=nphi))
-             CALL parser_get_object(parser,conn_info%impr_a(iphi+i))
-             CALL parser_get_object(parser,conn_info%impr_b(iphi+i))
-             CALL parser_get_object(parser,conn_info%impr_c(iphi+i))
-             CALL parser_get_object(parser,conn_info%impr_d(iphi+i))
+             index_now=nphi_prev+iphi+i
+             CALL parser_get_object(parser,conn_info%impr_a(index_now))
+             CALL parser_get_object(parser,conn_info%impr_b(index_now))
+             CALL parser_get_object(parser,conn_info%impr_c(index_now))
+             CALL parser_get_object(parser,conn_info%impr_d(index_now))
+             conn_info%impr_a(index_now)=conn_info%impr_a(index_now)+natom_prev
+             conn_info%impr_b(index_now)=conn_info%impr_b(index_now)+natom_prev
+             conn_info%impr_c(index_now)=conn_info%impr_c(index_now)+natom_prev
+             conn_info%impr_d(index_now)=conn_info%impr_d(index_now)+natom_prev
              i=i+1
           END DO
        END DO
