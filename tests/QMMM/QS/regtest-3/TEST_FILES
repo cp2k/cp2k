@@ -1,0 +1,22 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      for details see cp2k/tools/do_regtest
+# QM/MM links
+C4H10-qmmm-gauss-0.inp 1
+C4H10-qmmm-gauss-1.inp 1
+C4H10-qmmm-gauss-2.inp 1
+C4H10-qmmm-gauss-3.inp 1
+C4H10-qmmm-gauss-4.inp 1
+C4H10-qmmm-gauss-5.inp 1
+C4H10-qmmm-gauss-6.inp 1
+C4H10-qmmm-gauss-7.inp 1
+C4H10-qmmm-grid-8.inp  1
+C4H10-qmmm-gauss-9.inp 1
+C4H10-qmmm-gauss-10.inp 1
+C4H10-qmmm-gauss-11.inp 1
+C11H24-qmmm-gauss-0.inp 1
+sio2-qmmm-gauss-1.inp 1
+sio2-qmmm-gauss-2.inp 1
+sio2-qmmm-gauss-3.inp 1

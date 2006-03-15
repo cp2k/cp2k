@@ -1,0 +1,44 @@
+
+BONDS
+CTL2  HAL2  309.00      1.111   ! alkanes, 4/98
+CTL3  HAL3  322.00      1.111   ! alkanes, 4/98
+CTL2  CTL2  222.500     1.530   ! alkanes, 3/92
+CTL2  CTL3  222.500     1.528   ! alkanes, 3/92
+
+ANGLES
+HAL2 CTL2 HAL2   35.500    109.00    5.40   1.80200 ! alkane, 3/92
+HAL3 CTL3 HAL3   35.500    108.40    5.40   1.80200 ! alkane, 3/92
+HAL3 CTL3 HAL3   35.500    108.40    5.40   1.80200 ! alkane, 3/92
+HAL2 CTL2 CTL3   34.600    110.10   22.53   2.179  ! alkane, 4/98
+CTL2 CTL2 CTL3   58.000    115.00    8.00   2.561  ! alkane, 3/92
+CTL2 CTL2 CTL2   58.000    115.00    8.00   2.561  ! alkane, 3/92
+HAL3 CTL3 CTL2   34.600    110.10   22.53   2.179  ! alkane, 4/98
+HAL2 CTL2 CTL2   26.500    110.10   22.53   2.179  ! alkane, 4/98
+
+DIHEDRALS
+CTL3 CTL2 CTL2 CTL3     0.10    2   180.00 ! alkane, 4/98, adm jr., lower butane gauche conformer
+CTL3 CTL2 CTL2 CTL3     0.15    4     0.00 ! alkane, 4/98, adm jr.
+CTL3 CTL2 CTL2 CTL3     0.10    6   180.00 ! alkane, 4/98, adm jr.
+CTL2 CTL2 CTL2 CTL2     0.10    2   180.00 ! alkane, 4/98, adm jr., lower butane gauche conformer
+CTL2 CTL2 CTL2 CTL2     0.15    4     0.00 ! alkane, 4/98, adm jr.
+CTL2 CTL2 CTL2 CTL2     0.10    6   180.00 ! alkane, 4/98, adm jr.
+CTL3 CTL2 CTL2 CTL2     0.10    2   180.00 ! alkane, 4/98, adm jr., lower butane gauche conformer
+CTL3 CTL2 CTL2 CTL2     0.15    4     0.00 ! alkane, 4/98, adm jr.
+CTL3 CTL2 CTL2 CTL2     0.10    6   180.00 ! alkane, 4/98, adm jr.
+HAL2 CTL2 CTL3 HAL3     0.1600  3     0.00 ! alkane, 4/98, yin and mackerell
+CTL2 CTL2 CTL3 HAL3     0.1600  3     0.00 ! alkane, 4/98, yin and mackerell
+CTL3 CTL2 CTL2 HAL2     0.1900  3     0.00 ! alkane, 4/98, yin and mackerell
+CTL2 CTL2 CTL2 HAL2     0.1900  3     0.00 ! alkane, 4/98, yin and mackerell
+HAL2 CTL2 CTL2 HAL2     0.1900  3     0.00 ! alkane, 4/98, yin and mackerell
+
+IMPROPER
+
+NONBONDED
+HAL2     0.0       -0.028     1.3400 ! alkane, yin and mackerell, 4/98
+HAL3     0.0       -0.024     1.3400 ! alkane, yin and mackerell, 4/98
+CTL2     0.0       -0.0560    2.010 0.0 -0.01 1.9 ! alkane, 4/98, yin, adm jr.
+CTL3     0.0       -0.0780    2.040 0.0 -0.01 1.9 ! alkane, 4/98, yin, adm jr.
+
+HBOND CUTHB 0.5
+
+END
