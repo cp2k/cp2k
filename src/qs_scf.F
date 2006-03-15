@@ -595,16 +595,18 @@ CONTAINS
                            SIZE(scf_env%outer_scf%gradient,1)              
        IF (outer_loop_eps<scf_control%outer_scf%eps_scf) outer_loop_converged=.TRUE.
 
-       WRITE(output_unit,'(/,T2,A,I4,A,F20.9,A,F20.9/)') "outer SCF iter = ",scf_env%outer_scf%iter_count, & 
-                                              " gradient = ",outer_loop_eps," energy =",energy%total
+       IF (output_unit>0) WRITE(output_unit,'(/,T2,A,I4,A,F20.9,A,F20.9/)') &
+                            "outer SCF iter = ",scf_env%outer_scf%iter_count, & 
+                            " gradient = ",outer_loop_eps," energy =",energy%total
 
        IF (outer_loop_converged) THEN
-            WRITE(6,'(/,T2,A,I4,A,/)') "outer SCF loop converged in",scf_env%outer_scf%iter_count," iterations"
+            IF (output_unit>0) WRITE(output_unit,'(/,T2,A,I4,A,/)') &
+                  "outer SCF loop converged in",scf_env%outer_scf%iter_count," iterations"
             EXIT scf_outer_loop
        ENDIF
 
        IF (scf_env%outer_scf%iter_count>scf_control%outer_scf%max_scf .OR. should_stop ) THEN
-            WRITE(6,'(/,T2,A,/)') "outer SCF loop FAILED to converge"
+            IF (output_unit>0) WRITE(output_unit,'(/,T2,A,/)') "outer SCF loop FAILED to converge"
             EXIT scf_outer_loop
        ENDIF
 
