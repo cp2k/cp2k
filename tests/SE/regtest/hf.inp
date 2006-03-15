@@ -3,6 +3,9 @@
   &DFT
     &QS
       METHOD AM1
+      &SE
+        EWALD T
+      &END SE
     &END QS
     &SCF
       SCF_GUESS ATOMIC
