@@ -1,8 +1,12 @@
 # directories in this file will be scanned for a TEST_FILES entry, and used in regression testing of cp2k
 QS
-QS/regtest-gpw
+QS/regtest-gpw-1
+QS/regtest-gpw-2
+QS/regtest-gpw-3
 QS/regtest-gapw
 QS/regtest-ot
+QS/regtest-ot-1
+QS/regtest-ot-2
 Fist/regtest
 QMMM/QS/regtest-1
 QMMM/QS/regtest-2
