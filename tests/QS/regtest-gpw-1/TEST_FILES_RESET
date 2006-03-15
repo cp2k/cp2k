@@ -1,0 +1,64 @@
+#
+# resetting due to bug in the bloechl scheme
+H+-bloechl.inp
+He2H-bloechl-md.inp
+He2H-bloechl.inp
+H2O-bloechl.inp
+H2O-bloechl-Spl.inp
+#reset for FFT numerics
+H2O-bloechl.inp
+H2O-bloechl-Spl.inp
+rsgrid-dist-1.inp
+#reset after using list-directed IO
+H2O-langevin-2.inp
+#changing syevx -> syevd in cp_fm_power
+Ar-2.inp
+#reset ddapc restraint
+H2O-bloechl-restraint.inp
+#reset due to forces
+H2O-bloechl-restraint.inp
+#reset moving wfi_update in qs_scf
+H2O-MD-harris.inp
+H2O-2.inp
+H2O-3.inp
+H2O-4.inp
+H2O-meta.inp
+H2O-meta_res2.inp
+H2O-meta_res3.inp
+H2O-5.inp
+H2-geo-1.inp
+H2-geo-3.inp
+H2-geo-4.inp
+H2O-langevin-1.inp
+H2O-langevin-2.inp
+H2O-ata.inp
+H2-geo-2.inp
+# Gaussian distribution for Langevin
+H2O-langevin-1.inp
+H2O-langevin-2.inp
+# bug fix for restart
+H2O-langevin-2.inp
+# removal of the NR random number generator (ran2,gasdev)
+H2O-MD-harris.inp
+H2O-MD-harris.frozen.inp
+H2O-2.inp
+H2O-3.inp
+H2O-4.inp
+H2O-meta.inp
+H2O-meta_res0.inp
+H2O-meta_res1.inp
+H2O-meta_res2.inp
+H2O-meta_res3.inp
+H2O-5.inp
+H2O-6.inp
+H2O-debug-2.inp
+H2O-debug-3.inp
+He2H-bloechl-md.inp
+H2O-langevin-1.inp
+H2O-langevin-2.inp
+H2O-ref-1.inp
+H2O-ref-2.inp
+H2O-ata.inp
+H2O-bloechl.inp
+H2O-bloechl-Spl.inp
+H2O-bloechl-restraint.inp

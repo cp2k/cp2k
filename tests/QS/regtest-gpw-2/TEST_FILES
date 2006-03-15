@@ -1,0 +1,41 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      for details see cp2k/tools/do_regtest
+# test thermostats
+H2O-2.inp          1
+H2O-3.inp          1
+H2O-4.inp          1
+# core ham bug
+ZrO.inp            1
+# new xc routines
+Ar-12.inp          1
+Ar-13.inp          1
+# Metadynamics and restart of metadynamics
+H2O-meta.inp       1
+H2O-meta_res0.inp  1
+H2O-meta_res1.inp  1
+H2O-meta_res2.inp  1
+H2O-meta_res3.inp  1
+# tpss
+H2O-tpss.inp       1
+# tpss new input   
+H2O-tpss_new.inp   1
+# farming
+farming.inp        0
+# isokinetic ensemble
+H2O-5.inp          1
+# the added_MOs keyword
+H2O-6.inp          1
+# tests BFGS and LBFGS and CG
+H2-geo-1.inp       1
+H2-geo-2.inp       1
+H2-geo-3.inp       1
+H2-geo-4.inp       1
+# some problems with CU
+Cu.inp             1
+# test derivatives and keywords
+H2O-debug-1.inp    1
+H2O-debug-2.inp    1
+H2O-debug-3.inp    1

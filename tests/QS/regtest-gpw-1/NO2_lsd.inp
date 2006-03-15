@@ -1,0 +1,46 @@
+
+&FORCE_EVAL
+  &DFT
+    LSD
+    &MGRID
+      CUTOFF 200
+    &END MGRID
+    &QS
+    &END QS
+    &SCF
+      EPS_DIIS 0.4
+      EPS_SCF 3.0E-6
+      MAX_SCF 150
+      MIXING 0.4
+      SCF_GUESS ATOMIC
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL Pade
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 5.0 5.0 5.0
+      UNIT ANGSTROM
+    &END CELL
+    &COORD
+   O  3.71590        2.5        2.5
+   O  1.65536    3.37465        2.5
+   N  2.5 2.5 2.5
+    &END COORD
+    &KIND O
+      BASIS_SET DZVP-GTH-PADE
+      POTENTIAL GTH-PADE-q6
+    &END KIND
+    &KIND N
+      BASIS_SET DZVP-GTH-PADE
+      POTENTIAL GTH-PADE-q5
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  FFTLIB FFTSG
+  PROGRAM Quickstep
+  PRINT_LEVEL MEDIUM
+&END GLOBAL

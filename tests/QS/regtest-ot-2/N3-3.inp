@@ -1,0 +1,58 @@
+
+&FORCE_EVAL
+  &DFT
+    LSD
+    RESTRICTED
+    &MGRID
+      CUTOFF 150
+    &END MGRID
+    &QS
+      EXTRAPOLATION PS 
+      EXTRAPOLATION_ORDER 1
+    &END QS
+    &SCF
+      MAX_SCF 3
+      SCF_GUESS RESTART
+      &OT ON
+        ROTATION
+      &END OT
+    &END SCF
+    &SIC
+      sic_method MAURI_SPZ
+    &END SIC
+    &XC
+      &XC_FUNCTIONAL Pade
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 8.0 5.0 5.0
+      UNIT ANGSTROM
+    &END CELL
+    &COORD
+     N 0.0 0.0 0.0
+     N -1.19 0.0 0.0
+     N +1.19 0.0 0.0
+    &END COORD
+    &KIND N
+      BASIS_SET DZVP-GTH-PADE
+      POTENTIAL GTH-PADE-q5
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  FFTLIB FFTSG
+  PROGRAM Quickstep
+  PROJECT H2O
+  RUN_TYPE MD
+  PRINT_LEVEL MEDIUM
+&END GLOBAL
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 2
+    TIMESTEP 0.5
+    TEMPERATURE 300.0
+  &END MD
+&END MOTION

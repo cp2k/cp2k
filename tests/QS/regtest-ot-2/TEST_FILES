@@ -1,0 +1,31 @@
+# runs are executed in the same order as in this file
+# the second field tells which test should be run in order to compare with the last available output
+# e.g. 0 means do not compare anything, running is enough
+#      1 compares the last total energy in the file
+#      for details see cp2k/tools/do_regtest
+# some tests of restricted
+N3-1.inp           1
+N3-2.inp           1
+# some tests of SIC needs restarting from N3-1 for stability
+N3-1.inp           1
+N3-3.inp           1
+N3-1.inp           1
+N3-4.inp           1
+N3-1.inp           1
+N3-5.inp           1
+N3-1.inp           1
+N3-6.inp           1
+N3-1.inp           1
+N3-7.inp           1
+N3-1.inp           1
+N3-8.inp           1
+N3-1.inp           1
+N3-9.inp           1
+N3-1.inp           1
+N3-10.inp          1
+# further sics
+H2O-sic-ad-1.inp   1
+H2O-sic-ad-2.inp   1
+# running H LSD
+H-1.inp            1
+H-2.inp            1
