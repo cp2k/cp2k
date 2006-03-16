@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2004  CP2K developers group                                 !
+!   Copyright (C) 2006  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
 
 
@@ -2531,9 +2531,18 @@ CONTAINS
                         (TRIM(inp_info%torsion_b(k))==TRIM(name_atm_c)) .AND. &
                         (TRIM(inp_info%torsion_c(k))==TRIM(name_atm_b)) .AND. &
                         (TRIM(inp_info%torsion_d(k))==TRIM(name_atm_a))) ) THEN
+                      !torsion_list(j)%torsion_kind%name    = inp_info%torsion_kind(k)
+                      !torsion_list(j)%torsion_kind%k       = inp_info%torsion_k(k)
+                      !torsion_list(j)%torsion_kind%cosphi0 = inp_info%torsion_cosphi0(k)
+                      imul = torsion_list(j)%torsion_kind%nmul + 1
+                      CALL reallocate(torsion_list(j)%torsion_kind%k,1,imul)
+                      CALL reallocate(torsion_list(j)%torsion_kind%m,1,imul)
+                      CALL reallocate(torsion_list(j)%torsion_kind%cosphi0,1,imul)
                       torsion_list(j)%torsion_kind%name    = inp_info%torsion_kind(k)
-                      torsion_list(j)%torsion_kind%k       = inp_info%torsion_k(k)
-                      torsion_list(j)%torsion_kind%cosphi0 = inp_info%torsion_cosphi0(k)
+                      torsion_list(j)%torsion_kind%k(imul) = inp_info%torsion_k(k)
+                      torsion_list(j)%torsion_kind%m(imul) = inp_info%torsion_m(k)
+                      torsion_list(j)%torsion_kind%cosphi0(imul) = inp_info%torsion_cosphi0(k)
+                      torsion_list(j)%torsion_kind%nmul    = imul
                       IF (found) CALL Pwarning("Multiple Torsion declarations: "//TRIM(name_atm_a)//&
                         ","//TRIM(name_atm_b)//","//TRIM(name_atm_c)//" and "//TRIM(name_atm_d)//&
                         " overwriting!",globenv,error)
