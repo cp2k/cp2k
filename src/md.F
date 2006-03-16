@@ -135,7 +135,11 @@ MODULE md
      LOGICAL        :: semi_hybrid
      LOGICAL        :: soft_start
      LOGICAL        :: fill_wf_history
-     LOGICAL        :: MMC_extrapolation
+     LOGICAL        :: mmc_extrapolation
+     LOGICAL        :: always_accept
+     LOGICAL        :: drld
+     INTEGER        :: drld_max_scf
+     LOGICAL        :: lpsc
      INTEGER        :: md_method
      INTEGER        :: mc_method
   END TYPE simulation_parameters_type
@@ -238,7 +242,15 @@ CONTAINS
           WRITE ( iw, '( A,T75,L6,A )' ) ' HMC| FILL_WF_HISTORY ', &
                simpar%fill_wf_history
           WRITE ( iw, '( A,T75,L6,A )' ) ' HMC| MMC_EXTRAPOLATION ', &
-               simpar%MMC_extrapolation
+               simpar%mmc_extrapolation
+          WRITE ( iw, '( A,T75,L6,A )' ) ' HMC| ALWAYS_ACCEPT ', &
+               simpar%always_accept
+          WRITE ( iw, '( A,T75,L6,A )' ) ' HMC| DRLD ', &
+               simpar%drld
+          WRITE ( iw, '( A,T71,I10 )' ) ' HMC| DRLD MAX_SCF ', &
+               simpar%drld_max_scf
+          WRITE ( iw, '( A,T75,L6,A )' ) ' HMC| LPSC ', &
+               simpar%lpsc
 
           WRITE ( iw, '( A,T61,A )' ) ' HMC| MD Method ', &
                ADJUSTR ( method_name_types(simpar % md_method)(1:20))
@@ -496,6 +508,14 @@ CONTAINS
                l_val=simpar%fill_wf_history, error=error)
           CALL section_vals_val_get(tmp_section, "MMC_extrapolation", &
                l_val=simpar%MMC_extrapolation, error=error)
+          CALL section_vals_val_get(tmp_section, "ALWAYS_ACCEPT", &
+               l_val=simpar%always_accept, error=error)
+          CALL section_vals_val_get(tmp_section, "DRLD", &
+               l_val=simpar%drld, error=error)
+          CALL section_vals_val_get(tmp_section, "DRLD_MAX_SCF", &
+               i_val=simpar%drld_max_scf, error=error)
+          CALL section_vals_val_get(tmp_section, "LPSC", &
+               l_val=simpar%lpsc, error=error)
 
           CALL section_vals_val_get(tmp_section, "MD_METHOD", &
                i_val=simpar%md_method, error=error)
@@ -585,6 +605,10 @@ CONTAINS
     simpar%soft_start = .FALSE.
     simpar%fill_wf_history = .TRUE.
     simpar%MMC_extrapolation = .FALSE.
+    simpar%always_accept = .FALSE.
+    simpar%drld = .FALSE.
+    simpar%drld_max_scf = 1000
+    simpar%lpsc = .FALSE.
     simpar%md_method = Harris_MD_method
     simpar%mc_method = Harris_MC_method
 
