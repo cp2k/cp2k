@@ -48,12 +48,86 @@ MODULE topology_psf
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'topology_psf'
 
   PRIVATE
-  PUBLIC :: read_topology_psf, write_topology_psf
+  PUBLIC :: pre_read_topology_psf, read_topology_psf, write_topology_psf
 
 !!*****
 !******************************************************************************
 
 CONTAINS
+
+!!*****
+!******************************************************************************
+!!****** topology/pre_read_topology_psf [1.0] *
+!!
+!!   NAME
+!!     pre_read_topology_psf
+!!
+!!   FUNCTION
+!!
+!!   SOURCE
+!******************************************************************************
+
+  SUBROUTINE pre_read_topology_psf (topology,subsys_section, error)
+    TYPE(topology_parameters_type), &
+      INTENT(INOUT)                          :: topology
+    TYPE(section_vals_type), POINTER         :: subsys_section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'pre_read_topology_psf', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: iw,handle,stat
+    LOGICAL                                  :: failure
+    TYPE(atom_info_type), POINTER            :: atom_info
+    TYPE(connectivity_info_type), POINTER    :: conn_info
+    TYPE(cp_logger_type), POINTER            :: logger
+
+    failure = .FALSE.
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
+    iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/PSF_INFO",&
+         extension=".subsysLog",error=error)    
+    CALL timeset(routineN,'I','',handle)
+    
+    atom_info => topology%atom_info
+    conn_info => topology%conn_info
+
+    IF (ASSOCIATED(atom_info%label_molname)) &
+      DEALLOCATE(atom_info%label_molname,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    NULLIFY(atom_info%label_molname)
+  
+    IF (ASSOCIATED(atom_info%label_resid)) &
+      DEALLOCATE(atom_info%label_resid,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    NULLIFY(atom_info%label_resid)
+  
+    IF (ASSOCIATED(atom_info%label_resname)) &
+      DEALLOCATE(atom_info%label_resname,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    NULLIFY(atom_info%label_resname)
+    
+    IF (ASSOCIATED(atom_info%label_atmname)) &
+      DEALLOCATE(atom_info%label_atmname,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    NULLIFY(atom_info%label_atmname)
+  
+    IF (ASSOCIATED(atom_info%atm_charge)) &
+      DEALLOCATE(atom_info%atm_charge,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    NULLIFY(atom_info%atm_charge)
+  
+    IF (ASSOCIATED(atom_info%atm_mass)) &
+      DEALLOCATE(atom_info%atm_mass,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    NULLIFY(atom_info%atm_mass)
+
+    CALL timestop(0.0_dp,handle)
+    CALL cp_print_key_finished_output(iw,logger,subsys_section,&
+         "PRINT%TOPOLOGY_INFO/PSF_INFO",error=error)
+
+  END SUBROUTINE pre_read_topology_psf
 
 !!*****
 !******************************************************************************
@@ -95,9 +169,6 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_parser_type), POINTER            :: parser
 
-    LOGICAL, SAVE                            :: first_time = .TRUE.
-
-
     failure = .FALSE.
     NULLIFY(parser, logger)
     logger => cp_error_get_logger(error)
@@ -109,40 +180,6 @@ CONTAINS
     atom_info => topology%atom_info
     conn_info => topology%conn_info
 
-    IF(first_time) THEN
-       IF (ASSOCIATED(atom_info%label_molname)) &
-         DEALLOCATE(atom_info%label_molname,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       NULLIFY(atom_info%label_molname)
-     
-       IF (ASSOCIATED(atom_info%label_resid)) &
-         DEALLOCATE(atom_info%label_resid,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       NULLIFY(atom_info%label_resid)
-     
-       IF (ASSOCIATED(atom_info%label_resname)) &
-         DEALLOCATE(atom_info%label_resname,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       NULLIFY(atom_info%label_resname)
-       
-       IF (ASSOCIATED(atom_info%label_atmname)) &
-         DEALLOCATE(atom_info%label_atmname,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       NULLIFY(atom_info%label_atmname)
-     
-       IF (ASSOCIATED(atom_info%atm_charge)) &
-         DEALLOCATE(atom_info%atm_charge,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       NULLIFY(atom_info%atm_charge)
-     
-       IF (ASSOCIATED(atom_info%atm_mass)) &
-         DEALLOCATE(atom_info%atm_mass,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       NULLIFY(atom_info%atm_mass)
-
-       first_time = .FALSE.
-    END IF
-    
     natom_prev = 0
     IF(ASSOCIATED(atom_info%label_molname)) natom_prev = SIZE(atom_info%label_molname)
 

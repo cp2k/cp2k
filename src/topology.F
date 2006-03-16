@@ -51,7 +51,8 @@ MODULE topology
                                              read_topology_section
   USE topology_pdb,                    ONLY: read_coordinate_pdb,&
                                              write_coordinate_pdb
-  USE topology_psf,                    ONLY: read_topology_psf,&
+  USE topology_psf,                    ONLY: pre_read_topology_psf,&
+                                             read_topology_psf,&
                                              write_topology_psf
   USE topology_types,                  ONLY: deallocate_topology,&
                                              init_topology,&
@@ -338,6 +339,7 @@ CONTAINS
     !-----------------------------------------------------------------------------
     SELECT CASE (topology%conn_type)
     CASE (do_conn_mol_psf)
+       CALL pre_read_topology_psf(topology,subsys_section,error)
        section => section_vals_get_subs_vals(globenv%input_file,&
                   "FORCE_EVAL%SUBSYS%TOPOLOGY%MOL_SET",error=error)
        CALL section_vals_get(section,n_repetition=n_rep,error=error)
@@ -354,6 +356,7 @@ CONTAINS
        IF(topology%molecules_check) &
             CALL topology_molecules_check(topology,globenv,subsys_section,error)
     CASE (do_conn_psf)
+       CALL pre_read_topology_psf(topology,subsys_section,error)
        CALL read_topology_psf(topology%conn_file_name,topology,globenv,subsys_section,error)
        CALL topology_generate_molecule(topology,my_qmmm,qmmm_env,globenv,subsys_section,error)
        IF(topology%molecules_check) &
