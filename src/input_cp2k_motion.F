@@ -1935,7 +1935,7 @@ END SUBROUTINE create_nose_section
 
        CALL keyword_create(keyword, name="always_accept", &
             description="Causes that all MD approaches are accepted", &
-            usage="always_accept TRUE", required=.TRUE., &
+            usage="always_accept TRUE", required=.FALSE., &
             default_l_val=.FALSE., lone_keyword_l_val=.TRUE., &
             error=error)
        CALL section_add_keyword(section, keyword, error=error)
