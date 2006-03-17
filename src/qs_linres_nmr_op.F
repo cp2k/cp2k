@@ -256,9 +256,9 @@ CONTAINS
     END DO  ! ispin
 
     ! Calculate the x y z x2 xy xz y2 yz z2 operators (in this order)
-!    soft_only = dft_control%qs_control%gapw
-!    dk =  linres_control%localized_wfn_control%centers_set(ispin)%array(1:3,1)
-!    CALL rRc_xyz_ao(nmr_env%op_mom_ao,qs_env,dk,order=2,minimum_image=.TRUE.,error=error)
+    soft_only = dft_control%qs_control%gapw
+    dk =  linres_control%localized_wfn_control%centers_set(ispin)%array(1:3,1)
+    CALL rRc_xyz_ao(nmr_env%op_mom_ao,qs_env,dk,order=2,minimum_image=.TRUE.,error=error)
 
     DEALLOCATE (first_sgf,last_sgf,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)

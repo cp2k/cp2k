@@ -45,12 +45,16 @@ MODULE qs_linres_nmr_current
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                              cp_fm_scale_and_add
+  USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
+                                             cp_fm_struct_release,&
+                                             cp_fm_struct_type
   USE cp_fm_types,                     ONLY: cp_fm_get_submatrix,&
                                              cp_fm_p_type,&
                                              cp_fm_set_all,&
                                              cp_fm_set_submatrix,&
                                              cp_fm_to_fm,&
-                                             cp_fm_type
+                                             cp_fm_type,&
+                                             cp_fm_create, cp_fm_release
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
@@ -193,7 +197,7 @@ CONTAINS
 
     CHARACTER(LEN=80)                        :: ext, filename
     INTEGER :: handle, homo, i_B, iao, iatom, idir, idir2, idir3, ii_B, &
-      iii_B, ispin, istat, istate, natom, nmo, nspins, unit_nr
+      iii_B, ispin, istat, istate, nao, natom, nmo, nspins, unit_nr
     LOGICAL                                  :: failure, gapw, ionode, uni_occ
     REAL(dp)                                 :: alpha, dk(3), jrho_tot, &
                                                 maxocc, rmu(3), rmu_dk(3), &
@@ -206,8 +210,13 @@ CONTAINS
     TYPE(coeff_type), DIMENSION(:), POINTER  :: shift_pw_gspace
     TYPE(coeff_type), POINTER                :: rho_gspace, rho_rspace, wf_r
     TYPE(cp_2d_r_p_type), DIMENSION(3)       :: vecbuf
+    TYPE(cp_fm_struct_type), POINTER         :: tmp_fm_struct
     TYPE(cp_fm_type), POINTER                :: mo_coeff
+    TYPE(cp_fm_type), POINTER                :: psi2,psi3
+    TYPE(cp_fm_type), POINTER                :: p_psi2,p_psi3
+    TYPE(cp_fm_type), POINTER                :: fm_work1
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_rs_pool_type), POINTER           :: auxbas_rs_pool
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
@@ -233,7 +242,7 @@ CONTAINS
     NULLIFY(density_matrix,density_matrix_2_ii,density_matrix_2_iii)
     NULLIFY(cell,dft_control,mos,rho_struct,particle_set,pw_env)
     NULLIFY(auxbas_rs_pool,auxbas_pw_pool,pw_pools,wf_r)
-    NULLIFY(shift_pw_gspace)
+    NULLIFY(shift_pw_gspace,para_env)
 
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
@@ -244,7 +253,7 @@ CONTAINS
    
     CALL get_qs_env(qs_env=qs_env,rho=rho_struct,&
          cell=cell, dft_control=dft_control,mos=mos,&
-         particle_set=particle_set)
+         para_env=para_env,particle_set=particle_set)
     gapw = dft_control%qs_control%gapw
     natom = SIZE(particle_set,1)
     CPPrecondition(ASSOCIATED(rho_struct),cp_failure_level,routineP,error,failure)
@@ -308,12 +317,26 @@ CONTAINS
        CALL set_vecp(i_B,ii_B,iii_B)
        DO ispin = 1,nspins
          CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff,&
-              occupation_numbers=occupation, homo=homo, nmo=nmo,&
+              occupation_numbers=occupation, homo=homo, nao=nao,nmo=nmo,&
               uniform_occupation=uni_occ,maxocc=maxocc)
+
+       NULLIFY(psi2,psi3,p_psi2,p_psi3,fm_work1)
+       ! create a new matrix 
+        NULLIFY(tmp_fm_struct)
+        CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=nao,&
+             ncol_global=nmo,para_env=para_env,context=mo_coeff%matrix_struct%context)
+        IF(ASSOCIATED(fm_work1))THEN
+          CALL cp_fm_release(fm_work1,error=error)
+        END IF
+        CALL cp_fm_create (fm_work1, tmp_fm_struct )
+        CALL cp_fm_set_all(fm_work1,0.0_dp,error=error)
+        CALL cp_fm_struct_release ( tmp_fm_struct )
+
 
 ! First compute the contribution to the CHI tensor coming from the soft density
          CALL chi_soft_analytic(nmr_env,qs_env,psi1,p_psi1,ispin,i_B,error=error)
 
+          CALL cp_fm_set_all(psi1(ispin)%matrix,0.0_dp,error=error)
          !First contribution from the response psi1_p
          DO istate = 1,nmr_env%nstates(ispin)
            CALL cp_fm_get_submatrix(nmr_env%psi1_p(ispin,ii_B)%matrix,&
@@ -340,10 +363,18 @@ CONTAINS
             CALL  cp_fm_scale_and_add(1.0_dp,psi1(ispin)%matrix,-1.0_dp,nmr_env%psi1_D(ispin,i_B)%matrix,error=error)
          END IF
 
+         IF ( .NOT. uni_occ ) THEN
+           alpha = 1.0_dp
+           CALL cp_fm_column_scale(psi1(ispin)%matrix,occupation(1:homo))
+         ELSE
+           alpha = maxocc
+         END IF
+
          DO idir = 1,3
 
-
          ! Apply the p operator
+
+           CALL cp_fm_set_all(p_psi1(ispin)%matrix,0.0_dp,error=error)
            CALL cp_sm_fm_multiply(nmr_env%op_p_ao(idir)%matrix,psi1(ispin)%matrix,&
                 p_psi1(ispin)%matrix,ncol=nmo,alpha=-1.0_dp,error=error)
            IF(idir==ii_B) THEN
@@ -353,17 +384,12 @@ CONTAINS
              CALL  cp_fm_scale_and_add(1.0_dp,p_psi1(ispin)%matrix,&
                    1.0_dp,nmr_env%psi1_p(ispin,ii_B)%matrix,error=error)
            END IF
-
+           IF ( .NOT. uni_occ ) THEN
+             CALL cp_fm_column_scale(p_psi1(ispin)%matrix,occupation(1:homo))
+           END IF
 
          ! Contribution to the current density matrix that does not depend 
          !   on the position r where J(r) is computed
-           IF ( .NOT. uni_occ ) THEN
-             alpha = 1.0_dp
-             CALL cp_fm_column_scale(psi1(ispin)%matrix,occupation(1:homo))
-             CALL cp_fm_column_scale(p_psi1(ispin)%matrix,occupation(1:homo))
-           ELSE
-             alpha = maxocc
-           END IF
 
 
            density_matrix => nmr_env%jp1_ao
@@ -387,49 +413,49 @@ CONTAINS
            density_matrix_2_iii => nmr_env%jp2_ao(2)%matrix
            CALL set_matrix(density_matrix_2_iii,0.0_dp)
 
-           CALL cp_fm_to_fm(nmr_env%psi1_p(ispin,iii_B)%matrix,psi1(ispin)%matrix)
-           CALL cp_sm_fm_multiply(nmr_env%op_p_ao(idir)%matrix,psi1(ispin)%matrix,&
-                p_psi1(ispin)%matrix,ncol=nmo,alpha=-1.0_dp,error=error)
+           psi3 => fm_work1
+           p_psi3 => p_psi1(ispin)%matrix
+           CALL cp_fm_to_fm(nmr_env%psi1_p(ispin,iii_B)%matrix,psi3)
+           CALL cp_sm_fm_multiply(nmr_env%op_p_ao(idir)%matrix,psi3,&
+                p_psi3,ncol=nmo,alpha=-1.0_dp,error=error)
            IF ( .NOT. uni_occ ) THEN
-             alpha = 1.0_dp
-             CALL cp_fm_column_scale(psi1(ispin)%matrix,occupation(1:homo))
-             CALL cp_fm_column_scale(p_psi1(ispin)%matrix,occupation(1:homo))
-           ELSE
-             alpha = maxocc
+             CALL cp_fm_column_scale(psi3,occupation(1:homo))
+             CALL cp_fm_column_scale(p_psi3,occupation(1:homo))
            END IF
            CALL cp_sm_plus_fm_fm_t(sparse_matrix=density_matrix_2_ii,&
                             matrix_g=nmr_env%p_psi0(ispin,idir)%matrix,&
-                            matrix_v=psi1(ispin)%matrix,&
+                            matrix_v=psi3,&
                             ncol=homo,&
                             alpha=alpha)
 
            CALL cp_sm_plus_fm_fm_t(sparse_matrix=density_matrix_2_ii,&
                             matrix_g=mo_coeff,&
-                            matrix_v=p_psi1(ispin)%matrix,&
+                            matrix_v=p_psi3,&
                             ncol=homo,&
                             alpha=-alpha)
+           NULLIFY(psi3,p_psi3)
 
-           CALL cp_fm_to_fm(nmr_env%psi1_p(ispin,ii_B)%matrix,psi1(ispin)%matrix)
-           CALL cp_sm_fm_multiply(nmr_env%op_p_ao(idir)%matrix,psi1(ispin)%matrix,&
-                p_psi1(ispin)%matrix,ncol=nmo,alpha=-1.0_dp,error=error)
+           psi2 => fm_work1
+           p_psi2 => p_psi1(ispin)%matrix
+           CALL cp_fm_to_fm(nmr_env%psi1_p(ispin,ii_B)%matrix,psi2)
+           CALL cp_sm_fm_multiply(nmr_env%op_p_ao(idir)%matrix,psi2,&
+                p_psi2,ncol=nmo,alpha=-1.0_dp,error=error)
            IF ( .NOT. uni_occ ) THEN
-             alpha = 1.0_dp
-             CALL cp_fm_column_scale(psi1(ispin)%matrix,occupation(1:homo))
-             CALL cp_fm_column_scale(p_psi1(ispin)%matrix,occupation(1:homo))
-           ELSE
-             alpha = maxocc
+             CALL cp_fm_column_scale(psi2,occupation(1:homo))
+             CALL cp_fm_column_scale(p_psi2,occupation(1:homo))
            END IF
            CALL cp_sm_plus_fm_fm_t(sparse_matrix=density_matrix_2_iii,&
                             matrix_g=nmr_env%p_psi0(ispin,idir)%matrix,&
-                            matrix_v=psi1(ispin)%matrix,&
+                            matrix_v=psi2,&
                             ncol=homo,&
                             alpha=alpha)
 
            CALL cp_sm_plus_fm_fm_t(sparse_matrix=density_matrix_2_iii,&
                             matrix_g=mo_coeff,&
-                            matrix_v=p_psi1(ispin)%matrix,&
+                            matrix_v=p_psi2,&
                             ncol=homo,&
                             alpha=-alpha)
+           NULLIFY(psi2,p_psi2)
 
         ! Calculate the current density on the pw grid (only soft if GAPW)
         ! This is vector component idir of the response current density 
@@ -470,6 +496,7 @@ CONTAINS
 
          END DO  ! idir
          
+         CALL cp_fm_release(fm_work1,error=error)
        END DO  !  ispin
 
        ! Tranform the column i_B of the shift tensor from reciprocal to real space
