@@ -87,6 +87,15 @@ MODULE cp_control_types
     INTEGER, POINTER, DIMENSION(:)  :: atoms
   END TYPE ddapc_restraint_type
 
+! *** some parameters useful for s2_restraints
+  TYPE s2_restraint_type
+    INTEGER                         :: ref_count
+    REAL(KIND = dp)                 :: strength
+    REAL(KIND = dp)                 :: TARGET
+    REAL(KIND = dp)                 :: s2_order_p
+    INTEGER                         :: functional_form
+  END TYPE s2_restraint_type
+
 ! *** Control parameters for a KIM-GORDON calculation ***
 ! *** Control parameters for a QUICKSTEP calculation ***
 
@@ -115,9 +124,11 @@ MODULE cp_control_types
     LOGICAL                         :: polarization
     LOGICAL                         :: mulliken_restraint
     LOGICAL                         :: ddapc_restraint
+    LOGICAL                         :: s2_restraint
     LOGICAL                         :: localized_wfn
     TYPE (mulliken_restraint_type), POINTER :: mulliken_restraint_control
     TYPE (ddapc_restraint_type), POINTER :: ddapc_restraint_control
+    TYPE (s2_restraint_type), POINTER :: s2_restraint_control
     TYPE(localized_wfn_control_type), POINTER :: localized_wfn_control
     TYPE (semi_empirical_control_type)      :: se_control
     REAL(KIND = dp)                         :: cutoff
@@ -216,7 +227,7 @@ MODULE cp_control_types
             gapw_control_type,&
             wave_control_type, tddfpt_control_type,&
             pw_grid_option, mulliken_restraint_type, ddapc_restraint_type,&
-            semi_empirical_control_type
+            semi_empirical_control_type, s2_restraint_type
 
 
 ! *** Public subroutines ***
@@ -232,7 +243,10 @@ MODULE cp_control_types
             mulliken_control_release,&
             ddapc_control_create,&
             ddapc_control_retain,&
-            ddapc_control_release
+            ddapc_control_release,&
+            s2_control_create,&
+            s2_control_retain,&
+            s2_control_release
 
 !!***
 ! *****************************************************************************
@@ -403,8 +417,83 @@ SUBROUTINE ddapc_control_retain(ddapc_restraint_control,error)
    ddapc_restraint_control%ref_count=ddapc_restraint_control%ref_count+1
 END SUBROUTINE ddapc_control_retain
 
- 
-! *****************************************************************************
+!!****f* cp_control_types/s2_control_create/retain/release *
+!!
+!!   NAME
+!!      s2_control_create/retain/release
+!!   FUNCTION
+!!      create retain release the s2_restraint_type
+!!   NOTES
+!!      
+!!   INPUTS
+!!
+!!   MODIFICATION HISTORY
+!!     03.2006 created [Joost VandeVondele]
+!!
+!!   SOURCE
+!!*** **********************************************************************
+SUBROUTINE s2_control_create(s2_restraint_control,error)
+    TYPE(s2_restraint_type), POINTER      :: s2_restraint_control
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 's2_control_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
+   failure=.FALSE.
+
+   CPPrecondition(.NOT.ASSOCIATED(s2_restraint_control),cp_failure_level,routineP,error,failure)  
+   ALLOCATE(s2_restraint_control,stat=stat)
+   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+   s2_restraint_control%ref_count=1
+   s2_restraint_control%strength=0.1_dp
+   s2_restraint_control%s2_order_p=0.0_dp
+   s2_restraint_control%functional_form=-1
+   s2_restraint_control%target=1.0_dp
+
+END SUBROUTINE s2_control_create
+
+SUBROUTINE s2_control_release(s2_restraint_control,error)
+    TYPE(s2_restraint_type), POINTER      :: s2_restraint_control
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 's2_control_release', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+   failure=.FALSE.
+   CPPrecondition(ASSOCIATED(s2_restraint_control),cp_failure_level,routineP,error,failure)  
+   CPPrecondition(s2_restraint_control%ref_count>0,cp_failure_level,routineP,error,failure)  
+   s2_restraint_control%ref_count=s2_restraint_control%ref_count-1
+   IF (s2_restraint_control%ref_count==0) THEN
+      s2_restraint_control%ref_count=0
+      s2_restraint_control%strength=0.0_dp
+      s2_restraint_control%target=0.0_dp
+      DEALLOCATE(s2_restraint_control)
+   ENDIF
+END SUBROUTINE s2_control_release
+
+SUBROUTINE s2_control_retain(s2_restraint_control,error)
+    TYPE(s2_restraint_type), POINTER      :: s2_restraint_control
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 's2_control_retain', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+   failure=.FALSE.
+   CPPrecondition(ASSOCIATED(s2_restraint_control),cp_failure_level,routineP,error,failure)  
+
+   s2_restraint_control%ref_count=s2_restraint_control%ref_count+1
+END SUBROUTINE s2_control_retain
 
 !!****f* cp_control_types/dft_control_create [1.0] *
 !!
@@ -583,10 +672,12 @@ SUBROUTINE qs_control_init(qs_control, error)
   NULLIFY(qs_control%gapw_control)
   NULLIFY(qs_control%mulliken_restraint_control)
   NULLIFY(qs_control%ddapc_restraint_control)
+  NULLIFY(qs_control%s2_restraint_control)
   NULLIFY(qs_control%localized_wfn_control)
 
   CALL mulliken_control_create(qs_control%mulliken_restraint_control)
   CALL ddapc_control_create(qs_control%ddapc_restraint_control)
+  CALL s2_control_create(qs_control%s2_restraint_control)
 
   CALL localized_wfn_control_create(qs_control%localized_wfn_control, error=error)
 
@@ -604,6 +695,7 @@ SUBROUTINE qs_control_dealloc_ref(qs_control, error)
 
     CALL mulliken_control_release(qs_control%mulliken_restraint_control)
     CALL ddapc_control_release(qs_control%ddapc_restraint_control)
+    CALL s2_control_release(qs_control%s2_restraint_control)
     CALL localized_wfn_control_release(qs_control% localized_wfn_control, error=error)
 
     IF (ASSOCIATED(qs_control%e_cutoff)) THEN

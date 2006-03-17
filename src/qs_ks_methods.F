@@ -62,6 +62,7 @@ MODULE qs_ks_methods
   USE hartree_local_2centers,          ONLY: integrate_vhg0_g0
   USE hartree_local_3centers,          ONLY: integrate_a_vhg0_b
   USE hartree_local_methods,           ONLY: Vh_1c_gg_integrals
+  USE s_square_methods,                ONLY: s2_restraint
   USE input_constants,                 ONLY: sic_ad,&
                                              sic_mauri_spz,&
                                              sic_mauri_us,&
@@ -296,6 +297,7 @@ CONTAINS
     LOGICAL                                  :: failure, gapw, gapw_xc, &
                                                 ionode, my_kg_gpw
     REAL(KIND=dp)                            :: ddapc_order_p, &
+                                                s2_order_p,&
                                                 mulliken_order_p
     REAL(KIND=dp), DIMENSION(:), POINTER     :: occupation_numbers, &
                                                 scaling_factor
@@ -689,6 +691,20 @@ CONTAINS
           ENDDO
        ENDIF
 
+       ! adds s2_restraint energy and orbital derivatives
+       IF (dft_control%qs_control%s2_restraint) THEN
+           CPPrecondition(dft_control%nspins == 2,cp_failure_level,routineP,error,failure)
+           CPPrecondition(qs_env%requires_mo_derivs,cp_failure_level,routineP,error,failure)
+           ! forces are not implemented (not difficult, but ... )
+           CPPrecondition(.NOT. calculate_forces, cp_failure_level,routineP,error,failure) 
+           CALL get_qs_env(qs_env,mo_derivs=mo_derivs,mos=mo_array)
+           CALL s2_restraint(mo_array, matrix_s, mo_derivs, energy%s2_restraint, &
+                             dft_control%qs_control%s2_restraint_control, just_energy, error) 
+       ELSE
+          energy%s2_restraint = 0.0_dp
+       ENDIF
+
+
        ! sum all energy terms to obtain the total energy
 
        energy%total = energy%core_overlap + energy%core_self + &
@@ -696,7 +712,7 @@ CONTAINS
             energy%hartree_1c + energy%hartree_2c + energy%hartree_3c +&
             energy%exc + energy%exc1 + &
             energy%qmmm_el + energy%mulliken + &
-            energy%kg_gpw_ekin_mol + energy%ddapc_restraint
+            energy%kg_gpw_ekin_mol + energy%ddapc_restraint + energy%s2_restraint
 
        output_unit=cp_print_key_unit_nr(logger,input,"DFT%SCF%PRINT%DETAILED_ENERGY",&
             extension=".scfLog",error=error)
@@ -736,6 +752,11 @@ CONTAINS
              ddapc_order_p = dft_control%qs_control%ddapc_restraint_control%ddapc_order_p
               WRITE (UNIT=output_unit,FMT="(T3,A,T40,2F20.10)")&
                 "DDAPC restraint (order_p,energy) : ",ddapc_order_p,energy%ddapc_restraint
+          ENDIF
+          IF (dft_control%qs_control%s2_restraint) THEN
+             s2_order_p = dft_control%qs_control%s2_restraint_control%s2_order_p
+              WRITE (UNIT=output_unit,FMT="(T3,A,T40,2F20.10)")&
+                "S2 restraint (order_p,energy) : ",s2_order_p,energy%s2_restraint
           ENDIF
 
        END IF

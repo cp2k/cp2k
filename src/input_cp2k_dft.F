@@ -1070,6 +1070,11 @@ SUBROUTINE create_qs_section(section,error)
      CALL section_release(subsection,error=error)
 
      NULLIFY(subsection)
+     CALL create_s2_restraint_section(subsection,error)
+     CALL section_add_subsection(section, subsection, error=error)
+     CALL section_release(subsection,error=error)
+
+     NULLIFY(subsection)
      CALL create_harris_section(subsection,error)
      CALL section_add_subsection(section, subsection, error=error)
      CALL section_release(subsection,error=error) 
@@ -1287,7 +1292,54 @@ SUBROUTINE create_ddapc_restraint_section(section,error)
 
 END SUBROUTINE create_ddapc_restraint_section
 
+SUBROUTINE create_s2_restraint_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'create_s2_restraint_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: print_key
+
+    failure=.FALSE.
+    NULLIFY(keyword, print_key)
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+
+      CALL section_create(section,"S2_RESTRAINT",&
+           description="Use S2 in a re/constraint (OT only)",& 
+           n_keywords=7, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+           error=error)
+
+      CALL keyword_create(keyword, name="STRENGTH",&
+           description="force constant of the restraint",&
+           usage="STRENGTH {real} ",default_r_val=0.1_dp, error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
+      CALL keyword_create(keyword, name="TARGET",&
+           description="target value of the restraint",&
+           usage="TARGET {real} ",default_r_val=1._dp, error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
+      CALL keyword_create(keyword, name="FUNCTIONAL_FORM",&
+           description="Specifies the functional form of the term added",&
+           usage="FUNCTIONAL_FORM RESTRAINT",&
+           enum_c_vals=s2a("RESTRAINT","CONSTRAINT"),&
+           enum_i_vals=(/ do_s2_restraint, do_s2_constraint/),&
+           enum_desc=s2a("Harmonic potential: s*(q-t)**2","Constraint form: s*(q-t)"),&
+           default_i_val=do_s2_restraint, error=error)
+      CALL section_add_keyword(section,keyword,error=error)
+      CALL keyword_release(keyword,error=error)
+
+    END IF
+
+END SUBROUTINE create_s2_restraint_section
 
 !!****f* xc_derivatives/create_xc_fun_section [1.0] *
 !!   NAME
@@ -2310,9 +2362,10 @@ SUBROUTINE create_tddfpt_section(section,error)
             description="Specifies which kind of outer scf should be employed",&
             usage="TYPE DDAPC_CONSTRAINT ",&
             default_i_val=outer_scf_ddapc_constraint,&
-            enum_c_vals=s2a( "DDAPC_CONSTRAINT"),&
-            enum_desc=s2a("Enforce a constraint on the DDAPC, requires the corresponding section"),&
-            enum_i_vals=(/outer_scf_ddapc_constraint/),&
+            enum_c_vals=s2a( "DDAPC_CONSTRAINT", "S2_CONSTRAINT" ),&
+            enum_desc=s2a("Enforce a constraint on the DDAPC, requires the corresponding section", &
+                          "Enforce a constraint on the S2, requires the corresponding section"),&
+            enum_i_vals=(/outer_scf_ddapc_constraint,outer_scf_s2_constraint/),&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

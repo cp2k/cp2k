@@ -32,7 +32,7 @@ MODULE scf_control_types
                                              core_guess,&
                                              outer_scf_ddapc_constraint,&
                                              outer_scf_optimizer_diis,&
-                                             outer_scf_optimizer_sd
+                                             outer_scf_optimizer_sd, outer_scf_s2_constraint
   USE input_cp2k_dft,                  ONLY: create_scf_section
   USE input_enumeration_types,         ONLY: enum_i2c,&
                                              enumeration_type
@@ -557,6 +557,8 @@ CONTAINS
              SELECT CASE(scf_control%outer_scf%type)
              CASE (outer_scf_ddapc_constraint)
                WRITE(output_unit,'(T25,A)') "DDAPC constraint enforced"
+             CASE (outer_scf_s2_constraint)
+               WRITE(output_unit,'(T25,A)') "S2 constraint enforced"
              CASE DEFAULT
                CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
              END SELECT
@@ -574,7 +576,7 @@ CONTAINS
              END SELECT
              WRITE(output_unit,'(T25,A,T72,ES9.2)') "step_size",scf_control%outer_scf%step_size
           ELSE
-             WRITE(output_unit,'(T2,A)') "No outer SCF"
+             WRITE(output_unit,"(T25,56('-'),/,T25,A)") "No outer SCF"
           ENDIF
        END IF
        CALL cp_print_key_finished_output(output_unit,logger,scf_section,&

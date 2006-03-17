@@ -372,6 +372,7 @@ OBJECTS_GENERIC =\
  realspace_grid_types.o\
  replica_methods.o\
  replica_types.o\
+ s_square_methods.o\
  scf_control_types.o\
  semi_empirical_integrals.o\
  semi_empirical_parameters.o\

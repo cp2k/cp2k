@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations
-!   Copyright (C) 2003  CP2K developers group
+!   Copyright (C) 2003-2006  CP2K developers group
 !-----------------------------------------------------------------------------!
 
 
@@ -35,7 +35,6 @@ MODULE qs_scf_post
   USE cp_control_types,                ONLY: dft_control_type,&
                                              tddfpt_control_type
   USE cp_ddapc,                        ONLY: get_ddapc
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
@@ -51,12 +50,9 @@ MODULE qs_scf_post
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
-  USE cp_para_types,                   ONLY: cp_blacs_env_type,&
-                                             cp_para_env_type
   USE cp_rs_pool_types,                ONLY: cp_rs_pool_type,&
                                              rs_pool_create_rs,&
                                              rs_pool_give_back_rs
-  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsystem_type
   USE external_potential_types,        ONLY: get_potential,&
@@ -126,6 +122,7 @@ MODULE qs_scf_post
   USE qs_scf_types,                    ONLY: qs_scf_env_type
   USE realspace_grid_types,            ONLY: realspace_grid_type,&
                                              rs_pw_to_cube
+  USE s_square_methods,                ONLY: compute_s_square
   USE scf_control_types,               ONLY: scf_control_type
   USE sparse_matrix_types,             ONLY: real_matrix_p_type
   USE termination,                     ONLY: stop_program
@@ -958,92 +955,6 @@ CONTAINS
     CALL timestop(handle)
 
   END SUBROUTINE write_available_results
-
-!!****f* qs_scf_post/compute_s_square *
-!!
-!!   NAME
-!!      compute_s_square
-!!
-!!   FUNCTION
-!!      compute s square of the single determinant defined by the 
-!!      by the spin up and spin down orbitals
-!!
-!!   NOTES
-!!      see E.q. 2.271 in Modern Quantum Chemistry
-!!      szabo and ostlund
-!!
-!!
-!!   INPUTS
-!!
-!!   MODIFICATION HISTORY
-!!     07.2004 created [ Joost VandeVondele ]
-!!
-!!   SOURCE
-!!*** **********************************************************************
-   SUBROUTINE compute_s_square(mos, matrix_s, s_square, s_square_ideal)
-    TYPE(mo_set_p_type), DIMENSION(:), &
-      POINTER                                :: mos
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s
-    REAL(KIND=dp)                            :: s_square, s_square_ideal
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'compute_s_square', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle, i, j, na, nb, &
-                                                ncol_local, nrow, nrow_local
-    REAL(KIND=dp)                            :: tmp
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: local_data
-    TYPE(cp_blacs_env_type), POINTER         :: context
-    TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
-    TYPE(cp_fm_type), POINTER                :: c_alpha, c_beta, &
-                                                matrix_overlap, matrix_sc
-    TYPE(cp_para_env_type), POINTER          :: para_env
-
-    CALL timeset(routineN,handle)
-
-    NULLIFY(fm_struct_tmp,matrix_sc,matrix_overlap,para_env,context,local_data)
-
-    SELECT CASE (SIZE(mos))
-    CASE (1)
-          s_square=0.0_dp
-          s_square_ideal=0.0_dp
-    CASE (2)
-          CALL get_mo_set(mo_set=mos(1)%mo_set,mo_coeff=c_alpha)
-          CALL get_mo_set(mo_set=mos(2)%mo_set,mo_coeff=c_beta)
-          CALL cp_fm_get_info(c_alpha,ncol_global=na)
-          CALL cp_fm_get_info(c_beta,ncol_global=nb)
-          s_square_ideal=(na-nb)*(na-nb+2)/4.0_dp
-          ! create overlap matrix
-          CALL cp_fm_get_info(c_alpha,para_env=para_env,context=context)
-          CALL cp_fm_struct_create(fm_struct_tmp,para_env=para_env,context=context, &
-                                   nrow_global=na,ncol_global=nb)
-          CALL cp_fm_create(matrix_overlap, fm_struct_tmp,name="matrix_overlap")
-          CALL cp_fm_struct_release(fm_struct_tmp)
-          ! create S C_beta and compute overlap
-          CALL cp_fm_get_info(c_beta, matrix_struct=fm_struct_tmp,nrow_global=nrow)
-          CALL cp_fm_create(matrix_sc, fm_struct_tmp,name="matrix_sc")
-          CALL cp_sm_fm_multiply(matrix_s(1)%matrix,c_beta,matrix_sc,nb)
-          CALL cp_fm_gemm('T','N',na,nb,nrow,1.0_dp,c_alpha,matrix_sc,0.0_dp,matrix_overlap)
-          ! invoke formula 2.271
-          CALL cp_fm_get_info(matrix_overlap,local_data=local_data, nrow_local=nrow_local, ncol_local=ncol_local)
-          tmp=0.0_dp
-          DO j=1,ncol_local
-          DO i=1,nrow_local
-             tmp=tmp+local_data(i,j)**2
-          ENDDO
-          ENDDO
-          CALL mp_sum(tmp,para_env%group)
-          s_square=s_square_ideal+nb-tmp
-          CALL cp_fm_release(matrix_sc)
-          CALL cp_fm_release(matrix_overlap)
-    CASE DEFAULT
-          CALL stop_program("compute_s_square","alpha, beta, what else ?")
-    END SELECT
-
-    CALL timestop(handle)
-
-  END SUBROUTINE
 
 !!****f* qs_scf_post/calc_stupid_dipole *
 !!

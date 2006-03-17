@@ -38,7 +38,7 @@ MODULE cp_control_utils
        xc_deriv_spline3_smooth, xc_new_f_routine, xc_old_f_routine, &
        xc_rho_nn10, xc_rho_nn50, xc_rho_no_smooth, xc_rho_spline2_smooth, &
        xc_rho_spline3_smooth, xc_test_lsd_f_routine, do_ddapc_restraint, &
-       do_ddapc_constraint
+       do_ddapc_constraint,do_s2_restraint,do_s2_constraint
   USE input_cp2k_check,                ONLY: xc_functionals_expand
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
@@ -291,6 +291,7 @@ CONTAINS
     LOGICAL                                  :: failure, was_present
     REAL(dp)                                 :: value
     TYPE(section_vals_type), POINTER         :: ddapc_restraint_section, &
+                                                s2_restraint_section, &
                                                 loc_section, mull_section, &
                                                 qs_section, se_section
 
@@ -306,6 +307,7 @@ CONTAINS
     loc_section => section_vals_get_subs_vals(qs_section,"LOCALIZE",error=error)
     mull_section => section_vals_get_subs_vals(qs_section,"MULLIKEN_RESTRAINT", error=error)
     ddapc_restraint_section => section_vals_get_subs_vals(qs_section,"DDAPC_RESTRAINT", error=error)
+    s2_restraint_section => section_vals_get_subs_vals(qs_section,"S2_RESTRAINT", error=error)
     se_section => section_vals_get_subs_vals(qs_section,"SE", error=error)
 
     ! Setup all defaults values and overwrite input parameters
@@ -473,8 +475,18 @@ CONTAINS
            qs_control%ddapc_restraint_control%atoms (jj) = tmplist(j)
          END DO
       END DO
-
     ENDIF
+
+    CALL section_vals_get(s2_restraint_section,explicit=qs_control%s2_restraint,error=error)
+    IF (qs_control%s2_restraint) THEN
+      CALL section_vals_val_get(s2_restraint_section,"STRENGTH", &
+                                r_val=qs_control%s2_restraint_control%strength,error=error)
+      CALL section_vals_val_get(s2_restraint_section,"TARGET", &
+                                r_val=qs_control%s2_restraint_control%target,error=error)
+      CALL section_vals_val_get(s2_restraint_section,"FUNCTIONAL_FORM", &
+                                i_val=qs_control%s2_restraint_control%functional_form,error=error)
+    ENDIF
+
 
 !   CALL read_se_control_section()
     CALL section_vals_val_get(se_section,"ORTHOGONAL_BASIS",&
@@ -846,6 +858,23 @@ CONTAINS
          CASE (do_ddapc_constraint)
            WRITE (UNIT=output_unit,FMT="(T2,A,T61,A20)")&
            "QS| ddapc restraint functional form :","CONSTRAINT"
+         CASE DEFAULT
+           CALL stop_program(routineN,"unknown ddapc restraint")
+         END SELECT
+      END IF
+      IF (qs_control%s2_restraint) THEN
+         WRITE (UNIT=output_unit,FMT="(T2,A,T73,ES8.1)")&
+           "QS| s2 restraint target", qs_control%s2_restraint_control%target
+         WRITE (UNIT=output_unit,FMT="(T2,A,T73,ES8.1)")&
+           "QS| s2 restraint strength", qs_control%s2_restraint_control%strength
+         SELECT CASE(qs_control%s2_restraint_control%functional_form)
+         CASE (do_s2_restraint)
+           WRITE (UNIT=output_unit,FMT="(T2,A,T61,A20)")&
+           "QS| s2 restraint functional form :","RESTRAINT"
+           CALL stop_program(routineN,"Not yet implemented")
+         CASE (do_s2_constraint)
+           WRITE (UNIT=output_unit,FMT="(T2,A,T61,A20)")&
+           "QS| s2 restraint functional form :","CONSTRAINT"
          CASE DEFAULT
            CALL stop_program(routineN,"unknown ddapc restraint")
          END SELECT
