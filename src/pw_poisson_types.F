@@ -35,7 +35,8 @@ MODULE pw_poisson_types
   USE bessel_lib,                      ONLY: bessj0,&
                                              bessj1,&
                                              bessk0,&
-                                             bessk1
+                                             bessk1,&
+                                             bessel_transform
   USE cell_types,                      ONLY: cell_release,&
                                              cell_type
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -51,7 +52,8 @@ MODULE pw_poisson_types
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: fourpi,&
-                                             twopi
+                                             twopi,&
+                                             pi
   USE mt_util,                         ONLY: MTin_create_screen_fn
   USE pw_grid_types,                   ONLY: HALFSPACE,&
                                              pw_grid_type
@@ -230,7 +232,7 @@ CONTAINS
     symmetry=.FALSE.
     IF (PRESENT(symm_usage)) symmetry=symm_usage
     IF (.NOT. failure) THEN
-       poisson_section => section_vals_get_subs_vals(input,"DFT%POISSON_DFT",error=error)    
+       poisson_section => section_vals_get_subs_vals(input,"DFT%POISSON",error=error)    
        CALL section_vals_val_get(poisson_section,"POISSON_SOLVER",i_val=my_val,error=error)
        !
        ! Check if grids will be the same... In this case we don't use a super-reference grid
@@ -318,14 +320,17 @@ CONTAINS
     INTEGER                                  :: dim, ewald_kind, i, ig, iz, &
                                                 my_per, my_val, n, nz, stat
     INTEGER, DIMENSION(3)                    :: perd
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure, screen
     REAL(KIND=dp)                            :: alpha, g2, g3d, gg, gxy, j0g, &
                                                 j1g, k0g, k1g, rlength, &
-                                                zlength
+                                                zlength, ri, rc, t, cost, sint,&
+                                                sint2, x, w, f, ep
     REAL(KIND=dp), DIMENSION(3)              :: abc
     TYPE(pw_grid_type), POINTER              :: grid
     TYPE(pw_type), POINTER                   :: gf
     TYPE(section_vals_type), POINTER         :: ewald_section, mt_section
+    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: sfg, gval, rval, fun, wr
+    INTEGER,PARAMETER                        :: nr=250
 
     failure = .FALSE.
     NULLIFY(ewald_section)
@@ -391,6 +396,9 @@ CONTAINS
        CASE DEFAULT
           CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
        END SELECT
+       ! check for consistent use of periodicity (cell <-> Poisson solver)
+       !CPPostcondition(ALL(perd == cell%perd),cp_fatal_level,routineP,error,failure)
+
        dim = COUNT(perd == 1)
        CALL section_vals_val_get(poisson_section,"POISSON_SOLVER",i_val=my_val,error=error)
        SELECT CASE (my_val)
@@ -547,7 +555,7 @@ CONTAINS
           rlength = green % radius   ! rlength is the radius of the sphere
           DO ig = grid % first_gne0, grid % ngpts_cut_local
              g2 = grid % gsq ( ig )
-             gg = 0.5_dp * SQRT ( g2 )
+             gg = SQRT ( g2 )
              g3d = fourpi / g2
              gf % cc ( ig ) = g3d * ( 1.0_dp - COS ( rlength * gg ) )
           END DO
@@ -565,6 +573,54 @@ CONTAINS
        CASE DEFAULT
           CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
        END SELECT
+
+       ! Screening function
+       CALL section_vals_val_get(poisson_section,"SCREENING%SR_SCREENING",&
+            l_val=screen,error=error)
+       IF ( screen ) THEN
+
+         CALL section_vals_val_get(poisson_section,"SCREENING%RC_INTERACTION",&
+            r_val=ri,error=error)
+         CALL section_vals_val_get(poisson_section,"SCREENING%RC_RANGE",&
+            r_val=rc,error=error)
+
+         nz = SIZE(grid%gsq)
+         ALLOCATE ( sfg(1:nz),gval(1:nz),rval(1:nr),fun(1:nr),wr(1:nr), stat = stat )
+         CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
+
+         ! Transformed Gauss-Chebyshev quadrature formula of the second kind
+         ! u [-1,+1] -> r [0,infinity] => r = ln(2/(1 - u))/ln(2)
+         f = pi/REAL(nr + 1,dp)
+         DO i=1,nr
+            t = REAL(i,dp)*f
+            cost = COS(t)
+            sint = SIN(t)
+            sint2 = sint**2
+            x = REAL(2*i - nr - 1,dp)/REAL(nr + 1,dp) -&
+                2.0_dp*(1.0_dp + 2.0_dp*sint2/3.0_dp)*cost*sint/pi
+            w = 16.0_dp*sint2**2/REAL(3*(nr + 1),dp)
+            rval(nr+1-i) = LOG(2.0_dp/(1.0_dp - x))/LOG(2.0_dp)
+            wr(nr+1-i) = w*rval(nr+1-i)**2/(LOG(2.0_dp)*(1.0_dp - x))
+         END DO
+         CALL section_vals_val_get(poisson_section,"SCREENING%RC_INTERACTION",&
+            r_val=ri,error=error)
+         CALL section_vals_val_get(poisson_section,"SCREENING%RC_RANGE",&
+            r_val=rc,error=error)
+         ri = ri - 0.5_dp*rc
+         rc = 24._dp/rc
+         DO i=1,nr
+           ep = exp(-rc*(rval(i)-ri))
+           fun(i) = ep / ((1._dp + ep)*rval(i))
+         END DO
+
+         gval(:) = SQRT(grid%gsq(:))
+         CALL bessel_transform (sfg,gval,0,rval,fun,wr,nr)
+         gf%cc(:) = gf%cc(:) - sfg(:)
+
+         DEALLOCATE ( sfg,gval,rval,fun,wr, stat = stat )
+         CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
+
+       END IF
 
     END IF
   END SUBROUTINE pw_green_create

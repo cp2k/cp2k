@@ -350,7 +350,7 @@ CONTAINS
             cp_ddapc_ewald%coeff_mm,&
             cp_ddapc_ewald%coeff_qm)
 
-    poisson_section => section_vals_get_subs_vals(force_env_section,"DFT%POISSON_DFT", error=error)
+    poisson_section => section_vals_get_subs_vals(force_env_section,"DFT%POISSON", error=error)
     qmmm_periodic_section   => section_vals_get_subs_vals(force_env_section,"QMMM%PERIODIC", error=error)
     CALL section_vals_get(qmmm_periodic_section,explicit=qmmm_periodic, error=error)
     qmmm_periodic = qmmm_periodic.AND.qmmm

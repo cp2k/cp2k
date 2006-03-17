@@ -41,6 +41,7 @@ MODULE qs_environment
                                              cell_release,&
                                              cell_type,&
                                              get_cell,&
+                                             plane_distance,&
                                              read_cell,&
                                              write_cell
   USE cp_control_types,                ONLY: dft_control_release,&
@@ -320,7 +321,7 @@ CONTAINS
     LOGICAL                                  :: all_potential_present, &
                                                 harris_flag, ionode, &
                                                 was_present, xas_calculation
-    REAL(dp)                                 :: maxocc
+    REAL(dp)                                 :: maxocc, rc
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_logger_type), POINTER            :: logger
@@ -426,10 +427,11 @@ CONTAINS
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                             all_potential_present=all_potential_present)
-    IF(all_potential_present .AND. .NOT.(dft_control%qs_control%method == "GAPW"&
-          .OR. dft_control%qs_control%semi_empirical))&
-      CALL stop_program(routineN,moduleN,__LINE__,&
+    IF(all_potential_present .AND. .NOT.(dft_control%qs_control%semi_empirical)) THEN
+      IF (.NOT.(dft_control%qs_control%method == "GAPW"))&
+          CALL stop_program(routineN,moduleN,__LINE__,&
                         "all-el calculations with GPW and GAPW_XC are not implemented ")      
+    END IF
 
 !   *** Initialize the spherical harmonics and ***
 !   *** the orbital transformation matrices    ***
@@ -603,11 +605,37 @@ CONTAINS
       END IF
     ELSE IF(dft_control%qs_control%semi_empirical) THEN
       se_control => dft_control%qs_control%se_control
+      ! Make interaction radius compatible with unit cell
+      rc = se_control%rc_interaction
+      IF(dft_control%qs_control%se_control%ewald) THEN 
+        rc = MIN(rc,0.5_dp*plane_distance(1,0,0,cell))
+        rc = MIN(rc,0.5_dp*plane_distance(0,1,0,cell))
+        rc = MIN(rc,0.5_dp*plane_distance(0,0,1,cell))
+        IF(cell%perd(1)==0) rc = MIN(rc,0.25_dp*plane_distance(1,0,0,cell))
+        IF(cell%perd(2)==0) rc = MIN(rc,0.25_dp*plane_distance(0,1,0,cell))
+        IF(cell%perd(3)==0) rc = MIN(rc,0.25_dp*plane_distance(0,0,1,cell))
+      ELSE
+        IF(cell%perd(1)==1) rc = MIN(rc,0.5_dp*plane_distance(1,0,0,cell))
+        IF(cell%perd(2)==1) rc = MIN(rc,0.5_dp*plane_distance(0,1,0,cell))
+        IF(cell%perd(3)==1) rc = MIN(rc,0.5_dp*plane_distance(0,0,1,cell))
+      END IF
+      IF (rc /= se_control%rc_interaction) THEN
+         IF (globenv%ionode) THEN
+           WRITE(globenv%scr,*)
+           WRITE(globenv%scr,'(A,T34,A)')     " WARNING|",&
+                                   " Integral interaction cutoff has been redefined"
+           WRITE(globenv%scr,'(A,T71,F10.3)') " WARNING| Old value ",&
+                                   se_control%rc_interaction
+           WRITE(globenv%scr,'(A,T71,F10.3)') " WARNING| New value ",rc
+           WRITE(globenv%scr,*)
+         END IF
+      END IF
+      se_control%rc_interaction = rc
       SELECT CASE ( dft_control%qs_control%method )
         CASE DEFAULT
         CASE ("AM1","PM3","MNDO")
           ! Neighbor lists have to be  
-          ! MAX(coulomb range, exchange range, orbital range)
+          ! MAX(interaction range, orbital range)
           ! set new kind radius
           CALL init_se_nlradius(se_control,cell,atomic_kind_set,&
                  qs_env%input,error)
@@ -766,7 +794,6 @@ CONTAINS
       CALL set_loc_centers(dft_control%qs_control%localized_wfn_control,nmoloc,&
            dft_control%nspins,globenv,error=error)
     END IF 
-
 
 !   *** Sets up pw_env, qs_charges, mpools... ***
 

@@ -25,7 +25,7 @@
 MODULE input_cp2k_qmmm
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE input_constants
-  USE input_cp2k_dft,                  ONLY: create_gspace_interp_section,&
+  USE input_poisson,                   ONLY: create_gspace_interp_section,&
                                              create_multipole_section
   USE input_cp2k_mm,                   ONLY: create_Goodwin_section,&
                                              create_LJ_section,&

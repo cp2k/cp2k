@@ -207,23 +207,33 @@ CONTAINS
 
 
     CALL section_vals_val_get(mgrid_section,"NGRIDS",i_val=ngrid_level,error=error)
+    CALL section_vals_val_get(mgrid_section,"MULTIGRID_SET",l_val=multigrid_set,error=error)
     IF ( qs_control%semi_empirical ) THEN
        ngrid_level = 1
+       multigrid_set = .FALSE.
     END IF
-    CALL section_vals_val_get(mgrid_section,"MULTIGRID_SET",l_val=multigrid_set,error=error)
 
     ALLOCATE(qs_control%e_cutoff(ngrid_level),STAT=istat)    
     IF (istat /= 0) CALL stop_memory(routine,"qs_control%e_cutoff",&
                                              ngrid_level*dp_size)
     CALL section_vals_val_get(mgrid_section,"CUTOFF",r_val=cutoff,error=error)    
     qs_control%cutoff = MAX(0.01_dp,cutoff) 
+    CALL section_vals_val_get(mgrid_section,"PROGRESSION_FACTOR",&
+                 r_val=qs_control%progression_factor,error=error)
+    CALL section_vals_val_get(mgrid_section,"COMMENSURATE",&
+                 l_val=qs_control%commensurate_mgrids,error=error)
+    CALL section_vals_val_get(mgrid_section,"REALSPACE",&
+                 l_val=qs_control%realspace_mgrids,error=error)
+    CALL section_vals_val_get(mgrid_section,"REL_CUTOFF",&
+                 r_val=qs_control%relative_cutoff)
+
     IF ( qs_control%semi_empirical ) THEN
-       qs_control%cutoff = 5._dp 
+      IF ( qs_control%se_control%ewald ) THEN
+         qs_control%cutoff = qs_control%relative_cutoff * qs_control%se_control%alpha_gauss
+      ELSE
+         qs_control%cutoff = 2._dp 
+      END IF
     END IF
-    CALL section_vals_val_get(mgrid_section,"PROGRESSION_FACTOR",r_val=qs_control%progression_factor,error=error)
-    CALL section_vals_val_get(mgrid_section,"COMMENSURATE",l_val=qs_control%commensurate_mgrids,error=error)
-    CALL section_vals_val_get(mgrid_section,"REALSPACE",l_val=qs_control%realspace_mgrids,error=error)
-    CALL section_vals_val_get(mgrid_section,"REL_CUTOFF",r_val=qs_control%relative_cutoff)
     
     IF(multigrid_set) THEN
       ! Read the values from input
@@ -256,7 +266,7 @@ CONTAINS
         END IF
       END DO
     ELSE
-       IF (qs_control%commensurate_mgrids) qs_control%progression_factor = 4.0_dp
+      IF (qs_control%commensurate_mgrids) qs_control%progression_factor = 4.0_dp
       qs_control%e_cutoff(1) = qs_control%cutoff
       DO igrid_level=2,ngrid_level
         qs_control%e_cutoff(igrid_level) = qs_control%e_cutoff(igrid_level-1) &

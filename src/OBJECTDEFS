@@ -168,6 +168,7 @@ OBJECTS_GENERIC =\
  input_enumeration_types.o\
  input_keyword_types.o\
  input_parsing.o\
+ input_poisson.o\
  input_section_types.o\
  input_types.o\
  input_val_types.o\

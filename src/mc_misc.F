@@ -688,7 +688,7 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
       CASE ( use_fist_force )
 ! grab some of the Ewald keywords
          WRITE(unit,10000) "  &MM"
-         WRITE(unit,10000) "    &POISSON_MM"
+         WRITE(unit,10000) "    &POISSON"
          WRITE(unit,10000) "      &EWALD"
          CALL convert_to_cp2k_units ( 'BOHR', length = alpha,&
             l_power = -1 )  
@@ -713,7 +713,7 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
             WRITE(unit,20003) "       O_SPLINE ",o_spline
          END SELECT
          WRITE(unit,10000) "      &END EWALD"
-         WRITE(unit,10000) "    &END POISSON_MM"
+         WRITE(unit,10000) "    &END POISSON"
 
 
 ! rcut

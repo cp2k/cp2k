@@ -167,7 +167,7 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
   cell_section => section_vals_get_subs_vals(globenv%input_file,&
        "FORCE_EVAL%SUBSYS%CELL",error=error)
   poisson_section => section_vals_get_subs_vals(globenv%input_file,&
-       "FORCE_EVAL%MM%POISSON_MM",error=error)
+       "FORCE_EVAL%MM%POISSON",error=error)
 
   iw = cp_print_key_unit_nr(logger,mm_section,"PRINT%PROGRAM_BANNER",&
        extension=".mmLog",error=error)    

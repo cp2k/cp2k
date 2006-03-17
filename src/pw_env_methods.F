@@ -48,7 +48,8 @@ MODULE pw_env_methods
   USE input_constants,                 ONLY: do_rsgrid_distributed
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
-                                             section_vals_val_get
+                                             section_vals_val_get,&
+                                             section_vals_val_set
   USE kinds,                           ONLY: dp
   USE l_utils,                         ONLY: init_l_info,&
                                              l_info_release,&
@@ -408,8 +409,19 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
      IF (.NOT.ASSOCIATED(pw_env%poisson_env)) THEN
         CALL pw_poisson_create(pw_env%poisson_env,error=error)
      END IF
-     poisson_section => section_vals_get_subs_vals(input,"DFT%POISSON_DFT",&
+     poisson_section => section_vals_get_subs_vals(input,"DFT%POISSON",&
           error=error)
+     ! carry over the parameters for the screening function
+     IF (qs_env%dft_control%qs_control%semi_empirical) THEN
+        IF (qs_env%dft_control%qs_control%se_control%ewald) THEN
+          CALL section_vals_val_set(poisson_section,"SCREENING%SR_SCREENING",&
+               l_val=.TRUE.,error=error)
+          CALL section_vals_val_set(poisson_section,"SCREENING%RC_INTERACTION",&
+               r_val=2._dp*qs_env%dft_control%qs_control%se_control%rc_interaction,error=error)
+          CALL section_vals_val_set(poisson_section,"SCREENING%RC_RANGE",&
+               r_val=qs_env%dft_control%qs_control%se_control%rc_range,error=error)
+        END IF
+     END IF
      CALL pw_poisson_set(pw_env%poisson_env,cell=my_cell,pw_pools=pw_env%pw_pools,&
           parameters=poisson_section,mt_super_ref_pw_grid=mt_super_ref_grid,&
           use_level=pw_env%auxbas_grid,error=error)
@@ -421,7 +433,8 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
     IF ( use_ref_cell ) THEN
          DO igrid_level = 1, SIZE ( pw_pools )
            CALL pw_grid_change ( cell, pw_pools ( igrid_level ) % pool % pw_grid )
-           CALL pw_find_cutoff ( pw_pools ( igrid_level ) % pool % pw_grid % bounds, cell%h_inv, my_cutoff )
+           CALL pw_find_cutoff ( pw_pools ( igrid_level ) % pool % pw_grid % bounds, &
+                                 cell%h_inv, my_cutoff )
            cutoff (igrid_level) = my_cutoff
          ENDDO
          CALL destroy_gaussian_gridlevel (pw_env%gridlevel_info, input, error=error )
@@ -469,6 +482,8 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
 
         DO ikind=1,nkind
           atomic_kind => atomic_kind_set(ikind)
+
+          IF (qs_env%dft_control%qs_control%semi_empirical) CYCLE
          
           CALL get_atomic_kind(atomic_kind=atomic_kind,&
                                orb_basis_set=orb_basis_set,&

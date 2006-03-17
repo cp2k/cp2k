@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000  CP2K developers group                                 !
+!   Copyright (C) 2000-2006 CP2K developers group                             !
 !-----------------------------------------------------------------------------!
 !!****** cp2k/bessel_lib [1.0] *
 !!
@@ -14,22 +14,24 @@
 !!     JGH (10-02-2001) 
 !! 
 !!   MODIFICATION HISTORY
-!!     none
+!!     March-2006: Bessel Transform (JGH)
 !!
 !!   NOTES
 !!     Functions adapted from netlib 
 !!
-!!   SOURCE
+!!*****
 !******************************************************************************
 
 MODULE bessel_lib
   
   USE kinds,                           ONLY: dp
+  USE mathconstants,                   ONLY: pi, fac
 
   IMPLICIT NONE
   
   PRIVATE
   PUBLIC :: bessi0, bessi1, bessj0, bessj1, bessk0, bessk1
+  PUBLIC :: bessel_transform
   
 !******************************************************************************
 
@@ -230,7 +232,97 @@ CONTAINS
 
   END FUNCTION bessi1
 
-!!*****
+!******************************************************************************
+
+  SUBROUTINE bessel_transform (fg,g,l,r,fr,wr,n)
+    !
+    ! f(g) = 4Pi * INT(0..INF) r^2 * f(r) * B_L(g*r) dr
+    !      = 4Pi * SUM(1..n) r_i^2 * f(r_i) * B_L(g*r_i) * w(r_i)
+    !
+    REAL(KIND=dp), DIMENSION(:),INTENT(OUT)  :: fg
+    REAL(KIND=dp), DIMENSION(:),INTENT(IN)   :: g
+    INTEGER,INTENT(IN)                       :: l
+    REAL(KIND=dp), DIMENSION(:),INTENT(IN)   :: r
+    REAL(KIND=dp), DIMENSION(:),INTENT(IN)   :: fr
+    REAL(KIND=dp), DIMENSION(:),INTENT(IN)   :: wr
+    INTEGER,INTENT(IN)                       :: n
+
+    REAL(KIND=dp), DIMENSION(:),ALLOCATABLE  :: bfr
+    INTEGER                                  :: i,j
+
+    ALLOCATE (bfr(n))
+    DO i=1,SIZE(fg)
+      IF ( i > 1 .AND. g(i)==g(i-1) ) THEN
+        fg(i) = fg(i-1)
+        CYCLE
+      END IF
+      DO j=1,n
+        bfr(j) = wr(j)*fr(j)*bessel0(g(i)*r(j),l)
+      END DO
+      fg(i) = 4._dp*pi*SUM ( bfr(1:n) )
+    END DO
+    DEALLOCATE (bfr)
+
+  END SUBROUTINE bessel_transform
+
+!******************************************************************************
+
+  FUNCTION bessel0(x,l)
+    !
+    ! Calculates spherical Bessel functions
+    ! Abramowitz & Stegun using Formulas 10.1.2, 10.1.8, 10.1.9
+    ! Adapted from P. Bloechl
+    !
+    REAL(KIND=dp),INTENT(IN)       :: x
+    INTEGER,INTENT(IN)             :: l
+    REAL(KIND=dp)                  :: bessel0
+
+    REAL(KIND=dp), PARAMETER       :: tol=1.e-12_dp
+    REAL(KIND=dp), DIMENSION(4)    :: trig
+    REAL(KIND=dp)                  :: arg,xsq,fact
+    INTEGER                        :: i,k,ii,il,isvar
+
+    IF (x > REAL(l,KIND=dp)) THEN
+      arg=x-0.5_dp*REAL(l,KIND=dp)*pi
+      trig(1)=SIN(arg)/x
+      trig(2)=COS(arg)/x
+      trig(3)=-trig(1)
+      trig(4)=-trig(2)
+      bessel0=trig(1)
+      IF (l /= 0) THEN
+        xsq=0.5_dp/x
+        fact=1._dp
+        DO k=1,l
+          ii=MOD(k,4)+1
+          fact=fac(k+l)/fac(k)/fac(l-k)*xsq**k
+          bessel0=bessel0+fact*trig(ii)
+        END DO
+      END IF
+    ELSE
+      ! Taylor expansion for small arguments
+      isvar=1
+      DO il=1,l
+        isvar=isvar*(2*il+1)
+      END DO
+      IF (l /= 0._dp) THEN
+        fact=x**l/REAL(isvar,KIND=dp)
+      ELSE
+        fact=1._dp/REAL(isvar,KIND=dp)
+      END IF
+      bessel0=fact
+      xsq=-0.5_dp*x*x
+      isvar=2*l+1
+      DO i=1,1000
+        isvar=isvar+2
+        fact=fact*xsq/REAL(i*isvar,KIND=dp)
+        bessel0=bessel0+fact
+        IF (ABS(fact) < tol) EXIT
+      ENDDO
+      IF (ABS(fact) > tol) STOP "BESSEL0 NOT CONVERGED"
+    END IF
+
+  END FUNCTION bessel0
+
 !******************************************************************************
 
 END MODULE bessel_lib

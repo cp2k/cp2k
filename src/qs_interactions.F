@@ -31,7 +31,6 @@ MODULE qs_interactions
                                              gto_basis_set_type,&
                                              set_gto_basis_set
   USE cell_types,                      ONLY: cell_type,&
-                                             plane_distance,&
                                              get_cell
   USE cp_control_types,                ONLY: qs_control_type,&
                                              semi_empirical_control_type
@@ -463,14 +462,9 @@ CONTAINS
     INTEGER                                  :: nkind, ikind
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    REAL(KIND=dp)                            :: kind_radius
+    REAL(KIND=dp)                            :: kind_radius, rc
     
 ! ------------------------------------------------------------------------------
-
-    ! renormalize rc_interaction to minimum image radius
-    se_control%rc_interaction = 0.5_dp*MAX(plane_distance(1,0,0,cell),&
-                                        plane_distance(0,1,0,cell),&
-                                        plane_distance(0,0,1,cell))
 
     NULLIFY (orb_basis_set,atomic_kind)
 

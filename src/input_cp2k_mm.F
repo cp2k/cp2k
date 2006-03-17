@@ -25,10 +25,10 @@
 MODULE input_cp2k_mm
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE input_constants
-  USE input_cp2k_dft,                  ONLY: create_mt_section
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
                                              keyword_type
+  USE input_poisson,                   ONLY: create_poisson_section
   USE input_section_types,             ONLY: section_add_keyword,&
                                              section_add_subsection,&
                                              section_create,&
@@ -56,79 +56,6 @@ MODULE input_cp2k_mm
 !****************************************************************************
 CONTAINS
 
-!!****f* input_cp2k_mm/create_poisson_mm_section [1.0] *
-!!
-!!   NAME
-!!     create_poisson_mm_section
-!!
-!!   FUNCTION
-!!     Creates the Poisson section
-!!
-!!   NOTES
-!!     -
-!!
-!!   ARGUMENTS
-!!     - section: the section to create
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     teo
-!!
-!!*** **********************************************************************
-  SUBROUTINE create_poisson_mm_section(section,error)
-    TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'create_poisson_mm_section', &
-      routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-    TYPE(keyword_type), POINTER              :: keyword
-    TYPE(section_type), POINTER              :: subsection
-
-    failure=.FALSE.
-
-    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
-    IF (.NOT. failure) THEN
-       CALL section_create(section,name="poisson_mm",&
-            description="Sets up the poisson resolutor.",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
-            error=error)
-
-       NULLIFY(keyword, subsection)
-       CALL keyword_create(keyword, name="POISSON_SOLVER",&
-            variants=(/"POISSON", "PSOLVER"/),& 
-            description="Specify which kind of solver to use to solve the Poisson equation.",&
-            usage="POISSON_SOLVER char",&
-            enum_c_vals=s2a( "PERIODIC", "ANALYTIC", "MT"),&
-            enum_i_vals=(/ use_periodic, use_analytic, use_mt/),&
-            default_i_val=use_periodic, error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)    
-
-       CALL keyword_create(keyword, name="PERIODIC",&
-            description="Specify the directions on wich apply PBC ",&
-            usage="PERIODIC (x|y|z|xy|xz|yz|xyz|none)",&
-            enum_c_vals=s2a( "x","y","z","xy","xz","yz","xyz","none"),&
-            enum_i_vals=(/ use_perd_x,  use_perd_y,   use_perd_z,&
-                           use_perd_xy, use_perd_xz, use_perd_yz,&
-                           use_perd_xyz, use_perd_none /),&
-            default_i_val=use_perd_xyz, error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)     
-
-       CALL create_mt_section(subsection,error)
-       CALL section_add_subsection(section, subsection, error=error)
-       CALL section_release(subsection,error=error)
-
-       CALL create_ewald_section(subsection,error)
-       CALL section_add_subsection(section, subsection, error=error)
-       CALL section_release(subsection,error=error)
-
-    END IF
-  END SUBROUTINE create_poisson_mm_section
 !***************************************************************************
 
 !!****f* input_cp2k_mm/create_mm_section [1.0] *
@@ -177,7 +104,7 @@ CONTAINS
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
        
-       CALL create_poisson_mm_section(subsection,error)
+       CALL create_poisson_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
@@ -1266,95 +1193,6 @@ CONTAINS
 
     END IF
   END SUBROUTINE create_BMHFT_section
-
-!***************************************************************************
-
-!!****f* input_cp2k_mm/create_ewald_section *
-!!
-!!   NAME
-!!     create_ewald_section
-!!
-!!   FUNCTION
-!!     -
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - section: will contain the ewald section 
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
-
-SUBROUTINE create_ewald_section(section,error)
-    TYPE(section_type), POINTER              :: section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'create_ewald_section', &
-      routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-    TYPE(keyword_type), POINTER              :: keyword
-
-  failure=.FALSE.
-  
-  CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-    CALL section_create(section,name="ewald",&
-         description="ewald parameters",&
-         n_keywords=7, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
-         error=error)
-
-    NULLIFY(keyword)
-    CALL keyword_create(keyword, name="EWALD_TYPE",&
-         description="The type of ewald you want to perform."//&
-         " EWALD is the standard non-fft based ewald."//&
-         " SPME is the smooth particle mesh using beta-Euler splines."//&
-         " PME is the particle mesh using fft interpolation.",&
-         usage="EWALD_TYPE {EWALD|SPME|PME}",&
-         default_i_val=do_ewald_ewald,&
-         enum_c_vals=ewald_name_types,&
-         enum_i_vals=ewald_name_index,error=error)
-    CALL section_add_keyword(section,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
-
-    CALL keyword_create(keyword, name="alpha",&
-         description="alpha parameter associated with Ewald (EWALD|PME|SPME)",&
-         usage="alpha .44", default_r_val=.44_dp, unit_str='angstrom^-1',error=error)
-    CALL section_add_keyword(section,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
-
-    CALL keyword_create(keyword, name="gmax",&
-         description="maximum number of grid points (SPME and EWALD)",&
-         usage="gmax [integer]", default_i_val=25,error=error)
-    CALL section_add_keyword(section,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
-
-    CALL keyword_create(keyword, name="ns_max",&
-         description="number of grid points on small mesh (PME only)",&
-         usage="ns_max 12", default_i_val=12,error=error)
-    CALL section_add_keyword(section,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
-
-    CALL keyword_create(keyword, name="o_spline",&
-         description="order of the beta-Euler spline (SPME only)",&
-         usage="o_spline 6", default_i_val=6,error=error)
-    CALL section_add_keyword(section,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
-
-    CALL keyword_create(keyword, name="epsilon",&
-         description="tolerance of gaussians for fft interpolation (PME only)",&
-         usage="epsilon 1e-6", default_r_val=1.e-6_dp,error=error)
-    CALL section_add_keyword(section,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
-
-  END IF
-END SUBROUTINE create_ewald_section
 
 !***************************************************************************
 

@@ -437,7 +437,7 @@ CONTAINS
                        particle_set=particle_set,&
                        error=error)
        qmmm_periodic = qs_env%qmmm_periodic
-       poisson_section => section_vals_get_subs_vals(force_env_section,"DFT%POISSON_DFT", error=error)
+       poisson_section => section_vals_get_subs_vals(force_env_section,"DFT%POISSON", error=error)
        !
        ! Setting up multipole section
        !
