@@ -223,8 +223,11 @@ CONTAINS
 
          CALL fm_pool_create_fm(pool=matrix_pools%ao_ao_fm_pools(1)%pool, &
                                 element=fm_matrix_h, name="Full H-Matrix", error=error)
-
          CALL copy_sm_to_fm(real_matrix=tbmd_env%matrix_h, fm=fm_matrix_h, error=error)
+
+         CALL fm_pool_create_fm(pool=matrix_pools%ao_ao_fm_pools(1)%pool, &
+                                element=fm_matrix_work, name="TBMD WORK-MATRIX", error=error)
+
          CALL simple_eigensolver(matrix_ks=fm_matrix_h, mo_set=mos, work=fm_matrix_work,&
                                  do_level_shift=.FALSE., level_shift=0.0_dp, &
                                  work_syevx=1.0_dp, smear=0.0_dp, error=error)
@@ -234,8 +237,11 @@ CONTAINS
 
          CALL fm_pool_create_fm(pool=matrix_pools%ao_ao_fm_pools(1)%pool, &
                                 element=fm_matrix_h, name="Full H-Matrix", error=error)
-
          CALL copy_sm_to_fm(real_matrix=tbmd_env%matrix_h, fm=fm_matrix_h, error=error)
+
+         CALL fm_pool_create_fm(pool=matrix_pools%ao_ao_fm_pools(1)%pool, &
+                                element=fm_matrix_work, name="TBMD WORK-MATRIX", error=error)
+
          CALL eigensolver(matrix_ks=fm_matrix_h, mo_set=mos, ortho=fm_matrix_ortho, &
                           work=fm_matrix_work, do_level_shift=.FALSE., &
                           level_shift=0.0_dp, use_cholesky=use_cholesky, &
@@ -408,6 +414,8 @@ CONTAINS
 
       CALL fm_pool_give_back_fm(pool=matrix_pools%ao_ao_fm_pools(1)%pool, &
                                 element=fm_matrix_h, error=error)
+      CALL fm_pool_give_back_fm(pool=matrix_pools%ao_ao_fm_pools(1)%pool, &
+                                element=fm_matrix_work, error=error)
 
     END IF
 
