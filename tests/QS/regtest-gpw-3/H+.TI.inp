@@ -5,14 +5,14 @@
     &MGRID
       CUTOFF 100
     &END MGRID
-    &POISSON_DFT
+    &POISSON
       PERIODIC NONE
       POISSON_SOLVER MT
       &MT
         ALPHA 7.0
         REL_CUTOFF 1.2
       &END MT
-    &END POISSON_DFT
+    &END POISSON
     &QS
       EPS_DEFAULT 1.0E-12
     &END QS

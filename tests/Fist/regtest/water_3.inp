@@ -13,13 +13,13 @@
         CHARGE 0.4238
       &END CHARGE
     &END FORCEFIELD
-    &POISSON_MM
+    &POISSON
       &EWALD
         EWALD_TYPE pme
         ALPHA .44
         NS_MAX 25
       &END EWALD
-    &END POISSON_MM
+    &END POISSON
   &END MM
   &SUBSYS
     &CELL

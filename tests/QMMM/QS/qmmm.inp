@@ -64,13 +64,13 @@ WARNING duplicate non firstlevel section MM_KIND
         &END LENNARD-JONES
       &END NONBONDED
     &END FORCEFIELD
-    &POISSON_MM
+    &POISSON
       &EWALD
         EWALD_TYPE ewald
         ALPHA .44
         GMAX 21
       &END EWALD
-    &END POISSON_MM
+    &END POISSON
   &END MM
   &QMMM
     ABC_QM 8.0 8.0 8.0

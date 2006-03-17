@@ -7,14 +7,14 @@
       COMMENSURATE
       CUTOFF 50
     &END MGRID
-    &POISSON_DFT
+    &POISSON
       PERIODIC NONE
       POISSON_SOLVER MT
       &MT
         ALPHA 7.0
         REL_CUTOFF 1.0
       &END MT
-    &END POISSON_DFT
+    &END POISSON
     &QS
       EPS_DEFAULT 1.0E-10
     &END QS
@@ -36,14 +36,14 @@
       parmtype CHM
       rcut_nb 5.2917720830
     &END FORCEFIELD
-    &POISSON_MM
+    &POISSON
       &EWALD
         EWALD_TYPE spme
         ALPHA .44
         GMAX 64
         O_SPLINE 6
       &END EWALD
-    &END POISSON_MM
+    &END POISSON
   &END MM
   &QMMM
     ABC_QM 6.0 6.0 6.0

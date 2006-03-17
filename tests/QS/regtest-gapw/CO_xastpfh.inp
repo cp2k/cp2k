@@ -52,14 +52,14 @@
         &END
       &END
     &END SCF
-   &POISSON_DFT
+   &POISSON
      POISSON_SOLVER MT
      &MT
       ALPHA 7.0
       REL_CUTOFF 1.2
      &END
      PERIODIC NONE
-    &END POISSON_DFT
+    &END POISSON
 
     &XAS 
       CONVERGENCE 0.000001

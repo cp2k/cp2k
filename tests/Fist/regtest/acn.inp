@@ -20,14 +20,14 @@
         CHARGE  0.177
        &END CHARGE
     &END FORCEFIELD
-    &POISSON_MM
+    &POISSON
       &EWALD
         EWALD_TYPE SPME
         ALPHA .44
         GMAX 32
         O_SPLINE 6
       &END EWALD
-    &END POISSON_MM
+    &END POISSON
   &END MM
   &SUBSYS
     &CELL

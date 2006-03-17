@@ -28,14 +28,14 @@ WARNING duplicate non firstlevel section MM_KIND
       parmfile ../Fist/sample_pot/butane.pot
       parmtype CHM
     &END FORCEFIELD
-    &POISSON_MM
+    &POISSON
       &EWALD
         EWALD_TYPE spme
         ALPHA .44
         GMAX 24
         O_SPLINE 6
       &END EWALD
-    &END POISSON_MM
+    &END POISSON
   &END MM
   &QMMM
     ABC_QM 12.0 12.0 12.0

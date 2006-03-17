@@ -19,14 +19,14 @@
         &END BMHFT
       &END NONBONDED
     &END FORCEFIELD
-    &POISSON_MM
+    &POISSON
       &EWALD
         EWALD_TYPE spme
         ALPHA .44
         GMAX 60
         O_SPLINE 6
       &END EWALD
-    &END POISSON_MM
+    &END POISSON
   &END MM
   &SUBSYS
     &CELL
