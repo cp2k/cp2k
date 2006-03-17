@@ -50,13 +50,14 @@ MODULE qs_linres_nmr_op
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
   USE qs_operators_ao,                 ONLY: p_xyz_ao,&
-                                             rmc_x_p_xyz_ao
+                                             rmc_x_p_xyz_ao,&
+                                             rRc_xyz_ao
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
 
   PRIVATE
-  PUBLIC :: nmr_operators, set_vecp, set_vecp_rev, fac_vecp
+  PUBLIC :: nmr_operators, set_vecp, set_vecp_rev, fac_vecp, ind_m2
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_linres_nmr_op'
 
@@ -107,7 +108,7 @@ CONTAINS
                                                 istate, nao, natom, nmo, &
                                                 nsgf, output_unit
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf, last_sgf
-    LOGICAL                                  :: failure, ionode
+    LOGICAL                                  :: failure, ionode, soft_only
     REAL(dp)                                 :: ck(3), ckdk(3), dk(3)
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -148,7 +149,7 @@ CONTAINS
                     dft_control=dft_control, linres_control=linres_control,&
                     mos=mos, particle_set=particle_set)
 
-    ! Calculate the p operator
+    ! Calculate the px py pz operators
     CALL p_xyz_ao(nmr_env%op_p_ao,qs_env,minimum_image=.TRUE.,error=error)
     ! Multiply the p operator to the psi0
     DO idir = 1,3
@@ -215,21 +216,17 @@ CONTAINS
     END DO
 
     
-    !Calculate the second term of the operator proceeding state by state
+    !Calculate the second term of the operator state by state
     DO ispin = 1, dft_control%nspins
        CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff, nao=nao, nmo=nmo,homo=homo)
       
-! write(*,*) 'homo ', homo, ' nao ', nao
        DO istate = 1,homo
          !center of the localized psi0 state istate 
          dk(1:3) = linres_control%localized_wfn_control%centers_set(ispin)%array(1:3,istate)
-! write(*,*) 'dk ', istate, dk
          !get the corresponding vector from the full matrix (p psi0)
          DO idir = 1,3
            CALL cp_fm_get_submatrix(nmr_env%p_psi0(ispin,idir)%matrix,vecbuf_p0(idir)%array,&
                 1,istate,nao,1,transpose=.TRUE.,error=error)
-! write(*,*) 'idir p0 ', idir
-! write(*,*) vecbuf_p0(idir)%array(1,:)
          END DO
          DO idir = 1,3
            CALL set_vecp(idir,ii,iii)
@@ -241,21 +238,14 @@ CONTAINS
 !  This loop should be distributed over the processors
            DO iao = 1,nao
              DO idir2 = 1,3
-               ck(idir2) = vecbuf_cmd(idir2)%array(1,iao)
-!dbg
                ck(idir2) = nmr_env%basisfun_center(idir2,iao)
-!dbg
              END DO
-! write(*,*) 'iao', iao, 'ck ', ck
              ckdk = pbc(dk,ck,cell)
-! write(*,*) 'c-dk ', ckdk
              !Add the second term element by element (not very efficient indeed)
-! write(*,*) 'rxp0 terms',vecbuf_rxp0(idir)%array(1,iao),ckdk(ii)*vecbuf_p0(iii)%array(1,iao) - &
 !                                ckdk(iii)*vecbuf_p0(ii)%array(1,iao)
              vecbuf_rxp0(idir)%array(1,iao) =  vecbuf_rxp0(idir)%array(1,iao) + & 
                                 ckdk(ii)*vecbuf_p0(iii)%array(1,iao) - &
                                 ckdk(iii)*vecbuf_p0(ii)%array(1,iao)
-! write(*,*) 'rxp0 fin',vecbuf_rxp0(idir)%array(1,iao)
            END DO
            !Give back the modified vector to the full matrix
            CALL cp_fm_set_submatrix(nmr_env%rxp_psi0(ispin,idir)%matrix,vecbuf_rxp0(idir)%array,&
@@ -264,6 +254,11 @@ CONTAINS
 
        END DO  ! istate
     END DO  ! ispin
+
+    ! Calculate the x y z x2 xy xz y2 yz z2 operators (in this order)
+!    soft_only = dft_control%qs_control%gapw
+!    dk =  linres_control%localized_wfn_control%centers_set(ispin)%array(1:3,1)
+!    CALL rRc_xyz_ao(nmr_env%op_mom_ao,qs_env,dk,order=2,minimum_image=.TRUE.,error=error)
 
     DEALLOCATE (first_sgf,last_sgf,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -295,6 +290,21 @@ CONTAINS
      END IF
 
   END FUNCTION fac_vecp
+
+!****************************************************************************
+  FUNCTION ind_m2(ii,iii) RESULT(i)
+
+    INTEGER                                  :: i, ii, iii
+
+     i = 0.0_dp
+
+     IF (ii /= 1) THEN
+       i = ii+iii
+     ELSE
+       i = ii+iii-1
+     END IF
+
+  END FUNCTION ind_m2
 
 !****************************************************************************
   SUBROUTINE set_vecp(i1,i2,i3)

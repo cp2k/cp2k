@@ -96,7 +96,8 @@ MODULE qs_linres_nmr_current
   USE qs_linres_nmr_op,                ONLY: fac_vecp,&
                                              set_vecp,&
                                              set_vecp_rev
-  USE qs_linres_nmr_shift,             ONLY: interpolate_shift_pwgrid,&
+  USE qs_linres_nmr_shift,             ONLY: chi_soft_analytic,&
+                                             interpolate_shift_pwgrid,&
                                              mult_G_ov_G2_grid
   USE qs_linres_types,                 ONLY: nmr_env_type
   USE qs_mo_types,                     ONLY: get_mo_set,&
@@ -310,6 +311,9 @@ CONTAINS
               occupation_numbers=occupation, homo=homo, nmo=nmo,&
               uniform_occupation=uni_occ,maxocc=maxocc)
 
+! First compute the contribution to the CHI tensor coming from the soft density
+         CALL chi_soft_analytic(nmr_env,qs_env,psi1,p_psi1,ispin,i_B,error=error)
+
          !First contribution from the response psi1_p
          DO istate = 1,nmr_env%nstates(ispin)
            CALL cp_fm_get_submatrix(nmr_env%psi1_p(ispin,ii_B)%matrix,&
@@ -337,6 +341,8 @@ CONTAINS
          END IF
 
          DO idir = 1,3
+
+
          ! Apply the p operator
            CALL cp_sm_fm_multiply(nmr_env%op_p_ao(idir)%matrix,psi1(ispin)%matrix,&
                 p_psi1(ispin)%matrix,ncol=nmo,alpha=-1.0_dp,error=error)
@@ -359,19 +365,19 @@ CONTAINS
              alpha = maxocc
            END IF
 
-! First compute the contribution to the CHI tensor coming from the softt density
-!           CALL chi_soft_grid(nmr_env,qs_env,psi1,p_psi1,ispin,i_B,idir,error=error)
 
            density_matrix => nmr_env%jp1_ao
            CALL set_matrix(density_matrix,0.0_dp)
            CALL cp_sm_plus_fm_fm_t(sparse_matrix=density_matrix,&
-                            matrix_v=nmr_env%p_psi0(ispin,idir)%matrix,&
-                            matrix_g=psi1(ispin)%matrix,ncol=homo,&
+                            matrix_g=nmr_env%p_psi0(ispin,idir)%matrix,&
+                            matrix_v=psi1(ispin)%matrix,&
+                            ncol=homo,&
                             alpha=alpha)
 
            CALL cp_sm_plus_fm_fm_t(sparse_matrix=density_matrix,&
-                            matrix_v=mo_coeff,&
-                            matrix_g=p_psi1(ispin)%matrix,ncol=homo,&
+                            matrix_g=mo_coeff,&
+                            matrix_v=p_psi1(ispin)%matrix,&
+                            ncol=homo,&
                             alpha=-alpha)
 
           
@@ -392,13 +398,15 @@ CONTAINS
              alpha = maxocc
            END IF
            CALL cp_sm_plus_fm_fm_t(sparse_matrix=density_matrix_2_ii,&
-                            matrix_v=nmr_env%p_psi0(ispin,idir)%matrix,&
-                            matrix_g=psi1(ispin)%matrix,ncol=homo,&
+                            matrix_g=nmr_env%p_psi0(ispin,idir)%matrix,&
+                            matrix_v=psi1(ispin)%matrix,&
+                            ncol=homo,&
                             alpha=alpha)
 
            CALL cp_sm_plus_fm_fm_t(sparse_matrix=density_matrix_2_ii,&
-                            matrix_v=mo_coeff,&
-                            matrix_g=p_psi1(ispin)%matrix,ncol=homo,&
+                            matrix_g=mo_coeff,&
+                            matrix_v=p_psi1(ispin)%matrix,&
+                            ncol=homo,&
                             alpha=-alpha)
 
            CALL cp_fm_to_fm(nmr_env%psi1_p(ispin,ii_B)%matrix,psi1(ispin)%matrix)
@@ -412,13 +420,15 @@ CONTAINS
              alpha = maxocc
            END IF
            CALL cp_sm_plus_fm_fm_t(sparse_matrix=density_matrix_2_iii,&
-                            matrix_v=nmr_env%p_psi0(ispin,idir)%matrix,&
-                            matrix_g=psi1(ispin)%matrix,ncol=homo,&
+                            matrix_g=nmr_env%p_psi0(ispin,idir)%matrix,&
+                            matrix_v=psi1(ispin)%matrix,&
+                            ncol=homo,&
                             alpha=alpha)
 
            CALL cp_sm_plus_fm_fm_t(sparse_matrix=density_matrix_2_iii,&
-                            matrix_v=mo_coeff,&
-                            matrix_g=p_psi1(ispin)%matrix,ncol=homo,&
+                            matrix_g=mo_coeff,&
+                            matrix_v=p_psi1(ispin)%matrix,&
+                            ncol=homo,&
                             alpha=-alpha)
 
         ! Calculate the current density on the pw grid (only soft if GAPW)

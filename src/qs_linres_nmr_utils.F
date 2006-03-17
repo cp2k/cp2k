@@ -732,10 +732,22 @@ CONTAINS
      CALL allocate_matrix_set(nmr_env%op_p_ao,3)
      DO idir = 1,3 
        CALL replicate_matrix_structure(matrix_s(1)%matrix, &
-            nmr_env%op_p_ao(idir)%matrix,"nmr_env%op_p_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir))),&
+            nmr_env%op_p_ao(idir)%matrix,&
+            "nmr_env%op_p_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir))),&
             target_symmetry="symmetric")
        CALL set_matrix(nmr_env%op_p_ao(idir)%matrix,0.0_dp)
      END DO
+
+     ! x  y z   x2 xy xz y2 yz z2 operators (in this order)
+     CALL allocate_matrix_set(nmr_env%op_mom_ao,9)
+     DO idir = 1,9 
+       CALL replicate_matrix_structure(matrix_s(1)%matrix, &
+            nmr_env%op_mom_ao(idir)%matrix,&
+            "nmr_env%op_mom_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir))),&
+            target_symmetry="symmetric")
+       CALL set_matrix(nmr_env%op_mom_ao(idir)%matrix,0.0_dp)
+     END DO
+
 
      ! for the rxp we cannot calculate it a priori because it is in facts (r-dk)xp 
      ! where dk is the center of the orbital it is applied to. We would need nstate operators
@@ -772,31 +784,18 @@ CONTAINS
 
     IF(nmr_env%current_density) THEN
     ! Current density matrix in x y and z:
-!       ALLOCATE( nmr_env%jp1_ao(3,dft_control%nspins,3),STAT=istat)
-!       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-
-!       DO i_B = 1,3 
-!         DO ispin = 1,dft_control%nspins
-!           DO idir = 1,3
-!             NULLIFY(nmr_env%jp1_ao(idir,ispin,i_B)%matrix)
-             CALL replicate_matrix_structure( nmr_env%op_rmd_ao(1)%matrix, &
+          CALL replicate_matrix_structure( nmr_env%op_rmd_ao(1)%matrix, &
                nmr_env%jp1_ao,"nmr_env%jp1_ao",target_symmetry="none")
-!               "-"//TRIM(ADJUSTL(cp_to_string(idir))),target_symmetry="none")
-             CALL set_matrix(nmr_env%jp1_ao,0.0_dp)
-!           END DO
-!         END DO
-!       END DO
+          CALL set_matrix(nmr_env%jp1_ao,0.0_dp)
 
        ALLOCATE( nmr_env%jp2_ao(2),STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-!       DO ispin = 1,dft_control%nspins
-         DO idir = 1,2
-           NULLIFY(nmr_env%jp2_ao(idir)%matrix)
-           CALL replicate_matrix_structure( nmr_env%op_rmd_ao(1)%matrix, &
-              nmr_env%jp2_ao(idir)%matrix,"nmr_env%jp2_ao"//&
-              "-"//TRIM(ADJUSTL(cp_to_string(idir))),target_symmetry="none")
-         END DO
-!       END DO
+       DO idir = 1,2
+         NULLIFY(nmr_env%jp2_ao(idir)%matrix)
+         CALL replicate_matrix_structure( nmr_env%op_rmd_ao(1)%matrix, &
+            nmr_env%jp2_ao(idir)%matrix,"nmr_env%jp2_ao"//&
+            "-"//TRIM(ADJUSTL(cp_to_string(idir))),target_symmetry="none")
+       END DO
 
      ! If the current density on the grid needs to be stored
        IF(nmr_env%store_current) THEN
@@ -979,25 +978,19 @@ CONTAINS
         IF(ASSOCIATED(nmr_env%op_rmd_ao)) THEN
           CALL deallocate_matrix_set(nmr_env%op_rmd_ao)
         END IF
+        !op_mom_ao
+        IF(ASSOCIATED(nmr_env%op_mom_ao)) THEN
+          CALL deallocate_matrix_set(nmr_env%op_mom_ao)
+        END IF
         !jp1_ao 
         IF(ASSOCIATED(nmr_env%jp1_ao)) THEN
-!          DO i_B = 1,3
-!            DO ispin = 1,SIZE(nmr_env%jp1_ao,1)
-!              DO idir = 1,3
-                CALL deallocate_matrix(nmr_env%jp1_ao)
-!              END DO
-!            END DO
-!          END DO
-!          DEALLOCATE(nmr_env%jp1_ao,STAT=istat)
-!          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+          CALL deallocate_matrix(nmr_env%jp1_ao)
         END IF
         !jp2_ao 
         IF(ASSOCIATED(nmr_env%jp2_ao)) THEN
-!          DO ispin = 1,SIZE(nmr_env%jp2_ao,1)
-            DO idir = 1,2
+          DO idir = 1,2
               CALL deallocate_matrix(nmr_env%jp2_ao(idir)%matrix)
-            END DO
-!          END DO
+          END DO
           DEALLOCATE(nmr_env%jp2_ao,STAT=istat)
           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
         END IF

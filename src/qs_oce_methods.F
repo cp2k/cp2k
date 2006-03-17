@@ -485,7 +485,6 @@ CONTAINS
                     ABS(rdist(2)-rac(2))< 1.E-8_dp .AND.&
                     ABS(rdist(3)-rac(3))< 1.E-8_dp ) THEN
                  dist_done = .TRUE.
-
                  GOTO 10
                END IF
              END DO
@@ -550,7 +549,6 @@ CONTAINS
                     ABS(rdist(2)-rbc(2))< 1.E-8_dp .AND.&
                     ABS(rdist(3)-rbc(3))< 1.E-8_dp ) THEN
                  dist_done = .TRUE.
-
                  GOTO 20
                END IF
              END DO

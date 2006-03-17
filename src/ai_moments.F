@@ -740,7 +740,7 @@ CONTAINS
 
 !       *** Calculate the basic two-center moment integral [s|M|s] ***
 
-        rpc = zetp*(zeta(ipgf)*rac+zetb(jpgf)*rbc)
+        rpc = -zetp*(zeta(ipgf)*rac+zetb(jpgf)*rbc)
         s(1,1,1) = f0*EXP(-zeta(ipgf)*f1*rab2)
         DO l=2, ncoset(lc_max)
           lx = indco(1,l)
@@ -797,16 +797,16 @@ CONTAINS
 
 !           *** Vertical recurrence steps: [s|M|s] -> [a|M|s] ***
 
-            rap(:) = -f1*rab(:)
+            rap(:) = f1*rab(:)
 
 !           *** [p|M|s] = (Pi - Ai)*[s|M|s] + f2*Ni(m-1i)[s|M-1i|s] ***
 
             s(2,1,l) = rap(1)*s(1,1,l)
             s(3,1,l) = rap(2)*s(1,1,l)
             s(4,1,l) = rap(3)*s(1,1,l)
-            IF ( lx1 < 0 ) s(2,1,l) = s(2,1,l) + f2x*s(1,1,lx1)
-            IF ( ly1 < 0 ) s(3,1,l) = s(3,1,l) + f2y*s(1,1,ly1)
-            IF ( lz1 < 0 ) s(4,1,l) = s(4,1,l) + f2z*s(1,1,lz1)
+            IF ( lx1 > 0 ) s(2,1,l) = s(2,1,l) + f2x*s(1,1,lx1)
+            IF ( ly1 > 0 ) s(3,1,l) = s(3,1,l) + f2y*s(1,1,ly1)
+            IF ( lz1 > 0 ) s(4,1,l) = s(4,1,l) + f2z*s(1,1,lz1)
 
 !           *** [a|M|s] = (Pi - Ai)*[a-1i|M|s] + f2*Ni(a-1i)*[a-2i|M|s] ***
 !           ***           + f2*Ni(m-1i)*[a-1i|M-1i|s]                   ***
@@ -1118,9 +1118,9 @@ CONTAINS
               s(1,2,l) = rbp(1)*s(1,1,l)
               s(1,3,l) = rbp(2)*s(1,1,l)
               s(1,4,l) = rbp(3)*s(1,1,l)
-              IF ( lx1 < 0 ) s(1,2,l) = s(1,2,l) + f2x*s(1,1,lx1)
-              IF ( ly1 < 0 ) s(1,3,l) = s(1,3,l) + f2y*s(1,1,ly1)
-              IF ( lz1 < 0 ) s(1,4,l) = s(1,4,l) + f2z*s(1,1,lz1)
+              IF ( lx1 > 0 ) s(1,2,l) = s(1,2,l) + f2x*s(1,1,lx1)
+              IF ( ly1 > 0 ) s(1,3,l) = s(1,3,l) + f2y*s(1,1,ly1)
+              IF ( lz1 > 0 ) s(1,4,l) = s(1,4,l) + f2z*s(1,1,lz1)
 
 !             *** [s|M|b] = (Pi - Bi)*[s|M|b-1i] + f2*Ni(b-1i)*[s|M|b-2i] ***
 !             ***           + f2*Ni(m)*[s|M-1i|b-1i]                      ***

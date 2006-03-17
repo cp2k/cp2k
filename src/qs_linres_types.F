@@ -93,6 +93,10 @@ MODULE qs_linres_types
 !!                   already calculated: used for restart
 !!   - centers_set : centers of the maximally localized psi0
 !!   - spreads_set : spreads of the maximally localized psi0 
+!!   - op_mom_ao     : sparse matrixes for the moment operator up to second order 
+!!                   in the contracted basis set representation 
+!!                   computed with the minimum image assumption
+!!                   If gapw only using the soft basis (maybe)
 !!   - op_p_ao     : sparse matrixes for the px, py and pz operator 
 !!                   in the contracted basis set representation 
 !!   - op_rmd_ao   : sparse matrixes used to construct the (r-d)xp operator
@@ -147,7 +151,7 @@ MODULE qs_linres_types
      TYPE(cp_fm_pool_p_type), DIMENSION(:), &
        POINTER                                   :: ao_mo_fm_pools
      TYPE(real_matrix_p_type), DIMENSION(:), &
-          POINTER                                :: op_p_ao, op_rmd_ao
+          POINTER                                :: op_mom_ao, op_p_ao, op_rmd_ao
      TYPE(cp_fm_p_type), DIMENSION(:,:), POINTER :: psi1_p, psi1_rxp, psi1_D
      TYPE(real_matrix_p_type), DIMENSION(:), &
           POINTER                                :: jp2_ao
@@ -266,6 +270,7 @@ CONTAINS
        nmr_env%ref_count = 1
        NULLIFY(nmr_env%centers_set)
        NULLIFY(nmr_env%ao_mo_fm_pools)
+       NULLIFY(nmr_env%op_mom_ao)
        NULLIFY(nmr_env%op_p_ao)
        NULLIFY(nmr_env%op_rmd_ao)
        NULLIFY(nmr_env%psi1_p)

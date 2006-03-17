@@ -443,9 +443,9 @@ CONTAINS
 
        IF(.NOT. paw_atom .AND. pippo)  CYCLE
 
-       sbc_list_neighbor_list =>&
-         find_neighbor_list(neighbor_list_set=&
-                         sbc_list(ibc)%neighbor_list_set,atom=jatom)
+!       sbc_list_neighbor_list =>&
+!         find_neighbor_list(neighbor_list_set=&
+!                         sbc_list(ibc)%neighbor_list_set,atom=jatom)
 
        CALL get_neighbor_list(neighbor_list=sbc_list_neighbor_list,&
                                      nnode=nneighbor)
@@ -455,12 +455,6 @@ CONTAINS
        ! Allocate temporary arrays
 !       IF(nneighbor .GT. nneighbor_old) THEN
        IF(nneighbor > 0) THEN
-!         CALL reallocate(rac_tmp,1,3,1,nneighbor)
-!         CALL reallocate(rac2_tmp,1,nneighbor)
-!         CALL reallocate(rbc_tmp,1,3,1,nneighbor)
-!         CALL reallocate(rbc2_tmp,1,nneighbor)
-!         CALL reallocate(index_atom,1,nneighbor)
-!         nneighbor_old = nneighbor
          ALLOCATE(rac_tmp(3,nneighbor),STAT=istat)
          ALLOCATE(rac2_tmp(nneighbor),STAT=istat)
          ALLOCATE(rbc_tmp(3,nneighbor),STAT=istat)
@@ -509,7 +503,7 @@ CONTAINS
            rac(:) = sac_list_neighbor%r(:,kkneighbor)
            dac2 = rac(1)*rac(1)+ rac(2)*rac(2) + rac(3)*rac(3)
 
-           ! add one block to the reduced list andd fill in data
+           ! add one block to the reduced list and fill in data
            nblock_kkind = nblock_kkind + 1
 
            rac_tmp(1:3,nblock_kkind) = rac(1:3)

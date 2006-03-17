@@ -983,6 +983,8 @@ CONTAINS
       POINTER                                :: op_sm
     TYPE(real_matrix_p_type), &
       DIMENSION(:, :), POINTER               :: ostrength_sm
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s
 
     failure =.FALSE.
     NULLIFY(logger)
@@ -992,12 +994,12 @@ CONTAINS
 
     NULLIFY(fm_work,ostrength_sm,op_sm, dip_fm_set)
     NULLIFY(all_evals,all_vectors,excvec_coeff, spectrum)
-    NULLIFY(cell,dft_control,mos,particle_set)
+    NULLIFY(cell,dft_control,mos,particle_set,matrix_s)
     ALLOCATE (op_sm(3),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     CALL get_qs_env(qs_env=qs_env,cell = cell, dft_control=dft_control,&
-         mos=mos,particle_set=particle_set)
+         mos=mos,particle_set=particle_set,matrix_s=matrix_s)
 
     CALL get_xas_env(xas_env=xas_env,all_vectors=all_vectors,&
          all_evals=all_evals,dip_fm_set=dip_fm_set,excvec_coeff=excvec_coeff,&
@@ -1014,21 +1016,25 @@ CONTAINS
                 all_vectors,all_evals,fm_work,&
                 cell,spectrum,dft_control%xas_estate,error=error)
         ELSEIF(xas_control%dipole_form==xas_dip_len2) THEN
-!           rc(1:3) = particle_set(iatom)%r(1:3)
-           rc = 0.0_dp
+           rc(1:3) = particle_set(iatom)%r(1:3)
            DO i = 1,3
              NULLIFY(op_sm(i)%matrix)
              op_sm(i)%matrix => ostrength_sm(1,i)%matrix
+!              op_sm(i)%matrix  => matrix_s(1)%matrix
            END DO
-           CALL rRc_xyz_ao(op_sm,qs_env,rc,order=1,error=error)
-           CALL spectrum_dip_vel(xas_control,dip_fm_set,ostrength_sm,mos,excvec_coeff,&
+           CALL rRc_xyz_ao(op_sm,qs_env,rc,order=1,minimum_image=.TRUE.,error=error)
+           CALL spectrum_dip_vel(xas_control,dip_fm_set,op_sm,mos,excvec_coeff,&
                 all_vectors,all_evals,fm_work,&
                 spectrum,dft_control%xas_estate,error=error)
            DO i = 1,SIZE(ostrength_sm,2) 
              CALL set_matrix(ostrength_sm(1,i)%matrix,0.0_dp)
            END DO
         ELSE
-           CALL spectrum_dip_vel(xas_control,dip_fm_set,ostrength_sm,mos,excvec_coeff,&
+           DO i = 1,3
+             NULLIFY(op_sm(i)%matrix)
+             op_sm(i)%matrix => ostrength_sm(1,i)%matrix
+           END DO
+           CALL spectrum_dip_vel(xas_control,dip_fm_set,op_sm,mos,excvec_coeff,&
                 all_vectors,all_evals,fm_work,&
                 spectrum,dft_control%xas_estate,error=error)
         END IF
@@ -1054,9 +1060,6 @@ CONTAINS
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
   END SUBROUTINE cls_calculate_spectrum
-
-
- 
 
 !***************************************************************************
 !!****f* xas_methods/xas_write [1.0] *
@@ -1406,7 +1409,7 @@ CONTAINS
     TYPE(cp_fm_p_type), DIMENSION(:, :), &
       POINTER                                :: fm_set
     TYPE(real_matrix_p_type), &
-      DIMENSION(:, :), POINTER               :: op_sm
+      DIMENSION(:), POINTER               :: op_sm
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(cp_fm_type), POINTER                :: excvec, all_vectors
@@ -1420,7 +1423,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'spectrum_dip_vel', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: homo, i, istate, nao, nmo, &
+    INTEGER                                  :: homo, i,ii, istate, j,nao, nmo, &
                                                 nvirtual
     LOGICAL                                  :: failure
     REAL(dp)                                 :: dip(3), ene_f, ene_i
@@ -1441,9 +1444,15 @@ CONTAINS
          CPPrecondition(ASSOCIATED(fm_set(1,i)%matrix),cp_failure_level,routineP,error,failure)
          CALL cp_fm_set_all(fm_set(1,i)%matrix, 0.0_dp, error=error)
          CALL cp_fm_set_all(fm_work, 0.0_dp, error=error)
-         CALL cp_sm_fm_multiply(op_sm(1,i)%matrix,all_vectors,fm_work,ncol=nvirtual)
+         CALL cp_sm_fm_multiply(op_sm(i)%matrix,all_vectors,fm_work,ncol=nvirtual)
          CALL cp_fm_gemm("T","N",1,nvirtual,nao,1.0_dp,excvec,&
               fm_work,0.0_dp, fm_set(1,i)%matrix,b_first_col=1,error=error)
+
+   do ii= 1,nao
+     write(*,*) ii, fm_set(1,i)%matrix%local_data(1,ii)
+!     write(*,'(i3,9f10.5)') ii, (all_vectors%local_data(ii,j),j=1,9)
+   enddo
+! stop 'ortho'
       END DO
       
       ene_i = eigenvalues(estate)

@@ -827,7 +827,7 @@ CONTAINS
 !!
 !!***  *********************************************************************
 
-  SUBROUTINE rRc_xyz_ao(op_sm,qs_env,rc,order,minimum_image,error)
+  SUBROUTINE rRc_xyz_ao(op_sm,qs_env,rc,order,minimum_image,soft,error)
 
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: op_sm
@@ -835,6 +835,7 @@ CONTAINS
     REAL(dp)                                 :: Rc(3)
     INTEGER, INTENT(IN)                      :: order
     LOGICAL, INTENT(IN), OPTIONAL            :: minimum_image
+    LOGICAL, INTENT(IN), OPTIONAL            :: soft
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -850,7 +851,7 @@ CONTAINS
                                                 nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
     LOGICAL                                  :: failure, my_minimum_image, &
-                                                new_atom_b
+                                                my_soft, new_atom_b
     REAL(KIND=dp)                            :: dab, Lxo2, Lyo2, Lzo2, rab2
     REAL(KIND=dp), DIMENSION(3)              :: ra, rab, rac, rb, rbc
     REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a, set_radius_b
@@ -905,6 +906,10 @@ CONTAINS
        Lyo2 = SQRT ( SUM ( cell % hmat ( :, 2 ) ** 2 ) )/2.0_dp
        Lzo2 = SQRT ( SUM ( cell % hmat ( :, 3 ) ** 2 ) )/2.0_dp
     END IF
+    my_soft = .FALSE.
+    IF(PRESENT(soft)) THEN
+      my_soft = soft
+    END IF
 
     ldab = ldwork
     nthread = 1
@@ -933,6 +938,7 @@ CONTAINS
       atomic_kind => atomic_kind_set(ikind)
 
       CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                           softb=my_soft,&
                            orb_basis_set=orb_basis_set)
 
       IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
@@ -954,6 +960,7 @@ CONTAINS
         atomic_kind => atomic_kind_set(jkind)
 
         CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                             softb = my_soft,&
                              orb_basis_set=orb_basis_set)
 
         IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
