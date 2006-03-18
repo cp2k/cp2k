@@ -83,6 +83,9 @@ MODULE input_cp2k_restarts
                                              mp_bcast,&
                                              mp_sum
   USE metadynamics_types,              ONLY: meta_env_type
+  USE mol_new_list_types,              ONLY: mol_new_list_type
+  USE molecule_kind_types,             ONLY: get_molecule_kind
+  USE molecule_types_new,              ONLY: get_molecule, molecule_type
   USE parallel_rng_types,              ONLY: dump_rng_stream,&
                                              rng_record_length
   USE particle_list_types,             ONLY: particle_list_type
@@ -1043,7 +1046,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'update_subsys', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, isubsys, my_unit, &
+    INTEGER                                  :: handle, isubsys, my_unit, &
                                                 stat
     LOGICAL                                  :: failure, use_ref_cell
     REAL(KIND=dp)                            :: conv_factor
@@ -1052,6 +1055,7 @@ CONTAINS
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
     TYPE(particle_list_type), POINTER        :: particles
+    TYPE(mol_new_list_type), POINTER         :: molecules
     TYPE(section_vals_type), POINTER         :: work_section
 
     failure = .FALSE.
@@ -1069,7 +1073,7 @@ CONTAINS
     CPPostcondition(SIZE(subsys)==1,cp_failure_level,routineP,error,failure)
     DO isubsys=1,SIZE(subsys)
        CALL cp_subsys_get(subsys(isubsys)%subsys,&
-            particles=particles, error=error)       
+            particles=particles, molecules_new=molecules, error=error)       
        work_section => section_vals_get_subs_vals(subsys_section,"COORD",error=error)
        CALL section_vals_val_get(subsys_section,"CELL%UNITS",i_val=my_unit,error=error)
        SELECT CASE(my_unit)
@@ -1082,7 +1086,7 @@ CONTAINS
        END SELECT
        !    Coordinates and Velocities
        work_section => section_vals_get_subs_vals(subsys_section,"COORD",error=error)
-       CALL section_coord_val_set(work_section, particles, conv_factor, error)
+       CALL section_coord_val_set(work_section, particles, molecules, conv_factor, error)
        work_section => section_vals_get_subs_vals(subsys_section,"VELOCITY",error=error)
        CALL section_velocity_val_set(work_section, particles, conv_factor=1.0_dp, error=error)
        !
@@ -1154,10 +1158,11 @@ CONTAINS
 !!     02.2006 created [teo]
 !!
 !!*** **********************************************************************
-  SUBROUTINE section_coord_val_set(coord_section, particles, conv_factor, error)
+  SUBROUTINE section_coord_val_set(coord_section, particles, molecules, conv_factor, error)
 
     TYPE(section_vals_type), POINTER         :: coord_section
     TYPE(particle_list_type), POINTER        :: particles
+    TYPE(mol_new_list_type), POINTER         :: molecules
     REAL(KIND=dp)                            :: conv_factor
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -1165,6 +1170,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'section_coord_val_set', &
       routineP = moduleN//':'//routineN
 
+    TYPE(molecule_type), POINTER :: molecule_now
     CHARACTER(LEN=2*default_string_length)   :: line
     CHARACTER(LEN=default_string_length)     :: my_tag, name, rcval
     INTEGER                                  :: ik, irk, k, Nlist
@@ -1172,6 +1178,7 @@ CONTAINS
     TYPE(cp_sll_val_type), POINTER           :: new_pos, vals
     TYPE(section_type), POINTER              :: section
     TYPE(val_type), POINTER                  :: my_val, old_val
+    INTEGER                                  :: imol,last_atom
 
     failure=.FALSE.
     NULLIFY(my_val, old_val, section, vals)
@@ -1191,10 +1198,18 @@ CONTAINS
     IF (ASSOCIATED(vals)) THEN
        Nlist = cp_sll_val_get_length(vals,error)
     END IF
+    imol=0
+    last_atom=0
     DO irk=1,particles%n_els
        CALL get_atomic_kind(particles%els(irk)%atomic_kind,name=name)
-       my_tag = particles%els(irk)%molname
-       ldum = qmmm_ff_precond_only_qm(name)
+       !my_tag = particles%els(irk)%molname
+       !ldum = qmmm_ff_precond_only_qm(name)
+       IF(last_atom<irk) THEN
+         imol=imol+1
+         molecule_now => molecules%els(imol)
+         CALL get_molecule(molecule_now,last_atom=last_atom)
+         CALL get_molecule_kind(molecule_now%molecule_kind,name=my_tag)
+       END IF
        ldum = qmmm_ff_precond_only_qm(my_tag)
        line = TRIM(name)
        DO k = 1, 3
