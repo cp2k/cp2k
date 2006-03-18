@@ -50,7 +50,7 @@
         &END WILLIAMS
       &END NONBONDED
     &END FORCEFIELD
-    &POISSON_MM
+    &POISSON
       &EWALD
         EWALD_TYPE ewald
         ALPHA .44
