@@ -77,7 +77,7 @@ FUNCTION ener_pot ( pot, qi, qj, r, vdw_scale14 )
        END DO
        ener_pot=ener_pot - pot % energy_cutoff
      ELSE
-! use a linear potential
+! use a linear potential  
        ener_pot = pot % ipbv % m * r + pot % ipbv % b
      ENDIF
   ELSE IF (pot%type=='WILLIAMS') THEN
@@ -193,9 +193,9 @@ SUBROUTINE spline_nonbond_control ( spline_env, potparm, atomic_kind_set, &
         ELSE IF (potparm%pot(i,j)%pot%type=='WILLIAMS') THEN
            locut = 0.944863_dp  ! else put locut to 0.5 Angstrom
         ELSE IF (potparm%pot(i,j)%pot%type=='IPBV') THEN
-           locut = 0.948863_dp
+           locut = 0.944863_dp  ! 0.5 Angstrom
         ELSE
-           locut = 0.944863_dp  ! else put locut to 0.5 Angstrom
+           locut = 0.944863_dp  ! 0.5 Angstrom
         END IF
         hicut = SQRT ( potparm %pot ( i, j ) %pot % rcutsq )
         IF ( hicut > cutmax ) cutmax = hicut

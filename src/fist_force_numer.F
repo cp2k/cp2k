@@ -1083,7 +1083,7 @@ SUBROUTINE pv_bond_numer ( molecule_set, molecule_kind_set, local_molecules, &
 
   NULLIFY ( cell_local )
  
-  CALL cell_create ( cell_local, hmat = cell % hmat, periodic = cell % perd )
+  CALL cell_create ( cell_local, hmat = cell % hmat, periodic = cell % perd, orthorhombic = .FALSE. )
   CALL cell_retain ( cell_local )
 
 ! assigning the local variables
@@ -1200,7 +1200,7 @@ SUBROUTINE pv_onefour_numer ( molecule_set, molecule_kind_set, local_molecules, 
 
   NULLIFY ( cell_local )
  
-  CALL cell_create ( cell_local, hmat = cell % hmat, periodic = cell % perd )
+  CALL cell_create ( cell_local, hmat = cell % hmat, periodic = cell % perd, orthorhombic = .FALSE. )
   CALL cell_retain ( cell_local )
 
 ! assigning the local variables
@@ -1312,7 +1312,7 @@ SUBROUTINE pv_ub_numer ( molecule_set, molecule_kind_set, local_molecules, &
 
   NULLIFY ( cell_local )
  
-  CALL cell_create ( cell_local, hmat = cell % hmat, periodic = cell % perd )
+  CALL cell_create ( cell_local, hmat = cell % hmat, periodic = cell % perd, orthorhombic = .FALSE. )
   CALL cell_retain ( cell_local )
 
 ! assigning the local variables
@@ -1424,7 +1424,7 @@ SUBROUTINE pv_bend_numer ( molecule_set, molecule_kind_set, local_molecules, &
 
   NULLIFY ( cell_local )
  
-  CALL cell_create ( cell_local, hmat = cell % hmat, periodic = cell % perd )
+  CALL cell_create ( cell_local, hmat = cell % hmat, periodic = cell % perd, orthorhombic = .FALSE. )
   CALL cell_retain ( cell_local )
 
 ! assigning the local variables
@@ -1531,7 +1531,7 @@ SUBROUTINE pv_torsion_numer ( molecule_set, molecule_kind_set, local_molecules, 
 
   NULLIFY ( cell_local )
  
-  CALL cell_create ( cell_local, hmat = cell % hmat, periodic = cell % perd )
+  CALL cell_create ( cell_local, hmat = cell % hmat, periodic = cell % perd, orthorhombic = .FALSE. )
   CALL cell_retain ( cell_local )
 
 ! assigning the local variables
@@ -1636,7 +1636,7 @@ SUBROUTINE pv_imptors_numer ( molecule_set, molecule_kind_set, local_molecules, 
 
   NULLIFY ( cell_local )
  
-  CALL cell_create ( cell_local, hmat = cell % hmat, periodic = cell % perd )
+  CALL cell_create ( cell_local, hmat = cell % hmat, periodic = cell % perd, orthorhombic = .FALSE. )
   CALL cell_retain ( cell_local )
 
 ! assigning the local variables
@@ -1742,7 +1742,7 @@ SUBROUTINE pv_nonbond_numer ( fist_nonbond_env, ewald_env, atomic_kind_set, &
 
   NULLIFY ( cell_local )
  
-  CALL cell_create ( cell_local, hmat = cell % hmat, periodic = cell % perd )
+  CALL cell_create ( cell_local, hmat = cell % hmat, periodic = cell % perd, orthorhombic = .FALSE. )
   CALL cell_retain ( cell_local )
 
 ! assigning the local variables
@@ -1768,11 +1768,7 @@ SUBROUTINE pv_nonbond_numer ( fist_nonbond_env, ewald_env, atomic_kind_set, &
 ! get coords from perturbed hmat
         DO i = 1, natoms
            particle_set ( i ) % r ( : ) = MATMUL ( cell_local % hmat, s(:,i) )
-!           particle_set ( i ) % rho = 0._dp
-!           particle_set ( i ) % f_embedding = 0._dp
         END DO
-!        CALL density_nonbond_numer
-!        CALL energy_manybody_numer
         CALL potential_nonbond ( fist_nonbond_env, particle_set, atomic_kind_set, &
                                  ewald_env, cell_local, vnb )
         vp = vnb
@@ -1782,11 +1778,7 @@ SUBROUTINE pv_nonbond_numer ( fist_nonbond_env, ewald_env, atomic_kind_set, &
         CALL get_hinv(cell_local)
         DO i = 1, natoms
            particle_set (i) % r = MATMUL(cell_local % hmat,s(:,i))
-!           particle_set ( i ) % rho = 0._dp
-!           particle_set ( i ) % f_embedding = 0._dp
         END DO
-!        CALL density_nonbond_numer
-!        CALL energy_manybody_numer
         CALL potential_nonbond ( fist_nonbond_env, particle_set, atomic_kind_set, &
                                  ewald_env, cell_local, vnb )
         vm = vnb
@@ -1874,7 +1866,7 @@ SUBROUTINE pv_g_numer ( ewald_env, ewald_pw, atomic_kind_set, particle_set,  &
 
   NULLIFY ( cell_local )
  
-  CALL cell_create ( cell_local, hmat = cell % hmat, periodic = cell % perd )
+  CALL cell_create ( cell_local, hmat = cell % hmat, periodic = cell % perd, orthorhombic = .FALSE. )
   CALL cell_retain ( cell_local )
 
 ! allocating
@@ -2744,13 +2736,12 @@ SUBROUTINE potential_nonbond ( fist_nonbond_env, particle_set, atomic_kind_set, 
 !
 ! initializing the potential energy
 !
-  vnb = 0.0_dp
-
-  nkinds = SIZE ( potparm%pot, 1 )
+    vnb = 0.0_dp
 
 !
 ! starting the force loop
 !
+    nkinds = SIZE ( potparm%pot, 1 )
     DO ikind=1,nkinds
       DO jkind=1,nkinds
 
@@ -2778,7 +2769,8 @@ SUBROUTINE potential_nonbond ( fist_nonbond_env, particle_set, atomic_kind_set, 
                                  atom=atom_a,&
                                  nnode=nnode)
 
-          dra(:) = particle_set(atom_a)%r(:) - r_last_update(:,atom_a)
+          dra(:) = particle_set(atom_a)%r(:) -&
+                   scaled_to_real(r_last_update(:,atom_a),cell)
 
           neighbor_node => first_node(neighbor_list)
 
@@ -2788,8 +2780,11 @@ SUBROUTINE potential_nonbond ( fist_nonbond_env, particle_set, atomic_kind_set, 
                                    neighbor=atom_b,&
                                    r=rab)
 
-            drb(:) = particle_set(atom_b)%r(:) - r_last_update(:,atom_b)
-            rab(:) = rab(:) - dra(:) + drb(:)
+
+            drb(:) = particle_set(atom_b)%r(:) -&
+                     scaled_to_real(r_last_update(:,atom_b),cell)
+
+            rab(:) = scaled_to_real(rab(:),cell) - dra(:) + drb(:)
             rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
 
             IF (rab2 <= rab2_max) THEN

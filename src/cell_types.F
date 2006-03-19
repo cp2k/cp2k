@@ -259,7 +259,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE init_cell(cell,hmat,periodic)
+  SUBROUTINE init_cell(cell,hmat,periodic,orthorhombic)
 
 !   Purpose: Initialise a simulation cell.
 
@@ -272,6 +272,7 @@ CONTAINS
       INTENT(IN), OPTIONAL                   :: hmat
     INTEGER, DIMENSION(3), INTENT(IN), &
       OPTIONAL                               :: periodic
+    LOGICAL, INTENT ( IN ), OPTIONAL         :: orthorhombic
 
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "SUBROUTINE init_cell (MODULE cell_types)"
@@ -299,6 +300,7 @@ CONTAINS
     IF ((cell%hmat(1,2) == 0.0_dp).AND.(cell%hmat(1,3) == 0.0_dp).AND.&
         (cell%hmat(2,1) == 0.0_dp).AND.(cell%hmat(2,3) == 0.0_dp).AND.&
         (cell%hmat(3,1) == 0.0_dp).AND.(cell%hmat(3,2) == 0.0_dp)) cell%orthorhombic = .TRUE.
+    IF ( PRESENT ( orthorhombic ) ) cell % orthorhombic = orthorhombic
     dim = COUNT(cell%perd == 1)
     IF ((dim/=3).AND.(.NOT.cell%orthorhombic)) THEN
        CALL stop_program(routine,"Not ortho and not periodic")
@@ -813,12 +815,13 @@ CONTAINS
 !!     09.2003 created [fawzi]
 !!
 !!*** **********************************************************************
-  SUBROUTINE cell_create(cell,hmat,periodic, error)
+  SUBROUTINE cell_create(cell,hmat,periodic, orthorhombic, error)
     TYPE(cell_type), POINTER                 :: cell
     REAL(KIND=dp), DIMENSION(3, 3), &
       INTENT(IN), OPTIONAL                   :: hmat
     INTEGER, DIMENSION(3), INTENT(IN), &
       OPTIONAL                               :: periodic
+    LOGICAL, INTENT ( IN ), OPTIONAL         :: orthorhombic
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -839,7 +842,7 @@ CONTAINS
     cell % perd = 1
     IF (.NOT. PRESENT(hmat)) RETURN
     IF (.NOT. failure) THEN
-       CALL init_cell(cell,hmat,periodic)
+       CALL init_cell(cell,hmat,periodic,orthorhombic)
     END IF
   END SUBROUTINE cell_create
 !***************************************************************************
