@@ -89,3 +89,6 @@ water_IPBV.inp
 silicon_cluster_3.inp
 silicon_cluster_4.inp
 silicon_cluster_5.inp
+# small consistency fix in IPBV locut
+water_IPBV_flex.inp
+water_IPBV.inp
