@@ -75,13 +75,17 @@
 # - dir_triplet: the result of tools/get_arch_name, where the executable can be found 
 # - cp2k_dir: normally cp2k
 # - maxtasks: how many instances of cp2k should run simultaneously (~> #CPUs)
+# - emptycheck: useful for automatic testers, no testing if nothing changed in CVS (YES|NO)
+# - leakcheck: if using g95, set this variable to "YES" in order to get memory leak checking
 #
 export FORT_C_NAME=g95
-dir_base=/users/vondele/clean
-cp2k_version=sdbg
+dir_base=/home/regtest/autotest/g95
+cp2k_version=sopt
 dir_triplet=Linux-x86-64-g95
 cp2k_dir=cp2k
-maxtasks=2
+maxtasks=3
+emptycheck="NO"
+leakcheck="NO"
 
 #
 # The following variables typically need no changes on Linux machine, but might need changes on
@@ -91,7 +95,7 @@ maxtasks=2
 # *** how to execute an input file [ cp2k_prefix input cp2k_postfix ]
 cp2k_prefix="${dir_base}/${cp2k_dir}/exe/${dir_triplet}/cp2k.${cp2k_version}"
 cp2k_postfix=
-#cp2k_prefix="( ulimit -t 60; ${dir_base}/${cp2k_dir}/exe/${dir_triplet}/cp2k.${cp2k_version}"
+#cp2k_prefix="( ulimit -t 300; ${dir_base}/${cp2k_dir}/exe/${dir_triplet}/cp2k.${cp2k_version}"
 #cp2k_postfix=" )"
 #cp2k_prefix="poe ${dir_base}/${cp2k_dir}/exe/${dir_triplet}/cp2k.${cp2k_version}"
 #cp2k_postfix="-llfile ${dir_base}/llfile"
@@ -104,7 +108,7 @@ awk=awk
 
 # *** a short and long version of the data, in a format that CVS understands
 datum_full=`date --iso-8601="seconds"`
-datum_short=`date --iso-8601`
+datum_short=`date --iso-8601="seconds"`
 #datum_full=`date '+%Y-%m-%dT%H:%M:%S+0100'`
 #datum_short=`date '+%Y-%m-%d'`
 
@@ -161,6 +165,13 @@ mkdir -p ${dir_last}
 rm -fR ${error_description_file}
 touch  ${error_description_file}
 touch  ${dir_last}/ChangeLog-tests
+if [[ ${leakcheck} == "YES" ]]; then
+   memory_description_file=${dir_out}/memory_summary
+   memory_summary=${dir_base}/memory_leaks.txt
+   rm -fR ${memory_description_file}
+   touch  ${memory_description_file}
+   echo "" > ${memory_summary}
+fi
 
 ###################################################################################
 #
@@ -279,6 +290,20 @@ else
   echo "no cvs updating"
 fi
 
+# *** check if there is any update or difference that thus requires a rerun
+# one day, this requires improvement for speed.
+if [[ ${emptycheck} == "YES" ]]; then
+   isempty_1=`nl ${changelog_diff} | awk '{print $1}'`
+   isempty_2=`nl ${changelog_diff_tests} | awk '{print $1}'`
+   
+   if [[ ${isempty_1} == "1" && ${isempty_2} == "1" ]]; then
+      echo "No changes since last run -- clean exit without testing "
+      end_test 100
+   else
+      echo "Code has changed since last run -- continue regtest "
+   fi
+fi
+
 # *** make realclean
 if [[ ${quick} != "quick" ]]; then
    cd ${dir_base}/${cp2k_dir}/makefiles
@@ -304,8 +329,8 @@ if (( $? )); then
 echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> ${error_description_file}
 tail -40 out >> ${error_description_file}
 echo "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" >> ${error_description_file}
-echo "error happened : make realclean VERSION=${cp2k_version} ... bailing out"
 echo "error happened : make VERSION=${cp2k_version} "
+cat "${error_description_file}"
 end_test 4
 else
 compile_warnings=`grep "Warning:" out | wc | tail -1 |  ${awk} '{print $1}'`
@@ -485,6 +510,14 @@ do
         timing=`grep -a "CP2K   " ${output_file} | ${awk} '{printf("%6.2f",$4)}'`
         this_test="${this_test} (${timing} sec)" ;;
      esac
+     if [[ ${leakcheck} == "YES" ]]; then
+        dum=`grep -l "Remaining memory" ${output_file}`
+        if [[ ${dum} != "" ]]; then
+           this_test="${this_test} !"          
+           echo "XXXXXXXX  ${output_file} XXXXXXX" >> ${memory_description_file}
+           grep -i "Remaining memory"  ${output_file} >> ${memory_description_file}
+        fi
+     fi 
      printf "%50s %20s\n" "${dir}/${input_file}" "${this_test}" >> ${dir_base}/REGTEST_TASK_TESTS-$task
   done
   echo "<<<<<<<<<<<<<<<<< ${dir_base}/${cp2k_dir}/tests/${dir}" >> ${dir_base}/REGTEST_TASK_TESTS-$task
@@ -537,4 +570,22 @@ printf "number of WRONG   tests %d\n" ${n_wrong_results}
 printf "number of CORRECT tests %d\n" ${n_correct}
 printf "number of NEW     tests %d\n" ${n_new}
 printf "number of         tests %d\n" ${n_tests}
+
+if [[ ${leakcheck} == "YES" ]]; then
+   echo "--------------------------------------------------------------------------"
+   n_leaks=`grep -v "XXXXXXXX" ${memory_description_file} | wc | ${awk} '{print $1}'`
+   printf "number of memory  leaks %d\n" ${n_leaks}
+   echo "Memory leaks summary" >  ${memory_summary}
+   echo "--------------------" >>  ${memory_summary}
+   echo "This is the build of $datum_full using g95 (www.g95.org)" >>  ${memory_summary}
+   echo "At most 25 leaks are reported per run" >>  ${memory_summary}
+   echo "-------------------------------------------------------" >>  ${memory_summary}
+   echo "There are ${n_leaks} leaks today " >> ${memory_summary}
+   echo "-------------------------------------------------------" >>  ${memory_summary}
+   cat  ${memory_description_file} >>  ${memory_summary}
+   echo "----- changelog diff file ------" >>  ${memory_summary}
+   cat ${changelog_diff} >> ${memory_summary}
+   echo "GREPME ${n_runtime_error} ${n_wrong_results} ${n_correct} ${n_new} ${n_tests} ${n_leaks}"
+fi
+
 end_test 0
