@@ -25,16 +25,8 @@ H O M E&nbsp;&nbsp;&nbsp; P A G E&nbsp;</font></b></center>
 <td> <center> <A HREF="download.html">Download</A> </center> </td>
 <td> <center> <A HREF="quickstep.html">Quickstep</A> </center> </td>
 <td> <center> <A HREF="regtest.html">Regtests</A> </center> </td>
+<td> <center> <A HREF="input/index.html">Input</A> </center> </td>
 </table></center>
-
-<h1>WARNING</h1>
-<h2>We are switching to the new input</h2>
-<p>That is a big change and the code will be unstable in the next days</p>
-<br/>
-<p>If you want an old (stable) version you can take it with
-<br/>
-<code>cvs -d:pserver:anonymous@cvs.cp2k.berlios.de:/cvsroot/cp2k co -D 2005-11-30 cp2k</code></p>
-<P><BR></P>
 
 <H2><CENTER>Welcome!</CENTER></H2>
 <H2><CENTER> What is CP2K?</CENTER></H2>
@@ -74,6 +66,7 @@ having CVS write permission.
 <h3>Links</h3>
 <ul>
  <li><a href="download.html">Download and Install</a></li>
+ <li><a href="input/index.html">Input reference manual</a></li>
  <li><a href="http://cvs.berlios.de/cgi-bin/viewcvs.cgi/cp2k/cp2k/src/?sortby=date">Browse the sources and follow development</a></li>
  <li><a href="regtest.html">Automatic regression tester</a></li>
  <li><a href="http://developer.berlios.de/projects/cp2k">The Berlios project page</a></li>
