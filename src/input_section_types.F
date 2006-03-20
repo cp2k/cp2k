@@ -480,18 +480,19 @@ RECURSIVE SUBROUTINE section_describe(section, unit_nr, level, hide_root, recurs
 END SUBROUTINE section_describe
 !***************************************************************************
 
-RECURSIVE SUBROUTINE section_describe_html(section, prefix, unit_nr,  error)
+RECURSIVE SUBROUTINE section_describe_html(section, prefix, depth, unit_nr,  error)
     TYPE(section_type), POINTER              :: section
     CHARACTER(LEN=*), INTENT(IN)             :: prefix
-    INTEGER, INTENT(in)                      :: unit_nr
+    INTEGER, INTENT(in)                      :: depth,unit_nr
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'section_describe_html', &
       routineP = moduleN//':'//routineN
 
+    CHARACTER(LEN=256), DIMENSION(50), SAVE  :: location,name ! a local stack of info
     CHARACTER(LEN=1000)                      :: local_prefix
-    INTEGER                                  :: ikeyword, isub
+    INTEGER                                  :: ikeyword, isub, idepth
     LOGICAL                                  :: failure, has_keywords
 
   failure=.FALSE.
@@ -502,8 +503,15 @@ RECURSIVE SUBROUTINE section_describe_html(section, prefix, unit_nr,  error)
      WRITE(179,*) "<HTML><BODY>"
      WRITE(179,*) "<HEAD><TITLE> The CP2K project : input section "//section%name//"</TITLE></HEAD>"
      WRITE(179,*) "<H1> Section "//section%name//"</H1>"
-     WRITE(179,*) TRIM(section%description)
-     WRITE(179,*) '<BR>An <A HREF="index.html"> index of all sections </A> is available'
+     WRITE(179,*) ' <A HREF="index.html">Index of all sections</A>. This section is located at '
+     DO idepth=1,depth
+       WRITE(179,FMT='(A)',ADVANCE="NO") '<A HREF="'//TRIM(location(idepth))//'">'//TRIM(name(idepth))//'</A>%'
+     ENDDO
+     location(depth+1)=TRIM(local_prefix)//".html"
+     name(depth+1)=TRIM(section%name)
+     WRITE(179,FMT='(A)') '<A HREF="'//TRIM(location(depth+1))//'">'//TRIM(name(depth+1))//'</A>.'
+
+     WRITE(179,*) '<BR><BR>'//TRIM(section%description)
      WRITE(179,*) "<H2> Subsections</H2>"
      IF (section%n_subsections>0) THEN
         WRITE(179,*) "<UL>"
@@ -553,7 +561,7 @@ RECURSIVE SUBROUTINE section_describe_html(section, prefix, unit_nr,  error)
      WRITE(179,*) "</BODY></HTML>"
      CLOSE(unit=179)
      DO isub=1,section%n_subsections
-        CALL section_describe_html(section%subsections(isub)%section,TRIM(local_prefix),unit_nr,&
+        CALL section_describe_html(section%subsections(isub)%section,TRIM(local_prefix),depth+1,unit_nr,&
                 error=error)
      END DO
   END IF
@@ -577,7 +585,7 @@ RECURSIVE SUBROUTINE section_describe_index_html(section,prefix, unit_nr, error)
   IF (ASSOCIATED(section)) THEN
      CPPrecondition(section%ref_count>0,cp_failure_level,routineP,error,failure)
      local_prefix=TRIM(prefix//"~"//TRIM(section%name))
-     WRITE(unit_nr,*) '<LI><A HREF="'//TRIM(local_prefix)//'.html">'//section%name//"</A>"
+     WRITE(unit_nr,*) '<LI><A HREF="'//TRIM(local_prefix)//'.html">'//TRIM(section%name)//"</A>"
      IF (section%n_subsections>0) THEN
         WRITE(unit_nr,*) "<UL>"
         DO isub=1,section%n_subsections

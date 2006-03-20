@@ -622,7 +622,7 @@ CONTAINS
        ! remove the default keyword that ignores things outside the section
        CALL keyword_release(root_section%keywords(0)%keyword,error=error)
 
-       CALL section_describe_html(root_section,"InputReference",6,error=error)
+       CALL section_describe_html(root_section,"InputReference",0,6,error=error)
 
        CALL open_file(unit_number=unit_nr,file_name="index.html",&
             file_action="WRITE", file_status="REPLACE")
