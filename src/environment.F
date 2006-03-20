@@ -40,7 +40,8 @@ MODULE environment
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
-  USE kinds,                           ONLY: default_string_length,&
+  USE kinds,                           ONLY: default_path_length,&
+                                             default_string_length,&
                                              dp,&
                                              int_size,&
                                              print_kind_info
@@ -147,11 +148,11 @@ CONTAINS
 
 !   *** Local variables ***
 
-    CHARACTER(LEN=60) :: cwd
-    CHARACTER(LEN=30) :: host_name,string,user_name
-    CHARACTER(LEN=26) :: datx
-    INTEGER           :: ipe,istat,l,output_unit,pid,&
-                         strstart,strend
+    CHARACTER(LEN=default_path_length) :: cwd
+    CHARACTER(LEN=30)                  :: host_name,string,user_name
+    CHARACTER(LEN=26)                  :: datx
+    INTEGER                            :: ipe,istat,l,output_unit,pid,&
+                                          strstart,strend
     LOGICAL           :: ionode
 
     INTEGER, DIMENSION(:), ALLOCATABLE   :: all_pid
@@ -256,15 +257,12 @@ CONTAINS
         " ***** ** ***  *** **   PROGRAM STARTED ON ",ADJUSTR(host_name),&
         " **    ****   ******    PROGRAM STARTED BY ",ADJUSTR(user_name),&
         " ***** **    ** ** **   PROGRAM PROCESS ID ",pid
-      l = LEN_TRIM(cwd)
-      IF (l <= 38) THEN
-        WRITE (UNIT=output_unit,FMT="(A,T43,A38,/)")&
-          "  **** **  *******  **  PROGRAM STARTED IN ",ADJUSTR(cwd(1:l))
-      ELSE
-        WRITE (UNIT=output_unit,FMT="(A)")&
-          "  **** **  *******  **  PROGRAM STARTED IN "
-        WRITE (UNIT=output_unit,FMT="(T21,A60,/)") ADJUSTR(cwd)
-      END IF
+      WRITE (UNIT=output_unit,FMT="(A,T44,A37)")&
+        "  **** **  *******  **  PROGRAM STARTED IN ",ADJUSTR(cwd(1:37))
+      DO l=38,LEN_TRIM(cwd),37
+        WRITE (UNIT=output_unit,FMT="(T44,A)")&
+          cwd(l:MIN(LEN_TRIM(cwd),l+36))
+      END DO
       WRITE (UNIT=output_unit,FMT="(T2,A,T31,A50)")&
         "CP2K| Program compiled at",&
         ADJUSTR(compile_date(1:MIN(50,LEN(compile_date))))
@@ -682,34 +680,36 @@ SUBROUTINE cp2k_read(globenv,error)
 
     TYPE(global_environment_type), POINTER :: globenv
     TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
-!   *** Local variables ***
 
-    CHARACTER(LEN=60) :: cwd
-    CHARACTER(LEN=30) :: host_name,user_name
-    CHARACTER(LEN=26) :: datx
-    INTEGER           :: l,iw,pid,unit_exit
-    LOGICAL           :: delete_it,failure
-    TYPE(cp_logger_type), POINTER            :: logger
-    REAL(KIND=dp)     :: r_timings
+    CHARACTER(LEN=default_path_length) :: cwd
+    CHARACTER(LEN=30)                  :: host_name,user_name
+    CHARACTER(LEN=26)                  :: datx
+    INTEGER                            :: l,iw,pid,unit_exit
+    LOGICAL                            :: delete_it,failure
+    TYPE(cp_logger_type), POINTER      :: logger
+    REAL(KIND=dp)                      :: r_timings
 #if defined(__HPM)
 #include "f_hpm.h"
 #endif
 
-!   ---------------------------------------------------------------------------
+    ! -------------------------------------------------------------------------
+
     ! look if we inherited a failure, more care is needed if so 
     ! i.e. the input is most likely not available
 
     failure=.FALSE.
     CALL cp_error_check(error,failure) 
 
-!   *** Clean up ***
+    ! Clean up
+
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
     CALL deallocate_spherical_harmonics()
     CALL deallocate_orbital_pointers()
     CALL deallocate_md_ftable()
 
-    ! write message passing performance info
+    ! Write message passing performance info
+
     IF (.NOT. failure) THEN
        CALL describe_mp_perf_env ( globenv%group,globenv%scr )
     ENDIF
@@ -739,7 +739,9 @@ SUBROUTINE cp2k_read(globenv,error)
     CALL rm_timer_env()
 
     IF (globenv%ionode) THEN
+
       iw = globenv%scr
+
       CALL m_datum(datx)
       CALL m_getcwd(cwd)
       CALL m_getlog(user_name)
@@ -754,32 +756,29 @@ SUBROUTINE cp2k_read(globenv,error)
       END IF
 
       ! Just a choice, do not print the final banner if there is a failure
+
       IF (globenv%ionode .AND. .NOT. failure) THEN
         WRITE (UNIT=iw,&
                FMT="(A,T55,A26,/,A,T51,A30,/,A,T51,A30,/,A,T71,I10)")&
-         "  **** **** ******  **  PROGRAM ENDED AT   ",ADJUSTR(datx),&
-         " ***** ** ***  *** **   PROGRAM RAN ON     ",ADJUSTR(host_name),&
-         " **    ****   ******    PROGRAM RAN BY     ",ADJUSTR(user_name),&
-         " ***** **    ** ** **   PROGRAM PROCESS ID ",pid
-        l = LEN_TRIM(cwd)
-        IF (l <= 38) THEN
-          WRITE (UNIT=iw,FMT="(A,T43,A38,/)")&
-            "  **** **  *******  **  PROGRAM STARTED IN ",ADJUSTR(cwd(1:l))
-        ELSE
-          WRITE (UNIT=iw,FMT="(A)")&
-            "  **** **  *******  **  PROGRAM STARTED IN "
-          WRITE (UNIT=iw,FMT="(T21,A60,/)") ADJUSTR(cwd)
-        END IF
+          "  **** **** ******  **  PROGRAM ENDED AT   ",ADJUSTR(datx),&
+          " ***** ** ***  *** **   PROGRAM RAN ON     ",ADJUSTR(host_name),&
+          " **    ****   ******    PROGRAM RAN BY     ",ADJUSTR(user_name),&
+          " ***** **    ** ** **   PROGRAM PROCESS ID ",pid
+        WRITE (UNIT=iw,FMT="(A,T44,A37)")&
+          "  **** **  *******  **  PROGRAM STARTED IN ",ADJUSTR(cwd(1:37))
+        DO l=38,LEN_TRIM(cwd),37
+          WRITE (UNIT=iw,FMT="(T44,A)") cwd(l:MIN(LEN_TRIM(cwd),l+36))
+        END DO
       END IF
 
     END IF
 
-!   *** Release message passing environment ***
+    ! Release message passing environment
 
     CALL cp_rm_default_logger()
 
   END SUBROUTINE cp2k_finalize
 
-! *****************************************************************************
+  ! ***************************************************************************
 
 END MODULE environment

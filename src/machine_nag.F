@@ -162,18 +162,21 @@ SUBROUTINE m_hostnm(hname)
   CALL gethostname(tmpname,len)
   hname=tmpname(1:len)
 END SUBROUTINE m_hostnm
-!******************************************************************************
-SUBROUTINE m_getcwd(curdir)
-    CHARACTER(len=*), INTENT(OUT)            :: curdir
 
-    INTEGER                                  :: len
-    CHARACTER(len=60)                        :: tmpdir
+  ! ***************************************************************************
 
-  len=60
-  CALL getcwd(tmpdir,len)
-  curdir=tmpdir(1:len)
-END SUBROUTINE m_getcwd
-!******************************************************************************
+  SUBROUTINE m_getcwd(cwd)
+
+    CHARACTER(LEN=*), INTENT(OUT) :: cwd
+
+    ! -------------------------------------------------------------------------
+
+    CALL getcwd(cwd)
+
+  END SUBROUTINE m_getcwd
+
+! *****************************************************************************
+
 SUBROUTINE m_chdir(dir,ierror)
     CHARACTER(len=*), INTENT(IN)             :: dir
     INTEGER, INTENT(OUT)                     :: ierror
