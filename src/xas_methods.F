@@ -326,9 +326,9 @@ CONTAINS
       IF(.NOT.xas_control%emission) THEN
         CALL stop_program(routineP,"CLS: emission is required") 
       END IF 
-      WRITE(UNIT=output_unit,FMT='(/,/,T10,A)') &
+      IF (output_unit>0) WRITE(UNIT=output_unit,FMT='(/,/,T10,A)') &
         "START Core Level Spectroscopy Calculation for the Emission Spectrum"
-      WRITE(UNIT=output_unit,FMT='(T10,A,/,A)')& 
+      IF (output_unit>0) WRITE(UNIT=output_unit,FMT='(T10,A,/,A)')& 
        "The core state is fully occupied and the homo is empty",&
        " (final state of the core hole decay). Only one SCF is needed (not one per atom)"
       skip_scf = .TRUE.
@@ -337,10 +337,10 @@ CONTAINS
 
       IF(converged .AND. .NOT. should_stop) THEN
 
-        WRITE(UNIT=output_unit,FMT='(/,T10,A,I6)') &
+        IF (output_unit>0) WRITE(UNIT=output_unit,FMT='(/,T10,A,I6)') &
               "SCF with empty homo converged "
       ELSE
-        WRITE(UNIT=output_unit,FMT='(/,T10,A,I6)') &
+        IF (output_unit>0) WRITE(UNIT=output_unit,FMT='(/,T10,A,I6)') &
               "SCF with empty homo NOT converged"
         GOTO 1000
       END IF
@@ -496,7 +496,7 @@ CONTAINS
       IF(converged) THEN
         CALL cls_calculate_spectrum(xas_control,xas_env,qs_env,iatom,iter,error=error)
       ELSE
-        WRITE(UNIT=output_unit,FMT='(/,/,T10,A,I6)') &
+        IF (output_unit>0) WRITE(UNIT=output_unit,FMT='(/,/,T10,A,I6)') &
               "SCF with core hole NOT converged for ATOM ", iatom
       END IF
 
