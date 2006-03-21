@@ -488,7 +488,7 @@ CONTAINS
        CALL stop_program ("coordinate_control","No atomic coordinates have been found")
     ENDIF
 
-    ! Fix element name for QS
+    ! Fix element name
     DO i = 1, topology%natoms
        id = INDEX(topology%atom_info%element(i),"_")-1
        IF ( id == -1 ) id = LEN_TRIM(topology%atom_info%element(i))

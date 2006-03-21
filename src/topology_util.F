@@ -3637,6 +3637,7 @@ CONTAINS
     found = .FALSE.
     failure = .FALSE.
     element_symbol = element_in
+    element_out = ""
     CALL uppercase(element_symbol)
     DO i=LBOUND(ptable,1),UBOUND(ptable,1)
        current_symbol = ptable(i)%symbol

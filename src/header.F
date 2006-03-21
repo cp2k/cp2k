@@ -58,7 +58,7 @@ CONTAINS
          "|                                                                          |",&
          "|   T.Laino, F.Mohamed, A.Laio, M. Parrinello                              |",&
          "|   An Efficient Real Space Multigrid QM/MM Electrostatic Coupling         |",&
-         "|   J. Chem. Th. Comp. Vol.1 (2005) pp.1176-1184                           |",&
+         "|   J. Chem. Th. Comp.  1(6) (2005) pp.1176-1184                           |",&
          "----------------------------------------------------------------------------"
          
 
