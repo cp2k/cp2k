@@ -125,9 +125,10 @@ MODULE scf_control_types
                               jacobi_threshold
      INTEGER               :: max_iter_lumos, max_diis
      INTEGER               :: max_scf,nrow_block,max_scf_aspc,&
-                              ncol_block,maxl,nkind, write_restart_each
+                              ncol_block,maxl,nkind, write_restart_each, &
+                              harris_max_scf
      LOGICAL               :: gradient_functional,gth_potential_present,&
-                              use_cholesky,use_ot
+                              use_cholesky,use_ot,fill_wf_history
      INTEGER               :: ref_count,id_nr
      INTEGER, DIMENSION(2) :: added_mos
   END TYPE scf_control_type
@@ -208,6 +209,8 @@ CONTAINS
        scf_control%write_restart_each=10
        scf_control%added_mos=0
        scf_control%max_scf_aspc = 1
+       scf_control%fill_wf_history = .FALSE.
+       scf_control%harris_max_scf = 1
 
        scf_control%outer_scf%have_scf=.FALSE.
        scf_control%outer_scf%max_scf=0
@@ -366,7 +369,8 @@ CONTAINS
 
     INTEGER, DIMENSION(:), POINTER           :: added_mos
     LOGICAL                                  :: explicit, failure
-    TYPE(section_vals_type), POINTER         :: outer_scf_section, scf_section
+    TYPE(section_vals_type), POINTER         :: outer_scf_section, scf_section, &
+                                                harris_section
 
     failure=.FALSE.
     CPPrecondition(ASSOCIATED(scf_control),cp_failure_level,routineP,error,failure)
@@ -460,6 +464,14 @@ CONTAINS
        ELSE
           scf_control%outer_scf%have_scf=.FALSE.
        ENDIF
+
+       harris_section => section_vals_get_subs_vals(force_env_section, &
+                         "DFT%QS%HARRIS", error=error)
+
+       CALL section_vals_val_get(harris_section, "fill_wf_history", &
+            l_val=scf_control%fill_wf_history, error=error)
+       CALL section_vals_val_get(harris_section, "harris_max_scf", &
+            i_val=scf_control%harris_max_scf, error=error)
 
     END IF
   END SUBROUTINE scf_c_read_parameters

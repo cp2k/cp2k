@@ -2829,7 +2829,7 @@ SUBROUTINE create_tddfpt_section(section,error)
     IF (.NOT. failure) THEN
        CALL section_create(section,name="HARRIS",&
             description="This section specifies the flags for the calculation of the harris functional",&
-            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            n_keywords=3, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
             error=error)
 
        NULLIFY(keyword)
@@ -2838,6 +2838,22 @@ SUBROUTINE create_tddfpt_section(section,error)
             description="Activates the harris functional.",&
             usage="ACTIVATE TRUE", required=.FALSE.,&
             default_l_val=.FALSE., lone_keyword_l_val=.TRUE., &
+            error=error)
+       CALL section_add_keyword(section, keyword, error=error)
+       CALL keyword_release(keyword, error=error)
+
+       CALL keyword_create(keyword, name="FILL_WF_HISTORY", &
+            description="Converges to self-consistency until the " //&
+            "WF-history is filled.", usage="FILL_WF_HISTORY TRUE", &
+            required=.FALSE., default_l_val=.FALSE., &
+            lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(section, keyword, error=error)
+       CALL keyword_release(keyword, error=error)
+
+       CALL keyword_create(keyword, name="HARRIS_MAX_SCF", &
+            description="The maximum number of SCF cycles after the wf_history is filled.", &
+            usage="HARRIS_MAX_SCF 1", required=.FALSE., &
+            default_i_val=1, lone_keyword_i_val=1, &
             error=error)
        CALL section_add_keyword(section, keyword, error=error)
        CALL keyword_release(keyword, error=error)

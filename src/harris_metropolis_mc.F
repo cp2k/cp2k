@@ -453,6 +453,8 @@ CONTAINS
 !!     - interMMC_interpolation: Interpolates between the Metropolis energy evaluations.
 !!     - always_accepted: Accept all MD approaches
 !!     - drld: Density restoring Langevin Dynamics
+!!     - multiple_scf: Performs a MD with varying number of SCF cycles.
+!!     - hmc_max_scf: Max SCF for DRLD & MULTIPLE_SCF
 !!     - lpsc: Langevin Dynamics phase space correction
 !!     - md_method: Indicates which method is used for the MD approach.
 !!     - mc_method: Indicates according to which method the MC criterion is evaluated.
@@ -480,7 +482,7 @@ CONTAINS
     INTEGER :: accept, atom, force_env_in_use, handle, i, iatom, ibead, &
       ikind, in_use, iparticles, istat, istep, isubsys, iter_level, iw, &
       max_scf_tmp, max_scf_aspc_tmp, mc_method, md_method, myi, nbeads, reject, &
-      wf_interpolation_method_tmp, drld_max_scf
+      wf_interpolation_method_tmp, hmc_max_scf
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     INTEGER, POINTER                         :: accepted_md, itimes, &
                                                 md_approach_nr
@@ -488,7 +490,7 @@ CONTAINS
     LOGICAL :: accepted, ext_temp, failure, ionode, qs_ener, rand_vel, &
       restore_velocities, restore_wf_past, semi_hybrid, start_qs, tot_energy, &
       use_harris_tmp, vel_scaling, soft_start, fill_wf_history, &
-      interMMC_extrapolation, lpsc, always_accepted, drld
+      interMMC_extrapolation, lpsc, always_accepted, drld, multiple_scf
     REAL(KIND=dp) :: acceptance_rate, akin, denom, e_kinetic, Econs, &
       Ekin_new, Ekin_prev, Epot_new, Epot_prev, eps_default_tmp, eps_scf_tmp, &
       mass, md_run_start_time, new_ldmc_energy, prev_ldmc_energy, prob, &
@@ -598,7 +600,8 @@ CONTAINS
     interMMC_extrapolation = simpar%MMC_extrapolation
     always_accepted = simpar%always_accept
     drld = simpar%drld
-    drld_max_scf = simpar%drld_max_scf
+    multiple_scf = simpar%multiple_scf
+    hmc_max_scf = simpar%hmc_max_scf
     lpsc = simpar%lpsc
     md_method = simpar%md_method
     mc_method = simpar%mc_method
@@ -810,7 +813,7 @@ CONTAINS
     CALL write_restart(md_env=md_env,globenv=globenv,force_env_section=force_env_section,&
               error=error)
 
-    IF ((.NOT. drld) .AND. (.NOT. always_accepted)) THEN
+    IF ((.NOT. drld) .AND. (.NOT. always_accepted) .AND. (.NOT. multiple_scf)) THEN
       ! Save the wavefunction history to be able to restore it in case the 
       ! first MD approach is rejected
       IF (restore_wf_past) THEN
@@ -848,7 +851,7 @@ CONTAINS
 
     istep = 1
     DO WHILE (istep < simpar%nsteps)
-       IF (.NOT. drld) THEN
+       IF ((.NOT. drld) .AND. (.NOT. multiple_scf) .AND. (.NOT. multiple_scf)) THEN
          ! previous energy
          !IF (accepted) THEN
          IF (qs_ener .AND. (globenv%prog_name_id == do_qs)) THEN
@@ -876,7 +879,7 @@ CONTAINS
          END IF
        END IF
 
-       IF ((.NOT. drld) .AND. (.NOT. always_accepted)) THEN
+       IF ((.NOT. drld) .AND. (.NOT. always_accepted) .AND. (.NOT. multiple_scf)) THEN
          IF (globenv%prog_name_id == do_kg) THEN
             Epot_prev = force_env_p(1)%force_env%kg_env%energy%total
             CALL compute_conserved_quantity(md_env=md_env, cons=Econs, epot=Epot_prev, ekin=Ekin_prev)
@@ -997,35 +1000,39 @@ CONTAINS
          END IF
        END IF
 
-       ! Compare energies
-       IF (qs_ener .AND. (globenv%prog_name_id == do_qs)) THEN
-          use_harris_tmp = qs_env%use_harris
-          max_scf_tmp = qs_env%scf_control%max_scf
-          max_scf_aspc_tmp = qs_env%scf_control%max_scf_aspc
-          qs_env%use_harris = .FALSE.
-          qs_env%scf_control%max_scf = 1000
-          qs_env%scf_control%max_scf_aspc = 1000
-          CALL force_env_calc_energy_force(force_env=force_env_p(1)%force_env, &
-               calc_force=.FALSE., error=error)
-          qs_env%use_harris = use_harris_tmp
-          qs_env%scf_control%max_scf = max_scf_tmp
-          qs_env%scf_control%max_scf_aspc = max_scf_aspc_tmp
-       ELSE
-          IF ((drld) .AND. (globenv%prog_name_id == do_qs)) THEN
+       IF (.NOT. multiple_scf) THEN
+         ! Compare energies
+         IF (qs_ener .AND. (globenv%prog_name_id == do_qs)) THEN
+            use_harris_tmp = qs_env%use_harris
             max_scf_tmp = qs_env%scf_control%max_scf
             max_scf_aspc_tmp = qs_env%scf_control%max_scf_aspc
-            qs_env%scf_control%max_scf = drld_max_scf
-            qs_env%scf_control%max_scf_aspc = drld_max_scf
-          END IF
-          CALL force_env_calc_energy_force(force_env=force_env_p(1)%force_env, &
-               calc_force=.FALSE., error=error)
-          IF ((drld) .AND. (globenv%prog_name_id == do_qs)) THEN
+            qs_env%use_harris = .FALSE.
+            qs_env%scf_control%max_scf = 1000
+            qs_env%scf_control%max_scf_aspc = 1000
+            CALL force_env_calc_energy_force(force_env=force_env_p(1)%force_env, &
+                 calc_force=.FALSE., error=error)
+            qs_env%use_harris = use_harris_tmp
             qs_env%scf_control%max_scf = max_scf_tmp
             qs_env%scf_control%max_scf_aspc = max_scf_aspc_tmp
-          END IF
+         ELSE
+            !IF (.NOT. multiple_scf) THEN
+              IF ((drld) .AND. (globenv%prog_name_id == do_qs)) THEN
+                max_scf_tmp = qs_env%scf_control%max_scf
+                max_scf_aspc_tmp = qs_env%scf_control%max_scf_aspc
+                qs_env%scf_control%max_scf = hmc_max_scf
+                qs_env%scf_control%max_scf_aspc = hmc_max_scf
+              END IF
+              CALL force_env_calc_energy_force(force_env=force_env_p(1)%force_env, &
+                   calc_force=.FALSE., error=error)
+              IF ((drld) .AND. (globenv%prog_name_id == do_qs)) THEN
+                qs_env%scf_control%max_scf = max_scf_tmp
+                qs_env%scf_control%max_scf_aspc = max_scf_aspc_tmp
+              END IF
+            !END IF
+         END IF
        END IF
 
-       IF ((.NOT. drld) .AND. (.NOT. always_accepted)) THEN
+       IF ((.NOT. drld) .AND. (.NOT. always_accepted) .AND. (.NOT. multiple_scf)) THEN
          ! new energy
          IF (globenv%prog_name_id == do_kg) THEN
             Epot_new = force_env_p(1)%force_env%kg_env%energy%total
@@ -1075,7 +1082,7 @@ CONTAINS
          END IF
        END IF
 
-       IF (always_accepted .OR. drld) THEN
+       IF (always_accepted .OR. drld .OR. multiple_scf) THEN
          accepted = .TRUE.
        ELSE
          ! Metropolis Monte Carlo acceptance criterion
@@ -1185,7 +1192,7 @@ CONTAINS
          END IF
        END IF
 
-       IF (.NOT. drld) THEN
+       IF ((.NOT. drld) .AND. (.NOT. multiple_scf)) THEN
          ! New maxwell distributed momenta
          IF (rand_vel .OR. (semi_hybrid .AND. (.NOT. accepted))) THEN         
             IF (vel_scaling) THEN
@@ -1288,28 +1295,30 @@ CONTAINS
        IF (accepted) THEN
           istep = istep + simpar%ld_steps
 
-          IF ((.NOT. drld) .AND. (.NOT. always_accepted)) THEN
-            IF (restore_wf_past) THEN
-               CALL wfi_release(wf_history=tmp_wf_history, error=error)
-               CALL wfi_duplicate_history(input_wf_history=qs_env%wf_history, &
-                    output_wf_history=tmp_wf_history, &
-                    qs_env=qs_env, error=error)
+          IF (.NOT. multiple_scf) THEN
+            IF ((.NOT. drld) .AND. (.NOT. always_accepted)) THEN
+              IF (restore_wf_past) THEN
+                 CALL wfi_release(wf_history=tmp_wf_history, error=error)
+                 CALL wfi_duplicate_history(input_wf_history=qs_env%wf_history, &
+                      output_wf_history=tmp_wf_history, &
+                      qs_env=qs_env, error=error)
+              END IF
             END IF
-          END IF
-          ! If accepted, save velocities and positions
-          IF (restore_velocities) THEN
-             DO isubsys = 1,SIZE(subsys)
-                DO iparticles = 1,particles%n_els
-                   tmp_particle_set(iparticles)%r(1:3) = particles%els(iparticles)%r(1:3)
-                   tmp_particle_set(iparticles)%v(1:3) = particles%els(iparticles)%v(1:3)
-                END DO
-             END DO
-          ELSE
-             DO isubsys = 1,SIZE(subsys)
-                DO iparticles = 1,particles%n_els
-                   tmp_particle_set(iparticles)%r(1:3) = particles%els(iparticles)%r(1:3)
-                END DO
-             END DO
+            ! If accepted, save velocities and positions
+            IF (restore_velocities) THEN
+               DO isubsys = 1,SIZE(subsys)
+                  DO iparticles = 1,particles%n_els
+                     tmp_particle_set(iparticles)%r(1:3) = particles%els(iparticles)%r(1:3)
+                     tmp_particle_set(iparticles)%v(1:3) = particles%els(iparticles)%v(1:3)
+                  END DO
+               END DO
+            ELSE
+               DO isubsys = 1,SIZE(subsys)
+                  DO iparticles = 1,particles%n_els
+                     tmp_particle_set(iparticles)%r(1:3) = particles%els(iparticles)%r(1:3)
+                  END DO
+               END DO
+            END IF
           END IF
  
           CALL write_restart(md_env=md_env,globenv=globenv,force_env_section=force_env_section,&
@@ -1512,12 +1521,25 @@ CONTAINS
             END IF
           END IF
         END IF
+        IF (simpar%multiple_scf) THEN
+          IF (simpar%ld_steps == iter) THEN
+            qs_env%scf_control%max_scf = simpar%hmc_max_scf
+            qs_env%scf_control%max_scf_aspc = simpar%hmc_max_scf
+          END IF
+        END IF
       END IF
       itimes = itimes + 1
       CALL cp_iterate(logger%iter_info, last=.FALSE., &
                       iter_nr=itimes, error=error)
 
       CALL velocity_verlet(md_env,error=error)
+
+      IF (simpar%multiple_scf) THEN
+        IF (simpar%ld_steps == iter) THEN
+          qs_env%scf_control%max_scf = max_scf_tmp
+          qs_env%scf_control%max_scf_aspc = max_scf_aspc_tmp 
+        END IF
+      END IF
 
       IF (simpar%lpsc) THEN
         IF (iter==1) THEN

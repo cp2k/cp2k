@@ -1005,6 +1005,11 @@ SUBROUTINE wfi_extrapolate(globenv,wf_history, qs_env, dt, extrapolation_method_
         !        target_matrix=rho%rho_ao(ispin)%matrix, error=error)
         !END DO
 
+        IF ((nvec >= wf_history%memory_depth) .AND. (qs_env%use_harris) &
+             .AND. (qs_env%scf_control%fill_wf_history)) THEN
+          qs_env%scf_control%max_scf = qs_env%scf_control%harris_max_scf
+        END IF
+
         DO ispin=1,SIZE(t0_state%rho_frozen%rho_ao)
            CALL transfer_matrix(source_matrix=t0_state%rho_frozen%rho_ao(ispin)%matrix,&
                 target_matrix=rho%rho_ao(ispin)%matrix, error=error)
@@ -1018,6 +1023,10 @@ SUBROUTINE wfi_extrapolate(globenv,wf_history, qs_env, dt, extrapolation_method_
      CASE(wfi_use_prev_rho_r_method_nr)
         t0_state => wfi_get_snapshot(wf_history, index=1, error=error)
         CPPrecondition(ASSOCIATED(t0_state%rho_ao),cp_failure_level,routineP,error,failure)
+        IF ((nvec >= wf_history%memory_depth) .AND. (qs_env%use_harris) &
+             .AND. (qs_env%scf_control%fill_wf_history)) THEN
+          qs_env%scf_control%max_scf = qs_env%scf_control%harris_max_scf
+        END IF
         DO ispin=1,SIZE(t0_state%rho_ao)
            CALL transfer_matrix(source_matrix=t0_state%rho_ao(ispin)%matrix,&
                 target_matrix=rho%rho_ao(ispin)%matrix, error=error)
@@ -1032,7 +1041,10 @@ SUBROUTINE wfi_extrapolate(globenv,wf_history, qs_env, dt, extrapolation_method_
         ! does nothing
      CASE(wfi_use_prev_wf_method_nr)
         my_orthogonal_wf=.TRUE.
-
+        IF ((nvec >= wf_history%memory_depth) .AND. (qs_env%use_harris) &
+             .AND. (qs_env%scf_control%fill_wf_history)) THEN
+          qs_env%scf_control%max_scf = qs_env%scf_control%harris_max_scf
+        END IF
         IF(my_kg_gpw) THEN
            CPPrecondition(PRESENT(kg_fm_mol_set),cp_failure_level,routineP,error,failure)
            CALL kg_gpw_prev_wf(kg_fm_mol_set,rho%rho_ao,matrix_s,error=error)
@@ -1059,6 +1071,10 @@ SUBROUTINE wfi_extrapolate(globenv,wf_history, qs_env, dt, extrapolation_method_
      CASE(wfi_use_prev_p_method_nr)
         t0_state => wfi_get_snapshot(wf_history, index=1, error=error)
         CPPrecondition(ASSOCIATED(t0_state%rho_ao),cp_failure_level,routineP,error,failure)
+        IF ((nvec >= wf_history%memory_depth) .AND. (qs_env%use_harris) &
+             .AND. (qs_env%scf_control%fill_wf_history)) THEN
+          qs_env%scf_control%max_scf = qs_env%scf_control%harris_max_scf
+        END IF
         DO ispin=1,SIZE(t0_state%rho_ao)
            CALL transfer_matrix(source_matrix=t0_state%rho_ao(ispin)%matrix,&
                 target_matrix=rho%rho_ao(ispin)%matrix, error=error)
@@ -1090,6 +1106,10 @@ SUBROUTINE wfi_extrapolate(globenv,wf_history, qs_env, dt, extrapolation_method_
         ELSE IF (.not.failure) THEN
            CPPrecondition(ASSOCIATED(t0_state%wf),cp_warning_level,routineP,error,failure)
            CPPrecondition(ASSOCIATED(t1_state%wf),cp_warning_level,routineP,error,failure)           
+        END IF
+        IF ((nvec >= wf_history%memory_depth) .AND. (qs_env%use_harris) &
+             .AND. (qs_env%scf_control%fill_wf_history)) THEN
+          qs_env%scf_control%max_scf = qs_env%scf_control%harris_max_scf
         END IF
         IF (.NOT.failure) THEN
            my_orthogonal_wf=.TRUE.
@@ -1142,6 +1162,10 @@ SUBROUTINE wfi_extrapolate(globenv,wf_history, qs_env, dt, extrapolation_method_
            CPPrecondition(ASSOCIATED(t0_state%rho_ao),cp_warning_level,routineP,error,failure)
            CPPrecondition(ASSOCIATED(t1_state%rho_ao),cp_warning_level,routineP,error,failure)           
         END IF
+        IF ((nvec >= wf_history%memory_depth) .AND. (qs_env%use_harris) &
+             .AND. (qs_env%scf_control%fill_wf_history)) THEN
+          qs_env%scf_control%max_scf = qs_env%scf_control%harris_max_scf
+        END IF
         IF (.not.failure) THEN
           t0=0.0_dp
           t1=t1_state%dt
@@ -1181,6 +1205,10 @@ SUBROUTINE wfi_extrapolate(globenv,wf_history, qs_env, dt, extrapolation_method_
            CPPrecondition(ASSOCIATED(t1_state%wf),cp_warning_level,routineP,error,failure)           
            CPPrecondition(ASSOCIATED(t0_state%overlap),cp_warning_level,routineP,error,failure)
            CPPrecondition(ASSOCIATED(t1_state%overlap),cp_warning_level,routineP,error,failure)           
+        END IF
+        IF ((nvec >= wf_history%memory_depth) .AND. (qs_env%use_harris) &
+             .AND. (qs_env%scf_control%fill_wf_history)) THEN
+          qs_env%scf_control%max_scf = qs_env%scf_control%harris_max_scf
         END IF
         IF (.not.failure) THEN
            my_orthogonal_wf=.TRUE.
@@ -1225,6 +1253,10 @@ SUBROUTINE wfi_extrapolate(globenv,wf_history, qs_env, dt, extrapolation_method_
         ! figure out the actual number of vectors to use in the extrapolation:
         nvec = MIN(wf_history%memory_depth, wf_history%snapshot_count)
         CPPrecondition(nvec .GT. 0,cp_failure_level,routineP,error,failure)
+        IF ((nvec >= wf_history%memory_depth) .AND. (qs_env%use_harris) &
+             .AND. (qs_env%scf_control%fill_wf_history)) THEN
+          qs_env%scf_control%max_scf = qs_env%scf_control%harris_max_scf
+        END IF
         my_orthogonal_wf=.TRUE.
         IF(my_kg_gpw) THEN
            CPPrecondition(PRESENT(kg_fm_mol_set),cp_failure_level,routineP,error,failure)
@@ -1303,7 +1335,11 @@ SUBROUTINE wfi_extrapolate(globenv,wf_history, qs_env, dt, extrapolation_method_
       ! Stable relaxation parameter of the corrector (i.e. Hartree damping)
       qs_env%scf_control%p_mix = REAL(nvec,KIND=dp)/REAL(2*nvec - 1,KIND=dp)
       IF (nvec >= wf_history%memory_depth) THEN
-        qs_env%scf_control%max_scf = qs_env%scf_control%max_scf_aspc
+        IF ((qs_env%use_harris) .AND. (qs_env%scf_control%fill_wf_history)) THEN
+          qs_env%scf_control%max_scf = qs_env%scf_control%harris_max_scf
+        ELSE
+          qs_env%scf_control%max_scf = qs_env%scf_control%max_scf_aspc
+        END IF
       END IF
       my_orthogonal_wf = .TRUE.
       CPPrecondition(.NOT.my_kg_gpw,cp_failure_level,routineP,error,failure)

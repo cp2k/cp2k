@@ -138,7 +138,8 @@ MODULE md
      LOGICAL        :: mmc_extrapolation
      LOGICAL        :: always_accept
      LOGICAL        :: drld
-     INTEGER        :: drld_max_scf
+     LOGICAL        :: multiple_scf
+     INTEGER        :: hmc_max_scf
      LOGICAL        :: lpsc
      INTEGER        :: md_method
      INTEGER        :: mc_method
@@ -247,8 +248,10 @@ CONTAINS
                simpar%always_accept
           WRITE ( iw, '( A,T75,L6,A )' ) ' HMC| DRLD ', &
                simpar%drld
-          WRITE ( iw, '( A,T71,I10 )' ) ' HMC| DRLD MAX_SCF ', &
-               simpar%drld_max_scf
+          WRITE ( iw, '( A,T75,L6,A )' ) ' HMC| MULTIPLE_SCF ', &
+               simpar%multiple_scf
+          WRITE ( iw, '( A,T71,I10 )' ) ' HMC| HMC_MAX_SCF ', &
+               simpar%hmc_max_scf
           WRITE ( iw, '( A,T75,L6,A )' ) ' HMC| LPSC ', &
                simpar%lpsc
 
@@ -512,8 +515,10 @@ CONTAINS
                l_val=simpar%always_accept, error=error)
           CALL section_vals_val_get(tmp_section, "DRLD", &
                l_val=simpar%drld, error=error)
-          CALL section_vals_val_get(tmp_section, "DRLD_MAX_SCF", &
-               i_val=simpar%drld_max_scf, error=error)
+          CALL section_vals_val_get(tmp_section, "MULTIPLE_SCF", &
+               l_val=simpar%multiple_scf, error=error)
+          CALL section_vals_val_get(tmp_section, "HMC_MAX_SCF", &
+               i_val=simpar%hmc_max_scf, error=error)
           CALL section_vals_val_get(tmp_section, "LPSC", &
                l_val=simpar%lpsc, error=error)
 
@@ -607,7 +612,8 @@ CONTAINS
     simpar%MMC_extrapolation = .FALSE.
     simpar%always_accept = .FALSE.
     simpar%drld = .FALSE.
-    simpar%drld_max_scf = 1000
+    simpar%multiple_scf = .FALSE.
+    simpar%hmc_max_scf = 1000
     simpar%lpsc = .FALSE.
     simpar%md_method = Harris_MD_method
     simpar%mc_method = Harris_MC_method

@@ -1780,7 +1780,7 @@ END SUBROUTINE create_nose_section
        CALL section_create(section,name="HMC",&
             description="This section specifies the parameters for the "//&
                         "Hybrid Metropolis Monte Carlo simulation",&
-            n_keywords=23, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=24, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
             error=error)
 
        NULLIFY(keyword)
@@ -1948,10 +1948,19 @@ END SUBROUTINE create_nose_section
        CALL section_add_keyword(section, keyword, error=error)
        CALL keyword_release(keyword, error=error)
 
-       CALL keyword_create(keyword, name="DRLD_MAX_SCF", &
-            description="MAX_SCF for DRLD", usage="DRLD_MAX_SCF 3", &
-            required=.FALSE., default_i_val=1000, &
-            lone_keyword_i_val=100, error=error)
+       CALL keyword_create(keyword, name="MULTIPLE_SCF", &
+            description="Multiple SCF cycles: Every LD_STEPS HMC_MAX_SCF "//&
+            "SCF-iterations are performed, instead of MAX_SCF.", &
+            usage="TRUE", required=.FALSE., default_l_val=.FALSE., &
+            lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(section, keyword, error)
+       CALL keyword_release(keyword, error=error)
+
+       CALL keyword_create(keyword, name="HMC_MAX_SCF", &
+            variants=(/"DRLD_MAX_SCF"/), &
+            description="MAX_SCF for DRLD & MULTIPLE_SCF", &
+            usage="HMC_MAX_SCF 2", required=.FALSE., &
+            default_i_val=1000, lone_keyword_i_val=100, error=error)
        CALL section_add_keyword(section, keyword, error=error)
        CALL keyword_release(keyword, error=error)
 
