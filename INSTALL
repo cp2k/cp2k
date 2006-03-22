@@ -6,7 +6,7 @@ How to compile CP2K code
 
     see http://cp2k.berlios.de/
     The preferred method is to download it from the CVS
-    (just use enter if a password is asked for).
+    (just use <Enter> if a password is asked for).
 
     cd $HOME
     touch $HOME/.cvspass
@@ -15,22 +15,24 @@ How to compile CP2K code
 
     if cvs is not installed on your system get it at http://www.nongnu.org/cvs/
 
- 2a) gnu make should be on your system (gmake or make on linux), 
+ 2a) gnu make should be on your system (gmake or make on linux) and used for the build, 
      go to http://www.gnu.org/software/make/make.html 
      download from http://ftp.gnu.org/pub/gnu/make/
 
- 2b) a f90 compiler, BLAS and LAPACK should be installed
+ 2b) an f95 compiler, BLAS and LAPACK should be installed
+     (use the latest versions available, download all patches)
      http://www.netlib.org/blas/
-     http://www.netlib.org/lapack/
+     http://www.netlib.org/lapack/ (see also http://www.netlib.org/lapack-dev/)
      http://math-atlas.sourceforge.net/
      using vendor provided libraries can make a very significant difference (e.g. mkl, essl)
 
- 2c) MPI and SCALAPACK might be needed for parallel runs
+ 2c) MPI and SCALAPACK are needed for parallel runs
+     (use the latest versions available, download all patches)
      http://www-unix.mcs.anl.gov/mpi/mpich/
-     http://www.netlib.org/scalapack/
+     http://www.netlib.org/scalapack/ (see also http://www.netlib.org/lapack-dev/)
 
- 2d) fftw could be an advantage but is not needed
-     the current version of the code needs FFTW 2.X
+ 2d) fftw can be used to improve FFT speed (depending on architecture)
+     the current version of the code works with FFTW 2.X or FFTW 3.X (use -D__FFTW2 *or* -D__FFW3)
      http://www.fftw.org/
 
  3) to compile the code:
@@ -46,8 +48,8 @@ How to compile CP2K code
      - ~/cp2k/arch/*.* files have paths to libraries hard-wired 
         (e.g. blass, lapack, ...) so these will most likely need modification.
 
-     -  be sure to remove __FFTW if you don not have the library installed. __FFTSG 
-        is always there. 
+     -  be sure to remove __FFTWx if you don not have the library installed. __FFTSG 
+        should always there. 
 
      - if ~/cp2k/tools/get_arch_code returns an unknown for the architecture
        try to have it return the closest possible match.
