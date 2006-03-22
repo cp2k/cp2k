@@ -52,7 +52,9 @@
    <hr/>
    <h2>Detailed description of all sections and keywords</h2>
     <h4>Last update: <xsl:value-of select="COMPILE_DATE"/></h4>
-    <xsl:call-template name="describe_sections"/>
+    <xsl:call-template name="describe_sections">
+     <xsl:with-param name="path" select="''"/>
+    </xsl:call-template>
    <hr/>
    Back to the <a href="http://cp2k.berlios.de">CP2K home page</a>
   </body>
@@ -100,8 +102,10 @@
 </xsl:template>
 
 <xsl:template name="describe_sections">
+ <xsl:param name="path"/>
  <xsl:for-each select="SECTION">
   <xsl:sort select="NAME"/>
+  <xsl:variable name="local_path" select="concat($path,'/',string(NAME))"/>
   <h3><a href="#sec_ind_{generate-id(NAME)}" id="sec_des_{generate-id(NAME)}">Section &amp;<xsl:value-of select="NAME"/></a></h3>
   <xsl:if test="string-length(DESCRIPTION) > 0">
    <ul class="none">
@@ -112,6 +116,14 @@
     </li>
    </ul>
   </xsl:if>
+  <ul class="none">
+   <li>
+    Section path:
+    <big class="uctt">
+     <xsl:value-of select="$local_path"/>
+    </big>
+   </li>
+  </ul>
   <xsl:if test="count(SECTION_PARAMETERS) > 0">
    <xsl:call-template name="describe_keywords">
     <xsl:with-param name="element" select="SECTION_PARAMETERS"/>
@@ -126,11 +138,13 @@
    <ul class="none">
     <li>
      <h3>Keywords:</h3>
-     <xsl:call-template name="describe_keywords"></xsl:call-template>
+     <xsl:call-template name="describe_keywords"/>
     </li>
    </ul>
   </xsl:if>
-  <xsl:call-template name="describe_sections"></xsl:call-template>
+  <xsl:call-template name="describe_sections">
+   <xsl:with-param name="path" select="$local_path"/>
+  </xsl:call-template>
  </xsl:for-each>
 </xsl:template>
 
