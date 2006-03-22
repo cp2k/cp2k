@@ -583,8 +583,10 @@ if [[ ${leakcheck} == "YES" ]]; then
    echo "There are ${n_leaks} leaks today " >> ${memory_summary}
    echo "-------------------------------------------------------" >>  ${memory_summary}
    cat  ${memory_description_file} >>  ${memory_summary}
-   echo "----- changelog diff file ------" >>  ${memory_summary}
-   cat ${changelog_diff} >> ${memory_summary}
+   if [[ -f ${changelog_diff} ]]; then
+      echo "----- changelog diff file ------" >>  ${memory_summary}
+      cat ${changelog_diff} >> ${memory_summary}
+   fi 
    echo "GREPME ${n_runtime_error} ${n_wrong_results} ${n_correct} ${n_new} ${n_tests} ${n_leaks}"
 fi
 
