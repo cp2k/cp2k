@@ -1342,7 +1342,7 @@ CONTAINS
        CALL keyword_create(keyword, name="MOL_CHECK",&
             description="Check molecules have the same number of atom and names.",&
             usage="MOL_CHECK logical",&
-            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+            default_l_val=.TRUE.,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -1373,12 +1373,16 @@ CONTAINS
  
        CALL keyword_create(keyword, name="CONNECTIVITY",&
             variants=(/ "CONNECTI"/),&
-            description="Set up the way to determine connectivities."// &
-            "Default generates topology",&
-            usage="CONNECTIVITY (PSF||GENERATE||OFF)", &
-            enum_c_vals=s2a("PSF","GENERATE","OFF","MOL_PSF"),&
+            description="Ways to determine and generate a molecules. "// &
+            "Default is to use GENERATE",&
+            usage="CONNECTIVITY (PSF||GENERATE||OFF||MOL_SET)", &
+            enum_c_vals=s2a("PSF","GENERATE","OFF","MOL_SET"),&
             enum_i_vals=(/do_conn_psf,do_conn_generate,&
-                          do_conn_off,do_conn_mol_psf/),&
+                          do_conn_off,do_conn_mol_set/),&
+            enum_desc=s2a("Use a PSF file for you system to determine molecules.",&
+                          "Use a simple distance criteria. (Look at keyword BONDPARM)",&
+                          "Do not generate molecules. (Use for QS or ill defined systems)",&
+                          "Use multiple PSF (for now...) files to generate the whole sytem."),&
             default_i_val=do_conn_generate,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -1447,7 +1451,7 @@ CONTAINS
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
        NULLIFY(subsection)
        CALL section_create(subsection,name="MOL_SET",&
-            description="MOL_SET section.",&
+            description="Molecule section. Right now only works with PSF.",&
             n_keywords=2, n_subsections=0, repeats=.TRUE., required=.FALSE.,&
             error=error)
 
@@ -1463,6 +1467,16 @@ CONTAINS
             type_of_var=lchar_t,error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+
+!       CALL keyword_create(keyword, name="FORMAT",&
+!            description="Specifies the format.",&
+!            usage="FORMAT (PSF|PRMTOP)",&
+!            default_i_val=read_psf,&
+!            enum_c_vals=output_name_types,&
+!            enum_i_vals=output_name_index,&
+!            error=error)
+!       CALL section_add_keyword(print_key,keyword,error=error)
+!       CALL keyword_release(keyword,error=error)    
 
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)

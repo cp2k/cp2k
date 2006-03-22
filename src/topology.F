@@ -29,7 +29,7 @@ MODULE topology
   USE input_constants,                 ONLY: do_conn_generate,&
                                              do_conn_off,&
                                              do_conn_psf,&
-                                             do_conn_mol_psf,&
+                                             do_conn_mol_set,&
                                              do_coord_pdb,&
                                              do_coord_xyz
   USE input_section_types,             ONLY: section_vals_get,&
@@ -338,7 +338,7 @@ CONTAINS
     ! 2. Read in or generate the connectivity information any way we can 
     !-----------------------------------------------------------------------------
     SELECT CASE (topology%conn_type)
-    CASE (do_conn_mol_psf)
+    CASE (do_conn_mol_set)
        CALL pre_read_topology_psf(topology,subsys_section,error)
        section => section_vals_get_subs_vals(globenv%input_file,&
                   "FORCE_EVAL%SUBSYS%TOPOLOGY%MOL_SET",error=error)
