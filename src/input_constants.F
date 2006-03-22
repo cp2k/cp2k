@@ -452,11 +452,13 @@ MODULE input_constants
 
   ! outer scf types
   INTEGER, PARAMETER, PUBLIC :: outer_scf_ddapc_constraint=123, &
-                                outer_scf_s2_constraint=124
+                                outer_scf_s2_constraint=124, &
+                                outer_scf_none=125
 
   ! outer scf optimizers
   INTEGER, PARAMETER, PUBLIC :: outer_scf_optimizer_sd=1001, &
-                                outer_scf_optimizer_diis=1002
+                                outer_scf_optimizer_diis=1002, &
+                                outer_scf_optimizer_none=1003
 
   ! s2 restraint forms
   INTEGER, PARAMETER, PUBLIC :: do_s2_restraint=872, do_s2_constraint=873

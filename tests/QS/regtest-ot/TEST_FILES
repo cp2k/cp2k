@@ -10,3 +10,5 @@ C2H4.inp           1
 He2_ddapc_constraint.inp 1
 He2_ddapc_constraint-2.inp 1
 He2_ddapc_constraint-3.inp 1
+# outer scf loop none
+He2_none.inp

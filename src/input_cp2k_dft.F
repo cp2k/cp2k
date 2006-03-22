@@ -1296,16 +1296,14 @@ SUBROUTINE create_s2_restraint_section(section,error)
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineN = 'create_s2_restraint_section', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_s2_restraint_section', &
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-    TYPE(section_type), POINTER              :: print_key
 
     failure=.FALSE.
-    NULLIFY(keyword, print_key)
+    NULLIFY(keyword)
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
 
@@ -2360,11 +2358,12 @@ SUBROUTINE create_tddfpt_section(section,error)
        CALL keyword_create(keyword, name="TYPE",&
             description="Specifies which kind of outer scf should be employed",&
             usage="TYPE DDAPC_CONSTRAINT ",&
-            default_i_val=outer_scf_ddapc_constraint,&
-            enum_c_vals=s2a( "DDAPC_CONSTRAINT", "S2_CONSTRAINT" ),&
+            default_i_val=outer_scf_none,&
+            enum_c_vals=s2a( "DDAPC_CONSTRAINT", "S2_CONSTRAINT", "NONE" ),&
             enum_desc=s2a("Enforce a constraint on the DDAPC, requires the corresponding section", &
-                          "Enforce a constraint on the S2, requires the corresponding section"),&
-            enum_i_vals=(/outer_scf_ddapc_constraint,outer_scf_s2_constraint/),&
+                          "Enforce a constraint on the S2, requires the corresponding section", &
+                          "Do nothing in the outer loop, useful for resetting the inner loop,"),&
+            enum_i_vals=(/outer_scf_ddapc_constraint,outer_scf_s2_constraint,outer_scf_none/),&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -2372,11 +2371,12 @@ SUBROUTINE create_tddfpt_section(section,error)
        CALL keyword_create(keyword, name="OPTIMIZER",&
             description="Method used to bring the outer loop to a stationary point",&
             usage="OPTIMIZER SD",&
-            default_i_val=outer_scf_optimizer_sd,&
-            enum_c_vals=s2a("SD","DIIS"),&
+            default_i_val=outer_scf_optimizer_none,&
+            enum_c_vals=s2a("SD","DIIS","NONE"),&
             enum_desc=s2a("Takes steps in the direction of the gradient, multiplied by step_size", &
-                          "Uses a Direct Inversion in the Iterative Subspace method"),&
-            enum_i_vals=(/outer_scf_optimizer_sd,outer_scf_optimizer_diis/),&
+                          "Uses a Direct Inversion in the Iterative Subspace method", &
+                          "Do nothing, useful only with the none type"),&
+            enum_i_vals=(/outer_scf_optimizer_sd,outer_scf_optimizer_diis,outer_scf_optimizer_none/),&
             error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

@@ -22,14 +22,16 @@
 
 MODULE qs_outer_scf
   USE cp_control_types,                ONLY: ddapc_restraint_type,&
-                                             s2_restraint_type,&
-                                             dft_control_type
+                                             dft_control_type,&
+                                             s2_restraint_type
   USE input_constants,                 ONLY: do_ddapc_constraint,&
                                              do_s2_constraint,&
                                              outer_scf_ddapc_constraint,&
-                                             outer_scf_s2_constraint,&
+                                             outer_scf_none,&
                                              outer_scf_optimizer_diis,&
-                                             outer_scf_optimizer_sd
+                                             outer_scf_optimizer_none,&
+                                             outer_scf_optimizer_sd,&
+                                             outer_scf_s2_constraint
   USE kinds,                           ONLY: dp
   USE mathlib,                         ONLY: diamat_all
   USE qs_energy_types,                 ONLY: qs_energy_type
@@ -83,6 +85,8 @@ FUNCTION outer_loop_variables_count(scf_control,error) RESULT(res)
          res=1
     CASE (outer_scf_s2_constraint)
          res=1
+    CASE (outer_scf_none) ! just needed to communicate the gradient criterium
+         res=1
     CASE DEFAULT
          res=0
     END SELECT
@@ -118,15 +122,16 @@ SUBROUTINE outer_loop_gradient(qs_env, scf_env, error)
     INTEGER                                  :: handle, ihistory
     LOGICAL                                  :: failure, is_constraint
     TYPE(ddapc_restraint_type), POINTER      :: ddapc_restraint_control
-    TYPE(s2_restraint_type), POINTER         :: s2_restraint_control
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(qs_energy_type), POINTER            :: energy
+    TYPE(s2_restraint_type), POINTER         :: s2_restraint_control
     TYPE(scf_control_type), POINTER          :: scf_control
 
     CALL timeset(routineN,handle)
     failure = .FALSE.
 
-    CALL get_qs_env(qs_env=qs_env,scf_control=scf_control, dft_control=dft_control,energy=energy)
+    CALL get_qs_env(qs_env=qs_env,scf_control=scf_control, &
+                    dft_control=dft_control,energy=energy)
     CPPrecondition(scf_control%outer_scf%have_scf,cp_failure_level,routineP,error,failure)
 
     ihistory=scf_env%outer_scf%iter_count
@@ -135,6 +140,10 @@ SUBROUTINE outer_loop_gradient(qs_env, scf_env, error)
     scf_env%outer_scf%energy(ihistory)=energy%total
 
     SELECT CASE(scf_control%outer_scf%type)
+    CASE (outer_scf_none)
+       ! just pass the inner loop scf criterium to the outer loop one
+       scf_env%outer_scf%variables(1,ihistory)=scf_env%iter_delta
+       scf_env%outer_scf%gradient(1,ihistory)=scf_env%iter_delta
     CASE (outer_scf_ddapc_constraint)
        CPPrecondition(dft_control%qs_control%ddapc_restraint,cp_failure_level,routineP,error,failure)
        ddapc_restraint_control=>dft_control%qs_control%ddapc_restraint_control
@@ -201,6 +210,8 @@ SUBROUTINE outer_loop_optimize(scf_env, scf_control, error)
     ihistory=scf_env%outer_scf%iter_count
 
     SELECT CASE(scf_control%outer_scf%optimizer)
+    CASE(outer_scf_optimizer_none)
+      scf_env%outer_scf%variables(:,ihistory+1)=scf_env%outer_scf%variables(:,ihistory)
     CASE(outer_scf_optimizer_sd) 
       ! Notice that we are just trying to find a stationary point
       ! e.g. the ddpac_constraint, one maximizes the function, so the stepsize might have
@@ -286,8 +297,8 @@ SUBROUTINE outer_loop_update_qs_env(qs_env, scf_env, error)
     INTEGER                                  :: handle, ihistory
     LOGICAL                                  :: failure
     TYPE(ddapc_restraint_type), POINTER      :: ddapc_restraint_control
-    TYPE(s2_restraint_type), POINTER         :: s2_restraint_control
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(s2_restraint_type), POINTER         :: s2_restraint_control
     TYPE(scf_control_type), POINTER          :: scf_control
 
     failure=.FALSE.
@@ -298,6 +309,8 @@ SUBROUTINE outer_loop_update_qs_env(qs_env, scf_env, error)
     ihistory=scf_env%outer_scf%iter_count
 
     SELECT CASE(scf_control%outer_scf%type)
+    CASE (outer_scf_none)
+       ! do nothing
     CASE (outer_scf_ddapc_constraint)
        ddapc_restraint_control=>dft_control%qs_control%ddapc_restraint_control
        ddapc_restraint_control%strength=scf_env%outer_scf%variables(1,ihistory+1)
@@ -365,7 +378,9 @@ SUBROUTINE outer_loop_extrapolate(qs_env, error)
     ! add the current version of qs_env to the history
     outer_scf_ihistory=outer_scf_ihistory+1
     ivec=1+MODULO(outer_scf_ihistory-1,nhistory)
-    SELECT CASE(scf_control%outer_scf%type)
+    SELECT CASE(scf_control%outer_scf%type) 
+    CASE (outer_scf_none)
+         outer_scf_history(1,ivec)=0.0_dp
     CASE (outer_scf_ddapc_constraint)
          outer_scf_history(1,ivec)= &
            dft_control%qs_control%ddapc_restraint_control%strength
@@ -390,6 +405,8 @@ SUBROUTINE outer_loop_extrapolate(qs_env, error)
 
     ! update qs_env to use this extrapolation        
     SELECT CASE(scf_control%outer_scf%type)
+    CASE (outer_scf_none)
+           ! nothing
     CASE (outer_scf_ddapc_constraint)
            dft_control%qs_control%ddapc_restraint_control%strength=extrapolation(1)
     CASE (outer_scf_s2_constraint)

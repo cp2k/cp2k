@@ -31,8 +31,11 @@ MODULE scf_control_types
   USE input_constants,                 ONLY: atomic_guess,&
                                              core_guess,&
                                              outer_scf_ddapc_constraint,&
+                                             outer_scf_none,&
                                              outer_scf_optimizer_diis,&
-                                             outer_scf_optimizer_sd, outer_scf_s2_constraint
+                                             outer_scf_optimizer_none,&
+                                             outer_scf_optimizer_sd,&
+                                             outer_scf_s2_constraint
   USE input_cp2k_dft,                  ONLY: create_scf_section
   USE input_enumeration_types,         ONLY: enum_i2c,&
                                              enumeration_type
@@ -369,8 +372,8 @@ CONTAINS
 
     INTEGER, DIMENSION(:), POINTER           :: added_mos
     LOGICAL                                  :: explicit, failure
-    TYPE(section_vals_type), POINTER         :: outer_scf_section, scf_section, &
-                                                harris_section
+    TYPE(section_vals_type), POINTER         :: harris_section, &
+                                                outer_scf_section, scf_section
 
     failure=.FALSE.
     CPPrecondition(ASSOCIATED(scf_control),cp_failure_level,routineP,error,failure)
@@ -567,6 +570,8 @@ CONTAINS
           IF (scf_control%outer_scf%have_scf) THEN
              WRITE(output_unit,"(T25,56('-'),/,T25,A)") "Outer loop SCF in use "
              SELECT CASE(scf_control%outer_scf%type)
+             CASE (outer_scf_none)
+               WRITE(output_unit,'(T25,A)') "No variables optimised in outer loop"
              CASE (outer_scf_ddapc_constraint)
                WRITE(output_unit,'(T25,A)') "DDAPC constraint enforced"
              CASE (outer_scf_s2_constraint)
@@ -577,6 +582,8 @@ CONTAINS
              WRITE(output_unit,'(T25,A,T72,ES9.2)') "eps_scf",scf_control%outer_scf%eps_scf
              WRITE(output_unit,'(T25,A,T72,I9)') "max_scf",scf_control%outer_scf%max_scf
              SELECT CASE(scf_control%outer_scf%optimizer)
+             CASE (outer_scf_optimizer_none)
+               WRITE(output_unit,'(T25,A)') "No outer loop optimization"
              CASE (outer_scf_optimizer_sd)
                WRITE(output_unit,'(T25,A)') "Steepest descent optimization"
              CASE (outer_scf_optimizer_diis)
