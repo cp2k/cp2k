@@ -633,6 +633,20 @@ CONTAINS
                         "using the --html-manual command line option. The manual describes exactly that version of the code. "//&
                         "This version has been generated using a cp2k version compiled on "//TRIM(compile_date)//". "//&
                         "The latest CVS entry found is "//TRIM(compile_lastcvs)//"."
+
+       ! google search
+       WRITE(unit_nr,*) '<H2>Search the input</H2>'
+       WRITE(unit_nr,*) '<FORM method=GET action="http://www.google.com/search">'
+       WRITE(unit_nr,*) '<input type=hidden name=ie value=UTF-8><input type=hidden name=oe value=UTF-8>'
+       WRITE(unit_nr,*) '<TABLE bgcolor="#FFFFFF"><tr><td><A HREF="http://www.google.com/">'
+       WRITE(unit_nr,*) '<IMG SRC="http://www.google.com/logos/Logo_25wht.gif" border="0" ALT="Google"></A>'
+       WRITE(unit_nr,*) '</td><td><INPUT TYPE=text name=q size=31 maxlength=255 value="">'
+       WRITE(unit_nr,*) '<INPUT type=submit name=btnG VALUE="CP2K Input Search">'
+       WRITE(unit_nr,*) '<font size=-2><input type=hidden name=domains value="http://cp2k.berlios.de/input/">'
+       WRITE(unit_nr,*) '<br><input type=radio name=sitesearch value=""> WWW'
+       WRITE(unit_nr,*) '<input type=radio name=sitesearch value="http://cp2k.berlios.de/input/" checked>'
+       WRITE(unit_nr,*) 'http://cp2k.berlios.de/input/ <br></font></td></tr></TABLE></FORM>'
+
        WRITE(unit_nr,*) "<H2>Input structure</H2>"
        WRITE(unit_nr,*) "All sections that can be part of a cp2k input file are shown with their allowed nestings. "
        WRITE(unit_nr,*) "A description of each section, and a list of keywords can be obtained clicking on the links. "
