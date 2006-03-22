@@ -70,8 +70,8 @@ CONTAINS
 
     INTEGER                                  :: ax, ay, az, bx, by, bz, coa, &
                                                 coamx, coamy, coamz, coapx, &
-                                                coapy, coapz, cob, i, ipgf, &
-                                                j, jpgf, la, lb, na, nb, nda
+                                                coapy, coapz, cob, codb, i, ipgf, &
+                                                j, jpgf, la, lb, na, nb, nda, ndb
     REAL(KIND=dp)                            :: fa, fx, fy, fz
 
 !   ---------------------------------------------------------------------------
@@ -89,6 +89,7 @@ CONTAINS
       fa = 2.0_dp*zeta(ipgf)
 
       nb = 0
+      ndb = 0
 
       DO jpgf=1,npgfb
 
@@ -103,6 +104,7 @@ CONTAINS
             END DO
           END DO
           nb = nb + ncoset(lb_max)
+          ndb = ndb + ncoset(lb_max+1)
           CYCLE
         END IF
 
@@ -122,9 +124,10 @@ CONTAINS
                 DO by=0,lb-bx
                   bz = lb - bx - by
                   cob = nb + coset(bx,by,bz)
-                  dabdx(coa,cob) = fa*ab(coapx,cob)
-                  dabdy(coa,cob) = fa*ab(coapy,cob)
-                  dabdz(coa,cob) = fa*ab(coapz,cob)
+                  codb = ndb + coset(bx,by,bz)
+                  dabdx(coa,cob) = fa*ab(coapx,codb)
+                  dabdy(coa,cob) = fa*ab(coapy,codb)
+                  dabdz(coa,cob) = fa*ab(coapz,codb)
                 END DO
               END DO
             END DO
@@ -152,9 +155,10 @@ CONTAINS
                     DO by=0,lb-bx
                       bz = lb - bx - by
                       cob = nb + coset(bx,by,bz)
-                      dabdx(coa,cob) = fa*ab(coapx,cob) - fx*ab(coamx,cob)
-                      dabdy(coa,cob) = fa*ab(coapy,cob) - fy*ab(coamy,cob)
-                      dabdz(coa,cob) = fa*ab(coapz,cob) - fz*ab(coamz,cob)
+                      codb = ndb + coset(bx,by,bz)
+                      dabdx(coa,cob) = fa*ab(coapx,codb) - fx*ab(coamx,codb)
+                      dabdy(coa,cob) = fa*ab(coapy,codb) - fy*ab(coamy,codb)
+                      dabdz(coa,cob) = fa*ab(coapz,codb) - fz*ab(coamz,codb)
                     END DO
                   END DO
                 END DO
@@ -167,6 +171,7 @@ CONTAINS
         END DO
 
         nb = nb + ncoset(lb_max)
+        ndb = ndb + ncoset(lb_max+1)
 
       END DO
 

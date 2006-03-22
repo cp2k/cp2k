@@ -124,6 +124,10 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(section_vals_type), POINTER         :: lr_section
+!dbg
+    integer :: i,j, k
+     real(dp) :: ov_tmp(4,4)
+!dbg
 
     failure = .FALSE.
 
@@ -137,7 +141,6 @@ CONTAINS
     output_unit = cp_print_key_unit_nr(logger,lr_section,"PRINT%PROGRAM_RUN_INFO",&
          extension=".linresLog",error=error)
     IF (output_unit>0) THEN
-
       WRITE (UNIT=output_unit,FMT="(T10,A,/)")&
          "Calculation of the p and (r-d)xp operators applied to psi0"
 
@@ -158,8 +161,21 @@ CONTAINS
          CALL cp_fm_set_all(nmr_env%p_psi0(ispin,idir)%matrix,0.0_dp,error=error)
          CALL cp_sm_fm_multiply(nmr_env%op_p_ao(idir)%matrix,mo_coeff,&
               nmr_env%p_psi0(ispin,idir)%matrix,ncol=nmo,alpha=-1.0_dp,error=error)
+!dbg
+! write(*,*) 'idir ', idir
+!         ov_tmp = 0.0_dp
+!         CALL dgemm('T','N',4,4,nao,1.0_dp,mo_coeff%local_data(1,1),&
+!              nao, nmr_env%p_psi0(ispin,idir)%matrix%local_data(1,1),&
+!              nao,0.0_dp,ov_tmp(1,1),4)
+!         do i = 1,4
+!         write(*,'(I4,4f12.6)') i,( ov_tmp(i,j), j=1,4)
+!         end do 
+!dbg
       END DO 
     END DO 
+!dbg
+!      stop 'pippo ov'
+!dbg
 
     DO idir = 1,3 
       NULLIFY(vecbuf_p0(idir)%array,vecbuf_rxp0(idir)%array,vecbuf_cmd(idir)%array)
@@ -256,13 +272,19 @@ CONTAINS
     END DO  ! ispin
 
     ! Calculate the x y z x2 xy xz y2 yz z2 operators (in this order)
+    output_unit = cp_print_key_unit_nr(logger,lr_section,"PRINT%PROGRAM_RUN_INFO",&
+         extension=".linresLog",error=error)
+    IF (output_unit>0) THEN
+      WRITE (UNIT=output_unit,FMT="(T10,A,/)")&
+         "Calculation of the (r-Rc) operator at first and second order"
+    END IF
+    CALL cp_print_key_finished_output(output_unit,logger,lr_section,&
+         "PRINT%PROGRAM_RUN_INFO",error=error)
     soft_only = dft_control%qs_control%gapw
-    dk =  linres_control%localized_wfn_control%centers_set(ispin)%array(1:3,1)
+    dk =  linres_control%localized_wfn_control%centers_set(1)%array(1:3,1)
     CALL rRc_xyz_ao(nmr_env%op_mom_ao,qs_env,dk,order=2,minimum_image=.TRUE.,error=error)
-
     DEALLOCATE (first_sgf,last_sgf,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-
 
     DO idir = 1,3
       DEALLOCATE(vecbuf_p0(idir)%array,STAT=istat)

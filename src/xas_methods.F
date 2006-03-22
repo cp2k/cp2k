@@ -92,7 +92,7 @@ MODULE xas_methods
                                              mo_set_p_type,&
                                              set_mo_set,&
                                              write_mo_set
-  USE qs_operators_ao,                 ONLY: p_xyz_ao,rRc_xyz_ao
+  USE qs_operators_ao,                 ONLY: p_xyz_ao,rRc_xyz_ao,set_up_op_sm
   USE qs_scf,                          ONLY: init_scf_loop,&
                                              init_scf_run,&
                                              scf_env_do_scf,&
@@ -100,7 +100,8 @@ MODULE xas_methods
   USE qs_scf_types,                    ONLY: qs_scf_env_type
   USE scf_control_types,               ONLY: scf_control_type
   USE semi_empirical_parameters,       ONLY: srules
-  USE sparse_matrix_types,             ONLY: real_matrix_p_type,&
+  USE sparse_matrix_types,             ONLY: allocate_matrix_set,&
+                                             real_matrix_p_type,&
                                              replicate_matrix_structure,&
                                              set_matrix
   USE string_utilities,                ONLY: xstring
@@ -210,7 +211,7 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, op_sm
     TYPE(real_matrix_p_type), &
-      DIMENSION(:, :), POINTER               :: ostrength_sm
+      DIMENSION(:), POINTER               :: ostrength_sm
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: dft_section, scf_section, &
                                                 xas_section
@@ -395,19 +396,19 @@ CONTAINS
             nao=nao, nmo=nmo)
        CALL cp_fm_to_fm(mo_coeff,groundstate_coeff(ispin)%matrix,nmo,1,1)
       END DO
-      IF(xas_control%dipole_form==xas_dip_len) THEN
-        ostrength_sm =>  qs_loc_env%op_sm_set
-      ELSE
+!      IF(xas_control%dipole_form==xas_dip_len) THEN
+!        ostrength_sm =>  qs_loc_env%op_sm_set
+!      ELSE
       ! Calculate the operator 
         CALL get_xas_env(xas_env=xas_env,ostrength_sm=ostrength_sm)
         DO i = 1,3
           NULLIFY(op_sm(i)%matrix)
-          op_sm(i)%matrix => ostrength_sm(1,i)%matrix
+          op_sm(i)%matrix => ostrength_sm(i)%matrix
         END DO
         IF(xas_control%dipole_form==xas_dip_vel) THEN
           CALL p_xyz_ao(op_sm,qs_env,error=error)
         END IF
-      END IF
+!      END IF
 
       ! In td-dft case the oscillator strength comes from  linear response orbitals
     END IF
@@ -779,17 +780,19 @@ CONTAINS
         ALLOCATE(xas_env%all_evals(xas_env%nvirtual), STAT=istat)
         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-        IF(xas_control%dipole_form /= xas_dip_len) THEN
-          ALLOCATE (xas_env%ostrength_sm(1,3),STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-          DO i = 1,3
-             NULLIFY(xas_env%ostrength_sm(1,i)%matrix)
-             CALL replicate_matrix_structure(matrix_s(1)%matrix, &
-                  xas_env%ostrength_sm(1,i)%matrix,"xas_env%ostrength_sm"//&
+!        IF(xas_control%dipole_form /= xas_dip_len) THEN
+          CALL allocate_matrix_set(xas_env%ostrength_sm,3)
+          CALL set_up_op_sm(xas_env%ostrength_sm(1)%matrix,qs_env,symmetry="none",&
+          name="xas_env%ostrength_sm",error=error)
+          CALL set_matrix(xas_env%ostrength_sm(1)%matrix,0.0_dp)
+          DO i = 2,3
+             NULLIFY(xas_env%ostrength_sm(i)%matrix)
+             CALL replicate_matrix_structure(xas_env%ostrength_sm(1)%matrix, &
+                  xas_env%ostrength_sm(i)%matrix,"xas_env%ostrength_sm"//&
                   "-"//TRIM(ADJUSTL(cp_to_string(i))))
-             CALL set_matrix(xas_env%ostrength_sm(1,i)%matrix,0.0_dp)
+             CALL set_matrix(xas_env%ostrength_sm(i)%matrix,0.0_dp)
           END DO 
-        END IF
+!        END IF
  
       ELSE IF (xas_control%xas_method==xas_tddft) THEN
       !initialize td-dft calculation
@@ -982,7 +985,7 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: op_sm
     TYPE(real_matrix_p_type), &
-      DIMENSION(:, :), POINTER               :: ostrength_sm
+      DIMENSION(:), POINTER               :: ostrength_sm
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
 
@@ -1011,28 +1014,27 @@ CONTAINS
 
       IF(.NOT. xas_control%xas_method == xas_dscf) THEN
       ! Calculate the spectrum
-        IF(xas_control%dipole_form == xas_dip_len) THEN
-           CALL spectrum_dip_len(xas_control,dip_fm_set,ostrength_sm,mos,excvec_coeff,&
-                all_vectors,all_evals,fm_work,&
-                cell,spectrum,dft_control%xas_estate,error=error)
-        ELSEIF(xas_control%dipole_form==xas_dip_len2) THEN
+!        IF(xas_control%dipole_form == xas_dip_len) THEN
+!           CALL spectrum_dip_len(xas_control,dip_fm_set,ostrength_sm,mos,excvec_coeff,&
+!                all_vectors,all_evals,fm_work,&
+!                cell,spectrum,dft_control%xas_estate,error=error)
+        IF(xas_control%dipole_form==xas_dip_len2) THEN
            rc(1:3) = particle_set(iatom)%r(1:3)
            DO i = 1,3
              NULLIFY(op_sm(i)%matrix)
-             op_sm(i)%matrix => ostrength_sm(1,i)%matrix
-!              op_sm(i)%matrix  => matrix_s(1)%matrix
+             op_sm(i)%matrix => ostrength_sm(i)%matrix
            END DO
            CALL rRc_xyz_ao(op_sm,qs_env,rc,order=1,minimum_image=.TRUE.,error=error)
            CALL spectrum_dip_vel(xas_control,dip_fm_set,op_sm,mos,excvec_coeff,&
                 all_vectors,all_evals,fm_work,&
                 spectrum,dft_control%xas_estate,error=error)
-           DO i = 1,SIZE(ostrength_sm,2) 
-             CALL set_matrix(ostrength_sm(1,i)%matrix,0.0_dp)
+           DO i = 1,SIZE(ostrength_sm,1) 
+             CALL set_matrix(ostrength_sm(i)%matrix,0.0_dp)
            END DO
         ELSE
            DO i = 1,3
              NULLIFY(op_sm(i)%matrix)
-             op_sm(i)%matrix => ostrength_sm(1,i)%matrix
+             op_sm(i)%matrix => ostrength_sm(i)%matrix
            END DO
            CALL spectrum_dip_vel(xas_control,dip_fm_set,op_sm,mos,excvec_coeff,&
                 all_vectors,all_evals,fm_work,&
@@ -1447,12 +1449,6 @@ CONTAINS
          CALL cp_sm_fm_multiply(op_sm(i)%matrix,all_vectors,fm_work,ncol=nvirtual)
          CALL cp_fm_gemm("T","N",1,nvirtual,nao,1.0_dp,excvec,&
               fm_work,0.0_dp, fm_set(1,i)%matrix,b_first_col=1,error=error)
-
-   do ii= 1,nao
-     write(*,*) ii, fm_set(1,i)%matrix%local_data(1,ii)
-!     write(*,'(i3,9f10.5)') ii, (all_vectors%local_data(ii,j),j=1,9)
-   enddo
-! stop 'ortho'
       END DO
       
       ene_i = eigenvalues(estate)

@@ -132,8 +132,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'linres_localize', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ispin, n_mo(2), nelectron, &
-                                                nmoloc(2)
+    INTEGER                                  :: ispin, istate, n_mo(2), nelectron, &
+                                                nmoloc(2), output_unit
     LOGICAL                                  :: failure, ionode, &
                                                 my_centers_only
     REAL(dp)                                 :: maxocc
@@ -141,16 +141,19 @@ CONTAINS
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
+    TYPE(section_vals_type), POINTER         :: lr_section
 
     failure = .FALSE.
-    NULLIFY(logger)
+    NULLIFY(logger, lr_section)
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%source==logger%para_env%mepos
+    lr_section => section_vals_get_subs_vals(qs_env%input,"PROPERTIES%LINRES",error=error)
+    output_unit = cp_print_key_unit_nr(logger,lr_section,"PRINT%PROGRAM_RUN_INFO",&
+         extension=".linresLog",error=error)
     my_centers_only = .FALSE.
     IF(PRESENT(centers_only)) my_centers_only = centers_only
     nmoloc(1:2) = 0
     NULLIFY(mos,qs_loc_env)
-
     IF(my_centers_only) THEN
        localized_wfn_control%set_of_states = state_loc_all
        localized_wfn_control%localization_method = do_loc_none
@@ -177,9 +180,20 @@ CONTAINS
     ! The orbital centers are stored in linres_control%localized_wfn_control
     CALL qs_loc_driver(qs_env,qs_loc_env,error=error)
     CALL qs_loc_env_release(qs_loc_env, error=error)
-!    CALL qs_loc_env_destroy(qs_loc_env, error=error)
-!    DEALLOCATE(qs_loc_env,STAT=istat)
-!    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+    ! Write Centers and Spreads on std out
+    IF(output_unit > 0) THEN
+      DO ispin = 1,nspins
+        WRITE (UNIT=output_unit,FMT="(/,T18,A,3X,A)")&
+           "--------   WANNIER  CENTERS  --------- ",&
+           "-------- Spread  <X^2>-<X><X> --------- "
+        DO istate = 1,SIZE(localized_wfn_control%centers_set(ispin)%array,2)
+          WRITE(UNIT=output_unit,FMT="(T5,A6,I6,2X,3f12.6,5X,3f12.6)")&
+           'state ', istate,localized_wfn_control%centers_set(ispin)%array(1:3,istate),&
+            localized_wfn_control%centers_set(ispin)%array(4:6,istate)
+        END DO
+      END DO
+    END IF
 
   END SUBROUTINE linres_localize
   
@@ -265,6 +279,7 @@ CONTAINS
      lr_section => section_vals_get_subs_vals(qs_env%input,"PROPERTIES%LINRES",error=error)
      output_unit = cp_print_key_unit_nr(logger,lr_section,"PRINT%PROGRAM_RUN_INFO",&
           extension=".linresLog",error=error)
+
      IF(.NOT.  linres_control%do_kernel) THEN
      ! Check the max size of the perturbation operator matrix elements
        max_input_norm = 0.0_dp
@@ -362,7 +377,7 @@ CONTAINS
        DO ispin=1, dft_control%nspins
           CALL cp_fm_trace(psi1(ispin)%matrix,Ab(ispin)%matrix,tmp1,error)
           CALL cp_fm_trace(psi1(ispin)%matrix,h1_psi0(ispin)%matrix,tmp2,error)
-          CALL cp_fm_scale_and_add(1.0_dp, Ab(ispin)%matrix, &
+          CALL cp_fm_scale_and_add(+1.0_dp, Ab(ispin)%matrix, &
                                    +1.0_dp, h1_psi0(ispin)%matrix) ! add h1_psi0 to Ab 
           CALL get_mo_set(mo_set=mos(ispin)%mo_set, &
                           occupation_numbers=occupations )
@@ -372,6 +387,7 @@ CONTAINS
 !                 sum_k (<psi1_k|H_1|psi0_k> + <psi0_k|H_1|psi1_k>)
 !        Since H_1 and psi1_k are purely imaginary the second term is 
 !                        2*\sum_k <psi1_k|H_1|psi0_k>
+ write(*,*) 'ene ', tmp1,tmp2
           p_env%etotal = p_env%etotal + tmp1+2.0_dp*tmp2 
        END DO
 

@@ -86,7 +86,7 @@ MODULE qs_linres_nmr_utils
                                              qs_matrix_pools_type
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
-  USE qs_operators_ao,                 ONLY: set_up_op_rmd
+  USE qs_operators_ao,                 ONLY: set_up_op_sm
   USE qs_p_env_types,                  ONLY: p_env_release,&
                                              qs_p_env_type
   USE qs_rho_types,                    ONLY: qs_rho_release
@@ -203,26 +203,19 @@ CONTAINS
          linres_control%converged = .FALSE.
          CALL linres_scf(p_env, qs_env, psi1, h1_psi0,error=error)
 
+  stop 'p1'
          IF(linres_control%converged) THEN
-         !Calculate the contribution to the chemical shift
-!         IF(output_unit>0) THEN
-!           WRITE (UNIT=output_unit,FMT="(T10,A,/)")&
-!           "Calculate the contribution to the Chemical Shift tensor, Chi, and J matrixes "
-!         END IF
-!        CALL chemshift_p(nmr_env%chemical_shift,psi1,idir,error=error)
 
-           IF(nmr_env%current_density) THEN
-            ! the optimized wfns are copied in the  fm
-             IF(output_unit>0) THEN
-               WRITE (UNIT=output_unit,FMT="(T10,A,/)")&
-               "Store the psi1 for the calculation of the response current density "
-             END IF
-             DO ispin=1, dft_control%nspins
-               CALL cp_fm_to_fm(psi1(ispin)%matrix, nmr_env%psi1_p(ispin,idir)%matrix)
-             END DO
+          ! the optimized wfns are copied in the  fm
+           IF(output_unit>0) THEN
+             WRITE (UNIT=output_unit,FMT="(T10,A,/)")&
+             "Store the psi1 for the calculation of the response current density "
            END IF
+           DO ispin=1, dft_control%nspins
+             CALL cp_fm_to_fm(psi1(ispin)%matrix, nmr_env%psi1_p(ispin,idir)%matrix)
+           END DO
 
-           ! print response functions
+         ! print response functions
            IF (BTEST(cp_print_key_should_output(logger%iter_info,nmr_section,&
               "PRINT%RESPONSE_FUNCTION_CUBES",error=error),cp_p_file)) THEN
               ncubes = SIZE(nmr_env%list_cubes,1)
@@ -275,23 +268,15 @@ CONTAINS
          CALL linres_scf(p_env, qs_env, psi1, h1_psi0,error=error)
 
          IF(linres_control%converged) THEN
-         !Calculate the contribution to the chemical shift
-!         IF(output_unit>0) THEN
-!           WRITE (UNIT=output_unit,FMT="(T10,A,/)")&
-!           "Calculate the contribution to the Chemical Shift tensor, Chi, and J matrixes "
-!         END IF
-!         CALL chemshift_p(nmr_env%chemical_shift,psi1,idir,error=error)
 
-           IF(nmr_env%current_density) THEN
            !   the optimized wfns are copied in the  fm
-             IF(output_unit>0) THEN
-               WRITE (UNIT=output_unit,FMT="(T10,A,/)")&
-               "Store the psi1 for the calculation of the response current density "
-             END IF
-             DO ispin=1, dft_control%nspins
-               CALL cp_fm_to_fm(psi1(ispin)%matrix, nmr_env%psi1_rxp(ispin,idir)%matrix)
-             END DO
+           IF(output_unit>0) THEN
+             WRITE (UNIT=output_unit,FMT="(T10,A,/)")&
+             "Store the psi1 for the calculation of the response current density "
            END IF
+           DO ispin=1, dft_control%nspins
+             CALL cp_fm_to_fm(psi1(ispin)%matrix, nmr_env%psi1_rxp(ispin,idir)%matrix)
+           END DO
            ! print response functions
            IF (BTEST(cp_print_key_should_output(logger%iter_info,nmr_section,&
               "PRINT%RESPONSE_FUNCTION_CUBES",error=error),cp_p_file)) THEN
@@ -335,54 +320,48 @@ CONTAINS
        DO ispin=1, dft_control%nspins
          DO idir = 1,3
            DO istate = 1,nmr_env%nstates(ispin)
-              ist_true = nmr_env%statetrueindex(idir,istate)
-              !the initial guess is the previous set of psi1, just optimized
-              CALL set_vecp(idir,ii,iii)
-              dk(1:3) = nmr_env%centers_set(ispin)%array(1:3,ist_true)
+             ist_true = nmr_env%statetrueindex(idir,istate)
+             !the initial guess is the previous set of psi1, just optimized
+             CALL set_vecp(idir,ii,iii)
+             dk(1:3) = nmr_env%centers_set(ispin)%array(1:3,ist_true)
               
-              IF(output_unit>0) THEN
+             IF(output_unit>0) THEN
                 WRITE (UNIT=output_unit,FMT="(T10,A,I4,A,I4/)")&
                "Response to the perturbation operator (dk-dl)xp for the k state ",&
                 ist_true, " in dir. ", idir
-              END IF
+             END IF
 
-              DO istate2 = 1,nmr_env%nstates(ispin)
+             DO istate2 = 1,nmr_env%nstates(ispin)
                 dl(1:3)  = nmr_env%centers_set(ispin)%array(1:3,istate2)
                 dkl = pbc(dl,dk,cell)
 
-                DO idir2 = 1,3
+               DO idir2 = 1,3
                   CALL cp_fm_get_submatrix(nmr_env%p_psi0(ispin,idir2)%matrix,&
                        vecbuf_p0(idir2)%array,&
                        1,istate2,nmr_env%nao,1,transpose=.TRUE.,error=error)
-                END DO
+               END DO
 
-                DO iao = 1,nmr_env%nao
+               DO iao = 1,nmr_env%nao
                   vecbuf_dklxp0(1,iao) = dkl(ii)* vecbuf_p0(iii)%array(1,iao)-&
                                          dkl(iii)* vecbuf_p0(ii)%array(1,iao)
-                END DO  ! iao
-                CALL cp_fm_set_submatrix(h1_psi0(ispin)%matrix, vecbuf_dklxp0,&
+               END DO  ! iao
+               CALL cp_fm_set_submatrix(h1_psi0(ispin)%matrix, vecbuf_dklxp0,&
                      1,istate2,nmr_env%nao,1,transpose=.TRUE.,error=error)
 
-              END DO ! istate2 
+             END DO ! istate2 
 
-              ! Optimize the response wavefunctions 
-              CALL linres_scf(p_env, qs_env, psi1, h1_psi0,error=error)
+             ! Optimize the response wavefunctions 
+             CALL linres_scf(p_env, qs_env, psi1, h1_psi0,error=error)
 
-         !Calculate the contribution to the chemical shift
-!         IF(output_unit>0) THEN
-!           WRITE (UNIT=output_unit,FMT="(T10,A,/)")&
-!           "Calculate the contribution to the Chemical Shift tensor, Chi, and J matrixes "
-!         END IF
-!         CALL chemshift_p(nmr_env%chemical_shift,psi1,idir,error=error)
-
-
-             IF(nmr_env%current_density) THEN
-               ! the optimized wfns are copied in the  fm
-               CALL cp_fm_get_submatrix(psi1(ispin)%matrix,vecbuf_dklxp0 ,&
-                    1,ist_true,nmr_env%nao,1,transpose=.TRUE.,error=error)
-               CALL cp_fm_set_submatrix(nmr_env%psi1_D(ispin,idir)%matrix, vecbuf_dklxp0,&
-                    1,ist_true,nmr_env%nao,1,transpose=.TRUE.,error=error)
+             IF(output_unit>0) THEN
+               WRITE (UNIT=output_unit,FMT="(T10,A,/)")&
+               "Store the psi1 vector for the calculation of the response current density "
              END IF
+             ! the optimized wfns are copied in the  fm
+             CALL cp_fm_get_submatrix(psi1(ispin)%matrix,vecbuf_dklxp0 ,&
+                    1,ist_true,nmr_env%nao,1,transpose=.TRUE.,error=error)
+             CALL cp_fm_set_submatrix(nmr_env%psi1_D(ispin,idir)%matrix, vecbuf_dklxp0,&
+                    1,ist_true,nmr_env%nao,1,transpose=.TRUE.,error=error)
              nmr_env%fullnmr_done(idir*ispin,istate) = .TRUE.
 
            END DO  ! istate
@@ -409,11 +388,9 @@ CONTAINS
     ! Better to free what is not anymore necessary in p_env
      CALL p_env_release(p_env)
 
- STOP 'wait'
     !Calculate current density and induced field
-     IF(nmr_env%current_density) THEN
-       CALL nmr_response_current(nmr_env,qs_env,psi1,h1_psi0,error=error)
-     END IF
+     CALL nmr_response_current(nmr_env,qs_env,psi1,h1_psi0,error=error)
+ STOP 'wait'
 
     !----------!
     ! clean up !
@@ -548,7 +525,7 @@ CONTAINS
       CALL parser_release(parser,error=error)
     END IF
 
-    ! Check if restat also psi0 shoul be restarted
+    ! Check if restat also psi0 should be restarted
     IF(nmr_env%restart_nmr .AND. scf_control%density_guess/=restart_guess)THEN
       CALL stop_program("nmr_env_init","restart_nmr requires density_guess=restart")
     END IF
@@ -701,40 +678,41 @@ CONTAINS
     ! If instead only the shift is needed, only one psi1 should be enough, providing
     ! that after every optimization the corresponding shift contribution is calculated
     ! prepare the psi1
-     IF(nmr_env%current_density) THEN
 
-       ALLOCATE(nmr_env%psi1_p(dft_control%nspins,3),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE(nmr_env%psi1_rxp(dft_control%nspins,3),STAT=istat)
+     ALLOCATE(nmr_env%psi1_p(dft_control%nspins,3),STAT=istat)
+     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+     ALLOCATE(nmr_env%psi1_rxp(dft_control%nspins,3),STAT=istat)
+     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+     DO ispin = 1,dft_control%nspins
+       DO idir = 1,3
+         NULLIFY(nmr_env%psi1_p(ispin,idir)%matrix)
+         CALL fm_pool_create_fm(nmr_env%ao_mo_fm_pools(ispin)%pool,nmr_env%psi1_p(ispin,idir)%matrix)
+         NULLIFY(nmr_env%psi1_rxp(ispin,idir)%matrix)
+         CALL fm_pool_create_fm(nmr_env%ao_mo_fm_pools(ispin)%pool,nmr_env%psi1_rxp(ispin,idir)%matrix)
+       END DO 
+     END DO 
+
+     IF(nmr_env%full_nmr) THEN
+       ALLOCATE(nmr_env%psi1_D(dft_control%nspins,3),STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        DO ispin = 1,dft_control%nspins
          DO idir = 1,3
-           NULLIFY(nmr_env%psi1_p(ispin,idir)%matrix)
-           CALL fm_pool_create_fm(nmr_env%ao_mo_fm_pools(ispin)%pool,nmr_env%psi1_p(ispin,idir)%matrix)
-           NULLIFY(nmr_env%psi1_rxp(ispin,idir)%matrix)
-           CALL fm_pool_create_fm(nmr_env%ao_mo_fm_pools(ispin)%pool,nmr_env%psi1_rxp(ispin,idir)%matrix)
-         END DO 
-       END DO 
-
-       IF(nmr_env%full_nmr) THEN
-         ALLOCATE(nmr_env%psi1_D(dft_control%nspins,3),STAT=istat)
-         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-         DO ispin = 1,dft_control%nspins
-           DO idir = 1,3
-             NULLIFY(nmr_env%psi1_D(ispin,idir)%matrix)
-             CALL fm_pool_create_fm(nmr_env%ao_mo_fm_pools(ispin)%pool,nmr_env%psi1_D(ispin,idir)%matrix)
-           END DO
+           NULLIFY(nmr_env%psi1_D(ispin,idir)%matrix)
+           CALL fm_pool_create_fm(nmr_env%ao_mo_fm_pools(ispin)%pool,nmr_env%psi1_D(ispin,idir)%matrix)
          END DO
-       END IF
+       END DO
      END IF
 
      ! px py pz operator acting on the atomic orbitals
      CALL allocate_matrix_set(nmr_env%op_p_ao,3)
-     DO idir = 1,3 
-       CALL replicate_matrix_structure(matrix_s(1)%matrix, &
+     CALL set_up_op_sm(nmr_env%op_p_ao(1)%matrix,qs_env,symmetry="none",&
+          name="OP_P",error=error)
+     CALL set_matrix(nmr_env%op_p_ao(1)%matrix,0.0_dp)
+     DO idir = 2,3 
+       CALL replicate_matrix_structure(nmr_env%op_p_ao(1)%matrix, &
             nmr_env%op_p_ao(idir)%matrix,&
             "nmr_env%op_p_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir))),&
-            target_symmetry="symmetric")
+            target_symmetry="antisymmetric")
        CALL set_matrix(nmr_env%op_p_ao(idir)%matrix,0.0_dp)
      END DO
 
@@ -773,7 +751,7 @@ CONTAINS
 
      CALL allocate_matrix_set(nmr_env%op_rmd_ao,3)
 
-     CALL set_up_op_rmd(nmr_env%op_rmd_ao(1)%matrix,qs_env,error=error)
+     CALL set_up_op_sm(nmr_env%op_rmd_ao(1)%matrix,qs_env,symmetry="none",name="OP_RMD",error=error)
 
      DO idir = 2,3 
        CALL replicate_matrix_structure( nmr_env%op_rmd_ao(1)%matrix, &
@@ -782,51 +760,49 @@ CONTAINS
        CALL set_matrix(nmr_env%op_rmd_ao(idir)%matrix,0.0_dp)
      END DO
 
-    IF(nmr_env%current_density) THEN
     ! Current density matrix in x y and z:
-          CALL replicate_matrix_structure( nmr_env%op_rmd_ao(1)%matrix, &
-               nmr_env%jp1_ao,"nmr_env%jp1_ao",target_symmetry="none")
-          CALL set_matrix(nmr_env%jp1_ao,0.0_dp)
+     CALL replicate_matrix_structure( nmr_env%op_rmd_ao(1)%matrix, &
+           nmr_env%jp1_ao,"nmr_env%jp1_ao",target_symmetry="none")
+     CALL set_matrix(nmr_env%jp1_ao,0.0_dp)
 
-       ALLOCATE( nmr_env%jp2_ao(2),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-       DO idir = 1,2
-         NULLIFY(nmr_env%jp2_ao(idir)%matrix)
-         CALL replicate_matrix_structure( nmr_env%op_rmd_ao(1)%matrix, &
-            nmr_env%jp2_ao(idir)%matrix,"nmr_env%jp2_ao"//&
-            "-"//TRIM(ADJUSTL(cp_to_string(idir))),target_symmetry="none")
-       END DO
+     ALLOCATE( nmr_env%jp2_ao(2),STAT=istat)
+     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+     DO idir = 1,2
+       NULLIFY(nmr_env%jp2_ao(idir)%matrix)
+       CALL replicate_matrix_structure( nmr_env%op_rmd_ao(1)%matrix, &
+          nmr_env%jp2_ao(idir)%matrix,"nmr_env%jp2_ao"//&
+          "-"//TRIM(ADJUSTL(cp_to_string(idir))),target_symmetry="none")
+     END DO
 
      ! If the current density on the grid needs to be stored
-       IF(nmr_env%store_current) THEN
-          CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
-         ALLOCATE(nmr_env%jrho1_set(3,3),STAT=istat)
-         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-         DO i_B = 1,3
-           DO idir = 1,3
-             NULLIFY(nmr_env%jrho1_set(idir,i_B)%rho)
-             ALLOCATE(nmr_env%jrho1_set(idir,i_B)%rho,STAT=istat)
-             CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-             nmr_env%jrho1_set(idir,i_B)%rho%ref_count = 1
-             NULLIFY( nmr_env%jrho1_set(idir,i_B)%rho%rho_r)
-             NULLIFY( nmr_env%jrho1_set(idir,i_B)%rho%rho_g)
+     IF(nmr_env%store_current) THEN
+        CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
+       ALLOCATE(nmr_env%jrho1_set(3,3),STAT=istat)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+       DO i_B = 1,3
+         DO idir = 1,3
+           NULLIFY(nmr_env%jrho1_set(idir,i_B)%rho)
+           ALLOCATE(nmr_env%jrho1_set(idir,i_B)%rho,STAT=istat)
+           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+           nmr_env%jrho1_set(idir,i_B)%rho%ref_count = 1
+           NULLIFY( nmr_env%jrho1_set(idir,i_B)%rho%rho_r)
+           NULLIFY( nmr_env%jrho1_set(idir,i_B)%rho%rho_g)
 
-             ALLOCATE(nmr_env%jrho1_set(idir,i_B)%rho%rho_r(dft_control%nspins),stat=istat)
-             CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-             ALLOCATE(nmr_env%jrho1_set(idir,i_B)%rho%rho_g(dft_control%nspins),stat=istat)
-             CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-             DO ispin=1,dft_control%nspins
+           ALLOCATE(nmr_env%jrho1_set(idir,i_B)%rho%rho_r(dft_control%nspins),stat=istat)
+           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+           ALLOCATE(nmr_env%jrho1_set(idir,i_B)%rho%rho_g(dft_control%nspins),stat=istat)
+           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+           DO ispin=1,dft_control%nspins
                CALL pw_pool_init_coeff(auxbas_pw_pool,&
                     nmr_env%jrho1_set(idir,i_B)%rho%rho_r(ispin),&
                     use_data=REALDATA3D,in_space=REALSPACE,error=error)
                 CALL pw_pool_init_coeff(auxbas_pw_pool,&
                     nmr_env%jrho1_set(idir,i_B)%rho%rho_g(ispin),&
                     use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,error=error)
-             END DO
-           END DO 
-         END DO
+           END DO
+         END DO 
+       END DO
          
-       END IF
      END IF
  
     ! Initialize the chemical shift tensor

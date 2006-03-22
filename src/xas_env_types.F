@@ -35,6 +35,7 @@ MODULE xas_env_types
                                              qs_loc_env_release,&
                                              qs_loc_env_retain
   USE sparse_matrix_types,             ONLY: deallocate_matrix,&
+                                             deallocate_matrix_set,&
                                              real_matrix_p_type
 #include "cp_common_uses.h"
 
@@ -117,7 +118,7 @@ MODULE xas_env_types
     TYPE( cp_fm_type ), POINTER :: unoccupied_orbs
     TYPE( cp_fm_type ), POINTER :: all_vectors
     TYPE( cp_fm_type ), POINTER :: fm_work
-    TYPE( real_matrix_p_type ), DIMENSION(:,:), POINTER :: ostrength_sm
+    TYPE( real_matrix_p_type ), DIMENSION(:), POINTER :: ostrength_sm
     TYPE( qs_loc_env_new_type ), POINTER :: qs_loc_env
 
   END TYPE xas_environment_type
@@ -161,7 +162,7 @@ CONTAINS
     TYPE(cp_fm_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: groundstate_coeff
     TYPE(real_matrix_p_type), &
-      DIMENSION(:, :), OPTIONAL, POINTER     :: ostrength_sm
+      DIMENSION(:), OPTIONAL, POINTER     :: ostrength_sm
     TYPE(cp_fm_p_type), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: dip_fm_set
     TYPE(cp_fm_type), OPTIONAL, POINTER      :: excvec_coeff, excvec_overlap, &
@@ -398,13 +399,12 @@ CONTAINS
          END IF
 
          IF(ASSOCIATED(xas_env%ostrength_sm)) THEN
-           DO i = 1, SIZE(xas_env%ostrength_sm,2)
-              DO j = 1,SIZE(xas_env%ostrength_sm,1)
-                CALL deallocate_matrix(xas_env%ostrength_sm(j,i)%matrix)
-              END DO 
-           END DO
-           DEALLOCATE(xas_env%ostrength_sm,STAT=istat)
-           CPPostcondition(istat==0,cp_warning_level,routineP,error,failure)
+            CALL deallocate_matrix_set(xas_env%ostrength_sm)
+!           DO j = 1,SIZE(xas_env%ostrength_sm,1)
+!              CALL deallocate_matrix(xas_env%ostrength_sm(j)%matrix)
+!           END DO 
+!           DEALLOCATE(xas_env%ostrength_sm,STAT=istat)
+!           CPPostcondition(istat==0,cp_warning_level,routineP,error,failure)
          END IF
          IF(ASSOCIATED(xas_env%qs_loc_env)) THEN
             CALL qs_loc_env_release(xas_env%qs_loc_env, error=error)

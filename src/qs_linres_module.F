@@ -282,6 +282,7 @@ CONTAINS
          CALL linres_localize(linres_control%localized_wfn_control,qs_env,&
                dft_control%nspins,globenv,error=error)
 
+
          DO ispin=1,dft_control%nspins
             CALL calculate_density_matrix(mos(ispin)%mo_set,&
                      rho%rho_ao(ispin)%matrix,error=error)

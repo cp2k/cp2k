@@ -618,6 +618,7 @@ END SUBROUTINE p_env_did_change
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
     TYPE(section_vals_type), POINTER         :: input, lr_section
+   integer :: i,j
 
 ! code
 
@@ -780,6 +781,10 @@ END SUBROUTINE p_env_did_change
                p_env%n_mo(spin), p_env%n_mo(spin), p_env%n_ao(spin), &
                -1.0_dp, p_env%S_psi0(spin)%matrix, p_env%psi0d(spin)%matrix, &
                0.0_dp, p_env%m_epsilon(spin)%matrix)
+!   DO i =1,size(p_env%m_epsilon(spin)%matrix%local_data,1)
+!    write(*,'(I4,4f12.6)') i,(p_env%m_epsilon(spin)%matrix%local_data(i,j), j=1,4)
+!   end do
+! stop 'o'
        END DO
 
        !----------------------------------|
@@ -942,7 +947,7 @@ END SUBROUTINE p_env_did_change
     TYPE(cp_fm_type), POINTER                :: tmp
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(real_matrix_type), POINTER          :: k_p
-
+    integer :: i,j
 ! code
 
     CALL timeset(routineN,"I"," ",handle)
@@ -971,6 +976,7 @@ END SUBROUTINE p_env_did_change
        CALL cp_fm_symm('R', 'U', p_env%n_ao(spin), p_env%n_mo(spin), 1.0_dp, &
          p_env%Smo_inv(spin)%matrix, tmp, 0.0_dp, res)
     END IF
+
     CALL cp_fm_symm('R', 'U', p_env%n_ao(spin), p_env%n_mo(spin), 1.0_dp, &
          p_env%m_epsilon(spin)%matrix, v, 0.0_dp, tmp)
     CALL cp_sm_fm_multiply(qs_env%matrix_s(1)%matrix, tmp, &
