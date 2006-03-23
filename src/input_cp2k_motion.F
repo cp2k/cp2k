@@ -1685,7 +1685,7 @@ SUBROUTINE create_nose_section(section, error)
   CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN  
        CALL section_create(section,name="nose",&
-            description="paramameters of the Nose Hoover thermostat chain for KG coeffs",&
+            description="paramameters of the Nose Hoover thermostat chain",&
             required=.FALSE.,error=error)
        NULLIFY(keyword,subsection)
        CALL keyword_create(keyword, name="length",&

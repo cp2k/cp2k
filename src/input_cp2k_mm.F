@@ -727,7 +727,7 @@ CONTAINS
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,name="nonbonded",&
-            description="This section specifies the input parameters for 1-4 NON-BONDED interactions.",&
+            description="This section specifies the input parameters for NON-BONDED interactions.",&
             n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
             error=error)
 
