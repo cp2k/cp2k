@@ -139,8 +139,7 @@ SUBROUTINE distribution_2d_create(distribution_2d, blacs_env,&
      local_rows_ptr, n_local_rows, &
      local_cols_ptr, row_distribution_ptr, col_distribution_ptr,&
      n_local_cols, n_row_distribution, n_col_distribution, error)
-    TYPE(distribution_2d_type), OPTIONAL, &
-      POINTER                                :: distribution_2d
+    TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env
     TYPE(cp_1d_i_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: local_rows_ptr
