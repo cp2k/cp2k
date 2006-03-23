@@ -247,6 +247,8 @@ CONTAINS
     TYPE(gth_potential_type), POINTER        :: gth_potential
     TYPE(preconditioner_type), POINTER       :: preconditioner
     TYPE(cp_subsystem_type), POINTER :: subsys
+    TYPE(section_vals_type), POINTER         :: force_env_section
+
  
     CALL timeset(routineN,"I",'',handle)
 
@@ -369,9 +371,16 @@ CONTAINS
                   error=error),cp_p_file)) THEN
                 DO ivector=MAX(1,&
                    homo-section_get_ival(dft_section,"PRINT%MO_CUBES%NHOMO") +1),homo
+                   CALL get_qs_env(qs_env=qs_env,&
+                                   atomic_kind_set=atomic_kind_set,&
+                                   cell=cell,&
+                                   dft_control=dft_control,&
+                                   particle_set=particle_set,&
+                                   pw_env=pw_env, &
+                                   input=force_env_section)
                    CALL calculate_wavefunction(mo_coeff,ivector,wf_r, &
-                        wf_g,&
-                        qs_env,error=error)                   
+                        wf_g,atomic_kind_set,cell,dft_control,particle_set, &
+                        force_env_section,pw_env ,error=error)                   
                    WRITE(filename,'(a4,I5.5,a1,I1.1)')"WFN_",ivector,"_",ispin
                    unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%MO_CUBES",&
                         extension=".cube",middle_name=TRIM(filename),log_filename=.FALSE.,error=error)
@@ -481,9 +490,16 @@ CONTAINS
                   error=error),cp_p_file).AND. .NOT. p_molstates ) THEN
                 ! obviously we need a smarter scheme to select them. 
                 DO ivector=1,mo_localized%matrix_struct%ncol_global   
+                   CALL get_qs_env(qs_env=qs_env,&
+                                   atomic_kind_set=atomic_kind_set,&
+                                   cell=cell,&
+                                   dft_control=dft_control,&
+                                   particle_set=particle_set,&
+                                   pw_env=pw_env, &
+                                   input=force_env_section)
                    CALL calculate_wavefunction(mo_localized,ivector,wf_r, &
-                        wf_g,&
-                        qs_env,error=error)
+                        wf_g,atomic_kind_set,cell,dft_control,particle_set, &
+                        force_env_section,pw_env ,error=error)
 
                    WRITE(filename,'(a8,I5.5,a1,I1.1)') "WANNIER",ivector,"_",ispin
                    unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%LOCALIZATION%CUBES",&
@@ -582,10 +598,17 @@ CONTAINS
              IF (BTEST(cp_print_key_should_output(logger%iter_info,dft_section,"PRINT%MO_CUBES",&
                   error=error),cp_p_file)) THEN
                 DO ivector=1,nlumos
-                   CALL calculate_wavefunction(mo_vectors=unoccupied_orbs(ispin)%matrix,&
-                        ivector=ivector,rho=wf_r, &
-                        rho_gspace=wf_g,&
-                        qs_env=qs_env,error=error)
+                   CALL get_qs_env(qs_env=qs_env,&
+                                   atomic_kind_set=atomic_kind_set,&
+                                   cell=cell,&
+                                   dft_control=dft_control,&
+                                   particle_set=particle_set,&
+                                   pw_env=pw_env, &
+                                   input=force_env_section)
+                   CALL calculate_wavefunction(unoccupied_orbs(ispin)%matrix,&
+                        ivector,wf_r, &
+                        wf_g, atomic_kind_set,cell,dft_control,particle_set, &
+                        force_env_section,pw_env, error=error)
                    WRITE(filename,'(a4,I5.5,a1,I1.1)')"WFN_",homo+ivector,"_",ispin
                    unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%MO_CUBES",&
                         extension=".cube",middle_name=TRIM(filename),log_filename=.FALSE.,error=error)

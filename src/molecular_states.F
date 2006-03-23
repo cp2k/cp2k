@@ -22,7 +22,10 @@
 
 MODULE molecular_states
 ! *****************************************************************************
+  USE atomic_kind_types,               ONLY: atomic_kind_type
+  USE cell_types,                      ONLY: cell_type
   USE coefficient_types,               ONLY: coeff_type
+  USE cp_control_types,                ONLY: dft_control_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
   USE cp_fm_diag,                      ONLY: cp_fm_syevd
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -48,8 +51,11 @@ MODULE molecular_states
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_maxloc
   USE molecule_types_new,              ONLY: molecule_type
+  USE particle_types,                  ONLY: particle_type
+  USE pw_env_types,                    ONLY: pw_env_type
   USE qs_collocate_density,            ONLY: calculate_wavefunction
-  USE qs_environment_types,            ONLY: qs_environment_type
+  USE qs_environment_types,            ONLY: get_qs_env,&
+                                             qs_environment_type
   USE realspace_grid_types,            ONLY: rs_pw_to_cube
   USE sparse_matrix_types,             ONLY: real_matrix_type
   USE termination,                     ONLY: stop_memory
@@ -105,11 +111,18 @@ SUBROUTINE construct_molecular_states(molecule_set, mo_localized, &
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: tmp
     REAL(KIND=dp), ALLOCATABLE               :: evals( : )
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
     TYPE(cp_fm_type), POINTER                :: b, c, d, D_igk, e_vectors, &
                                                 rot_e_vectors, smo
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(pw_env_type), POINTER               :: pw_env
 
     failure = .FALSE.
     NULLIFY(logger)
@@ -262,8 +275,17 @@ SUBROUTINE construct_molecular_states(molecule_set, mo_localized, &
          "DFT%PRINT%MOLECULAR_STATES%CUBES",error=error),cp_p_file) ) THEN
        DO i=1,ns
           j=ind(i)
+
+          CALL get_qs_env(qs_env=qs_env,&
+                          atomic_kind_set=atomic_kind_set,&
+                          cell=cell,&
+                          dft_control=dft_control,&
+                          particle_set=particle_set,&
+                          pw_env=pw_env)
+
           CALL calculate_wavefunction(rot_e_vectors,i,wf_r, &
-                                      wf_g, qs_env, error = error )
+                                      wf_g, atomic_kind_set,cell,dft_control,particle_set, &
+                                      force_env_section, pw_env, error = error )
 
           WRITE(filename,'(a9,I2.2,a1,I3.3)')"MOLECULE_",imol,"_",j          
           unit_nr=cp_print_key_unit_nr(logger,force_env_section,&

@@ -1200,25 +1200,56 @@ CONTAINS
 
   END SUBROUTINE calculate_rho_elec
 
-! *****************************************************************************
-! modified calculate_rho_elec, should write the wavefunction represented by 
-! the vector eigenvector on the grid. Is not efficient, in the sence that 
-! it's presumably dominated by the FFT and the rs->pw and back routines
-! especially in parrallel things are not efficient. 
-! Currently it's only meant to provide a way to plot an MO
-! *****************************************************************************
-  SUBROUTINE calculate_wavefunction(mo_vectors,ivector,rho,rho_gspace,&
-                                    qs_env,error)
+!!****f* qs_collocate_density/calculate_wavefunction *
+!!
+!!   NAME
+!!     calculate_wavefunction
+!!
+!!   FUNCTION
+!!     maps a given wavefunction on the grid 
+!!
+!!   NOTES
+!!     modified calculate_rho_elec, should write the wavefunction represented by
+!!     it's presumably dominated by the FFT and the rs->pw and back routines
+!!
+!!   BUGS ???
+!!     does it take correctly the periodic images of the basis functions into account
+!!     i.e. is only correct if the basis functions are localised enough to be just in 1 cell ?
+!!
+!!   INPUTS
+!!
+!!   MODIFICATION HISTORY
+!!     08.2002 created [Joost VandeVondele]
+!!     03.2006 made independent of qs_env [Joost VandeVondele]
+!!
+!!*** **********************************************************************
+!    CALL get_qs_env(qs_env=qs_env,&
+!                    atomic_kind_set=atomic_kind_set,&
+!                    cell=cell,&
+!                    dft_control=dft_control,&
+!                    particle_set=particle_set,&
+!                    pw_env=pw_env, &
+!                    input=force_env_section)
+  SUBROUTINE calculate_wavefunction(mo_vectors,ivector,rho,rho_gspace, &
+                   atomic_kind_set,cell,dft_control,particle_set, &
+                   force_env_section,pw_env,error)
 
     TYPE(cp_fm_type), POINTER                :: mo_vectors
     INTEGER                                  :: ivector
     TYPE(coeff_type), INTENT(INOUT)          :: rho, rho_gspace
-    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(section_vals_type), POINTER         :: force_env_section
+    TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routine = &
-      "SUBROUTINE calculate_wavefunction (MODULE qs_collocate_density)"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_wavefunction', &
+      routineP = moduleN//':'//routineN
 
     INTEGER :: handle, i, iatom, igrid_level, ipgf, iset, istat, maxco, &
       maxsgf_set, na1, na2, nao, natom, ncoa, ncol_global, nseta, offset, &
@@ -1231,23 +1262,14 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3)              :: ra, rab
     REAL(KIND=dp), DIMENSION(:), POINTER     :: eigenvector
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pab, sphi_a, work, zeta
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(cell_type), POINTER                 :: cell
     TYPE(coeff_type), DIMENSION(:), POINTER  :: mgrid_gspace, mgrid_rspace
     TYPE(cp_rs_pool_p_type), DIMENSION(:), &
       POINTER                                :: rs_pools
     TYPE(cube_info_type), DIMENSION(:), &
       POINTER                                :: cube_info
-    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(gridlevel_info_type), POINTER       :: gridlevel_info
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
-    TYPE(l_info_type)                        :: l_info
-    TYPE(neighbor_list_set_p_type), &
-      DIMENSION(:), POINTER                  :: sab_orb
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
-    TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(l_info_type), POINTER               :: l_info
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     TYPE(REALSPACE_GRID_P_TYPE), &
@@ -1255,21 +1277,19 @@ CONTAINS
 
     failure=.FALSE.
 
-    CALL timeset("calculate_wavefunction","I"," ",handle)
+    CALL timeset(routineN,handle)
 
     CALL cp_fm_get_info(matrix=mo_vectors,nrow_global=nao,ncol_global=ncol_global) 
 
-    NULLIFY(eigenvector, cell,dft_control, orb_basis_set,&
-         atomic_kind_set, sab_orb, particle_set,&
+    NULLIFY(eigenvector,  orb_basis_set,&
          pab,work,la_max, la_min,&
          npgfa, nsgfa, &
          sphi_a, zeta, first_sgfa,&
-         rs_rho,pw_env,rs_pools,pw_pools,mgrid_rspace,mgrid_gspace)
+         rs_rho,rs_pools,pw_pools,mgrid_rspace,mgrid_gspace)
 
     ALLOCATE(eigenvector(nao), stat=istat)
-    IF (istat.NE.0) THEN
-       CALL stop_program("calculate_wavefunction","eigenvector")
-    ENDIF
+    IF (istat.NE.0) CALL stop_program("calculate_wavefunction","eigenvector")
+
     ! only some processors have non-zero elements. The sum of eigenvectors on 
     ! all cpus is the real eigenvector. combined with the rs->pw this will give the
     ! real density
@@ -1278,20 +1298,14 @@ CONTAINS
        IF (.NOT. local) eigenvector(i)=0.0_dp ! some more intelligent scheme is needed
     ENDDO
 
-    CALL get_qs_env(qs_env=qs_env,&
-                    atomic_kind_set=atomic_kind_set,&
-                    cell=cell,&
-                    dft_control=dft_control,&
-                    particle_set=particle_set,&
-                    sab_orb=sab_orb,&
-                    pw_env=pw_env)
 
     ! *** set up the pw multi-grids
-    CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routine,error,failure)
-    CALL pw_env_get(pw_env, rs_pools=rs_pools, pw_pools=pw_pools, error=error)
+    CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineN,error,failure)
+    CALL pw_env_get(pw_env, rs_pools=rs_pools, pw_pools=pw_pools, &
+                            l_info=l_info,cube_info=cube_info, gridlevel_info=gridlevel_info, error=error)
     ALLOCATE(mgrid_rspace(SIZE(pw_pools)), mgrid_gspace(SIZE(pw_pools)),&
              stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routine,error,failure)
+    CPPostcondition(stat==0,cp_failure_level,routineN,error,failure)
     CALL pw_pools_init_coeffs(pw_pools,mgrid_gspace,&
                 use_data = COMPLEXDATA1D,&
                 in_space = RECIPROCALSPACE, error=error)
@@ -1299,11 +1313,8 @@ CONTAINS
                 use_data = REALDATA3D,&
                 in_space = REALSPACE, error=error)
 
-    gridlevel_info=>pw_env%gridlevel_info
-    cube_info=>pw_env%cube_info
-    l_info=pw_env%l_info
     ! *** set up rs multi-grids
-    CALL rs_pools_create_rs_vect(rs_pools, rs_rho, force_env_section=qs_env%input,&
+    CALL rs_pools_create_rs_vect(rs_pools, rs_rho, force_env_section=force_env_section,&
          error=error)
 
     DO igrid_level=1,gridlevel_info%ngrid_levels
@@ -1319,9 +1330,9 @@ CONTAINS
                              maxsgf_set=maxsgf_set)
 
     ALLOCATE (pab(maxco,1),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"pab",maxco*1*dp_size)
+    IF (istat /= 0) CALL stop_memory(routineN,"pab",maxco*1*dp_size)
     ALLOCATE (work(maxco,1),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"work",maxco*1*dp_size)
+    IF (istat /= 0) CALL stop_memory(routineN,"work",maxco*1*dp_size)
 
     offset=0
 
@@ -1401,10 +1412,10 @@ CONTAINS
     DEALLOCATE(eigenvector)
 
     DEALLOCATE (pab,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"pab")
+    IF (istat /= 0) CALL stop_memory(routineN,"pab")
 
     DEALLOCATE (work,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"work")
+    IF (istat /= 0) CALL stop_memory(routineN,"work")
 
     ! *** give back the pw multi-grids
     CALL pw_pools_give_back_coeffs(pw_pools,mgrid_gspace,&
@@ -1413,9 +1424,9 @@ CONTAINS
          error=error)
 
     DEALLOCATE(mgrid_gspace, mgrid_rspace, stat=stat)
-    IF (istat /= 0) CALL stop_memory(routine,"mgrid_(r/g)space")
+    IF (istat /= 0) CALL stop_memory(routineN,"mgrid_(r/g)space")
 
-    CALL timestop(0.0_dp,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE calculate_wavefunction
 

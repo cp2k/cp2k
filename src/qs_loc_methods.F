@@ -25,6 +25,7 @@
 MODULE qs_loc_methods
 ! *****************************************************************************
 
+  USE atomic_kind_types,               ONLY: atomic_kind_type
   USE cell_types,                      ONLY: cell_type
   USE coefficient_types,               ONLY: coeff_type
   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_lu_decompose
@@ -50,6 +51,7 @@ MODULE qs_loc_methods
                                              op_loc_boys,&
                                              op_loc_pipek,&
                                              state_loc_list
+  USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: twopi
   USE particle_types,                  ONLY: get_particle_set,&
@@ -832,9 +834,16 @@ CONTAINS
     INTEGER                                  :: ia, ie, istate, ivector, &
                                                 my_state0, my_stride
     LOGICAL                                  :: failure
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(cell_type), POINTER                 :: cell
     TYPE(coeff_type)                         :: wf_g, wf_r
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(section_vals_type), POINTER         :: force_env_section
 
     failure = .FALSE.
     NULLIFY(auxbas_pw_pool, pw_env)
@@ -855,8 +864,17 @@ CONTAINS
     DO istate = 1,nstates
       ivector = state_list(istate) - my_state0
 
+      CALL get_qs_env(qs_env=qs_env,&
+                          atomic_kind_set=atomic_kind_set,&
+                          cell=cell,&
+                          dft_control=dft_control,&
+                          particle_set=particle_set,&
+                          input=force_env_section,&
+                          pw_env=pw_env)
+
       CALL calculate_wavefunction(mo_coeff, ivector,&
-                wf_r, wf_g, qs_env, error=error)
+                wf_r, wf_g, atomic_kind_set,cell,dft_control,particle_set, &
+                   force_env_section, pw_env, error=error)
 
       ivector = state_list(istate)
       CALL xstring (root,ia,ie)
