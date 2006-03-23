@@ -27,9 +27,9 @@ MODULE topology
                                              cp_print_key_unit_nr
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: do_conn_generate,&
+                                             do_conn_mol_set,&
                                              do_conn_off,&
                                              do_conn_psf,&
-                                             do_conn_mol_set,&
                                              do_coord_pdb,&
                                              do_coord_xyz
   USE input_section_types,             ONLY: section_vals_get,&
@@ -112,7 +112,8 @@ CONTAINS
       POINTER                                :: molecule_kind_set
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
-    TYPE(colvar_p_type), DIMENSION(:), POINTER :: colvar_p
+    TYPE(colvar_p_type), DIMENSION(:), &
+      POINTER                                :: colvar_p
     TYPE(global_environment_type), POINTER   :: globenv
     LOGICAL, INTENT(IN), OPTIONAL            :: qmmm
     TYPE(qmmm_env_mm_type), OPTIONAL, &
@@ -281,18 +282,18 @@ CONTAINS
     TYPE(qmmm_env_mm_type), OPTIONAL, &
       POINTER                                :: qmmm_env
     TYPE(section_vals_type), POINTER         :: subsys_section
-    TYPE(section_vals_type), POINTER         :: section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'connectivity_control', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, iw
-    INTEGER                                  :: i_rep, n_rep,imol,nmol
-    LOGICAL                                  :: failure, found, my_qmmm
-    TYPE(cp_logger_type), POINTER            :: logger
     CHARACTER(len=default_string_length)     :: filename
+    INTEGER                                  :: handle, i_rep, imol, iw, &
+                                                n_rep, nmol
+    LOGICAL                                  :: failure, my_qmmm
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(section_vals_type), POINTER         :: section
 
     failure = .FALSE.
     NULLIFY(logger)

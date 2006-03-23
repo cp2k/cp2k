@@ -32,6 +32,7 @@ MODULE force_fields
                                              get_atomic_kind,&
                                              set_atomic_kind
   USE checkpoint_handler,              ONLY: Pwarning
+  USE colvar_types,                    ONLY: dist_colvar_id
   USE convert_units,                   ONLY: convert_to_cp2k_units
   USE cp_files,                        ONLY: open_file
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -97,7 +98,6 @@ MODULE force_fields
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE colvar_types, ONLY: dist_colvar_id
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -283,7 +283,7 @@ CONTAINS
 
     INTEGER                                  :: ipbv, nbends, nbmhft, nbonds, &
                                                 nchg, neam, ngd, nipbv, nlj, &
-                                                ntors, ntot, nwl, nubs
+                                                ntors, ntot, nubs, nwl
     LOGICAL                                  :: explicit, failure
     TYPE(input_info_type), POINTER           :: inp_info
     TYPE(section_vals_type), POINTER         :: tmp_section, tmp_section2
@@ -921,9 +921,7 @@ CONTAINS
 !******************************************************************************
   SUBROUTINE read_bonds_section(bond_kind,bond_a, bond_b, bond_k, bond_r0, section, start, error)
     CHARACTER(LEN=default_string_length), &
-      DIMENSION(:), POINTER                  :: bond_kind
-    CHARACTER(LEN=default_string_length), &
-      DIMENSION(:), POINTER                  :: bond_a, bond_b
+      DIMENSION(:), POINTER                  :: bond_kind, bond_a, bond_b
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: bond_k
     REAL(KIND=dp), DIMENSION(:), POINTER     :: bond_r0
     TYPE(section_vals_type), POINTER         :: section
@@ -977,9 +975,8 @@ CONTAINS
 !******************************************************************************
   SUBROUTINE read_bends_section(bend_kind,bend_a, bend_b, bend_c, bend_k, bend_theta0, section, start, error)
     CHARACTER(LEN=default_string_length), &
-      DIMENSION(:), POINTER                  :: bend_kind
-    CHARACTER(LEN=default_string_length), &
-      DIMENSION(:), POINTER                  :: bend_a, bend_b, bend_c
+      DIMENSION(:), POINTER                  :: bend_kind, bend_a, bend_b, &
+                                                bend_c
     REAL(KIND=dp), DIMENSION(:), POINTER     :: bend_k, bend_theta0
     TYPE(section_vals_type), POINTER         :: section
     INTEGER, INTENT(IN)                      :: start
@@ -1031,9 +1028,7 @@ CONTAINS
 !******************************************************************************
   SUBROUTINE read_ubs_section(ub_kind,ub_a, ub_b, ub_c, ub_k, ub_r0, section, start, error)
     CHARACTER(LEN=default_string_length), &
-      DIMENSION(:), POINTER                  :: ub_kind
-    CHARACTER(LEN=default_string_length), &
-      DIMENSION(:), POINTER                  :: ub_a, ub_b, ub_c
+      DIMENSION(:), POINTER                  :: ub_kind, ub_a, ub_b, ub_c
     REAL(KIND=dp), DIMENSION(:), POINTER     :: ub_k, ub_r0
     TYPE(section_vals_type), POINTER         :: section
     INTEGER, INTENT(IN)                      :: start
@@ -1047,10 +1042,9 @@ CONTAINS
       DIMENSION(:), POINTER                  :: atm_names
     INTEGER                                  :: isec, n_items
     LOGICAL                                  :: failure
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: Kvals
 
     failure = .FALSE.
-    NULLIFY(Kvals, atm_names)
+    NULLIFY(atm_names)
     CALL section_vals_get(section,n_repetition=n_items,error=error)
     DO isec = 1, n_items         
        CALL section_vals_val_get(section,"KIND",i_rep_section=isec,c_vals=atm_names,error=error)
@@ -1083,10 +1077,9 @@ CONTAINS
   SUBROUTINE read_torsions_section(torsion_kind,torsion_a, torsion_b, torsion_c, torsion_d, torsion_k,&
        torsion_cosphi0, torsion_m, section, start, error )
     CHARACTER(LEN=default_string_length), &
-      DIMENSION(:), POINTER                  :: torsion_kind
-    CHARACTER(LEN=default_string_length), &
-      DIMENSION(:), POINTER                  :: torsion_a, torsion_b, &
-                                                torsion_c, torsion_d
+      DIMENSION(:), POINTER                  :: torsion_kind, torsion_a, &
+                                                torsion_b, torsion_c, &
+                                                torsion_d
     REAL(KIND=dp), DIMENSION(:), POINTER     :: torsion_k, torsion_cosphi0, &
                                                 torsion_m
     TYPE(section_vals_type), POINTER         :: section
@@ -3307,9 +3300,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: atm2_a, atm2_b, atm2_c, atm_a, atm_b, atm_c, atm_d, central, &
-      counter, handle, i, ibend, ibond, ig3x3, ig4x6, iimpr, ikind, &
-      itorsion, iub, iw, j, k, nbend, nbond, icolv, newkind, ng3x3, ng4x6, &
-      nimpr, ntorsion, nub, stat
+      counter, handle, i, ibend, ibond, icolv, ig3x3, ig4x6, iimpr, ikind, &
+      itorsion, iub, iw, j, k, nbend, nbond, newkind, ng3x3, ng4x6, nimpr, &
+      ntorsion, nub, stat
     INTEGER, POINTER                         :: bad1(:), bad2(:)
     LOGICAL                                  :: failure, unsetme, valid_kind
     TYPE(bend_kind_type), DIMENSION(:), &
@@ -3320,9 +3313,9 @@ CONTAINS
       POINTER                                :: bond_kind_set, &
                                                 new_bond_kind_set
     TYPE(bond_type), DIMENSION(:), POINTER   :: bond_list, new_bond_list
-    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(colvar_constraint_type), &
       DIMENSION(:), POINTER                  :: colv_list
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(g3x3_constraint_type), &
       DIMENSION(:), POINTER                  :: g3x3_list
     TYPE(g4x6_constraint_type), &

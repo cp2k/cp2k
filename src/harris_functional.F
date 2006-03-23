@@ -118,8 +118,7 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(harris_env_type), POINTER           :: harris_env
     TYPE(global_environment_type), POINTER   :: globenv
-    LOGICAL, INTENT(IN), OPTIONAL            :: EII_necessary, &
-                                                fast
+    LOGICAL, INTENT(IN), OPTIONAL            :: EII_necessary, fast
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
@@ -138,8 +137,8 @@ CONTAINS
     TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(qs_rho_type), POINTER               :: rho
-!rho_tot_gspace, &
 
+!rho_tot_gspace, &
 !   ------------------------------------------------------------------------
 
     CALL timeset(routineN, "I", "", handle)

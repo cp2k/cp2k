@@ -25,7 +25,8 @@
 MODULE bessel_lib
   
   USE kinds,                           ONLY: dp
-  USE mathconstants,                   ONLY: pi, fac
+  USE mathconstants,                   ONLY: fac,&
+                                             pi
 
   IMPLICIT NONE
   
@@ -239,16 +240,14 @@ CONTAINS
     ! f(g) = 4Pi * INT(0..INF) r^2 * f(r) * B_L(g*r) dr
     !      = 4Pi * SUM(1..n) r_i^2 * f(r_i) * B_L(g*r_i) * w(r_i)
     !
-    REAL(KIND=dp), DIMENSION(:),INTENT(OUT)  :: fg
-    REAL(KIND=dp), DIMENSION(:),INTENT(IN)   :: g
-    INTEGER,INTENT(IN)                       :: l
-    REAL(KIND=dp), DIMENSION(:),INTENT(IN)   :: r
-    REAL(KIND=dp), DIMENSION(:),INTENT(IN)   :: fr
-    REAL(KIND=dp), DIMENSION(:),INTENT(IN)   :: wr
-    INTEGER,INTENT(IN)                       :: n
+    REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: fg
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: g
+    INTEGER, INTENT(IN)                      :: l
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: r, fr, wr
+    INTEGER, INTENT(IN)                      :: n
 
-    REAL(KIND=dp), DIMENSION(:),ALLOCATABLE  :: bfr
-    INTEGER                                  :: i,j
+    INTEGER                                  :: i, j
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: bfr
 
     ALLOCATE (bfr(n))
     DO i=1,SIZE(fg)
@@ -273,14 +272,15 @@ CONTAINS
     ! Abramowitz & Stegun using Formulas 10.1.2, 10.1.8, 10.1.9
     ! Adapted from P. Bloechl
     !
-    REAL(KIND=dp),INTENT(IN)       :: x
-    INTEGER,INTENT(IN)             :: l
-    REAL(KIND=dp)                  :: bessel0
+    REAL(KIND=dp), INTENT(IN)                :: x
+    INTEGER, INTENT(IN)                      :: l
+    REAL(KIND=dp)                            :: bessel0
 
-    REAL(KIND=dp), PARAMETER       :: tol=1.e-12_dp
-    REAL(KIND=dp), DIMENSION(4)    :: trig
-    REAL(KIND=dp)                  :: arg,xsq,fact
-    INTEGER                        :: i,k,ii,il,isvar
+    REAL(KIND=dp), PARAMETER                 :: tol = 1.e-12_dp
+
+    INTEGER                                  :: i, ii, il, isvar, k
+    REAL(KIND=dp)                            :: arg, fact, xsq
+    REAL(KIND=dp), DIMENSION(4)              :: trig
 
     IF (x > REAL(l,KIND=dp)) THEN
       arg=x-0.5_dp*REAL(l,KIND=dp)*pi

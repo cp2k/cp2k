@@ -23,7 +23,6 @@
 
 MODULE lowdin
   USE atomic_charges,                  ONLY: print_atomic_charges
-  USE atomic_kind_types,               ONLY: get_atomic_kind
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
   USE cp_fm_diag,                      ONLY: cp_fm_power
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -43,7 +42,6 @@ MODULE lowdin
                                              mo_set_p_type
   USE sparse_matrix_types,             ONLY: get_matrix_info,&
                                              real_matrix_type
-  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 
@@ -186,10 +184,7 @@ CONTAINS
     INTEGER                                  :: scr
     CHARACTER(LEN=*)                         :: title
 
-    CHARACTER(LEN=2)                         :: element_symbol
-    INTEGER                                  :: handle, i, iblock, nblock, &
-                                                nspin
-    REAL(KIND=dp)                            :: total_charge, zeff
+    INTEGER                                  :: handle, i, nblock, nspin
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: charges
 
 ! GO

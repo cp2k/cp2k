@@ -28,9 +28,9 @@ MODULE cp_ddapc
   USE cell_types,                      ONLY: cell_type
   USE coefficient_types,               ONLY: coeff_type
   USE cp_control_types,                ONLY: ddapc_restraint_type
-  USE cp_ddapc_forces,                 ONLY: ewald_ddapc_force,&
+  USE cp_ddapc_forces,                 ONLY: evaluate_restraint_functional,&
+                                             ewald_ddapc_force,&
                                              reset_ch_pulay,&
-                                             evaluate_restraint_functional,&
                                              restraint_functional_force
   USE cp_ddapc_methods,                ONLY: build_A_matrix,&
                                              build_b_vector,&
@@ -42,8 +42,7 @@ MODULE cp_ddapc
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE input_constants,                 ONLY: use_multipole
-  USE input_section_types,             ONLY: section_vals_get,&
-                                             section_vals_get_subs_vals,&
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
@@ -118,8 +117,8 @@ CONTAINS
                                                 ii, iparticle, ispin, iw, j, &
                                                 n_rep_val, ndim, num_gauss, &
                                                 stat
-    LOGICAL                                  :: failure, need_f, &
-                                                only_charge, apply_restrain
+    LOGICAL                                  :: apply_restrain, failure, &
+                                                need_f, only_charge
     REAL(KIND=dp)                            :: c1, c3, c4, ch_dens, core_ch, &
                                                 elec_ch, gcut, pfact, rcmin, &
                                                 Vol
@@ -407,8 +406,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, iw, my_val, stat
-    LOGICAL                                  :: failure, need_f, &
-                                                qmmm_periodic
+    LOGICAL                                  :: apply_decpl, apply_restrain, &
+                                                failure, need_f, qmmm_periodic
     REAL(KINd=dp)                            :: e_decpl, e_recpl
     REAL(KIND=dp), DIMENSION(:), POINTER     :: charges, radii
     REAL(KIND=dp), DIMENSION(:, :, :), &
@@ -420,7 +419,6 @@ CONTAINS
                                                 multipole_section, &
                                                 poisson_section, &
                                                 qmmm_periodic_section
-    LOGICAL :: apply_decpl, apply_restrain
 
     CALL timeset(routineN,"I","",handle)
     failure        = .FALSE.
@@ -551,29 +549,28 @@ CONTAINS
 SUBROUTINE restraint_functional_potential(v_hartree_gspace, rho_tot_gspace,&
      multipole_section, particle_set, AmI, radii, charges, ddapc_restraint_control,&
      energy_res, error)
-    TYPE(ddapc_restraint_type), &
-      INTENT(INOUT)                          :: ddapc_restraint_control
     TYPE(coeff_type)                         :: v_hartree_gspace, &
                                                 rho_tot_gspace
     TYPE(section_vals_type), POINTER         :: multipole_section
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: M, AmI
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: AmI
     REAL(KIND=dp), DIMENSION(:), POINTER     :: radii, charges
+    TYPE(ddapc_restraint_type), &
+      INTENT(INOUT)                          :: ddapc_restraint_control
     REAL(KIND=dp), INTENT(INOUT)             :: energy_res
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'restraint_functional_potential', &
-      routineP = moduleN//':'//routineN    
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'restraint_functional_potential', &
+      routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: I, n_gauss, ind
-    REAL(KIND=dp)                            :: order_p, dE
     COMPLEX(KIND=dp)                         :: g_corr, phase
-    INTEGER                                  :: handle, idim, ig, igauss, &
-                                                iparticle, stat
+    INTEGER                                  :: handle, I, idim, ig, igauss, &
+                                                iparticle, n_gauss, stat
     LOGICAL                                  :: failure
-    REAL(kind=dp)                            :: arg, fac, fac2, g2, gcut, &
+    REAL(KIND=dp)                            :: arg, fac, fac2, g2, gcut, &
                                                 gcut2, gfunc, gvec(3), rc, &
                                                 rc2, rvec(3), sfac, Vol, w
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: cv, uv

@@ -203,7 +203,7 @@ CONTAINS
          linres_control%converged = .FALSE.
          CALL linres_scf(p_env, qs_env, psi1, h1_psi0,error=error)
 
-  stop 'p1'
+  STOP 'p1'
          IF(linres_control%converged) THEN
 
           ! the optimized wfns are copied in the  fm

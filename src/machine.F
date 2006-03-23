@@ -116,12 +116,11 @@ CONTAINS
 FUNCTION m_walltime() RESULT (wt)
     REAL(KIND=dp)                            :: wt
 
-    INTEGER                                  :: count, count_rate, count_max
- 
-    INTEGER, SAVE :: last_count=-1
-    INTEGER, SAVE :: cycles=0
+    INTEGER                                  :: count, count_max, count_rate
+    INTEGER, SAVE                            :: cycles = 0, last_count = -1
 
-    ! count lies in [0,count_max]
+! count lies in [0,count_max]
+
     CALL SYSTEM_CLOCK(count=count,count_rate=count_rate,count_max=count_max)
     IF (count<last_count) cycles=cycles+1
     last_count=count

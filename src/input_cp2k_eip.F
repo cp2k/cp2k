@@ -33,9 +33,7 @@ MODULE input_cp2k_eip
                                              section_create,&
                                              section_release,&
                                              section_type
-  USE input_val_types,                 ONLY: enum_t,&
-                                             logical_t,&
-                                             real_t
+  USE input_val_types,                 ONLY: enum_t
   USE kinds,                           ONLY: dp
   USE string_utilities,                ONLY: s2a
 #include "cp_common_uses.h"

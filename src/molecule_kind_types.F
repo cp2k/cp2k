@@ -41,8 +41,6 @@ MODULE molecule_kind_types
                                              int_size
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
-  USE colvar_types, ONLY: colvar_type
-
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -274,8 +272,8 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_molecule_kind_set'
 
-    INTEGER                                  :: i, imolecule_kind, istat, &
-                                                nmolecule_kind, j
+    INTEGER                                  :: i, imolecule_kind, istat, j, &
+                                                nmolecule_kind
 
 !   ---------------------------------------------------------------------------
 
@@ -478,12 +476,15 @@ CONTAINS
     INTEGER, INTENT(OUT), OPTIONAL           :: nhcopt
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: mass, charge
-    INTEGER, INTENT(OUT), OPTIONAL :: kind_number, natom, nbend, nbond, nub, &
-      nimpr, nonfo, nconstraint, nfixd, ng3x3, ng4x6, nmolecule, nsgf, &
-      ntorsion
+    INTEGER, INTENT(OUT), OPTIONAL           :: kind_number, natom, nbend, &
+                                                nbond, nub, nimpr, nonfo, &
+                                                nconstraint, nfixd
+    TYPE(colvar_counters), INTENT(out), &
+      OPTIONAL                               :: ncolv
+    INTEGER, INTENT(OUT), OPTIONAL           :: ng3x3, ng4x6, nmolecule, &
+                                                nsgf, ntorsion
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: molecule_list
     INTEGER, INTENT(OUT), OPTIONAL           :: nelectron
-    TYPE(colvar_counters), OPTIONAL, INTENT(out) :: ncolv
     TYPE(bond_kind_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: bond_kind_set
     TYPE(bend_kind_type), DIMENSION(:), &
@@ -750,7 +751,8 @@ CONTAINS
       OPTIONAL, POINTER                      :: torsion_list
     TYPE(fixd_constraint_type), &
       DIMENSION(:), OPTIONAL, POINTER        :: fixd_list
-    TYPE(colvar_counters), INTENT(IN), OPTIONAL   :: ncolv
+    TYPE(colvar_counters), INTENT(IN), &
+      OPTIONAL                               :: ncolv
     TYPE(colvar_constraint_type), &
       DIMENSION(:), OPTIONAL, POINTER        :: colv_list
     INTEGER, INTENT(IN), OPTIONAL            :: ng3x3

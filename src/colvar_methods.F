@@ -26,25 +26,13 @@
 MODULE colvar_methods
   USE cell_types,                      ONLY: cell_type
   USE colvar_types,                    ONLY: angle_colvar_id,&
+                                             colvar_create,&
+                                             colvar_setup,&
                                              colvar_type,&
                                              coord_colvar_id,&
                                              dist_colvar_id,&
                                              plane_distance_colvar_id,&
-                                             torsion_colvar_id,&
-                                             colvar_create,&
-                                             colvar_setup
-  USE distribution_1d_types,           ONLY: distribution_1d_type
-  USE molecule_kind_types,             ONLY: colvar_constraint_type,&
-                                             g3x3_constraint_type,&
-                                             g4x6_constraint_type,&
-                                             get_molecule_kind,&
-                                             molecule_kind_type,&
-                                             colvar_counters
-  USE molecule_types_new,              ONLY: get_molecule,&
-                                             local_colvar_constraint_type,&
-                                             local_g3x3_constraint_type,&
-                                             local_g4x6_constraint_type,&
-                                             molecule_type  
+                                             torsion_colvar_id
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
@@ -115,7 +103,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'colvar_read', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, iatm, ii, iw, kk, stat
+    INTEGER                                  :: handle, iatm, iw, kk, stat
     INTEGER, DIMENSION(:), POINTER           :: iatms
     LOGICAL                                  :: failure
     LOGICAL, DIMENSION(5)                    :: my_subsection
@@ -250,16 +238,18 @@ CONTAINS
   !!
   !!*** **********************************************************************
   SUBROUTINE colvar_eval_mol_f(colvar, cell, particles, error)
-    TYPE(colvar_type),POINTER                   :: colvar
-    TYPE(particle_type), POINTER , DIMENSION(:) :: particles
+    TYPE(colvar_type), POINTER               :: colvar
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particles
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'colvar_eval_mol_f', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure, colvar_ok
+    LOGICAL                                  :: colvar_ok, failure
+
     failure=.FALSE.
 
     colvar_ok=ASSOCIATED(colvar)
@@ -315,9 +305,9 @@ CONTAINS
 
     LOGICAL                                  :: colvar_ok, failure
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(colvar_type), POINTER               :: colvar
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
-    TYPE(colvar_type), POINTER                 :: colvar
 
     failure=.FALSE.
     NULLIFY(subsys,cell,colvar)
@@ -361,10 +351,12 @@ CONTAINS
   !!*** **********************************************************************
   SUBROUTINE plane_distance_colvar(colvar,cell,subsys,particles,error)
 
-    TYPE(colvar_type), POINTER                 :: colvar
+    TYPE(colvar_type), POINTER               :: colvar
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_subsystem_type), POINTER, OPTIONAL :: subsys
-    TYPE(particle_type), POINTER, DIMENSION(:), OPTIONAL :: particles
+    TYPE(cp_subsystem_type), OPTIONAL, &
+      POINTER                                :: subsys
+    TYPE(particle_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: particles
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -375,8 +367,9 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(dp) :: a, b, dsdxpn(3), dxpndxi(3,3), dxpndxj(3,3), dxpndxk(3,3), &
       r12, xpij(3), xpkj(3), xpl(3), xpn(3)
-    TYPE(particle_list_type), POINTER          :: particles_i
-    TYPE(particle_type), POINTER, DIMENSION(:) :: my_particles
+    TYPE(particle_list_type), POINTER        :: particles_i
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: my_particles
 
     failure=.FALSE.
     NULLIFY(particles_i)
@@ -463,9 +456,11 @@ CONTAINS
   !!*** **********************************************************************
   SUBROUTINE angle_colvar(colvar,cell,subsys,particles,error)
     TYPE(colvar_type), POINTER               :: colvar
-    TYPE(cp_subsystem_type), POINTER ,OPTIONAL        :: subsys
-    TYPE(particle_type), POINTER, DIMENSION(:), OPTIONAL :: particles
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_subsystem_type), OPTIONAL, &
+      POINTER                                :: subsys
+    TYPE(particle_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: particles
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -477,7 +472,8 @@ CONTAINS
     REAL(dp)                                 :: a, b, fmod, t0, t1, t2, t3, &
                                                 xij(3), xkj(3)
     TYPE(particle_list_type), POINTER        :: particles_i
-    TYPE(particle_type), POINTER, DIMENSION(:) :: my_particles
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: my_particles
 
     failure=.FALSE.
     NULLIFY(particles_i)
@@ -532,9 +528,11 @@ CONTAINS
   !!*** **********************************************************************
   SUBROUTINE dist_colvar(colvar,cell,subsys,particles,error)
     TYPE(colvar_type), POINTER               :: colvar
-    TYPE(cp_subsystem_type), POINTER, OPTIONAL         :: subsys
-    TYPE(particle_type), POINTER, DIMENSION(:), OPTIONAL :: particles
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_subsystem_type), OPTIONAL, &
+      POINTER                                :: subsys
+    TYPE(particle_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: particles
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -546,7 +544,8 @@ CONTAINS
     REAL(dp)                                 :: r12, ss(3), xij(3), xpi(3), &
                                                 xpj(3)
     TYPE(particle_list_type), POINTER        :: particles_i
-    TYPE(particle_type), POINTER, DIMENSION(:) :: my_particles
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: my_particles
 
     failure=.FALSE.
     NULLIFY(particles_i)
@@ -593,9 +592,11 @@ CONTAINS
   !!*** **********************************************************************
   SUBROUTINE coord_colvar(colvar,cell,subsys,particles,error)
     TYPE(colvar_type), POINTER               :: colvar
-    TYPE(cp_subsystem_type), POINTER,OPTIONAL         :: subsys
-    TYPE(particle_type), POINTER, DIMENSION(:), OPTIONAL :: particles
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_subsystem_type), OPTIONAL, &
+      POINTER                                :: subsys
+    TYPE(particle_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: particles
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -610,7 +611,8 @@ CONTAINS
                                                 xij(3)
     REAL(dp), DIMENSION(3)                   :: xpi, xpj
     TYPE(particle_list_type), POINTER        :: particles_i
-    TYPE(particle_type), POINTER, DIMENSION(:) :: my_particles
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: my_particles
 
     failure=.FALSE.
     n_atoms_to=colvar%coord_param%n_atoms_to
@@ -675,9 +677,11 @@ CONTAINS
   SUBROUTINE torsion_colvar(colvar,cell,subsys,particles,error)
 
     TYPE(colvar_type), POINTER               :: colvar
-    TYPE(cp_subsystem_type), POINTER,OPTIONAL         :: subsys
-    TYPE(particle_type), POINTER, DIMENSION(:), OPTIONAL :: particles
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_subsystem_type), OPTIONAL, &
+      POINTER                                :: subsys
+    TYPE(particle_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: particles
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -694,9 +698,9 @@ CONTAINS
       zdc, zia, zib, zic, zid, zt, ztu, zu
     REAL(dp), DIMENSION(3, 4)                :: rr
     TYPE(particle_list_type), POINTER        :: particles_i
-    TYPE(particle_type), POINTER, DIMENSION(:) :: my_particles
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: my_particles
 
-    
     failure=.FALSE.
     NULLIFY(particles_i)
     CPPrecondition(colvar%type_id==torsion_colvar_id,cp_failure_level,routineP,error,failure)

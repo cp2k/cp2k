@@ -46,12 +46,12 @@ MODULE pint_types
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE machine,                         ONLY: m_flush
-  USE parallel_rng_types,              ONLY: create_rng_stream,&
+  USE parallel_rng_types,              ONLY: GAUSSIAN,&
+                                             create_rng_stream,&
                                              delete_rng_stream,&
                                              next_random_number,&
                                              next_rng_seed,&
-                                             rng_stream_type,&
-                                             GAUSSIAN
+                                             rng_stream_type
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: write_particle_coordinates
   USE replica_methods,                 ONLY: rep_env_calc_e_f,&

@@ -48,13 +48,14 @@ MODULE qs_linres_nmr_current
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
-  USE cp_fm_types,                     ONLY: cp_fm_get_submatrix,&
+  USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                             cp_fm_get_submatrix,&
                                              cp_fm_p_type,&
+                                             cp_fm_release,&
                                              cp_fm_set_all,&
                                              cp_fm_set_submatrix,&
                                              cp_fm_to_fm,&
-                                             cp_fm_type,&
-                                             cp_fm_create, cp_fm_release
+                                             cp_fm_type
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
@@ -211,10 +212,8 @@ CONTAINS
     TYPE(coeff_type), POINTER                :: rho_gspace, rho_rspace, wf_r
     TYPE(cp_2d_r_p_type), DIMENSION(3)       :: vecbuf
     TYPE(cp_fm_struct_type), POINTER         :: tmp_fm_struct
-    TYPE(cp_fm_type), POINTER                :: mo_coeff
-    TYPE(cp_fm_type), POINTER                :: psi2,psi3
-    TYPE(cp_fm_type), POINTER                :: p_psi2,p_psi3
-    TYPE(cp_fm_type), POINTER                :: fm_work1
+    TYPE(cp_fm_type), POINTER                :: fm_work1, mo_coeff, p_psi2, &
+                                                p_psi3, psi2, psi3
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_rs_pool_type), POINTER           :: auxbas_rs_pool
@@ -337,7 +336,7 @@ CONTAINS
 
 ! First compute the contribution to the CHI tensor coming from the soft density
           CALL chi_soft_analytic(nmr_env,qs_env,psi1,p_psi1,ispin,i_B,error=error)
- stop 'chi'
+ STOP 'chi'
 
           CALL cp_fm_set_all(psi1(ispin)%matrix,0.0_dp,error=error)
           !First contribution from the response psi1_p

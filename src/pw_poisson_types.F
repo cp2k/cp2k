@@ -32,11 +32,11 @@
 !!   SOURCE
 !****************************************************************************
 MODULE pw_poisson_types
-  USE bessel_lib,                      ONLY: bessj0,&
+  USE bessel_lib,                      ONLY: bessel_transform,&
+                                             bessj0,&
                                              bessj1,&
                                              bessk0,&
-                                             bessk1,&
-                                             bessel_transform
+                                             bessk1
   USE cell_types,                      ONLY: cell_release,&
                                              cell_type
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -52,8 +52,8 @@ MODULE pw_poisson_types
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: fourpi,&
-                                             twopi,&
-                                             pi
+                                             pi,&
+                                             twopi
   USE mt_util,                         ONLY: MTin_create_screen_fn
   USE pw_grid_types,                   ONLY: HALFSPACE,&
                                              pw_grid_type
@@ -316,21 +316,21 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_green_create', &
       routineP = moduleN//':'//routineN
+    INTEGER, PARAMETER                       :: nr = 250
 
     INTEGER                                  :: dim, ewald_kind, i, ig, iz, &
                                                 my_per, my_val, n, nz, stat
     INTEGER, DIMENSION(3)                    :: perd
     LOGICAL                                  :: failure, screen
-    REAL(KIND=dp)                            :: alpha, g2, g3d, gg, gxy, j0g, &
-                                                j1g, k0g, k1g, rlength, &
-                                                zlength, ri, rc, t, cost, sint,&
-                                                sint2, x, w, f, ep
+    REAL(KIND=dp)                            :: alpha, cost, ep, f, g2, g3d, &
+                                                gg, gxy, j0g, j1g, k0g, k1g, &
+                                                rc, ri, rlength, sint, sint2, &
+                                                t, w, x, zlength
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: fun, gval, rval, sfg, wr
     REAL(KIND=dp), DIMENSION(3)              :: abc
     TYPE(pw_grid_type), POINTER              :: grid
     TYPE(pw_type), POINTER                   :: gf
     TYPE(section_vals_type), POINTER         :: ewald_section, mt_section
-    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: sfg, gval, rval, fun, wr
-    INTEGER,PARAMETER                        :: nr=250
 
     failure = .FALSE.
     NULLIFY(ewald_section)
@@ -609,7 +609,7 @@ CONTAINS
          ri = ri - 0.5_dp*rc
          rc = 24._dp/rc
          DO i=1,nr
-           ep = exp(-rc*(rval(i)-ri))
+           ep = EXP(-rc*(rval(i)-ri))
            fun(i) = ep / ((1._dp + ep)*rval(i))
          END DO
 

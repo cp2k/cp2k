@@ -32,8 +32,8 @@ MODULE environment
   USE gamma,                           ONLY: deallocate_md_ftable
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: &
-       do_farming, do_fist, do_kg, do_qs, do_test, energy_run, mol_dyn_run, &
-       none_run, program_names, run_type_names, do_tbmd, do_eip
+       do_eip, do_farming, do_fist, do_kg, do_qs, do_tbmd, do_test, &
+       energy_run, mol_dyn_run, none_run, program_names, run_type_names
   USE input_section_types,             ONLY: section_get_lval,&
                                              section_get_rval,&
                                              section_vals_get,&
@@ -57,12 +57,12 @@ MODULE environment
                                              rm_mp_perf_env
   USE orbital_pointers,                ONLY: deallocate_orbital_pointers
   USE orbital_transformation_matrices, ONLY: deallocate_spherical_harmonics
-  USE parallel_rng_types,              ONLY: init_rng,&
+  USE parallel_rng_types,              ONLY: GAUSSIAN,&
                                              check_rng,&
                                              create_rng_stream,&
+                                             init_rng,&
                                              write_rng_matrices,&
-                                             write_rng_stream,&
-                                             GAUSSIAN
+                                             write_rng_stream
   USE physcon,                         ONLY: write_physcon
   USE string_utilities,                ONLY: ascii_to_string,&
                                              string_to_ascii
@@ -389,14 +389,14 @@ SUBROUTINE cp2k_read(globenv,error)
       OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cp2k_setup', &
-                                   routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: input_seed, iw
     LOGICAL                                  :: failure
+    REAL(KIND=dp), DIMENSION(3, 2)           :: initial_seed
     TYPE(cp_logger_type), POINTER            :: logger
-    REAL(KIND=dp), DIMENSION(3,2)            :: initial_seed
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     failure = .FALSE.
 

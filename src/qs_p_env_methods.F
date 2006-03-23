@@ -83,8 +83,7 @@ MODULE qs_p_env_methods
                                              mo_set_p_type
   USE qs_p_env_types,                  ONLY: qs_p_env_type
   USE qs_rho0_methods,                 ONLY: init_rho0
-  USE qs_rho_atom_methods,             ONLY: allocate_rho_atom_internals,&
-                                             calculate_rho_atom_coeff
+  USE qs_rho_atom_methods,             ONLY: allocate_rho_atom_internals
   USE qs_rho_methods,                  ONLY: qs_rho_rebuild,&
                                              qs_rho_update_rho
   USE qs_rho_types,                    ONLY: qs_rho_release,&
@@ -599,8 +598,8 @@ END SUBROUTINE p_env_did_change
     CHARACTER(len=*), PARAMETER :: routineN = 'p_env_psi0_changed', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, lfomo, n_spins, nmo, &
-                                                output_unit, spin, stat
+    INTEGER                                  :: handle, i, lfomo, n_spins, &
+                                                nmo, output_unit, spin, stat
     LOGICAL                                  :: failure, ionode, was_present
     REAL(KIND=dp)                            :: maxocc
     TYPE(cp_fm_p_type), DIMENSION(:), &
@@ -618,7 +617,6 @@ END SUBROUTINE p_env_did_change
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
     TYPE(section_vals_type), POINTER         :: input, lr_section
-   integer :: i,j
 
 ! code
 
@@ -941,13 +939,13 @@ END SUBROUTINE p_env_did_change
     CHARACTER(len=*), PARAMETER :: routineN = 'p_op_l1_spin', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ncol
+    INTEGER                                  :: handle, i, ncol
     LOGICAL                                  :: failure
     TYPE(cp_fm_pool_type), POINTER           :: maxao_maxmo_fm_pool
     TYPE(cp_fm_type), POINTER                :: tmp
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(real_matrix_type), POINTER          :: k_p
-    integer :: i,j
+
 ! code
 
     CALL timeset(routineN,"I"," ",handle)

@@ -26,7 +26,6 @@ MODULE qs_scf_methods
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_reduce,&
                                              cp_fm_cholesky_restore
   USE cp_fm_diag,                      ONLY: cp_fm_block_jacobi_classic,&
-                                             cp_fm_power,&
                                              cp_fm_syevd,&
                                              cp_fm_syevx
   USE cp_fm_types,                     ONLY: cp_fm_get_element,&
@@ -34,7 +33,6 @@ MODULE qs_scf_methods
                                              cp_fm_to_fm,&
                                              cp_fm_type
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_max
   USE qs_environment_types,            ONLY: qs_environment_type
@@ -53,8 +51,8 @@ MODULE qs_scf_methods
                                              real_block_node_type,&
                                              real_matrix_p_type,&
                                              real_matrix_type
-  USE termination,                     ONLY: stop_program,&
-                                             stop_memory
+  USE termination,                     ONLY: stop_memory,&
+                                             stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -314,13 +312,13 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    INTEGER                                  :: handle, homo, imo, lfomo, &
-                                                nao, nelectron, nmo, istat
+    INTEGER                                  :: handle, homo, imo, istat, &
+                                                lfomo, nao, nelectron, nmo
     LOGICAL                                  :: mo_uocc
     REAL(KIND=dp)                            :: alpha, maxocc
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: eigvals
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues, mo_occupation
     TYPE(cp_fm_type), POINTER                :: mo_coeff
-    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: eigvals
 
 !   ---------------------------------------------------------------------------
 

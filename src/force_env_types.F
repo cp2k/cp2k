@@ -30,9 +30,9 @@ MODULE force_env_types
                                              cp_subsystem_p_type
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_p_type,&
                                              dyn_coeff_set_release
-  USE eip_environment_types,           ONLY: eip_environment_type, &
-                                             eip_env_release, &
-                                             eip_env_get
+  USE eip_environment_types,           ONLY: eip_env_get,&
+                                             eip_env_release,&
+                                             eip_environment_type
   USE fist_energy_types,               ONLY: fist_energy_type
   USE fist_environment_types,          ONLY: fist_env_release,&
                                              fist_environment_type,&
@@ -362,8 +362,7 @@ RECURSIVE SUBROUTINE force_env_get(force_env, in_use, &
     TYPE(eip_environment_type), OPTIONAL, &
       POINTER                                :: eip_env
     TYPE(virial_type), OPTIONAL, POINTER     :: virial
-    LOGICAL, INTENT(out), OPTIONAL           :: box_changed, &
-                                                use_ref_cell
+    LOGICAL, INTENT(out), OPTIONAL           :: box_changed, use_ref_cell
     TYPE(global_environment_type), &
       OPTIONAL, POINTER                      :: globenv
     TYPE(section_vals_type), OPTIONAL, &
@@ -375,16 +374,15 @@ RECURSIVE SUBROUTINE force_env_get(force_env, in_use, &
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: kin, penergy_mm, penergy_qm, &
-                                                pot
+    REAL(KIND=dp)                            :: eip_kinetic_energy, &
+                                                eip_potential_energy, kin, &
+                                                penergy_mm, penergy_qm, pot
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(fist_energy_type), POINTER          :: thermo
     TYPE(kg_energy_type), POINTER            :: kg_energy
     TYPE(qs_energy_type), POINTER            :: qs_energy
     TYPE(qs_environment_type), POINTER       :: my_qs_env
     TYPE(tbmd_energy_type), POINTER          :: tbmd_energy
-    REAL(KIND=dp)                            :: eip_kinetic_energy, &
-                                                eip_potential_energy
 
   failure=.FALSE.
   

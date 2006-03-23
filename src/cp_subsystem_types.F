@@ -27,8 +27,8 @@ MODULE cp_subsystem_types
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_release,&
                                              atomic_kind_list_retain,&
                                              atomic_kind_list_type
-  USE colvar_types,                    ONLY: colvar_release,&
-                                             colvar_p_type
+  USE colvar_types,                    ONLY: colvar_p_type,&
+                                             colvar_release
   USE cp_para_env,                     ONLY: cp_para_env_release,&
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type

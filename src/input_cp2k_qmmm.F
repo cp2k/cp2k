@@ -25,8 +25,6 @@
 MODULE input_cp2k_qmmm
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE input_constants
-  USE input_poisson,                   ONLY: create_gspace_interp_section,&
-                                             create_multipole_section
   USE input_cp2k_mm,                   ONLY: create_Goodwin_section,&
                                              create_LJ_section,&
                                              create_NONBONDED14_section,&
@@ -34,6 +32,8 @@ MODULE input_cp2k_qmmm
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
                                              keyword_type
+  USE input_poisson,                   ONLY: create_gspace_interp_section,&
+                                             create_multipole_section
   USE input_section_types,             ONLY: section_add_keyword,&
                                              section_add_subsection,&
                                              section_create,&

@@ -31,8 +31,7 @@ MODULE qs_semi_empirical_hamiltonian
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
   USE nddo_methods,                    ONLY: build_nddo_fock_matrix
-  USE particle_types,                  ONLY: get_particle_set,&
-                                             particle_type
+  USE particle_types,                  ONLY: particle_type
   USE physcon,                         ONLY: evolt
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
@@ -55,19 +54,15 @@ MODULE qs_semi_empirical_hamiltonian
                                              expand,&
                                              get_se_param,&
                                              get_se_type
-  USE sparse_matrix_types,             ONLY: add_block_node,&
-                                             allocate_matrix_set,&
-                                             allocate_matrix,&
+  USE sparse_matrix_types,             ONLY: allocate_matrix_set,&
                                              cp_sm_scale_and_add,&
-                                             deallocate_matrix,&
+                                             create_dbm_from_sm,&
+                                             deallocate_dbm_from_sm,&
                                              get_block_node,&
                                              real_matrix_p_type,&
                                              real_matrix_type,&
-                                             replicate_matrix_structure,&
-                                             create_dbm_from_sm,&
-                                             deallocate_dbm_from_sm
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+                                             replicate_matrix_structure
+  USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -99,12 +94,12 @@ CONTAINS
 
     INTEGER :: atom_a, atom_b, i, iab, iatom, icol, icor, ikind, ilist, &
       inode, irow, istat, itype, iw, j, jatom, jkind, natom, natorb_a, &
-      natorb_b, nkind, nlist, nnode, nsgf
+      natorb_b, nkind, nlist, nnode
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
     LOGICAL                                  :: defined, failure
     REAL(KIND=dp)                            :: delta, econst, eheat, eisol, &
-                                                enuc, enuclear, kh, udd, uff, &
-                                                upp, uss, rc, range
+                                                enuc, enuclear, kh, range, &
+                                                rc, udd, uff, upp, uss
     REAL(KIND=dp), DIMENSION(10)             :: e1b, e2a, pvec
     REAL(KIND=dp), DIMENSION(10, 3)          :: de1b, de2a
     REAL(KIND=dp), DIMENSION(16)             :: ha, hb, ua
@@ -117,6 +112,7 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_orb
@@ -130,11 +126,8 @@ CONTAINS
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_h, matrix_p, matrix_s
-    TYPE(semi_empirical_type), POINTER       :: se_kind_a, se_kind_b
     TYPE(real_matrix_type), POINTER          :: diagmat_h, diagmat_p
-    INTEGER, DIMENSION(:), ALLOCATABLE       :: first_sgf,last_sgf
-    Type(cp_para_env_type), Pointer          :: para_env
-
+    TYPE(semi_empirical_type), POINTER       :: se_kind_a, se_kind_b
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)

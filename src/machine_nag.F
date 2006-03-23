@@ -167,9 +167,9 @@ END SUBROUTINE m_hostnm
 
   SUBROUTINE m_getcwd(cwd)
 
-    CHARACTER(LEN=*), INTENT(OUT) :: cwd
+    CHARACTER(LEN=*), INTENT(OUT)            :: cwd
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     CALL getcwd(cwd)
 

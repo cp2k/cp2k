@@ -1736,16 +1736,17 @@ END SUBROUTINE cp_sm_scale_and_add
     INTEGER, INTENT(IN)                      :: block_row, block_col
     REAL(KIND=dp), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: BLOCK
-    LOGICAL, OPTIONAL, INTENT(IN)            :: add
+    LOGICAL, INTENT(IN), OPTIONAL            :: add
 
     CHARACTER(LEN=*), PARAMETER :: routine = &
       "SUBROUTINE put_real_matrix_block (MODULE sparse_matrix_types)"
 
     INTEGER                                  :: ncol, nrow
-    TYPE(real_block_node_type), POINTER      :: block_node
     LOGICAL                                  :: add_block
+    TYPE(real_block_node_type), POINTER      :: block_node
 
 !   ---------------------------------------------------------------------------
+
     IF ( PRESENT (add) ) THEN
       add_block = add
     ELSE
@@ -2798,18 +2799,19 @@ SUBROUTINE create_dbm_from_sm(dbm,sm,matrix_name,copy_in,para_env)
 !            same structure.
 !   ***************************************************************************
 
-    TYPE(real_matrix_type), POINTER            :: dbm, sm
-    CHARACTER(LEN=*), INTENT(IN)               :: matrix_name
-    LOGICAL, INTENT(IN)                        :: copy_in
-    TYPE(cp_para_env_type),OPTIONAL,INTENT(IN) :: para_env
+    TYPE(real_matrix_type), POINTER          :: dbm, sm
+    CHARACTER(LEN=*), INTENT(IN)             :: matrix_name
+    LOGICAL, INTENT(IN)                      :: copy_in
+    TYPE(cp_para_env_type), INTENT(IN), &
+      OPTIONAL                               :: para_env
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_dbm_from_sm', &
       routineP = moduleN//':'//routineN
 
-    TYPE(real_block_node_type), POINTER      :: block_node
+    INTEGER                                  :: handle, iblock_col, iblock_row
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: block
-    INTEGER                                  :: iblock_row, iblock_col
-    INTEGER                                  :: handle
+    TYPE(real_block_node_type), POINTER      :: block_node
+
 !   ---------------------------------------------------------------------------
 
     CALL timeset(routineN,"I","",handle)
@@ -2870,16 +2872,18 @@ SUBROUTINE deallocate_dbm_from_sm(dbm,sm,copy_out,para_env)
 !   Purpose: Deallocate a diagonal block matrix 
 !   ***************************************************************************
 
-    TYPE(real_matrix_type), POINTER            :: dbm, sm
-    LOGICAL, INTENT(IN)                        :: copy_out
-    TYPE(cp_para_env_type),OPTIONAL,INTENT(IN) :: para_env
+    TYPE(real_matrix_type), POINTER          :: dbm, sm
+    LOGICAL, INTENT(IN)                      :: copy_out
+    TYPE(cp_para_env_type), INTENT(IN), &
+      OPTIONAL                               :: para_env
 
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_dbm_from_sm', &
       routineP = moduleN//':'//routineN
 
-    TYPE(real_block_node_type), POINTER      :: block_node
+    INTEGER                                  :: handle, iblock_col, iblock_row
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: block
-    INTEGER                                  :: iblock_row, iblock_col, handle
+    TYPE(real_block_node_type), POINTER      :: block_node
+
 !   ---------------------------------------------------------------------------
 
   CALL timeset(routineN,"I","",handle)

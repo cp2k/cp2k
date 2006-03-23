@@ -22,8 +22,7 @@
 
 MODULE machine_pgi
 
-  USE kinds,                           ONLY: dp,&
-                                             sp
+  USE kinds,                           ONLY: dp
 
   IMPLICIT NONE
 

@@ -340,6 +340,7 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
@@ -366,7 +367,7 @@ CONTAINS
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
     TYPE(virial_type), POINTER               :: virial
-    TYPE(cell_type), POINTER                 :: cell
+
 !   ---------------------------------------------------------------------------
 
     NULLIFY (dyn_coeff_set,coeffs_of_kind,coeffs,nhc_coef,para_env,cell)
@@ -777,6 +778,7 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
@@ -804,7 +806,7 @@ CONTAINS
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
     TYPE(virial_type), POINTER               :: virial
-    TYPE(cell_type), POINTER                 :: cell
+
 !   ---------------------------------------------------------------------------
 
     NULLIFY (dyn_coeff_set,coeffs_of_kind,coeffs,nhc_coef,cell)

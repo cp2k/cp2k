@@ -31,7 +31,8 @@ MODULE cp_ddapc_forces
                                              unit_convert_type
   USE cp_control_types,                ONLY: ddapc_restraint_type
   USE erf_fn,                          ONLY: erfc
-  USE input_constants,                 ONLY: do_ddapc_constraint,do_ddapc_restraint
+  USE input_constants,                 ONLY: do_ddapc_constraint,&
+                                             do_ddapc_restraint
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
@@ -414,10 +415,11 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: I, ind
-    REAL(KIND=dp)                            :: dE, order_p
     LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: dE, order_p
 
 ! order parameter (i.e. the sum of the charges of the selected atoms)
+
     failure = .FALSE.
 
     order_p = 0.0_dp

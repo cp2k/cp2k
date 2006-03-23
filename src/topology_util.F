@@ -27,6 +27,9 @@ MODULE topology_util
                                              get_atomic_kind,&
                                              set_atomic_kind
   USE checkpoint_handler,              ONLY: Pwarning
+  USE colvar_types,                    ONLY: colvar_create,&
+                                             colvar_setup,&
+                                             dist_colvar_id
   USE convert_units,                   ONLY: convert_to_cp2k_units
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
@@ -48,13 +51,13 @@ MODULE topology_util
   USE memory_utilities,                ONLY: reallocate
   USE molecule_kind_types,             ONLY: &
        allocate_molecule_kind_set, atom_type, bend_type, bond_type, &
-       colvar_constraint_type, fixd_constraint_type, g3x3_constraint_type, &
-       g4x6_constraint_type, get_molecule_kind, impr_type, &
-       molecule_kind_type, onfo_type, set_molecule_kind, torsion_type, ub_type,&
-       colvar_counters
+       colvar_constraint_type, colvar_counters, fixd_constraint_type, &
+       g3x3_constraint_type, g4x6_constraint_type, get_molecule_kind, &
+       impr_type, molecule_kind_type, onfo_type, set_molecule_kind, &
+       torsion_type, ub_type
   USE molecule_types_new,              ONLY: &
-       allocate_molecule_set, get_molecule, local_constraint_type, &
-       local_colvar_constraint_type, local_g3x3_constraint_type, &
+       allocate_molecule_set, get_molecule, local_colvar_constraint_type, &
+       local_constraint_type, local_g3x3_constraint_type, &
        local_g4x6_constraint_type, local_molecule_type, molecule_type, &
        set_molecule, set_molecule_set
   USE particle_types,                  ONLY: allocate_particle_set,&
@@ -75,7 +78,6 @@ MODULE topology_util
                                              constraint_info_type,&
                                              topology_parameters_type
   USE util,                            ONLY: find_boundary
-  USE colvar_types, ONLY: dist_colvar_id, colvar_create, colvar_setup
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -3000,40 +3002,42 @@ CONTAINS
 
     CHARACTER(LEN=2)                         :: element_symbol
     CHARACTER(LEN=default_string_length)     :: molname, name
-    TYPE(colvar_counters)                    :: ncolv
-    INTEGER :: dum, first, handle, i, iw, j, k, kk, m, ndist, last, nbond, &
-      nfixed_atoms, ng3x3, ng4x6, nmolecule, search1, search2, stat, iglob, nrep,&
-      first_atom
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(:), POINTER                  :: atom_typeh
+    INTEGER :: dum, first, first_atom, handle, i, iglob, iw, j, k, kk, last, &
+      m, nbond, ndist, nfixed_atoms, ng3x3, ng4x6, nmolecule, nrep, search1, &
+      search2, stat
     INTEGER, DIMENSION(:), POINTER           :: molecule_list
     LOGICAL                                  :: failure, fix_atom_molname, &
                                                 fix_atom_qmmm
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: missed_molname
-    REAL(KIND=dp)                            :: xdum, rvec(3), rmod
+    REAL(KIND=dp)                            :: rmod, rvec(3), xdum
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: hdist
     TYPE(atom_type), DIMENSION(:), POINTER   :: atom_list
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(bond_type), DIMENSION(:), POINTER   :: bond_list
-    TYPE(constraint_info_type), POINTER      :: cons_info
-    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(colvar_constraint_type), &
       DIMENSION(:), POINTER                  :: colv_list
+    TYPE(colvar_counters)                    :: ncolv
+    TYPE(constraint_info_type), POINTER      :: cons_info
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(fixd_constraint_type), &
       DIMENSION(:), POINTER                  :: fixd_list
     TYPE(g3x3_constraint_type), &
       DIMENSION(:), POINTER                  :: g3x3_list
     TYPE(g4x6_constraint_type), &
       DIMENSION(:), POINTER                  :: g4x6_list
-    TYPE(local_constraint_type), POINTER     :: lci
     TYPE(local_colvar_constraint_type), &
       DIMENSION(:), POINTER                  :: lcolv
+    TYPE(local_constraint_type), POINTER     :: lci
     TYPE(local_g3x3_constraint_type), &
       DIMENSION(:), POINTER                  :: lg3x3
     TYPE(local_g4x6_constraint_type), &
       DIMENSION(:), POINTER                  :: lg4x6
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
-    CHARACTER(LEN=default_string_length), DIMENSION(:), POINTER :: atom_typeh
-    REAL(KIND=dp), POINTER, DIMENSION(:) :: hdist
-    TYPE(section_vals_type), POINTER         :: constraint_section, hbonds_section
+    TYPE(section_vals_type), POINTER         :: constraint_section, &
+                                                hbonds_section
 
     failure = .FALSE.
     NULLIFY(logger)

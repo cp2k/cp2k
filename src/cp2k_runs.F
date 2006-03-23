@@ -45,12 +45,12 @@ MODULE cp2k_runs
                                              globenv_release
   USE harris_metropolis_mc,            ONLY: harris_mc_ld
   USE input_constants,                 ONLY: &
-       bsse_run, do_farming, do_fist, do_kg, do_pint, do_qmmm, do_qs, &
-       do_tbmd, do_eip, do_test, electronic_spectra_run, energy_force_run, &
-       energy_run, geo_opt_run, hmc_run, ldmc_run, linear_response_run, &
-       mol_dyn_run, mon_car_run, none_run, qs_debug_run, KG_DFT_MC_method, &
-       QS_MC_method, Harris_MC_method, EIP_MC_method, SE_MC_method, &
-       TBMD_MC_method
+       EIP_MC_method, Harris_MC_method, KG_DFT_MC_method, QS_MC_method, &
+       SE_MC_method, TBMD_MC_method, bsse_run, do_eip, do_farming, do_fist, &
+       do_kg, do_pint, do_qmmm, do_qs, do_tbmd, do_test, &
+       electronic_spectra_run, energy_force_run, energy_run, geo_opt_run, &
+       hmc_run, ldmc_run, linear_response_run, mol_dyn_run, mon_car_run, &
+       none_run, qs_debug_run
   USE input_cp2k,                      ONLY: create_cp2k_root_section,&
                                              create_global_section
   USE input_cp2k_check,                ONLY: check_cp2k_input
@@ -144,8 +144,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=512)                       :: unknown_string
-    INTEGER                                  :: unit_nr, &
-                                                mc_method
+    INTEGER                                  :: mc_method, unit_nr
     LOGICAL                                  :: echo_input, failure, &
                                                 I_was_ionode, was_present
     TYPE(cp_error_type)                      :: error, suberror
@@ -157,9 +156,8 @@ CONTAINS
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(meta_env_type), POINTER             :: meta_env
     TYPE(section_type), POINTER              :: input_structure
-    TYPE(section_vals_type), POINTER         :: glob_section, input_file, &
-                                                metadyn_section, &
-                                                hmc_section
+    TYPE(section_vals_type), POINTER         :: glob_section, hmc_section, &
+                                                input_file, metadyn_section
 
     cp2k_run_OK = .FALSE.
     failure=.FALSE.

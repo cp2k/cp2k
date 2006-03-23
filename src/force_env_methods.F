@@ -31,23 +31,23 @@ MODULE force_env_methods
   USE cp_subsystem_types,              ONLY: cp_subsys_retain,&
                                              cp_subsystem_p_type
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_retain
-  USE eip_environment_types,           ONLY: eip_environment_type, &
-                                             eip_env_get, &
-                                             eip_env_retain
-  USE eip_silicon,                     ONLY: eip_bazant, &
+  USE eip_environment_types,           ONLY: eip_env_get,&
+                                             eip_env_retain,&
+                                             eip_environment_type
+  USE eip_silicon,                     ONLY: eip_bazant,&
                                              eip_lenosky
   USE fist_environment_types,          ONLY: fist_env_retain,&
                                              fist_environment_type,&
                                              get_fist_env
   USE fist_force,                      ONLY: fist_force_control
   USE force_env_types,                 ONLY: &
-       force_env_get, force_env_p_type, force_env_type, use_fist_force, &
-       use_kg_force, use_pol_force, use_qmmm, use_qs_force, use_tbmd_force, &
-       use_eip_force
+       force_env_get, force_env_p_type, force_env_type, use_eip_force, &
+       use_fist_force, use_kg_force, use_pol_force, use_qmmm, use_qs_force, &
+       use_tbmd_force
   USE global_types,                    ONLY: global_environment_type,&
                                              globenv_retain
-  USE input_constants,                 ONLY: use_lenosky_eip, &
-                                             use_bazant_eip
+  USE input_constants,                 ONLY: use_bazant_eip,&
+                                             use_lenosky_eip
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kg_energy,                       ONLY: kg_energies
@@ -267,13 +267,13 @@ SUBROUTINE force_env_create(force_env,globenv,fist_env,qs_env,kg_env,&
       POINTER                                :: kg_env
     TYPE(tbmd_environment_type), OPTIONAL, &
       POINTER                                :: tbmd_env
-    TYPE(eip_environment_type), OPTIONAL, &
-      POINTER                                :: eip_env
     TYPE(meta_env_type), OPTIONAL, POINTER   :: meta_env
     TYPE(force_env_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: sub_force_env
     TYPE(qmmm_env_qm_type), OPTIONAL, &
       POINTER                                :: qmmm_env
+    TYPE(eip_environment_type), OPTIONAL, &
+      POINTER                                :: eip_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 

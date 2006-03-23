@@ -21,12 +21,14 @@
 
 MODULE molecule_types_new
 
+  USE colvar_types,                    ONLY: colvar_release,&
+                                             colvar_type
   USE kinds,                           ONLY: dp,&
                                              int_size
   USE molecule_kind_types,             ONLY: molecule_kind_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
-  USE colvar_types, ONLY: colvar_type, colvar_release
+
   IMPLICIT NONE
 
   PRIVATE
@@ -226,7 +228,7 @@ CONTAINS
     TYPE(local_g4x6_constraint_type), &
       OPTIONAL, POINTER                      :: lg4x6( : )
     TYPE(local_colvar_constraint_type), &
-      OPTIONAL, POINTER, DIMENSION(:)        :: lcolv
+      DIMENSION(:), OPTIONAL, POINTER        :: lcolv
     INTEGER, OPTIONAL                        :: first_atom, last_atom
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'get_molecule'
@@ -291,7 +293,7 @@ CONTAINS
     TYPE(local_constraint_type), OPTIONAL, &
       POINTER                                :: lci
     TYPE(local_colvar_constraint_type), &
-      OPTIONAL, POINTER, DIMENSION(:)        :: lcolv
+      DIMENSION(:), OPTIONAL, POINTER        :: lcolv
     TYPE(local_g3x3_constraint_type), &
       OPTIONAL, POINTER                      :: lg3x3( : )
     TYPE(local_g4x6_constraint_type), &

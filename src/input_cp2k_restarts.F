@@ -21,18 +21,6 @@
 !******************************************************************************
 
 MODULE input_cp2k_restarts
-  USE environment,                     ONLY: compile_arch,&
-                                             compile_date,&
-                                             compile_host,&
-                                             compile_lastcvs
-
-  USE cp_output_handling,              ONLY: cp_add_iter_level,&
-                                             cp_iterate,&
-                                             cp_p_file,&
-                                             cp_print_key_finished_output,&
-                                             cp_print_key_should_output,&
-                                             cp_print_key_unit_nr,&
-                                             cp_rm_iter_level
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
@@ -42,12 +30,20 @@ MODULE input_cp2k_restarts
   USE cp_linked_list_val,              ONLY: cp_sll_val_create,&
                                              cp_sll_val_get_length,&
                                              cp_sll_val_type
+  USE cp_output_handling,              ONLY: cp_p_file,&
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
+                                             cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsystem_p_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_type,&
                                              dyn_coeff_type
+  USE environment,                     ONLY: compile_arch,&
+                                             compile_date,&
+                                             compile_host,&
+                                             compile_lastcvs
   USE extended_system_types,           ONLY: lnhc_parameters_type,&
                                              npt_info_type
   USE force_env_types,                 ONLY: force_env_get,&
@@ -58,15 +54,10 @@ MODULE input_cp2k_restarts
                                              use_unit_bohr,&
                                              use_unit_scaled_angstrom,&
                                              use_unit_scaled_bohr
-  USE input_section_types,             ONLY: section_get_keyword_index,&
-                                             section_type,&
-                                             section_vals_add_values,&
-                                             section_vals_get_subs_vals,&
-                                             section_vals_type,&
-                                             section_vals_val_get,&
-                                             section_vals_val_set,&
-                                             section_vals_val_unset, &
-                                             section_vals_write
+  USE input_section_types,             ONLY: &
+       section_get_keyword_index, section_type, section_vals_add_values, &
+       section_vals_get_subs_vals, section_vals_type, section_vals_val_get, &
+       section_vals_val_set, section_vals_val_unset, section_vals_write
   USE input_val_types,                 ONLY: val_create,&
                                              val_release,&
                                              val_type
@@ -85,7 +76,8 @@ MODULE input_cp2k_restarts
   USE metadynamics_types,              ONLY: meta_env_type
   USE mol_new_list_types,              ONLY: mol_new_list_type
   USE molecule_kind_types,             ONLY: get_molecule_kind
-  USE molecule_types_new,              ONLY: get_molecule, molecule_type
+  USE molecule_types_new,              ONLY: get_molecule,&
+                                             molecule_type
   USE parallel_rng_types,              ONLY: dump_rng_stream,&
                                              rng_record_length
   USE particle_list_types,             ONLY: particle_list_type
@@ -150,8 +142,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_restart', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle,ires,strstart,strend
     CHARACTER(LEN=256)                       :: cwd, datx
+    INTEGER                                  :: handle, ires, strend, strstart
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: motion_section
 
@@ -1046,16 +1038,15 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'update_subsys', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, isubsys, my_unit, &
-                                                stat
+    INTEGER                                  :: handle, isubsys, my_unit, stat
     LOGICAL                                  :: failure, use_ref_cell
     REAL(KIND=dp)                            :: conv_factor
     REAL(KIND=dp), DIMENSION(:), POINTER     :: work
     TYPE(cell_type), POINTER                 :: cell, cell_ref
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
-    TYPE(particle_list_type), POINTER        :: particles
     TYPE(mol_new_list_type), POINTER         :: molecules
+    TYPE(particle_list_type), POINTER        :: particles
     TYPE(section_vals_type), POINTER         :: work_section
 
     failure = .FALSE.
@@ -1170,15 +1161,15 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'section_coord_val_set', &
       routineP = moduleN//':'//routineN
 
-    TYPE(molecule_type), POINTER :: molecule_now
     CHARACTER(LEN=2*default_string_length)   :: line
     CHARACTER(LEN=default_string_length)     :: my_tag, name, rcval
-    INTEGER                                  :: ik, irk, k, Nlist
+    INTEGER                                  :: ik, imol, irk, k, last_atom, &
+                                                Nlist
     LOGICAL                                  :: failure, ldum
     TYPE(cp_sll_val_type), POINTER           :: new_pos, vals
+    TYPE(molecule_type), POINTER             :: molecule_now
     TYPE(section_type), POINTER              :: section
     TYPE(val_type), POINTER                  :: my_val, old_val
-    INTEGER                                  :: imol,last_atom
 
     failure=.FALSE.
     NULLIFY(my_val, old_val, section, vals)

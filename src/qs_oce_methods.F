@@ -27,8 +27,7 @@ MODULE qs_oce_methods
                                              get_atomic_kind
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
-  USE kinds,                           ONLY: dp,&
-                                             dp_size
+  USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: dfac,&
                                              pi
   USE memory_utilities,                ONLY: reallocate
@@ -45,7 +44,6 @@ MODULE qs_oce_methods
                                              oce_matrix_type
   USE sparse_matrix_types,             ONLY: add_1d_block_node,&
                                              get_block_node
-  USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -438,7 +436,7 @@ CONTAINS
     TYPE(dist_list_4oce_type), &
       DIMENSION(:), POINTER                  :: dist_list
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
+      OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'set_up_oce'
 

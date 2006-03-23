@@ -61,7 +61,7 @@ MODULE qs_ot_eigensolver
 
 ! *** Global parameters ***
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ot_eigensolver'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_ot_eigensolver'
 
 ! *** Public subroutines ***
 
@@ -92,11 +92,11 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ot_eigensolver', &
       routineP = moduleN//':'//routineN
-
     REAL(KIND=dp), PARAMETER                 :: rone = 1.0_dp, rzero = 0.0_dp
 
     INTEGER                                  :: handle, ieigensolver, k, n, &
-                                                output_unit, ortho_k, ortho_space_k
+                                                ortho_k, ortho_space_k, &
+                                                output_unit
     LOGICAL                                  :: energy_only, ionode, ortho
     REAL(KIND=dp)                            :: delta, energy
     TYPE(cp_fm_p_type), DIMENSION(:), &

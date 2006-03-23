@@ -67,7 +67,6 @@ MODULE qs_loc_methods
   USE qs_collocate_density,            ONLY: calculate_wavefunction
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
-  USE qs_ks_methods,                   ONLY: qs_ks_did_change
   USE qs_loc_control,                  ONLY: localized_wfn_control_type
   USE qs_loc_types,                    ONLY: get_qs_loc_env,&
                                              qs_loc_env_new_type
@@ -79,7 +78,6 @@ MODULE qs_loc_methods
   USE qs_mo_methods,                   ONLY: calculate_density_matrix
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
-  USE qs_rho_atom_methods,             ONLY: calculate_rho_atom_coeff
   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE realspace_grid_types,            ONLY: rs_pw_to_cube

@@ -80,7 +80,6 @@ MODULE qs_wf_history_methods
   USE qs_mo_methods,                   ONLY: calculate_density_matrix
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
-  USE qs_rho_atom_methods,             ONLY: calculate_rho_atom_coeff
   USE qs_rho_methods,                  ONLY: copy_rho_type,&
                                              duplicate_rho_type,&
                                              qs_rho_update_rho
@@ -936,8 +935,7 @@ SUBROUTINE wfi_extrapolate(globenv,wf_history, qs_env, dt, extrapolation_method_
     INTEGER                                  :: actual_extrapolation_method_nr&
                                                 , handle, i, ispin, k, n, &
                                                 nmo, nvec
-    LOGICAL                                  :: failure, ionode, &
-                                                my_kg_gpw, &
+    LOGICAL                                  :: failure, ionode, my_kg_gpw, &
                                                 my_orthogonal_wf
     REAL(KIND=dp)                            :: alpha, beta, t0, t1, t2
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &

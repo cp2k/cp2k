@@ -50,8 +50,8 @@ MODULE qs_linres_nmr_op
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
   USE qs_operators_ao,                 ONLY: p_xyz_ao,&
-                                             rmc_x_p_xyz_ao,&
-                                             rRc_xyz_ao
+                                             rRc_xyz_ao,&
+                                             rmc_x_p_xyz_ao
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -124,9 +124,8 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(section_vals_type), POINTER         :: lr_section
+
 !dbg
-    integer :: i,j, k
-     real(dp) :: ov_tmp(4,4)
 !dbg
 
     failure = .FALSE.
@@ -316,7 +315,7 @@ CONTAINS
 !****************************************************************************
   FUNCTION ind_m2(ii,iii) RESULT(i)
 
-    INTEGER                                  :: i, ii, iii
+    INTEGER                                  :: ii, iii, i
 
      i = 0.0_dp
 

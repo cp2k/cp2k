@@ -23,7 +23,6 @@
 
 MODULE mulliken
   USE atomic_charges,                  ONLY: print_atomic_charges
-  USE atomic_kind_types,               ONLY: get_atomic_kind
   USE cp_control_types,                ONLY: mulliken_restraint_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: dp
@@ -403,10 +402,7 @@ END SUBROUTINE rf_deriv_check
     INTEGER                                  :: scr
     CHARACTER(LEN=*)                         :: title
 
-    CHARACTER(LEN=2)                         :: element_symbol
-    INTEGER                                  :: handle, i, iblock, nblock, &
-                                                nspin
-    REAL(KIND=dp)                            :: total_charge, zeff
+    INTEGER                                  :: handle, i, nblock, nspin
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: charges
 
 ! GO

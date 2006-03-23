@@ -107,11 +107,11 @@ MODULE nddo_methods
   USE sparse_matrix_types,             ONLY: allocate_matrix_set,&
                                              cp_sm_scale_and_add,&
                                              cp_sm_sm_trace,&
+                                             create_dbm_from_sm,&
+                                             deallocate_dbm_from_sm,&
                                              get_block_node,&
                                              real_matrix_p_type,&
-                                             transfer_matrix,&
-                                             create_dbm_from_sm,&
-                                             deallocate_dbm_from_sm
+                                             transfer_matrix
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: get_limit
@@ -195,9 +195,8 @@ CONTAINS
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_h, matrix_p
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: diagmat_ks, diagmat_p
+      POINTER                                :: diagmat_ks, diagmat_p, &
+                                                matrix_h, matrix_p
     TYPE(section_vals_type), POINTER         :: scf_section
     TYPE(semi_empirical_type), POINTER       :: se_kind_a, se_kind_b
 

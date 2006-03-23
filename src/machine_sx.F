@@ -21,8 +21,7 @@
 
 MODULE machine_sx
 
-  USE kinds,                           ONLY: dp,&
-                                             sp
+  USE kinds,                           ONLY: dp
 
   IMPLICIT NONE
 

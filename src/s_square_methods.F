@@ -22,19 +22,21 @@
 
 MODULE s_square_methods
 
+  USE cp_control_types,                ONLY: s2_restraint_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_get_info,&
+                                             cp_fm_p_type,&
                                              cp_fm_release,&
-                                             cp_fm_type, &
-                                             cp_fm_p_type
-  USE cp_control_types,                ONLY: s2_restraint_type 
+                                             cp_fm_type
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
+  USE input_constants,                 ONLY: do_s2_constraint,&
+                                             do_s2_restraint
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
   USE qs_mo_types,                     ONLY: get_mo_set,&
@@ -43,7 +45,6 @@ MODULE s_square_methods
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE input_constants,                 ONLY: do_s2_constraint, do_s2_restraint
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -91,7 +92,8 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
     REAL(KIND=dp)                            :: s_square, s_square_ideal
-    TYPE(cp_fm_p_type), DIMENSION(:), POINTER, OPTIONAL :: mo_derivs
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: mo_derivs
     REAL(KIND=dp), OPTIONAL                  :: strength
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
@@ -101,14 +103,15 @@ CONTAINS
 
     INTEGER                                  :: handle, i, j, na, nb, &
                                                 ncol_local, nrow, nrow_local
+    LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: tmp
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: local_data
     TYPE(cp_blacs_env_type), POINTER         :: context
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
     TYPE(cp_fm_type), POINTER                :: c_alpha, c_beta, &
-                                                matrix_overlap, matrix_sc_a,matrix_sc_b
+                                                matrix_overlap, matrix_sc_a, &
+                                                matrix_sc_b
     TYPE(cp_para_env_type), POINTER          :: para_env
-    LOGICAL                                  :: failure
 
     CALL timeset(routineN,handle)
 
@@ -196,22 +199,23 @@ CONTAINS
                              s2_restraint_control, just_energy, error)
 
     TYPE(mo_set_p_type), DIMENSION(:), &
-      POINTER                                 :: mos
+      POINTER                                :: mos
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                 :: matrix_s
-    TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: mo_derivs
-    REAL(kind=dp)                             :: energy
-    TYPE(s2_restraint_type), POINTER          :: s2_restraint_control
-    LOGICAL                                   :: just_energy
+      POINTER                                :: matrix_s
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: mo_derivs
+    REAL(kind=dp)                            :: energy
+    TYPE(s2_restraint_type), POINTER         :: s2_restraint_control
+    LOGICAL                                  :: just_energy
     TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                                :: error
+      OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'compute_s_square', &
+    CHARACTER(len=*), PARAMETER :: routineN = 's2_restraint', &
       routineP = moduleN//':'//routineN
 
-    REAL(KIND=dp)                            :: s_square, s_square_ideal
-    LOGICAL :: failure
-    INTEGER :: handle
+    INTEGER                                  :: handle
+    LOGICAL                                  :: failure
+    REAL(kind=dp)                            :: s_square, s_square_ideal
 
     CALL timeset(routineN,handle)
     failure = .FALSE.

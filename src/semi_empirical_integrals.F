@@ -797,9 +797,9 @@ CONTAINS
     LOGICAL                                  :: si, sj
     REAL(dp) :: ade, adi, adj, adq, aed, aee, aeq, ami, amj, aqd, aqe, aqi, &
       aqj, aqq, axx, da, db, ddi, ddj, dxdx, dxqxz, dzdz, dze, dzqxx, dzqzz, &
-      edz, ee, eqxx, eqzz, qa, qb, qqi, qqj, qxxdz, qxxe, qxxqxx, qxxqyy, &
+      edz, ee, eqxx, eqzz, ft, qa, qb, qqi, qqj, qxxdz, qxxe, qxxqxx, qxxqyy, &
       qxxqzz, qxzdx, qxzqxz, qzzdz, qzze, qzzqxx, qzzqzz, r, rsq, www, xxx, &
-      yyy, zi, zj, zzz, ft
+      yyy, zi, zj, zzz
     REAL(dp), DIMENSION(72)                  :: arg, sqr
 
       ri = 0._dp
@@ -1161,8 +1161,8 @@ CONTAINS
 
     LOGICAL                                  :: si, sj
     REAL(dp) :: ade, adi, adj, aed, aee, aeq, ami, amj, aqe, aqi, aqj, da, &
-      db, ddi, ddj, dze, edz, ee, eqxx, eqzz, qa, qb, qqi, qqj, qxxe, qzze, &
-      r, rsq, xxx, zi, zj, ft
+      db, ddi, ddj, dze, edz, ee, eqxx, eqzz, ft, qa, qb, qqi, qqj, qxxe, &
+      qzze, r, rsq, xxx, zi, zj
     REAL(dp), DIMENSION(14)                  :: arg, ri, sqr
 
       ri = 0._dp
@@ -1413,7 +1413,7 @@ CONTAINS
 
 ! *****************************************************************************
   SUBROUTINE set_taper_fn ( rc, range )
-    REAL(KIND=dp), INTENT(IN)            :: rc, range
+    REAL(KIND=dp), INTENT(IN)                :: rc, range
 
     taper_fn_init = .TRUE.
     r0 = rc - 0.5_dp * range
@@ -1422,13 +1422,13 @@ CONTAINS
   END SUBROUTINE set_taper_fn
 
   FUNCTION taper ( rij ) RESULT(ft)
-    REAL(KIND=dp), INTENT(IN)            :: rij
-    REAL(KIND=dp)                        :: ft
+    REAL(KIND=dp), INTENT(IN)                :: rij
+    REAL(KIND=dp)                            :: ft
 
-    REAL(KIND=dp)                        :: ep
+    REAL(KIND=dp)                            :: ep
 
     IF ( taper_fn_init ) THEN
-      ep = exp(-al*(rij-r0))
+      ep = EXP(-al*(rij-r0))
       ft = ep/(1._dp+ep)
     ELSE
       ft = 1._dp

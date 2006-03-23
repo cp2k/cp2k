@@ -272,7 +272,7 @@ CONTAINS
       INTENT(IN), OPTIONAL                   :: hmat
     INTEGER, DIMENSION(3), INTENT(IN), &
       OPTIONAL                               :: periodic
-    LOGICAL, INTENT ( IN ), OPTIONAL         :: orthorhombic
+    LOGICAL, INTENT(IN), OPTIONAL            :: orthorhombic
 
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "SUBROUTINE init_cell (MODULE cell_types)"
@@ -821,7 +821,7 @@ CONTAINS
       INTENT(IN), OPTIONAL                   :: hmat
     INTEGER, DIMENSION(3), INTENT(IN), &
       OPTIONAL                               :: periodic
-    LOGICAL, INTENT ( IN ), OPTIONAL         :: orthorhombic
+    LOGICAL, INTENT(IN), OPTIONAL            :: orthorhombic
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 

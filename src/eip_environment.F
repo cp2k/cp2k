@@ -26,9 +26,9 @@ MODULE eip_environment
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_create,&
                                              atomic_kind_list_release,&
                                              atomic_kind_list_type
-  USE atomic_kind_types,               ONLY: atomic_kind_type, &
-                                             write_atomic_kind_set, &
-                                             get_atomic_kind
+  USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                             get_atomic_kind,&
+                                             write_atomic_kind_set
   USE cell_types,                      ONLY: cell_release,&
                                              cell_type,&
                                              get_cell,&
@@ -42,6 +42,8 @@ MODULE eip_environment
   USE distribution_1d_types,           ONLY: distribution_1d_release,&
                                              distribution_1d_type
   USE distribution_methods,            ONLY: distribute_molecules_1d
+  USE eip_environment_types,           ONLY: eip_env_set,&
+                                             eip_environment_type
   USE global_types,                    ONLY: global_environment_type
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -63,8 +65,6 @@ MODULE eip_environment
   USE particle_types,                  ONLY: particle_type,&
                                              write_particle_distances,&
                                              write_qs_particle_coordinates
-  USE eip_environment_types,           ONLY: eip_env_set,&
-                                             eip_environment_type
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE topology,                        ONLY: topology_control
@@ -138,8 +138,7 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(section_vals_type), POINTER         :: cell_section, colvar_section, &
-                                                force_env_section, &
-                                                eip_section
+                                                eip_section, force_env_section
 
 !   ------------------------------------------------------------------------
 
@@ -249,20 +248,18 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'eip_init_subsys', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, &
-                                                natom, &
-                                                stat
+    INTEGER                                  :: handle, natom, stat
     LOGICAL                                  :: failure
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(distribution_1d_type), POINTER      :: local_molecules, &
+                                                local_particles
     TYPE(molecule_kind_type), DIMENSION(:), &
       POINTER                                :: molecule_kind_set
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(distribution_1d_type), POINTER      :: local_molecules, &
-                                                local_particles
 
 !   ------------------------------------------------------------------------
 

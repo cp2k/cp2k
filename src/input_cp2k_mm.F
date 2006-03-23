@@ -35,11 +35,10 @@ MODULE input_cp2k_mm
                                              section_release,&
                                              section_type
   USE input_val_types,                 ONLY: char_t,&
-                                             lchar_t,&
                                              integer_t,&
+                                             lchar_t,&
                                              real_t
   USE kinds,                           ONLY: dp
-  USE string_utilities,                ONLY: s2a
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -424,8 +423,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
-    TYPE(section_type), POINTER              :: subsection
     TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection
 
     failure=.FALSE.
     

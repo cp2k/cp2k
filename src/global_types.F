@@ -48,7 +48,7 @@ MODULE global_types
 
   ! Global parameters
 
-  CHARACTER(LEN=*), PARAMETER, PRIVATE :: moduleN = 'global_types'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'global_types'
 
   INTEGER, PARAMETER :: BLACS_GRID_SQUARE = 1,&
                         BLACS_GRID_ROW    = 2,&

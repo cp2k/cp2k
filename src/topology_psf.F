@@ -77,7 +77,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pre_read_topology_psf', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: iw,handle,stat
+    INTEGER                                  :: handle, iw, stat
     LOGICAL                                  :: failure
     TYPE(atom_info_type), POINTER            :: atom_info
     TYPE(connectivity_info_type), POINTER    :: conn_info
@@ -143,7 +143,8 @@ CONTAINS
 !******************************************************************************
 
   SUBROUTINE read_topology_psf (filename,topology,globenv,subsys_section, error)
-    CHARACTER(LEN=default_string_length),INTENT(IN)     :: filename
+    CHARACTER(LEN=default_string_length), &
+      INTENT(IN)                             :: filename
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
     TYPE(global_environment_type), &
@@ -156,13 +157,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: dummy_field, label
-    INTEGER                                  :: handle, i, iatom, ibond, &
-                                                iphi, itheta, iw, jatom, &
-                                                natom, nbond, nphi, ntheta, &
-                                                stat
-    INTEGER                                  :: natom_prev, nbond_prev,&
-                                                ntheta_prev, nphi_prev
-    INTEGER                                  :: index_now
+    INTEGER :: handle, i, iatom, ibond, index_now, iphi, itheta, iw, jatom, &
+      natom, natom_prev, nbond, nbond_prev, nphi, nphi_prev, ntheta, &
+      ntheta_prev
     LOGICAL                                  :: failure, found
     TYPE(atom_info_type), POINTER            :: atom_info
     TYPE(connectivity_info_type), POINTER    :: conn_info

@@ -24,13 +24,12 @@
 
 MODULE topology_input
   USE colvar_types,                    ONLY: angle_colvar_id,&
-                                             colvar_type,&
                                              colvar_p_type,&
                                              dist_colvar_id,&
                                              torsion_colvar_id
   USE global_types,                    ONLY: global_environment_type
-  USE input_constants,                 ONLY: do_conn_psf,&
-                                             do_conn_mol_set,&
+  USE input_constants,                 ONLY: do_conn_mol_set,&
+                                             do_conn_psf,&
                                              do_coord_off
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
@@ -170,7 +169,8 @@ SUBROUTINE read_constraints_section(topology, globenv, colvar_p, constraint_sect
       INTENT(INOUT)                          :: topology
     TYPE(global_environment_type), &
       OPTIONAL, POINTER                      :: globenv
-    TYPE(colvar_p_type), DIMENSION(:), POINTER :: colvar_p
+    TYPE(colvar_p_type), DIMENSION(:), &
+      POINTER                                :: colvar_p
     TYPE(section_vals_type), POINTER         :: constraint_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -189,7 +189,7 @@ SUBROUTINE read_constraints_section(topology, globenv, colvar_p, constraint_sect
     TYPE(constraint_info_type), POINTER      :: cons_info
     TYPE(section_vals_type), POINTER         :: collective_section, &
                                                 fix_atom_section, &
-                                                g3x3_section, g4x6_section,&
+                                                g3x3_section, g4x6_section, &
                                                 hbonds_section
 
   cons_info    => topology%cons_info

@@ -70,14 +70,14 @@ MODULE library_tests
                                              mp_max,&
                                              mp_sum,&
                                              mp_sync
-  USE parallel_rng_types,              ONLY: check_rng,&
+  USE parallel_rng_types,              ONLY: GAUSSIAN,&
+                                             UNIFORM,&
+                                             check_rng,&
                                              create_rng_stream,&
                                              delete_rng_stream,&
                                              next_random_number,&
                                              rng_stream_type,&
-                                             write_rng_stream,&
-                                             GAUSSIAN,&
-                                             UNIFORM
+                                             write_rng_stream
   USE pw_grid_types,                   ONLY: FULLSPACE,&
                                              HALFSPACE,&
                                              pw_grid_type
@@ -1406,7 +1406,7 @@ END SUBROUTINE simple_copy
                                                 tsum, tsum2
     TYPE(rng_stream_type), POINTER           :: rng_stream
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     ionode = globenv%ionode
     output_unit = globenv%scr
@@ -1520,7 +1520,7 @@ END SUBROUTINE simple_copy
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(rng_stream_type), POINTER           :: rng_stream
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     group = globenv%group
     ionode = globenv%ionode

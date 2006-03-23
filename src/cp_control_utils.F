@@ -23,22 +23,23 @@ MODULE cp_control_utils
                                              cp_print_key_unit_nr
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: &
-       bsse_run, do_loc_crazy, do_loc_direct, do_loc_jacobi, do_loc_none, &
+       bsse_run, do_ddapc_constraint, do_ddapc_restraint, do_loc_crazy, &
+       do_loc_direct, do_loc_jacobi, do_loc_none, do_method_am1, &
        do_method_eht, do_method_gapw, do_method_gapw_xc, do_method_gpw, &
-       do_method_kg_pol, do_method_mndo, do_method_am1, do_method_pm3, &
+       do_method_kg_pol, do_method_mndo, do_method_pm3, &
        do_pwgrid_ns_fullspace, do_pwgrid_ns_halfspace, do_pwgrid_spherical, &
-       electronic_spectra_run, elstr_method_name, energy_force_run, &
-       energy_run, geo_opt_run, hmc_run, ldmc_run, linear_response_run, &
-       mol_dyn_run, mon_car_run, op_loc_berry, op_loc_boys, qs_debug_run, &
-       quadrature_name, run_type_names, sic_ad, sic_mauri_spz, sic_mauri_us, &
-       sic_none, state_loc_all, state_loc_fromitoj, state_loc_list, &
-       state_loc_upton, tddfpt_excitations, xc_debug_new_routine, &
-       xc_deriv_fd, xc_deriv_nn10_smooth, xc_deriv_nn50_smooth, xc_deriv_pw, &
+       do_s2_constraint, do_s2_restraint, electronic_spectra_run, &
+       elstr_method_name, energy_force_run, energy_run, geo_opt_run, hmc_run, &
+       ldmc_run, linear_response_run, mol_dyn_run, mon_car_run, op_loc_berry, &
+       op_loc_boys, qs_debug_run, quadrature_name, run_type_names, sic_ad, &
+       sic_mauri_spz, sic_mauri_us, sic_none, state_loc_all, &
+       state_loc_fromitoj, state_loc_list, state_loc_upton, &
+       tddfpt_excitations, xc_debug_new_routine, xc_deriv_fd, &
+       xc_deriv_nn10_smooth, xc_deriv_nn50_smooth, xc_deriv_pw, &
        xc_deriv_spline2, xc_deriv_spline2_smooth, xc_deriv_spline3, &
        xc_deriv_spline3_smooth, xc_new_f_routine, xc_old_f_routine, &
        xc_rho_nn10, xc_rho_nn50, xc_rho_no_smooth, xc_rho_spline2_smooth, &
-       xc_rho_spline3_smooth, xc_test_lsd_f_routine, do_ddapc_restraint, &
-       do_ddapc_constraint,do_s2_restraint,do_s2_constraint
+       xc_rho_spline3_smooth, xc_test_lsd_f_routine
   USE input_cp2k_check,                ONLY: xc_functionals_expand
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
@@ -300,10 +301,8 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: tmplist
     LOGICAL                                  :: failure, was_present
     REAL(dp)                                 :: value
-    TYPE(section_vals_type), POINTER         :: ddapc_restraint_section, &
-                                                s2_restraint_section, &
-                                                loc_section, mull_section, &
-                                                qs_section, se_section
+    TYPE(section_vals_type), POINTER :: ddapc_restraint_section, loc_section, &
+      mull_section, qs_section, s2_restraint_section, se_section
 
 !   ---------------------------------------------------------------------------
 
@@ -744,10 +743,11 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'write_qs_control'
+
     INTEGER                                  :: igrid_level, ngrid_level, &
                                                 nstep, output_unit
     TYPE(cp_logger_type), POINTER            :: logger
-    CHARACTER(LEN=*), PARAMETER              :: routineN="write_qs_control"
 
     IF (qs_control%semi_empirical) RETURN
     NULLIFY(logger)

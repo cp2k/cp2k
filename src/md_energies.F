@@ -109,12 +109,12 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'md_energy'
 
-    CHARACTER(LEN=default_string_length)     :: title
     CHARACTER(LEN=default_string_length)     :: my_act, my_ext, my_form, &
-                                                my_pos, remark1, remark2
+                                                my_pos, remark1, remark2, &
+                                                title
     INTEGER                                  :: crd, delta_t, ene, frc, &
-                                                handle, i, isubsys, iw, nat, &
-                                                vel
+                                                handle, i, iskip, isubsys, &
+                                                iw, nat, vel
     INTEGER, POINTER                         :: itimes
     LOGICAL, SAVE                            :: init, init_force, init_traj, &
                                                 init_vel
@@ -139,7 +139,6 @@ CONTAINS
       POINTER                                :: simpar
     TYPE(unit_convert_type), POINTER         :: unit
     TYPE(virial_type), POINTER               :: virial
-    INTEGER                                  :: iskip
 
     DATA init /.TRUE./
     DATA init_traj /.TRUE./

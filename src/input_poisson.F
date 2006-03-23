@@ -24,7 +24,6 @@
 !****************************************************************************
 MODULE input_poisson
   USE cp_output_handling,              ONLY: cp_print_key_section_create
-  USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE input_constants
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
@@ -303,7 +302,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-    TYPE(section_type), POINTER              :: subsection
 
     failure=.FALSE.
 
@@ -316,7 +314,7 @@ CONTAINS
             n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
             error=error)
 
-       NULLIFY(keyword, subsection)
+       NULLIFY(keyword)
 
        CALL keyword_create(keyword, name="SR_SCREENING",&
             description="Use a short range screening function.",&

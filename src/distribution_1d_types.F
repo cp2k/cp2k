@@ -418,11 +418,12 @@ END SUBROUTINE distribution_1d_release
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=rng_record_length)         :: rng_record
-    INTEGER                                  :: i, iparticle, iparticle_kind, &
-                                                iparticle_local, nparticle_local
+    INTEGER                                  :: iparticle, iparticle_kind, &
+                                                iparticle_local, &
+                                                nparticle_local
     LOGICAL                                  :: explicit, failure
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     failure = .FALSE.
 

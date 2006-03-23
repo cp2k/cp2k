@@ -26,10 +26,6 @@ MODULE md_run
   USE cell_types,                      ONLY: cell_type
   USE cp_output_handling,              ONLY: cp_add_iter_level,&
                                              cp_iterate,&
-                                             cp_p_file,&
-                                             cp_print_key_finished_output,&
-                                             cp_print_key_should_output,&
-                                             cp_print_key_unit_nr,&
                                              cp_rm_iter_level
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
@@ -37,10 +33,6 @@ MODULE md_run
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_initialize,&
                                              dyn_coeff_set_p_type
-  USE environment,                     ONLY: compile_arch,&
-                                             compile_date,&
-                                             compile_host,&
-                                             compile_lastcvs
   USE extended_system_types,           ONLY: extended_system_type,&
                                              extended_type_init,&
                                              lnhc_dealloc,&
@@ -61,12 +53,9 @@ MODULE md_run
   USE input_cp2k_restarts,             ONLY: write_restart
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
-                                             section_vals_val_get,&
-                                             section_vals_write
+                                             section_vals_val_get
   USE kinds,                           ONLY: dp
-  USE machine,                         ONLY: m_datum,&
-                                             m_getcwd,&
-                                             m_walltime
+  USE machine,                         ONLY: m_walltime
   USE md,                              ONLY: initialize_velocities,&
                                              read_md_section,&
                                              simulation_parameters_type

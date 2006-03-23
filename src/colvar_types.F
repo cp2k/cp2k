@@ -166,8 +166,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'colvar_create', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: stat
     LOGICAL                                  :: failure
-    INTEGER :: stat
 
     failure=.FALSE.
     CPPostcondition(.NOT.ASSOCIATED(colvar),cp_warning_level,routineP,error,failure)
@@ -237,8 +237,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'colvar_setup', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: ii, stat
     LOGICAL                                  :: failure
-    INTEGER :: stat, ii
 
     CPPostcondition(ASSOCIATED(colvar),cp_warning_level,routineP,error,failure)
     failure=.FALSE.

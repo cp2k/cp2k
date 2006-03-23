@@ -41,8 +41,8 @@ MODULE cg_optimizer
   USE gopt_f_types,                    ONLY: cp_eval_at,&
                                              gopt_param_type
   USE input_constants,                 ONLY: dump_xmol
-  USE input_section_types,             ONLY: section_vals_type
   USE input_cp2k_restarts,             ONLY: write_restart
+  USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_flush
   USE memory_utilities,                ONLY: reallocate

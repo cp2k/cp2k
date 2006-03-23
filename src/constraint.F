@@ -19,6 +19,8 @@
 !******************************************************************************
 MODULE constraint
   USE cell_types,                      ONLY: cell_type
+  USE colvar_methods,                  ONLY: colvar_eval_mol_f
+  USE colvar_types,                    ONLY: dist_colvar_id
   USE constraint_3x3,                  ONLY: rattle_3x3,&
                                              rattle_roll_3x3,&
                                              shake_3x3,&
@@ -39,11 +41,11 @@ MODULE constraint
   USE md,                              ONLY: simulation_parameters_type
   USE message_passing,                 ONLY: mp_sum
   USE molecule_kind_types,             ONLY: colvar_constraint_type,&
+                                             colvar_counters,&
                                              g3x3_constraint_type,&
                                              g4x6_constraint_type,&
                                              get_molecule_kind,&
-                                             molecule_kind_type,&
-                                             colvar_counters
+                                             molecule_kind_type
   USE molecule_types_new,              ONLY: get_molecule,&
                                              local_colvar_constraint_type,&
                                              local_g3x3_constraint_type,&
@@ -56,8 +58,6 @@ MODULE constraint
   USE util,                            ONLY: matmul_3x3,&
                                              transpose_3d
   USE virial_types,                    ONLY: virial_type
-  USE colvar_types, ONLY: dist_colvar_id
-  USE colvar_methods, ONLY: colvar_eval_mol_f
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -93,14 +93,14 @@ CONTAINS
     TYPE(simulation_parameters_type), &
       INTENT(IN)                             :: simpar
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'shake_control', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'shake_control', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, ikind, imol, &
                                                 ishake, n3x3con, n4x6con, &
                                                 nkind, nmol_per_kind
-    TYPE(colvar_counters)                    :: ncolv
     REAL(KIND=dp)                            :: max_sigma
+    TYPE(colvar_counters)                    :: ncolv
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
 
@@ -169,14 +169,14 @@ CONTAINS
     TYPE(simulation_parameters_type), &
       INTENT(IN)                             :: simpar
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'rattle_control', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'rattle_control', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, ikind, imol, &
                                                 irattle, n3x3con, n4x6con, &
-                                                 nkind, nmol_per_kind
-    TYPE(colvar_counters)                    :: ncolv
+                                                nkind, nmol_per_kind
     REAL(KIND=dp)                            :: max_sigma
+    TYPE(colvar_counters)                    :: ncolv
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
 
@@ -250,9 +250,9 @@ CONTAINS
     INTEGER                                  :: handle, i, ikind, imol, &
                                                 ishake, n3x3con, n4x6con, &
                                                 nkind, nmol_per_kind
-    TYPE(colvar_counters)                    :: ncolv
     REAL(KIND=dp)                            :: max_sigma
     REAL(KIND=dp), DIMENSION(3, 3)           :: r_shake, v_shake
+    TYPE(colvar_counters)                    :: ncolv
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
 
@@ -348,9 +348,9 @@ CONTAINS
     INTEGER                                  :: handle, i, ikind, imol, &
                                                 irattle, n3x3con, n4x6con, &
                                                 nkind, nmol_per_kind
-    TYPE(colvar_counters)                    :: ncolv
     REAL(KIND=dp)                            :: max_sigma
     REAL(KIND=dp), DIMENSION(3, 3)           :: r_rattle
+    TYPE(colvar_counters)                    :: ncolv
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
 
@@ -427,11 +427,11 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'getold', &
       routineP = moduleN//':'//routineN
+
     INTEGER                                  :: first_atom, i, iconst, ikind, &
                                                 imol, index, n3x3con, &
-                                                n4x6con, nkind, &
-                                                nmol_per_kind
-    TYPE(colvar_constraint_type), POINTER      :: colv_list( : )
+                                                n4x6con, nkind, nmol_per_kind
+    TYPE(colvar_constraint_type), POINTER    :: colv_list( : )
     TYPE(g3x3_constraint_type), POINTER      :: g3x3_list( : )
     TYPE(g4x6_constraint_type), POINTER      :: g4x6_list( : )
     TYPE(local_colvar_constraint_type), &
@@ -518,11 +518,12 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'pv_constraint', &
       routineP = moduleN//':'//routineN
+
     INTEGER :: first_atom, i, iconst, ikind, imol, index_a, index_b, index_c, &
       index_d, ng3x3, ng4x6, nkind, nmol_per_kind
     REAL(KIND=dp) :: fc1( 3 ), fc2( 3 ), fc3( 3 ), fc4( 3 ), lambda, &
       lambda_3x3( 3 ), lambda_4x6( 6 ), pv( 3, 3 )
-    TYPE(colvar_constraint_type), POINTER      :: colv_list( : )
+    TYPE(colvar_constraint_type), POINTER    :: colv_list( : )
     TYPE(g3x3_constraint_type), POINTER      :: g3x3_list( : )
     TYPE(g4x6_constraint_type), POINTER      :: g4x6_list( : )
     TYPE(local_colvar_constraint_type), &
@@ -742,6 +743,7 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'check_tol', &
       routineP = moduleN//':'//routineN
+
     REAL(KIND=dp)                            :: local_tol
     REAL(KIND=dp), DIMENSION(3, 3)           :: diff_rattle, diff_shake
     REAL(KIND=dp), DIMENSION(3, 3), SAVE     :: matrix_old, veps_old
@@ -803,6 +805,7 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_roll_matrix', &
       routineP = moduleN//':'//routineN
+
     INTEGER                                  :: i
     REAL(KIND=dp), DIMENSION(3, 3)           :: diag
 

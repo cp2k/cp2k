@@ -433,7 +433,7 @@ END SUBROUTINE ddapc_control_retain
 !!   SOURCE
 !!*** **********************************************************************
 SUBROUTINE s2_control_create(s2_restraint_control,error)
-    TYPE(s2_restraint_type), POINTER      :: s2_restraint_control
+    TYPE(s2_restraint_type), POINTER         :: s2_restraint_control
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -458,7 +458,7 @@ SUBROUTINE s2_control_create(s2_restraint_control,error)
 END SUBROUTINE s2_control_create
 
 SUBROUTINE s2_control_release(s2_restraint_control,error)
-    TYPE(s2_restraint_type), POINTER      :: s2_restraint_control
+    TYPE(s2_restraint_type), POINTER         :: s2_restraint_control
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -480,7 +480,7 @@ SUBROUTINE s2_control_release(s2_restraint_control,error)
 END SUBROUTINE s2_control_release
 
 SUBROUTINE s2_control_retain(s2_restraint_control,error)
-    TYPE(s2_restraint_type), POINTER      :: s2_restraint_control
+    TYPE(s2_restraint_type), POINTER         :: s2_restraint_control
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 

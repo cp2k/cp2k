@@ -73,10 +73,10 @@ MODULE mc_run
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
   USE molecule_kind_types,             ONLY: get_molecule_kind,&
                                              molecule_kind_type
-  USE parallel_rng_types,              ONLY: create_rng_stream,&
+  USE parallel_rng_types,              ONLY: UNIFORM,&
+                                             create_rng_stream,&
                                              delete_rng_stream,&
-                                             rng_stream_type,&
-                                             UNIFORM
+                                             rng_stream_type
   USE physcon,                         ONLY: angstrom
   USE termination,                     ONLY: stop_memory,&
                                              stop_program

@@ -21,7 +21,8 @@
 MODULE qs_operators_ao
 
   USE ai_angmom,                       ONLY: angmom
-  USE ai_moments,                      ONLY: diffop, moment
+  USE ai_moments,                      ONLY: diffop,&
+                                             moment
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
@@ -127,13 +128,9 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(block_p_type), DIMENSION(:), &
-      POINTER                                :: op_dip
-    TYPE(block_p_type), DIMENSION(:), &
-      POINTER                                :: op_dip2
+      POINTER                                :: op_dip, op_dip2
     TYPE(block_p_type), DIMENSION(:, :), &
-      POINTER                                :: op_dipt
-    TYPE(block_p_type), DIMENSION(:, :), &
-      POINTER                                :: op_dipt2
+      POINTER                                :: op_dipt, op_dipt2
     TYPE(cell_type), POINTER                 :: cell
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(neighbor_list_set_p_type), &
@@ -466,7 +463,7 @@ CONTAINS
 !    write(*,'(i4,23f10.5)') i, (difab(i,j,1), j=1,ncoa)
 !   end do
 !dbg
- 100 Continue
+ 100 CONTINUE
 !dbg
                 END IF  !  >= dab
 
@@ -926,18 +923,17 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     REAL(dp)                                 :: Rc(3)
     INTEGER, INTENT(IN)                      :: order
-    LOGICAL, INTENT(IN), OPTIONAL            :: minimum_image
-    LOGICAL, INTENT(IN), OPTIONAL            :: soft
+    LOGICAL, INTENT(IN), OPTIONAL            :: minimum_image, soft
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rRc_xyz_ao', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, i, iab, iatom, icol, ikind, ilist, imom, inode, irow, iset, &
-      istat, ithread, j, jatom, jkind, jset, last_jatom, ldab, ldsa, ldsb, &
-      ldwork, M_dim, maxl, ncoa, ncob, nkind, nlist, nnode, nrow, nseta, nsetb, &
-      nthread, sgfa, sgfb
+    INTEGER :: handle, i, iab, iatom, icol, ikind, ilist, imom, inode, irow, &
+      iset, istat, ithread, j, jatom, jkind, jset, last_jatom, ldab, ldsa, &
+      ldsb, ldwork, M_dim, maxl, ncoa, ncob, nkind, nlist, nnode, nrow, &
+      nseta, nsetb, nthread, sgfa, sgfb
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb
@@ -1270,8 +1266,7 @@ CONTAINS
 
     TYPE(real_matrix_type), POINTER          :: matrix
     TYPE(qs_environment_type), POINTER       :: qs_env
-    CHARACTER(LEN=*)                        :: symmetry
-    CHARACTER(LEN=*)                        :: name
+    CHARACTER(LEN=*)                         :: symmetry, name
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 

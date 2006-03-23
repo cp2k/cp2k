@@ -26,8 +26,7 @@
 !****************************************************************************
 MODULE metadynamics
   USE colvar_methods,                  ONLY: colvar_eval_glob_f
-  USE colvar_types,                    ONLY: colvar_type,&
-       colvar_p_type
+  USE colvar_types,                    ONLY: colvar_p_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_env,                     ONLY: cp_para_env_retain
@@ -378,7 +377,8 @@ CONTAINS
     LOGICAL                                  :: explicit, failure
     REAL(kind=dp)                            :: dt, ekin_w, fac_t, fft, norm, &
                                                 rval, scal, ss0_test, tol_ekin
-    TYPE(colvar_p_type), DIMENSION(:), POINTER :: colvar_p
+    TYPE(colvar_p_type), DIMENSION(:), &
+      POINTER                                :: colvar_p
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
@@ -581,12 +581,12 @@ CONTAINS
     INTEGER, POINTER                         :: n_hills
     LOGICAL                                  :: explicit, failure
     REAL(dp)                                 :: dfunc, dp2, rval
+    REAL(dp), DIMENSION(:), POINTER          :: ddp
     REAL(dp), DIMENSION(:, :), POINTER       :: delta_s_history, ss_history, &
                                                 tmp
     REAL(KIND=dp), DIMENSION(:), POINTER     :: rvals, tnp, ww_history
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(hills_env_type), POINTER            :: hills_env
-    REAL(dp), POINTER, DIMENSION(:)          :: ddp
     TYPE(metavar_type), DIMENSION(:), &
       POINTER                                :: colvars
     TYPE(section_vals_type), POINTER         :: hills_history

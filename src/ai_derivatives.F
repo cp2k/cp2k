@@ -68,10 +68,8 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(OUT)                            :: dabdx, dabdy, dabdz
 
-    INTEGER                                  :: ax, ay, az, bx, by, bz, coa, &
-                                                coamx, coamy, coamz, coapx, &
-                                                coapy, coapz, cob, codb, i, ipgf, &
-                                                j, jpgf, la, lb, na, nb, nda, ndb
+    INTEGER :: ax, ay, az, bx, by, bz, coa, coamx, coamy, coamz, coapx, &
+      coapy, coapz, cob, codb, i, ipgf, j, jpgf, la, lb, na, nb, nda, ndb
     REAL(KIND=dp)                            :: fa, fx, fy, fz
 
 !   ---------------------------------------------------------------------------

@@ -1063,7 +1063,8 @@ CONTAINS
       nrow_global, nset, nsgf, right, to, width
     INTEGER, DIMENSION(:), POINTER           :: nshell
     INTEGER, DIMENSION(:, :), POINTER        :: l
-    LOGICAL                                  :: ionode,p_cart, p_eval, p_evec, p_occ
+    LOGICAL                                  :: ionode, p_cart, p_eval, &
+                                                p_evec, p_occ
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: cmatrix, smatrix
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set

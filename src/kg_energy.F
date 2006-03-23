@@ -27,18 +27,13 @@ MODULE kg_energy
                                              coeff_type,&
                                              coeff_zero
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_output_handling,              ONLY: cp_p_file,&
-                                             cp_print_key_finished_output,&
-                                             cp_print_key_should_output,&
-                                             cp_print_key_unit_nr
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_type,&
                                              dyn_coeff_type,&
                                              get_dyn_coeff
   USE global_types,                    ONLY: global_environment_type
   USE input_cp2k_restarts,             ONLY: write_restart
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                             section_vals_type,&
-                                             section_vals_write
+                                             section_vals_type
   USE kg_core,                         ONLY: calculate_ecore_rspace,&
                                              calculate_eself
   USE kg_density,                      ONLY: calculate_density,&
@@ -329,8 +324,8 @@ SUBROUTINE kg_std_energies ( kg_env, globenv, error )
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "SUBROUTINE kg_std_energies (MODULE kg_energy)"
 
-    INTEGER                                  :: handle, handle2, i, ires, &
-                                                iter, output_unit, stat
+    INTEGER                                  :: handle, handle2, i, iter, &
+                                                output_unit, stat
     LOGICAL                                  :: ionode, should_stop
     REAL(KIND=dp)                            :: maxerr, maxgrad, t1, t2
     TYPE(atomic_kind_type), DIMENSION(:), &

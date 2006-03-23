@@ -41,9 +41,9 @@ MODULE nhc_mapping
   USE message_passing,                 ONLY: mp_allgather,&
                                              mp_bcast,&
                                              mp_sum
-  USE molecule_kind_types,             ONLY: get_molecule_kind,&
-                                             molecule_kind_type,&
-                                             colvar_counters
+  USE molecule_kind_types,             ONLY: colvar_counters,&
+                                             get_molecule_kind,&
+                                             molecule_kind_type
   USE molecule_types_new,              ONLY: get_molecule,&
                                              molecule_type
   USE termination,                     ONLY: stop_memory,&
@@ -205,15 +205,15 @@ SUBROUTINE nhc_to_particle_mapping ( simpar, local_molecules, molecule_set, &
 
     INTEGER :: atm_offset, atom_increment, finish, first_atom, i, icount, &
       ielement, ii, iii, ikind, imol, imol_local, ipart, isos, iw, j, jj, kk, &
-      last_atom, ll, n3x3con, n4x6con, natom, natoms_local, nhcopt, &
-      nkind, nmol_local, nmol_per_kind, nmolecule, number, number_total, &
-      start, sum_of_thermostats
-    TYPE(colvar_counters)                    :: ncolv
+      last_atom, ll, n3x3con, n4x6con, natom, natoms_local, nhcopt, nkind, &
+      nmol_local, nmol_per_kind, nmolecule, number, number_total, start, &
+      sum_of_thermostats
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: const_mol, deg_of_freedom, &
                                                 tot_const
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: point
     INTEGER, DIMENSION(:), POINTER           :: massive_atom_list
     LOGICAL                                  :: have_global, nointer, noneflag
+    TYPE(colvar_counters)                    :: ncolv
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
 

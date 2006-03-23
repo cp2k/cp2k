@@ -75,7 +75,7 @@ MODULE parallel_rng_types
 
   ! Global parameters in this module
 
-  CHARACTER(LEN=*), PARAMETER :: moduleN = 'parallel_rng_types',&
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'parallel_rng_types',&
                                  rng_record_format = "(A40,I2,3L2,ES25.16,18F20.1)"
   INTEGER, PARAMETER          :: rng_record_length = 433
 
@@ -195,13 +195,13 @@ CONTAINS
       OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'advance_rng_state', &
-                                   routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(3, 2)           :: x
     REAL(KIND=dp), DIMENSION(3, 3)           :: u1, u2, v1, v2, w1, w2
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     failure = .FALSE.
 
@@ -262,17 +262,16 @@ CONTAINS
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'check_rng', &
-                                   routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: i, sumi
+    REAL(KIND=dp)                            :: sum, sum3
+    REAL(KIND=dp), DIMENSION(3, 2)           :: germe
     TYPE(rng_stream_type), POINTER           :: cantor, g1, g2, g3, galois, &
                                                 laplace, poisson
-    REAL(KIND=dp)                            :: sum, sum3
-    INTEGER                                  :: i, sumi
-    REAL(KIND=dp), DIMENSION(3, 2)           :: germe
 
-    ! -------------------------------------------------------------------------
-
-    ! Test 1
+! -------------------------------------------------------------------------
+! Test 1
 
     NULLIFY (g1)
     NULLIFY (g2)
@@ -452,15 +451,14 @@ CONTAINS
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'check_seed', &
-                                   routineP = moduleN//':'//routineN,&
-                                   fmtstr = "(A,I1,A,ES23.14,A,ES23.14)"
+    CHARACTER(LEN=*), PARAMETER :: fmtstr = "(A,I1,A,ES23.14,A,ES23.14)", &
+      routineN = 'check_seed', routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=80)                        :: message
     INTEGER                                  :: i
     LOGICAL                                  :: failure
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     failure = .FALSE.
 
@@ -541,12 +539,12 @@ CONTAINS
       OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'create_rng_stream', &
-                                   routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: istat
     LOGICAL                                  :: failure
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     failure = .FALSE.
 
@@ -628,12 +626,12 @@ CONTAINS
       OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'delete_rng_stream', &
-                                   routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: istat
     LOGICAL                                  :: failure
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     failure = .FALSE.
 
@@ -659,11 +657,11 @@ CONTAINS
       OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'dump_rng_stream', &
-                                   routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     failure = .FALSE.
 
@@ -702,11 +700,11 @@ CONTAINS
       OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_rng_stream', &
-                                   routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     failure = .FALSE.
 
@@ -854,7 +852,7 @@ CONTAINS
 
     INTEGER                                  :: i
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     DO i=1,3
       CALL mat_vec_mod_m(a,b(:,i),c(:,i),m)
@@ -878,9 +876,8 @@ CONTAINS
     INTEGER                                  :: i
     REAL(KIND=dp), DIMENSION(3, 3)           :: u, v, w
 
-    ! -------------------------------------------------------------------------
-
-    ! Initialize: u = v = a; b = I
+! -------------------------------------------------------------------------
+! Initialize: u = v = a; b = I
 
     w = a
 
@@ -958,7 +955,7 @@ CONTAINS
     INTEGER                                  :: i, j
     REAL(KIND=dp)                            :: a1, a2, c
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     v = 0.0_dp
 
@@ -997,12 +994,12 @@ CONTAINS
     INTEGER                                  :: u
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'next_integer_random_number', &
-                                   routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: r
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     failure = .FALSE.
 
@@ -1031,16 +1028,15 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: variance
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
-
     REAL(KIND=dp)                            :: u
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'next_real_random_number', &
-                                   routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
-    REAL(KIND=dp)                            :: f, r, u1, u2, var
     LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: f, r, u1, u2, var
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     failure = .FALSE.
 
@@ -1099,7 +1095,7 @@ CONTAINS
       OPTIONAL                               :: error
     REAL(KIND=dp), DIMENSION(3, 2)           :: next_seed
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     IF (PRESENT(seed)) THEN
       IF (PRESENT(error)) THEN
@@ -1127,12 +1123,12 @@ CONTAINS
       OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'random_numbers_1', &
-                                   routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, istat
+    INTEGER                                  :: i
     LOGICAL                                  :: failure
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     failure = .FALSE.
 
@@ -1152,18 +1148,18 @@ CONTAINS
 
     ! Fill entity array with random numbers from the RNG stream rng_stream.
 
-    REAL(KIND=dp), DIMENSION(:,:)            :: array
+    REAL(KIND=dp), DIMENSION(:, :)           :: array
     TYPE(rng_stream_type), POINTER           :: rng_stream
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'random_numbers_2', &
-                                   routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, istat, j
+    INTEGER                                  :: i, j
     LOGICAL                                  :: failure
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     failure = .FALSE.
 
@@ -1185,18 +1181,18 @@ CONTAINS
 
     ! Fill entity array with random numbers from the RNG stream rng_stream.
 
-    REAL(KIND=dp), DIMENSION(:,:,:)          :: array
+    REAL(KIND=dp), DIMENSION(:, :, :)        :: array
     TYPE(rng_stream_type), POINTER           :: rng_stream
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'random_numbers_3', &
-                                   routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, istat, j, k
+    INTEGER                                  :: i, j, k
     LOGICAL                                  :: failure
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     failure = .FALSE.
 
@@ -1227,12 +1223,12 @@ CONTAINS
       OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_rng_stream', &
-                                   routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: istat
     LOGICAL                                  :: failure
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     failure = .FALSE.
 
@@ -1267,11 +1263,11 @@ CONTAINS
       OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'reset_rng_stream', &
-                                   routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     failure = .FALSE.
 
@@ -1292,7 +1288,7 @@ CONTAINS
 
     TYPE(rng_stream_type), POINTER           :: rng_stream
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     rng_stream%cg = rng_stream%bg
 
@@ -1309,12 +1305,12 @@ CONTAINS
       OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'reset_to_next_rng_substream', &
-                                   routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(3, 2)           :: u
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     failure = .FALSE.
 
@@ -1346,9 +1342,8 @@ CONTAINS
     INTEGER                                  :: k
     REAL(KIND=dp)                            :: p1, p2
 
-    ! -------------------------------------------------------------------------
-
-    ! Component 1
+! -------------------------------------------------------------------------
+! Component 1
 
     p1 = a12*rng_stream%cg(2,1) - a13n*rng_stream%cg(1,1)
     k = INT(p1/m1)
@@ -1389,7 +1384,7 @@ CONTAINS
     TYPE(rng_stream_type), POINTER           :: rng_stream
     REAL(KIND=dp)                            :: u
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     u = rn32(rng_stream)
 
@@ -1423,11 +1418,11 @@ CONTAINS
       OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'set_rng_stream', &
-                                   routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     failure = .FALSE.
 
@@ -1473,9 +1468,8 @@ CONTAINS
     CHARACTER(LEN=40)                        :: fmtstr
     INTEGER                                  :: i, j
 
-    ! -------------------------------------------------------------------------
-
-    ! Print the transformation matrices for both components
+! -------------------------------------------------------------------------
+! Print the transformation matrices for both components
 
     WRITE (UNIT=output_unit,FMT="(/,T2,A)")&
       "TRANSFORMATION MATRICES FOR THE PARALLEL (PSEUDO)RANDOM NUMBER "//&
@@ -1517,11 +1511,11 @@ CONTAINS
       OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_rng_stream', &
-                                   routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure, my_write_all
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     failure = .FALSE.
 

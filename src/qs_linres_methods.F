@@ -132,8 +132,9 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'linres_localize', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ispin, istate, n_mo(2), nelectron, &
-                                                nmoloc(2), output_unit
+    INTEGER                                  :: ispin, istate, n_mo(2), &
+                                                nelectron, nmoloc(2), &
+                                                output_unit
     LOGICAL                                  :: failure, ionode, &
                                                 my_centers_only
     REAL(dp)                                 :: maxocc
@@ -387,7 +388,7 @@ CONTAINS
 !                 sum_k (<psi1_k|H_1|psi0_k> + <psi0_k|H_1|psi1_k>)
 !        Since H_1 and psi1_k are purely imaginary the second term is 
 !                        2*\sum_k <psi1_k|H_1|psi0_k>
- write(*,*) 'ene ', tmp1,tmp2
+ WRITE(*,*) 'ene ', tmp1,tmp2
           p_env%etotal = p_env%etotal + tmp1+2.0_dp*tmp2 
        END DO
 

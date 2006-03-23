@@ -62,7 +62,6 @@ MODULE qs_ks_methods
   USE hartree_local_2centers,          ONLY: integrate_vhg0_g0
   USE hartree_local_3centers,          ONLY: integrate_a_vhg0_b
   USE hartree_local_methods,           ONLY: Vh_1c_gg_integrals
-  USE s_square_methods,                ONLY: s2_restraint
   USE input_constants,                 ONLY: sic_ad,&
                                              sic_mauri_spz,&
                                              sic_mauri_us,&
@@ -115,6 +114,7 @@ MODULE qs_ks_methods
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE qs_semi_empirical_hamiltonian,   ONLY: build_se_fock_matrix
   USE qs_vxc_atom,                     ONLY: calculate_vxc_atom
+  USE s_square_methods,                ONLY: s2_restraint
   USE sparse_matrix_types,             ONLY: real_matrix_p_type,&
                                              real_matrix_type,&
                                              set_matrix,&
@@ -297,8 +297,7 @@ CONTAINS
     LOGICAL                                  :: failure, gapw, gapw_xc, &
                                                 ionode, my_kg_gpw
     REAL(KIND=dp)                            :: ddapc_order_p, &
-                                                s2_order_p,&
-                                                mulliken_order_p
+                                                mulliken_order_p, s2_order_p
     REAL(KIND=dp), DIMENSION(:), POINTER     :: occupation_numbers, &
                                                 scaling_factor
     TYPE(cell_type), POINTER                 :: cell

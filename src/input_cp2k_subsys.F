@@ -1282,13 +1282,13 @@ CONTAINS
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-    TYPE(section_type), POINTER              :: subsection
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_topology_section', &
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection
 
     failure=.FALSE.
 

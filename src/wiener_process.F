@@ -38,9 +38,9 @@ MODULE wiener_process
   USE md,                              ONLY: simulation_parameters_type
   USE md_environment_types,            ONLY: get_md_env,&
                                              md_environment_type
-  USE parallel_rng_types,              ONLY: create_rng_stream,&
-                                             next_rng_seed,&
-                                             GAUSSIAN
+  USE parallel_rng_types,              ONLY: GAUSSIAN,&
+                                             create_rng_stream,&
+                                             next_rng_seed
   USE particle_list_types,             ONLY: particle_list_type
   USE string_utilities,                ONLY: compress
 #include "cp_common_uses.h"
@@ -100,7 +100,7 @@ CONTAINS
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     failure = .FALSE.
     NULLIFY(work_section)

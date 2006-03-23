@@ -41,8 +41,8 @@ MODULE bfgs_optimizer
   USE global_types,                    ONLY: global_environment_type
   USE gopt_f_types,                    ONLY: gopt_param_type
   USE input_constants,                 ONLY: dump_xmol
-  USE input_section_types,             ONLY: section_vals_type
   USE input_cp2k_restarts,             ONLY: write_restart
+  USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_flush
   USE mathlib,                         ONLY: diamat_all

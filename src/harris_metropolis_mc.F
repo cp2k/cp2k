@@ -34,80 +34,62 @@ MODULE harris_metropolis_mc
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_output_handling,              ONLY: cp_add_iter_level,&
                                              cp_iterate,&
-                                             cp_p_file,&
                                              cp_print_key_finished_output,&
-                                             cp_print_key_should_output,&
                                              cp_print_key_unit_nr,&
                                              cp_rm_iter_level
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
-                                             cp_subsystem_p_type, &
-                                             cp_subsys_release, &
+                                             cp_subsys_release,&
+                                             cp_subsystem_p_type,&
                                              cp_subsystem_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_initialize,&
                                              dyn_coeff_set_p_type
   USE eip_environment,                 ONLY: eip_init
-  USE eip_environment_types,           ONLY: eip_env_create, &
-                                             eip_env_release, &
-                                             eip_environment_type, &
-                                             eip_env_retain, &
-                                             eip_env_get
+  USE eip_environment_types,           ONLY: eip_env_create,&
+                                             eip_env_get,&
+                                             eip_env_release,&
+                                             eip_env_retain,&
+                                             eip_environment_type
   USE extended_system_types,           ONLY: extended_system_type,&
                                              extended_type_init,&
                                              lnhc_dealloc,&
                                              lnhc_init,&
                                              npt_dealloc
   USE fist_environment,                ONLY: fist_init
-  USE fist_environment_types,          ONLY: fist_environment_type, &
-                                             get_fist_env, &
-                                             set_fist_env, &
-                                             fist_env_create, &
-                                             fist_env_retain, &
-                                             fist_env_release
+  USE fist_environment_types,          ONLY: fist_env_create,&
+                                             fist_env_release,&
+                                             fist_env_retain,&
+                                             fist_environment_type,&
+                                             get_fist_env,&
+                                             set_fist_env
   USE force_env_methods,               ONLY: force_env_calc_energy_force
   USE force_env_types,                 ONLY: force_env_get,&
-                                             force_env_set,&
                                              force_env_p_type,&
                                              force_env_type,&
-                                             use_kg_force, &
-                                             use_qs_force, &
-                                             use_tbmd_force, &
-                                             use_eip_force, &
-                                             use_fist_force
+                                             use_eip_force,&
+                                             use_fist_force,&
+                                             use_kg_force,&
+                                             use_qs_force,&
+                                             use_tbmd_force
   USE global_types,                    ONLY: global_environment_type
-  USE harris_energy_types,             ONLY: harris_energy_type, &
-                                             harris_energy_get
+  USE harris_energy_types,             ONLY: harris_energy_get,&
+                                             harris_energy_type
   USE harris_env_types,                ONLY: harris_env_get
   USE init_extended_system_types,      ONLY: initialize_nhc_baro,&
                                              initialize_nhc_coef,&
                                              initialize_nhc_part,&
                                              initialize_npt
   USE init_extended_system_variables,  ONLY: init_nhc_forces
-  USE input_constants,                 ONLY: do_kg,&
-                                             do_qs,&
-                                             langevin_ensemble,&
-                                             restart_guess, &
-                                             do_tbmd, &
-                                             do_eip, &
-                                             do_fist, &
-                                             Fist_MD_method, &
-                                             KG_MD_method, &
-                                             KG_DFT_MD_method, &
-                                             QS_MD_method, &
-                                             Harris_MD_method, &
-                                             EIP_MD_method, &
-                                             SE_MD_method, &
-                                             KG_DFT_MC_method, &
-                                             QS_MC_method, &
-                                             Harris_MC_method, &
-                                             EIP_MC_method, &
-                                             SE_MC_method, &
-                                             TBMD_MC_method
+  USE input_constants,                 ONLY: &
+       EIP_MC_method, EIP_MD_method, Fist_MD_method, Harris_MC_method, &
+       Harris_MD_method, KG_DFT_MC_method, KG_DFT_MD_method, KG_MD_method, &
+       QS_MC_method, QS_MD_method, SE_MC_method, SE_MD_method, &
+       TBMD_MC_method, do_eip, do_fist, do_kg, do_qs, do_tbmd, &
+       langevin_ensemble, restart_guess
   USE input_cp2k_restarts,             ONLY: write_restart
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
-                                             section_vals_val_get,&
-                                             section_vals_write
+                                             section_vals_val_get
   USE kg_environment,                  ONLY: kg_init
   USE kg_environment_types,            ONLY: kg_env_create,&
                                              kg_env_release,&
@@ -130,9 +112,6 @@ MODULE harris_metropolis_mc
   USE md_run,                          ONLY: temperature_control
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_sum
-  USE metadynamics,                    ONLY: metadyn_read
-  USE metadynamics_types,              ONLY: meta_env_type, &
-                                             meta_env_release
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
   USE mol_new_list_types,              ONLY: mol_new_list_type
   USE parallel_rng_types,              ONLY: UNIFORM,&
@@ -144,30 +123,30 @@ MODULE harris_metropolis_mc
   USE particle_types,                  ONLY: particle_type
   USE qs_environment,                  ONLY: qs_init
   USE qs_environment_types,            ONLY: get_qs_env,&
-                                             qs_environment_type, &
                                              qs_env_create,&
+                                             qs_env_release,&
                                              qs_env_retain,&
-                                             qs_env_release
+                                             qs_environment_type
   USE qs_mo_types,                     ONLY: read_mo_set
   USE qs_wf_history_methods,           ONLY: wfi_duplicate_history
   USE qs_wf_history_types,             ONLY: qs_wf_history_type,&
                                              wfi_release,&
-                                             wfi_use_guess_method_nr, &
+                                             wfi_use_guess_method_nr,&
                                              wfi_use_prev_p_method_nr
-  USE tbmd_energy_types,               ONLY: tbmd_energy_type, &
-                                             tbmd_energy_get
+  USE tbmd_energy_types,               ONLY: tbmd_energy_get,&
+                                             tbmd_energy_type
   USE tbmd_environment,                ONLY: tbmd_init
   USE tbmd_environment_types,          ONLY: tbmd_env_create,&
+                                             tbmd_env_get,&
                                              tbmd_env_release,&
                                              tbmd_env_retain,&
-                                             tbmd_environment_type, &
-                                             tbmd_env_get
+                                             tbmd_environment_type
   USE termination,                     ONLY: external_control,&
                                              stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE velocity_verlet_control,         ONLY: velocity_verlet
-  USE virial_types,                    ONLY: virial_create, &
+  USE virial_types,                    ONLY: virial_create,&
                                              virial_retain
   USE wiener_process,                  ONLY: create_wiener_process
 #include "cp_common_uses.h"
@@ -228,29 +207,25 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'harris_mc_ld', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat, &
-                                                handle, &
-                                                md_method, &
-                                                mc_prog_name_id
-    TYPE(force_env_p_type), DIMENSION(:), &
-      POINTER                                :: force_env_p
-    TYPE(meta_env_type), POINTER             :: meta_env
-    TYPE(section_vals_type), POINTER         :: metadyn_section, &
-                                                hmc_section
-    !TYPE(cp_error_type)                      :: suberror
-    TYPE(kg_environment_type), POINTER       :: kg_env
-    TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(tbmd_environment_type), POINTER     :: tbmd_env
+    INTEGER                                  :: handle, mc_prog_name_id, &
+                                                md_method, stat
+    TYPE(cp_subsystem_p_type), &
+      DIMENSION(:), POINTER                  :: subsys
+    TYPE(cp_subsystem_type), POINTER         :: subsystem
     TYPE(eip_environment_type), POINTER      :: eip_env
     TYPE(fist_environment_type), POINTER     :: fist_env
-    TYPE(cp_subsystem_p_type), DIMENSION(:), &
-      POINTER                                :: subsys
-    TYPE(cp_subsystem_type), POINTER         :: subsystem
+    TYPE(force_env_p_type), DIMENSION(:), &
+      POINTER                                :: force_env_p
+    TYPE(kg_environment_type), POINTER       :: kg_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(section_vals_type), POINTER         :: hmc_section
+    TYPE(tbmd_environment_type), POINTER     :: tbmd_env
 
+!TYPE(cp_error_type)                      :: suberror
 !   ------------------------------------------------------------------------
 
-    NULLIFY(force_env_p, meta_env, metadyn_section, hmc_section, kg_env, &
-            qs_env, tbmd_env, eip_env, subsys, subsystem, fist_env)
+    NULLIFY(force_env_p, hmc_section, kg_env, qs_env, tbmd_env, eip_env, &
+         subsys, subsystem, fist_env)
 
     CALL timeset(routineN, "I", "", handle)
 
@@ -479,18 +454,18 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'harris_mc_md', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: accept, atom, force_env_in_use, handle, i, iatom, ibead, &
-      ikind, in_use, iparticles, istat, istep, isubsys, iter_level, iw, &
-      max_scf_tmp, max_scf_aspc_tmp, mc_method, md_method, myi, nbeads, reject, &
-      wf_interpolation_method_tmp, hmc_max_scf
+    INTEGER :: accept, atom, force_env_in_use, handle, hmc_max_scf, i, iatom, &
+      ibead, ikind, in_use, iparticles, istat, istep, isubsys, iter_level, &
+      iw, max_scf_aspc_tmp, max_scf_tmp, mc_method, md_method, myi, nbeads, &
+      reject, wf_interpolation_method_tmp
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     INTEGER, POINTER                         :: accepted_md, itimes, &
                                                 md_approach_nr
     INTEGER, SAVE                            :: hmc
-    LOGICAL :: accepted, ext_temp, failure, ionode, qs_ener, rand_vel, &
-      restore_velocities, restore_wf_past, semi_hybrid, start_qs, tot_energy, &
-      use_harris_tmp, vel_scaling, soft_start, fill_wf_history, &
-      interMMC_extrapolation, lpsc, always_accepted, drld, multiple_scf
+    LOGICAL :: accepted, always_accepted, drld, ext_temp, failure, &
+      fill_wf_history, interMMC_extrapolation, ionode, lpsc, multiple_scf, &
+      qs_ener, rand_vel, restore_velocities, restore_wf_past, semi_hybrid, &
+      soft_start, start_qs, tot_energy, use_harris_tmp, vel_scaling
     REAL(KIND=dp) :: acceptance_rate, akin, denom, e_kinetic, Econs, &
       Ekin_new, Ekin_prev, Epot_new, Epot_prev, eps_default_tmp, eps_scf_tmp, &
       mass, md_run_start_time, new_ldmc_energy, prev_ldmc_energy, prob, &
@@ -511,7 +486,10 @@ CONTAINS
                                                 local_particles
     TYPE(dyn_coeff_set_p_type), &
       DIMENSION(:), POINTER                  :: dyn_coeff_set
+    TYPE(eip_environment_type), POINTER      :: eip_env
     TYPE(extended_system_type)               :: extended_type
+    TYPE(harris_energy_type), POINTER        :: harris_energy
+    TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds_new
     TYPE(mol_new_list_type), POINTER         :: molecules_new
@@ -527,12 +505,9 @@ CONTAINS
       input, motion_section, restart_section, subsys_section, work_section
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
-    TYPE(unit_convert_type), POINTER         :: unit
-    TYPE(kg_environment_type), POINTER       :: kg_env
-    TYPE(tbmd_environment_type), POINTER     :: tbmd_env
-    TYPE(eip_environment_type), POINTER      :: eip_env
     TYPE(tbmd_energy_type), POINTER          :: tbmd_energy
-    TYPE(harris_energy_type), POINTER        :: harris_energy
+    TYPE(tbmd_environment_type), POINTER     :: tbmd_env
+    TYPE(unit_convert_type), POINTER         :: unit
 
 !   ------------------------------------------------------------------------
 
@@ -1448,32 +1423,23 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'harris_mc_md_approach', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ibead, iter, &
+    INTEGER                                  :: handle, ibead, iter, iw, &
                                                 max_scf_aspc_tmp, &
-                                                max_scf_tmp, nbeads, &
-                                                iw
+                                                max_scf_tmp, nbeads
     INTEGER, POINTER                         :: itimes
-    LOGICAL                                  :: should_stop, &
-                                                tot_energy, &
-                                                ionode
-    REAL(KIND=dp)                            :: time_iter_start, &
-                                                time_iter_stop, &
-                                                prev_lpsc_energy, &
-                                                new_lpsc_energy, &
-                                                Econs, &
-                                                Epot_prev, &
-                                                Epot_new, &
-                                                Ekin_new, &
-                                                Ekin_prev
+    LOGICAL                                  :: ionode, should_stop, &
+                                                tot_energy
+    REAL(KIND=dp) :: Econs, Ekin_new, Ekin_prev, Epot_new, Epot_prev, &
+      new_lpsc_energy, prev_lpsc_energy, time_iter_start, time_iter_stop
     REAL(KIND=dp), POINTER                   :: used_time
+    TYPE(eip_environment_type), POINTER      :: eip_env
     TYPE(force_env_p_type), DIMENSION(:), &
       POINTER                                :: force_env_p
+    TYPE(harris_energy_type), POINTER        :: harris_energy
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_wf_history_type), POINTER        :: wf_history
-    TYPE(tbmd_environment_type), POINTER     :: tbmd_env
-    TYPE(eip_environment_type), POINTER      :: eip_env
     TYPE(tbmd_energy_type), POINTER          :: tbmd_energy
-    TYPE(harris_energy_type), POINTER        :: harris_energy
+    TYPE(tbmd_environment_type), POINTER     :: tbmd_env
 
 !   ------------------------------------------------------------------------
 

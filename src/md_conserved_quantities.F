@@ -35,8 +35,7 @@ MODULE md_conserved_quantities
   USE extended_system_types,           ONLY: lnhc_parameters_type,&
                                              npt_info_type
   USE force_env_types,                 ONLY: force_env_get,&
-                                             force_env_p_type, &
-                                             use_eip_force
+                                             force_env_p_type
   USE input_constants,                 ONLY: &
        dyn_coeff_mass_global, isokin_ensemble, langevin_ensemble, &
        nph_ensemble, nph_uniaxial_damped_ensemble, nph_uniaxial_ensemble, &
@@ -121,10 +120,10 @@ SUBROUTINE compute_conserved_quantity (md_env, epot, cons, cons_rel, ekin,&
     INTEGER, POINTER                         :: itimes
     REAL(KIND=dp), POINTER                   :: constant
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(force_env_p_type), POINTER          :: force_env_p(:)
     TYPE(md_ener_type)                       :: md_ener
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
-    TYPE ( force_env_p_type ), POINTER       :: force_env_p(:)
 
 !------------------------------------------------------------------------------
 
@@ -610,9 +609,8 @@ SUBROUTINE get_part_ke_serial(md_env, ekin)
     TYPE(md_environment_type), POINTER       :: md_env
     REAL(KIND=dp), INTENT(OUT)               :: ekin
 
-    INTEGER                                  :: iparticle, &
-                                                nparticle_kind, &
-                                                nparticle
+    INTEGER                                  :: iparticle, nparticle, &
+                                                nparticle_kind
     REAL(KIND=dp)                            :: mass
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(cp_subsystem_p_type), &

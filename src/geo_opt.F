@@ -51,9 +51,9 @@ MODULE geo_opt
   USE input_constants,                 ONLY: default_bfgs_method_id,&
                                              default_cg_method_id,&
                                              default_lbfgs_method_id
+  USE input_cp2k_restarts,             ONLY: write_restart
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
-  USE input_cp2k_restarts,             ONLY: write_restart
   USE kinds,                           ONLY: dp
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: write_particle_distances

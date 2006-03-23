@@ -58,10 +58,9 @@ MODULE xas_methods
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: &
        do_loc_none, op_loc_berry, state_loc_upton, xas_1s_type, xas_2p_type, &
-       xas_2s_type, xas_dip_len, xas_dip_vel, xas_dip_len2, xas_dscf, &
-       xas_scf_default, xas_scf_general, &
-       xas_scf_ot, xas_tddft, xas_tp_fh, xas_tp_hh, xas_tp_xfh, xas_tp_xhh, &
-       xes_tp_val
+       xas_2s_type, xas_dip_len2, xas_dip_vel, xas_dscf, xas_scf_default, &
+       xas_scf_general, xas_scf_ot, xas_tddft, xas_tp_fh, xas_tp_hh, &
+       xas_tp_xfh, xas_tp_xhh, xes_tp_val
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: dp
@@ -92,10 +91,11 @@ MODULE xas_methods
                                              mo_set_p_type,&
                                              set_mo_set,&
                                              write_mo_set
-  USE qs_operators_ao,                 ONLY: p_xyz_ao,rRc_xyz_ao,set_up_op_sm
+  USE qs_operators_ao,                 ONLY: p_xyz_ao,&
+                                             rRc_xyz_ao,&
+                                             set_up_op_sm
   USE qs_scf,                          ONLY: init_scf_loop,&
                                              init_scf_run,&
-                                             scf_env_do_scf,&
                                              scf_env_cleanup
   USE qs_scf_types,                    ONLY: qs_scf_env_type
   USE scf_control_types,               ONLY: scf_control_type
@@ -105,8 +105,8 @@ MODULE xas_methods
                                              replicate_matrix_structure,&
                                              set_matrix
   USE string_utilities,                ONLY: xstring
-  USE termination,                     ONLY: stop_program
-  USE termination,                     ONLY: external_control
+  USE termination,                     ONLY: external_control,&
+                                             stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE xas_control,                     ONLY: xas_control_type
@@ -115,7 +115,8 @@ MODULE xas_methods
                                              xas_env_create,&
                                              xas_env_release,&
                                              xas_environment_type
-  USE xas_tp_scf,                      ONLY: xas_do_tp_scf,xes_scf_once
+  USE xas_tp_scf,                      ONLY: xas_do_tp_scf,&
+                                             xes_scf_once
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -177,16 +178,15 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'xas', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, homo, i, iat, iatom, ikind, ispin, istat, &
-      istate, iter, j, my_homo(2), nao, natom, nelectron, &
-      nexc_search, nmo, nspins,  output_unit, state_to_be_excited, &
-      xas_iter_count
-    INTEGER, DIMENSION(:), POINTER           :: atom_of_state, &
-                                                state_of_atom
-    LOGICAL                                  :: converged, failure, ionode, my_uocc(2), &
-                                                skip_scf, should_stop, &
+    INTEGER :: handle, homo, i, iat, iatom, ispin, istat, iter, my_homo(2), &
+      nao, nelectron, nexc_search, nmo, nspins, output_unit, &
+      state_to_be_excited, xas_iter_count
+    INTEGER, DIMENSION(:), POINTER           :: state_of_atom
+    LOGICAL                                  :: converged, failure, ionode, &
+                                                my_uocc(2), should_stop, &
+                                                skip_scf, &
                                                 transition_potential, uocc
-    REAL(dp)                                 :: maxocc, ra(3), rc(3)
+    REAL(dp)                                 :: maxocc
     REAL(dp), DIMENSION(:), POINTER          :: eigenvalues, &
                                                 occupation_numbers
     REAL(dp), DIMENSION(:, :), POINTER       :: vecbuffer
@@ -195,7 +195,7 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: groundstate_coeff
-    TYPE(cp_fm_type), POINTER                :: all_vectors,excvec_coeff, &
+    TYPE(cp_fm_type), POINTER                :: all_vectors, excvec_coeff, &
                                                 mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -209,9 +209,7 @@ CONTAINS
     TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_ks, op_sm
-    TYPE(real_matrix_p_type), &
-      DIMENSION(:), POINTER               :: ostrength_sm
+      POINTER                                :: matrix_ks, op_sm, ostrength_sm
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: dft_section, scf_section, &
                                                 xas_section
@@ -959,23 +957,23 @@ CONTAINS
     TYPE(xas_control_type)                   :: xas_control
     TYPE(xas_environment_type), POINTER      :: xas_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    INTEGER,INTENT(IN)                       :: iatom, iter
+    INTEGER, INTENT(IN)                      :: iatom, iter
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cls_calculate_spectrum', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: homo,i,istat,output_unit
+    INTEGER                                  :: homo, i, istat, output_unit
     LOGICAL                                  :: failure, ionode, length
     REAL(dp)                                 :: rc(3)
-    REAL(dp), DIMENSION(:), POINTER          :: all_evals, eigenvalues
+    REAL(dp), DIMENSION(:), POINTER          :: all_evals
     REAL(dp), DIMENSION(:, :), POINTER       :: spectrum
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_fm_p_type), DIMENSION(:, :), &
       POINTER                                :: dip_fm_set
     TYPE(cp_fm_type), POINTER                :: all_vectors, excvec_coeff, &
-                                                fm_work, mo_coeff
+                                                fm_work
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
@@ -983,11 +981,7 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: op_sm
-    TYPE(real_matrix_p_type), &
-      DIMENSION(:), POINTER               :: ostrength_sm
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s
+      POINTER                                :: matrix_s, op_sm, ostrength_sm
 
     failure =.FALSE.
     NULLIFY(logger)
@@ -1098,8 +1092,7 @@ CONTAINS
     TYPE(xas_control_type)                   :: xas_control
     REAL(dp), DIMENSION(:, :), POINTER       :: spectrum
     INTEGER, INTENT(IN)                      :: estate, homo, iatom, iter
-    LOGICAL, INTENT(IN)                      :: ionode
-    LOGICAL, INTENT(IN)                      :: length
+    LOGICAL, INTENT(IN)                      :: ionode, length
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -1109,8 +1102,8 @@ CONTAINS
     CHARACTER(len=50)                        :: filename
     INTEGER                                  :: ia, ie, istate, istate0, &
                                                 out_sp
-    REAL(dp)                                 :: ene2
     LOGICAL                                  :: failure, file_exists
+    REAL(dp)                                 :: ene2
 
     failure = .FALSE.
     out_sp = 23
@@ -1410,8 +1403,8 @@ CONTAINS
     TYPE(xas_control_type)                   :: xas_control
     TYPE(cp_fm_p_type), DIMENSION(:, :), &
       POINTER                                :: fm_set
-    TYPE(real_matrix_p_type), &
-      DIMENSION(:), POINTER               :: op_sm
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: op_sm
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(cp_fm_type), POINTER                :: excvec, all_vectors
@@ -1425,7 +1418,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'spectrum_dip_vel', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: homo, i,ii, istate, j,nao, nmo, &
+    INTEGER                                  :: homo, i, istate, nao, nmo, &
                                                 nvirtual
     LOGICAL                                  :: failure
     REAL(dp)                                 :: dip(3), ene_f, ene_i
@@ -1604,21 +1597,18 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cls_assign_core_states', &
       routineP = moduleN//':'//routineN
 
-
-    INTEGER :: i, iat, iatom, ikind, isgf, istat, istate, j, my_kind,&
-               nao, natom, nexc_atoms, nexc_search, output_unit
+    INTEGER :: i, iat, iatom, ikind, isgf, istat, istate, j, my_kind, nao, &
+      natom, nexc_atoms, nexc_search, output_unit
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf
     INTEGER, DIMENSION(:), POINTER           :: atom_of_state, &
                                                 mykind_of_kind, &
                                                 state_of_atom, &
-                                                state_of_mytype,&
-                                                type_of_state
+                                                state_of_mytype, type_of_state
     LOGICAL                                  :: failure, ionode
-    REAL(KIND=dp)                            :: component, dist, distmin, &
-                                                maxocc, ra(3), rc(3), rac(3)
-    REAL(dp), DIMENSION(:), POINTER          :: max_overlap, &
-                                                sto_state_overlap
+    REAL(dp), DIMENSION(:), POINTER          :: max_overlap, sto_state_overlap
     REAL(dp), DIMENSION(:, :), POINTER       :: centers_wfn
+    REAL(KIND=dp)                            :: component, dist, distmin, &
+                                                maxocc, ra(3), rac(3), rc(3)
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: vecbuffer
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
@@ -1630,7 +1620,6 @@ CONTAINS
       POINTER                                :: mos
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-
 
     failure = .FALSE.
     NULLIFY(cell,mos,particle_set)

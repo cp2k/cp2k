@@ -457,13 +457,13 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'init_se_nlradius'
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'init_se_nlradius'
 
-    INTEGER                                  :: nkind, ikind
-    TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
+    INTEGER                                  :: ikind, nkind
+    REAL(KIND=dp)                            :: kind_radius
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    REAL(KIND=dp)                            :: kind_radius, rc
-    
+    TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
+
 ! ------------------------------------------------------------------------------
 
     NULLIFY (orb_basis_set,atomic_kind)
@@ -510,7 +510,6 @@ CONTAINS
     CHARACTER(LEN=8)                         :: unit_of_length_name
     CHARACTER(LEN=default_string_length)     :: name
     INTEGER                                  :: ikind, nkind, output_unit
-    INTEGER, DIMENSION(:), POINTER           :: npgf
     REAL(KIND=dp)                            :: kind_radius, unit_of_length
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_logger_type), POINTER            :: logger

@@ -21,6 +21,7 @@ MODULE constraint_clv
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
+  USE colvar_types,                    ONLY: dist_colvar_id
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsystem_p_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
@@ -42,7 +43,6 @@ MODULE constraint_clv
                                              timestop
   USE util,                            ONLY: dotprod_3d,&
                                              matvec_3x3
-  USE colvar_types, ONLY: dist_colvar_id
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -166,7 +166,7 @@ CONTAINS
                                                 imass2, mass
     REAL(KIND=dp), DIMENSION(3)              :: fc_t, r12
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(colvar_constraint_type), POINTER      :: colv_list( : )
+    TYPE(colvar_constraint_type), POINTER    :: colv_list( : )
     TYPE(local_colvar_constraint_type), &
       POINTER                                :: lcolv( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
@@ -289,7 +289,7 @@ CONTAINS
                                                 mass
     REAL(KIND=dp), DIMENSION(3)              :: r12, v12
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(colvar_constraint_type), POINTER      :: colv_list( : )
+    TYPE(colvar_constraint_type), POINTER    :: colv_list( : )
     TYPE(local_colvar_constraint_type), &
       POINTER                                :: lcolv( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
@@ -400,7 +400,7 @@ CONTAINS
                                                 mass
     REAL(KIND=dp), DIMENSION(3)              :: f_roll, r1, r12, r2, v12
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(colvar_constraint_type), POINTER      :: colv_list( : )
+    TYPE(colvar_constraint_type), POINTER    :: colv_list( : )
     TYPE(local_colvar_constraint_type), &
       POINTER                                :: lcolv( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
@@ -521,7 +521,7 @@ CONTAINS
                                                 imass2, mass
     REAL(KIND=dp), DIMENSION(3)              :: f_roll_r, f_roll_v, fc_t, r12
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(colvar_constraint_type), POINTER      :: colv_list( : )
+    TYPE(colvar_constraint_type), POINTER    :: colv_list( : )
     TYPE(local_colvar_constraint_type), &
       POINTER                                :: lcolv( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind

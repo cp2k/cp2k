@@ -483,17 +483,19 @@ END SUBROUTINE section_describe
 RECURSIVE SUBROUTINE section_describe_html(section, prefix, depth, unit_nr,  error)
     TYPE(section_type), POINTER              :: section
     CHARACTER(LEN=*), INTENT(IN)             :: prefix
-    INTEGER, INTENT(in)                      :: depth,unit_nr
+    INTEGER, INTENT(in)                      :: depth, unit_nr
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'section_describe_html', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=256), DIMENSION(50), SAVE  :: location,name ! a local stack of info
     CHARACTER(LEN=1000)                      :: local_prefix
-    INTEGER                                  :: ikeyword, isub, idepth
+    CHARACTER(LEN=256), DIMENSION(50), SAVE  :: location, name
+    INTEGER                                  :: idepth, ikeyword, isub
     LOGICAL                                  :: failure, has_keywords
+
+! a local stack of info
 
   failure=.FALSE.
   IF (ASSOCIATED(section)) THEN
