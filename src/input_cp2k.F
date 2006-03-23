@@ -936,25 +936,25 @@ SUBROUTINE create_f_env_print_section(section,error)
      CALL section_add_subsection(section,print_key,error=error)
      CALL section_release(print_key,error=error)
 
-     CALL cp_print_key_section_create(print_key,"total_numbers",&
+     CALL cp_print_key_section_create(print_key,"TOTAL_NUMBERS",&
           description="controls the printing of the total number of atoms, kinds,...",&
           print_level=medium_print_level, filename="__STD_OUT__",error=error)
      CALL section_add_subsection(section,print_key,error=error)
      CALL section_release(print_key,error=error)
 
-     CALL cp_print_key_section_create(print_key,"distribution",&
+     CALL cp_print_key_section_create(print_key,"DISTRIBUTION",&
           description="controls the printing of the distribution of molecules, atoms, ...",&
           print_level=medium_print_level, filename="__STD_OUT__",error=error)
      CALL section_add_subsection(section,print_key,error=error)
      CALL section_release(print_key,error=error)
 
-     CALL cp_print_key_section_create(print_key,"distribution2d",&
+     CALL cp_print_key_section_create(print_key,"DISTRIBUTION2D",&
           description="controls the printing of the distribution of matrix blocks,...",&
           print_level=high_print_level, filename="__STD_OUT__",error=error)
      CALL section_add_subsection(section,print_key,error=error)
      CALL section_release(print_key,error=error)
 
-     CALL cp_print_key_section_create(print_key,"distribution1d",&
+     CALL cp_print_key_section_create(print_key,"DISTRIBUTION1D",&
           description="Each node prints out its distribution info...",&
           print_level=high_print_level, filename="__STD_OUT__",error=error)
      CALL section_add_subsection(section,print_key,error=error)
