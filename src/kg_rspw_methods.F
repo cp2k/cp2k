@@ -157,7 +157,7 @@ END SUBROUTINE kg_rspw_create
     TYPE(pw_grid_type), POINTER              :: old_pw_grid, pw_grid
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
-    TYPE(section_vals_type), POINTER         :: poisson_section
+    TYPE(section_vals_type), POINTER         :: poisson_section, print_section
 
 !   INTEGER, PARAMETER                       :: maxgridpoints = 100
 !   ---------------------------------------------------------------------------
@@ -195,8 +195,7 @@ END SUBROUTINE kg_rspw_create
        CALL pw_pools_dealloc(kg_rspw%pw_pools,error=error)
        CALL rs_pools_dealloc(kg_rspw%rs_pools,error=error)
        IF (ASSOCIATED(kg_rspw%gridlevel_info)) THEN
-          CALL destroy_gaussian_gridlevel(kg_rspw%gridlevel_info,force_env_section=kg_env%input,&
-               error=error)
+          CALL destroy_gaussian_gridlevel(kg_rspw%gridlevel_info, error=error)
        ELSE
           ALLOCATE(kg_rspw%gridlevel_info,stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -218,8 +217,10 @@ END SUBROUTINE kg_rspw_create
     END IF
 
     IF (.NOT.failure) THEN
+      print_section=>section_vals_get_subs_vals(kg_env%input, &
+                        "PRINT%PW_GRID_INFORMATION",error=error)
       CALL init_gaussian_gridlevel(kg_rspw%gridlevel_info,&
-           ngrid_level,cutoff,rel_cutoff)
+           ngrid_level,cutoff,rel_cutoff,print_section=print_section)
 
 !!      ALLOCATE(radius(ngrid_level),stat=stat)
 !!      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)

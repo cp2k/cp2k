@@ -378,7 +378,7 @@ SUBROUTINE qs_env_rebuild_pw_env(qs_env,error)
     IF (.NOT.ASSOCIATED(new_pw_env)) THEN
        CALL pw_env_create(new_pw_env,qs_env=qs_env,error=error)
        CALL set_qs_env(qs_env,pw_env=new_pw_env)
-       CALL pw_env_release(new_pw_env,force_env_section=qs_env%input,error=error)
+       CALL pw_env_release(new_pw_env,error=error)
     ELSE
        CALL pw_env_rebuild(new_pw_env,qs_env=qs_env,error=error)
     END IF

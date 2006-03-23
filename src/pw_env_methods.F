@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2002 - 2004 CP2K developers group                           !
+!   Copyright (C) 2002 - 2006 CP2K developers group                           !
 !-----------------------------------------------------------------------------!
 
 
@@ -213,7 +213,8 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     TYPE(rho0_mpole_type), POINTER           :: nddo_mpole, rho0_mpole
-    TYPE(section_vals_type), POINTER         :: input, poisson_section
+    TYPE(section_vals_type), POINTER         :: input, poisson_section, &
+                                                print_section
 
   CALL timeset(routineN,"I","",handle)
 
@@ -237,7 +238,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
      CALL pw_pools_dealloc(pw_env%pw_pools,error=error)
      CALL rs_pools_dealloc(pw_env%rs_pools,error=error)
      IF (ASSOCIATED(pw_env%gridlevel_info)) THEN
-        CALL destroy_gaussian_gridlevel(pw_env%gridlevel_info,qs_env%input,error=error)
+        CALL destroy_gaussian_gridlevel(pw_env%gridlevel_info,error=error)
      ELSE
         ALLOCATE(pw_env%gridlevel_info,stat=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -312,8 +313,11 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
      ! init gridlevel_info XXXXXXXXX setup mapping to the effective cutoff ?
      !                     XXXXXXXXX the cutoff array here is more a 'wish-list'
      !                     XXXXXXXXX same holds for radius
+     print_section=>section_vals_get_subs_vals(input, &
+                        "PRINT%PW_GRID_INFORMATION",error=error)
      CALL init_gaussian_gridlevel(pw_env%gridlevel_info,&
-          ngrid_levels=ngrid_level,cutoff=cutoff,rel_cutoff=rel_cutoff)
+          ngrid_levels=ngrid_level,cutoff=cutoff,rel_cutoff=rel_cutoff, &
+          print_section=print_section)
      ! init pw_grids and pools
      ALLOCATE(pw_pools(ngrid_level),stat=stat)
      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -437,9 +441,12 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
                                  cell%h_inv, my_cutoff )
            cutoff (igrid_level) = my_cutoff
          ENDDO
-         CALL destroy_gaussian_gridlevel (pw_env%gridlevel_info, input, error=error )
+         CALL destroy_gaussian_gridlevel (pw_env%gridlevel_info, error=error )
+         print_section=>section_vals_get_subs_vals(qs_env%input, &
+                             "PRINT%PW_GRID_INFORMATION",error=error)
          CALL init_gaussian_gridlevel(pw_env%gridlevel_info,&
-              ngrid_levels=ngrid_level,cutoff=cutoff,rel_cutoff=rel_cutoff)
+              ngrid_levels=ngrid_level,cutoff=cutoff,rel_cutoff=rel_cutoff, &
+              print_section=print_section)
          CALL pw_poisson_set(pw_env%poisson_env,cell=cell,pw_pools=pw_env%pw_pools,&
           parameters=poisson_section,mt_super_ref_pw_grid=mt_super_ref_grid,&
           use_level=pw_env%auxbas_grid,error=error)

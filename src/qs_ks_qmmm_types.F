@@ -162,7 +162,7 @@ CONTAINS
        IF (ks_qmmm_env%ref_count<1) THEN
           CALL pw_env_get(ks_qmmm_env%pw_env,auxbas_pw_pool=pool,error=error)
           CALL pw_pool_give_back_coeff(pool,ks_qmmm_env%v_qmmm_rspace,error=error)
-          CALL pw_env_release(ks_qmmm_env%pw_env,force_env_section,error=error)
+          CALL pw_env_release(ks_qmmm_env%pw_env,error=error)
           IF (ASSOCIATED(ks_qmmm_env%cube_info))THEN
              DO i=1,SIZE(ks_qmmm_env%cube_info)
                 CALL destroy_cube_info(ks_qmmm_env%cube_info(i))

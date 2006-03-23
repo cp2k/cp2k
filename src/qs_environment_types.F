@@ -844,7 +844,7 @@ CONTAINS
     END IF
     IF (PRESENT(pw_env)) THEN ! accept also null pointers?
       CALL pw_env_retain(pw_env,error=error)
-      CALL pw_env_release(qs_env%pw_env,qs_env%input,error=error)
+      CALL pw_env_release(qs_env%pw_env,error=error)
       qs_env%pw_env => pw_env
     END IF
     IF (PRESENT(scf_control)) THEN ! accept also null pointers?
@@ -1236,7 +1236,7 @@ SUBROUTINE qs_env_release(qs_env,error)
           CALL virial_release(qs_env%virial,error=error)
         END IF
 !JCS
-        CALL pw_env_release(qs_env%pw_env, qs_env%input, error=error)
+        CALL pw_env_release(qs_env%pw_env, error=error)
         CALL cp_para_env_release(qs_env%para_env,error=error)
         CALL cp_blacs_env_release(qs_env%blacs_env, error=error)
         IF (ASSOCIATED(qs_env%rho_core)) THEN

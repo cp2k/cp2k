@@ -21,7 +21,7 @@ MODULE gaussian_gridlevels
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE global_types,                    ONLY: global_environment_type
-  USE input_section_types,             ONLY: section_vals_type
+  USE input_section_types,             ONLY: section_vals_type, section_vals_retain, section_vals_release
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
   USE termination,                     ONLY: stop_memory
@@ -34,7 +34,8 @@ MODULE gaussian_gridlevels
        REAL(KIND = dp), POINTER, DIMENSION(:) :: cutoff
        INTEGER , POINTER, DIMENSION(:) :: count
        INTEGER                         :: total_count
-       REAL(KIND = dp)                        :: rel_cutoff
+       REAL(KIND = dp)                  :: rel_cutoff
+       TYPE(section_vals_type), POINTER :: print_section
   END TYPE
 
   PUBLIC :: gridlevel_info_type
@@ -44,11 +45,12 @@ MODULE gaussian_gridlevels
 
 CONTAINS
 
-  SUBROUTINE init_gaussian_gridlevel(gridlevel_info,ngrid_levels,cutoff,rel_cutoff)
+  SUBROUTINE init_gaussian_gridlevel(gridlevel_info,ngrid_levels,cutoff,rel_cutoff, print_section)
     TYPE(gridlevel_info_type)                :: gridlevel_info
     INTEGER                                  :: ngrid_levels
     REAL(KIND=dp), DIMENSION(:), POINTER     :: cutoff
     REAL(KIND=dp)                            :: rel_cutoff
+    TYPE(section_vals_type), POINTER         :: print_section
 
     INTEGER                                  :: i
 
@@ -61,11 +63,12 @@ CONTAINS
           gridlevel_info%cutoff(i)=cutoff(i)
           gridlevel_info%count(i)=0
        ENDDO
+       gridlevel_info%print_section=>print_section
+       CALL section_vals_retain(print_section)
   END SUBROUTINE
  
-SUBROUTINE destroy_gaussian_gridlevel(gridlevel_info,force_env_section,globenv,error)
+SUBROUTINE destroy_gaussian_gridlevel(gridlevel_info,globenv,error)
     TYPE(gridlevel_info_type)                :: gridlevel_info
-    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(global_environment_type), &
       OPTIONAL, POINTER                      :: globenv
     TYPE(cp_error_type), INTENT(inout), &
@@ -84,8 +87,8 @@ SUBROUTINE destroy_gaussian_gridlevel(gridlevel_info,force_env_section,globenv,e
   ELSE
      group=logger%para_env%group
   END IF
-  output_unit = cp_print_key_unit_nr(logger,force_env_section,"PRINT%PW_GRID_INFORMATION",&
-         extension=".Log",error=error)
+  output_unit = cp_print_key_unit_nr(logger,gridlevel_info%print_section, &
+                   "", extension=".Log",error=error)
 
   DEALLOCATE (gridlevel_info%cutoff,STAT=istat)
   IF (istat /= 0) CALL stop_memory(routine,"gridlevel_info%cutoff")
@@ -102,10 +105,14 @@ SUBROUTINE destroy_gaussian_gridlevel(gridlevel_info,force_env_section,globenv,e
        gridlevel_info%count(i)
     END DO
   END IF
+
+  CALL cp_print_key_finished_output(output_unit,logger,gridlevel_info%print_section,&
+                                    "", error=error)  
+
+  CALL section_vals_release(gridlevel_info%print_section)
+
   DEALLOCATE (gridlevel_info%count,STAT=istat)
   IF (istat /= 0) CALL stop_memory(routine,"gridlevel_info%count")
-  CALL cp_print_key_finished_output(output_unit,logger,force_env_section,&
-       "PRINT%PW_GRID_INFORMATION",error=error)  
   END SUBROUTINE
 
 ! ***************************************************************

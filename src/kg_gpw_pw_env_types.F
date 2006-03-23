@@ -271,7 +271,7 @@ CONTAINS
          CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
       END IF
 
-      CALL pw_env_release(molbox_env_set(ikind)%pw_env_mol,force_env_section, error=error)
+      CALL pw_env_release(molbox_env_set(ikind)%pw_env_mol,error=error)
 
       CALL deallocate_rho_mol_blocks(molbox_env_set(ikind)%rho_mol_blocks,error=error)
 
@@ -413,7 +413,7 @@ CONTAINS
     END IF
     IF(PRESENT(pw_env_mol)) THEN
       CALL pw_env_retain(pw_env_mol,error=error)
-      CALL pw_env_release(molbox_env%pw_env_mol,force_env_section, error=error)
+      CALL pw_env_release(molbox_env%pw_env_mol, error=error)
       molbox_env%pw_env_mol => pw_env_mol
     END IF
     IF(PRESENT(rho_mol_blocks)) THEN

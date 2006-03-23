@@ -50,7 +50,8 @@ MODULE kg_gpw_pw_env_methods
                                              fft_radix_operations
   USE gaussian_gridlevels,             ONLY: destroy_gaussian_gridlevel,&
                                              init_gaussian_gridlevel
-  USE input_section_types,             ONLY: section_vals_type
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_type
   USE kg_gpw_collocate_den,            ONLY: calculate_rho_mol
   USE kg_gpw_fm_mol_types,             ONLY: fm_mol_blocks_type,&
                                              get_fm_mol_block,&
@@ -287,7 +288,7 @@ CONTAINS
             error=error,force_env_section=qs_env%input)
        CALL set_molbox_env(molbox_env=molbox_env_p,pw_env_mol=new_pw_mol,&
             force_env_section=qs_env%input)
-       CALL pw_env_release(new_pw_mol,qs_env%input,error=error)
+       CALL pw_env_release(new_pw_mol,error=error)
     ELSE
        CALL pw_env_mol_rebuild(new_pw_mol,cell_mol,pw_env,dft_control,side,num_pe,&
             force_env_section=qs_env%input,error=error)
@@ -397,6 +398,7 @@ CONTAINS
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools_mol
     TYPE(pw_pool_type), POINTER              :: pw_pool_g
+    TYPE(section_vals_type), POINTER         :: print_section
 
     failure = .FALSE.
 
@@ -413,8 +415,7 @@ CONTAINS
       CALL pw_pools_dealloc(pw_mol%pw_pools,error=error)
       CALL rs_pools_dealloc(pw_mol%rs_pools,error=error)
       IF (ASSOCIATED(pw_mol%gridlevel_info)) THEN
-        CALL destroy_gaussian_gridlevel(pw_mol%gridlevel_info,force_env_section,&
-             error=error)
+        CALL destroy_gaussian_gridlevel(pw_mol%gridlevel_info, error=error)
       ELSE
         ALLOCATE(pw_mol%gridlevel_info, STAT=istat)
         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -451,8 +452,11 @@ CONTAINS
      ! init gridlevel_info XXXXXXXXX setup mapping to the effective cutoff ?
      !                     XXXXXXXXX the cutoff array here is more a 'wish-list'
      !                     XXXXXXXXX same holds for radius
+      print_section=>section_vals_get_subs_vals(force_env_section, &
+                       "PRINT%PW_GRID_INFORMATION",error=error)
       CALL init_gaussian_gridlevel(pw_mol%gridlevel_info,&
-           ngrid_levels=ngrid_level,cutoff=cutoff,rel_cutoff=rel_cutoff)
+           ngrid_levels=ngrid_level,cutoff=cutoff, &
+           rel_cutoff=rel_cutoff,print_section=print_section)
 
       ! init pw_grids and pools
        ALLOCATE(pw_pools_mol(ngrid_level),STAT=istat)

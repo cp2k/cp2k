@@ -27,7 +27,6 @@ MODULE kg_rspw_types
                                              destroy_cube_info
   USE gaussian_gridlevels,             ONLY: destroy_gaussian_gridlevel,&
                                              gridlevel_info_type
-  USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
   USE l_utils,                         ONLY: destroy_l_info,&
                                              l_info_type
@@ -143,11 +142,10 @@ END SUBROUTINE kg_rspw_retain
 !!   MODIFICATION HISTORY
 !!
 !!*** **********************************************************************
-  SUBROUTINE kg_rspw_release(kg_rspw,force_env_section,error)               
+  SUBROUTINE kg_rspw_release(kg_rspw,error)               
 
 
     TYPE(kg_rspw_type), POINTER              :: kg_rspw
-    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -166,8 +164,7 @@ END SUBROUTINE kg_rspw_retain
      kg_rspw%ref_count=kg_rspw%ref_count-1
      IF (kg_rspw%ref_count<1) THEN
        IF (ASSOCIATED(kg_rspw%gridlevel_info)) THEN
-         CALL destroy_gaussian_gridlevel(kg_rspw%gridlevel_info,force_env_section&
-              ,error=error)
+         CALL destroy_gaussian_gridlevel(kg_rspw%gridlevel_info,error=error)
          DEALLOCATE(kg_rspw%gridlevel_info,stat=stat)
          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
        END IF

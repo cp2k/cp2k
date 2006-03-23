@@ -32,7 +32,6 @@ MODULE pw_env_types
                                              destroy_cube_info
   USE gaussian_gridlevels,             ONLY: destroy_gaussian_gridlevel,&
                                              gridlevel_info_type
-  USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
   USE l_utils,                         ONLY: l_info_release,&
                                              l_info_type
@@ -282,9 +281,8 @@ END SUBROUTINE pw_env_retain
 !!     10.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE pw_env_release(pw_env, force_env_section, error)
+SUBROUTINE pw_env_release(pw_env,  error)
     TYPE(pw_env_type), POINTER               :: pw_env
-    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -303,8 +301,7 @@ SUBROUTINE pw_env_release(pw_env, force_env_section, error)
         CALL pw_poisson_release(pw_env%poisson_env, error=error)
         CALL pw_pools_dealloc(pw_env%pw_pools,error=error)
         IF (ASSOCIATED(pw_env%gridlevel_info)) THEN
-           CALL destroy_gaussian_gridlevel(pw_env%gridlevel_info,force_env_section,&
-                error=error)
+           CALL destroy_gaussian_gridlevel(pw_env%gridlevel_info, error=error)
            DEALLOCATE(pw_env%gridlevel_info,stat=stat)
            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
         END IF

@@ -440,7 +440,7 @@ CONTAINS
     END IF
     IF (PRESENT(rspw)) THEN ! accepts also null pointers !
       IF (ASSOCIATED(rspw)) CALL kg_rspw_retain(rspw,error=error)
-      CALL kg_rspw_release(kg_env%rspw,force_env_section=kg_env%input,error=error)
+      CALL kg_rspw_release(kg_env%rspw,error=error)
       kg_env%rspw => rspw
     END IF
     IF (PRESENT(scf_env)) THEN 
@@ -684,7 +684,7 @@ SUBROUTINE kg_env_release(kg_env,error)
         END IF
  
         CALL kg_rho_release(kg_env%rho, error=error)
-        CALL kg_rspw_release(kg_env%rspw, force_env_section=kg_env%input, error=error)
+        CALL kg_rspw_release(kg_env%rspw, error=error)
         CALL dyn_coeff_set_release(kg_env%dyn_coeff_set,error=error)
         CALL scf_c_release(kg_env%scf_control, error=error)
         CALL cp_para_env_release(kg_env%para_env,error=error)

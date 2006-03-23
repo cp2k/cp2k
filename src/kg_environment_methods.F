@@ -115,7 +115,7 @@ CONTAINS
       IF (.NOT.ASSOCIATED(rspw)) THEN
          CALL kg_rspw_create(rspw,kg_env=kg_env,error=error)
          CALL set_kg_env(kg_env,rspw=rspw)
-         CALL kg_rspw_release(rspw,force_env_section=kg_env%input,error=error)
+         CALL kg_rspw_release(rspw,error=error)
       ELSE
          CALL kg_rspw_rebuild(rspw,kg_env=kg_env,error=error)
       END IF
