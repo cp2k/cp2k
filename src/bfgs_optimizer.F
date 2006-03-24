@@ -51,7 +51,8 @@ MODULE bfgs_optimizer
   USE particle_types,                  ONLY: particle_type,&
                                              write_particle_coordinates,&
                                              write_particle_distances,&
-                                             write_qs_particle_coordinates
+                                             write_qs_particle_coordinates,&
+                                             write_structure_data
   USE termination,                     ONLY: external_control
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -206,6 +207,7 @@ CONTAINS
 
     CALL write_qs_particle_coordinates(particle_set,cell,force_env_section,error) 
     CALL write_particle_distances(particle_set,cell,force_env_section,error)
+    CALL write_structure_data(particle_set,cell,force_env_section,error)
 
     IF(ionode)THEN
        CALL open_file(file_name="HESSIAN",&
@@ -371,6 +373,7 @@ CONTAINS
        END IF
 
        CALL write_particle_distances(particle_set,cell,force_env_section,error)
+       CALL write_structure_data(particle_set,cell,force_env_section,error)
 
        CALL energy_predict(ndf,work,hes,dr,g,output_unit>0,output_unit,conv,pred)
 

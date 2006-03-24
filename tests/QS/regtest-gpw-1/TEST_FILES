@@ -33,3 +33,5 @@ Ar-11.inp          1
 # different pseudo style
 K2.inp             1
 H2.inp             1
+# printing of structure data
+H2O-geoopt.inp

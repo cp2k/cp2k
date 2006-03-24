@@ -46,7 +46,8 @@ MODULE gopt_f_types
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type,&
                                              write_particle_distances,&
-                                             write_qs_particle_coordinates
+                                             write_qs_particle_coordinates,&
+                                             write_structure_data
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -357,6 +358,7 @@ SUBROUTINE gopt_f_eval_all_at(gopt_env, x, f, gradient, master, para_env, force_
      END DO
      CALL write_qs_particle_coordinates(particles%els,cell,force_env_section,error)
      CALL write_particle_distances(particles%els,cell,force_env_section,error)
+     CALL write_structure_data(particles%els,cell,force_env_section,error)
   END DO
 
   CALL force_env_calc_energy_force(gopt_env%force_env,&

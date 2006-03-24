@@ -535,11 +535,77 @@ CONTAINS
        CALL keyword_release(keyword,error=error)    
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)       
-       
+
+       CALL cp_print_key_section_create(print_key,&
+                                        name="STRUCTURE_DATA",&
+                                        description="Request the printing of special "//&
+                                                    "structure data during a structure "//&
+                                                    "optimization",&
+                                        print_level=high_print_level,&
+                                        filename="__STD_OUT__",&
+                                        error=error)
+       CALL keyword_create(keyword,&
+                           name="POSITION",&
+                           variants=(/"POS"/),&
+                           description="Print the position vector of "//&
+                                       "atom a specified by its index",&
+                           usage="POSITION {integer}",&
+                           n_var=1,&
+                           repeats=.TRUE.,&
+                           required=.FALSE.,&
+                           type_of_var=integer_t,&
+                           error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword,&
+                           name="DISTANCE",&
+                           variants=(/"DIS"/),&
+                           description="Print the distance between the "//&
+                                       "atoms a and b specified by their "//&
+                                       "indices",&
+                           usage="DISTANCE {integer} {integer}",&
+                           n_var=2,&
+                           repeats=.TRUE.,&
+                           required=.FALSE.,&
+                           type_of_var=integer_t,&
+                           error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword,&
+                           name="ANGLE",&
+                           variants=(/"ANG"/),&
+                           description="Print the angle formed by the "//&
+                                       "atoms specified by their indices",&
+                           usage="ANGLE {integer}  {integer} {integer}",&
+                           n_var=3,&
+                           repeats=.TRUE.,&
+                           required=.FALSE.,&
+                           type_of_var=integer_t,&
+                           error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword,&
+                           name="DIHEDRAL_ANGLE",&
+                           variants=s2a("DIHEDRAL","DIH"),&
+                           description="Print the dihedral angle between the "//&
+                                       "planes defined by the atoms (a,b,c) and "//&
+                                       "the atoms (b,c,d) specified by their indices",&
+                           usage="DIHEDRAL_ANGLE {integer}  {integer} {integer} {integer}",&
+                           n_var=4,&
+                           repeats=.TRUE.,&
+                           required=.FALSE.,&
+                           type_of_var=integer_t,&
+                           error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL section_add_subsection(subsection,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
        CALL section_add_subsection(section,subsection,error=error)
-       CALL section_release(subsection,error=error)       
-       
+       CALL section_release(subsection,error=error)
+
     END IF
+
   END SUBROUTINE create_subsys_section
 
 !***************************************************************************

@@ -108,7 +108,8 @@ MODULE qs_environment
                                              particle_list_type
   USE particle_types,                  ONLY: particle_type,&
                                              write_particle_distances,&
-                                             write_qs_particle_coordinates
+                                             write_qs_particle_coordinates,&
+                                             write_structure_data
   USE qs_energy_types,                 ONLY: allocate_qs_energy,&
                                              qs_energy_type
   USE qs_environment_methods,          ONLY: qs_env_setup
@@ -497,6 +498,10 @@ CONTAINS
 !   *** Print the interatomic distances ***
 
     CALL write_particle_distances(particle_set,cell,qs_env%input,error)
+
+!   *** Print the requested structure data ***
+
+    CALL write_structure_data(particle_set,cell,qs_env%input,error)
 
 !   *** Initialize the atomic interaction radii ***
 

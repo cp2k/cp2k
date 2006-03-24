@@ -64,7 +64,8 @@ MODULE eip_environment
                                              particle_list_type
   USE particle_types,                  ONLY: particle_type,&
                                              write_particle_distances,&
-                                             write_qs_particle_coordinates
+                                             write_qs_particle_coordinates,&
+                                             write_structure_data
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE topology,                        ONLY: topology_control
@@ -290,6 +291,9 @@ CONTAINS
     CALL write_particle_distances(particle_set, cell=cell, &
                                   force_env_section=eip_env%force_env_input, &
                                   error=error)
+    CALL write_structure_data(particle_set, cell=cell, &
+                              force_env_section=eip_env%force_env_input, &
+                              error=error)
 
 !   *** Distribute molecules and atoms using the new data structures ***
     CALL distribute_molecules_1d(particle_kind_set=atomic_kind_set, &

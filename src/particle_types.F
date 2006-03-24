@@ -40,12 +40,17 @@ MODULE particle_types
                                              dump_atomic,&
                                              dump_dcd,&
                                              dump_xmol
-  USE input_section_types,             ONLY: section_vals_type
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_type,&
+                                             section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
                                              dp_size,&
                                              int_size,&
                                              sp
+  USE mathconstants,                   ONLY: degree
+  USE mathlib,                         ONLY: angle,&
+                                             dihedral_angle
   USE memory_utilities,                ONLY: reallocate
   USE message_passing,                 ONLY: mp_allgather,&
                                              mp_bcast
@@ -55,6 +60,7 @@ MODULE particle_types
   USE qmmm_ff_fist,                    ONLY: qmmm_ff_precond_only_qm
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
+  USE string_utilities,                ONLY: compress
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: find_boundary
@@ -64,11 +70,11 @@ MODULE particle_types
 
   PRIVATE
 
-! *** Global parameters (in this module) ***
+  ! Global parameters (in this module)
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'particle_types'
 
-! *** Data types ***
+  ! Data types
 
   TYPE exclusion_list_type
     INTEGER, DIMENSION(:), POINTER :: list_vdw
@@ -85,28 +91,29 @@ MODULE particle_types
      REAL(KIND = dp), DIMENSION(3)         :: f,&         ! force
                                               r,&         ! position
                                               v           ! velocity
-! particle dependent terms for EAM
+     ! particle dependent terms for EAM
      REAL(KIND = dp)                       :: rho, f_embed
      LOGICAL                               :: is_fixed    ! force is set to zero
   END TYPE particle_type
 
-! *** Public data types ***
+  ! Public data types
 
   PUBLIC :: exclusion_list_type,&
             local_particle_type,&
             particle_type
 
-! *** Public subroutines ***
+  ! Public subroutines
 
   PUBLIC :: allocate_particle_set,&
+            clone_particle,&
             deallocate_particle_set,&
             generate_particle_distances,&
             get_particle_set,&
             write_fist_particle_coordinates,&
             write_qs_particle_coordinates,&
-            write_particle_distances, &
+            write_particle_distances,&
             write_particle_coordinates,&
-            clone_particle
+            write_structure_data
 
 !!***
 ! *****************************************************************************
@@ -955,5 +962,240 @@ SUBROUTINE generate_particle_distances(r,cell,radius,bondparm_factor,&
   IF(istat/=0) CALL stop_memory('generate_bond','ttbond_b')
 !------------------------------------------------------------------------------
 END SUBROUTINE generate_particle_distances
+
+  ! ***************************************************************************
+
+  SUBROUTINE write_structure_data(particle_set,cell,force_env_section,error)
+
+    ! Write structure data requested by a separate structure data input
+    ! section to the output unit.
+
+    ! Creation (11.03.04,MK)
+    ! Recovered (23.03.06,MK)
+
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(section_vals_type), POINTER         :: force_env_section
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = "write_structure_data",&
+                                   routineP = moduleN//':'//routineN
+
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(section_vals_type), POINTER         :: section
+    CHARACTER(LEN=8)                         :: unit_of_length_name
+    CHARACTER(LEN=default_string_length)     :: string
+    INTEGER                                  :: handle, i, iw, n, natom
+    INTEGER, DIMENSION(:), POINTER           :: atomic_indices
+    REAL(KIND=dp)                            :: dab, unit_of_length
+    REAL(KIND=dp), DIMENSION(3)              :: rab, rbc, rcd
+
+    ! -------------------------------------------------------------------------
+
+    CALL timeset(routineN,"I","",handle)
+
+    NULLIFY (atomic_indices)
+    NULLIFY (logger)
+    NULLIFY (section)
+
+    logger => cp_error_get_logger(error)
+    iw = cp_print_key_unit_nr(logger=logger,&
+                              basis_section=force_env_section,&
+                              print_key_path="SUBSYS%PRINT%STRUCTURE_DATA",&
+                              extension=".coordLog",&
+                              error=error)
+
+    IF (iw > 0) THEN
+
+      CALL get_cell(cell=cell,&
+                    unit_of_length=unit_of_length,&
+                    unit_of_length_name=unit_of_length_name)
+
+      natom = SIZE(particle_set)
+
+      section => section_vals_get_subs_vals(section_vals=force_env_section,&
+                                            subsection_name="SUBSYS%PRINT%STRUCTURE_DATA",&
+                                            error=error)
+
+      WRITE (UNIT=iw,FMT="(/,T2,A)") "REQUESTED STRUCTURE DATA"
+
+      ! Print the requested atomic position vectors
+
+      CALL section_vals_val_get(section_vals=section,&
+                                keyword_name="POSITION",&
+                                n_rep_val=n,&
+                                error=error)
+      IF (n > 0) THEN
+        WRITE (UNIT=iw,FMT="(/,T3,A,/)")&
+          "Position vector r(i) of atom i in "//TRIM(unit_of_length_name)
+        DO i=1,n
+          CALL section_vals_val_get(section_vals=section,&
+                                    keyword_name="POSITION",&
+                                    i_rep_val=i,&
+                                    i_vals=atomic_indices,&
+                                    error=error)
+          string = ""
+          WRITE (UNIT=string,FMT="(A,I6,A)")&
+            "(",atomic_indices(1),")"
+          CALL compress(string,full=.TRUE.)
+          IF (valid_indices(atomic_indices,1,1,natom)) THEN
+            WRITE (UNIT=iw,FMT="(T3,A,T20,A,3F13.6)")&
+              "r"//TRIM(string),"=",&
+              pbc(particle_set(atomic_indices(1))%r(1:3),cell)/unit_of_length
+          ELSE
+            WRITE (UNIT=iw,FMT="(T3,A)")&
+              "Invalid atomic index "//TRIM(string)//" specified. Print request is ignored."
+          END IF
+        END DO
+      END IF
+
+      ! Print the requested distances
+
+      CALL section_vals_val_get(section_vals=section,&
+                                keyword_name="DISTANCE",&
+                                n_rep_val=n,&
+                                error=error)
+      IF (n > 0) THEN
+        WRITE (UNIT=iw,FMT="(/,T3,A,/)")&
+          "Distance vector r(i,j) between the atom i and j in "//&
+          TRIM(unit_of_length_name)
+        DO i=1,n
+          CALL section_vals_val_get(section_vals=section,&
+                                    keyword_name="DISTANCE",&
+                                    i_rep_val=i,&
+                                    i_vals=atomic_indices,&
+                                    error=error)
+          string = ""
+          WRITE (UNIT=string,FMT="(A,2(I6,A))")&
+            "(",atomic_indices(1),",",atomic_indices(2),")"
+          CALL compress(string,full=.TRUE.)
+          IF (valid_indices(atomic_indices,2,1,natom)) THEN
+            rab(:) = pbc(particle_set(atomic_indices(1))%r(:),&
+                         particle_set(atomic_indices(2))%r(:),cell)
+            dab = SQRT(rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3))
+            WRITE (UNIT=iw,FMT="(T3,A,T20,A,3F13.6,3X,A,F13.6)")&
+              "r"//TRIM(string),"=",rab(:)/unit_of_length,&
+              "|r| =",dab/unit_of_length
+          ELSE
+            WRITE (UNIT=iw,FMT="(T3,A)")&
+              "Invalid atomic indices "//TRIM(string)//" specified. Print request is ignored."
+          END IF
+        END DO
+      END IF
+
+      ! Print the requested angles
+
+      CALL section_vals_val_get(section_vals=section,&
+                                keyword_name="ANGLE",&
+                                n_rep_val=n,&
+                                error=error)
+      IF (n > 0) THEN
+        WRITE (UNIT=iw,FMT="(/,T3,A,/)")&
+          "Angle a(i,j,k) between the atomic distance vectors r(j,i) and "//&
+          "r(j,k) in DEGREE"
+        DO i=1,n
+          CALL section_vals_val_get(section_vals=section,&
+                                    keyword_name="ANGLE",&
+                                    i_rep_val=i,&
+                                    i_vals=atomic_indices,&
+                                    error=error)
+          string = ""
+          WRITE (UNIT=string,FMT="(A,3(I6,A))")&
+            "(",atomic_indices(1),",",atomic_indices(2),",",atomic_indices(3),")"
+          CALL compress(string,full=.TRUE.)
+          IF (valid_indices(atomic_indices,3,1,natom)) THEN
+            rab(:) = pbc(particle_set(atomic_indices(1))%r(:),&
+                         particle_set(atomic_indices(2))%r(:),cell)
+            rbc(:) = pbc(particle_set(atomic_indices(2))%r(:),&
+                         particle_set(atomic_indices(3))%r(:),cell)
+            WRITE (UNIT=iw,FMT="(T3,A,T26,A,F9.3)")&
+              "a"//TRIM(string),"=",angle(-rab,rbc)*degree
+          ELSE
+            WRITE (UNIT=iw,FMT="(T3,A)")&
+              "Invalid atomic indices "//TRIM(string)//" specified. Print request is ignored."
+          END IF
+        END DO
+      END IF
+
+      ! Print the requested dihedral angles
+
+      CALL section_vals_val_get(section_vals=section,&
+                                keyword_name="DIHEDRAL_ANGLE",&
+                                n_rep_val=n,&
+                                error=error)
+      IF (n > 0) THEN
+        WRITE (UNIT=iw,FMT="(/,T3,A,/)")&
+          "Dihedral angle d(i,j,k,l) between the planes (i,j,k) and (j,k,l) "//&
+          "in DEGREE"
+        DO i=1,n
+          CALL section_vals_val_get(section_vals=section,&
+                                    keyword_name="DIHEDRAL_ANGLE",&
+                                    i_rep_val=i,&
+                                    i_vals=atomic_indices,&
+                                    error=error)
+          string = ""
+          WRITE (UNIT=string,FMT="(A,4(I6,A))")&
+            "(",atomic_indices(1),",",atomic_indices(2),",",&
+                atomic_indices(3),",",atomic_indices(4),")"
+          CALL compress(string,full=.TRUE.)
+          IF (valid_indices(atomic_indices,4,1,natom)) THEN
+            rab(:) = pbc(particle_set(atomic_indices(1))%r(:),&
+                         particle_set(atomic_indices(2))%r(:),cell)
+            rbc(:) = pbc(particle_set(atomic_indices(2))%r(:),&
+                         particle_set(atomic_indices(3))%r(:),cell)
+            rcd(:) = pbc(particle_set(atomic_indices(3))%r(:),&
+                         particle_set(atomic_indices(4))%r(:),cell)
+            WRITE (UNIT=iw,FMT="(T3,A,T26,A,F9.3)")&
+              "d"//TRIM(string),"=",dihedral_angle(rab,rbc,rcd)*degree
+          ELSE
+            WRITE (UNIT=iw,FMT="(T3,A)")&
+              "Invalid atomic indices "//TRIM(string)//" specified. Print request is ignored."
+          END IF
+        END DO
+      END IF
+
+    END IF
+
+    CALL timestop(0.0_dp,handle)
+
+  END SUBROUTINE write_structure_data
+
+  ! ***************************************************************************
+
+  FUNCTION valid_indices(indices,n,min_index,max_index) RESULT(indices_ok)
+
+    ! Check for a set of valid indices.
+    ! Creation (23.03.06,MK)
+
+    INTEGER, DIMENSION(:), POINTER           :: indices
+    INTEGER, INTENT(IN)                      :: min_index, max_index, n
+
+    LOGICAL                                  :: indices_ok
+
+    INTEGER :: i, j
+
+    ! -------------------------------------------------------------------------
+
+    indices_ok = .TRUE.
+
+    DO i=1,n
+      IF ((indices(i) < min_index).OR.&
+          (indices(i) > max_index)) THEN
+        indices_ok = .FALSE.
+        RETURN
+      END IF
+      DO j=i+1,n
+        IF (indices(j) == indices(i)) THEN
+          indices_ok = .FALSE.
+          RETURN
+        END IF
+      END DO
+    END DO
+
+  END FUNCTION valid_indices
+
+  ! ***************************************************************************
 
 END MODULE particle_types

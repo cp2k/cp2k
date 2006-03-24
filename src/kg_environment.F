@@ -88,7 +88,8 @@ MODULE kg_environment
   USE orbital_transformation_matrices, ONLY: init_spherical_harmonics
   USE particle_types,                  ONLY: particle_type,&
                                              write_particle_distances,&
-                                             write_qs_particle_coordinates
+                                             write_qs_particle_coordinates,&
+                                             write_structure_data
   USE qs_charges_types,                ONLY: qs_charges_create,&
                                              qs_charges_release,&
                                              qs_charges_type
@@ -291,6 +292,9 @@ CONTAINS
 
     ! Print the interatomic distances ***
     CALL write_particle_distances(particle_set,cell,kg_env%input,error)
+
+    ! Print the requested structure data
+    CALL write_structure_data(particle_set,cell,kg_env%input,error)
 
     ! Initialize the atomic interaction radii 
     CALL init_interaction_radii ( dft_control%qs_control, cell, &
