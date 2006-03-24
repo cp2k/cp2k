@@ -430,7 +430,11 @@ BEND: DO ibend = 1, nbends
         d32 = SQRT(DOT_PRODUCT(b32,b32))
         id32 = 1.0_dp/d32
         dist = DOT_PRODUCT(b12,b32)
-        theta = ACOS(dist*id12*id32)
+        !theta = ACOS(dist*id12*id32)
+        theta = (dist*id12*id32)
+        IF(theta<-1.0_dp) theta=-1.0_dp
+        IF(theta>+1.0_dp) theta=+1.0_dp
+        theta = ACOS(theta)
 ! get the energy
         CALL force_bends ( b12, b32, d12, d32, id12, id32, dist, theta, &
                            bend_list ( ibend ) % bend_kind % theta0,  &
@@ -446,7 +450,11 @@ BEND: DO ibend = 1, nbends
            d12m = SQRT(DOT_PRODUCT(b12_minus_delta,b12_minus_delta))
            id12m = 1.0_dp / d12m
            dist = DOT_PRODUCT(b12_minus_delta,b32)
-           theta = ACOS(dist*id12m*id32)
+           !theta = ACOS(dst*id12m*id32)
+           theta = (dist*id12m*id32)
+           IF(theta<-1.0_dp) theta=-1.0_dp
+           IF(theta>+1.0_dp) theta=+1.0_dp
+           theta = ACOS(theta)
            CALL force_bends ( b12_minus_delta, b32, d12m, d32, id12m, id32, dist, theta, &
                               bend_list ( ibend ) % bend_kind % theta0,  &
                               bend_list ( ibend ) % bend_kind % k, &
@@ -455,7 +463,11 @@ BEND: DO ibend = 1, nbends
            d12p = SQRT(DOT_PRODUCT(b12_plus_delta,b12_plus_delta))
            id12p = 1.0_dp/d12p
            dist = DOT_PRODUCT(b12_plus_delta,b32)
-           theta = ACOS(dist*id12p*id32)
+           !theta = ACOS(dist*id12p*id32)
+           theta = (dist*id12p*id32)
+           IF(theta<-1.0_dp) theta=-1.0_dp
+           IF(theta>+1.0_dp) theta=+1.0_dp
+           theta = ACOS(theta)
            CALL force_bends ( b12_plus_delta, b32, d12p, d32, id12p, id32, dist, theta, &
                               bend_list ( ibend ) % bend_kind % theta0,  &
                               bend_list ( ibend ) % bend_kind % k, &
@@ -473,7 +485,11 @@ BEND: DO ibend = 1, nbends
            d32m = SQRT(DOT_PRODUCT(b32_minus_delta,b32_minus_delta))
            id32m = 1.0_dp/d32m
            dist = DOT_PRODUCT(b32_minus_delta,b12)
-           theta = ACOS(dist*id32m*id12)
+           !theta = ACOS(dist*id32m*id12)
+           theta = (dist*id32m*id12)
+           IF(theta<-1.0_dp) theta=-1.0_dp
+           IF(theta>+1.0_dp) theta=+1.0_dp
+           theta = ACOS(theta)
            CALL force_bends(b12,b32_minus_delta,d12,d32m,id12,id32m,dist,theta, &
                             bend_list ( ibend ) % bend_kind % theta0,  &
                             bend_list ( ibend ) % bend_kind % k, &
@@ -482,7 +498,11 @@ BEND: DO ibend = 1, nbends
            d32p = SQRT(DOT_PRODUCT(b32_plus_delta,b32_plus_delta))
            id32p = 1.0_dp/d32p
            dist = DOT_PRODUCT(b32_plus_delta,b12)
-           theta = ACOS(dist*id32p*id12)
+           !theta = ACOS(dist*id32p*id12)
+           theta = (dist*id32p*id12)
+           IF(theta<-1.0_dp) theta=-1.0_dp
+           IF(theta>+1.0_dp) theta=+1.0_dp
+           theta = ACOS(theta)
            CALL force_bends ( b12, b32_plus_delta, d12, d32p, id12, id32p, dist, theta, &
                               bend_list ( ibend ) % bend_kind % theta0,  &
                               bend_list ( ibend ) % bend_kind % k, &
@@ -2495,7 +2515,11 @@ SUBROUTINE potential_bend ( molecule_set, molecule_kind_set, local_molecules, &
         d32 = SQRT(DOT_PRODUCT(b32,b32))
         id32 = 1.0_dp/d32
         dist = DOT_PRODUCT(b12,b32)
-        theta = ACOS(dist*id12*id32)
+        !theta = ACOS(dist*id12*id32)
+        theta = (dist*id12*id32)
+        IF(theta<-1.0_dp) theta=-1.0_dp
+        IF(theta>+1.0_dp) theta=+1.0_dp
+        theta = ACOS(theta)
         CALL force_bends(b12,b32,d12,d32,id12,id32,dist,theta, &
                          bend_list ( ibend ) % bend_kind % theta0, &
                          bend_list ( ibend ) % bend_kind % k, &

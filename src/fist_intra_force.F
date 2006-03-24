@@ -218,7 +218,10 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
         d32 = SQRT(DOT_PRODUCT(b32,b32))
         id32 = 1.0_dp/d32
         dist = DOT_PRODUCT(b12,b32)
-        theta = ACOS(dist*id12*id32)
+        theta = (dist*id12*id32)
+        IF(theta<-1.0_dp) theta=-1.0_dp
+        IF(theta>+1.0_dp) theta=+1.0_dp
+        theta = ACOS(theta)
         CALL force_bends(b12,b32,d12,d32,id12,id32,dist,theta, &
                          bend_list ( ibend ) % bend_kind % theta0, &
                          bend_list ( ibend ) % bend_kind % k, &
