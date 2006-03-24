@@ -781,7 +781,7 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
          xc_fun_section => section_vals_get_subs_vals(input,&
             "DFT%XC%XC_FUNCTIONAL")
          WRITE(unit,10000) "      &XC_FUNCTIONAL"
-         DO ifunct=1,2
+         DO ifunct=1,4
             xc_fun => section_vals_get_subs_vals2(xc_fun_section,i_section=ifunct)
             IF(ASSOCIATED(xc_fun)) THEN
                WRITE(unit,20001) "        &",TRIM(xc_fun%section%name)
@@ -832,7 +832,7 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
          xc_fun_section => section_vals_get_subs_vals(input,&
             "DFT%XC%XC_FUNCTIONAL")
          WRITE(unit,10000) "      &XC_FUNCTIONAL"
-         DO ifunct=1,2
+         DO ifunct=1,4
             xc_fun => section_vals_get_subs_vals2(xc_fun_section,i_section=ifunct)
             IF(ASSOCIATED(xc_fun)) THEN
                WRITE(unit,20001) "        &",TRIM(xc_fun%section%name)
