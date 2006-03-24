@@ -23,7 +23,8 @@
 MODULE qs_mo_methods
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                              cp_fm_gemm,&
-                                             cp_fm_syrk
+                                             cp_fm_syrk,&
+                                             cp_fm_triangular_multiply
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose
   USE cp_fm_diag,                      ONLY: cp_fm_syevd
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -73,8 +74,6 @@ MODULE qs_mo_methods
 CONTAINS
 
 
-! XXXXXXXXXXXXXXXXXXXX SHOULD USE cp_fm_ instead of home-cooked scalapack
-
 ! *****************************************************************************
 ! orthogonalises a set of vectors, taking into account S
 !
@@ -93,18 +92,17 @@ CONTAINS
 !
 !
 ! *****************************************************************************
-  SUBROUTINE make_basis(vmatrix,ncol,ortho,otype,pmatrix,work)
+  SUBROUTINE make_basis(vmatrix,ncol,ortho,otype)
 ! *****************************************************************************
 
     TYPE(cp_fm_type), POINTER                :: vmatrix
     INTEGER, INTENT(IN)                      :: ncol
     TYPE(cp_fm_type), OPTIONAL, POINTER      :: ortho
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: otype
-    TYPE(cp_fm_type), OPTIONAL, POINTER      :: pmatrix, work
 
     REAL(KIND=dp), PARAMETER                 :: rone = 1.0_dp, rzero = 0.0_dp
 
-    INTEGER                                  :: handle, i, info, n
+    INTEGER                                  :: handle, i, info, n, ncol_global
     INTEGER, DIMENSION(9)                    :: desca, desco, descp, descvv, &
                                                 descw
     LOGICAL                                  :: use_cholesky, use_pmatrix, &
@@ -123,18 +121,11 @@ CONTAINS
 
 ! check input ...
 
-    use_pmatrix=.FALSE.
     use_sv=.FALSE.
     use_cholesky=.FALSE.
     use_simple=.FALSE.
 
-    IF (PRESENT(pmatrix)) THEN
-       IF (.NOT. PRESENT(work)) THEN
-          CALL stop_program("make_basis","pmatrix needs work space !?")
-       ENDIF
-       use_pmatrix=.TRUE.
-    ELSE
-      IF (PRESENT(ortho)) THEN ! ortho can be two different things here (see comment above)
+    IF (PRESENT(ortho)) THEN ! ortho can be two different things here (see comment above)
         IF (.NOT. PRESENT(otype)) THEN
             CALL stop_program("make_basis","ortho needs type !?")
         ENDIF
@@ -146,114 +137,40 @@ CONTAINS
         CASE DEFAULT
            CALL stop_program("make_basis","sorry wrong type")
         END SELECT 
-      ELSE
+    ELSE
         use_simple=.TRUE.
-      ENDIF
     ENDIF
 
-    context => vmatrix%matrix_struct%context
-    CALL cp_fm_get_info(matrix=vmatrix,nrow_global=n)
-    IF (ncol.lt.0 .OR. ncol.gt.vmatrix%matrix_struct%ncol_global) THEN
+    CALL cp_fm_get_info(matrix=vmatrix,nrow_global=n,ncol_global=ncol_global)
+    IF (ncol.lt.0 .OR. ncol.gt.ncol_global) THEN
         CALL stop_program("make_basis","wrong ncol value")
     ENDIF
     
     CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=ncol, ncol_global=ncol,&
-                             para_env=vmatrix%matrix_struct%para_env, context=context)
+                             para_env=vmatrix%matrix_struct%para_env, & 
+                             context=vmatrix%matrix_struct%context)
     CALL cp_fm_create(overlap_vv,fm_struct_tmp,"overlap_vv")
     CALL cp_fm_struct_release(fm_struct_tmp)
 
-    a => vmatrix%local_data
-    vv => overlap_vv%local_data
-#if defined(__SCALAPACK)
-    desca(:) = vmatrix%matrix_struct%descriptor(:)
-    descvv(:) = overlap_vv%matrix_struct%descriptor(:)
-#endif
-    IF (use_pmatrix) THEN
-       CALL cp_fm_init_random(work,ncol)
-       p => pmatrix%local_data
-       w => work%local_data
-#if defined(__SCALAPACK)
-       descp(:) = pmatrix%matrix_struct%descriptor(:)
-       descw(:) = work%matrix_struct%descriptor(:)
-       CALL PDSYMM('L','U',n,ncol,rone,p(1,1),1,1,descp,w(1,1),1,1,descw,rzero,a(1,1),1,1,desca)
-       IF (use_cholesky) THEN
-         o => ortho%local_data
-         desco(:) = ortho%matrix_struct%descriptor(:)
-         CALL PDTRMM('L','U','N','N',n,ncol,rone,o(1,1),1,1,desco,a(1,1),1,1,desca)
-       ENDIF
-#else
-       ! U*P*U^T*V
-       CALL DSYMM('L','U',n,ncol,rone,p(1,1),n,w(1,1),n,rzero,a(1,1),n)
-       IF (use_cholesky) THEN
-         o => ortho%local_data
-         CALL DTRMM('L','U','N','N',n,ncol,rone,o(1,1),n,a(1,1),n)
-       ENDIF
-#endif
-    ELSE
-       ! U*V should be used
-       IF (use_cholesky) THEN
-         o => ortho%local_data
-#if defined(__SCALAPACK)
-         desco(:) = ortho%matrix_struct%descriptor(:)
-         CALL PDTRMM('L','U','N','N',n,ncol,rone,o(1,1),1,1,desco,a(1,1),1,1,desca)
-#else
-         CALL DTRMM('L','U','N','N',n,ncol,rone,o(1,1),n,a(1,1),n)
-#endif
-       ENDIF
-    ENDIF
+    IF (use_simple) THEN
+          CALL cp_fm_gemm('T','N',ncol,ncol,n,rone,vmatrix,vmatrix,rzero, overlap_vv)
+          CALL cp_fm_cholesky_decompose(overlap_vv)
+          CALL cp_fm_triangular_multiply(overlap_vv,vmatrix,n_cols=ncol,side='R',invert_tr=.true.)
+    END IF
 
-    IF (use_sv .OR. use_simple) THEN
-      IF (use_simple) THEN
-          CALL cp_fm_gemm('T','N',ncol,ncol,n,rone,vmatrix,vmatrix,rzero, &
-                                              overlap_vv)
-      ELSE
-          CALL cp_fm_gemm('T','N',ncol,ncol,n,rone,vmatrix,ortho,rzero, &
-                                              overlap_vv)
-      ENDIF
-      CALL cp_fm_cholesky_decompose(overlap_vv)
-      a => vmatrix%local_data
-      vv => overlap_vv%local_data
-#if defined(__SCALAPACK)
-      desca(:) = vmatrix%matrix_struct%descriptor(:)
-      descvv(:) = overlap_vv%matrix_struct%descriptor(:)
-      CALL pdtrsm('R','U','N','N',n,ncol,rone,vv(1,1),1,1,descvv,a(1,1),1,1,desca)
-      IF (.NOT. use_simple) THEN
-          o => ortho%local_data
-          desco(:) = ortho%matrix_struct%descriptor(:)
-          CALL pdtrsm('R','U','N','N',n,ncol,rone,vv(1,1),1,1,descvv,o(1,1),1,1,desco)
-      ENDIF
-#else
-      CALL dtrsm('R','U','N','N',n,ncol,rone,vv(1,1),ncol,a(1,1),n)
-      IF (.NOT. use_simple) THEN
-          o => ortho%local_data
-          CALL dtrsm('R','U','N','N',n,ncol,rone,vv(1,1),ncol,o(1,1),n)
-      ENDIF
-#endif
-    ELSE
-      ! ortho (U*V) inner product should be one
-      a => vmatrix%local_data
-      vv => overlap_vv%local_data
-#if defined(__SCALAPACK)
-      desca(:) = vmatrix%matrix_struct%descriptor(:)
-      descvv(:) = overlap_vv%matrix_struct%descriptor(:)
-      CALL PDSYRK('U','T',ncol,n,rone,a(1,1),1,1,desca,rzero,vv(1,1),1,1,descvv,ncol)
-      CALL PDPOTRF('U',ncol,vv(1,1),1,1,descvv,info)
-      IF (info.NE.0) CALL stop_program("make_basis","DPOTRF degenerate vectors")
-      CALL PDTRSM('R','U','N','N',n,ncol,rone,vv(1,1),1,1,descvv,a(1,1),1,1,desca)
-#else
-      CALL DSYRK('U','T',ncol,n,rone,a(1,1),n,rzero,vv(1,1),ncol)
-      CALL DPOTRF('U',ncol,vv(1,1),ncol,info)
-      IF (info.NE.0) CALL stop_program("make_basis","DPOTRF degenerate vectors")
-      CALL DTRSM('R','U','N','N',n,ncol,rone,vv(1,1),ncol,a(1,1),n)
-#endif
+    IF (use_sv) THEN
+          CALL cp_fm_gemm('T','N',ncol,ncol,n,rone,vmatrix,ortho,rzero, overlap_vv)
+          CALL cp_fm_cholesky_decompose(overlap_vv)
+          CALL cp_fm_triangular_multiply(overlap_vv,vmatrix,n_cols=ncol,side='R',invert_tr=.true.)
+          CALL cp_fm_triangular_multiply(overlap_vv,ortho,n_cols=ncol,side='R',invert_tr=.true.) 
     ENDIF
 
     IF (use_cholesky) THEN
-#if defined(__SCALAPACK)
-      CALL PDTRSM('L','U','N','N',n,ncol,rone,o(1,1),1,1,desco,a(1,1),1,1,desca)
-#else
-      CALL DTRSM('L','U','N','N',n,ncol,rone,o(1,1),n,a(1,1),n)
-#endif
+      CALL cp_fm_triangular_multiply(ortho,vmatrix,n_cols=ncol)
+      CALL cp_fm_syrk('U','T',n,rone,vmatrix,1,1,rzero,overlap_vv)
+      CALL cp_fm_cholesky_decompose(overlap_vv)
+      CALL cp_fm_triangular_multiply(overlap_vv,vmatrix,n_cols=ncol,side='R',invert_tr=.true.)
+      CALL cp_fm_triangular_multiply(ortho,vmatrix,n_cols=ncol,invert_tr=.true.)
     ENDIF
 
     CALL cp_fm_release(overlap_vv)
