@@ -34,8 +34,6 @@ MODULE pw_env_methods
                                              gto_basis_set_type
   USE cell_types,                      ONLY: cell_type
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
-                                             cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_rs_pool_types,                ONLY: cp_rs_pool_p_type,&
                                              rs_pool_create,&
@@ -184,7 +182,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
     INTEGER :: cmax, grid_span, handle, i, igrid_level, igrid_zet0_s, ikind, &
       ipgf, iset, ishell, jkind, jpgf, jset, jshell, la, lb, lgrid_level, &
       lmax_rho0, maxlgto, ncommensurate, ngrid_level, nkind, nseta, nsetb, &
-      nsmax, output_unit, stat
+      nsmax, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: cmaxl
     INTEGER, DIMENSION(:), POINTER           :: npgfa, npgfb, nshella, nshellb
     INTEGER, DIMENSION(:, :), POINTER        :: lshella, lshellb
@@ -200,7 +198,6 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell, cell_ref, my_cell
-    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_rs_pool_p_type), DIMENSION(:), &
       POINTER                                :: rs_pools
@@ -227,9 +224,6 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
   NULLIFY(cutoff,cell,pw_grid,old_pw_grid,dft_control,atomic_kind_set,&
           pw_pools,rho0_mpole,rs_pools, para_env,cell_ref, mt_super_ref_grid,&
           input,poisson_section,xc_super_ref_grid,super_ref_grid,my_cell)
-  logger => cp_error_get_logger(error)
-  output_unit = cp_print_key_unit_nr(logger,qs_env%input,"PRINT%PW_GRID_INFORMATION",&
-       extension=".Log",error=error)      
  
   CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
   CPPrecondition(pw_env%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -314,7 +308,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
      !                     XXXXXXXXX the cutoff array here is more a 'wish-list'
      !                     XXXXXXXXX same holds for radius
      print_section=>section_vals_get_subs_vals(input, &
-                        "PRINT%PW_GRID_INFORMATION",error=error)
+                        "PRINT%GRID_INFORMATION",error=error)
      CALL init_gaussian_gridlevel(pw_env%gridlevel_info,&
           ngrid_levels=ngrid_level,cutoff=cutoff,rel_cutoff=rel_cutoff, &
           print_section=print_section)
@@ -344,7 +338,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
      CALL setup_super_ref_grid(super_ref_grid,mt_super_ref_grid,&
           xc_super_ref_grid, cutilev, grid_span, my_cell, para_env, &
           qs_env%input, ncommensurate, uf_grid=uf_grid,&
-          info_unit=output_unit,error=error) 
+          print_section=print_section,error=error) 
      old_pw_grid => super_ref_grid
      !
      ! Setup of the multi-grid pw_grid and pw_pools
@@ -365,22 +359,20 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
 
         IF (igrid_level == 1) THEN
            IF (ASSOCIATED(old_pw_grid)) THEN
-              CALL pw_grid_setup(my_cell,pw_grid,cutilev,&
+              CALL pw_grid_setup(my_cell,pw_grid,print_section,cutilev,&
                    ref_grid=old_pw_grid,&
-                   info= output_unit, &
                    blocked=.FALSE.,ncommensurate=ncommensurate,&
                    icommensurate=igrid_level, rs_dims=(/para_env%num_pe,1/))
               old_pw_grid => pw_grid
            ELSE
-              CALL pw_grid_setup(my_cell,pw_grid,cutilev,&
-                   info= output_unit,&
+              CALL pw_grid_setup(my_cell,pw_grid, print_section, cutilev,&
                    blocked=.FALSE.,ncommensurate=ncommensurate,&
                    icommensurate=igrid_level, rs_dims=(/para_env%num_pe,1/))
               old_pw_grid => pw_grid
            END IF
         ELSE
-           CALL pw_grid_setup(my_cell,pw_grid,cutilev,&
-                info=output_unit, blocked=.FALSE., &
+           CALL pw_grid_setup(my_cell,pw_grid, print_section, cutilev,&
+                blocked=.FALSE., &
                 ref_grid=old_pw_grid,ncommensurate=ncommensurate,&
                 icommensurate=igrid_level, rs_dims=(/para_env%num_pe,1/))
         END IF
@@ -443,7 +435,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
          ENDDO
          CALL destroy_gaussian_gridlevel (pw_env%gridlevel_info, error=error )
          print_section=>section_vals_get_subs_vals(qs_env%input, &
-                             "PRINT%PW_GRID_INFORMATION",error=error)
+                             "PRINT%GRID_INFORMATION",error=error)
          CALL init_gaussian_gridlevel(pw_env%gridlevel_info,&
               ngrid_levels=ngrid_level,cutoff=cutoff,rel_cutoff=rel_cutoff, &
               print_section=print_section)
@@ -631,8 +623,6 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
  
   END IF
 
-  CALL cp_print_key_finished_output(output_unit,logger,qs_env%input,&
-       "PRINT%PW_GRID_INFORMATION",error=error)  
   CALL timestop(0.0_dp,handle)
 
 END SUBROUTINE pw_env_rebuild

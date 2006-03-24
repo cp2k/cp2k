@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2003  CP2K developers group                          !
+!   Copyright (C) 2000 - 2006  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 !!****** cp2k/pw_grids [1.1] *
 !!
@@ -44,9 +44,13 @@
 
 MODULE pw_grids
   USE cell_types,                      ONLY: cell_type
+  USE cp_output_handling,              ONLY: cp_print_key_unit_nr
   USE fft_tools,                       ONLY: FFT_RADIX_NEXT,&
                                              FFT_RADIX_NEXT_ODD,&
                                              fft_radix_operations
+  USE input_section_types,             ONLY: section_vals_release,&
+                                             section_vals_retain,&
+                                             section_vals_type
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: twopi
   USE mathlib,                         ONLY: inv_3x3
@@ -137,6 +141,7 @@ CONTAINS
        pw_grid % para % rs_dims = 0
        pw_grid % reference = 0
        pw_grid % ref_count = 1
+       NULLIFY ( pw_grid % print_section )
        NULLIFY ( pw_grid % g )
        NULLIFY ( pw_grid % gsq )
        NULLIFY ( pw_grid % g_hat )
@@ -619,17 +624,15 @@ END SUBROUTINE pw_grid_find_bounds
 !!     Joost VandeVondele (Feb-2004) : optionally generate pw grids that are commensurate in rs
 !!
 !!*** *************************************************************************
-
-
-SUBROUTINE pw_grid_setup ( cell, pw_grid, cutoff, info, fft_usage, &
+SUBROUTINE pw_grid_setup ( cell, pw_grid, print_section, cutoff, fft_usage, &
                            symm_usage, blocked, ref_grid, ncommensurate,&
                            icommensurate, rs_dims, error)
 
 
     TYPE(cell_type), INTENT(IN)              :: cell
     TYPE(pw_grid_type), POINTER              :: pw_grid
+    TYPE(section_vals_type), POINTER         :: print_section
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: cutoff
-    INTEGER, INTENT(IN), OPTIONAL            :: info
     LOGICAL, INTENT(IN), OPTIONAL            :: fft_usage, symm_usage, blocked
     TYPE(pw_grid_type), INTENT(IN), OPTIONAL :: ref_grid
     INTEGER, INTENT(IN), OPTIONAL            :: ncommensurate, icommensurate
@@ -660,6 +663,7 @@ SUBROUTINE pw_grid_setup ( cell, pw_grid, cutoff, info, fft_usage, &
 !------------------------------------------------------------------------------
 
   CALL timeset("pw_grid_setup","I","",handle)
+  CPPrecondition(ASSOCIATED(print_section),cp_failure_level,routineP,error,failure)
 
   ! default is to use only fft compatible grids
   IF ( PRESENT ( fft_usage ) ) THEN
@@ -727,8 +731,8 @@ SUBROUTINE pw_grid_setup ( cell, pw_grid, cutoff, info, fft_usage, &
   IF (ALL(pw_grid%bounds(2,:)-pw_grid%bounds(1,:)+1==n)) THEN
      my_bounds=pw_grid%bounds
   END IF
-  CALL pw_grid_setup1( cell=cell, pw_grid=pw_grid, bounds=my_bounds, &
-       grid_span=my_span, info=info, spherical_cutoff=spherical_cutoff, &
+  CALL pw_grid_setup1( cell=cell, pw_grid=pw_grid, print_section=print_section, &
+       bounds=my_bounds, grid_span=my_span, spherical_cutoff=spherical_cutoff, &
        blocked=blocked, ref_grid=ref_grid, rs_dims=rs_dims, error=error)
 
   CALL timestop(0.0_dp,handle)
@@ -757,14 +761,16 @@ END SUBROUTINE pw_grid_setup
 !!     fawzi
 !!
 !!*** **********************************************************************
-SUBROUTINE pw_grid_setup1 ( cell, pw_grid, bounds, grid_span,info, &
-                            spherical_cutoff,blocked, ref_grid, rs_dims, error )
+SUBROUTINE pw_grid_setup1 ( cell, pw_grid, bounds, print_section, grid_span, &
+                            spherical_cutoff,blocked, ref_grid, rs_dims, &
+                            error )
 
 
     TYPE(cell_type), INTENT(IN)              :: cell
     TYPE(pw_grid_type), POINTER              :: pw_grid
     INTEGER, DIMENSION(2, 3), INTENT(in)     :: bounds
-    INTEGER, INTENT(in), OPTIONAL            :: grid_span, info
+    TYPE(section_vals_type), POINTER         :: print_section
+    INTEGER, INTENT(in), OPTIONAL            :: grid_span
     REAL(kind=dp), INTENT(in), OPTIONAL      :: spherical_cutoff
     LOGICAL, INTENT(in), OPTIONAL            :: blocked
     TYPE(pw_grid_type), INTENT(IN), OPTIONAL :: ref_grid
@@ -776,11 +782,12 @@ SUBROUTINE pw_grid_setup1 ( cell, pw_grid, bounds, grid_span,info, &
     CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_setup1', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: allocstat, handle, i, ires, &
-                                                n(3)
+    INTEGER                                  :: allocstat, handle, i, info, &
+                                                ires, n(3)
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: yz_mask
     LOGICAL                                  :: blocking, failure
     REAL(KIND=dp)                            :: ecut, rv(3,3)
+    TYPE(cp_logger_type), POINTER            :: logger
 
 ! cutoff could be inout, and set to the effective cutoff of the given grid
 ! in atomic units
@@ -798,6 +805,11 @@ SUBROUTINE pw_grid_setup1 ( cell, pw_grid, bounds, grid_span,info, &
   failure=.FALSE.
   CPPrecondition(ASSOCIATED(pw_grid),cp_failure_level,routineP,error,failure)
   CPPrecondition(pw_grid%ref_count>0,cp_failure_level,routineP,error,failure)
+  CPPrecondition(ASSOCIATED(print_section),cp_failure_level,routineP,error,failure)
+
+  pw_grid%print_section => print_section
+  CALL section_vals_retain(pw_grid%print_section)
+
   ! default is to allow block usage
   IF ( PRESENT ( blocked ) ) THEN
     blocking = blocked
@@ -893,8 +905,10 @@ SUBROUTINE pw_grid_setup1 ( cell, pw_grid, bounds, grid_span,info, &
 ! Output: All the information of this grid type
 !
 
-  IF ( PRESENT ( info ) ) THEN
-    IF ( pw_grid % para % mode == PW_MODE_LOCAL) THEN
+  logger => cp_error_get_logger(error)
+  info = cp_print_key_unit_nr(logger,print_section,"", extension=".Log",error=error)
+
+  IF ( pw_grid % para % mode == PW_MODE_LOCAL) THEN
        IF (info >= 0 ) THEN
           WRITE ( info, '(/,A,T71,I10)' ) &
                " PW_GRID: Information for grid number ", pw_grid %id_nr
@@ -923,7 +937,7 @@ SUBROUTINE pw_grid_setup1 ( cell, pw_grid, bounds, grid_span,info, &
           END IF
           WRITE ( info, '(/)' )
        END IF
-    ELSE
+  ELSE
 
       n ( 1 ) = pw_grid % ngpts_cut_local
       n ( 2 ) = pw_grid % ngpts_local
@@ -979,8 +993,7 @@ SUBROUTINE pw_grid_setup1 ( cell, pw_grid, bounds, grid_span,info, &
         WRITE ( info, '(A,T45,F12.1,2I12)' ) " PW_GRID:   Real Space Points", &
              rv ( 2, 1 ), NINT ( rv ( 2, 2 ) ), NINT ( rv ( 2, 3 ) )
       END IF ! group head
-    END IF ! local
-  END IF ! present info
+  END IF ! local
 
   CALL timestop(0.0_dp,handle)
 
@@ -2541,6 +2554,7 @@ SUBROUTINE pw_grid_release(pw_grid, error)
      CPPreconditionNoFail(pw_grid%ref_count>0,cp_failure_level,routineP,error)
      pw_grid%ref_count=pw_grid%ref_count-1
      IF (pw_grid%ref_count==0) THEN
+        CALL section_vals_release(pw_grid % print_section )
         IF ( ASSOCIATED ( pw_grid % gidx ) ) THEN
            DEALLOCATE ( pw_grid % gidx, STAT = stat )
            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)

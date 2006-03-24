@@ -91,14 +91,14 @@
 
     'pool_dealloc-extra_commands':'',
 
-    'create_el-extra_args':'force_env_section,',
-    'create_el-extra_args_types':'TYPE(section_vals_type), POINTER :: force_env_section',
+    'create_el-extra_args':'',
+    'create_el-extra_args_types':'',
     'create_el-extra_args_doc':"",
     'create_el-local_types':"",
     'create_el-reuse_commands':"",
     'create_el-create_commands':
       """call rs_grid_create(element,pw_grid=pool%el_struct,&
-         nsmax=pool%nsmax,force_env_section=force_env_section,error=error)""",
+         nsmax=pool%nsmax,error=error)""",
     'create_el-post_create_commands':"",
     'same_struct_check':
     """   CALL cp_assert(pool%el_struct%id_nr==element%grid_id,&
@@ -107,13 +107,13 @@
             CPSourceFileRef,&
             error=error,failure=failure)""",
 
-    'create_els-extra_args':'force_env_section,',
-    'create_els-extra_args_types':'TYPE(section_vals_type), POINTER :: force_env_section',
+    'create_els-extra_args':'',
+    'create_els-extra_args_types':'',
     'create_els-extra_args_doc':"",
     'create_els-local_types':"",
     'create_els-create_el_commands':
      """CALL rs_pool_create_rs(pool,elements(i)%rs_grid,&
-	force_env_section=force_env_section,error=error)""",
+	error=error)""",
     'create_els-post_create_commands':""
     }    
 ]

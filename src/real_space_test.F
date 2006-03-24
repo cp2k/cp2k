@@ -95,7 +95,7 @@ SUBROUTINE rs_test ( globenv, error )
     TYPE(pw_grid_type), POINTER              :: grid
     TYPE(pw_type), POINTER                   :: pw_a, pw_b, pw_c
     TYPE(realspace_grid_type), POINTER       :: rden
-    TYPE(section_vals_type), POINTER         :: force_env_section
+    TYPE(section_vals_type), POINTER         :: print_section
 
   iw =globenv % scr
   NULLIFY(pw_a,pw_b,pw_c)
@@ -103,8 +103,7 @@ SUBROUTINE rs_test ( globenv, error )
   CALL cell_create(box)
   IF ( globenv % ionode ) &
        WRITE(iw,'(/,A,/)') " Test of Real Space Grid Routines"
-  NULLIFY(force_env_section,grid)
-  force_env_section =>section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL",error=error)
+  NULLIFY(grid)
 
 !..the unit cell
 ! box % hmat = RESHAPE ( (/10.0_dp,0.0_dp,0.0_dp,0.0_dp,10.0_dp,0.0_dp,&
@@ -152,8 +151,10 @@ SUBROUTINE rs_test ( globenv, error )
   grid % bounds ( 1, : ) = -np / 2
   grid % bounds ( 2, : ) = ( np - 1 ) / 2
 
-  CALL pw_grid_setup ( box, grid, &
-                       info = globenv % scr, rs_dims=(/globenv%num_pe,1/) )
+  print_section=>section_vals_get_subs_vals(globenv%input_file, &
+                        "FORCE_EVAL%PRINT%GRID_INFORMATION",error=error)
+  CALL pw_grid_setup ( box, grid,print_section &
+                       , rs_dims=(/globenv%num_pe,1/) )
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! TEST 1, replicated calculation
@@ -161,7 +162,7 @@ SUBROUTINE rs_test ( globenv, error )
   IF ( globenv % ionode ) &
     WRITE(iw,'(///,A,/)') " Start Test 1: Replicated grid, replicated calculation"
   tstart = m_cputime ( )
-  CALL rs_grid_create ( rden, grid, -1, force_env_section=force_env_section, error=error)
+  CALL rs_grid_create ( rden, grid, -1, error=error)
   CALL rs_grid_zero ( rden )
   DO i = 1, nparticle
      refco(:,i) = refpt(:,i) + rden%lb(:) - 1
@@ -193,7 +194,7 @@ SUBROUTINE rs_test ( globenv, error )
   IF ( globenv % ionode ) &
     WRITE(iw,'(/,A,/)') " Start Test 2: Replicated grid, parallel calculation"
   tstart = m_cputime ( )
-  CALL rs_grid_create ( rden, grid, -1, force_env_section=force_env_section, error=error)
+  CALL rs_grid_create ( rden, grid, -1,  error=error)
   CALL rs_grid_zero ( rden )
   DO i = 1, nparticle
      refco(:,i) = refpt(:,i) + rden%lb(:) - 1
@@ -232,7 +233,7 @@ SUBROUTINE rs_test ( globenv, error )
 ! TEST 3, distributed grid, parallel calculation
 
   tstart = m_cputime ( )
-  CALL rs_grid_create ( rden, grid, MAXVAL ( bsize(1:nparticle) ), force_env_section=force_env_section,&
+  CALL rs_grid_create ( rden, grid, MAXVAL ( bsize(1:nparticle) ), &
        error=error)
   CALL rs_grid_zero ( rden )
   dir = rden%direction

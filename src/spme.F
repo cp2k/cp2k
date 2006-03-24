@@ -145,7 +145,7 @@ SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, particle_set, &
   IF ( ierr /= 0 ) CALL stop_memory ( "spme_evaluate", "rhos", n**3 )
   ndim = n
   CALL rs_grid_create ( rden, grid_spme, -MAXVAL ( ndim(1:3) ),&
-       force_env_section=force_env_section, error=error)
+       error=error)
   rden % r = 0.0_dp
 
   ALLOCATE ( centre ( 3, npart ), STAT = ierr )
@@ -223,7 +223,7 @@ SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, particle_set, &
   ! move derivative of potential to real space grid and
   ! multiply by charge function in g-space
   CALL rs_grid_p_create ( drpot, 3, grid_spme, -MAXVAL ( ndim(1:3) ),&
-       force_env_section=force_env_section, error=error)
+       error=error)
   DO i = 1, 3
      dphi_g ( i ) % pw % cc = dphi_g ( i ) % pw % cc * &
                               green % p3m_charge % cr

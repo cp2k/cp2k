@@ -331,16 +331,12 @@ SUBROUTINE kg_std_energies ( kg_env, globenv, error )
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(coeff_type), POINTER                :: vxc_r
-    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(diis_info_type), POINTER            :: diis_info
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
     TYPE(kg_rspw_type), POINTER              :: rspw
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(scf_control_type), POINTER          :: scf_control
 
-    NULLIFY(logger)
-    logger => cp_error_get_logger(error)
- 
   CALL timeset ( 'kg_std_energies','I',' ',handle )
 
   NULLIFY(atomic_kind_set,dyn_coeff_set,diis_info,scf_control)

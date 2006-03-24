@@ -37,7 +37,6 @@ MODULE md_run
                                              extended_type_init,&
                                              lnhc_dealloc,&
                                              lnhc_init,&
-                                             lnhc_parameters_type,&
                                              npt_dealloc
   USE force_env_methods,               ONLY: force_env_calc_energy_force
   USE force_env_types,                 ONLY: force_env_get,&
@@ -163,14 +162,12 @@ CONTAINS
     TYPE(dyn_coeff_set_p_type), &
       DIMENSION(:), POINTER                  :: dyn_coeff_set
     TYPE(extended_system_type)               :: extended_type
-    TYPE(lnhc_parameters_type), POINTER      :: nhc_baro, nhc_part
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds_new
     TYPE(mol_new_list_type), POINTER         :: molecules_new
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(section_vals_type), POINTER         :: force_env_section, &
                                                 motion_section, &
-                                                restart_section, &
                                                 subsys_section, work_section
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
@@ -182,14 +179,13 @@ CONTAINS
 
     failure=.FALSE.
     NULLIFY ( particles, local_molecules, cell, cell_ref, dyn_coeff_set,&
-              simpar,itimes,used_time,subsys,nhc_part,nhc_baro, motion_section )
+              simpar,itimes,used_time,subsys,motion_section )
     NULLIFY (md_env,molecule_kinds_new, molecules_new, force_env_section,&
-         work_section, restart_section, atomic_kinds, local_particles, t)
+         work_section, atomic_kinds, local_particles, t)
     logger => cp_error_get_logger(error)
 
     force_env_section => section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL",error=error)
     motion_section => section_vals_get_subs_vals(globenv%input_file,"MOTION",error=error)
-    restart_section => section_vals_get_subs_vals(globenv%input_file,"EXT_RESTART",error=error)
     subsys_section => section_vals_get_subs_vals(force_env_section,"SUBSYS",error=error)
     CPPrecondition(ASSOCIATED(globenv),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(force_env_p),cp_failure_level,routineP,error,failure)

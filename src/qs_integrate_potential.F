@@ -179,8 +179,7 @@ CONTAINS
 
     CALL get_qs_env(qs_env=qs_env,pw_env=pw_env)
     CALL pw_env_get(pw_env=pw_env,auxbas_rs_pool=auxbas_rs_pool)
-    CALL rs_pool_create_rs(auxbas_rs_pool,rs_v,force_env_section=qs_env%input,&
-         error=error)
+    CALL rs_pool_create_rs(auxbas_rs_pool,rs_v, error=error)
 
     CALL rs_pw_transfer(rs_v,v_rspace%pw,pw2rs)
 
@@ -480,8 +479,7 @@ CONTAINS
     END SELECT
 
     CALL pw_env_get(pw_env, rs_pools=rs_pools)
-    CALL rs_pools_create_rs_vect(rs_pools, rs_v,force_env_section=qs_env%input,&
-         error=error)
+    CALL rs_pools_create_rs_vect(rs_pools, rs_v, error=error)
     DO igrid_level=1,gridlevel_info%ngrid_levels
        CALL rs_pw_transfer(rs_v(igrid_level)%rs_grid,&
                            mgrid_rspace(igrid_level)%pw,pw2rs)

@@ -80,7 +80,6 @@ CONTAINS
     INTEGER                                  :: handle, iw, stat
     LOGICAL                                  :: failure
     TYPE(atom_info_type), POINTER            :: atom_info
-    TYPE(connectivity_info_type), POINTER    :: conn_info
     TYPE(cp_logger_type), POINTER            :: logger
 
     failure = .FALSE.
@@ -91,7 +90,6 @@ CONTAINS
     CALL timeset(routineN,'I','',handle)
     
     atom_info => topology%atom_info
-    conn_info => topology%conn_info
 
     IF (ASSOCIATED(atom_info%label_molname)) &
       DEALLOCATE(atom_info%label_molname,STAT=stat)

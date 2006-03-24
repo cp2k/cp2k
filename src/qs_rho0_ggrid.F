@@ -191,7 +191,7 @@ MODULE qs_rho0_ggrid
                               use_data = COMPLEXDATA1D,&
                               in_space = RECIPROCALSPACE, error=error)
     END IF
-    CALL rs_pool_create_rs(pool,rs_grid,force_env_section=qs_env%input,error=error)
+    CALL rs_pool_create_rs(pool,rs_grid,error=error)
     CALL rs_grid_zero(rs_grid)
 
     nch_max  = ncoset(lmax0)
@@ -557,7 +557,7 @@ MODULE qs_rho0_ggrid
                                         "coeff_gspace")
 
     ! *** set up the rs grid at level igrid
-    CALL rs_pool_create_rs(rs_pool,rs_v,force_env_section=qs_env%input,error=error)
+    CALL rs_pool_create_rs(rs_pool,rs_v,error=error)
     CALL rs_grid_zero(rs_v)
     CALL rs_pw_transfer(rs_v,coeff_rspace%pw,pw2rs)
 

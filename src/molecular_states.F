@@ -285,7 +285,7 @@ SUBROUTINE construct_molecular_states(molecule_set, mo_localized, &
 
           CALL calculate_wavefunction(rot_e_vectors,i,wf_r, &
                                       wf_g, atomic_kind_set,cell,dft_control,particle_set, &
-                                      force_env_section, pw_env, error = error )
+                                      pw_env, error = error )
 
           WRITE(filename,'(a9,I2.2,a1,I3.3)')"MOLECULE_",imol,"_",j          
           unit_nr=cp_print_key_unit_nr(logger,force_env_section,&
@@ -293,8 +293,7 @@ SUBROUTINE construct_molecular_states(molecule_set, mo_localized, &
                extension=".cube",middle_name=TRIM(filename),log_filename=.FALSE.,error=error)
           CALL rs_pw_to_cube(wf_r%pw,unit_nr,globenv%ionode,filename,&
                stride=section_get_ival(force_env_section,&
-               "DFT%PRINT%MOLECULAR_STATES%CUBES%STRIDE"),force_env_section=qs_env%input,&
-               error=error)
+               "DFT%PRINT%MOLECULAR_STATES%CUBES%STRIDE"), error=error)
           CALL cp_print_key_finished_output(unit_nr,logger,force_env_section,&
                "DFT%PRINT%MOLECULAR_STATES%CUBES",error=error)
           IF (globenv%ionode) WRITE(globenv%scr,*) filename

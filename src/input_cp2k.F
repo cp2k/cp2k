@@ -922,16 +922,9 @@ SUBROUTINE create_f_env_print_section(section,error)
           n_keywords=0, n_subsections=5, repeats=.FALSE., required=.TRUE.,&
           error=error)
 
-     CALL cp_print_key_section_create(print_key,"PW_GRID_INFORMATION",&
-          description="Controls the printing of information regarding the pw_grid structure.",&
-          print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
-          error=error)
-     CALL section_add_subsection(section,print_key,error=error)
-     CALL section_release(print_key,error=error)
-
-     CALL cp_print_key_section_create(print_key,"RS_GRID_INFORMATION",&
-          description="Controls the printing of information regarding the rs_grid structure.",&
-          print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
+     CALL cp_print_key_section_create(print_key,"GRID_INFORMATION",&
+          description="Controls the printing of information regarding the PW and RS grid structures.",&
+          print_level=medium_print_level,each=(/1/),filename="__STD_OUT__",&
           error=error)
      CALL section_add_subsection(section,print_key,error=error)
      CALL section_release(print_key,error=error)

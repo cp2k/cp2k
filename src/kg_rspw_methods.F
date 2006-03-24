@@ -27,8 +27,6 @@ MODULE kg_rspw_methods
                                              gto_basis_set_type
   USE cell_types,                      ONLY: cell_type
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
-                                             cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_rs_pool_types,                ONLY: cp_rs_pool_p_type,&
                                              rs_pool_create,&
@@ -136,7 +134,7 @@ END SUBROUTINE kg_rspw_create
 
     INTEGER :: cmax, cmaxl, handle, i, igrid_level, ikind, ipgf, iset, &
       ishell, la, lgrid_level, maxlgto, ncommensurate, ngrid_level, nkind, &
-      nseta, nsmax, output_unit, stat
+      nseta, nsmax, stat
     INTEGER, DIMENSION(:), POINTER           :: npgfa, nshella
     INTEGER, DIMENSION(:, :), POINTER        :: lshella
     LOGICAL                                  :: failure
@@ -148,7 +146,6 @@ END SUBROUTINE kg_rspw_create
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_rs_pool_p_type), DIMENSION(:), &
       POINTER                                :: rs_pools
@@ -167,9 +164,6 @@ END SUBROUTINE kg_rspw_create
     failure=.FALSE.
     NULLIFY(cutoff,cell,pw_grid,dft_control,para_env,rs_pools,old_pw_grid,&
             atomic_kind_set)
-    logger => cp_error_get_logger(error)
-    output_unit = cp_print_key_unit_nr(logger,kg_env%input,"PRINT%PW_GRID_INFORMATION",&
-         extension=".Log",error=error)    
 
     CALL get_kg_env(kg_env=kg_env,&
                     atomic_kind_set=atomic_kind_set,&
@@ -218,7 +212,7 @@ END SUBROUTINE kg_rspw_create
 
     IF (.NOT.failure) THEN
       print_section=>section_vals_get_subs_vals(kg_env%input, &
-                        "PRINT%PW_GRID_INFORMATION",error=error)
+                        "PRINT%GRID_INFORMATION",error=error)
       CALL init_gaussian_gridlevel(kg_rspw%gridlevel_info,&
            ngrid_level,cutoff,rel_cutoff,print_section=print_section)
 
@@ -253,14 +247,14 @@ END SUBROUTINE kg_rspw_create
         END IF
 
         IF (igrid_level == 1) THEN
-           CALL pw_grid_setup(cell,pw_grid,cutilev,&
-                info= output_unit, blocked=.FALSE.,&
+           CALL pw_grid_setup(cell,pw_grid, print_section, cutilev,&
+                blocked=.FALSE.,&
                 ncommensurate=ncommensurate,icommensurate=igrid_level,&
                 rs_dims=(/para_env%num_pe,1/))
            old_pw_grid => pw_grid
         ELSE
-              CALL pw_grid_setup(cell,pw_grid,cutilev,&
-                   info=output_unit, blocked=.FALSE., &
+              CALL pw_grid_setup(cell,pw_grid,print_section, cutilev,&
+                   blocked=.FALSE., &
                    ref_grid=old_pw_grid,ncommensurate=ncommensurate,&
                    icommensurate=igrid_level, rs_dims=(/para_env%num_pe,1/))
         END IF
@@ -369,8 +363,7 @@ END SUBROUTINE kg_rspw_create
             use_level=kg_rspw%auxbas_grid, error=error )
 
     END IF
-    CALL cp_print_key_finished_output(output_unit,logger,kg_env%input,&
-         "PRINT%PW_GRID_INFORMATION",error=error)    
+
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE kg_rspw_rebuild              

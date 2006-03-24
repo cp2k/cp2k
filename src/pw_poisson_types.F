@@ -198,7 +198,7 @@ CONTAINS
   !!*** ***********************************************************************
   SUBROUTINE setup_super_ref_grid(super_ref_pw_grid,mt_super_ref_pw_grid,&
        xc_super_ref_pw_grid, cutilev, grid_span,&
-       cell_ref, para_env, input, my_ncommensurate, uf_grid,info_unit, &
+       cell_ref, para_env, input, my_ncommensurate, uf_grid,print_section, &
        symm_usage, error)
     TYPE(pw_grid_type), POINTER              :: super_ref_pw_grid, &
                                                 mt_super_ref_pw_grid, &
@@ -210,7 +210,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: input
     INTEGER, INTENT(IN)                      :: my_ncommensurate
     LOGICAL, INTENT(in)                      :: uf_grid
-    INTEGER, INTENT(IN)                      :: info_unit
+    TYPE(section_vals_type), POINTER         :: print_section
     LOGICAL, INTENT(in), OPTIONAL            :: symm_usage
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -254,10 +254,10 @@ CONTAINS
           CALL pw_grid_create(xc_super_ref_pw_grid,para_env%group)
           xc_super_ref_pw_grid%grid_span = grid_span
           xc_cut=pw_cutoff_from_n(2*n_orig,cell_ref,error=error)
-          CALL pw_grid_setup1(cell_ref, xc_super_ref_pw_grid,&
+          CALL pw_grid_setup1(cell_ref, xc_super_ref_pw_grid, print_section=print_section,&
                bounds=pw_grid_bounds_from_n(2*n_orig,error=error),&
                grid_span=grid_span, spherical_cutoff=SIGN(xc_cut,cutilev),&
-               blocked=.FALSE., info=info_unit, rs_dims=(/para_env%num_pe,1/),&
+               blocked=.FALSE., rs_dims=(/para_env%num_pe,1/),&
                error=error)
           super_ref_pw_grid => xc_super_ref_pw_grid
        END IF
@@ -275,9 +275,8 @@ CONTAINS
                   odd=(grid_span==HALFSPACE .and.symmetry),error=error)
              IF (ALL(n_new>n_orig)) THEN
                 CALL pw_grid_setup1(cell=cell_ref, pw_grid=mt_super_ref_pw_grid,&
-                     bounds=pw_grid_bounds_from_n(n_new), &
+                     print_section=print_section, bounds=pw_grid_bounds_from_n(n_new), &
                      grid_span=grid_span,&
-                     info=info_unit, &
                      spherical_cutoff=SIGN(my_cutilev,cutilev),blocked=.FALSE.,&
                      rs_dims=(/para_env%num_pe,1/), error=error )
                 super_ref_pw_grid => mt_super_ref_pw_grid

@@ -220,6 +220,7 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
   CALL mol_new_list_release ( mols, error = error )
   CALL mol_kind_new_list_release ( mol_kinds, error = error )
 
+  
   CALL fist_init_subsys ( fist_env, subsystem, cell, cell_ref, use_ref_cell, &
                           fist_nonbond_env, ewald_env, globenv, force_env_section,&
                           error )
@@ -271,6 +272,7 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
       POINTER                                :: molecule_set
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(section_vals_type), POINTER         :: grid_print_section
 
   CALL timeset(routineN,"I",'',handle)
   NULLIFY ( thermo, ewald_pw, local_molecules, local_particles)
@@ -301,7 +303,9 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
                                  error=error )
 
 ! Initialize ewald grids
-  CALL ewald_pw_create ( ewald_pw, cell, cell_ref, ewald_env, force_env_section, error )
+  grid_print_section => section_vals_get_subs_vals(force_env_section,&
+       "PRINT%GRID_INFORMATION",error=error)
+  CALL ewald_pw_create ( ewald_pw, cell, cell_ref, ewald_env, grid_print_section, error )
 
 ! Initialize self-interaction and neutralizing background
   CALL ewald_self ( ewald_env, atomic_kind_set, local_particles, &

@@ -2105,7 +2105,7 @@ SUBROUTINE pint_run(pint_env,error)
      CALL section_vals_val_get(pint_env%input,"MOTION%PINT%NUM_STEPS",&
           i_val=num_steps,error=error)
      CALL section_vals_val_get(pint_env%input,"MOTION%PINT%T_TOL",&
-          i_val=num_steps,error=error)
+          r_val=t_tol,error=error)
      DO i=1,num_steps
         CALL pint_write_ener(pint_env,error=error)
         CALL pint_write_centroids(pint_env,error=error)

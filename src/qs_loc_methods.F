@@ -51,7 +51,6 @@ MODULE qs_loc_methods
                                              op_loc_boys,&
                                              op_loc_pipek,&
                                              state_loc_list
-  USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: twopi
   USE particle_types,                  ONLY: get_particle_set,&
@@ -843,7 +842,6 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
-    TYPE(section_vals_type), POINTER         :: force_env_section
 
     failure = .FALSE.
     NULLIFY(auxbas_pw_pool, pw_env)
@@ -869,12 +867,11 @@ CONTAINS
                           cell=cell,&
                           dft_control=dft_control,&
                           particle_set=particle_set,&
-                          input=force_env_section,&
                           pw_env=pw_env)
 
       CALL calculate_wavefunction(mo_coeff, ivector,&
                 wf_r, wf_g, atomic_kind_set,cell,dft_control,particle_set, &
-                   force_env_section, pw_env, error=error)
+                   pw_env, error=error)
 
       ivector = state_list(istate)
       CALL xstring (root,ia,ie)
@@ -884,8 +881,7 @@ CONTAINS
       IF (ionode) OPEN(UNIT=21,FILE=filename)
       WRITE(title,'(A7,I5.5,A1,I1.1,A1,6G10.4)') "WFN ",ivector,"_s",ispin," ",&
             centers(1:3,istate)*angstrom, centers(4:6,istate)*angstrom
-      CALL rs_pw_to_cube(wf_r%pw,21,ionode,title,stride=my_stride,&
-           force_env_section=qs_env%input,error=error)
+      CALL rs_pw_to_cube(wf_r%pw,21,ionode,title,stride=my_stride,error=error)
       IF (ionode) CLOSE(21)
     END DO 
 

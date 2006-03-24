@@ -204,8 +204,7 @@ CONTAINS
           iw = cp_print_key_unit_nr(logger,print_section,"POTENTIAL",&
                extension=".qmmmLog",error=error)
           CALL rs_pw_to_cube(ks_qmmm_env_loc%v_qmmm_rspace%pw,iw,iw>0,&
-               "QM/MM: MM ELECTROSTATIC POTENTIAL ",force_env_section=qs_env%input,&
-               error=error)
+               "QM/MM: MM ELECTROSTATIC POTENTIAL ", error=error)
           CALL cp_print_key_finished_output(iw,logger,print_section,&
                "POTENTIAL", error=error)
        END IF

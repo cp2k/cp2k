@@ -19,6 +19,7 @@
 !******************************************************************************
 
 MODULE pw_grid_types
+  USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
 
   IMPLICIT NONE
@@ -84,6 +85,7 @@ MODULE pw_grid_types
      INTEGER, DIMENSION ( : ), POINTER :: gidx    ! ref grid index
      INTEGER :: ref_count                         ! reference count
      LOGICAL :: spherical                         ! spherical cutoff?
+     TYPE(section_vals_type), POINTER  :: print_section
   END TYPE pw_grid_type
   
 !!***

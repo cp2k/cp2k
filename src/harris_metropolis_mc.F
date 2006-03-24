@@ -501,8 +501,10 @@ CONTAINS
     TYPE(reduced_particle_type), &
       DIMENSION(:), POINTER                  :: tmp_particle_set
     TYPE(rng_stream_type), POINTER           :: rng_stream
-    TYPE(section_vals_type), POINTER :: dft_section, force_env_section, &
-      input, motion_section, restart_section, subsys_section, work_section
+    TYPE(section_vals_type), POINTER         :: dft_section, &
+                                                force_env_section, input, &
+                                                motion_section, &
+                                                subsys_section, work_section
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
     TYPE(tbmd_energy_type), POINTER          :: tbmd_energy
@@ -512,11 +514,10 @@ CONTAINS
 !   ------------------------------------------------------------------------
 
     CALL timeset(routineN, "I", "", handle)
-    NULLIFY(force_env_section, motion_section, restart_section, subsys_section, md_approach_nr,&
+    NULLIFY(force_env_section, motion_section,  subsys_section, md_approach_nr,&
             accepted_md)
     force_env_section => section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL",error=error)
     motion_section => section_vals_get_subs_vals(globenv%input_file,"MOTION",error=error)
-    restart_section => section_vals_get_subs_vals(globenv%input_file,"EXT_RESTART",error=error)
     subsys_section => section_vals_get_subs_vals(force_env_section,"SUBSYS",error=error)
 
     ! will be used to stop if a maximum walltime is given

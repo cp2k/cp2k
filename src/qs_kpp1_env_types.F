@@ -32,7 +32,6 @@ MODULE qs_kpp1_env_types
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
   USE pw_types,                        ONLY: pw_p_type
   USE realspace_grid_types,            ONLY: rs_pw_to_cube
@@ -309,11 +308,10 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE kpp1_write(kpp1_env, unit_nr, long_description, local,&
-       force_env_section, error)
+       error)
     TYPE(qs_kpp1_env_type), POINTER          :: kpp1_env
     INTEGER, INTENT(in)                      :: unit_nr
     LOGICAL, INTENT(in), OPTIONAL            :: long_description, local
-    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -372,9 +370,7 @@ CONTAINS
                    CALL rs_pw_to_cube ( kpp1_env%v_rspace(ispin)%pw,&
                         iunit=file_unit,&
                         ionode=logger%para_env%mepos==logger%para_env%source,&
-                        title="v_rspace",&
-                        force_env_section=force_env_section,&
-                        error=error)
+                        title="v_rspace",error=error)
                    CALL close_file(file_unit)
                 END DO
                 WRITE (unit=my_unit_nr,fmt="(a,a,a)") " v_rspace=*written to ",&
@@ -423,9 +419,7 @@ CONTAINS
                       CALL rs_pw_to_cube ( kpp1_env%v_rspace(ispin)%pw,&
                            iunit=file_unit,&
                            ionode=logger%para_env%mepos==logger%para_env%source,&
-                           title="drho_r",&
-                           force_env_section=force_env_section,&
-                           error=error)
+                           title="drho_r",error=error)
                       CALL close_file(file_unit)
                    END DO
                 END DO

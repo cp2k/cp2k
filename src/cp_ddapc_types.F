@@ -334,10 +334,8 @@ CONTAINS
     REAL(KIND=dp)                            :: hmat(3,3)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: gx, gy, gz, LG
     TYPE(cell_type), POINTER                 :: dummy_cell, mm_cell
-    TYPE(section_vals_type), POINTER         :: cell_section, &
-                                                multipole_section, &
-                                                poisson_section, &
-                                                qmmm_periodic_section
+    TYPE(section_vals_type), POINTER :: cell_section, grid_print_section, &
+      multipole_section, poisson_section, qmmm_periodic_section
 
     failure = .FALSE.
     CPPrecondition(.NOT.ASSOCIATED(cp_ddapc_ewald),cp_failure_level,routineP,error,failure)
@@ -373,9 +371,10 @@ CONTAINS
     NULLIFY(LG, gx, gy, gz)
     hmat = qm_cell%hmat
     CALL eval_lg(multipole_section, hmat, qm_cell%deth, LG, gx, gy, gz, error)
+    grid_print_section=> section_vals_get_subs_vals(force_env_section,"PRINT%GRID_INFORMATION",error=error)
     CALL Setup_Ewald_Spline(pw_grid=cp_ddapc_ewald%pw_grid_qm,pw_pool=cp_ddapc_ewald%pw_pool_qm,&
          coeff=cp_ddapc_ewald%coeff_qm, LG=LG, gx=gx, gy=gy, gz=gz, hmat=hmat, npts=npts,&
-         param_section=multipole_section,tag="ddapc",globenv=globenv, error=error)   
+         param_section=multipole_section,tag="ddapc",para_env=globenv%para_env,print_section=grid_print_section, error=error)
     DEALLOCATE(LG, stat=stat)
     CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(gx, stat=stat)
@@ -391,9 +390,11 @@ CONTAINS
        CALL read_cell(mm_cell, dummy_cell, globenv,cell_section=cell_section, error=error)
        hmat = mm_cell%hmat
        CALL eval_lg(multipole_section, hmat, mm_cell%deth, LG, gx, gy, gz, error)
+       grid_print_section=> section_vals_get_subs_vals(force_env_section,"PRINT%GRID_INFORMATION",error=error)
        CALL Setup_Ewald_Spline(pw_grid=cp_ddapc_ewald%pw_grid_mm,pw_pool=cp_ddapc_ewald%pw_pool_mm,&
             coeff=cp_ddapc_ewald%coeff_mm, LG=LG, gx=gx, gy=gy, gz=gz, hmat=hmat, npts=npts,&
-            param_section=multipole_section,tag="ddapc",globenv=globenv, error=error) 
+            param_section=multipole_section,tag="ddapc",para_env=globenv%para_env, &
+            print_section=grid_print_section, error=error) 
        DEALLOCATE(LG, stat=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        DEALLOCATE(gx, stat=stat)

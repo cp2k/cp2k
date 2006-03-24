@@ -725,6 +725,7 @@ SUBROUTINE pw_fft_test ( globenv )
     TYPE(cell_type), POINTER                 :: box
     TYPE(coeff_type)                         :: ca, cb, cc
     TYPE(pw_grid_type), POINTER              :: grid
+    TYPE(section_vals_type), POINTER         :: print_section
 
 !..the unit cell
 
@@ -751,8 +752,10 @@ SUBROUTINE pw_fft_test ( globenv )
   grid % bounds ( 1, : ) = -np / 2
   grid % bounds ( 2, : ) = ( np - 1 ) / 2
 
-  CALL pw_grid_setup ( box, grid, &
-                       info = globenv % scr, rs_dims=(/globenv%num_pe,1/) )
+  print_section=>section_vals_get_subs_vals(globenv%input_file, &
+                        "FORCE_EVAL%PRINT%GRID_INFORMATION")
+  CALL pw_grid_setup ( box, grid, print_section, &
+                       rs_dims=(/globenv%num_pe,1/) )
   no = grid % npts
 
   CALL coeff_allocate ( ca, grid, COMPLEXDATA1D )
@@ -815,8 +818,8 @@ SUBROUTINE pw_fft_test ( globenv )
   grid % bounds ( 1, : ) = -np / 2
   grid % bounds ( 2, : ) = ( np - 1 ) / 2
 
-  CALL pw_grid_setup ( box, grid, &
-                       info = globenv % scr, rs_dims=(/globenv%num_pe,1/) )
+  CALL pw_grid_setup ( box, grid, print_section, &
+                       rs_dims=(/globenv%num_pe,1/) )
   no = grid % npts
 
   CALL coeff_allocate ( ca, grid, COMPLEXDATA1D )
@@ -881,8 +884,8 @@ SUBROUTINE pw_fft_test ( globenv )
   cutoff = 0.5_dp * cutoff * cutoff
  ! CALL pw_find_cutoff ( grid % bounds, box % h_inv, cutoff )
 
-  CALL pw_grid_setup ( box, grid, cutoff = cutoff, &
-                       info = globenv % scr, rs_dims=(/globenv%num_pe,1/) )
+  CALL pw_grid_setup ( box, grid, print_section, cutoff = cutoff, &
+                       rs_dims=(/globenv%num_pe,1/) )
   no = grid % npts
 
   CALL coeff_allocate ( ca, grid, COMPLEXDATA1D )
@@ -946,8 +949,8 @@ SUBROUTINE pw_fft_test ( globenv )
   cutoff = cutoff * cutoff
 !  CALL pw_find_cutoff ( grid%bounds, box%h_inv, cutoff )
 
-  CALL pw_grid_setup ( box, grid, cutoff = cutoff, &
-                       info = globenv % scr, rs_dims=(/globenv%num_pe,1/) )
+  CALL pw_grid_setup ( box, grid, print_section,  &
+                       rs_dims=(/globenv%num_pe,1/) )
   no = grid % npts
 
   CALL coeff_allocate ( ca, grid, COMPLEXDATA1D )

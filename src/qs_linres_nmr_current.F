@@ -269,9 +269,7 @@ CONTAINS
       IF (BTEST(cp_print_key_should_output(logger%iter_info,nmr_section,&
                   "PRINT%CURRENT_CUBES",error=error),cp_p_file)) THEN
 
-          CALL rs_pool_create_rs(auxbas_rs_pool,rs,&
-               force_env_section=qs_env%input,&
-               error=error)
+          CALL rs_pool_create_rs(auxbas_rs_pool,rs,error=error)
           
           CALL pw_pool_init_coeff(auxbas_pw_pool,wf_r,&
                   use_data = REALDATA3D,&
@@ -539,7 +537,7 @@ CONTAINS
                      log_filename=.FALSE.,error=error)
              CALL rs_pw_to_cube(wf_r%pw,unit_nr,ionode,"RESPONSE CURRENT DENSITY ",&
                      rs,stride=section_get_ival(nmr_section,"PRINT%CURRENT_CUBE%STRIDE"),&
-                     force_env_section=qs_env%input, error=error)
+                     error=error)
              CALL cp_print_key_finished_output(unit_nr,logger,nmr_section,&
                      "PRINT%CURRENT_CUBES",error=error)
            END DO 
@@ -698,8 +696,7 @@ CONTAINS
 
     ! *** set up the rs multi-grids
     distributed_rs_grids=.FALSE.
-    CALL rs_pools_create_rs_vect(rs_pools, rs_rho, force_env_section=input,&
-         error=error)
+    CALL rs_pools_create_rs_vect(rs_pools, rs_rho, error=error)
     DO igrid_level=1,gridlevel_info%ngrid_levels
        CALL rs_grid_zero(rs_rho(igrid_level)%rs_grid)
        IF ( rs_rho(igrid_level)%rs_grid%direction /= 0 ) THEN

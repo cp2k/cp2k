@@ -247,7 +247,6 @@ CONTAINS
     TYPE(gth_potential_type), POINTER        :: gth_potential
     TYPE(preconditioner_type), POINTER       :: preconditioner
     TYPE(cp_subsystem_type), POINTER :: subsys
-    TYPE(section_vals_type), POINTER         :: force_env_section
 
  
     CALL timeset(routineN,"I",'',handle)
@@ -340,7 +339,7 @@ CONTAINS
             ).OR. p_loc ) THEN
           CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&
                pw_pools=pw_pools,auxbas_rs_pool=auxbas_rs_pool)
-          CALL rs_pool_create_rs(auxbas_rs_pool,rs,force_env_section=qs_env%input, error=error)
+          CALL rs_pool_create_rs(auxbas_rs_pool,rs, error=error)
           CALL pw_pool_init_coeff(auxbas_pw_pool,wf_r,&
                use_data = REALDATA3D,&
                in_space = REALSPACE, error=error)
@@ -376,18 +375,17 @@ CONTAINS
                                    cell=cell,&
                                    dft_control=dft_control,&
                                    particle_set=particle_set,&
-                                   pw_env=pw_env, &
-                                   input=force_env_section)
+                                   pw_env=pw_env)
                    CALL calculate_wavefunction(mo_coeff,ivector,wf_r, &
                         wf_g,atomic_kind_set,cell,dft_control,particle_set, &
-                        force_env_section,pw_env ,error=error)                   
+                        pw_env ,error=error)                   
                    WRITE(filename,'(a4,I5.5,a1,I1.1)')"WFN_",ivector,"_",ispin
                    unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%MO_CUBES",&
                         extension=".cube",middle_name=TRIM(filename),log_filename=.FALSE.,error=error)
                    WRITE(title,*) "WAVEFUNCTION ",ivector," spin ",ispin," i.e. HOMO - ",ivector-homo
                    CALL rs_pw_to_cube(wf_r%pw,unit_nr,ionode,title,rs,particles=particles,&
                         stride=section_get_ival(dft_section,"PRINT%MO_CUBES%STRIDE"),&
-                        force_env_section=qs_env%input, error=error)
+                        error=error)
                    CALL cp_print_key_finished_output(unit_nr,logger,input,&
                         "DFT%PRINT%MO_CUBES",error=error)
                 ENDDO
@@ -495,11 +493,10 @@ CONTAINS
                                    cell=cell,&
                                    dft_control=dft_control,&
                                    particle_set=particle_set,&
-                                   pw_env=pw_env, &
-                                   input=force_env_section)
+                                   pw_env=pw_env)
                    CALL calculate_wavefunction(mo_localized,ivector,wf_r, &
                         wf_g,atomic_kind_set,cell,dft_control,particle_set, &
-                        force_env_section,pw_env ,error=error)
+                        pw_env ,error=error)
 
                    WRITE(filename,'(a8,I5.5,a1,I1.1)') "WANNIER",ivector,"_",ispin
                    unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%LOCALIZATION%CUBES",&
@@ -511,7 +508,7 @@ CONTAINS
                    CALL rs_pw_to_cube(wf_r%pw,unit_nr,ionode,title,rs,&
                         particles=particles,&
                         stride=section_get_ival(dft_section,"PRINT%LOCALIZATION%CUBES%STRIDE"),&
-                        force_env_section=qs_env%input, error=error)
+                        error=error)
                    CALL cp_print_key_finished_output(unit_nr,logger,input,&
                         "DFT%PRINT%LOCALIZATION%CUBES",error=error)
                 ENDDO
@@ -529,8 +526,7 @@ CONTAINS
 
              IF (.FALSE.) &
              CALL level_shift_testing(atomic_kind_set, particle_set, cell, center, &
-                                      pw_env, rho, rho_core, force_env_section=qs_env%input,&
-                                      error=error)
+                                      pw_env, rho, rho_core, error=error)
 
              DEALLOCATE(center)
           ENDDO
@@ -603,12 +599,11 @@ CONTAINS
                                    cell=cell,&
                                    dft_control=dft_control,&
                                    particle_set=particle_set,&
-                                   pw_env=pw_env, &
-                                   input=force_env_section)
+                                   pw_env=pw_env)
                    CALL calculate_wavefunction(unoccupied_orbs(ispin)%matrix,&
                         ivector,wf_r, &
                         wf_g, atomic_kind_set,cell,dft_control,particle_set, &
-                        force_env_section,pw_env, error=error)
+                        pw_env, error=error)
                    WRITE(filename,'(a4,I5.5,a1,I1.1)')"WFN_",homo+ivector,"_",ispin
                    unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%MO_CUBES",&
                         extension=".cube",middle_name=TRIM(filename),log_filename=.FALSE.,error=error)
@@ -616,7 +611,7 @@ CONTAINS
                    CALL rs_pw_to_cube(wf_r%pw,unit_nr,ionode,title,rs,&
                         particles=particles,&
                         stride=section_get_ival(dft_section,"PRINT%MO_CUBES%STRIDE"),&
-                        force_env_section=qs_env%input, error=error)
+                        error=error)
                    CALL cp_print_key_finished_output(unit_nr,logger,input,&
                         "DFT%PRINT%MO_CUBES",error=error)
                 ENDDO
@@ -869,7 +864,7 @@ CONTAINS
             "DFT%PRINT%E_DENSITY_CUBE", error=error),cp_p_file)) THEN ! write the electron densoity
           CALL get_qs_env(qs_env=qs_env,pw_env=pw_env)
           CALL pw_env_get(pw_env, auxbas_rs_pool=auxbas_rs_pool)
-          CALL rs_pool_create_rs(auxbas_rs_pool,rs,force_env_section=qs_env%input, error=error)
+          CALL rs_pool_create_rs(auxbas_rs_pool,rs, error=error)
           IF (dft_control%nspins.ne.1) THEN
              CALL get_qs_env(qs_env=qs_env,pw_env=pw_env)
              CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,&
@@ -885,7 +880,7 @@ CONTAINS
              CALL rs_pw_to_cube(wf_r%pw,unit_nr,ionode,"SPIN 1 + SPIN 2 ELECTRON DENSITY",&
                   rs,particles=particles,&
                   stride=section_get_ival(dft_section,"PRINT%E_DENSITY_CUBE%STRIDE"),&
-                  force_env_section=qs_env%input, error=error)
+                  error=error)
              CALL cp_print_key_finished_output(unit_nr,logger,input,&
                   "DFT%PRINT%E_DENSITY_CUBE",error=error)             
              CALL coeff_copy(rho%rho_r(1),wf_r)
@@ -896,7 +891,7 @@ CONTAINS
              CALL rs_pw_to_cube(wf_r%pw,unit_nr,ionode,"SPIN 1 DENSITY - SPIN 2 DENSITY",rs,&
                   particles=particles,&
                   stride=section_get_ival(dft_section,"PRINT%E_DENSITY_CUBE%STRIDE"),&
-                  force_env_section=qs_env%input, error=error)
+                  error=error)
              CALL cp_print_key_finished_output(unit_nr,logger,input,&
                   "DFT%PRINT%E_DENSITY_CUBE",error=error)
              CALL pw_pool_give_back_coeff(auxbas_pw_pool,wf_r, error=error)
@@ -907,7 +902,7 @@ CONTAINS
              CALL rs_pw_to_cube(rho%rho_r(1)%pw,unit_nr,ionode,"ELECTRON DENSITY",&
                   rs,particles=particles,&
                   stride=section_get_ival(dft_section,"PRINT%E_DENSITY_CUBE%STRIDE"),&
-                  force_env_section=qs_env%input, error=error)
+                  error=error)
              CALL cp_print_key_finished_output(unit_nr,logger,input,&
                   "DFT%PRINT%E_DENSITY_CUBE",error=error)
           ENDIF
@@ -919,13 +914,13 @@ CONTAINS
             "DFT%PRINT%V_HARTREE_CUBE",error=error),cp_p_file)) THEN
           CALL get_qs_env(qs_env=qs_env,pw_env=pw_env)
           CALL pw_env_get(pw_env, auxbas_rs_pool=auxbas_rs_pool)
-          CALL rs_pool_create_rs(auxbas_rs_pool,rs,force_env_section=qs_env%input, error=error)
+          CALL rs_pool_create_rs(auxbas_rs_pool,rs, error=error)
           unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%V_HARTREE_CUBE",&
                extension=".cube",middle_name="v_hartree",error=error)
           CALL rs_pw_to_cube(qs_env%ks_env%v_hartree_rspace%pw,&
                unit_nr,unit_nr>0,"HARTREE POTENTIAL",rs,particles=particles,&
                stride=section_get_ival(dft_section,"PRINT%V_HARTREE_CUBE%STRIDE"),&
-               force_env_section=qs_env%input, error=error)
+               error=error)
           CALL cp_print_key_finished_output(unit_nr,logger,input,&
                "DFT%PRINT%V_HARTREE_CUBE",error=error)
           CALL rs_pool_give_back_rs(auxbas_rs_pool,rs,error=error)

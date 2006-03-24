@@ -1,9 +1,7 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2004  CP2K developers group                                 !
+!   Copyright (C) 2004-2006  CP2K developers group                            !
 !-----------------------------------------------------------------------------!
-
-
 MODULE ewald_spline_util
 !!****h* cp2k/ewald_spline_util *
 !!
@@ -30,7 +28,7 @@ MODULE ewald_spline_util
                                              cell_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
-  USE global_types,                    ONLY: global_environment_type
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -89,7 +87,7 @@ CONTAINS
 !!
 !!*** ********************************************************************** 
   SUBROUTINE Setup_Ewald_Spline(pw_grid, pw_pool, coeff, LG, gx, gy, gz, hmat, npts,&
-       param_section, tag, globenv, error)
+       param_section, tag, print_section, para_env, error)
     TYPE(pw_grid_type), POINTER              :: pw_grid
     TYPE(pw_pool_type), POINTER              :: pw_pool
     TYPE(pw_type), POINTER                   :: coeff
@@ -98,7 +96,8 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: npts(3)
     TYPE(section_vals_type), POINTER         :: param_section
     CHARACTER(LEN=*), INTENT(IN)             :: tag
-    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(section_vals_type), POINTER         :: print_section
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -121,7 +120,7 @@ CONTAINS
        NULLIFY(cell, pw)
 
        CALL cell_create(cell, hmat=hmat, periodic=(/1,1,1/), error=error)
-       CALL pw_grid_create( pw_grid, globenv%para_env%group, local=.TRUE., error=error )
+       CALL pw_grid_create( pw_grid, para_env%group, local=.TRUE., error=error )
        pw_grid % grid_span       =  HALFSPACE
        pw_grid % bounds ( 1, 1:3 ) = 0
        pw_grid % bounds ( 2, 1:3 ) = npts(1:3) - 1
@@ -130,7 +129,7 @@ CONTAINS
       ! CALL pw_find_cutoff ( pw_grid % bounds , cell % h_inv, cutoff )
       ! ecut =  cutoff 
        ! pw_grid initialized NOT DISTRIBUTED
-       CALL pw_grid_setup(cell, pw_grid, cutoff = ecut, info = globenv%scr, fft_usage = .TRUE.)
+       CALL pw_grid_setup(cell, pw_grid, print_section, cutoff = ecut, fft_usage = .TRUE.)
        ! pw_pool initialized
        CALL pw_pool_create(pw_pool, pw_grid=pw_grid, error=error)     
        CALL pw_pool_create_pw ( pw_pool, pw, use_data = REALDATA3D, in_space = REALSPACE,&

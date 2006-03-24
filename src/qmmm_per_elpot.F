@@ -302,7 +302,8 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: ngrids
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: hmat(3,3)
-    TYPE(section_vals_type), POINTER         :: param_section
+    TYPE(section_vals_type), POINTER         :: grid_print_section, &
+                                                param_section
 
     failure = .FALSE.
     IF (.NOT.failure) THEN
@@ -327,9 +328,10 @@ CONTAINS
        npts =  ngrids
        hmat =  mm_cell%hmat
 
+       grid_print_section=> section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL%PRINT%GRID_INFORMATION",error=error)
        CALL Setup_Ewald_Spline(pw_grid=Pot%pw_grid, pw_pool=Pot%pw_pool, coeff=Pot%TabLR,&
             LG=LG, gx=gx, gy=gy, gz=gz, hmat=hmat, npts=npts, param_section=param_section,&
-            tag="qmmm",globenv=globenv, error=error)
+            tag="qmmm",para_env=globenv%para_env, print_section=grid_print_section,error=error)
 
     END IF
 

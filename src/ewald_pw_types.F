@@ -230,13 +230,13 @@ END SUBROUTINE ewald_pw_create
 !!   SOURCE
 !!*****
 !******************************************************************************
-SUBROUTINE ewald_pw_init ( ewald_pw, cell, cell_ref, ewald_env, force_env_section, error )
+SUBROUTINE ewald_pw_init ( ewald_pw, cell, cell_ref, ewald_env, print_section, error )
   
 
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
     TYPE(cell_type), POINTER                 :: cell, cell_ref
     TYPE(ewald_environment_type), POINTER    :: ewald_env
-    TYPE(section_vals_type), POINTER         :: force_env_section
+    TYPE(section_vals_type), POINTER         :: print_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -265,9 +265,6 @@ SUBROUTINE ewald_pw_init ( ewald_pw, cell, cell_ref, ewald_env, force_env_sectio
 
   NULLIFY ( pw_big_grid )
   NULLIFY ( pw_small_grid, poisson_section )
-  logger => cp_error_get_logger ( error )
-  output_unit = cp_print_key_unit_nr(logger,force_env_section,"PRINT%PW_GRID_INFORMATION",&
-         extension=".Log",error=error)
 
   CPPrecondition(ASSOCIATED ( ewald_pw ),cp_failure_level,routineP,error,failure)
   CPPrecondition(ASSOCIATED ( ewald_env ),cp_failure_level,routineP,error,failure)
@@ -299,8 +296,8 @@ SUBROUTINE ewald_pw_init ( ewald_pw, cell, cell_ref, ewald_env, force_env_sectio
       ! CALL pw_find_cutoff ( pw_big_grid % bounds, cell_ref % h_inv, cutoff )
       ! ecut = cutoff 
 
-       CALL pw_grid_setup ( cell_ref, pw_big_grid, cutoff = ecut, &
-                           info = output_unit, fft_usage = .FALSE. )
+       CALL pw_grid_setup ( cell_ref, pw_big_grid, print_section, cutoff = ecut, &
+                           fft_usage = .FALSE. )
        NULLIFY ( pw_pool )
        CALL pw_pool_create ( pw_pool, pw_grid = pw_big_grid )
        ewald_pw % pw_big_pool => pw_pool
@@ -326,8 +323,12 @@ SUBROUTINE ewald_pw_init ( ewald_pw, cell, cell_ref, ewald_env, force_env_sectio
        CALL dg_pme_grid_setup ( cell_ref, npts_s, cutoff_radius,   &
                                 pw_small_grid, pw_big_grid,   & 
                                 para_env,rs_dims=(/para_env%num_pe,1/),&
+                                print_section=print_section, &
                                 error = error )
 ! Write some useful info
+       logger => cp_error_get_logger ( error )
+       output_unit = cp_print_key_unit_nr(logger,print_section,"",&
+                                       extension=".Log",error=error)
        IF ( output_unit > 0 ) THEN
          WRITE ( output_unit, '( A,T71,E10.4 )' ) &
             ' EWALD| Gaussian tolerance (effective) ', epsilon
@@ -336,6 +337,8 @@ SUBROUTINE ewald_pw_init ( ewald_pw, cell, cell_ref, ewald_env, force_env_sectio
          WRITE ( output_unit, '( A,T63,3I6 )' ) &
             ' EWALD| Full box grid ', pw_big_grid % npts
        END IF
+       CALL cp_print_key_finished_output(output_unit,logger,print_section,&
+                                         "",error=error)  
 
      ! pw pools initialized
        NULLIFY ( pw_pool )
@@ -366,8 +369,7 @@ SUBROUTINE ewald_pw_init ( ewald_pw, cell, cell_ref, ewald_env, force_env_sectio
        ecut = 0.5_dp * cutoff * cutoff
      !  CALL pw_find_cutoff ( pw_big_grid % bounds, cell_ref % h_inv, cutoff )
      !  ecut = cutoff 
-       CALL pw_grid_setup( cell_ref, pw_big_grid, cutoff = ecut, &
-            info = output_unit, &
+       CALL pw_grid_setup( cell_ref, pw_big_grid, print_section, cutoff = ecut, &
             fft_usage = .TRUE., rs_dims=(/para_env%num_pe,1/))
 
      ! pw pools initialized
@@ -398,8 +400,6 @@ SUBROUTINE ewald_pw_init ( ewald_pw, cell, cell_ref, ewald_env, force_env_sectio
     ewald_pw % cell => cell
     ewald_pw % cell_ref => cell_ref
   ENDIF
-  CALL cp_print_key_finished_output(output_unit,logger,force_env_section,&
-       "PRINT%PW_GRID_INFORMATION",error=error)  
   CALL timestop(0.0_dp,handle)
 
 END SUBROUTINE ewald_pw_init

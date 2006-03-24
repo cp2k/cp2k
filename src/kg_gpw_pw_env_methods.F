@@ -51,7 +51,7 @@ MODULE kg_gpw_pw_env_methods
   USE gaussian_gridlevels,             ONLY: destroy_gaussian_gridlevel,&
                                              init_gaussian_gridlevel
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                             section_vals_type
+                                             section_vals_type, section_vals_retain
   USE kg_gpw_collocate_den,            ONLY: calculate_rho_mol
   USE kg_gpw_fm_mol_types,             ONLY: fm_mol_blocks_type,&
                                              get_fm_mol_block,&
@@ -453,7 +453,7 @@ CONTAINS
      !                     XXXXXXXXX the cutoff array here is more a 'wish-list'
      !                     XXXXXXXXX same holds for radius
       print_section=>section_vals_get_subs_vals(force_env_section, &
-                       "PRINT%PW_GRID_INFORMATION",error=error)
+                       "PRINT%GRID_INFORMATION",error=error)
       CALL init_gaussian_gridlevel(pw_mol%gridlevel_info,&
            ngrid_levels=ngrid_level,cutoff=cutoff, &
            rel_cutoff=rel_cutoff,print_section=print_section)
@@ -484,7 +484,15 @@ CONTAINS
        symmetry = .TRUE.
        blocking = .FALSE.
 
+       
        CALL pw_grid_create(pw_grid_mol,MPI_COMM_SELF)
+       pw_grid_mol%print_section=>print_section
+       CALL section_vals_retain(print_section)
+
+
+
+      ! the following code duplication really sucks ........
+      
 
 !FM       pw_grid_mol%para%rs_dims ( 1 ) = num_pe
 !FM       pw_grid_mol%para%rs_dims ( 2 ) = 1
@@ -1144,7 +1152,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: imol, imolecule_kind, ispin, &
-                                                nmol, nmolecule_kind, nspins
+                                                nmol, nmolecule_kind, nspins, handle
     INTEGER, DIMENSION(:), POINTER           :: i_atom, i_kind
     LOGICAL                                  :: failure
     REAL(dp)                                 :: dum
@@ -1160,6 +1168,8 @@ CONTAINS
     TYPE(rho_mol_blocks_type), &
       DIMENSION(:), POINTER                  :: rho_mol_blocks
     TYPE(rho_mol_blocks_type), POINTER       :: rho_block
+
+    CALL timeset(routineN,handle)
 
     failure=.FALSE.
 
@@ -1233,6 +1243,8 @@ CONTAINS
       END DO  ! imolecule_kind
 
     END IF  ! failure
+
+    CALL timestop(handle)
 
   END SUBROUTINE kg_rho_update_rho_mol
 

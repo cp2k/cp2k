@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000  CP2K developers group                                 !
+!   Copyright (C) 2000, 2006  CP2K developers group                           !
 !-----------------------------------------------------------------------------!
 
 
@@ -161,7 +161,7 @@ CONTAINS
                               use_data = REALDATA3D )
 
     CALL rs_grid_create( rden, grid_b, -MAXVAL ( grid_s % npts ),&
-         force_env_section=force_env_section, error=error)
+         error=error)
     rden % r = 0.0_dp
 
     IF ( rden % parallel .AND. rden % group_dim ( 1 ) /= 1 ) THEN
@@ -229,7 +229,7 @@ CONTAINS
     !--------END OF STRESS TENSOR CALCULATION -----------
 
     CALL rs_grid_p_create ( drpot, 3, grid_b , -MAXVAL ( grid_s % npts ),&
-         force_env_section=force_env_section, error=error )
+          error=error )
 
     DO i = 1, 3
        CALL pw_transfer ( dphi_g ( i )%pw, rhob_r )

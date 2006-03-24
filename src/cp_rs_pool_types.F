@@ -51,7 +51,6 @@ MODULE cp_rs_pool_types
                                              cp_sll_rs_next,&
                                              cp_sll_rs_rm_first_el,&
                                              cp_sll_rs_type
-  USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
   USE pw_grid_types,                   ONLY: pw_grid_type
   USE pw_grids,                        ONLY: pw_grid_release,&
@@ -375,10 +374,9 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE rs_pool_create_rs(pool, element,&
-       force_env_section, error)
+        error)
     TYPE(cp_rs_pool_type), POINTER           :: pool
     TYPE(realspace_grid_type), POINTER       :: element
-    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -399,7 +397,7 @@ CONTAINS
        ELSE
           NULLIFY(element)
           CALL rs_grid_create(element,pw_grid=pool%el_struct,&
-         nsmax=pool%nsmax,force_env_section=force_env_section,error=error)
+         nsmax=pool%nsmax,error=error)
        END IF
        
     END IF
@@ -435,12 +433,11 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE rs_pool_create_rs_vect(pool, n_elements,&
-       elements, force_env_section, error)
+       elements,  error)
     TYPE(cp_rs_pool_type), POINTER           :: pool
     INTEGER, INTENT(in)                      :: n_elements
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: elements
-    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -460,7 +457,7 @@ CONTAINS
        DO i=1,n_elements
           NULLIFY(elements(i)%rs_grid)
           CALL rs_pool_create_rs(pool,elements(i)%rs_grid,&
-        force_env_section=force_env_section,error=error)
+        error=error)
 
        END DO
        
@@ -810,12 +807,11 @@ END SUBROUTINE rs_pools_flush_cache
 !!
 !!*** **********************************************************************
 SUBROUTINE rs_pools_create_rs_vect(pools,elements,&
-     force_env_section,error)
+     error)
     TYPE(cp_rs_pool_p_type), DIMENSION(:), &
       POINTER                                :: pools
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: elements
-    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -839,7 +835,7 @@ SUBROUTINE rs_pools_create_rs_vect(pools,elements,&
         NULLIFY(elements(i)%rs_grid)
         pool => pools(i)%pool
         CALL rs_pool_create_rs(pool,elements(i)%rs_grid,&
-        force_env_section=force_env_section,error=error)
+        error=error)
 
      END DO
      

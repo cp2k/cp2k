@@ -32,7 +32,6 @@ MODULE realspace_grid_types
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
-  USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
   USE memory_utilities,                ONLY: reallocate
   USE message_passing,                 ONLY: &
@@ -266,23 +265,22 @@ CONTAINS
 !!   SOURCE
   !******************************************************************************
 
-  SUBROUTINE rs_grid_setup_1 ( rs, pw_grid, nsmax, should_output, iounit, error)
+  SUBROUTINE rs_grid_setup_1 ( rs, pw_grid, nsmax, error)
     TYPE(realspace_grid_type), POINTER       :: rs
     TYPE(pw_grid_type), INTENT(IN)           :: pw_grid
     INTEGER, INTENT(IN)                      :: nsmax
-    LOGICAL, INTENT(IN)                      :: should_output
-    INTEGER, INTENT(IN)                      :: iounit
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_grid_setup_1', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: dir, i, ip, lb( 2 ), &
+    INTEGER                                  :: dir, i, iounit, ip, lb( 2 ), &
                                                 n_slices, ngmax, nmin, nn, &
                                                 pos( 2 )
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure, should_output
     REAL(KIND=dp)                            :: pp( 3 )
+    TYPE(cp_logger_type), POINTER            :: logger
 
     failure = .FALSE.
 
@@ -389,6 +387,12 @@ CONTAINS
 
     END IF
 
+   logger => cp_error_get_logger(error)
+   iounit = cp_print_key_unit_nr(logger,pw_grid%print_section,"",&
+          extension=".Log",error=error)
+   should_output=BTEST(cp_print_key_should_output(logger%iter_info,&
+          pw_grid%print_section,"",error=error),cp_p_file)
+
     IF ( should_output ) THEN
           IF ( rs % parallel ) THEN
              IF ( iounit>0) THEN
@@ -441,20 +445,22 @@ CONTAINS
              ENDIF
           END IF
     END IF
+
+    CALL cp_print_key_finished_output(iounit,logger,pw_grid%print_section,&
+          "",error=error)
+
     CALL rs_grid_allocate_1 ( rs, error )
 
   END SUBROUTINE rs_grid_setup_1
 
   !******************************************************************************
 
-  SUBROUTINE rs_grid_setup_n ( rs, pw_grid, nsmax, should_output, iounit, error)
+  SUBROUTINE rs_grid_setup_n ( rs, pw_grid, nsmax, error)
 
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: rs
     TYPE(pw_grid_type), INTENT(IN)           :: pw_grid
     INTEGER, INTENT(IN)                      :: nsmax
-    LOGICAL, INTENT(IN)                      :: should_output
-    INTEGER, INTENT(IN)                      :: iounit
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -466,9 +472,9 @@ CONTAINS
 
     failure = .FALSE.
 
-    CALL rs_grid_setup_1 ( rs ( 1 ) % rs_grid , pw_grid, nsmax, should_output, iounit )
+    CALL rs_grid_setup_1 ( rs ( 1 ) % rs_grid , pw_grid, nsmax, error )
     DO i = 2, SIZE ( rs )
-       CALL rs_grid_setup_1 ( rs ( i ) % rs_grid , pw_grid, nsmax, .FALSE., 0 )
+       CALL rs_grid_setup_1 ( rs ( i ) % rs_grid , pw_grid, nsmax, error )
     END DO
 
   END SUBROUTINE rs_grid_setup_n
@@ -1034,7 +1040,7 @@ END SUBROUTINE rs_grid_to_cube
 ! optionally pass a preallocated rs grid
 !******************************************************************************
 SUBROUTINE rs_pw_to_cube ( pw, iunit, ionode, title, rs, particles, stride,&
-     force_env_section, error )
+     error )
     TYPE(pw_type), POINTER                   :: pw
     INTEGER, INTENT(IN)                      :: iunit
     LOGICAL, INTENT(IN)                      :: ionode
@@ -1044,7 +1050,6 @@ SUBROUTINE rs_pw_to_cube ( pw, iunit, ionode, title, rs, particles, stride,&
     TYPE(particle_list_type), OPTIONAL, &
       POINTER                                :: particles
     INTEGER, INTENT(in), OPTIONAL            :: stride
-    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -1060,7 +1065,7 @@ SUBROUTINE rs_pw_to_cube ( pw, iunit, ionode, title, rs, particles, stride,&
    ELSE
      nsmax=-1
      NULLIFY(rs_local)
-     CALL rs_grid_create(rs_local,pw%pw_grid,nsmax,force_env_section=force_env_section)
+     CALL rs_grid_create(rs_local,pw%pw_grid,nsmax,error=error)
    ENDIF
 
    CALL rs_pw_transfer(rs_local,pw,pw2rs)
@@ -1104,23 +1109,20 @@ END SUBROUTINE rs_pw_to_cube
 !!     03.2003 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE rs_grid_create(rs_grid, pw_grid, nsmax, force_env_section, error)
+SUBROUTINE rs_grid_create(rs_grid, pw_grid, nsmax, error)
     TYPE(realspace_grid_type), POINTER       :: rs_grid
     TYPE(pw_grid_type), POINTER              :: pw_grid
     INTEGER, INTENT(in), OPTIONAL            :: nsmax
-    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rs_grid_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: my_nsmax, output_unit, stat
-    LOGICAL                                  :: failure, should_output
-    TYPE(cp_logger_type), POINTER            :: logger
+    INTEGER                                  :: my_nsmax, stat
+    LOGICAL                                  :: failure
 
   failure=.FALSE.
-  logger => cp_error_get_logger(error)
   my_nsmax = -1
   IF (PRESENT(nsmax)) my_nsmax=nsmax
   
@@ -1130,13 +1132,7 @@ SUBROUTINE rs_grid_create(rs_grid, pw_grid, nsmax, force_env_section, error)
   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
   IF (.NOT. failure) THEN
-     output_unit = cp_print_key_unit_nr(logger,force_env_section,"PRINT%RS_GRID_INFORMATION",&
-          extension=".Log",error=error)     
-     should_output=BTEST(cp_print_key_should_output(logger%iter_info,&
-          force_env_section,"PRINT%RS_GRID_INFORMATION",error=error),cp_p_file)
-     CALL rs_grid_setup(rs_grid, pw_grid, my_nsmax,should_output=should_output, iounit=output_unit)
-     CALL cp_print_key_finished_output(output_unit,logger,force_env_section,&
-          "PRINT%RS_GRID_INFORMATION",error=error)  
+     CALL rs_grid_setup(rs_grid, pw_grid, my_nsmax,error=error)
   END IF
 END SUBROUTINE rs_grid_create
 !***************************************************************************
@@ -1257,13 +1253,12 @@ END SUBROUTINE rs_grid_release
 !!     12.2005 created [teo]
 !!
 !!*** **********************************************************************
-SUBROUTINE rs_grid_p_create(rs_p_grid, ndim, pw_grid, nsmax, force_env_section, error)
+SUBROUTINE rs_grid_p_create(rs_p_grid, ndim, pw_grid, nsmax,  error)
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: rs_p_grid
     INTEGER, INTENT(in), OPTIONAL            :: ndim
     TYPE(pw_grid_type), POINTER              :: pw_grid
     INTEGER, INTENT(in), OPTIONAL            :: nsmax
-    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -1283,7 +1278,7 @@ SUBROUTINE rs_grid_p_create(rs_p_grid, ndim, pw_grid, nsmax, force_env_section, 
   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   DO j = 1, ndim
      NULLIFY(rs_p_grid(j)%rs_grid)
-     CALL rs_grid_create(rs_p_grid(j)%rs_grid, pw_grid,my_nsmax, force_env_section)
+     CALL rs_grid_create(rs_p_grid(j)%rs_grid, pw_grid,my_nsmax,error=error) 
   END DO
 
 END SUBROUTINE rs_grid_p_create

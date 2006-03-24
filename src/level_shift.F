@@ -29,7 +29,6 @@ MODULE level_shift
                                              coeff_type
   USE cp_rs_pool_types,                ONLY: cp_rs_pool_type,&
                                              rs_pool_create_rs
-  USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: twopi
   USE particle_types,                  ONLY: particle_type
@@ -61,7 +60,7 @@ MODULE level_shift
 
 CONTAINS
 
-  SUBROUTINE level_shift_testing(atomic_kind_set, particle_set, cell, centers, pw_env, rho, rho_core, force_env_section, error )
+  SUBROUTINE level_shift_testing(atomic_kind_set, particle_set, cell, centers, pw_env, rho, rho_core, error )
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(particle_type), DIMENSION(:), &
@@ -71,7 +70,6 @@ CONTAINS
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(qs_rho_type)                        :: rho
     TYPE(coeff_type), POINTER                :: rho_core
-    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
@@ -111,7 +109,7 @@ CONTAINS
     origin=0
     power=1
     CALL  realspace_approach(rho_tot_rspace,pw_env,cell,origin,power,.TRUE.,&
-         force_env_section=force_env_section, error=error)
+         error=error)
 
     ! start g-space analysis
     CALL  gspace_approach(rho_tot_gspace,pw_env,cell)
@@ -217,14 +215,13 @@ CONTAINS
     
   END SUBROUTINE
 
-  SUBROUTINE realspace_approach(rho_r,pw_env,cell,center,power,ionode, force_env_section,error)
+  SUBROUTINE realspace_approach(rho_r,pw_env,cell,center,power,ionode, error)
     TYPE(coeff_type)                         :: rho_r
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(cell_type), POINTER                 :: cell
     REAL(KIND=dp)                            :: center(3)
     INTEGER                                  :: power
     LOGICAL                                  :: ionode
-    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -236,8 +233,7 @@ CONTAINS
 
     NULLIFY(rs_rho,auxbas_rs_pool)
     CALL pw_env_get(pw_env, auxbas_rs_pool=auxbas_rs_pool)
-    CALL rs_pool_create_rs(auxbas_rs_pool,rs_rho,force_env_section=force_env_section,&
-         error=error)
+    CALL rs_pool_create_rs(auxbas_rs_pool,rs_rho, error=error)
     CALL rs_pw_transfer(rs_rho,rho_r%pw,pw2rs)
 
     ! could all be done in parallel using the pw_grids I guess

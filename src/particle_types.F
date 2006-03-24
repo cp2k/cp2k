@@ -58,9 +58,9 @@ MODULE particle_types
                                              femtoseconds,&
                                              massunit
   USE qmmm_ff_fist,                    ONLY: qmmm_ff_precond_only_qm
+  USE string_utilities,                ONLY: compress
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
-  USE string_utilities,                ONLY: compress
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: find_boundary
@@ -980,19 +980,19 @@ END SUBROUTINE generate_particle_distances
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "write_structure_data",&
-                                   routineP = moduleN//':'//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'write_structure_data', &
+      routineP = moduleN//':'//routineN
 
-    TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(section_vals_type), POINTER         :: section
     CHARACTER(LEN=8)                         :: unit_of_length_name
     CHARACTER(LEN=default_string_length)     :: string
     INTEGER                                  :: handle, i, iw, n, natom
     INTEGER, DIMENSION(:), POINTER           :: atomic_indices
     REAL(KIND=dp)                            :: dab, unit_of_length
     REAL(KIND=dp), DIMENSION(3)              :: rab, rbc, rcd
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(section_vals_type), POINTER         :: section
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     CALL timeset(routineN,"I","",handle)
 
@@ -1170,13 +1170,12 @@ END SUBROUTINE generate_particle_distances
     ! Creation (23.03.06,MK)
 
     INTEGER, DIMENSION(:), POINTER           :: indices
-    INTEGER, INTENT(IN)                      :: min_index, max_index, n
-
+    INTEGER, INTENT(IN)                      :: n, min_index, max_index
     LOGICAL                                  :: indices_ok
 
-    INTEGER :: i, j
+    INTEGER                                  :: i, j
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     indices_ok = .TRUE.
 

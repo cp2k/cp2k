@@ -3036,8 +3036,7 @@ CONTAINS
       DIMENSION(:), POINTER                  :: lg4x6
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
-    TYPE(section_vals_type), POINTER         :: constraint_section, &
-                                                hbonds_section
+    TYPE(section_vals_type), POINTER         :: hbonds_section
 
     failure = .FALSE.
     NULLIFY(logger)
@@ -3047,7 +3046,6 @@ CONTAINS
     CALL timeset(routineN,'I','',handle)
     
     cons_info => topology%cons_info
-    constraint_section => section_vals_get_subs_vals(subsys_section,"CONSTRAINT",error=error)
     hbonds_section => section_vals_get_subs_vals(subsys_section,"CONSTRAINT%HBONDS",error=error)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------

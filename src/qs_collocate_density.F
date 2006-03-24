@@ -293,8 +293,7 @@ CONTAINS
                               error=error)
 
     ! *** set up the rs multi-grids *** !
-    CALL rs_pools_create_rs_vect(rs_pools,rs_rho, force_env_section=qs_env%input,&
-         error=error)
+    CALL rs_pools_create_rs_vect(rs_pools,rs_rho, error=error)
     DO igrid_level = 1,gridlevel_info%ngrid_levels
       CALL rs_grid_zero(rs_rho(igrid_level)%rs_grid)
     END DO
@@ -470,8 +469,7 @@ CONTAINS
     cube_info=pw_env%cube_info(1)
     l_info=pw_env%l_info
     ! be careful in parallel nsmax is choosen with multigrid in mind!
-    CALL rs_pool_create_rs(auxbas_rs_pool,rs_rho,force_env_section=qs_env%input,&
-         error=error)
+    CALL rs_pool_create_rs(auxbas_rs_pool,rs_rho, error=error)
     CALL rs_grid_zero(rs_rho)
 
     ncurr = -1
@@ -701,8 +699,7 @@ CONTAINS
 
     ! *** set up the rs multi-grids
     distributed_rs_grids=.FALSE.
-    CALL rs_pools_create_rs_vect(rs_pools, rs_rho, force_env_section=input,&
-         error=error)
+    CALL rs_pools_create_rs_vect(rs_pools, rs_rho, error=error)
     DO igrid_level=1,gridlevel_info%ngrid_levels
        CALL rs_grid_zero(rs_rho(igrid_level)%rs_grid)
        IF ( rs_rho(igrid_level)%rs_grid%direction /= 0 ) THEN
@@ -1223,16 +1220,9 @@ CONTAINS
 !!     03.2006 made independent of qs_env [Joost VandeVondele]
 !!
 !!*** **********************************************************************
-!    CALL get_qs_env(qs_env=qs_env,&
-!                    atomic_kind_set=atomic_kind_set,&
-!                    cell=cell,&
-!                    dft_control=dft_control,&
-!                    particle_set=particle_set,&
-!                    pw_env=pw_env, &
-!                    input=force_env_section)
   SUBROUTINE calculate_wavefunction(mo_vectors,ivector,rho,rho_gspace, &
                    atomic_kind_set,cell,dft_control,particle_set, &
-                   force_env_section,pw_env,error)
+                   pw_env,error)
 
     TYPE(cp_fm_type), POINTER                :: mo_vectors
     INTEGER                                  :: ivector
@@ -1243,7 +1233,6 @@ CONTAINS
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -1314,8 +1303,7 @@ CONTAINS
                 in_space = REALSPACE, error=error)
 
     ! *** set up rs multi-grids
-    CALL rs_pools_create_rs_vect(rs_pools, rs_rho, force_env_section=force_env_section,&
-         error=error)
+    CALL rs_pools_create_rs_vect(rs_pools, rs_rho, error=error)
 
     DO igrid_level=1,gridlevel_info%ngrid_levels
        CALL rs_grid_zero(rs_rho(igrid_level)%rs_grid)
