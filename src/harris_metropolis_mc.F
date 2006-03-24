@@ -457,7 +457,7 @@ CONTAINS
     INTEGER :: accept, atom, force_env_in_use, handle, hmc_max_scf, i, iatom, &
       ibead, ikind, in_use, iparticles, istat, istep, isubsys, iter_level, &
       iw, max_scf_aspc_tmp, max_scf_tmp, mc_method, md_method, myi, nbeads, &
-      reject, wf_interpolation_method_tmp
+      reject, wf_interpolation_method_tmp, harris_max_scf_tmp
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     INTEGER, POINTER                         :: accepted_md, itimes, &
                                                 md_approach_nr
@@ -739,6 +739,8 @@ CONTAINS
        IF (start_qs .AND. (globenv%prog_name_id == do_qs)) THEN
           use_harris_tmp = qs_env%use_harris
           max_scf_tmp = qs_env%scf_control%max_scf
+          max_scf_aspc_tmp = qs_env%scf_control%max_scf_aspc
+          harris_max_scf_tmp = qs_env%scf_control%harris_max_scf
 
           eps_default_tmp = MAX(dft_control%qs_control%eps_rho_rspace, &
                dft_control%qs_control%eps_rho_gspace)
@@ -746,6 +748,8 @@ CONTAINS
 
           qs_env%use_harris = .FALSE.
           qs_env%scf_control%max_scf = 1000
+          qs_env%scf_control%max_scf_aspc = 1000
+          qs_env%scf_control%harris_max_scf = 1000
 
           qs_env%scf_control%eps_scf = 1.0e-8
           dft_control%qs_control%eps_rho_rspace = 1.0e-16
@@ -759,6 +763,8 @@ CONTAINS
                calc_force=.FALSE., error=error)
           qs_env%use_harris = use_harris_tmp
           qs_env%scf_control%max_scf = max_scf_tmp
+          qs_env%scf_control%max_scf_aspc = max_scf_aspc_tmp
+          qs_env%scf_control%harris_max_scf = harris_max_scf_tmp
 
           qs_env%scf_control%eps_scf = eps_scf_tmp
           dft_control%qs_control%eps_rho_rspace = eps_default_tmp
@@ -834,14 +840,17 @@ CONTAINS
             use_harris_tmp = qs_env%use_harris
             max_scf_tmp = qs_env%scf_control%max_scf
             max_scf_aspc_tmp = qs_env%scf_control%max_scf_aspc
+            harris_max_scf_tmp = qs_env%scf_control%harris_max_scf
             qs_env%use_harris = .FALSE.
             qs_env%scf_control%max_scf = 1000
             qs_env%scf_control%max_scf_aspc = 1000
+            qs_env%scf_control%harris_max_scf = 1000
             CALL force_env_calc_energy_force(force_env=force_env_p(1)%force_env, &
                  calc_force=.FALSE., error=error)
             qs_env%use_harris = use_harris_tmp
             qs_env%scf_control%max_scf = max_scf_tmp
             qs_env%scf_control%max_scf_aspc = max_scf_aspc_tmp
+            qs_env%scf_control%harris_max_scf = harris_max_scf_tmp
          ELSE
             CALL force_env_calc_energy_force(force_env=force_env_p(1)%force_env, &
                  calc_force=.FALSE., error=error)
@@ -982,27 +991,33 @@ CONTAINS
             use_harris_tmp = qs_env%use_harris
             max_scf_tmp = qs_env%scf_control%max_scf
             max_scf_aspc_tmp = qs_env%scf_control%max_scf_aspc
+            harris_max_scf_tmp = qs_env%scf_control%harris_max_scf
             qs_env%use_harris = .FALSE.
             qs_env%scf_control%max_scf = 1000
             qs_env%scf_control%max_scf_aspc = 1000
+            qs_env%scf_control%harris_max_scf = 1000
             CALL force_env_calc_energy_force(force_env=force_env_p(1)%force_env, &
                  calc_force=.FALSE., error=error)
             qs_env%use_harris = use_harris_tmp
             qs_env%scf_control%max_scf = max_scf_tmp
             qs_env%scf_control%max_scf_aspc = max_scf_aspc_tmp
+            qs_env%scf_control%harris_max_scf = harris_max_scf_tmp
          ELSE
             !IF (.NOT. multiple_scf) THEN
               IF ((drld) .AND. (globenv%prog_name_id == do_qs)) THEN
                 max_scf_tmp = qs_env%scf_control%max_scf
                 max_scf_aspc_tmp = qs_env%scf_control%max_scf_aspc
+                harris_max_scf_tmp = qs_env%scf_control%harris_max_scf
                 qs_env%scf_control%max_scf = hmc_max_scf
                 qs_env%scf_control%max_scf_aspc = hmc_max_scf
+                qs_env%scf_control%harris_max_scf = hmc_max_scf
               END IF
               CALL force_env_calc_energy_force(force_env=force_env_p(1)%force_env, &
                    calc_force=.FALSE., error=error)
               IF ((drld) .AND. (globenv%prog_name_id == do_qs)) THEN
                 qs_env%scf_control%max_scf = max_scf_tmp
                 qs_env%scf_control%max_scf_aspc = max_scf_aspc_tmp
+                qs_env%scf_control%harris_max_scf = harris_max_scf_tmp
               END IF
             !END IF
          END IF
@@ -1426,7 +1441,8 @@ CONTAINS
 
     INTEGER                                  :: handle, ibead, iter, iw, &
                                                 max_scf_aspc_tmp, &
-                                                max_scf_tmp, nbeads
+                                                max_scf_tmp, nbeads, &
+                                                harris_max_scf_tmp
     INTEGER, POINTER                         :: itimes
     LOGICAL                                  :: ionode, should_stop, &
                                                 tot_energy
@@ -1460,6 +1476,7 @@ CONTAINS
 
     max_scf_tmp = qs_env%scf_control%max_scf
     max_scf_aspc_tmp = qs_env%scf_control%max_scf_aspc
+    harris_max_scf_tmp = qs_env%scf_control%harris_max_scf
 
     tot_energy = simpar%tot_energy
 
@@ -1470,21 +1487,23 @@ CONTAINS
               >= iter)) THEN
             qs_env%scf_control%max_scf = 1000
             qs_env%scf_control%max_scf_aspc = 1000
+            qs_env%scf_control%harris_max_scf = 1000
           ELSE
             qs_env%scf_control%max_scf = max_scf_tmp
             qs_env%scf_control%max_scf_aspc = max_scf_aspc_tmp
+            qs_env%scf_control%harris_max_scf = harris_max_scf_tmp
           END IF
         ELSE
           IF (simpar%fill_wf_history) THEN
             IF ((MIN(wf_history%memory_depth,wf_history%snapshot_count) &
                 > itimes)) THEN
-              !max_scf_tmp = qs_env%scf_control%max_scf
-              !max_scf_aspc_tmp = qs_env%scf_control%max_scf_aspc
               qs_env%scf_control%max_scf = 1000
               qs_env%scf_control%max_scf_aspc = 1000
+              qs_env%scf_control%harris_max_scf = 1000
             ELSE
               qs_env%scf_control%max_scf = max_scf_tmp
               qs_env%scf_control%max_scf_aspc = max_scf_aspc_tmp
+              qs_env%scf_control%harris_max_scf = harris_max_scf_tmp
             END IF
           END IF
         END IF
@@ -1492,6 +1511,7 @@ CONTAINS
           IF (simpar%ld_steps == iter) THEN
             qs_env%scf_control%max_scf = simpar%hmc_max_scf
             qs_env%scf_control%max_scf_aspc = simpar%hmc_max_scf
+            qs_env%scf_control%harris_max_scf = simpar%hmc_max_scf
           END IF
         END IF
       END IF
@@ -1505,6 +1525,7 @@ CONTAINS
         IF (simpar%ld_steps == iter) THEN
           qs_env%scf_control%max_scf = max_scf_tmp
           qs_env%scf_control%max_scf_aspc = max_scf_aspc_tmp 
+          qs_env%scf_control%harris_max_scf = harris_max_scf_tmp
         END IF
       END IF
 

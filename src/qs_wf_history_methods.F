@@ -1003,6 +1003,7 @@ SUBROUTINE wfi_extrapolate(globenv,wf_history, qs_env, dt, extrapolation_method_
         !        target_matrix=rho%rho_ao(ispin)%matrix, error=error)
         !END DO
 
+        nvec = MIN(wf_history%memory_depth, wf_history%snapshot_count)
         IF ((nvec >= wf_history%memory_depth) .AND. (qs_env%use_harris) &
              .AND. (qs_env%scf_control%fill_wf_history)) THEN
           qs_env%scf_control%max_scf = qs_env%scf_control%harris_max_scf
@@ -1017,10 +1018,11 @@ SUBROUTINE wfi_extrapolate(globenv,wf_history, qs_env, dt, extrapolation_method_
         CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
         CALL qs_ks_did_change(qs_env%ks_env, rho_changed=.TRUE., error=error)
 
-        my_orthogonal_wf=.TRUE.
+        my_orthogonal_wf=.FALSE.
      CASE(wfi_use_prev_rho_r_method_nr)
         t0_state => wfi_get_snapshot(wf_history, index=1, error=error)
         CPPrecondition(ASSOCIATED(t0_state%rho_ao),cp_failure_level,routineP,error,failure)
+        nvec = MIN(wf_history%memory_depth, wf_history%snapshot_count)
         IF ((nvec >= wf_history%memory_depth) .AND. (qs_env%use_harris) &
              .AND. (qs_env%scf_control%fill_wf_history)) THEN
           qs_env%scf_control%max_scf = qs_env%scf_control%harris_max_scf
@@ -1039,6 +1041,7 @@ SUBROUTINE wfi_extrapolate(globenv,wf_history, qs_env, dt, extrapolation_method_
         ! does nothing
      CASE(wfi_use_prev_wf_method_nr)
         my_orthogonal_wf=.TRUE.
+        nvec = MIN(wf_history%memory_depth, wf_history%snapshot_count)
         IF ((nvec >= wf_history%memory_depth) .AND. (qs_env%use_harris) &
              .AND. (qs_env%scf_control%fill_wf_history)) THEN
           qs_env%scf_control%max_scf = qs_env%scf_control%harris_max_scf
@@ -1069,6 +1072,7 @@ SUBROUTINE wfi_extrapolate(globenv,wf_history, qs_env, dt, extrapolation_method_
      CASE(wfi_use_prev_p_method_nr)
         t0_state => wfi_get_snapshot(wf_history, index=1, error=error)
         CPPrecondition(ASSOCIATED(t0_state%rho_ao),cp_failure_level,routineP,error,failure)
+        nvec = MIN(wf_history%memory_depth, wf_history%snapshot_count)
         IF ((nvec >= wf_history%memory_depth) .AND. (qs_env%use_harris) &
              .AND. (qs_env%scf_control%fill_wf_history)) THEN
           qs_env%scf_control%max_scf = qs_env%scf_control%harris_max_scf
@@ -1105,6 +1109,7 @@ SUBROUTINE wfi_extrapolate(globenv,wf_history, qs_env, dt, extrapolation_method_
            CPPrecondition(ASSOCIATED(t0_state%wf),cp_warning_level,routineP,error,failure)
            CPPrecondition(ASSOCIATED(t1_state%wf),cp_warning_level,routineP,error,failure)           
         END IF
+        nvec = MIN(wf_history%memory_depth, wf_history%snapshot_count)
         IF ((nvec >= wf_history%memory_depth) .AND. (qs_env%use_harris) &
              .AND. (qs_env%scf_control%fill_wf_history)) THEN
           qs_env%scf_control%max_scf = qs_env%scf_control%harris_max_scf
@@ -1160,6 +1165,7 @@ SUBROUTINE wfi_extrapolate(globenv,wf_history, qs_env, dt, extrapolation_method_
            CPPrecondition(ASSOCIATED(t0_state%rho_ao),cp_warning_level,routineP,error,failure)
            CPPrecondition(ASSOCIATED(t1_state%rho_ao),cp_warning_level,routineP,error,failure)           
         END IF
+        nvec = MIN(wf_history%memory_depth, wf_history%snapshot_count)
         IF ((nvec >= wf_history%memory_depth) .AND. (qs_env%use_harris) &
              .AND. (qs_env%scf_control%fill_wf_history)) THEN
           qs_env%scf_control%max_scf = qs_env%scf_control%harris_max_scf
@@ -1204,6 +1210,7 @@ SUBROUTINE wfi_extrapolate(globenv,wf_history, qs_env, dt, extrapolation_method_
            CPPrecondition(ASSOCIATED(t0_state%overlap),cp_warning_level,routineP,error,failure)
            CPPrecondition(ASSOCIATED(t1_state%overlap),cp_warning_level,routineP,error,failure)           
         END IF
+        nvec = MIN(wf_history%memory_depth, wf_history%snapshot_count)
         IF ((nvec >= wf_history%memory_depth) .AND. (qs_env%use_harris) &
              .AND. (qs_env%scf_control%fill_wf_history)) THEN
           qs_env%scf_control%max_scf = qs_env%scf_control%harris_max_scf
