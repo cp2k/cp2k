@@ -124,6 +124,22 @@
     </big>
    </li>
   </ul>
+  <ul class="none">
+   <li>
+    This section can be repeated:
+    <big class="uctt">
+     <xsl:value-of select="@repeats"/>
+    </big>
+   </li>
+  </ul>
+  <!--ul class="none">
+   <li>
+    This section is required:
+    <big class="uctt">
+     <xsl:value-of select="@required"/>
+    </big>
+   </li>
+  </ul-->
   <xsl:if test="count(SECTION_PARAMETERS) > 0">
    <xsl:call-template name="describe_keywords">
     <xsl:with-param name="element" select="SECTION_PARAMETERS"/>
@@ -181,6 +197,18 @@
         </em>
        </p>
       </dd>
+      <dd>
+       This keyword can be repeated:
+       <big class="uctt">
+        <xsl:value-of select="@repeats"/>
+       </big>
+      </dd>
+      <!--dd>
+       This keyword is required:
+       <big class="uctt">
+        <xsl:value-of select="@required"/>
+       </big>
+      </dd-->
       <dd>
        <p>
         Data type: <big class="uctt"><xsl:value-of select="DATA_TYPE/@kind"/></big>
