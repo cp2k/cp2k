@@ -525,7 +525,7 @@ CONTAINS
     mypcol=context%mepos(2)
     nprow=context%num_pe(1)
     npcol=context%num_pe(2)
-    n = matrix_a%matrix_struct%nrow_global
+    n = matrix_c%matrix_struct%nrow_global
 
     a => matrix_a%local_data
     c => matrix_c%local_data
