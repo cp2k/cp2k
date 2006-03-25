@@ -54,7 +54,7 @@ MODULE preconditioner
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
   USE qs_mo_methods,                   ONLY: calculate_subspace_eigenvalues,&
-                                             make_basis
+                                             make_basis_sm
   USE sparse_matrix_types,             ONLY: &
        add_block_node, add_matrices, deallocate_matrix, first_block_node, &
        get_block_node, get_matrix_info, next_block_node, &
@@ -359,12 +359,14 @@ SUBROUTINE make_preconditioner_lr(preconditioner_env, precon_type, ev_h0,&
       CALL cp_fm_init_random(matrix_x)
       CALL cp_sm_fm_multiply(matrix_s,ev_h0(ispin)%matrix,matrix_sc0,k)
       CALL cp_fm_gemm('T','N',k,x,n,1.0_dp,matrix_sc0,matrix_x,0.0_dp,matrix_xsc0)
+      CALL cp_fm_release(matrix_sc0)
       CALL cp_fm_gemm('N','N',n,x,k,1.0_dp,ev_h0(ispin)%matrix,matrix_xsc0,0.0_dp,fm_work)
+      CALL cp_fm_release(matrix_xsc0)
       ! with respect C0
       CALL cp_fm_scale_and_add(1.0_dp,matrix_x,-1.0_dp,fm_work)
-      CALL cp_sm_fm_multiply(matrix_s,matrix_x,fm_work,x)
+      CALL cp_fm_release(fm_work)
       ! among themselves
-      CALL make_basis(matrix_x,x, ortho=fm_work,otype="SV")
+      CALL make_basis_sm(matrix_x,x, matrix_s)
 
       !3) make eigenvectors and store eigenvalues
       ALLOCATE(preconditioner_env(ispin)%full_evals(n),STAT=istat) 
@@ -386,9 +388,6 @@ SUBROUTINE make_preconditioner_lr(preconditioner_env, precon_type, ev_h0,&
       preconditioner_env(ispin)%energy_gap=energy_gap
 
       !4) Clean
-      CALL cp_fm_release(fm_work)
-      CALL cp_fm_release(matrix_xsc0)
-      CALL cp_fm_release(matrix_sc0)
       CALL cp_fm_struct_create(fm_struct_tmp,nrow_global=n,ncol_global=n, &
                                context=preconditioner_env(ispin)%ctxt, &
                                para_env=preconditioner_env(ispin)%para_env)
@@ -862,8 +861,8 @@ SUBROUTINE make_full_all(preconditioner_env, matrix_c0, matrix_h, matrix_s, c0_e
     CALL cp_fm_gemm('T','N',k,x,n,1.0_dp,matrix_sc0,matrix_x,0.0_dp,matrix_xsc0) 
     CALL cp_fm_gemm('N','N',n,x,k,1.0_dp,matrix_c0,matrix_xsc0,0.0_dp,matrix_tmp)
     CALL cp_fm_scale_and_add(1.0_dp,matrix_x,-1.0_dp,matrix_tmp)
-    CALL cp_sm_fm_multiply(matrix_s,matrix_x,matrix_tmp,x)
-    CALL make_basis(matrix_x,x, ortho=matrix_tmp,otype="SV")
+    CALL cp_fm_release(matrix_tmp)
+    CALL make_basis_sm(matrix_x,x, matrix_s)
 
     !XXXXXXXX an orthogonality check here
     !CALL cp_fm_gemm('T','N',k,x,n,1.0_dp,matrix_sc0,matrix_x,0.0_dp,matrix_xsc0)
@@ -885,7 +884,6 @@ SUBROUTINE make_full_all(preconditioner_env, matrix_c0, matrix_h, matrix_s, c0_e
     preconditioner_env%energy_gap=energy_gap
 
     ! 3) Clean up and asm the full preconditioner matrix
-    CALL cp_fm_release(matrix_tmp)
     CALL cp_fm_release(matrix_xsc0)
     CALL cp_fm_release(matrix_sc0)
     CALL cp_fm_struct_create(fm_struct_tmp,nrow_global=n,ncol_global=n, &

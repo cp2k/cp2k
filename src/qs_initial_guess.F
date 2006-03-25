@@ -57,7 +57,8 @@ MODULE qs_initial_guess
   USE qs_ks_methods,                   ONLY: qs_ks_did_change,&
                                              qs_ks_update_qs_env
   USE qs_mo_methods,                   ONLY: calculate_density_matrix,&
-                                             make_basis
+                                             make_basis_simple,&
+                                             make_basis_sm
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type,&
                                              mo_set_restrict,&
@@ -205,14 +206,10 @@ CONTAINS
                mo_coeff=mo_coeff, nmo=nmo, homo=homo)
 
           IF(ortho_basis) THEN
-            CALL make_basis(mo_coeff,nmo)
+            CALL make_basis_simple(mo_coeff,nmo)
           ELSE
             ! ortho so that one can restart for different positions (basis sets?)
-            CALL cp_fm_create(sv,mo_coeff%matrix_struct,"SV")
-            CALL cp_sm_fm_multiply(s_sparse(1)%matrix,mo_coeff,sv,nmo)
-            CALL make_basis(mo_coeff,homo, &
-                 ortho=sv,otype="SV")
-            CALL cp_fm_release(sv)
+            CALL make_basis_sm(mo_coeff,homo,s_sparse(1)%matrix)
           ENDIF
           ! only alpha spin is kept for restricted
           IF (dft_control%restricted) EXIT
@@ -230,14 +227,9 @@ CONTAINS
                mo_coeff=mo_coeff, nmo=nmo)
           CALL cp_fm_init_random(mo_coeff,nmo)
           IF(ortho_basis) THEN
-            CALL make_basis(mo_coeff,nmo)
+            CALL make_basis_simple(mo_coeff,nmo)
           ELSE
-            ! ortho so that one can restart for different positions (basis sets?)
-            CALL cp_fm_create(sv,mo_coeff%matrix_struct,"SV")
-            CALL cp_sm_fm_multiply(s_sparse(1)%matrix,mo_coeff,sv,nmo)
-            CALL make_basis(mo_coeff,nmo, &
-                 ortho=sv,otype="SV")
-            CALL cp_fm_release(sv)
+            CALL make_basis_sm(mo_coeff,nmo,s_sparse(1)%matrix)
           ENDIF
           ! only alpha spin is kept for restricted
           IF (dft_control%restricted) EXIT
@@ -423,15 +415,14 @@ CONTAINS
           ENDIF
           ! here we could easily multiply with the diag that we actually have replicated already 
           CALL cp_sm_fm_multiply(p_rmpv(ispin)%matrix,sv,mo_coeff,nmo)
+          CALL cp_fm_release(sv)
 
           ! and ortho the result
           IF (ortho_basis) THEN
-             CALL make_basis(mo_coeff,nmo)
+             CALL make_basis_simple(mo_coeff,nmo)
           ELSE
-             CALL cp_sm_fm_multiply(s_sparse(1)%matrix,mo_coeff,sv,nmo)
-             CALL make_basis(mo_coeff,nmo, ortho=sv,otype="SV")
+             CALL make_basis_sm(mo_coeff,nmo,s_sparse(1)%matrix)
           ENDIF
-          CALL cp_fm_release(sv)
 
           CALL calculate_density_matrix(mo_array(ispin)%mo_set,&
                p_rmpv(ispin)%matrix,error=error)

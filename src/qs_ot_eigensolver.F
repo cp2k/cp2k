@@ -41,7 +41,7 @@ MODULE qs_ot_eigensolver
   USE kinds,                           ONLY: dp
   USE preconditioner,                  ONLY: preconditioner_in_use,&
                                              preconditioner_type
-  USE qs_mo_methods,                   ONLY: make_basis
+  USE qs_mo_methods,                   ONLY: make_basis_sv
   USE qs_ot,                           ONLY: qs_ot_allocate,&
                                              qs_ot_destroy,&
                                              qs_ot_get_orbitals,&
@@ -188,7 +188,7 @@ CONTAINS
         CALL cp_fm_to_fm(matrix_c,qs_ot_env(1)%matrix_c0)
         CALL cp_sm_fm_multiply(matrix_s,qs_ot_env(1)%matrix_c0, &
                                 matrix_c,k)
-        CALL make_basis(qs_ot_env(1)%matrix_c0,k, ortho=matrix_c,otype="SV")
+        CALL make_basis_sv(qs_ot_env(1)%matrix_c0,k, matrix_c)
 
         ! copy sc0 and matrix_s_ortho in qs_ot_env(1)%matrix_sc0
         CALL cp_fm_to_fm(matrix_s_ortho,qs_ot_env(1)%matrix_sc0,ortho_space_k,1,1)
@@ -206,7 +206,7 @@ CONTAINS
        CALL cp_fm_to_fm(matrix_c,qs_ot_env(1)%matrix_c0)
        CALL cp_sm_fm_multiply(matrix_s,qs_ot_env(1)%matrix_c0, &
                                qs_ot_env(1)%matrix_sc0,k)
-       CALL make_basis(qs_ot_env(1)%matrix_c0,k, ortho=qs_ot_env(1)%matrix_sc0,otype="SV")
+       CALL make_basis_sv(qs_ot_env(1)%matrix_c0,k, qs_ot_env(1)%matrix_sc0)
     ENDIF
     ! init
     CALL qs_ot_init(qs_ot_env(1))

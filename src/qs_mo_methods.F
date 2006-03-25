@@ -1,9 +1,7 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations
-!   Copyright (C) 2003 CP2K developers group
+!   Copyright (C) 2003 2006 CP2K developers group
 !-----------------------------------------------------------------------------!
-
-
 !!****h* cp2k/qs_mo_methods [1.0] *
 !!
 !!   NAME
@@ -32,7 +30,6 @@ MODULE qs_mo_methods
                                              cp_fm_struct_type
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_get_info,&
-                                             cp_fm_init_random,&
                                              cp_fm_release,&
                                              cp_fm_retain,&
                                              cp_fm_to_fm,&
@@ -65,49 +62,101 @@ MODULE qs_mo_methods
     MODULE PROCEDURE subspace_eigenvalues_ks 
   END INTERFACE
 
-  PUBLIC :: make_basis, &
-            calculate_density_matrix,&
-            calculate_subspace_eigenvalues, &
-            calculate_orthonormality, &
-            calculate_magnitude
+  PUBLIC :: make_basis_simple, make_basis_cholesky, make_basis_sv, make_basis_sm, &
+            calculate_density_matrix, calculate_subspace_eigenvalues, &
+            calculate_orthonormality, calculate_magnitude
 
 CONTAINS
+!!****f* qs_mo_methods/make_basis_sm*
+!!
+!!   NAME
+!!     make_basis_sm
+!!
+!!   FUNCTION
+!!     returns an S-orthonormal basis v (v^T S v ==1)
+!!
+!!   NOTES
+!!
+!!   INPUTS
+!!     v and S
+!!
+!!   MODIFICATION HISTORY
+!!     03.2006 created [Joost VandeVondele]
+!!
+!!*** **********************************************************************
+  SUBROUTINE make_basis_sm(vmatrix,ncol,matrix_s)
+    TYPE(cp_fm_type), POINTER                :: vmatrix
+    INTEGER, INTENT(IN)                      :: ncol
+    TYPE(real_matrix_type), POINTER          :: matrix_s
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'make_basis_sm', &
+      routineP = moduleN//':'//routineN
+    REAL(KIND=dp), PARAMETER                 :: rone = 1.0_dp, rzero = 0.0_dp
+
+    INTEGER                                  :: handle, i, n, ncol_global
+    TYPE(cp_blacs_env_type), POINTER         :: context
+    TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
+    TYPE(cp_fm_type), POINTER                :: overlap_vv, svmatrix
+
+!   ---------------------------------------------------------------------------
+
+    IF (ncol.EQ.0) RETURN
+
+    CALL timeset(routineN,"I","",handle)
 
 
-! *****************************************************************************
-! orthogonalises a set of vectors, taking into account S
-!
-! c) if ortho is present, this is
-!            1) the decomposed 'S' matrix of the system
-!               so that v^T*S*v=1
-!            2) S*V (no pmatrix in this case) both v, and sv will be changed
-!               v->v*u^-1 sv*u^-1
-!
-! a) if pmatrix is not present, we find an orthogonal basis for the space the input spans
-!    using S as a metric (that is we ortho U*V with U^T*U=S)
-!    (a random initial basis can be obtained by cp_fm_init_random)
-!
-! b) if pmatrix is present, it is assumed that this is a projector of rank nmo
-! and a basis for this projector is found i.e. pmatrix=v*v^T
-!
-!
-! *****************************************************************************
-  SUBROUTINE make_basis(vmatrix,ncol,ortho,otype)
-! *****************************************************************************
+    CALL cp_fm_get_info(matrix=vmatrix,nrow_global=n,ncol_global=ncol_global)
+    IF (ncol.gt.ncol_global) CALL stop_program(routineN,"wrong ncol value")
+
+    CALL cp_fm_create(svmatrix,vmatrix%matrix_struct,"SV")
+    CALL cp_sm_fm_multiply(matrix_s,vmatrix,svmatrix,ncol)
+    
+    NULLIFY(fm_struct_tmp)
+    CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=ncol, ncol_global=ncol,&
+                             para_env=vmatrix%matrix_struct%para_env, & 
+                             context=vmatrix%matrix_struct%context)
+    CALL cp_fm_create(overlap_vv,fm_struct_tmp,"overlap_vv")
+    CALL cp_fm_struct_release(fm_struct_tmp)
+
+    CALL cp_fm_gemm('T','N',ncol,ncol,n,rone,vmatrix,svmatrix,rzero, overlap_vv)
+    CALL cp_fm_cholesky_decompose(overlap_vv)
+    CALL cp_fm_triangular_multiply(overlap_vv,vmatrix,n_cols=ncol,side='R',invert_tr=.TRUE.)
+
+    CALL cp_fm_release(overlap_vv)
+    CALL cp_fm_release(svmatrix)
+
+    CALL timestop(0.0_dp,handle)
+
+    END SUBROUTINE make_basis_sm
+
+!!****f* qs_mo_methods/make_basis_sv*
+!!
+!!   NAME
+!!     make_basis_sv
+!!
+!!   FUNCTION
+!!     returns an S-orthonormal basis v and the corresponding matrix S*v as well
+!!
+!!   NOTES
+!!
+!!   INPUTS
+!!     v and S*v
+!!
+!!   MODIFICATION HISTORY
+!!     03.2006 created [Joost VandeVondele]
+!!
+!!*** **********************************************************************
+  SUBROUTINE make_basis_sv(vmatrix,ncol,svmatrix)
 
     TYPE(cp_fm_type), POINTER                :: vmatrix
     INTEGER, INTENT(IN)                      :: ncol
-    TYPE(cp_fm_type), OPTIONAL, POINTER      :: ortho
-    CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: otype
+    TYPE(cp_fm_type), POINTER                :: svmatrix
 
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'make_basis_sv', &
+      routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: rone = 1.0_dp, rzero = 0.0_dp
 
-    INTEGER                                  :: handle, i, info, n, ncol_global
-    INTEGER, DIMENSION(9)                    :: desca, desco, descp, descvv, &
-                                                descw
-    LOGICAL                                  :: use_cholesky, use_pmatrix, &
-                                                use_simple, use_sv
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a, o, p, vv, w
+    INTEGER                                  :: handle, i, n, ncol_global
     TYPE(cp_blacs_env_type), POINTER         :: context
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
     TYPE(cp_fm_type), POINTER                :: overlap_vv
@@ -116,35 +165,11 @@ CONTAINS
 
     IF (ncol.EQ.0) RETURN
 
-    CALL timeset("make_basis","I","",handle)
+    CALL timeset(routineN,"I","",handle)
     NULLIFY(fm_struct_tmp)
 
-! check input ...
-
-    use_sv=.FALSE.
-    use_cholesky=.FALSE.
-    use_simple=.FALSE.
-
-    IF (PRESENT(ortho)) THEN ! ortho can be two different things here (see comment above)
-        IF (.NOT. PRESENT(otype)) THEN
-            CALL stop_program("make_basis","ortho needs type !?")
-        ENDIF
-        SELECT CASE(otype)
-        CASE ("CHOLESKY")
-           use_cholesky=.TRUE.
-        CASE ("SV")
-           use_sv=.TRUE.
-        CASE DEFAULT
-           CALL stop_program("make_basis","sorry wrong type")
-        END SELECT 
-    ELSE
-        use_simple=.TRUE.
-    ENDIF
-
     CALL cp_fm_get_info(matrix=vmatrix,nrow_global=n,ncol_global=ncol_global)
-    IF (ncol.lt.0 .OR. ncol.gt.ncol_global) THEN
-        CALL stop_program("make_basis","wrong ncol value")
-    ENDIF
+    IF (ncol.gt.ncol_global) CALL stop_program(routineN,"wrong ncol value")
     
     CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=ncol, ncol_global=ncol,&
                              para_env=vmatrix%matrix_struct%para_env, & 
@@ -152,32 +177,138 @@ CONTAINS
     CALL cp_fm_create(overlap_vv,fm_struct_tmp,"overlap_vv")
     CALL cp_fm_struct_release(fm_struct_tmp)
 
-    IF (use_simple) THEN
-          CALL cp_fm_gemm('T','N',ncol,ncol,n,rone,vmatrix,vmatrix,rzero, overlap_vv)
-          CALL cp_fm_cholesky_decompose(overlap_vv)
-          CALL cp_fm_triangular_multiply(overlap_vv,vmatrix,n_cols=ncol,side='R',invert_tr=.true.)
-    END IF
-
-    IF (use_sv) THEN
-          CALL cp_fm_gemm('T','N',ncol,ncol,n,rone,vmatrix,ortho,rzero, overlap_vv)
-          CALL cp_fm_cholesky_decompose(overlap_vv)
-          CALL cp_fm_triangular_multiply(overlap_vv,vmatrix,n_cols=ncol,side='R',invert_tr=.true.)
-          CALL cp_fm_triangular_multiply(overlap_vv,ortho,n_cols=ncol,side='R',invert_tr=.true.) 
-    ENDIF
-
-    IF (use_cholesky) THEN
-      CALL cp_fm_triangular_multiply(ortho,vmatrix,n_cols=ncol)
-      CALL cp_fm_syrk('U','T',n,rone,vmatrix,1,1,rzero,overlap_vv)
-      CALL cp_fm_cholesky_decompose(overlap_vv)
-      CALL cp_fm_triangular_multiply(overlap_vv,vmatrix,n_cols=ncol,side='R',invert_tr=.true.)
-      CALL cp_fm_triangular_multiply(ortho,vmatrix,n_cols=ncol,invert_tr=.true.)
-    ENDIF
+    CALL cp_fm_gemm('T','N',ncol,ncol,n,rone,vmatrix,svmatrix,rzero, overlap_vv)
+    CALL cp_fm_cholesky_decompose(overlap_vv)
+    CALL cp_fm_triangular_multiply(overlap_vv,vmatrix,n_cols=ncol,side='R',invert_tr=.TRUE.)
+    CALL cp_fm_triangular_multiply(overlap_vv,svmatrix,n_cols=ncol,side='R',invert_tr=.TRUE.) 
 
     CALL cp_fm_release(overlap_vv)
 
     CALL timestop(0.0_dp,handle)
 
-    END SUBROUTINE make_basis
+    END SUBROUTINE make_basis_sv
+
+!!****f* qs_mo_methods/make_basis_cholesky *
+!!
+!!   NAME
+!!     make_basis_cholesky
+!!
+!!   FUNCTION
+!!     return a set of S orthonormal vectors (C^T S C == 1) where
+!!     the cholesky decomposed form of S is passed as an argument
+!!
+!!   NOTES
+!!     if the cholesky decomposed S matrix is not available
+!!     use make_basis_sm since this is much faster than computing the
+!!     cholesky decomposition of S
+!!
+!!   INPUTS
+!!    - ortho : cholesky decomposed S matrix
+!!
+!!   MODIFICATION HISTORY
+!!     03.2006 created [Joost VandeVondele]
+!!
+!!*** **********************************************************************
+  SUBROUTINE make_basis_cholesky(vmatrix,ncol,ortho)
+
+    TYPE(cp_fm_type), POINTER                :: vmatrix
+    INTEGER, INTENT(IN)                      :: ncol
+    TYPE(cp_fm_type), POINTER                :: ortho
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'make_basis_cholesky', &
+      routineP = moduleN//':'//routineN
+    REAL(KIND=dp), PARAMETER                 :: rone = 1.0_dp, rzero = 0.0_dp
+
+    INTEGER                                  :: handle, n, ncol_global
+    TYPE(cp_blacs_env_type), POINTER         :: context
+    TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
+    TYPE(cp_fm_type), POINTER                :: overlap_vv
+
+!   ---------------------------------------------------------------------------
+
+    IF (ncol.EQ.0) RETURN
+
+    CALL timeset(routineN,handle)
+    NULLIFY(fm_struct_tmp)
+
+    CALL cp_fm_get_info(matrix=vmatrix,nrow_global=n,ncol_global=ncol_global)
+    IF (ncol.gt.ncol_global) CALL stop_program(routineN,"wrong ncol value")
+    
+    CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=ncol, ncol_global=ncol,&
+                             para_env=vmatrix%matrix_struct%para_env, & 
+                             context=vmatrix%matrix_struct%context)
+    CALL cp_fm_create(overlap_vv,fm_struct_tmp,"overlap_vv")
+    CALL cp_fm_struct_release(fm_struct_tmp)
+
+    CALL cp_fm_triangular_multiply(ortho,vmatrix,n_cols=ncol)
+    CALL cp_fm_syrk('U','T',n,rone,vmatrix,1,1,rzero,overlap_vv)
+    CALL cp_fm_cholesky_decompose(overlap_vv)
+    CALL cp_fm_triangular_multiply(overlap_vv,vmatrix,n_cols=ncol,side='R',invert_tr=.TRUE.)
+    CALL cp_fm_triangular_multiply(ortho,vmatrix,n_cols=ncol,invert_tr=.TRUE.)
+
+    CALL cp_fm_release(overlap_vv)
+
+    CALL timestop(0.0_dp,handle)
+
+    END SUBROUTINE make_basis_cholesky
+
+!!****f* qs_mo_methods/make_basis_simple *
+!!
+!!   NAME
+!!     make_basis_simple
+!!
+!!   FUNCTION
+!!     given a set of vectors, return an orthogonal (C^T C == 1) set
+!!     spanning the same space (notice, only for cases where S==1)
+!!
+!!   NOTES
+!!
+!!   INPUTS
+!!
+!!   MODIFICATION HISTORY
+!!     03.2006 created [Joost VandeVondele]
+!!
+!!*** **********************************************************************
+  SUBROUTINE make_basis_simple(vmatrix,ncol)
+
+    TYPE(cp_fm_type), POINTER                :: vmatrix
+    INTEGER, INTENT(IN)                      :: ncol
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'make_basis_simple', &
+      routineP = moduleN//':'//routineN
+    REAL(KIND=dp), PARAMETER                 :: rone = 1.0_dp, rzero = 0.0_dp
+
+    INTEGER                                  :: handle, n, ncol_global
+    TYPE(cp_blacs_env_type), POINTER         :: context
+    TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
+    TYPE(cp_fm_type), POINTER                :: overlap_vv
+
+!   ---------------------------------------------------------------------------
+
+    IF (ncol.EQ.0) RETURN
+
+    CALL timeset(routineN,handle)
+
+    NULLIFY(fm_struct_tmp)
+
+    CALL cp_fm_get_info(matrix=vmatrix,nrow_global=n,ncol_global=ncol_global)
+    IF (ncol.gt.ncol_global) CALL stop_program(routineN,"wrong ncol value")
+    
+    CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=ncol, ncol_global=ncol,&
+                             para_env=vmatrix%matrix_struct%para_env, & 
+                             context=vmatrix%matrix_struct%context)
+    CALL cp_fm_create(overlap_vv,fm_struct_tmp,"overlap_vv")
+    CALL cp_fm_struct_release(fm_struct_tmp)
+
+    CALL cp_fm_gemm('T','N',ncol,ncol,n,rone,vmatrix,vmatrix,rzero, overlap_vv)
+    CALL cp_fm_cholesky_decompose(overlap_vv)
+    CALL cp_fm_triangular_multiply(overlap_vv,vmatrix,n_cols=ncol,side='R',invert_tr=.TRUE.)
+
+    CALL cp_fm_release(overlap_vv)
+
+    CALL timestop(0.0_dp,handle)
+
+  END SUBROUTINE make_basis_simple
 
 ! *****************************************************************************
 

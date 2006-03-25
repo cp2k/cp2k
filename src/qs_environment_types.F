@@ -39,8 +39,7 @@ MODULE qs_environment_types
                                              cp_ddapc_retain,&
                                              cp_ddapc_type
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_type
-  USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                             cp_fm_get_info,&
+  USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                              cp_fm_p_type,&
                                              cp_fm_release,&
                                              cp_fm_type
@@ -48,7 +47,6 @@ MODULE qs_environment_types
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
-  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE cp_sm_pool_types,                ONLY: cp_sm_pool_p_type,&
                                              sm_pools_give_back_matrix_vect
   USE cp_subsystem_types,              ONLY: cp_subsys_create,&
@@ -110,7 +108,8 @@ MODULE qs_environment_types
                                              mpools_release,&
                                              mpools_retain,&
                                              qs_matrix_pools_type
-  USE qs_mo_methods,                   ONLY: make_basis
+  USE qs_mo_methods,                   ONLY: make_basis_cholesky,&
+                                             make_basis_sm
   USE qs_mo_types,                     ONLY: deallocate_mo_set,&
                                              mo_set_p_type
   USE qs_neighbor_list_types,          ONLY: deallocate_neighbor_list_set,&
@@ -1308,7 +1307,6 @@ SUBROUTINE qs_env_reorthogonalize_vectors(qs_env, v_matrix, ispin, n_col,&
     LOGICAL                                  :: failure, &
                                                 ortho_contains_cholesky
     TYPE(cp_fm_pool_type), POINTER           :: maxao_maxmo_fm_pool
-    TYPE(cp_fm_type), POINTER                :: sv
     TYPE(qs_matrix_pools_type), POINTER      :: mpools
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
@@ -1316,7 +1314,7 @@ SUBROUTINE qs_env_reorthogonalize_vectors(qs_env, v_matrix, ispin, n_col,&
     TYPE(scf_control_type), POINTER          :: scf_control
 
   failure=.FALSE.
-  NULLIFY(scf_env,scf_control,sv,maxao_maxmo_fm_pool,matrix_s,mpools)
+  NULLIFY(scf_env, scf_control, maxao_maxmo_fm_pool, matrix_s, mpools)
   CALL timeset(routineN,'I',' ',handle)
   
   CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
@@ -1342,17 +1340,10 @@ SUBROUTINE qs_env_reorthogonalize_vectors(qs_env, v_matrix, ispin, n_col,&
      END IF
 
      IF (ortho_contains_cholesky) THEN
-        CALL make_basis(vmatrix=v_matrix,ncol=my_n_col,&
-             ortho=scf_env%ortho,otype='CHOLESKY')
+        CALL make_basis_cholesky(vmatrix=v_matrix,ncol=my_n_col,&
+             ortho=scf_env%ortho)
      ELSE
-        ! CALL fm_pool_create_fm(maxao_maxmo_fm_pool,sv,error=error)
-        CALL cp_fm_create(sv,v_matrix%matrix_struct)
-        CALL cp_sm_fm_multiply(sparse_matrix=matrix_s(1)%matrix,v_in=v_matrix,&
-             v_out=sv,ncol=my_n_col, error=error)
-        CALL make_basis(vmatrix=v_matrix,ncol=my_n_col,&
-             ortho=sv,otype='SV')
-        ! CALL fm_pool_give_back_fm(maxao_maxmo_fm_pool,sv,error=error)
-        CALL cp_fm_release(sv)
+        CALL make_basis_sm(v_matrix,my_n_col, matrix_s(1)%matrix )
      END IF
   END IF
   CALL timestop(0.0_dp,handle)
