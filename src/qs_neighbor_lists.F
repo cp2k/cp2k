@@ -155,10 +155,11 @@ CONTAINS
       paw_atom, paw_atom_present, print_subcell_grid, rho0_present
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: all_present, oce_present, &
                                                 orb_present, ppl_present, &
-                                                ppnl_present, Qlm_present
+                                                ppnl_present, Qlm_present, &
+                                                semi_present
     REAL(dp)                                 :: r_skin, rcprj
     REAL(dp), ALLOCATABLE, DIMENSION(:) :: all_pot_rad, oce_radius, &
-      orb_rad_3c, orb_radius, ppl_radius, ppnl_radius, V0hmv0s_radius
+      orb_rad_3c, orb_radius, ppl_radius, ppnl_radius, V0hmv0s_radius, c_radius
     REAL(dp), DIMENSION(3)                   :: r_pbc
     TYPE(all_potential_type), POINTER        :: all_potential
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -761,6 +762,52 @@ CONTAINS
         END IF
 
       END IF
+    END IF
+
+    IF (qs_env%dft_control%qs_control%semi_empirical) THEN
+      ALLOCATE (semi_present(nkind),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                       "semi_present",nkind*int_size)
+      ALLOCATE (c_radius(nkind),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                       "c_radius",nkind*dp_size)
+      semi_present = .TRUE.
+      c_radius = qs_env%dft_control%qs_control%se_control%rc_coulomb
+
+      ! Build the neighbor lists for the Hartree terms
+      CALL build_neighbor_lists(sab_2c,atom,cell,r_skin,maxatom_local,&
+                                .FALSE.,output_unit,semi_present,semi_present,&
+                                c_radius,c_radius,&
+                                name="HARTREE INTERACTIONS")
+      CALL set_qs_env(qs_env=qs_env,sab_2c=sab_2c)
+      print_key_path = "DFT%PRINT%NEIGHBOR_LISTS/SAB_2C"
+      IF (BTEST(cp_print_key_should_output(logger%iter_info,force_env_section,&
+                                           print_key_path,error=error),&
+                cp_p_file)) THEN
+        iw = cp_print_key_unit_nr(logger=logger,&
+                                  basis_section=force_env_section,&
+                                  print_key_path=print_key_path,&
+                                  extension=".out",&
+                                  middle_name="sab_2c",&
+                                  local=.TRUE.,&
+                                  log_filename=.FALSE.,&
+                                  file_position="REWIND",&
+                                  error=error)
+        CALL write_neighbor_lists(sab_2c,particle_set,cell,globenv,iw,&
+                                  "HARTREE INTERACTIONS",error)
+        CALL cp_print_key_finished_output(unit_nr=iw,&
+                                          logger=logger,&
+                                          basis_section=force_env_section,&
+                                          print_key_path=print_key_path,&
+                                          local=.TRUE.,&
+                                          error=error)
+      END IF
+      DEALLOCATE (semi_present,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                     "semi_present")
+      DEALLOCATE (c_radius,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                     "c_radius")
     END IF
 
     IF (rho0_present) THEN

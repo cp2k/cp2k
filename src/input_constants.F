@@ -215,10 +215,10 @@ MODULE input_constants
        do_extrpl_ps=7,&
        do_extrpl_frozen=8,&
        do_extrpl_aspc=9
-  CHARACTER (LEN=default_string_length), PARAMETER, DIMENSION(10), PUBLIC :: elstr_method_name=&
+  CHARACTER (LEN=default_string_length), PARAMETER, DIMENSION(11), PUBLIC :: elstr_method_name=&
       (/"GAPW    ", "GAPW_XC ","GPW     ",&
         "KG_POL  ", "KG_NOPOL", "KG_GPW  ", &
-        "EHT     ", "MNDO    ", "AM1     ", "PM3     "/)
+        "EHT     ", "MNDO    ", "AM1     ", "PM3     ", "PDG     "/)
   INTEGER, PARAMETER, PUBLIC :: do_method_gapw=1,&
        do_method_gapw_xc=2,&
        do_method_gpw=3,&
@@ -228,7 +228,8 @@ MODULE input_constants
        do_method_eht=7,&
        do_method_mndo=8,&
        do_method_am1=9,&
-       do_method_pm3=10
+       do_method_pm3=10,&
+       do_method_pdg=11
    INTEGER, PARAMETER, PUBLIC :: use_unit_angstrom=0,&
        use_unit_bohr=1,&
        use_unit_scaled_angstrom=2,&

@@ -100,7 +100,6 @@ MODULE qs_environment
                                              num_ao_el_per_molecule,&
                                              write_molecule_kind_set
   USE molecule_types_new,              ONLY: molecule_type
-  USE nddo_methods,                    ONLY: init_rho0_nddo
   USE orbital_pointers,                ONLY: init_orbital_pointers
   USE orbital_transformation_matrices, ONLY: init_spherical_harmonics
   USE particle_list_types,             ONLY: particle_list_create,&
@@ -612,18 +611,9 @@ CONTAINS
       se_control => dft_control%qs_control%se_control
       ! Make interaction radius compatible with unit cell
       rc = se_control%rc_interaction
-      IF(dft_control%qs_control%se_control%ewald) THEN 
-        rc = MIN(rc,0.5_dp*plane_distance(1,0,0,cell))
-        rc = MIN(rc,0.5_dp*plane_distance(0,1,0,cell))
-        rc = MIN(rc,0.5_dp*plane_distance(0,0,1,cell))
-        IF(cell%perd(1)==0) rc = MIN(rc,0.25_dp*plane_distance(1,0,0,cell))
-        IF(cell%perd(2)==0) rc = MIN(rc,0.25_dp*plane_distance(0,1,0,cell))
-        IF(cell%perd(3)==0) rc = MIN(rc,0.25_dp*plane_distance(0,0,1,cell))
-      ELSE
-        IF(cell%perd(1)==1) rc = MIN(rc,0.5_dp*plane_distance(1,0,0,cell))
-        IF(cell%perd(2)==1) rc = MIN(rc,0.5_dp*plane_distance(0,1,0,cell))
-        IF(cell%perd(3)==1) rc = MIN(rc,0.5_dp*plane_distance(0,0,1,cell))
-      END IF
+      IF(cell%perd(1)==1) rc = MIN(rc,0.5_dp*plane_distance(1,0,0,cell))
+      IF(cell%perd(2)==1) rc = MIN(rc,0.5_dp*plane_distance(0,1,0,cell))
+      IF(cell%perd(3)==1) rc = MIN(rc,0.5_dp*plane_distance(0,0,1,cell))
       IF (rc /= se_control%rc_interaction) THEN
          IF (globenv%ionode) THEN
            WRITE(globenv%scr,*)
@@ -644,7 +634,6 @@ CONTAINS
           ! set new kind radius
           CALL init_se_nlradius(se_control,cell,atomic_kind_set,&
                  qs_env%input,error)
-          CALL init_rho0_nddo(qs_env, se_control, error)
       END SELECT
     ENDIF
 
@@ -808,11 +797,6 @@ CONTAINS
     IF(dft_control%qs_control%method == "GAPW") THEN 
       CALL get_qs_env(qs_env=qs_env,rho0_mpole=rho0_mpole)
       CALL rho0_s_grid_create(qs_env, rho0_mpole, error=error)
-    END IF
-!   Allocate grid 
-    IF(dft_control%qs_control%se_control%ewald) THEN 
-      CALL get_qs_env(qs_env=qs_env,nddo_mpole=nddo_mpole)
-      CALL rho0_s_grid_create(qs_env, nddo_mpole, error=error)
     END IF
 
     IF (ionode) CALL m_flush(output_unit)

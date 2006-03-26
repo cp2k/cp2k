@@ -19,17 +19,9 @@ MODULE nddo_methods
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
-                                             get_atomic_kind_set,&
-                                             set_atomic_kind
-  USE basis_set_types,                 ONLY: get_sto_basis_set,&
-                                             sto_basis_set_type
-  USE cell_types,                      ONLY: cell_type,&
-                                             pbc
-  USE coefficient_types,               ONLY: coeff_scale,&
-                                             coeff_transform_space,&
-                                             coeff_type
-  USE cp_control_types,                ONLY: dft_control_type,&
-                                             semi_empirical_control_type
+                                             get_atomic_kind_set
+  USE cell_types,                      ONLY: cell_type
+  USE cp_control_types,                ONLY: dft_control_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale
   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                              cp_fm_p_type,&
@@ -37,44 +29,16 @@ MODULE nddo_methods
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_rs_pool_types,                ONLY: cp_rs_pool_p_type,&
-                                             cp_rs_pool_type,&
-                                             rs_pool_create_rs,&
-                                             rs_pool_give_back_rs
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
-  USE cube_utils,                      ONLY: cube_info_type
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: dp
-  USE l_utils,                         ONLY: l_info_type
-  USE mathconstants,                   ONLY: dfac,&
-                                             fac,&
-                                             fourpi,&
-                                             pi
-  USE memory_utilities,                ONLY: reallocate
-  USE orbital_pointers,                ONLY: indco,&
-                                             nco,&
-                                             ncoset,&
-                                             nso,&
-                                             nsoset
-  USE orbital_transformation_matrices, ONLY: orbtramat
+  USE message_passing,                 ONLY: mp_sum
   USE particle_types,                  ONLY: particle_type
-  USE pw_env_types,                    ONLY: pw_env_get,&
-                                             pw_env_type
-  USE pw_poisson_methods,              ONLY: pw_poisson_solve
-  USE pw_poisson_types,                ONLY: pw_poisson_type
-  USE pw_pool_types,                   ONLY: pw_pool_give_back_coeff,&
-                                             pw_pool_init_coeff,&
-                                             pw_pool_p_type,&
-                                             pw_pool_type
-  USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                             RECIPROCALSPACE
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
-                                             qs_environment_type,&
-                                             set_qs_env
+                                             qs_environment_type
   USE qs_force_types,                  ONLY: qs_force_type
-  USE qs_integrate_potential,          ONLY: integrate_pgf_product_rspace
   USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
@@ -82,30 +46,18 @@ MODULE nddo_methods
        first_list, first_node, get_neighbor_list, get_neighbor_list_set, &
        get_neighbor_node, neighbor_list_set_p_type, neighbor_list_type, &
        neighbor_node_type, next
-  USE qs_rho0_ggrid,                   ONLY: put_rho0_s_on_grid
-  USE qs_rho0_types,                   ONLY: allocate_multipoles,&
-                                             allocate_rho0_atom,&
-                                             allocate_rho0_mpole,&
-                                             get_rho0_mpole,&
-                                             initialize_mpole_rho,&
-                                             rho0_atom_type,&
-                                             rho0_mpole_type
   USE qs_rho_types,                    ONLY: qs_rho_type
-  USE qs_util,                         ONLY: exp_radius,&
-                                             gaussint_sph
-  USE realspace_grid_types,            ONLY: pw2rs,&
-                                             realspace_grid_type,&
-                                             rs_get_my_tasks,&
-                                             rs_grid_zero,&
-                                             rs_pw_transfer
   USE semi_empirical_integrals,        ONLY: drotint,&
-                                             rotint
+                                             drotnuc,&
+                                             rotint,&
+                                             rotnuc
   USE semi_empirical_types,            ONLY: semi_empirical_type
   USE semi_empirical_utils,            ONLY: contract,&
                                              expand,&
-                                             get_se_param
+                                             get_se_param,&
+                                             get_se_type,&
+                                             traceb
   USE sparse_matrix_types,             ONLY: allocate_matrix_set,&
-                                             cp_sm_scale_and_add,&
                                              cp_sm_sm_trace,&
                                              create_dbm_from_sm,&
                                              deallocate_dbm_from_sm,&
@@ -114,7 +66,6 @@ MODULE nddo_methods
                                              transfer_matrix
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE util,                            ONLY: get_limit
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -123,18 +74,26 @@ MODULE nddo_methods
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'nddo_methods'
 
-  PUBLIC :: build_nddo_fock_matrix, init_rho0_nddo
+  PUBLIC :: build_nddo_fock_matrix
 
   INTERFACE fock1
     MODULE PROCEDURE rfock1, ufock1
   END INTERFACE
 
-  INTERFACE fock2
-    MODULE PROCEDURE rfock2, ufock2
+  INTERFACE fock2c
+    MODULE PROCEDURE rfock2c, ufock2c
   END INTERFACE
 
-  INTERFACE dfock2
-    MODULE PROCEDURE rdfock2, udfock2
+  INTERFACE dfock2c
+    MODULE PROCEDURE rdfock2c, udfock2c
+  END INTERFACE
+
+  INTERFACE fock2e
+    MODULE PROCEDURE rfock2e, ufock2e
+  END INTERFACE
+
+  INTERFACE dfock2e
+    MODULE PROCEDURE rdfock2e, udfock2e
   END INTERFACE
 
 ! *****************************************************************************
@@ -159,24 +118,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'build_nddo_fock_matrix', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: atom_a, atom_b, handle, iab, iatom, icol, ikind, ilist, inode, &
-      irow, ispin, istat, jatom, jkind, natom, natorb_a, natorb_b, &
-      ncol_global, nkind, nlist, nnode, nspins, output_unit
-    INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
-    LOGICAL                                  :: defined, ewald, failure
-    REAL(dp)                                 :: ecoul, gp2, gpp, gsp, gss, hsp
-    REAL(dp), DIMENSION(3)                   :: rij
-    REAL(KIND=dp)                            :: delta
-    REAL(KIND=dp), DIMENSION(3)              :: force_ab
+    INTEGER                                  :: handle, ispin, ncol_global, &
+                                                nspins, output_unit
+    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: occupation_numbers, &
                                                 scaling_factor
-    REAL(KIND=dp), DIMENSION(:, :), POINTER :: ks_block_a, ks_block_b, &
-      ksa_block_a, ksa_block_b, ksb_block_a, ksb_block_b, p_block_a, &
-      p_block_b, pa_block_a, pa_block_b, pb_block_a, pb_block_b
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mo_derivs
     TYPE(cp_fm_type), POINTER                :: mo_coeff
@@ -185,11 +131,129 @@ CONTAINS
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_h
+    TYPE(section_vals_type), POINTER         :: scf_section
+
+!   ----------------------------------------------------------------------------
+
+    CALL timeset(routineN,"I","",handle)
+
+    NULLIFY(matrix_h, dft_control, logger, scf_section)
+
+    logger => cp_error_get_logger(error)
+
+    failure=.FALSE.
+    CPPrecondition(ASSOCIATED(ks_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ks_env%ref_count>0,cp_failure_level,routineP,error,failure)
+
+    IF ( .NOT. failure ) THEN
+
+       CALL get_qs_env(qs_env=qs_env,&
+            dft_control=dft_control,&
+            matrix_h=matrix_h,&
+            para_env=para_env)
+ 
+       scf_section => section_vals_get_subs_vals(qs_env%input,"DFT%SCF",error=error)
+       nspins=dft_control%nspins
+       CPPrecondition(ASSOCIATED(matrix_h),cp_failure_level,routineP,error,failure)
+       CPPrecondition(ASSOCIATED(rho),cp_failure_level,routineP,error,failure)
+       CPPrecondition(SIZE(ks_matrix)>0,cp_failure_level,routineP,error,failure)
+ 
+       DO ispin=1,nspins
+         ! copy the core matrix into the fock matrix
+         CALL transfer_matrix(matrix_h(1)%matrix,ks_matrix(ispin)%matrix)
+       END DO
+ 
+       CALL build_nddo_fock_matrix_exchange (ks_env,qs_env,ks_matrix,rho,energy,&
+                calculate_forces,just_energy,error)
+       CALL build_nddo_fock_matrix_coulomb (ks_env,qs_env,ks_matrix,rho,energy,&
+               calculate_forces,just_energy,error)
+
+       energy%mulliken = 0._dp
+       energy%exc = 0._dp
+
+       energy%total = energy%core + energy%core_overlap + 0.5_dp*energy%hartree + &
+            energy%qmmm_el + energy%mulliken
+
+       output_unit=cp_print_key_unit_nr(logger,scf_section,"PRINT%DETAILED_ENERGY",&
+            extension=".scfLog",error=error)
+       IF (output_unit>0) THEN
+          WRITE (UNIT=output_unit,FMT="(/,(T3,A,T60,F20.10))")&
+               "Core Hamiltonian energy:                       ",energy%core,&
+               "Two-electron integral energy:                  ",energy%hartree
+          IF (qs_env%qmmm) THEN
+             WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
+                  "QM/MM Electrostatic energy:                    ",energy%qmmm_el
+          END IF
+       END IF
+       CALL cp_print_key_finished_output(output_unit,logger,scf_section,&
+            "PRINT%DETAILED_ENERGY", error=error)       
+       ! here we compute dE/dC if needed. Assumes dE/dC is H_{ks}C (plus occupation numbers)
+       IF (qs_env%requires_mo_derivs .AND. .NOT. just_energy) THEN
+          CALL get_qs_env(qs_env,mo_derivs=mo_derivs,mos=mo_array)
+          DO ispin=1,SIZE(mo_derivs)
+             CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,mo_coeff=mo_coeff, &
+                             occupation_numbers=occupation_numbers )
+             CALL cp_fm_get_info(mo_coeff,ncol_global=ncol_global)
+             CALL cp_sm_fm_multiply(ks_matrix(ispin)%matrix,mo_coeff,&
+                                          mo_derivs(ispin)%matrix, ncol_global)
+             ALLOCATE(scaling_factor(SIZE(occupation_numbers)))
+             scaling_factor=2.0_dp*occupation_numbers
+             CALL cp_fm_column_scale(mo_derivs(ispin)%matrix,scaling_factor)
+             DEALLOCATE(scaling_factor)
+          ENDDO
+       ENDIF
+
+    END IF
+
+    CALL timestop(0.0_dp,handle)
+
+  END SUBROUTINE build_nddo_fock_matrix
+
+! *****************************************************************************
+
+  SUBROUTINE build_nddo_fock_matrix_coulomb (ks_env,qs_env,ks_matrix,rho,energy,&
+               calculate_forces,just_energy,error)
+
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: ks_matrix
+    TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(qs_energy_type), POINTER            :: energy
+    LOGICAL, INTENT(in)                      :: calculate_forces, just_energy
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'build_nddo_fock_matrix_coulomb', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER :: atom_a, atom_b, handle, iab, iatom, icol, icor, ikind, ilist, &
+      inode, irow, ispin, istat, itype, jatom, jkind, natom, natorb_a, &
+      natorb_b, nkind, nlist, nnode, nspins
+    INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
+    LOGICAL                                  :: defined, failure
+    REAL(dp)                                 :: ecore2, ecoul, enuc, enuclear
+    REAL(dp), DIMENSION(3)                   :: rij
+    REAL(KIND=dp)                            :: delta
+    REAL(KIND=dp), DIMENSION(10)             :: e1b, e2a, pvec
+    REAL(KIND=dp), DIMENSION(10, 3)          :: de1b, de2a
+    REAL(KIND=dp), DIMENSION(3)              :: denuc, force_ab
+    REAL(KIND=dp), DIMENSION(:, :), POINTER :: ksa_block_a, ksa_block_b, &
+      ksb_block_a, ksb_block_b, pa_block_a, pa_block_b, pb_block_a, pb_block_b
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(neighbor_list_set_p_type), &
-      DIMENSION(:), POINTER                  :: sab_orb
-    TYPE(neighbor_list_type), POINTER        :: sab_orb_neighbor_list, &
-                                                sab_orb_neighbor_list_local
-    TYPE(neighbor_node_type), POINTER        :: sab_orb_neighbor_node
+      DIMENSION(:), POINTER                  :: sab_2c
+    TYPE(neighbor_list_type), POINTER        :: sab_2c_neighbor_list, &
+                                                sab_2c_neighbor_list_local
+    TYPE(neighbor_node_type), POINTER        :: sab_2c_neighbor_node
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(qs_force_type), DIMENSION(:), &
@@ -197,13 +261,12 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: diagmat_ks, diagmat_p, &
                                                 matrix_h, matrix_p
-    TYPE(section_vals_type), POINTER         :: scf_section
     TYPE(semi_empirical_type), POINTER       :: se_kind_a, se_kind_b
 
 !   ----------------------------------------------------------------------------
 
     failure=.FALSE.
-    NULLIFY(matrix_h,matrix_p,dft_control,cell,force,particle_set,logger,scf_section)
+    NULLIFY(matrix_h,matrix_p,dft_control,cell,force,particle_set)
     NULLIFY(diagmat_ks,diagmat_p)
 
     CALL timeset(routineN,"I","",handle)
@@ -211,17 +274,13 @@ CONTAINS
     CPPrecondition(ASSOCIATED(ks_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(ks_env%ref_count>0,cp_failure_level,routineP,error,failure)
 
-    logger => cp_error_get_logger(error)
-
     CALL get_qs_env(qs_env=qs_env,&
          dft_control=dft_control,&
          matrix_h=matrix_h,&
          cell=cell,&
          para_env=para_env)
 
-    scf_section => section_vals_get_subs_vals(qs_env%input,"DFT%SCF",error=error)
     nspins=dft_control%nspins
-    ewald =dft_control%qs_control%se_control%ewald
     CPPrecondition(ASSOCIATED(matrix_h),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(rho),cp_failure_level,routineP,error,failure)
     CPPrecondition(SIZE(ks_matrix)>0,cp_failure_level,routineP,error,failure)
@@ -230,15 +289,11 @@ CONTAINS
 
        CALL allocate_matrix_set(diagmat_ks,nspins)
        CALL allocate_matrix_set(diagmat_p,nspins)
-       DO ispin=1,nspins
-          ! copy the core matrix into the fock matrix
-          CALL transfer_matrix(matrix_h(1)%matrix,ks_matrix(ispin)%matrix)
-       END DO
 
        matrix_p => rho%rho_ao
 
        CALL get_qs_env(qs_env=qs_env,&
-                       sab_orb=sab_orb,&
+                       sab_2c=sab_2c,&
                        atomic_kind_set=atomic_kind_set)
 
        nkind = SIZE(atomic_kind_set)
@@ -262,6 +317,405 @@ CONTAINS
           CALL create_dbm_from_sm(diagmat_ks(ispin)%matrix,ks_matrix(ispin)%matrix,&
                              "DIAGONAL BLOCK KS MATRIX",.FALSE.)
        END DO
+
+       ecore2 = 0._dp
+       enuclear = 0._dp
+       itype = get_se_type(dft_control%qs_control%method)
+
+       DO ikind=1,nkind
+          atomic_kind => atomic_kind_set(ikind)
+          CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                               se_parameter=se_kind_a)
+          CALL get_se_param(se_kind_a,&
+                            defined=defined,&
+                            natorb=natorb_a)
+
+          IF (.NOT.defined .OR. natorb_a < 1) CYCLE
+
+          DO jkind=1,nkind
+             atomic_kind => atomic_kind_set(jkind)
+             CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                                  se_parameter=se_kind_b)
+             CALL get_se_param(se_kind_b,&
+                               defined=defined,&
+                               natorb=natorb_b)
+
+             IF (.NOT.defined .OR. natorb_b < 1) CYCLE
+
+             iab = ikind + nkind*(jkind - 1)
+             IF (.NOT.ASSOCIATED(sab_2c(iab)%neighbor_list_set)) CYCLE
+             CALL get_neighbor_list_set(neighbor_list_set=&
+                                        sab_2c(iab)%neighbor_list_set,&
+                                        nlist=nlist)
+             NULLIFY(sab_2c_neighbor_list)
+
+             DO ilist=1,nlist
+               IF ( .NOT. ASSOCIATED(sab_2c_neighbor_list) ) THEN
+                 sab_2c_neighbor_list => first_list(sab_2c(iab)%neighbor_list_set)
+               ELSE
+                 sab_2c_neighbor_list => next(sab_2c_neighbor_list)
+               END IF
+               sab_2c_neighbor_list_local => sab_2c_neighbor_list
+               CALL get_neighbor_list(neighbor_list=sab_2c_neighbor_list_local,&
+                                      atom=iatom,&
+                                      nnode=nnode)
+
+               sab_2c_neighbor_node => first_node(sab_2c_neighbor_list_local)
+
+               CPPrecondition(nspins<3,cp_failure_level,routineP,error,failure)
+               IF ( nspins >= 1 ) THEN
+                 CALL get_block_node(matrix=diagmat_p(1)%matrix,&
+                                     block_row=iatom,&
+                                     block_col=iatom,&
+                                     BLOCK=pa_block_a)
+                 CPPostcondition(ASSOCIATED(pa_block_a),cp_failure_level,routineP,error,failure)
+                 CALL get_block_node(matrix=diagmat_ks(1)%matrix,&
+                                     block_row=iatom,&
+                                     block_col=iatom,&
+                                     BLOCK=ksa_block_a)
+                 CPPostcondition(ASSOCIATED(ksa_block_a),cp_failure_level,routineP,error,failure)
+               END IF
+               IF ( nspins >= 2 ) THEN
+                 CALL get_block_node(matrix=diagmat_p(2)%matrix,&
+                                     block_row=iatom,&
+                                     block_col=iatom,&
+                                     BLOCK=pa_block_b)
+                 CPPostcondition(ASSOCIATED(pa_block_b),cp_failure_level,routineP,error,failure)
+                 CALL get_block_node(matrix=diagmat_ks(2)%matrix,&
+                                     block_row=iatom,&
+                                     block_col=iatom,&
+                                     BLOCK=ksa_block_b)
+                 CPPostcondition(ASSOCIATED(ksa_block_b),cp_failure_level,routineP,error,failure)
+               END IF
+
+               DO inode=1,nnode
+                 CALL get_neighbor_node(neighbor_node=sab_2c_neighbor_node,&
+                                        neighbor=jatom,r=rij)
+
+                 IF ( iatom /= jatom ) THEN
+
+                   IF (iatom <= jatom) THEN
+                     irow = iatom
+                     icol = jatom
+                   ELSE
+                     irow = jatom
+                     icol = iatom
+                   END IF
+                   CPPrecondition(nspins<3,cp_failure_level,routineP,error,failure)
+                   IF ( nspins >= 1 ) THEN
+                     CALL get_block_node(matrix=diagmat_p(1)%matrix,&
+                                         block_row=jatom,&
+                                         block_col=jatom,&
+                                         BLOCK=pb_block_a)
+                     CPPostcondition(ASSOCIATED(pb_block_a),cp_failure_level,routineP,error,failure)
+                     CALL get_block_node(matrix=diagmat_ks(1)%matrix,&
+                                         block_row=jatom,&
+                                         block_col=jatom,&
+                                         BLOCK=ksb_block_a)
+                     CPPostcondition(ASSOCIATED(ksb_block_a),cp_failure_level,routineP,error,failure)
+                   END IF
+                   IF ( nspins >= 2 ) THEN
+                     CALL get_block_node(matrix=diagmat_p(2)%matrix,&
+                                         block_row=jatom,&
+                                         block_col=jatom,&
+                                         BLOCK=pb_block_b)
+                     CPPostcondition(ASSOCIATED(pb_block_b),cp_failure_level,routineP,error,failure)
+                     CALL get_block_node(matrix=diagmat_ks(2)%matrix,&
+                                         block_row=jatom,&
+                                         block_col=jatom,&
+                                         BLOCK=ksb_block_b)
+                     CPPostcondition(ASSOCIATED(ksb_block_b),cp_failure_level,routineP,error,failure)
+                   END IF
+
+                   SELECT CASE (dft_control%qs_control%method)
+                     CASE ("EHT")
+                     CASE ("MNDO","AM1","PM3","PDG")
+                     IF ( irow == iatom ) THEN
+                       CALL rotnuc (se_kind_a,se_kind_b,rij,e1b,e2a,enuc,itype)
+                     ELSE
+                       CALL rotnuc (se_kind_b,se_kind_a,-rij,e2a,e1b,enuc,itype)
+                     END IF
+                     enuclear = enuclear + enuc
+                     ! one-centre one-electron terms
+                     CPPrecondition(nspins<3,cp_failure_level,routineP,error,failure)
+                     IF ( nspins >= 1 ) THEN
+                       ! contribution to iatom
+                       IF ( SIZE(ksa_block_a,1) == 1 ) THEN
+                         ksa_block_a(1,1)=ksa_block_a(1,1)+e1b(1)
+                         ecore2=ecore2+e1b(1)*pa_block_a(1,1)
+                       ELSE
+                         CALL expand ( ksa_block_a, e1b )
+                         ecore2=ecore2+traceb(pa_block_a,e1b)
+                       END IF
+                       ! contribution to jatom
+                       IF ( SIZE(ksb_block_a,1) == 1 ) THEN
+                         ksb_block_a(1,1)=ksb_block_a(1,1)+e2a(1)
+                         ecore2=ecore2+e2a(1)*pb_block_a(1,1)
+                       ELSE
+                         CALL expand ( ksb_block_a, e2a )
+                         ecore2=ecore2+traceb(pb_block_a,e2a)
+                       END IF
+                     END IF
+                     IF ( nspins >= 2 ) THEN
+                       ! contribution to iatom
+                       IF ( SIZE(ksa_block_b,1) == 1 ) THEN
+                         ksa_block_b(1,1)=ksa_block_b(1,1)+e1b(1)
+                         ecore2=ecore2+e1b(1)*pa_block_b(1,1)
+                       ELSE
+                         CALL expand ( ksa_block_b, e1b )
+                         ecore2=ecore2+traceb(pa_block_b,e1b)
+                       END IF
+                       ! contribution to jatom
+                       IF ( SIZE(ksb_block_b,1) == 1 ) THEN
+                         ksb_block_b(1,1)=ksb_block_b(1,1)+e2a(1)
+                         ecore2=ecore2+e2a(1)*pb_block_b(1,1)
+                       ELSE
+                         CALL expand ( ksb_block_b, e2a )
+                         ecore2=ecore2+traceb(pb_block_b,e2a)
+                       END IF
+                     END IF
+                     IF(calculate_forces) THEN
+                       atom_a = atom_of_kind(iatom)
+                       atom_b = atom_of_kind(jatom)
+                       IF ( irow == iatom ) THEN
+                         CALL drotnuc (se_kind_a,se_kind_b,rij,de1b,de2a,&
+                                       denuc,itype,delta)
+                       ELSE
+                         CALL drotnuc (se_kind_b,se_kind_a,-rij,de2a,de1b,&
+                                       denuc,itype,delta)
+                       END IF
+                       force_ab(1:3)=-denuc(1:3)
+                       CPPrecondition(nspins<3,cp_failure_level,routineP,error,failure)
+                       IF ( nspins >= 1 ) THEN
+                         IF ( SIZE(ksa_block_a,1) == 1 ) THEN
+                           force_ab(1:3)=force_ab(1:3)-de1b(1,1:3)*pa_block_a(1,1)
+                         ELSE
+                           CALL contract ( pa_block_a, pvec )
+                           DO icor=1,3
+                             force_ab(icor)=force_ab(icor)-&
+                                            SUM(de1b(1:10,icor)*pvec(1:10))
+                           END DO
+                         END IF
+                         IF ( SIZE(ksb_block_a,1) == 1 ) THEN
+                           force_ab(1:3)=force_ab(1:3)-de2a(1,1:3)*pb_block_a(1,1)
+                         ELSE
+                           CALL contract ( pb_block_a, pvec )
+                           DO icor=1,3
+                             force_ab(icor)=force_ab(icor)-&
+                                            SUM(de2a(1:10,icor)*pvec(1:10))
+                           END DO
+                         END IF
+                       END IF
+                       IF ( nspins >= 2 ) THEN
+                         IF ( SIZE(ksa_block_b,1) == 1 ) THEN
+                           force_ab(1:3)=force_ab(1:3)-de1b(1,1:3)*pa_block_b(1,1)
+                         ELSE
+                           CALL contract ( pa_block_b, pvec )
+                           DO icor=1,3
+                             force_ab(icor)=force_ab(icor)-&
+                                            SUM(de1b(1:10,icor)*pvec(1:10))
+                           END DO
+                         END IF
+                         IF ( SIZE(ksb_block_b,1) == 1 ) THEN
+                           force_ab(1:3)=force_ab(1:3)-de2a(1,1:3)*pb_block_b(1,1)
+                         ELSE
+                           CALL contract ( pb_block_b, pvec )
+                           DO icor=1,3
+                             force_ab(icor)=force_ab(icor)-&
+                                            SUM(de2a(1:10,icor)*pvec(1:10))
+                           END DO
+                         END IF
+                       END IF
+                       IF ( irow == iatom ) force_ab = -force_ab
+                       force(ikind)%all_potential(:,atom_a) =&
+                            force(ikind)%all_potential(:,atom_a) - force_ab(:)
+                       force(jkind)%all_potential(:,atom_b) =&
+                            force(jkind)%all_potential(:,atom_b) + force_ab(:)
+                     END IF
+
+                     CPPrecondition(nspins<3,cp_failure_level,routineP,error,failure)
+                     IF ( nspins == 1 ) THEN
+                       IF ( irow == iatom ) THEN
+                         CALL fock2c(se_kind_a,se_kind_b,rij,pa_block_a,pb_block_a,&
+                                    ksa_block_a,ksb_block_a,error)
+                       ELSE
+                         CALL fock2c(se_kind_b,se_kind_a,-rij,pb_block_a,pa_block_a,&
+                                    ksb_block_a,ksa_block_a,error)
+                       ENDIF
+                     ELSE IF ( nspins == 2 ) THEN
+                       IF ( irow == iatom ) THEN
+                         CALL fock2c(se_kind_a,se_kind_b,rij,pa_block_a,pb_block_a,&
+                                    ksa_block_a,ksb_block_a,&
+                                    pa_block_b,pb_block_b,&
+                                    ksa_block_b,ksb_block_b,error)
+                       ELSE
+                         CALL fock2c(se_kind_b,se_kind_a,-rij,pb_block_a,pa_block_a,&
+                                    ksb_block_a,ksa_block_a,&
+                                    pb_block_b,pa_block_b,&
+                                    ksb_block_b,ksa_block_b,error)
+                       ENDIF
+                     END IF
+
+                     IF(calculate_forces) THEN
+                       force_ab = 0._dp
+                       CPPrecondition(nspins<3,cp_failure_level,routineP,error,failure)
+                       IF ( nspins == 1 ) THEN
+                         IF ( irow == iatom ) THEN
+                           CALL dfock2c(se_kind_a,se_kind_b,rij,pa_block_a,&
+                                pb_block_a,force_ab,delta,error)
+                         ELSE
+                           CALL dfock2c(se_kind_b,se_kind_a,-rij,pb_block_a,&
+                                pa_block_a,force_ab,delta,error)
+                         ENDIF
+                       ELSE IF ( nspins == 2 ) THEN
+                         IF ( irow == iatom ) THEN
+                           CALL dfock2c(se_kind_a,se_kind_b,rij,pa_block_a,&
+                                pb_block_a,pa_block_b,pb_block_b,force_ab,delta,error)
+                         ELSE
+                           CALL dfock2c(se_kind_b,se_kind_a,-rij,pb_block_a,&
+                                pa_block_a,pb_block_b,pa_block_b,force_ab,delta,error)
+                         ENDIF
+                       END IF
+                       IF ( irow /= iatom ) force_ab = -force_ab
+                       force(ikind)%rho_elec(:,atom_a) =&
+                         force(ikind)%rho_elec(:,atom_a) - force_ab(:)
+                       force(jkind)%rho_elec(:,atom_b) =&
+                         force(jkind)%rho_elec(:,atom_b) + force_ab(:)
+                     END IF
+
+                 END SELECT
+
+                 END IF
+
+                 sab_2c_neighbor_node => next(sab_2c_neighbor_node)
+
+               END DO ! inode => jatom(atom B)
+
+             END DO ! ilist => iatom(atom A)
+
+          END DO ! jkind
+
+       END DO ! ikind
+
+       DO ispin = 1, nspins
+          CALL deallocate_dbm_from_sm(diagmat_p(ispin)%matrix,&
+                                      matrix_p(1)%matrix,.FALSE.)
+          CALL deallocate_dbm_from_sm(diagmat_ks(ispin)%matrix,&
+                                      ks_matrix(ispin)%matrix,.TRUE.,para_env)
+       END DO
+       DEALLOCATE(diagmat_ks,diagmat_p)
+
+       IF (calculate_forces) DEALLOCATE(atom_of_kind)
+
+       CALL mp_sum(enuclear,para_env%group)
+       CALL mp_sum(ecore2,para_env%group)
+
+       energy%core_overlap = enuclear
+       energy%hartree = ecore2 - energy%core
+       DO ispin=1,nspins
+          CALL cp_sm_sm_trace(ks_matrix(ispin)%matrix,&
+                              matrix_p(ispin)%matrix,trace=ecoul,&
+                              para_env=para_env,error=error)
+          energy%hartree=energy%hartree+ecoul
+       END DO
+
+    END IF
+
+    CALL timestop(0.0_dp,handle)
+
+  END SUBROUTINE build_nddo_fock_matrix_coulomb
+
+! *****************************************************************************
+
+  SUBROUTINE build_nddo_fock_matrix_exchange (ks_env,qs_env,ks_matrix,rho,energy,&
+               calculate_forces,just_energy,error)
+
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: ks_matrix
+    TYPE(qs_rho_type), POINTER               :: rho
+    TYPE(qs_energy_type), POINTER            :: energy
+    LOGICAL, INTENT(in)                      :: calculate_forces, just_energy
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'build_nddo_fock_matrix_exchange', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER :: atom_a, atom_b, handle, iab, iatom, icol, ikind, ilist, inode, &
+      irow, istat, jatom, jkind, natom, natorb_a, natorb_b, nkind, nlist, &
+      nnode, nspins
+    INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
+    LOGICAL                                  :: defined, failure
+    REAL(dp)                                 :: gp2, gpp, gsp, gss, hsp
+    REAL(dp), DIMENSION(3)                   :: rij
+    REAL(KIND=dp)                            :: delta
+    REAL(KIND=dp), DIMENSION(3)              :: force_ab
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: ks_block_a, ks_block_b, &
+                                                p_block_a, p_block_b
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(neighbor_list_set_p_type), &
+      DIMENSION(:), POINTER                  :: sab_orb
+    TYPE(neighbor_list_type), POINTER        :: sab_orb_neighbor_list, &
+                                                sab_orb_neighbor_list_local
+    TYPE(neighbor_node_type), POINTER        :: sab_orb_neighbor_node
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(qs_force_type), DIMENSION(:), &
+      POINTER                                :: force
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_h, matrix_p
+    TYPE(semi_empirical_type), POINTER       :: se_kind_a, se_kind_b
+
+!   ----------------------------------------------------------------------------
+
+    failure=.FALSE.
+    NULLIFY(matrix_h,matrix_p,dft_control,cell,force,particle_set)
+
+    CALL timeset(routineN,"I","",handle)
+
+    CPPrecondition(ASSOCIATED(ks_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ks_env%ref_count>0,cp_failure_level,routineP,error,failure)
+
+    CALL get_qs_env(qs_env=qs_env,&
+         dft_control=dft_control,&
+         matrix_h=matrix_h,&
+         cell=cell,&
+         para_env=para_env)
+
+    nspins=dft_control%nspins
+    CPPrecondition(ASSOCIATED(matrix_h),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(rho),cp_failure_level,routineP,error,failure)
+    CPPrecondition(SIZE(ks_matrix)>0,cp_failure_level,routineP,error,failure)
+
+    IF ( .NOT. failure ) THEN
+
+       matrix_p => rho%rho_ao
+
+       CALL get_qs_env(qs_env=qs_env,&
+                       sab_orb=sab_orb,&
+                       atomic_kind_set=atomic_kind_set)
+
+       nkind = SIZE(atomic_kind_set)
+
+       IF(calculate_forces) THEN
+         CALL get_qs_env(qs_env=qs_env,&
+                         particle_set=particle_set,&
+                         force=force)
+         natom = SIZE (particle_set)
+         ALLOCATE (atom_of_kind(natom),STAT=istat)
+         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+         delta = dft_control%qs_control%se_control%delta
+         CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+                                  atom_of_kind=atom_of_kind)
+       END IF
 
        DO ikind=1,nkind
           atomic_kind => atomic_kind_set(ikind)
@@ -304,126 +758,69 @@ CONTAINS
 
                sab_orb_neighbor_node => first_node(sab_orb_neighbor_list_local)
 
-               CPPrecondition(nspins<3,cp_failure_level,routineP,error,failure)
-               IF ( nspins >= 1 ) THEN
-                 CALL get_block_node(matrix=diagmat_p(1)%matrix,&
-                                     block_row=iatom,&
-                                     block_col=iatom,&
-                                     BLOCK=pa_block_a)
-                 CPPostcondition(ASSOCIATED(pa_block_a),cp_failure_level,routineP,error,failure)
-                 CALL get_block_node(matrix=diagmat_ks(1)%matrix,&
-                                     block_row=iatom,&
-                                     block_col=iatom,&
-                                     BLOCK=ksa_block_a)
-                 CPPostcondition(ASSOCIATED(ksa_block_a),cp_failure_level,routineP,error,failure)
-               END IF
-               IF ( nspins >= 2 ) THEN
-                 CALL get_block_node(matrix=diagmat_p(2)%matrix,&
-                                     block_row=iatom,&
-                                     block_col=iatom,&
-                                     BLOCK=pa_block_b)
-                 CPPostcondition(ASSOCIATED(pa_block_b),cp_failure_level,routineP,error,failure)
-                 CALL get_block_node(matrix=diagmat_ks(2)%matrix,&
-                                     block_row=iatom,&
-                                     block_col=iatom,&
-                                     BLOCK=ksa_block_b)
-                 CPPostcondition(ASSOCIATED(ksa_block_b),cp_failure_level,routineP,error,failure)
-               END IF
-
                DO inode=1,nnode
                  CALL get_neighbor_node(neighbor_node=sab_orb_neighbor_node,&
                                         neighbor=jatom,r=rij)
 
+                 IF (iatom <= jatom) THEN
+                   irow = iatom
+                   icol = jatom
+                 ELSE
+                   irow = jatom
+                   icol = iatom
+                 END IF
+                 CPPrecondition(nspins<3,cp_failure_level,routineP,error,failure)
+                 IF ( nspins >= 1 ) THEN
+                   CALL get_block_node(matrix=ks_matrix(1)%matrix,&
+                                       block_row=irow,&
+                                       block_col=icol,&
+                                       BLOCK=ks_block_a)
+                   CPPostcondition(ASSOCIATED(ks_block_a),cp_failure_level,routineP,error,failure)
+                   CALL get_block_node(matrix=matrix_p(1)%matrix,&
+                                       block_row=irow,&
+                                       block_col=icol,&
+                                       BLOCK=p_block_a)
+                   CPPostcondition(ASSOCIATED(p_block_a),cp_failure_level,routineP,error,failure)
+                 END IF
+                 IF ( nspins >= 2 ) THEN
+                   CALL get_block_node(matrix=ks_matrix(2)%matrix,&
+                                       block_row=irow,&
+                                       block_col=icol,&
+                                       BLOCK=ks_block_b)
+                   CPPostcondition(ASSOCIATED(ks_block_b),cp_failure_level,routineP,error,failure)
+                   CALL get_block_node(matrix=matrix_p(2)%matrix,&
+                                       block_row=irow,&
+                                       block_col=icol,&
+                                       BLOCK=p_block_b)
+                   CPPostcondition(ASSOCIATED(p_block_b),cp_failure_level,routineP,error,failure)
+                 END IF
+
                  IF ( iatom == jatom ) THEN
+
                    CPPrecondition(nspins<3,cp_failure_level,routineP,error,failure)
                    IF ( nspins == 1 ) THEN
-                     CALL fock1(gss,gsp,gpp,gp2,hsp,pa_block_a,ksa_block_a,error)
+                     CALL fock1(gss,gsp,gpp,gp2,hsp,p_block_a,ks_block_a,error)
                    ELSE IF ( nspins == 2 ) THEN
-                     CALL fock1(gss,gsp,gpp,gp2,hsp,pa_block_a,ksa_block_a,&
-                                pa_block_b,ksa_block_b,error)
+                     CALL fock1(gss,gsp,gpp,gp2,hsp,p_block_a,ks_block_a,&
+                                p_block_b,ks_block_b,error)
                    END IF
 
                  ELSE
 
                    CPPrecondition(nspins<3,cp_failure_level,routineP,error,failure)
-                   IF ( nspins >= 1 ) THEN
-                     CALL get_block_node(matrix=diagmat_p(1)%matrix,&
-                                         block_row=jatom,&
-                                         block_col=jatom,&
-                                         BLOCK=pb_block_a)
-                     CPPostcondition(ASSOCIATED(pb_block_a),cp_failure_level,routineP,error,failure)
-                     CALL get_block_node(matrix=diagmat_ks(1)%matrix,&
-                                         block_row=jatom,&
-                                         block_col=jatom,&
-                                         BLOCK=ksb_block_a)
-                     CPPostcondition(ASSOCIATED(ksb_block_a),cp_failure_level,routineP,error,failure)
-                   END IF
-                   IF ( nspins >= 2 ) THEN
-                     CALL get_block_node(matrix=diagmat_p(2)%matrix,&
-                                         block_row=jatom,&
-                                         block_col=jatom,&
-                                         BLOCK=pb_block_b)
-                     CPPostcondition(ASSOCIATED(pb_block_b),cp_failure_level,routineP,error,failure)
-                     CALL get_block_node(matrix=diagmat_ks(2)%matrix,&
-                                         block_row=jatom,&
-                                         block_col=jatom,&
-                                         BLOCK=ksb_block_b)
-                     CPPostcondition(ASSOCIATED(ksb_block_b),cp_failure_level,routineP,error,failure)
-                   END IF
-
-                   IF (iatom <= jatom) THEN
-                     irow = iatom
-                     icol = jatom
-                   ELSE
-                     irow = jatom
-                     icol = iatom
-                   END IF
-                   CPPrecondition(nspins<3,cp_failure_level,routineP,error,failure)
-                   IF ( nspins >= 1 ) THEN
-                     CALL get_block_node(matrix=ks_matrix(1)%matrix,&
-                                         block_row=irow,&
-                                         block_col=icol,&
-                                         BLOCK=ks_block_a)
-                     CPPostcondition(ASSOCIATED(ks_block_a),cp_failure_level,routineP,error,failure)
-                     CALL get_block_node(matrix=matrix_p(1)%matrix,&
-                                         block_row=irow,&
-                                         block_col=icol,&
-                                         BLOCK=p_block_a)
-                     CPPostcondition(ASSOCIATED(p_block_a),cp_failure_level,routineP,error,failure)
-                   END IF
-                   IF ( nspins >= 2 ) THEN
-                     CALL get_block_node(matrix=ks_matrix(2)%matrix,&
-                                         block_row=irow,&
-                                         block_col=icol,&
-                                         BLOCK=ks_block_b)
-                     CPPostcondition(ASSOCIATED(ks_block_b),cp_failure_level,routineP,error,failure)
-                     CALL get_block_node(matrix=matrix_p(2)%matrix,&
-                                         block_row=irow,&
-                                         block_col=icol,&
-                                         BLOCK=p_block_b)
-                     CPPostcondition(ASSOCIATED(p_block_b),cp_failure_level,routineP,error,failure)
-                   END IF
-
-                   CPPrecondition(nspins<3,cp_failure_level,routineP,error,failure)
                    IF ( nspins == 1 ) THEN
                      IF ( irow == iatom ) THEN
-                       CALL fock2(se_kind_a,se_kind_b,rij,pa_block_a,pb_block_a,p_block_a,&
-                                  ksa_block_a,ksb_block_a,ks_block_a,error)
+                       CALL fock2e(se_kind_a,se_kind_b,rij,p_block_a,ks_block_a,error)
                      ELSE
-                       CALL fock2(se_kind_b,se_kind_a,-rij,pb_block_a,pa_block_a,p_block_a,&
-                                  ksb_block_a,ksa_block_a,ks_block_a,error)
+                       CALL fock2e(se_kind_b,se_kind_a,-rij,p_block_a,ks_block_a,error)
                      ENDIF
                    ELSE IF ( nspins == 2 ) THEN
                      IF ( irow == iatom ) THEN
-                       CALL fock2(se_kind_a,se_kind_b,rij,pa_block_a,pb_block_a,p_block_a,&
-                                  ksa_block_a,ksb_block_a,ks_block_a,&
-                                  pa_block_b,pb_block_b,p_block_b,&
-                                  ksa_block_b,ksb_block_b,ks_block_b,error)
+                       CALL fock2e(se_kind_a,se_kind_b,rij,p_block_a,ks_block_a,&
+                                   p_block_b,ks_block_b,error)
                      ELSE
-                       CALL fock2(se_kind_b,se_kind_a,-rij,pb_block_a,pa_block_a,p_block_a,&
-                                  ksb_block_a,ksa_block_a,ks_block_a,&
-                                  pb_block_b,pa_block_b,p_block_b,&
-                                  ksb_block_b,ksa_block_b,ks_block_b,error)
+                       CALL fock2e(se_kind_b,se_kind_a,-rij,p_block_a,ks_block_a,&
+                                   p_block_b,ks_block_b,error)
                      ENDIF
                    END IF
 
@@ -432,21 +829,17 @@ CONTAINS
                      CPPrecondition(nspins<3,cp_failure_level,routineP,error,failure)
                      IF ( nspins == 1 ) THEN
                        IF ( irow == iatom ) THEN
-                         CALL dfock2(se_kind_a,se_kind_b,rij,pa_block_a,&
-                              pb_block_a,p_block_a,force_ab,delta,error)
+                         CALL dfock2e(se_kind_a,se_kind_b,rij,p_block_a,force_ab,delta,error)
                        ELSE
-                         CALL dfock2(se_kind_b,se_kind_a,-rij,pb_block_a,&
-                              pa_block_a,p_block_a,force_ab,delta,error)
+                         CALL dfock2e(se_kind_b,se_kind_a,-rij,p_block_a,force_ab,delta,error)
                        ENDIF
                      ELSE IF ( nspins == 2 ) THEN
                        IF ( irow == iatom ) THEN
-                         CALL dfock2(se_kind_a,se_kind_b,rij,pa_block_a,&
-                              pb_block_a,p_block_a,pa_block_b,pb_block_b,&
-                              p_block_b,force_ab,delta,error)
+                         CALL dfock2e(se_kind_a,se_kind_b,rij,&
+                              p_block_a,p_block_b,force_ab,delta,error)
                        ELSE
-                         CALL dfock2(se_kind_b,se_kind_a,-rij,pb_block_a,&
-                              pa_block_a,p_block_a,pb_block_b,pa_block_b,&
-                              p_block_b,force_ab,delta,error)
+                         CALL dfock2e(se_kind_b,se_kind_a,-rij,&
+                              p_block_a,p_block_b,force_ab,delta,error)
                        ENDIF
                      END IF
                      atom_a = atom_of_kind(iatom)
@@ -470,73 +863,13 @@ CONTAINS
 
        END DO ! ikind
 
-       DO ispin = 1, nspins
-          CALL deallocate_dbm_from_sm(diagmat_p(ispin)%matrix,&
-                                      matrix_p(1)%matrix,.FALSE.)
-          CALL deallocate_dbm_from_sm(diagmat_ks(ispin)%matrix,&
-                                      ks_matrix(ispin)%matrix,.TRUE.,para_env)
-       END DO
-       DEALLOCATE(diagmat_ks,diagmat_p)
-
        IF (calculate_forces) DEALLOCATE(atom_of_kind)
-
-       IF (ewald) THEN
-         ! calculate Coulomb long range forces
-         energy%hartree=0._dp
-         CALL nddo_ewald (ks_env,qs_env,ks_matrix,rho,energy,&
-              calculate_forces,just_energy,error)
-       ELSE
-         energy%hartree=0._dp
-       END IF
-
-       energy%hartree=energy%hartree-energy%core
-       DO ispin=1,nspins
-          CALL cp_sm_sm_trace(ks_matrix(ispin)%matrix,&
-                              matrix_p(ispin)%matrix,trace=ecoul,&
-                              para_env=para_env,error=error)
-          energy%hartree=energy%hartree+ecoul
-       END DO
-
-       energy%mulliken = 0._dp
-       energy%exc = 0._dp
-
-       energy%total = energy%core + energy%core_overlap + 0.5_dp*energy%hartree + &
-            energy%qmmm_el + energy%mulliken
-
-       output_unit=cp_print_key_unit_nr(logger,scf_section,"PRINT%DETAILED_ENERGY",&
-            extension=".scfLog",error=error)
-       IF (output_unit>0) THEN
-          WRITE (UNIT=output_unit,FMT="(/,(T3,A,T60,F20.10))")&
-               "Core Hamiltonian energy:                       ",energy%core,&
-               "Two-electron integral energy:                  ",energy%hartree
-          IF (qs_env%qmmm) THEN
-             WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
-                  "QM/MM Electrostatic energy:                    ",energy%qmmm_el
-          END IF
-       END IF
-       CALL cp_print_key_finished_output(output_unit,logger,scf_section,&
-            "PRINT%DETAILED_ENERGY", error=error)       
-       ! here we compute dE/dC if needed. Assumes dE/dC is H_{ks}C (plus occupation numbers)
-       IF (qs_env%requires_mo_derivs .AND. .NOT. just_energy) THEN
-          CALL get_qs_env(qs_env,mo_derivs=mo_derivs,mos=mo_array)
-          DO ispin=1,SIZE(mo_derivs)
-             CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,mo_coeff=mo_coeff, &
-                             occupation_numbers=occupation_numbers )
-             CALL cp_fm_get_info(mo_coeff,ncol_global=ncol_global)
-             CALL cp_sm_fm_multiply(ks_matrix(ispin)%matrix,mo_coeff,&
-                                          mo_derivs(ispin)%matrix, ncol_global)
-             ALLOCATE(scaling_factor(SIZE(occupation_numbers)))
-             scaling_factor=2.0_dp*occupation_numbers
-             CALL cp_fm_column_scale(mo_derivs(ispin)%matrix,scaling_factor)
-             DEALLOCATE(scaling_factor)
-          ENDDO
-       ENDIF
 
     END IF
 
     CALL timestop(0.0_dp,handle)
 
-  END SUBROUTINE build_nddo_fock_matrix
+  END SUBROUTINE build_nddo_fock_matrix_exchange
 
 ! *****************************************************************************
 
@@ -675,22 +1008,21 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE rfock2(sepa,sepb,rij,pa,pb,pab,fa,fb,fab,error)
+  SUBROUTINE rfock2c(sepa,sepb,rij,pa,pb,fa,fb,error)
     TYPE(semi_empirical_type), INTENT(IN)    :: sepa, sepb
     REAL(dp), DIMENSION(:), INTENT(IN)       :: rij
-    REAL(dp), DIMENSION(:, :), INTENT(IN)    :: pa, pb, pab
-    REAL(dp), DIMENSION(:, :), INTENT(INOUT) :: fa, fb, fab
+    REAL(dp), DIMENSION(:, :), INTENT(IN)    :: pa, pb
+    REAL(dp), DIMENSION(:, :), INTENT(INOUT) :: fa, fb
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'rfock2', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'rfock2c', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, ii, na, nb
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(10)             :: ca, cb, ppa, ppb
     REAL(KIND=dp), DIMENSION(100)            :: wint
-    REAL(KIND=dp), DIMENSION(4, 4)           :: kab
 
     na = SIZE ( pa, 1 )
     nb = SIZE ( pb, 1 )
@@ -700,33 +1032,16 @@ CONTAINS
     IF ( na==1 .AND. nb==1 ) THEN
       fa(1,1) = fa(1,1) + pb(1,1)*wint(1)
       fb(1,1) = fb(1,1) + pa(1,1)*wint(1)
-      fab(1,1) = fab(1,1) - 0.5_dp * pab(1,1)*wint(1)
     ELSE IF ( na==1 .AND. nb==4 ) THEN
       CALL contract( pb, ppb )
       fa(1,1) = fa(1,1) + SUM ( ppb(1:10)*wint(1:10) )
       ppa(1:10) = pa(1,1)*wint(1:10)
       CALL expand( fb, ppa )
-      fab(1,1) = fab(1,1) - 0.5_dp*( wint(1)*pab(1,1) +&
-        wint(2)*pab(1,4) + wint(4)*pab(1,2) + wint(7)*pab(1,3) )
-      fab(1,2) = fab(1,2) - 0.5_dp*( wint(4)*pab(1,1) +&
-        wint(5)*pab(1,4) + wint(6)*pab(1,2) + wint(9)*pab(1,3) )
-      fab(1,3) = fab(1,3) - 0.5_dp*( wint(7)*pab(1,1) +&
-        wint(8)*pab(1,4) + wint(9)*pab(1,2) + wint(10)*pab(1,3) )
-      fab(1,4) = fab(1,4) - 0.5_dp*( wint(2)*pab(1,1) +&
-        wint(3)*pab(1,4) + wint(5)*pab(1,2) + wint(8)*pab(1,3) )
     ELSE IF ( na==4 .AND. nb==1 ) THEN
       CALL contract( pa, ppa )
       fb(1,1) = fb(1,1) + SUM ( ppa(1:10)*wint(1:10) )
       ppb(1:10) = pb(1,1)*wint(1:10)
       CALL expand( fa, ppb )
-      fab(1,1) = fab(1,1) - 0.5_dp*( wint(1)*pab(1,1) +&
-        wint(2)*pab(4,1) + wint(4)*pab(2,1) + wint(7)*pab(3,1) )
-      fab(2,1) = fab(2,1) - 0.5_dp*( wint(4)*pab(1,1) +&
-        wint(5)*pab(4,1) + wint(6)*pab(2,1) + wint(9)*pab(3,1) )
-      fab(3,1) = fab(3,1) - 0.5_dp*( wint(7)*pab(1,1) +&
-        wint(8)*pab(4,1) + wint(9)*pab(2,1) + wint(10)*pab(3,1) )
-      fab(4,1) = fab(4,1) - 0.5_dp*( wint(2)*pab(1,1) +&
-        wint(3)*pab(4,1) + wint(5)*pab(2,1) + wint(8)*pab(3,1) )
     ELSE IF ( na==4 .AND. nb==4 ) THEN
       CALL contract( pa, ppa )
       CALL contract( pb, ppb )
@@ -737,27 +1052,25 @@ CONTAINS
       END DO
       CALL expand( fa, ca )
       CALL expand( fb, cb )
-      CALL exchange_sp ( kab, pab, wint )
-      fab(1:4,1:4) = fab(1:4,1:4) - 0.5_dp*kab(1:4,1:4)
     ELSE
       CPPrecondition(na<=4,cp_failure_level,routineP,error,failure)
       CPPrecondition(nb<=4,cp_failure_level,routineP,error,failure)
     END IF
 
-  END SUBROUTINE rfock2
+  END SUBROUTINE rfock2c
 
-  SUBROUTINE ufock2(sepa,sepb,rij,pa_a,pb_a,pab_a,fa_a,fb_a,fab_a,&
-                    pa_b,pb_b,pab_b,fa_b,fb_b,fab_b,error)
+  SUBROUTINE ufock2c(sepa,sepb,rij,pa_a,pb_a,fa_a,fb_a,&
+                    pa_b,pb_b,fa_b,fb_b,error)
     TYPE(semi_empirical_type), INTENT(IN)    :: sepa, sepb
     REAL(dp), DIMENSION(:), INTENT(IN)       :: rij
-    REAL(dp), DIMENSION(:, :), INTENT(IN)    :: pa_a, pb_a, pab_a
-    REAL(dp), DIMENSION(:, :), INTENT(INOUT) :: fa_a, fb_a, fab_a
-    REAL(dp), DIMENSION(:, :), INTENT(IN)    :: pa_b, pb_b, pab_b
-    REAL(dp), DIMENSION(:, :), INTENT(INOUT) :: fa_b, fb_b, fab_b
+    REAL(dp), DIMENSION(:, :), INTENT(IN)    :: pa_a, pb_a
+    REAL(dp), DIMENSION(:, :), INTENT(INOUT) :: fa_a, fb_a
+    REAL(dp), DIMENSION(:, :), INTENT(IN)    :: pa_b, pb_b
+    REAL(dp), DIMENSION(:, :), INTENT(INOUT) :: fa_b, fb_b
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'ufock2', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'ufock2c', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, ii, na, nb
@@ -766,7 +1079,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(10)             :: ca, cb, ppa_a, ppa_b, ppb_a, &
                                                 ppb_b
     REAL(KIND=dp), DIMENSION(100)            :: wint
-    REAL(KIND=dp), DIMENSION(4, 4)           :: kab
 
     na = SIZE ( pa_a, 1 )
     nb = SIZE ( pb_a, 1 )
@@ -776,10 +1088,8 @@ CONTAINS
     IF ( na==1 .AND. nb==1 ) THEN
       fa_a(1,1) = fa_a(1,1) + (pb_a(1,1)+pb_b(1,1))*wint(1)
       fb_a(1,1) = fb_a(1,1) + (pa_a(1,1)+pa_b(1,1))*wint(1)
-      fab_a(1,1) = fab_a(1,1) - pab_a(1,1)*wint(1)
       fa_b(1,1) = fa_b(1,1) + (pb_a(1,1)+pb_b(1,1))*wint(1)
       fb_b(1,1) = fb_b(1,1) + (pa_a(1,1)+pa_b(1,1))*wint(1)
-      fab_b(1,1) = fab_b(1,1) - pab_b(1,1)*wint(1)
     ELSE IF ( na==1 .AND. nb==4 ) THEN
       CALL contract( pb_a, ppb_a )
       CALL contract( pb_b, ppb_b )
@@ -789,6 +1099,228 @@ CONTAINS
       ppa_a(1:10) = (pa_a(1,1)+pa_b(1,1))*wint(1:10)
       CALL expand( fb_a, ppa_a )
       CALL expand( fb_b, ppa_a )
+    ELSE IF ( na==4 .AND. nb==1 ) THEN
+      CALL contract( pa_a, ppa_a )
+      CALL contract( pa_b, ppa_b )
+      ess = SUM ( (ppa_a(1:10)+ppa_b(1:10)) * wint(1:10) )
+      fb_a(1,1) = fb_a(1,1) + ess
+      fb_b(1,1) = fb_b(1,1) + ess
+      ppb_a(1:10) = (pb_a(1,1)+pb_b(1,1))*wint(1:10)
+      CALL expand( fa_a, ppb_a )
+      CALL expand( fa_b, ppb_a )
+    ELSE IF ( na==4 .AND. nb==4 ) THEN
+      CALL contract( pa_a, ppa_a )
+      CALL contract( pa_b, ppa_b )
+      CALL contract( pb_a, ppb_a )
+      CALL contract( pb_b, ppb_b )
+      DO i=1,10
+        ii = (i-1)*10 + 1
+        ca(i) = SUM ( wint(ii:ii+9)*(ppb_a(1:10)+ppb_b(1:10)) )
+        cb(i) = SUM ( wint(i:90+i:10)*(ppa_a(1:10)+ppa_b(1:10)) )
+      END DO
+      CALL expand( fa_a, ca )
+      CALL expand( fa_b, ca )
+      CALL expand( fb_a, cb )
+      CALL expand( fb_b, cb )
+    ELSE
+      CPPrecondition(na<=4,cp_failure_level,routineP,error,failure)
+      CPPrecondition(nb<=4,cp_failure_level,routineP,error,failure)
+    END IF
+
+  END SUBROUTINE ufock2c
+
+! *****************************************************************************
+
+  SUBROUTINE rdfock2c(sepa,sepb,rij,pa,pb,force,delta,error)
+    TYPE(semi_empirical_type), INTENT(IN)    :: sepa, sepb
+    REAL(dp), DIMENSION(:), INTENT(IN)       :: rij
+    REAL(dp), DIMENSION(:, :), INTENT(IN)    :: pa, pb
+    REAL(dp), DIMENSION(:), INTENT(INOUT)    :: force
+    REAL(dp), INTENT(IN)                     :: delta
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'rdfock2c', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, ii, j, na, nb
+    LOGICAL                                  :: failure
+    REAL(KIND=dp), DIMENSION(10)             :: ca, ppa, ppb
+    REAL(KIND=dp), DIMENSION(100, 3)         :: dwint
+
+    na = SIZE ( pa, 1 )
+    nb = SIZE ( pb, 1 )
+
+    CALL drotint (sepa,sepb,rij,dwint,delta)
+
+    IF ( na==1 .AND. nb==1 ) THEN
+      force(:) = force(:) + pa(1,1)*pb(1,1)*dwint(1,:)
+    ELSE IF ( na==1 .AND. nb==4 ) THEN
+      CALL contract( pb, ppb )
+      DO i=1,3
+        force(i) = force(i) + pa(1,1) * SUM ( ppb(1:10)*dwint(1:10,i) )
+      END DO
+   ELSE IF ( na==4 .AND. nb==1 ) THEN
+      CALL contract( pa, ppa )
+      DO i=1,3
+        force(i) = force(i) + pb(1,1) * SUM ( ppa(1:10)*dwint(1:10,i) )
+      END DO
+    ELSE IF ( na==4 .AND. nb==4 ) THEN
+      CALL contract( pb, ppb )
+      CALL contract( pa, ppa )
+      DO j=1,3
+        DO i=1,10
+          ii = (i-1)*10 + 1
+          ca(i) = SUM ( dwint(ii:ii+9,j)*ppb(1:10) )
+        END DO
+        force(j) = force(j) + SUM ( ca(1:10)*ppa(1:10) )
+      END DO
+    ELSE
+      CPPrecondition(na<=4,cp_failure_level,routineP,error,failure)
+      CPPrecondition(nb<=4,cp_failure_level,routineP,error,failure)
+    END IF
+
+  END SUBROUTINE rdfock2c
+
+  SUBROUTINE udfock2c(sepa,sepb,rij,pa_a,pb_a,pa_b,pb_b,&
+             force,delta,error)
+    TYPE(semi_empirical_type), INTENT(IN)    :: sepa, sepb
+    REAL(dp), DIMENSION(:), INTENT(IN)       :: rij
+    REAL(dp), DIMENSION(:, :), INTENT(IN)    :: pa_a, pb_a, pa_b, pb_b
+    REAL(dp), DIMENSION(:), INTENT(INOUT)    :: force
+    REAL(dp), INTENT(IN)                     :: delta
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'udfock2c', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, ii, j, na, nb
+    LOGICAL                                  :: failure
+    REAL(dp)                                 :: ess, pta, ptb
+    REAL(KIND=dp), DIMENSION(10)             :: ca, ppa_a, ppa_b, ppb_a, ppb_b
+    REAL(KIND=dp), DIMENSION(100, 3)         :: dwint
+
+    na = SIZE ( pa_a, 1 )
+    nb = SIZE ( pb_a, 1 )
+
+    CALL drotint (sepa,sepb,rij,dwint,delta)
+
+    IF ( na==1 .AND. nb==1 ) THEN
+      pta = pa_a(1,1)+pa_b(1,1)
+      ptb = pb_a(1,1)+pb_b(1,1)
+      force(:) = force(:) + pta*ptb*dwint(1,:)
+    ELSE IF ( na==1 .AND. nb==4 ) THEN
+      CALL contract( pb_a, ppb_a )
+      CALL contract( pb_b, ppb_b )
+      DO i=1,3
+        ess = SUM ( (ppb_a(1:10)+ppb_b(1:10)) * dwint(1:10,i) )
+        force(i) = force(i) + (pa_a(1,1)+pa_b(1,1)) * ess
+      END DO
+   ELSE IF ( na==4 .AND. nb==1 ) THEN
+      CALL contract( pa_a, ppa_a )
+      CALL contract( pa_b, ppa_b )
+      DO i=1,3
+        ess = SUM ( (ppa_a(1:10)+ppa_b(1:10)) * dwint(1:10,i) )
+        force(i) = force(i) + (pb_a(1,1)+pb_b(1,1)) * ess
+      END DO
+    ELSE IF ( na==4 .AND. nb==4 ) THEN
+      CALL contract( pa_a, ppa_a )
+      CALL contract( pa_b, ppa_b )
+      CALL contract( pb_a, ppb_a )
+      CALL contract( pb_b, ppb_b )
+      DO j=1,3
+        DO i=1,10
+          ii = (i-1)*10 + 1
+          ca(i) = SUM ( dwint(ii:ii+9,j)*(ppb_a(1:10)+ppb_b(1:10)) )
+        END DO
+        force(j) = force(j) + SUM ( ca(1:10)*(ppa_a(1:10)+ppa_b(1:10)) )
+      END DO
+    ELSE
+      CPPrecondition(na<=4,cp_failure_level,routineP,error,failure)
+      CPPrecondition(nb<=4,cp_failure_level,routineP,error,failure)
+    END IF
+
+  END SUBROUTINE udfock2c
+
+  SUBROUTINE rfock2e(sepa,sepb,rij,pab,fab,error)
+    TYPE(semi_empirical_type), INTENT(IN)    :: sepa, sepb
+    REAL(dp), DIMENSION(:), INTENT(IN)       :: rij
+    REAL(dp), DIMENSION(:, :), INTENT(IN)    :: pab
+    REAL(dp), DIMENSION(:, :), INTENT(INOUT) :: fab
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'rfock2e', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: na, nb
+    LOGICAL                                  :: failure
+    REAL(KIND=dp), DIMENSION(100)            :: wint
+    REAL(KIND=dp), DIMENSION(4, 4)           :: kab
+
+    na = SIZE ( pab, 1 )
+    nb = SIZE ( pab, 2 )
+
+    CALL rotint (sepa,sepb,rij,wint)
+
+    IF ( na==1 .AND. nb==1 ) THEN
+      fab(1,1) = fab(1,1) - 0.5_dp * pab(1,1)*wint(1)
+    ELSE IF ( na==1 .AND. nb==4 ) THEN
+      fab(1,1) = fab(1,1) - 0.5_dp*( wint(1)*pab(1,1) +&
+        wint(2)*pab(1,4) + wint(4)*pab(1,2) + wint(7)*pab(1,3) )
+      fab(1,2) = fab(1,2) - 0.5_dp*( wint(4)*pab(1,1) +&
+        wint(5)*pab(1,4) + wint(6)*pab(1,2) + wint(9)*pab(1,3) )
+      fab(1,3) = fab(1,3) - 0.5_dp*( wint(7)*pab(1,1) +&
+        wint(8)*pab(1,4) + wint(9)*pab(1,2) + wint(10)*pab(1,3) )
+      fab(1,4) = fab(1,4) - 0.5_dp*( wint(2)*pab(1,1) +&
+        wint(3)*pab(1,4) + wint(5)*pab(1,2) + wint(8)*pab(1,3) )
+    ELSE IF ( na==4 .AND. nb==1 ) THEN
+      fab(1,1) = fab(1,1) - 0.5_dp*( wint(1)*pab(1,1) +&
+        wint(2)*pab(4,1) + wint(4)*pab(2,1) + wint(7)*pab(3,1) )
+      fab(2,1) = fab(2,1) - 0.5_dp*( wint(4)*pab(1,1) +&
+        wint(5)*pab(4,1) + wint(6)*pab(2,1) + wint(9)*pab(3,1) )
+      fab(3,1) = fab(3,1) - 0.5_dp*( wint(7)*pab(1,1) +&
+        wint(8)*pab(4,1) + wint(9)*pab(2,1) + wint(10)*pab(3,1) )
+      fab(4,1) = fab(4,1) - 0.5_dp*( wint(2)*pab(1,1) +&
+        wint(3)*pab(4,1) + wint(5)*pab(2,1) + wint(8)*pab(3,1) )
+    ELSE IF ( na==4 .AND. nb==4 ) THEN
+      CALL exchange_sp ( kab, pab, wint )
+      fab(1:4,1:4) = fab(1:4,1:4) - 0.5_dp*kab(1:4,1:4)
+    ELSE
+      CPPrecondition(na<=4,cp_failure_level,routineP,error,failure)
+      CPPrecondition(nb<=4,cp_failure_level,routineP,error,failure)
+    END IF
+
+  END SUBROUTINE rfock2e
+
+  SUBROUTINE ufock2e(sepa,sepb,rij,pab_a,fab_a,pab_b,fab_b,error)
+    TYPE(semi_empirical_type), INTENT(IN)    :: sepa, sepb
+    REAL(dp), DIMENSION(:), INTENT(IN)       :: rij
+    REAL(dp), DIMENSION(:, :), INTENT(IN)    :: pab_a
+    REAL(dp), DIMENSION(:, :), INTENT(INOUT) :: fab_a
+    REAL(dp), DIMENSION(:, :), INTENT(IN)    :: pab_b
+    REAL(dp), DIMENSION(:, :), INTENT(INOUT) :: fab_b
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'ufock2e', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: na, nb
+    LOGICAL                                  :: failure
+    REAL(KIND=dp), DIMENSION(100)            :: wint
+    REAL(KIND=dp), DIMENSION(4, 4)           :: kab
+
+    na = SIZE ( pab_a, 1 )
+    nb = SIZE ( pab_a, 2 )
+
+    CALL rotint (sepa,sepb,rij,wint)
+
+    IF ( na==1 .AND. nb==1 ) THEN
+      fab_a(1,1) = fab_a(1,1) - pab_a(1,1)*wint(1)
+      fab_b(1,1) = fab_b(1,1) - pab_b(1,1)*wint(1)
+    ELSE IF ( na==1 .AND. nb==4 ) THEN
       fab_a(1,1) = fab_a(1,1) - wint(1)*pab_a(1,1) -&
         wint(2)*pab_a(1,4) - wint(4)*pab_a(1,2) - wint(7)*pab_a(1,3)
       fab_a(1,2) = fab_a(1,2) - wint(4)*pab_a(1,1) -&
@@ -806,14 +1338,6 @@ CONTAINS
       fab_b(1,4) = fab_b(1,4) - wint(2)*pab_b(1,1) -&
         wint(3)*pab_b(1,4) - wint(5)*pab_b(1,2) - wint(8)*pab_b(1,3)
     ELSE IF ( na==4 .AND. nb==1 ) THEN
-      CALL contract( pa_a, ppa_a )
-      CALL contract( pa_b, ppa_b )
-      ess = SUM ( (ppa_a(1:10)+ppa_b(1:10)) * wint(1:10) )
-      fb_a(1,1) = fb_a(1,1) + ess
-      fb_b(1,1) = fb_b(1,1) + ess
-      ppb_a(1:10) = (pb_a(1,1)+pb_b(1,1))*wint(1:10)
-      CALL expand( fa_a, ppb_a )
-      CALL expand( fa_b, ppb_a )
       fab_a(1,1) = fab_a(1,1) - wint(1)*pab_a(1,1) -&
         wint(2)*pab_a(4,1) - wint(4)*pab_a(2,1) - wint(7)*pab_a(3,1)
       fab_a(2,1) = fab_a(2,1) - wint(4)*pab_a(1,1) -&
@@ -831,19 +1355,6 @@ CONTAINS
       fab_b(4,1) = fab_b(4,1) - wint(2)*pab_b(1,1) -&
         wint(3)*pab_b(4,1) - wint(5)*pab_b(2,1) - wint(8)*pab_b(3,1)
     ELSE IF ( na==4 .AND. nb==4 ) THEN
-      CALL contract( pa_a, ppa_a )
-      CALL contract( pa_b, ppa_b )
-      CALL contract( pb_a, ppb_a )
-      CALL contract( pb_b, ppb_b )
-      DO i=1,10
-        ii = (i-1)*10 + 1
-        ca(i) = SUM ( wint(ii:ii+9)*(ppb_a(1:10)+ppb_b(1:10)) )
-        cb(i) = SUM ( wint(i:90+i:10)*(ppa_a(1:10)+ppa_b(1:10)) )
-      END DO
-      CALL expand( fa_a, ca )
-      CALL expand( fa_b, ca )
-      CALL expand( fb_a, cb )
-      CALL expand( fb_b, cb )
       CALL exchange_sp ( kab, pab_a, wint )
       fab_a(1:4,1:4) = fab_a(1:4,1:4) - kab(1:4,1:4)
       CALL exchange_sp ( kab, pab_b, wint )
@@ -853,41 +1364,35 @@ CONTAINS
       CPPrecondition(nb<=4,cp_failure_level,routineP,error,failure)
     END IF
 
-  END SUBROUTINE ufock2
+  END SUBROUTINE ufock2e
 
 ! *****************************************************************************
 
-  SUBROUTINE rdfock2(sepa,sepb,rij,pa,pb,pab,force,delta,error)
+  SUBROUTINE rdfock2e(sepa,sepb,rij,pab,force,delta,error)
     TYPE(semi_empirical_type), INTENT(IN)    :: sepa, sepb
     REAL(dp), DIMENSION(:), INTENT(IN)       :: rij
-    REAL(dp), DIMENSION(:, :), INTENT(IN)    :: pa, pb, pab
+    REAL(dp), DIMENSION(:, :), INTENT(IN)    :: pab
     REAL(dp), DIMENSION(:), INTENT(INOUT)    :: force
     REAL(dp), INTENT(IN)                     :: delta
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'rdfock2', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'rdfock2e', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ii, j, na, nb
+    INTEGER                                  :: j, na, nb
     LOGICAL                                  :: failure
-    REAL(KIND=dp), DIMENSION(10)             :: ca, ppa, ppb
     REAL(KIND=dp), DIMENSION(100, 3)         :: dwint
     REAL(KIND=dp), DIMENSION(4, 4)           :: kab
 
-    na = SIZE ( pa, 1 )
-    nb = SIZE ( pb, 1 )
+    na = SIZE ( pab, 1 )
+    nb = SIZE ( pab, 2 )
 
     CALL drotint (sepa,sepb,rij,dwint,delta)
 
     IF ( na==1 .AND. nb==1 ) THEN
-      force(:) = force(:) + pa(1,1)*pb(1,1)*dwint(1,:)
       force(:) = force(:) - 0.5_dp*pab(1,1)*pab(1,1)*dwint(1,:)
     ELSE IF ( na==1 .AND. nb==4 ) THEN
-      CALL contract( pb, ppb )
-      DO i=1,3
-        force(i) = force(i) + pa(1,1) * SUM ( ppb(1:10)*dwint(1:10,i) )
-      END DO
       force(:) = force(:) - 0.5_dp*pab(1,1)*( dwint(1,:)*pab(1,1) +&
         dwint(2,:)*pab(1,4) + dwint(4,:)*pab(1,2) + dwint(7,:)*pab(1,3) )
       force(:) = force(:) - 0.5_dp*pab(1,2)*( dwint(4,:)*pab(1,1) +&
@@ -897,10 +1402,6 @@ CONTAINS
       force(:) = force(:) - 0.5_dp*pab(1,4)*( dwint(2,:)*pab(1,1) +&
         dwint(3,:)*pab(1,4) + dwint(5,:)*pab(1,2) + dwint(8,:)*pab(1,3) )
    ELSE IF ( na==4 .AND. nb==1 ) THEN
-      CALL contract( pa, ppa )
-      DO i=1,3
-        force(i) = force(i) + pb(1,1) * SUM ( ppa(1:10)*dwint(1:10,i) )
-      END DO
       force(:) = force(:) - 0.5_dp*pab(1,1)*( dwint(1,:)*pab(1,1) +&
         dwint(2,:)*pab(4,1) + dwint(4,:)*pab(2,1) + dwint(7,:)*pab(3,1) )
       force(:) = force(:) - 0.5_dp*pab(2,1)*( dwint(4,:)*pab(1,1) +&
@@ -910,14 +1411,7 @@ CONTAINS
       force(:) = force(:) - 0.5_dp*pab(4,1)*( dwint(2,:)*pab(1,1) +&
         dwint(3,:)*pab(4,1) + dwint(5,:)*pab(2,1) + dwint(8,:)*pab(3,1) )
     ELSE IF ( na==4 .AND. nb==4 ) THEN
-      CALL contract( pb, ppb )
-      CALL contract( pa, ppa )
       DO j=1,3
-        DO i=1,10
-          ii = (i-1)*10 + 1
-          ca(i) = SUM ( dwint(ii:ii+9,j)*ppb(1:10) )
-        END DO
-        force(j) = force(j) + SUM ( ca(1:10)*ppa(1:10) )
         CALL exchange_sp ( kab, pab, dwint(:,j) )
         force(j) = force(j) - 0.5_dp * SUM(pab*kab)
       END DO
@@ -926,47 +1420,34 @@ CONTAINS
       CPPrecondition(nb<=4,cp_failure_level,routineP,error,failure)
     END IF
 
-  END SUBROUTINE rdfock2
+  END SUBROUTINE rdfock2e
 
-  SUBROUTINE udfock2(sepa,sepb,rij,pa_a,pb_a,pab_a,pa_b,pb_b,pab_b,&
-             force,delta,error)
+  SUBROUTINE udfock2e(sepa,sepb,rij,pab_a,pab_b,force,delta,error)
     TYPE(semi_empirical_type), INTENT(IN)    :: sepa, sepb
     REAL(dp), DIMENSION(:), INTENT(IN)       :: rij
-    REAL(dp), DIMENSION(:, :), INTENT(IN)    :: pa_a, pb_a, pab_a, pa_b, &
-                                                pb_b, pab_b
+    REAL(dp), DIMENSION(:, :), INTENT(IN)    :: pab_a, pab_b
     REAL(dp), DIMENSION(:), INTENT(INOUT)    :: force
     REAL(dp), INTENT(IN)                     :: delta
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'udfock2', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'udfock2e', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ii, j, na, nb
+    INTEGER                                  :: j, na, nb
     LOGICAL                                  :: failure
-    REAL(dp)                                 :: ess, pta, ptb
-    REAL(KIND=dp), DIMENSION(10)             :: ca, ppa_a, ppa_b, ppb_a, ppb_b
     REAL(KIND=dp), DIMENSION(100, 3)         :: dwint
     REAL(KIND=dp), DIMENSION(4, 4)           :: kab
 
-    na = SIZE ( pa_a, 1 )
-    nb = SIZE ( pb_a, 1 )
+    na = SIZE ( pab_a, 1 )
+    nb = SIZE ( pab_a, 2 )
 
     CALL drotint (sepa,sepb,rij,dwint,delta)
 
     IF ( na==1 .AND. nb==1 ) THEN
-      pta = pa_a(1,1)+pa_b(1,1)
-      ptb = pb_a(1,1)+pb_b(1,1)
-      force(:) = force(:) + pta*ptb*dwint(1,:)
       force(:) = force(:) - pab_a(1,1)*pab_a(1,1)*dwint(1,:)
       force(:) = force(:) - pab_b(1,1)*pab_b(1,1)*dwint(1,:)
     ELSE IF ( na==1 .AND. nb==4 ) THEN
-      CALL contract( pb_a, ppb_a )
-      CALL contract( pb_b, ppb_b )
-      DO i=1,3
-        ess = SUM ( (ppb_a(1:10)+ppb_b(1:10)) * dwint(1:10,i) )
-        force(i) = force(i) + (pa_a(1,1)+pa_b(1,1)) * ess
-      END DO
       force(:) = force(:) - pab_a(1,1)*( dwint(1,:)*pab_a(1,1) +&
         dwint(2,:)*pab_a(1,4) + dwint(4,:)*pab_a(1,2) + dwint(7,:)*pab_a(1,3) )
       force(:) = force(:) - pab_a(1,2)*( dwint(4,:)*pab_a(1,1) +&
@@ -984,12 +1465,6 @@ CONTAINS
       force(:) = force(:) - pab_b(1,4)*( dwint(2,:)*pab_b(1,1) +&
         dwint(3,:)*pab_b(1,4) + dwint(5,:)*pab_b(1,2) + dwint(8,:)*pab_b(1,3) )
    ELSE IF ( na==4 .AND. nb==1 ) THEN
-      CALL contract( pa_a, ppa_a )
-      CALL contract( pa_b, ppa_b )
-      DO i=1,3
-        ess = SUM ( (ppa_a(1:10)+ppa_b(1:10)) * dwint(1:10,i) )
-        force(i) = force(i) + (pb_a(1,1)+pb_b(1,1)) * ess
-      END DO
       force(:) = force(:) - pab_a(1,1)*( dwint(1,:)*pab_a(1,1) +&
         dwint(2,:)*pab_a(4,1) + dwint(4,:)*pab_a(2,1) + dwint(7,:)*pab_a(3,1) )
       force(:) = force(:) - pab_a(2,1)*( dwint(4,:)*pab_a(1,1) +&
@@ -1007,16 +1482,7 @@ CONTAINS
       force(:) = force(:) - pab_b(4,1)*( dwint(2,:)*pab_b(1,1) +&
         dwint(3,:)*pab_b(4,1) + dwint(5,:)*pab_b(2,1) + dwint(8,:)*pab_b(3,1) )
     ELSE IF ( na==4 .AND. nb==4 ) THEN
-      CALL contract( pa_a, ppa_a )
-      CALL contract( pa_b, ppa_b )
-      CALL contract( pb_a, ppb_a )
-      CALL contract( pb_b, ppb_b )
       DO j=1,3
-        DO i=1,10
-          ii = (i-1)*10 + 1
-          ca(i) = SUM ( dwint(ii:ii+9,j)*(ppb_a(1:10)+ppb_b(1:10)) )
-        END DO
-        force(j) = force(j) + SUM ( ca(1:10)*(ppa_a(1:10)+ppa_b(1:10)) )
         CALL exchange_sp ( kab, pab_a, dwint(:,j) )
         force(j) = force(j) - SUM(pab_a*kab)
         CALL exchange_sp ( kab, pab_b, dwint(:,j) )
@@ -1027,7 +1493,7 @@ CONTAINS
       CPPrecondition(nb<=4,cp_failure_level,routineP,error,failure)
     END IF
 
-  END SUBROUTINE udfock2
+  END SUBROUTINE udfock2e
 
 ! *****************************************************************************
 
@@ -1140,660 +1606,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE nddo_ewald (ks_env,qs_env,ks_matrix,rho,energy,&
-             calculate_forces,just_energy,error)
-
-    TYPE(qs_ks_env_type), POINTER            :: ks_env
-    TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: ks_matrix
-    TYPE(qs_rho_type), POINTER               :: rho
-    TYPE(qs_energy_type), POINTER            :: energy
-    LOGICAL, INTENT(in)                      :: calculate_forces, just_energy
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'nddo_ewald', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: auxbas_grid, handle, &
-                                                output_unit
-    LOGICAL                                  :: failure, ionode
-    REAL(KIND=dp)                            :: tot_rs_int
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(cell_type), POINTER                 :: cell
-    TYPE(coeff_type)                         :: v_gspace
-    TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(pw_env_type), POINTER               :: pw_env
-    TYPE(pw_poisson_type), POINTER           :: poisson_env
-    TYPE(pw_pool_p_type), DIMENSION(:), &
-      POINTER                                :: pw_pools
-    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
-    TYPE(rho0_mpole_type), POINTER           :: nddo_mpole
-
-! -----------------------------------------------------------------------------
-
-    failure=.FALSE.
-    NULLIFY(nddo_mpole,atomic_kind_set,logger,pw_pools)
-
-    CALL timeset(routineN,"I","",handle)
-
-    CPPrecondition(ASSOCIATED(ks_env),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ks_env%ref_count>0,cp_failure_level,routineP,error,failure)
-
-    IF (.NOT.failure) THEN
-      logger => cp_error_get_logger(error)
-      ionode = logger%para_env%mepos==logger%para_env%source
-      IF (ionode) output_unit = cp_logger_get_default_unit_nr(logger)
-
-      CALL get_qs_env(qs_env=qs_env,&
-                      atomic_kind_set=atomic_kind_set,&
-                      nddo_mpole=nddo_mpole, error=error)
-
-      CALL calc_nddo_mpoles(qs_env,rho,atomic_kind_set,nddo_mpole,error)
-      CALL put_rho0_s_on_grid(qs_env,atomic_kind_set,nddo_mpole,tot_rs_int,error)
-
-      NULLIFY (cell,pw_env,auxbas_pw_pool,poisson_env)
-      CALL get_qs_env(qs_env=qs_env, cell=cell, pw_env=pw_env, &
-           error=error)
-      CPPostcondition(ASSOCIATED(cell),cp_failure_level,routineP,error,failure)
-      CPPostcondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
-      CALL pw_env_get(pw_env,auxbas_pw_pool=auxbas_pw_pool,pw_pools=pw_pools,&
-           auxbas_grid=auxbas_grid, poisson_env=poisson_env, error=error)
-      CPPostcondition(ASSOCIATED(auxbas_pw_pool),cp_failure_level,routineP,error,failure)
-      CALL pw_pool_init_coeff(auxbas_pw_pool, v_gspace, &
-                              use_data = COMPLEXDATA1D,&
-                              in_space = RECIPROCALSPACE, error=error)
-
-      CALL pw_poisson_solve(poisson_env, nddo_mpole%rho0_s_gs%pw,&
-           energy%hartree,v_gspace%pw)
-
-      IF (.NOT. just_energy) THEN
-          CALL coeff_transform_space(v_gspace,ks_env%v_hartree_rspace)
-          CALL coeff_scale(ks_env%v_hartree_rspace, &
-               ks_env%v_hartree_rspace%pw%pw_grid%dvol)
-          CALL integrate_vhg0_rspace(qs_env,ks_matrix,&
-               ks_env%v_hartree_rspace,calculate_forces,error)
-      END IF
-
-      CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_gspace,error=error)
-
-    END IF
-
-    CALL timestop(0.0_dp,handle)
-
-  END SUBROUTINE nddo_ewald
-
-! *****************************************************************************
-
-  SUBROUTINE calc_nddo_mpoles(qs_env,rho,atomic_kind_set,nddo_mpole,error)
-
-    TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(qs_rho_type), POINTER               :: rho
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(rho0_mpole_type), POINTER           :: nddo_mpole
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'calc_nddo_mpoles', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: iat, iatom, ic, ico, ikind, &
-                                                is, iso, lmax0, lshell, lx, &
-                                                ly, lz, natom, nkind
-    INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: op
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: Qlm, Qlm_cart
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pblock
-    REAL(KIND=dp), DIMENSION(:, :, :), &
-      POINTER                                :: Qlm_gg
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_p
-
-! -----------------------------------------------------------------------------
-
-    failure=.FALSE.
-
-    ! We assume that matrix_p(1) is the total density
-    matrix_p => rho%rho_ao
-    IF (SIZE(matrix_p) == 2) THEN
-      CALL cp_sm_scale_and_add(matrix_p(1)%matrix, 1.0_dp,&
-           matrix_p(2)%matrix,-1.0_dp)
-    END IF
-
-    nkind = SIZE(atomic_kind_set)
-    DO ikind=1,nkind
-       atomic_kind => atomic_kind_set(ikind)
-       CALL get_atomic_kind(atomic_kind=atomic_kind,natom=natom,&
-                            atom_list=atom_list)
-       Qlm_gg => nddo_mpole%mp_gau(ikind)%Qlm_gg
-       lmax0=nddo_mpole%lmax0_kind(ikind)/2
-       DO iat=1,natom
-          iatom = atom_list(iat)
-          CALL get_block_node(matrix=matrix_p(1)%matrix,&
-                              block_row=iatom,block_col=iatom,&
-                              BLOCK=pblock)
-          Qlm => nddo_mpole%mp_rho(iatom)%Qlm_s
-          DO is=1,SIZE(Qlm)
-            Qlm(is)=fourpi*SUM(pblock(:,:)*Qlm_gg(:,:,is))
-          END DO
-          Qlm(1)=Qlm(1)+nddo_mpole%mp_rho(iatom)%Qlm_z
-          Qlm_cart => nddo_mpole%mp_rho(iatom)%Qlm_car_s
-          Qlm_cart = 0._dp
-          DO lshell = 0,2*lmax0
-            DO ic = 1,nco(lshell)
-              ico = ic + ncoset(lshell-1)
-              lx = indco(1,ico)
-              ly = indco(2,ico)
-              lz = indco(3,ico)
-              op = SQRT(dfac(2*lx-1)*dfac(2*ly-1)*dfac(2*lz-1)*fourpi/&
-                   dfac(2*lshell+1))
-              DO is = 1,nso(lshell)
-                iso = is + nsoset(lshell-1)
-                Qlm_cart(ico) = Qlm_cart(ico) + orbtramat(lshell)%c2s(is,ic)&
-                                *Qlm(iso)*nddo_mpole%norm_g0l_s(lshell)/op
-              END DO
-            END DO
-          END DO
-       END DO
-    END DO
-
-    IF (SIZE(matrix_p) == 2) THEN
-      CALL cp_sm_scale_and_add(matrix_p(1)%matrix, 1.0_dp,&
-           matrix_p(2)%matrix,-1.0_dp)
-    END IF
-
-  END SUBROUTINE calc_nddo_mpoles
-
-! *****************************************************************************
-
-  SUBROUTINE init_rho0_nddo(qs_env, se_control, error)
-
-    TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(semi_empirical_control_type), &
-      POINTER                                :: se_control
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'init_rho0_nddo', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: iat, iatom, ikind, istat, l, &
-                                                nat_kind, natom, natorb, &
-                                                nchan_c, nchan_s, nkind
-    INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL                                  :: failure
-    REAL(dp)                                 :: ecut, eps_gauss, max_rpgf0_s, &
-                                                r_s, z0, zeff
-    REAL(dp), DIMENSION(:, :, :), POINTER    :: Qlm_gg
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atom_kind
-    TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(rho0_atom_type), DIMENSION(:), &
-      POINTER                                :: rho0_atom_set
-    TYPE(rho0_mpole_type), POINTER           :: nddo_mpole
-    TYPE(semi_empirical_type), POINTER       :: se_kind
-
-!   ---------------------------------------------------------------------------
-
-    NULLIFY(atomic_kind_set)
-    NULLIFY(atom_kind)
-    NULLIFY(dft_control)
-    NULLIFY(nddo_mpole)
-    NULLIFY(rho0_atom_set)
-
-    CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, &
-                    dft_control=dft_control)
-
-    ecut = dft_control%qs_control%cutoff 
-    eps_gauss = dft_control%qs_control%se_control%eps_gauss
-    z0 = dft_control%qs_control%se_control%alpha_gauss
-    nkind = SIZE(atomic_kind_set,1)
-
-    CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,natom=natom)
-
-    !   Initialize the multipole and the compensation charge type 
-    CALL allocate_rho0_mpole(nddo_mpole)
-    CALL allocate_rho0_atom(rho0_atom_set,natom)
-
-    !   Allocate the multipole set
-    CALL allocate_multipoles(nddo_mpole%mp_rho,natom,nddo_mpole%mp_gau,nkind)
-    CALL reallocate(nddo_mpole%lmax0_kind,1,nkind)
-
-    nddo_mpole%lmax_0 = 0
-    DO ikind = 1,nkind
-      atom_kind => atomic_kind_set(ikind)
-      CALL get_atomic_kind(atomic_kind=atom_kind,natom=nat_kind,&
-                           atom_list=atom_list,&
-                           se_parameter=se_kind)
-      CALL get_se_param(se_parameter=se_kind,natorb=natorb,zeff=zeff)
-
-      nddo_mpole%lmax0_kind(ikind) = 2*(NINT(SQRT(REAL(natorb,dp)))-1)
-      CALL set_atomic_kind(atomic_kind=atom_kind,&
-                           lmax_rho0 = nddo_mpole%lmax0_kind(ikind))
-      nddo_mpole%lmax_0 = MAX(nddo_mpole%lmax_0,nddo_mpole%lmax0_kind(ikind))
-
-      nchan_s = nsoset(nddo_mpole%lmax0_kind(ikind))
-      nchan_c = ncoset(nddo_mpole%lmax0_kind(ikind))
-
-      DO iat = 1,nat_kind
-        iatom = atom_list(iat)
-        CALL initialize_mpole_rho(nddo_mpole%mp_rho(iatom),nchan_s,nchan_c,zeff)
-      END DO
-
-      ALLOCATE(nddo_mpole%mp_gau(ikind)%g0_h(1,1),STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-      ALLOCATE(nddo_mpole%mp_gau(ikind)%g0_s(1,1),STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-      ALLOCATE(nddo_mpole%mp_gau(ikind)%Vg0_h(1,1),STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-
-      ! Calculate multipoles given by the product of 2 STO functions
-      ALLOCATE(nddo_mpole%mp_gau(ikind)%Qlm_gg(natorb,natorb,nchan_s),STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-      Qlm_gg => nddo_mpole%mp_gau(ikind)%Qlm_gg
-      CALL calculate_sto_mpoles(Qlm_gg,se_kind%basis,error)
-    END DO   ! ikind
-
-    nddo_mpole%zet0_s = se_control%alpha_gauss
-
-    ! Allocate and calculate the normalization factors for g0_lm_s
-    CALL reallocate(nddo_mpole%norm_g0l_s,0,nddo_mpole%lmax_0)
-    DO l = 0,nddo_mpole%lmax_0
-      nddo_mpole%norm_g0l_s(l) = (2._dp*REAL(l,dp)+1._dp)/&
-                                 ( fourpi*gaussint_sph(nddo_mpole%zet0_s,2*l))
-    END DO
-
-    max_rpgf0_s = 0
-    DO ikind = 1,nkind
-      r_s = 0.0_dp
-      DO l = 0,nddo_mpole%lmax0_kind(ikind)
-        r_s = MAX(r_s, exp_radius(l,z0,eps_gauss,1._dp))
-      END DO
-
-      nddo_mpole%mp_gau(ikind)%rpgf0_s = r_s
-      max_rpgf0_s = MAX(max_rpgf0_s,r_s)
-    END DO
-    nddo_mpole%max_rpgf0_s = max_rpgf0_s
-
-    CALL set_qs_env(qs_env=qs_env, nddo_mpole = nddo_mpole, &
-                    rho0_atom_set=rho0_atom_set)
-
-  END SUBROUTINE init_rho0_nddo
-
-! *****************************************************************************
-
-  SUBROUTINE calculate_sto_mpoles(Qlm,sto_basis,error)
-
-    REAL(dp), DIMENSION(:, :, :), &
-      INTENT(OUT)                            :: Qlm
-    TYPE(sto_basis_set_type), POINTER        :: sto_basis
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'calculate_sto_mpoles', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: i1, i1start, i2, i2start, k1, &
-                                                k2, l1, l2, m, maxlq, n1, n2, &
-                                                nshell
-    INTEGER, DIMENSION(:), POINTER           :: lq, nq
-    LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: o5p, ofp, ot3p, otp, qq0, &
-                                                qq1, qq2, zet1, zet2, zk1, zk2
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: zeta
-
-    CALL get_sto_basis_set(sto_basis_set=sto_basis,nshell=nshell,&
-         nq=nq,lq=lq,zet=zeta,maxlq=maxlq)
-
-    Qlm = 0._dp
-    ofp = 1._dp/SQRT(fourpi)
-    o5p = 1._dp/SQRT(5._dp*pi)
-    otp = 1._dp/SQRT(20._dp*pi)
-    ot3p = 1._dp/SQRT(20._dp/3._dp*pi)
-
-    i1start=0
-    DO i1=1,nshell
-      n1=nq(i1)
-      l1=lq(i1)
-      zet1=zeta(i1)
-      zk1=fac(2*n1)**(-0.5_dp)*(2._dp*zet1)**(n1+0.5_dp)
-      i2start=0
-      DO i2=1,nshell
-        n2=nq(i2)
-        l2=lq(i2)
-        zet2=zeta(i2)
-        zk2=fac(2*n2)**(-0.5_dp)*(2._dp*zet2)**(n2+0.5_dp)
-        IF ( l1==0 .AND. l2==0 ) THEN
-          k1=i1start+1
-          k2=i2start+1
-          m=n1+n2
-          qq0=zk1*zk2*fac(m)*(zet1+zet2)**(-m-1)
-          Qlm(k1,k2,1) = ofp*qq0
-        ELSEIF ( l1==0 .AND. l2==1 ) THEN
-          k1=i1start+1
-          k2=i2start
-          m=n1+n2+1
-          qq1=zk1*zk2*fac(m)*(zet1+zet2)**(-m-1)
-          Qlm(k1,k2+1,2) = ofp*qq1
-          Qlm(k1,k2+2,3) = ofp*qq1
-          Qlm(k1,k2+3,4) = ofp*qq1
-        ELSEIF ( l1==1 .AND. l2==0 ) THEN
-          k1=i1start
-          k2=i2start+1
-          m=n1+n2+1
-          qq1=zk1*zk2*fac(m)*(zet1+zet2)**(-m-1)
-          Qlm(k1+1,k2,2) = ofp*qq1
-          Qlm(k1+2,k2,3) = ofp*qq1
-          Qlm(k1+3,k2,4) = ofp*qq1
-        ELSEIF ( l1==1 .AND. l2==1 ) THEN
-          k1=i1start
-          k2=i2start
-          m=n1+n2
-          qq0=zk1*zk2*fac(m)*(zet1+zet2)**(-m-1)
-          m=n1+n2+2
-          qq2=zk1*zk2*fac(m)*(zet1+zet2)**(-m-1)
-          Qlm(k1+1,k2+1,1) = ofp*qq0
-          Qlm(k1+2,k2+2,1) = ofp*qq0
-          Qlm(k1+3,k2+3,1) = ofp*qq0
-          Qlm(k1+3,k2+3,7) = o5p*qq0
-          Qlm(k1+1,k2+2,6) = ot3p*qq2
-          Qlm(k1+3,k2+2,8) = ot3p*qq2
-          Qlm(k1+2,k2+1,6) = ot3p*qq2
-          Qlm(k1+2,k2+3,8) = ot3p*qq2
-          Qlm(k1+1,k2+1,7) = -otp*qq2
-          Qlm(k1+1,k2+1,9) = -otp*qq2
-          Qlm(k1+3,k2+3,7) = -otp*qq2
-          Qlm(k1+3,k2+3,9) = otp*qq2
-          Qlm(k1+1,k2+3,5) = ot3p*qq2
-          Qlm(k1+3,k2+1,5) = ot3p*qq2
-        ELSE
-          CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
-        END IF
-        i2start=i2start+2*l2+1
-      END DO
-      i1start=i1start+2*l1+1
-    END DO
-
-  END SUBROUTINE calculate_sto_mpoles
-
-! *****************************************************************************
-
-  SUBROUTINE integrate_vhg0_rspace(qs_env,ks_matrix,v_rspace,&
-             calculate_forces,error)
-
-    TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: ks_matrix
-    TYPE(coeff_type)                         :: v_rspace
-    LOGICAL, INTENT(IN)                      :: calculate_forces
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'integrate_vhg0_rspace', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER :: auxbas_grid, bo(2), dir, handle, iat, iatom, ic, ico, igrid, &
-      ikind, is, iso, istat, ithread, j, l0_ikind, lm, lmax0, lshell, lx, ly, &
-      lz, nat, nch_max, ncurr, npme, nspins, nthread, omp_get_max_threads, &
-      omp_get_thread_num
-    INTEGER, DIMENSION(:), POINTER           :: atom_list
-    INTEGER, DIMENSION(:, :), POINTER        :: tasks
-    LOGICAL                                  :: failure
-    REAL(dp)                                 :: c4pi, eps_rho_rspace, &
-                                                force_tmp(3), opt, ra(3), &
-                                                rpgf0, zet0
-    REAL(dp), DIMENSION(:), POINTER          :: hab_sph, norm_l, Qlm
-    REAL(dp), DIMENSION(:, :), POINTER       :: h_block, hab, hab_spht, &
-                                                hdab_sph, pab
-    REAL(dp), DIMENSION(:, :, :), POINTER    :: habt, hadb, hdab, hdab_spht, &
-                                                Qlm_gg
-    REAL(dp), DIMENSION(:, :, :, :), POINTER :: hadbt, hdabt
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atom_kind
-    TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_rs_pool_p_type), DIMENSION(:), &
-      POINTER                                :: rs_pools
-    TYPE(cp_rs_pool_type), POINTER           :: rs_pool
-    TYPE(cube_info_type), DIMENSION(:), &
-      POINTER                                :: cube_info
-    TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(l_info_type)                        :: l_info
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
-    TYPE(pw_env_type), POINTER               :: pw_env
-    TYPE(qs_force_type), DIMENSION(:), &
-      POINTER                                :: force
-    TYPE(realspace_grid_type), POINTER       :: rs_v
-    TYPE(rho0_mpole_type), POINTER           :: nddo_mpole
-
-!   ---------------------------------------------------------------------------
-
-    failure=.FALSE.
-    c4pi = fourpi
-
-    CALL timeset("integrate_vhg0_rspace","I","",handle)
-
-    NULLIFY(atomic_kind_set,dft_control,para_env,particle_set,cell,&
-            pw_env,nddo_mpole)
-
-    CALL get_qs_env(qs_env=qs_env,&
-                    atomic_kind_set=atomic_kind_set,&
-                    cell=cell,&
-                    dft_control=dft_control,&
-                    para_env=para_env,&
-                    force=force,pw_env=pw_env,&
-                    nddo_mpole=nddo_mpole,&
-                    particle_set=particle_set)
-
-    nspins = dft_control%nspins
-
-    NULLIFY(norm_l)
-    CALL get_rho0_mpole(rho0_mpole=nddo_mpole,lmax_0=lmax0,&
-                        zet0_s=zet0,igrid_zet0_s=igrid,&
-                        norm_g0l_s=norm_l)
-
-    NULLIFY(rs_pools)
-    CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineN,error,failure)
-    CALL pw_env_get(pw_env, rs_pools=rs_pools, error=error)
-
-    ! assign from pw_env
-    auxbas_grid=pw_env%auxbas_grid
-    cube_info => pw_env%cube_info
-    l_info=pw_env%l_info_rho0
-
-    ! Get the potential on the right grid
-    NULLIFY(rs_pool)
-    rs_pool => rs_pools(igrid)%pool
-
-    CPPrecondition(igrid==auxbas_grid,cp_failure_level,routineN,error,failure)
-
-    ! set up the rs grid at level igrid
-    NULLIFY(rs_v)
-    CALL rs_pool_create_rs(rs_pool,rs_v,error=error)
-    CALL rs_grid_zero(rs_v)
-    CALL rs_pw_transfer(rs_v,v_rspace%pw,pw2rs)
-
-    eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
-
-    nthread = 1
-!$  nthread = omp_get_max_threads()
-
-    ! Allocate work storage ***
-    nch_max = ncoset(lmax0)
-    NULLIFY(pab)
-    CALL reallocate(pab,1,nch_max,1,1)
-    NULLIFY(habt,hdabt,hadbt)
-    CALL reallocate(habt,1,nch_max,1,1,0,nthread)
-    CALL reallocate(hdabt,1,3,1,nch_max,1,1,0,nthread)
-    CALL reallocate(hadbt,1,3,1,nch_max,1,1,0,nthread)
-    NULLIFY(hab_spht,hdab_spht)
-    CALL reallocate(hab_spht,1,nch_max,0,nthread)
-    CALL reallocate(hdab_spht,1,3,1,nch_max,0,nthread)
-
-    NULLIFY(tasks)
-    ncurr = -1
-
-    DO ikind = 1,SIZE(atomic_kind_set,1)
-      atom_kind => atomic_kind_set(ikind)
-      NULLIFY(atom_list) 
-      CALL get_atomic_kind(atomic_kind=atom_kind,atom_list=atom_list,&
-                           natom=nat)
-
-      NULLIFY(Qlm_gg)
-      CALL get_rho0_mpole(rho0_mpole=nddo_mpole,ikind=ikind,&
-                          l0_ikind=l0_ikind,Qlm_gg=Qlm_gg,rpgf0_s=rpgf0)
-      CPPostcondition(ASSOCIATED(Qlm_gg),cp_failure_level,routineN,error,failure)
-
-      ! Initialize the local KS integrals
-
-      pab = 1.0_dp
-
-      bo = get_limit ( nat, para_env%num_pe, para_env%mepos )
-
-      npme = bo(2) - bo(1) + 1
-      IF ( ncurr < npme ) THEN
-        CALL reallocate ( tasks, 1, 2, 1, npme )
-        ncurr = npme
-      ELSE
-        tasks = 0
-      END IF
-
-      dir = rs_v%direction
-!$OMP parallel do &
-!$OMP default(none) &
-!$OMP private(iat,j,iatom,ra) &
-!$OMP shared(bo,tasks,dir,rs_v,atom_list,particle_set,cell)
-      DO iat=bo(1),bo(2)
-        j = iat - bo(1) + 1
-        tasks ( 1, j ) = iat
-        IF ( dir /= 0) THEN
-          iatom = atom_list(iat)
-          ra(:) = pbc(particle_set(iatom)%r,cell)
-          tasks ( 2, j ) = FLOOR(ra(dir)/rs_v%dr(dir))
-          tasks ( 2, j ) = MODULO ( tasks ( 2, j ), rs_v%npts(dir) )
-          tasks ( 2, j ) = tasks ( 2, j ) + rs_v%lb(dir)
-        END IF
-      END DO
-      CALL rs_get_my_tasks ( rs_v, tasks, npme )
-
-      ithread=0
-!$OMP parallel do &
-!$OMP default(none) &
-!$OMP private(iat,j,iatom,ra,Qlm,ithread,hab,hdab,hadb,hab_sph,hdab_sph) &
-!$OMP private(lshell,is,iso,ic,ico,lx,ly,lz,opt,force_tmp,lm,Qlm_gg) &
-!$OMP shared(npme,tasks,atom_list,particle_set,cell,nddo_mpole) &
-!$OMP shared(pab,habt,hdabt,hadbt,hab_spht,hdab_spht) & 
-!$OMP shared(l0_ikind,calculate_forces,orbtramat,norm_l,force) & 
-!$OMP shared(nspins,ks_matrix) &
-!$OMP shared(zet0,rs_v,cube_info,igrid,l_info,eps_rho_rspace,rpgf0) &
-!$OMP shared(nso,nsoset,nco,ncoset,indco) &
-!$OMP shared(c4pi,dfac,h_block,ikind) &
-!$OMP shared(error,failure)
-      DO j=1,npme
-
-!$      ithread=omp_get_thread_num()
-        iat =  tasks(1,j)
-        iatom = atom_list(iat)
-        ra(:) = pbc(particle_set(iatom)%r,cell) 
-
-        NULLIFY(Qlm)
-        CALL  get_rho0_mpole(rho0_mpole=nddo_mpole,iat=iatom,Qlm_car_s=Qlm)
-        CPPostcondition(ASSOCIATED(Qlm),cp_failure_level,routineN,error,failure)
-
-        hab => habt(:,:,ithread)
-        hab = 0.0_dp
-        hdab => hdabt(:,:,:,ithread)
-        hdab = 0.0_dp
-        hadb => hadbt(:,:,:,ithread)
-        hadb = 0.0_dp
-        hab_sph => hab_spht(:,ithread)
-        hdab_sph => hdab_spht(:,:,ithread)
-
-        CALL integrate_pgf_product_rspace(&
-             l0_ikind,zet0,0,0,0.0_dp,0,&
-             ra, (/0.0_dp,0.0_dp,0.0_dp/), 0.0_dp,rs_v,&
-             cube_info(igrid),l_info,hab,pab,o1=0,o2=0,&
-             eps_gvg_rspace=eps_rho_rspace,&
-             calculate_forces=calculate_forces,&
-             hdab=hdab,hadb=hadb,ithread=ithread,&
-             collocate_rho0=.TRUE.,rpgf0_s=rpgf0)
-
-        ! Convert from cartesian to spherical
-        DO lshell = 0,l0_ikind
-          DO is = 1,nso(lshell)
-            iso = is + nsoset(lshell-1) 
-            hab_sph(iso) = 0.0_dp
-            IF (calculate_forces) hdab_sph(1:3,iso) = 0.0_dp
-            DO ic = 1,nco(lshell)
-              ico = ic + ncoset(lshell-1)
-              lx = indco(1,ico)
-              ly = indco(2,ico)
-              lz = indco(3,ico)
-
-              opt = fourpi*norm_l(lshell)/SQRT(c4pi*dfac(2*lx-1)*&
-                    dfac(2*ly-1)*dfac(2*lz-1)/dfac(2*lshell+1))
-              hab_sph(iso) = hab_sph(iso) + &
-                  orbtramat(lshell)%c2s(is,ic)*hab(ico,1)*opt
-              IF (calculate_forces) THEN
-                hdab_sph(1:3,iso) = hdab_sph(1:3,iso) +&
-                    orbtramat(lshell)%c2s(is,ic)*hdab(1:3,ico,1)*opt
-              END IF
-
-            END DO  ! ic
-          END DO  ! is
-        END DO  ! lshell
-
-        IF (calculate_forces) THEN
-
-          force_tmp(1:3) = 0.0_dp
-          DO iso = 1,nsoset(l0_ikind)
-            force_tmp(1) = force_tmp(1) + Qlm(iso)*hdab_sph(1,iso)
-            force_tmp(2) = force_tmp(2) + Qlm(iso)*hdab_sph(2,iso)
-            force_tmp(3) = force_tmp(3) + Qlm(iso)*hdab_sph(3,iso)
-          END DO
-
-          force(ikind)%g0s_Vh_elec(1:3,iat) =  force(ikind)%g0s_Vh_elec(1:3,iat) + &
-                                            force_tmp(1:3)
-
-        END IF
-
-        DO is=1,nspins
-          CALL get_block_node(matrix=ks_matrix(is)%matrix,&
-               block_row=iatom,block_col=iatom,block=h_block)
-          CPPostcondition(ASSOCIATED(h_block),cp_failure_level,routineN,error,failure)
-          DO lm=1,SIZE(Qlm_gg,3)
-            h_block(:,:) = h_block(:,:) + Qlm_gg(:,:,lm)*hab_sph(lm)
-          END DO
-        END DO
-
-      END DO  ! j
-
-    END DO  ! ikind  
-
-    CALL rs_pool_give_back_rs(rs_pool,rs_v,error=error)
-
-    IF (ASSOCIATED(tasks)) THEN
-      DEALLOCATE (tasks,STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineN,error,failure)
-    END IF
-
-    DEALLOCATE (habt,hdabt,hadbt,hab_spht,hdab_spht,pab,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineN,error,failure)
-
-    CALL timestop(0.0_dp,handle)
-
-  END SUBROUTINE integrate_vhg0_rspace
-
-! *****************************************************************************
-
 END MODULE nddo_methods
 
 ! *****************************************************************************
+

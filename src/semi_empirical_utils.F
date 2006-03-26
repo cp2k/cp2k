@@ -39,7 +39,8 @@ MODULE semi_empirical_utils
   USE semi_empirical_parameters,       ONLY: am1_default_parameter,&
                                              eht_default_parameter,&
                                              mndo_default_parameter,&
-                                             pm3_default_parameter
+                                             pm3_default_parameter,&
+                                             pdg_default_parameter
   USE semi_empirical_types,            ONLY: semi_empirical_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
@@ -61,6 +62,7 @@ MODULE semi_empirical_utils
             write_se_param,&
             se_param_set_default,&
             expand,&
+            traceb,&
             contract
 
 !!***
@@ -124,6 +126,9 @@ CONTAINS
     se_parameter % gpd = 0._dp
     se_parameter % gdd = 0._dp
 
+    se_parameter % pre = 0._dp
+    se_parameter % d = 0._dp
+
   END SUBROUTINE allocate_se_param
 
 ! *****************************************************************************
@@ -162,7 +167,7 @@ CONTAINS
 
   SUBROUTINE get_se_param(se_parameter,name,typ,defined,z,zeff,natorb,eheat,&
                           beta,sto_exponents,uss,upp,udd,uff,alp,eisol,&
-                          gss,gsp,gpp,gp2,hsp,gsd,gpd,gdd,ngauss)
+                          gss,gsp,gpp,gp2,hsp,gsd,gpd,gdd,ppddg,dpddg,ngauss)
 
     TYPE(semi_empirical_type), POINTER       :: se_parameter
     CHARACTER(LEN=default_string_length), &
@@ -178,6 +183,7 @@ CONTAINS
                                                 eisol, gss, gsp, gpp, gp2, &
                                                 hsp, gsd, gpd, gdd
     INTEGER, INTENT(OUT), OPTIONAL           :: ngauss
+    REAL(KIND=dp), DIMENSION(2), OPTIONAL    :: ppddg, dpddg
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'get_se_param'
 
@@ -209,6 +215,8 @@ CONTAINS
       IF (PRESENT(gsd)) gsd = se_parameter%gsd
       IF (PRESENT(gpd)) gpd = se_parameter%gpd
       IF (PRESENT(gdd)) gdd = se_parameter%gdd
+      IF (PRESENT(ppddg)) ppddg = se_parameter%pre
+      IF (PRESENT(dpddg)) dpddg = se_parameter%d
 
     ELSE
 
@@ -307,7 +315,7 @@ CONTAINS
 
   SUBROUTINE set_se_param(se_parameter,name,typ,defined,z,zeff,natorb,eheat,&
                           beta,sto_exponents,uss,upp,udd,uff,alp,eisol,&
-                          gss,gsp,gpp,gp2,hsp,gsd,gpd,gdd,ngauss)
+                          gss,gsp,gpp,gp2,hsp,gsd,gpd,gdd,ppddg,dpddg,ngauss)
 
     TYPE(semi_empirical_type), POINTER       :: se_parameter
     CHARACTER(LEN=default_string_length), &
@@ -322,6 +330,7 @@ CONTAINS
     REAL(KIND=dp), OPTIONAL                  :: uss, upp, udd, uff, alp, &
                                                 eisol, gss, gsp, gpp, gp2, &
                                                 hsp, gsd, gpd, gdd
+    REAL(dp), DIMENSION(2), OPTIONAL         :: ppddg, dpddg
     INTEGER, INTENT(IN), OPTIONAL            :: ngauss
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'set_se_param'
@@ -354,6 +363,8 @@ CONTAINS
       IF (PRESENT(gsd)) se_parameter%gsd = gsd
       IF (PRESENT(gpd)) se_parameter%gpd = gpd
       IF (PRESENT(gdd)) se_parameter%gdd = gdd
+      IF (PRESENT(ppddg)) se_parameter%pre = ppddg
+      IF (PRESENT(dpddg)) se_parameter%d = dpddg
 
     ELSE
 
@@ -384,6 +395,7 @@ CONTAINS
                                                 uss, zeff
     REAL(KIND=dp), DIMENSION(0:3)            :: u
     REAL(KIND=dp), DIMENSION(:), POINTER     :: beta, sexp
+    REAL(KIND=dp), DIMENSION(2)              :: ppddg, dpddg
     TYPE(cp_logger_type), POINTER            :: logger
 
     NULLIFY(logger)
@@ -400,6 +412,7 @@ CONTAINS
                sto_exponents=sexp,uss=uss,upp=upp,udd=udd,uff=uff,&
                alp=alp,eisol=eisol,&
                gss=gss,gsp=gsp,gpp=gpp,gp2=gp2,hsp=hsp,&
+               ppddg=ppddg,dpddg=dpddg,&
                ngauss=ngauss)
 
 
@@ -500,6 +513,41 @@ CONTAINS
                 WRITE (UNIT=output_unit,FMT="(T55,A)")&
                      "Parameters are not defined"
              END IF
+          CASE ('PDG')
+             WRITE (UNIT=output_unit,FMT="(/,A,T35,A,T67,A14)")&
+                  " Semi empirical parameters: ","PDDG/PM3 ",&
+                  TRIM(name)
+             IF ( defined ) THEN
+                WRITE (UNIT=output_unit,FMT="(T16,A,T71,F10.2)")&
+                     "Effective core charge:",zeff
+                WRITE (UNIT=output_unit,FMT="(T16,A,T71,I10)")&
+                     "Number of orbitals:",natorb, &
+                     "Basis set expansion (STO-NG)",ngauss
+                WRITE (UNIT=output_unit,FMT="(T16,A,T66,F15.5)")&
+                     "Atomic heat of formation [kcal/mol]:",eheat*kcalmol
+                DO l=0,3
+                   IF (ABS(beta(l)) > 0._dp) THEN
+                      WRITE (UNIT=output_unit,&
+                           FMT="(T16,A,I2,T48,A,F17.4,/,T22,A,F12.4,T52,A,F12.4)") &
+                           "Shell: ",l,"Slater exponent:",sexp(l),&
+                           "U [eV]    :",u(l)*evolt,"Beta [eV]       :",beta(l)*evolt
+                      lm=l
+                   END IF
+                END DO
+                WRITE (UNIT=output_unit,FMT="(T16,A,F12.4,T52,A,F12.4)") &
+                     "alp [A^-1]      :",alp/angstrom,&
+                     "eisol [eV]      :",eisol*evolt
+                WRITE (UNIT=output_unit,FMT="(T16,A,/,T16,5(A,F8.3))") &
+                     "One-centre-two-electron integrals [eV]",&
+                     " gss=",gss*evolt," gsp=",gsp*evolt,&
+                     " gpp=",gpp*evolt," gp2=",gp2*evolt," hsp=",hsp*evolt
+                WRITE (UNIT=output_unit,FMT="(T16,A,T52,F14.10,T67,F14.10)") &
+                     "d_PDDG [A^-1]      :",dpddg/angstrom,&
+                     "P_PDDG [eV]      :",ppddg*evolt
+             ELSE
+                WRITE (UNIT=output_unit,FMT="(T55,A)")&
+                     "Parameters are not defined"
+             END IF
           CASE ('MNDO')
              WRITE (UNIT=output_unit,FMT="(/,A,T35,A,T67,A14)")&
                   " Semi empirical parameters: ","MNDO ",TRIM(name)
@@ -563,6 +611,8 @@ CONTAINS
           CALL am1_default_parameter(se_parameter,z)
         CASE ("PM3")
           CALL pm3_default_parameter(se_parameter,z)
+        CASE ("PDG")
+          CALL pdg_default_parameter(se_parameter,z)
         CASE ("MNDO")
           CALL mndo_default_parameter(se_parameter,z)
         CASE DEFAULT
@@ -594,6 +644,8 @@ CONTAINS
          se_type=2
        CASE ("PM3")
          se_type=3
+       CASE ("PDG")
+         se_type=4
        CASE ("MNDO")
          se_type=1
     END SELECT 
@@ -641,6 +693,20 @@ CONTAINS
     amat(3,3) = amat(3,3) + avec(10)
 
   END SUBROUTINE expand
+
+  FUNCTION traceb ( pmat, avec ) RESULT(trace)
+    REAL(dp), DIMENSION(:, :), INTENT(IN)    :: pmat
+    REAL(dp), DIMENSION(:), INTENT(IN)       :: avec
+    REAL(dp)                                 :: trace
+
+    trace = pmat(1,1) * avec( 1) + pmat(4,1) * avec( 2) + pmat(1,4) * avec( 2) &
+          + pmat(4,4) * avec( 3) + pmat(2,1) * avec( 4) + pmat(1,2) * avec( 4) &
+          + pmat(2,4) * avec( 5) + pmat(4,2) * avec( 5) + pmat(2,2) * avec( 6) &
+          + pmat(3,1) * avec( 7) + pmat(1,3) * avec( 7) + pmat(3,4) * avec( 8) &
+          + pmat(4,3) * avec( 8) + pmat(3,2) * avec( 9) + pmat(2,3) * avec( 9) &
+          + pmat(3,3) * avec(10)
+
+  END FUNCTION traceb
 
 ! *****************************************************************************
 

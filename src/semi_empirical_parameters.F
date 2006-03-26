@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2004 CP2K developers group                                  !
+!   Copyright (C) 2004-2006 CP2K developers group                             !
 !-----------------------------------------------------------------------------!
 !!****** cp2k/semi_empirical_parameters [1.0] *
 !!
@@ -21,6 +21,8 @@
 !!     fn1            A*eV      AM1/PM3 specific parameters
 !!     fn2            A**(-2)   for the core-core repulsion
 !!     fn3            A         interaction.                       
+!!     pre            eV        PDDG function                      
+!!     d              A         PDDG function                      
 !!     bfn1-3         special core-core interactions
 !!                        
 !!     gdd, gpd, gsd, eV        parameters for the Coulomb and exchange one-centre,
@@ -35,7 +37,8 @@
 !!     JGH (14.08.2004)
 !!
 !!   MODIFICATION HISTORY
-!!     BK  (12.10.2004)
+!!     BK   (12.10.2004)
+!!     JGH  (36.03.2006) added PDDG function
 !!
 !!   SOURCE
 !******************************************************************************
@@ -64,6 +67,7 @@ MODULE semi_empirical_parameters
   PUBLIC :: eht_default_parameter, &
             mndo_default_parameter, &
             am1_default_parameter, &
+            pdg_default_parameter, &
             pm3_default_parameter,&
             slater_exponents,srules
 
@@ -1793,6 +1797,394 @@ CONTAINS
 
   END SUBROUTINE pm3_default_parameter
 
+! *****************************************************************************
+
+  SUBROUTINE pdg_default_parameter ( sep, z )
+    TYPE(semi_empirical_type), POINTER       :: sep
+    INTEGER                                  :: z
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'pdg_default_parameter'
+
+! -----------------------------------------------------------------------------
+
+    sep%typ = "PDG"
+    sep%name = ptable(z)%name
+    sep%eheat = ptable(z)%heat_of_formation / kcalmol
+    sep%z = z
+    CALL valence_electrons ( z, sep%zeff, sep%natorb )
+    sep%ngauss = 6
+    sep%defined = .FALSE.
+    sep%sto_exponents(0:3) = 0._dp
+    sep%beta(0:3) = 0._dp
+    sep%uss = 0._dp; sep%upp = 0._dp; sep%udd = 0._dp
+    sep%alp = 0._dp
+    sep%eisol = 0._dp
+    sep%gss = 0._dp; sep%gsp = 0._dp; sep%gpp = 0._dp; sep%gp2 = 0._dp
+    sep%gsd = 0._dp; sep%gpd = 0._dp; sep%gdd = 0._dp
+    sep%hsp = 0._dp
+    sep%dd = 0._dp; sep%qq = 0._dp; sep%am = 0._dp; sep%ad = 0._dp; sep%aq = 0._dp
+    sep%fn1 = 0._dp; sep%fn2 = 0._dp; sep%fn3 = 0._dp
+    sep%bfn1 = 0._dp; sep%bfn2 = 0._dp; sep%bfn3 = 0._dp
+
+    SELECT CASE (z)
+      CASE DEFAULT
+        CALL stop_program(routineN,moduleN,__LINE__,&
+                          "invalid atomic number")
+      CASE (0)
+        sep%defined = .TRUE.
+      CASE (1)
+        !Hydrogen
+        sep%defined          = .TRUE.
+        sep%uss  =  -12.893272_dp
+        sep%beta(0) =   -6.152654
+        sep%sto_exponents(0)    =    0.972786_dp
+        sep%alp   =    3.381686_dp
+        sep%eisol =  -13.120566_dp
+        sep%gss   =   14.7942080_dp
+        sep%am    =    0.5_dp/0.919616_dp
+        sep%ad    =    0.5_dp/0.919616_dp
+        sep%aq   =    0.5_dp/0.919616_dp
+        sep%fn1(1) =  1.122244_dp 
+        sep%fn2(1) = 4.707790_dp
+        sep%fn3(1) = 1.547099_dp
+        sep%fn1(2) = -1.069737_dp
+        sep%fn2(2) = 5.857995_dp
+        sep%fn3(2) = 1.567893_dp
+        sep%pre(1) = 0.057193_dp
+        sep%pre(2) = -0.034823_dp
+        sep%d(1) = 0.663395_dp
+        sep%d(2) = 1.081901_dp
+      CASE (2:5)
+      CASE (6)
+        !Carbon
+        sep%defined = .TRUE.
+        sep%uss   =  -48.241241_dp
+        sep%upp   =  -36.461256_dp
+        sep%beta(0) =  -11.952818_dp
+        sep%beta(1)=   -9.922411_dp
+        sep%sto_exponents(0)    =    1.567864_dp
+        sep%sto_exponents(1)   =    1.846659_dp
+        sep%alp   =    2.725772_dp
+        sep%eisol = -113.428242_dp
+        sep%gss   =   11.2007080_dp
+        sep%gsp  =   10.2650270_dp
+        sep%gpp  =   10.7962920_dp
+        sep%gp2  =    9.0425660_dp
+        sep%hsp  =    2.2909800_dp
+        sep%dd   =    0.831413_dp
+        sep%qq    =   0.663222_dp
+        sep%am    =   0.5_dp/1.214657_dp
+        sep%ad    =   0.5_dp/0.848467_dp
+        sep%aq   =    0.5_dp/0.652785_dp
+        sep%fn1(1) = 0.048906_dp
+        sep%fn2(1) = 5.765340_dp
+        sep%fn3(1) = 1.682232_dp
+        sep%fn1(2) = 0.047697_dp
+        sep%fn2(2) = 5.973721_dp
+        sep%fn3(2) = 0.894406_dp
+        sep%pre(1) = -0.000743_dp
+        sep%pre(2) = 0.000985_dp
+        sep%d(1) = 0.836915_dp
+        sep%d(2) = 1.585236_dp
+      CASE (7)
+      !Nitrogen
+        sep%defined = .TRUE.
+        sep%uss   =  -49.454546_dp
+        sep%upp   =  -47.757406_dp
+        sep%beta(0) =  -14.117230_dp
+        sep%beta(1)=  -19.938509_dp
+        sep%sto_exponents(0)    =    2.035807_dp
+        sep%sto_exponents(1)   =    2.324327_dp
+        sep%alp   =    2.849124_dp
+        sep%eisol = -158.416205_dp
+        sep%gss   =   11.9047870_dp
+        sep%gsp  =    7.3485650_dp
+        sep%gpp  =   11.7546720_dp
+        sep%gp2  =   10.8072770_dp
+        sep%hsp  =    1.1367130_dp
+        sep%dd   =    0.654855_dp
+        sep%qq    =    0.526924_dp
+        sep%am    =    0.5_dp/1.142818_dp
+        sep%ad    =    0.5_dp/0.991235_dp
+        sep%aq   =    0.5_dp/0.676704_dp
+        sep%fn1(1) =  1.513320_dp
+        sep%fn2(1) = 5.904394_dp
+        sep%fn3(1) = 1.728376_dp
+        sep%fn1(2) = -1.511892_dp
+        sep%fn2(2) = 6.030014_dp
+        sep%fn3(2) = 1.734108_dp
+        sep%pre(1) = -0.003160_dp
+        sep%pre(2) = 0.012501_dp
+        sep%d(1) = 1.004172_dp
+        sep%d(2) = 1.516336_dp
+      CASE (8)
+      !Oxygen
+        sep%defined = .TRUE.
+        sep%uss   =  -87.412505_dp
+        sep%upp   =  -72.183070_dp
+        sep%beta(0) =  -44.874553_dp
+        sep%beta(1)=  -24.601939_dp
+        sep%sto_exponents(0)    =    3.814565_dp
+        sep%sto_exponents(1)   =    2.318011_dp
+        sep%alp   =    3.225309_dp
+        sep%eisol = -292.188766_dp
+        sep%gss   =   15.7557600_dp
+        sep%gsp  =   10.6211600_dp
+        sep%gpp  =   13.6540160_dp
+        sep%gp2  =   12.4060950_dp
+        sep%hsp  =    0.5938830_dp
+        sep%dd   =    0.403741_dp
+        sep%qq    =    0.528360_dp
+        sep%am    =    0.5_dp/0.863494_dp
+        sep%ad    =    0.5_dp/0.936266_dp
+        sep%aq   =    0.5_dp/0.624291_dp
+        sep%fn1(1) = -1.138455_dp
+        sep%fn2(1) = 6.000043_dp
+        sep%fn3(1) = 1.622362_dp
+        sep%fn1(2) =  1.146007_dp
+        sep%fn2(2) = 5.963494_dp
+        sep%fn3(2) = 1.614788_dp
+        sep%pre(1) = -0.001000_dp
+        sep%pre(2) = -0.0015220_dp
+        sep%d(1) = 1.360685_dp
+        sep%d(2) = 1.366407_dp
+      CASE (9)
+        !Fluorine
+        sep%defined = .TRUE.
+        sep%uss   = -110.4004320_dp
+        sep%upp   = -106.3952640_dp
+        sep%beta(0) =  -50.9373010_dp
+        sep%beta(1)=  -31.6369760_dp
+        sep%sto_exponents(0)    =    5.5380330_dp
+        sep%sto_exponents(1)   =    2.5380660_dp
+        sep%alp   =    3.2005710_dp
+        sep%eisol = -442.4571330_dp
+        sep%gss   =   10.4966670_dp
+        sep%gsp  =   16.0736890_dp
+        sep%gpp  =   14.8172560_dp
+        sep%gp2  =   14.4183930_dp
+        sep%hsp  =    0.7277630_dp
+        sep%dd   =    0.246601_dp
+        sep%qq    =    0.482551_dp
+        sep%am    =    0.5_dp/1.296126_dp
+        sep%ad    =    0.5_dp/0.6346333_dp
+        sep%aq   =    0.5_dp/0.805802_dp
+        sep%fn1(1) = -0.008079_dp
+        sep%fn2(1) = 5.9389690_dp
+        sep%fn3(1) = 1.863949_dp
+        sep%fn1(2) = -0.0026590_dp
+        sep%fn2(2) = 5.9251050_dp
+        sep%fn3(2) = 2.3888640_dp
+        sep%pre(1) = -0.012866_dp
+        sep%pre(2) = -0.007315_dp
+        sep%d(1) = 1.305681_dp
+        sep%d(2) = 1.842572_dp
+      CASE (10:13)
+      CASE (14)
+      !Silicon
+        sep%defined = .TRUE.
+        sep%uss   =  -26.332522_dp
+        sep%upp   =  -22.602540_dp
+        sep%beta(0) =  -3.376445_dp
+        sep%beta(1)=  -3.6209690_dp
+        sep%sto_exponents(0)    =    1.586389_dp
+        sep%sto_exponents(1)   =    1.485958_dp
+        sep%alp   =    2.215157_dp
+        sep%eisol = -66.839000_dp
+        sep%gss   =    5.0471960_dp
+        sep%gsp  =    5.9490570_dp
+        sep%gpp  =    6.7593670_dp
+        sep%gp2  =    5.1612970_dp
+        sep%hsp  =    0.9198320_dp
+        sep%dd   =    1.310515_dp
+        sep%qq    =    1.126089_dp
+        sep%am    =    0.5_dp/2.695556_dp
+        sep%ad    =    0.5_dp/1.630757_dp
+        sep%aq   =    0.5_dp/0.949200_dp
+        sep%fn1(1) = -0.071314_dp
+        sep%fn2(1) = 6.000000_dp
+        sep%fn3(1) = 0.237995_dp
+        sep%fn1(2) =  0.089451_dp
+        sep%fn2(2) = 6.000000_dp
+        sep%fn3(2) = 1.897728_dp
+        sep%pre(1) = -0.091928_dp
+        sep%pre(2) = -0.040753_dp
+        sep%d(1) = 1.163190_dp
+        sep%d(2) = 2.190526_dp
+      CASE (15)
+      !Phospherus
+        sep%defined = .TRUE.
+        sep%uss   =  -37.882113_dp
+        sep%upp   =  -30.312979_dp
+        sep%beta(0) =  -12.676297_dp
+        sep%beta(1)=  -7.093318_dp
+        sep%sto_exponents(0)    =    2.395882_dp
+        sep%sto_exponents(1)   =    1.742213_dp
+        sep%alp   =    2.005294_dp
+        sep%eisol = -117.212854_dp
+        sep%gss   =    7.8016150_dp
+        sep%gsp  =    5.1869490_dp
+        sep%gpp  =    6.6184780_dp
+        sep%gp2  =    6.0620020_dp
+        sep%hsp  =    1.5428090_dp
+        sep%dd   =    0.893978_dp
+        sep%qq    =    0.960457_dp
+        sep%am    =    0.5_dp/1.743870_dp
+        sep%ad    =    0.5_dp/1.050851_dp
+        sep%aq   =    0.5_dp/1.208907_dp
+        sep%fn1(1) = -0.398055_dp
+        sep%fn2(1) = 1.997272_dp
+        sep%fn3(1) = 0.950073_dp
+        sep%fn1(2) = -0.079653_dp
+        sep%fn2(2) = 1.998360_dp
+        sep%fn3(2) = 2.336959_dp
+        sep%pre(1) = 0.462741_dp
+        sep%pre(2) = -0.020444_dp
+        sep%d(1) = 0.714296_dp
+        sep%d(2) = 2.041209_dp
+      CASE (16)
+      !Sulfur
+        sep%defined = .TRUE.
+        sep%uss   =  -43.906366_dp
+        sep%upp   =  -43.461348_dp
+        sep%beta(0) =  -2.953912_dp
+        sep%beta(1)=  -8.507779_dp
+        sep%sto_exponents(0)    =    1.012002_dp
+        sep%sto_exponents(1)   =    1.876999_dp
+        sep%alp   =    2.539751_dp
+        sep%eisol = -166.336554_dp
+        sep%gss   =    8.9646670_dp
+        sep%gsp  =    6.7859360_dp
+        sep%gpp  =    9.9681640_dp
+        sep%gp2  =    7.9702470_dp
+        sep%hsp  =    4.0418360_dp
+        sep%dd   =    1.006989_dp
+        sep%qq    =    0.891487_dp
+        sep%am    =    0.5_dp/1.517625_dp
+        sep%ad    =    0.5_dp/0.711672_dp
+        sep%aq   =    0.5_dp/0.754336_dp
+        sep%fn1(1) = -0.330692_dp
+        sep%fn2(1) = 6.000000_dp
+        sep%fn3(1) = 0.823837_dp
+        sep%fn1(2) =  0.024171_dp
+        sep%fn2(2) = 6.000000_dp
+        sep%fn3(2) = 2.017756_dp
+        sep%pre(1) = 0.120434_dp
+        sep%pre(2) = -0.002663_dp
+        sep%d(1) = 0.672870_dp
+        sep%d(2) = 2.032340_dp
+      CASE (17)
+      !Chlorine
+        sep%defined = .TRUE.
+        sep%uss   = -95.094434_dp
+        sep%upp   =  -53.921651_dp
+        sep%beta(0) =  -26.913129_dp
+        sep%beta(1)=  -14.991178_dp
+        sep%sto_exponents(0)    =    2.5482680_dp
+        sep%sto_exponents(1)   =    2.2846240_dp
+        sep%sto_exponents(2)   =    1.0000000_dp
+        sep%alp   =    2.4976170_dp
+        sep%eisol = -305.7152010_dp
+        sep%gss   =   16.0136010_dp
+        sep%gsp  =    8.0481150_dp
+        sep%gpp  =    7.5222150_dp
+        sep%gp2  =    7.5041540_dp
+        sep%hsp  =    3.4811530_dp
+        sep%dd   =    0.827561_dp
+        sep%qq    =    0.7324270_dp
+        sep%am    =    0.5_dp/0.8495900_dp
+        sep%ad    =    0.5_dp/0.696164_dp
+        sep%aq   =    0.5_dp/2.299104_dp
+        sep%fn1(1) = -0.112222_dp
+        sep%fn2(1) = 5.9637190_dp
+        sep%fn3(1) = 1.0277190_dp
+        sep%fn1(2) = -0.0130610_dp
+        sep%fn2(2) = 1.9995560_dp
+        sep%fn3(2) = 2.2863770_dp
+        sep%pre(1) = -0.016552_dp
+        sep%pre(2) = -0.016646_dp
+        sep%d(1) = 1.727690_dp
+        sep%d(2) = 1.784655_dp
+      CASE (18:34)
+      CASE (35)
+        !Bromine
+        sep%defined = .TRUE.
+        sep%uss   = -115.8419630_dp
+        sep%upp   =  -74.2051460_dp
+        sep%beta(0) =  -21.5380440_dp
+        sep%beta(1)=   -8.5247640_dp
+        sep%sto_exponents(0)    =    4.3450790_dp
+        sep%sto_exponents(1)   =    2.1909610_dp
+        sep%sto_exponents(2)   =    1.0000000_dp
+        sep%alp   =    2.4246730_dp
+        sep%eisol = -351.0138870_dp
+        sep%gss   =   15.9434250_dp
+        sep%gsp  =   16.0616800_dp
+        sep%gpp  =    8.2827630_dp
+        sep%gp2  =    7.8168490_dp
+        sep%hsp  =    0.5788690_dp
+        sep%dd   =    0.473860_dp
+        sep%qq    =    0.968214_dp
+        sep%am    =    0.5_dp/0.853330_dp
+        sep%ad    =    0.5_dp/1.046430_dp
+        sep%aq   =    0.5_dp/1.280643_dp
+        sep%fn1(1) =  0.9613620_dp
+        sep%fn2(1) = 6.0136000_dp
+        sep%fn3(1) = 2.3404450_dp
+        sep%fn1(2) = -0.9548834_dp
+        sep%fn2(2) = 5.9763290_dp
+        sep%fn3(2) = 2.3487450_dp
+        sep%pre(1) = -0.013772_dp
+        sep%pre(2) =  0.008849_dp
+        sep%d(1) = 1.852030_dp
+        sep%d(2) = 2.338958_dp
+      CASE (36:52)
+      CASE (53)
+        !Iodine
+        sep%defined = .TRUE.
+        sep%uss   =  -96.6641740_dp
+        sep%upp   =  -61.1671370_dp
+        sep%beta(0) =  -16.5926210_dp
+        sep%beta(1)=   -6.5998160_dp
+        sep%sto_exponents(0)    =    5.0628010_dp
+        sep%sto_exponents(1)   =    2.4177570_dp
+        sep%sto_exponents(2)   =    1.0000000_dp
+        sep%alp   =    1.9781700_dp
+        sep%eisol = -291.5378690_dp
+        sep%gss   =   13.6319430_dp
+        sep%gsp  =   14.9904060_dp
+        sep%gpp  =    7.2883300_dp
+        sep%gp2  =    5.9664070_dp
+        sep%hsp  =    2.6300350_dp
+        sep%dd   =    0.407261_dp
+        sep%qq    =    1.062574_dp
+        sep%am    =    0.5_dp/0.998024_dp
+        sep%ad    =    0.5_dp/0.532290_dp
+        sep%aq   =    0.5_dp/0.979783_dp
+        sep%fn1(1) = -0.136003_dp
+        sep%fn2(1) = 3.8529120_dp
+        sep%fn3(1) = 1.6974550_dp
+        sep%fn1(2) = -0.0372870_dp
+        sep%fn2(2) = 5.2292640_dp
+        sep%fn3(2) = 2.7686690_dp
+        sep%pre(1) =  0.012901_dp
+        sep%pre(2) = -0.012825_dp
+        sep%d(1) = 1.994299_dp
+        sep%d(2) = 2.263417_dp
+      CASE (54:106)
+    END SELECT
+
+    sep%beta = sep%beta/evolt
+    sep%uss = sep%uss/evolt; sep%upp = sep%upp/evolt; sep%udd = sep%udd/evolt
+    sep%alp = sep%alp/bohr
+    sep%eisol = sep%eisol/evolt
+    sep%gss = sep%gss/evolt; sep%gsp = sep%gsp/evolt; sep%gpp = sep%gpp/evolt; sep%gp2 = sep%gp2/evolt 
+    sep%gsd = sep%gsd/evolt; sep%gpd = sep%gpd/evolt; sep%gdd = sep%gdd/evolt
+    sep%hsp = sep%hsp/evolt
+    sep%fn1 = sep%fn1*bohr/evolt; sep%fn2 = sep%fn2/bohr/bohr; sep%fn3 = sep%fn3*bohr
+    sep%pre = sep%pre/evolt; sep%d = sep%d/bohr
+
+  END SUBROUTINE pdg_default_parameter
 ! *****************************************************************************
 
   

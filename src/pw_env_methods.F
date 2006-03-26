@@ -255,17 +255,6 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
         CPPostcondition(ASSOCIATED(rho0_mpole),cp_failure_level,routineP,error,failure)
         CALL get_rho0_mpole(rho0_mpole=rho0_mpole,&
                          zet0_s=zet0_s,max_rpgf0_s=max_rpgf0_s)
-     ELSEIF(qs_env%dft_control%qs_control%se_control%ewald) THEN
-        IF (ASSOCIATED(pw_env%l_info_rho0)) THEN
-           CALL l_info_release(pw_env%l_info_rho0,error)
-        ELSE
-           ALLOCATE(pw_env%l_info_rho0,stat=stat)
-           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-        END IF
-        CALL get_qs_env(qs_env=qs_env,nddo_mpole=nddo_mpole)
-        CPPostcondition(ASSOCIATED(nddo_mpole),cp_failure_level,routineP,error,failure)
-        CALL get_rho0_mpole(rho0_mpole=nddo_mpole,&
-                         zet0_s=zet0_s,max_rpgf0_s=max_rpgf0_s)
      ELSE
         NULLIFY(pw_env%l_info_rho0)
      END IF
@@ -407,17 +396,6 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
      END IF
      poisson_section => section_vals_get_subs_vals(input,"DFT%POISSON",&
           error=error)
-     ! carry over the parameters for the screening function
-     IF (qs_env%dft_control%qs_control%semi_empirical) THEN
-        IF (qs_env%dft_control%qs_control%se_control%ewald) THEN
-          CALL section_vals_val_set(poisson_section,"SCREENING%SR_SCREENING",&
-               l_val=.TRUE.,error=error)
-          CALL section_vals_val_set(poisson_section,"SCREENING%RC_INTERACTION",&
-               r_val=2._dp*qs_env%dft_control%qs_control%se_control%rc_interaction,error=error)
-          CALL section_vals_val_set(poisson_section,"SCREENING%RC_RANGE",&
-               r_val=qs_env%dft_control%qs_control%se_control%rc_range,error=error)
-        END IF
-     END IF
      CALL pw_poisson_set(pw_env%poisson_env,cell=my_cell,pw_pools=pw_env%pw_pools,&
           parameters=poisson_section,mt_super_ref_pw_grid=mt_super_ref_grid,&
           use_level=pw_env%auxbas_grid,error=error)
@@ -458,9 +436,6 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
      IF(qs_env%dft_control%qs_control%gapw) THEN
         igrid_zet0_s = gaussian_gridlevel(pw_env%gridlevel_info,2.0_dp*zet0_s)
         rho0_mpole%igrid_zet0_s = igrid_zet0_s
-     ELSEIF(qs_env%dft_control%qs_control%se_control%ewald) THEN
-        igrid_zet0_s = gaussian_gridlevel(pw_env%gridlevel_info,2.0_dp*zet0_s)
-        nddo_mpole%igrid_zet0_s = igrid_zet0_s
      END IF
 
      CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set)
@@ -474,8 +449,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
         IF (.NOT. dft_control%qs_control%map_paa) maxradius=0.0_dp
 
         ! Take into account the radius of the soft compensation charge rho0_soft1
-        IF(qs_env%dft_control%qs_control%gapw .OR. &
-           qs_env%dft_control%qs_control%se_control%ewald) THEN
+        IF(qs_env%dft_control%qs_control%gapw) THEN
            IF(igrid_zet0_s == igrid_level ) maxradius=MAX(maxradius,max_rpgf0_s)
         END IF
 
@@ -596,8 +570,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
           maxlgto=maxlgto)
      CALL init_l_info(pw_env%l_info,maxlgto+2,cmax)
 
-     IF( dft_control%qs_control%gapw .OR. &
-         dft_control%qs_control%se_control%ewald ) THEN
+     IF( dft_control%qs_control%gapw) THEN
         CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
              lmax_rho0 = lmax_rho0)
         IF (lmax_rho0+1 <= maxlgto+2) THEN

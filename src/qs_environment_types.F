@@ -191,6 +191,7 @@ MODULE qs_environment_types
 !!       coefficients of the local atomic densities rho1_hard and rho1_soft
 !!     - sab_2c: neighbor lists for the calculation of the 2 centers
 !!       hartree term Vh(rho0_hard)rho0_hard-Vh(rho0_soft)*rho0_soft
+!!       Also used for Hartree terms in semi-empirical methods
 !!     - sac_3c, sbc_3c: neighbor lists for the calculation of the 3 centers
 !!       hartree term Vh(rho0_hard-rho0_soft)*rho_soft
 !!     - energy: place where the energies calculated are stored

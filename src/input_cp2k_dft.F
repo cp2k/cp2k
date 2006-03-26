@@ -1038,17 +1038,18 @@ SUBROUTINE create_qs_section(section,error)
      CALL keyword_create(keyword, name="METHOD",&
           description="What method should be employed",&
           usage="METHOD GAPW",&
-          enum_c_vals=s2a("GAPW","GAPW_XC","GPW","KG_POL","KG_NOPOL","KG_GPW","EHT","MNDO","AM1","PM3"),&
+          enum_c_vals=s2a("GAPW","GAPW_XC","GPW","KG_POL","KG_NOPOL","KG_GPW","EHT",&
+                          "MNDO","AM1","PM3","PDG"),&
           enum_desc=s2a("Gaussian and augmented plane waves method",&
                         "Gaussian and augmented plane waves method only for XC",&
                         "Gaussian and plane waves method",&
                         "Polarisable Kim-Gordon method",&
                         "Non-polarisable Kim-Gordon method", " DFT Embedding method ",&
                         "EHT semiempirical","MNDO semiempirical","AM1 semiempirical",&
-                        "PM3 semiempirical"),&
+                        "PM3 semiempirical","PDG semiempirical"),&
           enum_i_vals=(/ do_method_gapw, do_method_gapw_xc, do_method_gpw, do_method_kg_pol,&
                          do_method_kg_nopol, do_method_kg_gpw, do_method_eht,&
-                         do_method_mndo, do_method_am1, do_method_pm3/),&
+                         do_method_mndo, do_method_am1, do_method_pm3, do_method_pdg/),&
           default_i_val=do_method_gpw, error=error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error)
@@ -1109,33 +1110,21 @@ SUBROUTINE create_se_control_section(section,error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error)
 
-     CALL keyword_create(keyword, name="EWALD",&
-          description="Use Ewald method for Coulomb interactions",&
-           usage="EWALD ",default_l_val=.FALSE., error=error)
-     CALL section_add_keyword(section,keyword,error=error)
-     CALL keyword_release(keyword,error=error)
-
      CALL keyword_create(keyword, name="DELTA",&
           description="Step size in finite difference force calculation",&
           usage="DELTA {real} ",default_r_val=1.e-6_dp, error=error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error)
 
-     CALL keyword_create(keyword, name="ALPHA_GAUSS",&
-          description="Exponent of Gaussian in Ewald method",&
-          usage="ALPHA_GAUSS {real} ",default_r_val=1._dp, error=error)
-     CALL section_add_keyword(section,keyword,error=error)
-     CALL keyword_release(keyword,error=error)
-
-     CALL keyword_create(keyword, name="EPS_GAUSS",&
-          description="Accuracy of grid representation of Gaussian function",&
-          usage="EPS_GAUSS {real} ",default_r_val=1.e-8_dp, error=error)
-     CALL section_add_keyword(section,keyword,error=error)
-     CALL keyword_release(keyword,error=error)
-
      CALL keyword_create(keyword, name="RC_INTERACTION",&
           description="Cutoff radius for localization",&
           usage="RC_INTERACTION {real} ",default_r_val=24._dp, error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+
+     CALL keyword_create(keyword, name="RC_COULOMB",&
+          description="Cutoff radius for Coulomb interactions",&
+          usage="RC_COULOMB {real} ",default_r_val=24._dp, error=error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error)
 

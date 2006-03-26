@@ -229,11 +229,7 @@ CONTAINS
                  r_val=qs_control%relative_cutoff)
 
     IF ( qs_control%semi_empirical ) THEN
-      IF ( qs_control%se_control%ewald ) THEN
-         qs_control%cutoff = qs_control%relative_cutoff * qs_control%se_control%alpha_gauss
-      ELSE
-         qs_control%cutoff = 2._dp 
-      END IF
+      qs_control%cutoff = 1._dp 
     END IF
     
     IF(multigrid_set) THEN
@@ -500,16 +496,12 @@ CONTAINS
 !   CALL read_se_control_section()
     CALL section_vals_val_get(se_section,"ORTHOGONAL_BASIS",&
                  l_val=qs_control%se_control%orthogonal_basis,error=error)
-    CALL section_vals_val_get(se_section,"EWALD",&
-                 l_val=qs_control%se_control%ewald,error=error)
     CALL section_vals_val_get(se_section,"DELTA",&
                  r_val=qs_control%se_control%delta,error=error)
-    CALL section_vals_val_get(se_section,"ALPHA_GAUSS",&
-                 r_val=qs_control%se_control%alpha_gauss,error=error)
-    CALL section_vals_val_get(se_section,"EPS_GAUSS",&
-                 r_val=qs_control%se_control%eps_gauss,error=error)
     CALL section_vals_val_get(se_section,"RC_INTERACTION",&
                  r_val=qs_control%se_control%rc_interaction,error=error)
+    CALL section_vals_val_get(se_section,"RC_COULOMB",&
+                 r_val=qs_control%se_control%rc_coulomb,error=error)
     CALL section_vals_val_get(se_section,"RC_RANGE",&
                  r_val=qs_control%se_control%rc_range,error=error)
     IF(qs_control %method_id == do_method_mndo .OR. &

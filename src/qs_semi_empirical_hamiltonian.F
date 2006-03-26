@@ -29,7 +29,6 @@ MODULE qs_semi_empirical_hamiltonian
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp
-  USE message_passing,                 ONLY: mp_sum
   USE nddo_methods,                    ONLY: build_nddo_fock_matrix
   USE particle_types,                  ONLY: particle_type
   USE physcon,                         ONLY: evolt
@@ -46,13 +45,9 @@ MODULE qs_semi_empirical_hamiltonian
   USE qs_overlap,                      ONLY: build_overlap_matrix,&
                                              write_sparse_matrix
   USE qs_rho_types,                    ONLY: qs_rho_type
-  USE semi_empirical_integrals,        ONLY: drotnuc,&
-                                             rotnuc,&
-                                             set_taper_fn
+  USE semi_empirical_integrals,        ONLY: set_taper_fn
   USE semi_empirical_types,            ONLY: semi_empirical_type
-  USE semi_empirical_utils,            ONLY: contract,&
-                                             expand,&
-                                             get_se_param,&
+  USE semi_empirical_utils,            ONLY: get_se_param,&
                                              get_se_type
   USE sparse_matrix_types,             ONLY: allocate_matrix_set,&
                                              cp_sm_scale_and_add,&
@@ -98,16 +93,13 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
     LOGICAL                                  :: defined, failure
     REAL(KIND=dp)                            :: delta, econst, eheat, eisol, &
-                                                enuc, enuclear, kh, range, &
-                                                rc, udd, uff, upp, uss
-    REAL(KIND=dp), DIMENSION(10)             :: e1b, e2a, pvec
-    REAL(KIND=dp), DIMENSION(10, 3)          :: de1b, de2a
+                                                enuclear, kh, range, rc, udd, &
+                                                uff, upp, uss
     REAL(KIND=dp), DIMENSION(16)             :: ha, hb, ua
-    REAL(KIND=dp), DIMENSION(3)              :: denuc, force_ab, rij
+    REAL(KIND=dp), DIMENSION(3)              :: force_ab, rij
     REAL(KIND=dp), DIMENSION(:), POINTER     :: beta_a, beta_b
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: dsmat, h_block, h_blocka, &
-                                                h_blockb, pabmat, pamat, &
-                                                pbmat, s_block
+                                                pabmat, pamat, s_block
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -261,7 +253,7 @@ CONTAINS
 
              SELECT CASE (dft_control%qs_control%method)
                CASE ("EHT")
-               CASE ("MNDO","AM1","PM3")
+               CASE ("MNDO","AM1","PM3","PDG")
                  NULLIFY(h_blocka)
                  CALL get_block_node(matrix=diagmat_h,&
                                      block_row=iatom,&
@@ -291,7 +283,7 @@ CONTAINS
                       DO i=1,SIZE(h_blocka,1)
                         h_blocka(i,i)=h_blocka(i,i)+ha(i)
                       END DO
-                    CASE ("AM1","PM3","MNDO")
+                    CASE ("AM1","PM3","MNDO","PDG")
                       DO i=1,SIZE(h_blocka,1)
                         h_blocka(i,i)=h_blocka(i,i)+ua(i)
                       END DO
@@ -365,70 +357,6 @@ CONTAINS
                    END DO
                  END IF
 
-                 SELECT CASE (dft_control%qs_control%method)
-                   CASE ("EHT")
-                   CASE ("MNDO","AM1","PM3")
-                     IF ( irow == iatom ) THEN
-                       CALL rotnuc (se_kind_a,se_kind_b,rij,e1b,e2a,enuc,itype)
-                     ELSE
-                       CALL rotnuc (se_kind_b,se_kind_a,-rij,e2a,e1b,enuc,itype)
-                     END IF
-                     enuclear = enuclear + enuc
-                     ! one-centre one-electron terms
-                     NULLIFY(h_blockb)
-                     CALL get_block_node(matrix=diagmat_h,&
-                                         block_row=jatom,&
-                                         block_col=jatom,&
-                                         BLOCK=h_blockb)
-                     CPPostcondition(ASSOCIATED(h_blockb),cp_failure_level,routineP,error,failure)
-                     ! contribution to iatom
-                     IF ( SIZE(h_blocka,1) == 1 ) THEN
-                       h_blocka(1,1)=h_blocka(1,1)+e1b(1)
-                     ELSE
-                       CALL expand ( h_blocka, e1b )
-                     END IF
-                     ! contribution to jatom
-                     IF ( SIZE(h_blockb,1) == 1 ) THEN
-                       h_blockb(1,1)=h_blockb(1,1)+e2a(1)
-                     ELSE
-                       CALL expand ( h_blockb, e2a )
-                     END IF
-                     IF(calculate_forces) THEN
-                       CALL get_block_node(matrix=diagmat_p,&
-                                           block_row=jatom,&
-                                           block_col=jatom,&
-                                           BLOCK=pbmat)
-                       CPPostcondition(ASSOCIATED(pbmat),cp_failure_level,routineP,error,failure)
-                       IF ( irow == iatom ) THEN
-                         CALL drotnuc (se_kind_a,se_kind_b,rij,de1b,de2a,&
-                                       denuc,itype,delta)
-                       ELSE
-                         CALL drotnuc (se_kind_b,se_kind_a,-rij,de2a,de1b,&
-                                       denuc,itype,delta)
-                       END IF
-                       force_ab(1:3)=force_ab(1:3)-denuc(1:3)
-                       IF ( SIZE(h_blocka,1) == 1 ) THEN
-                         force_ab(1:3)=force_ab(1:3)-de1b(1,1:3)*pamat(1,1)
-                       ELSE
-                         CALL contract ( pamat, pvec )
-                         DO icor=1,3
-                           force_ab(icor)=force_ab(icor)-&
-                                          SUM(de1b(1:10,icor)*pvec(1:10))
-                         END DO
-                       END IF
-                       IF ( SIZE(h_blockb,1) == 1 ) THEN
-                         force_ab(1:3)=force_ab(1:3)-de2a(1,1:3)*pbmat(1,1)
-                       ELSE
-                         CALL contract ( pbmat, pvec )
-                         DO icor=1,3
-                           force_ab(icor)=force_ab(icor)-&
-                                          SUM(de2a(1:10,icor)*pvec(1:10))
-                         END DO
-                       END IF
-                     END IF
-
-                 END SELECT
-
                END IF
 
                IF(calculate_forces .AND. iatom/=jatom) THEN
@@ -453,8 +381,6 @@ CONTAINS
 
      CALL set_qs_env(qs_env=qs_env,matrix_h=matrix_h)
 
-     CALL mp_sum(enuclear,para_env%group)
-     qs_env%energy%core_overlap = enuclear
      qs_env%energy%core_self    = econst
 
      IF (BTEST(cp_print_key_should_output(logger%iter_info,&
@@ -506,7 +432,7 @@ CONTAINS
     SELECT CASE (dft_control%qs_control%method)
       CASE DEFAULT
         CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
-      CASE ("AM1","PM3","MNDO")
+      CASE ("AM1","PM3","MNDO","PDG")
         CALL build_nddo_fock_matrix (ks_env,qs_env,ks_matrix,rho,energy,&
                calculate_forces,just_energy,error)
     END SELECT

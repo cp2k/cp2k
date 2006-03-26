@@ -577,6 +577,7 @@ CONTAINS
   !             itype  = 1  (MNDO)
   !                    = 2  (AM1)
   !                    = 3  (PM3)
+  !                    = 4  (PDG)
   !
   ! on output e1b,e2a= Array of electron-nuclear attraction integrals,
   !                    e1b = Electron on atom ni attracting nucleus of nj.
@@ -596,7 +597,7 @@ CONTAINS
     REAL(dp) :: a, alpi, alpj, ax, cppp1, cppp2, cpps1, cpps2, csp1, csp2, &
       css1, css2, rij, scale, ssss, xx11, xx21, xx22, xx31, xx32, xx33, yy11, &
       yy21, yy22, yyzz11, yyzz21, yyzz22, zz, zz11, zz21, zz22, zz31, zz32, &
-      zz33
+      zz33, qcorr, zaf, zbf, pai, pbi, paj, pbj, dai, dbi, daj, dbj, apdg
     REAL(dp), DIMENSION(3)                   :: x, y, z
     REAL(dp), DIMENSION(4)                   :: fni1, fni2, fni3, fnj1, fnj2, &
                                                 fnj3
@@ -705,7 +706,7 @@ CONTAINS
          enuc = zz*ssss
          scale=ABS(scale*enuc)
          zz=zz/rij
-         IF(itype == 2 .OR. itype == 3) THEN
+         IF(itype == 2 .OR. itype == 3 .OR. itype == 4) THEN
            IF(itype == 2 .AND. sepi%z == 5) THEN
              !special case AM1 Boron
              SELECT CASE (sepj%z)
@@ -746,7 +747,7 @@ CONTAINS
              fnj2(:) = sepj%fn2(:)
              fnj3(:) = sepj%fn3(:)
            END IF
-           ! AM1 or PM3 correction to nuclear repulsion
+           ! AM1/PM3/PDG correction to nuclear repulsion
             DO ig=1,SIZE(fni1)
                IF(ABS(fni1(ig)) > 0._dp) THEN
                   AX = fni2(ig)*(rij-fni3(ig))**2
@@ -762,7 +763,27 @@ CONTAINS
                ENDIF
             END DO
          ENDIF
-         enuc=enuc+scale
+         IF(itype == 4) THEN
+           ! PDDG function 
+           zaf=sepi%zeff/nt
+           zbf=sepj%zeff/nt
+           pai=sepi%pre(1)
+           pbi=sepi%pre(2)
+           paj=sepj%pre(1)
+           pbj=sepj%pre(2)
+           dai=sepi%d(1)
+           dbi=sepi%d(2)
+           daj=sepj%d(1)
+           dbj=sepj%d(2)
+           apdg=10._dp*0.5291772083_dp*0.5291772083_dp
+           qcorr = (zaf*pai+zbf*paj)*exp(-apdg*(rij-dai-daj)**2)+ &
+                   (zaf*pai+zbf*pbj)*exp(-apdg*(rij-dai-dbj)**2)+ &
+                   (zaf*pbi+zbf*paj)*exp(-apdg*(rij-dbi-daj)**2)+ &
+                   (zaf*pbi+zbf*pbj)*exp(-apdg*(rij-dbi-dbj)**2)
+         ELSE
+           qcorr = 0._dp
+         END IF
+         enuc=enuc+scale+qcorr
  
       ENDIF
 
