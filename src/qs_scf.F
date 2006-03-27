@@ -78,11 +78,11 @@ MODULE qs_scf
                                              harris_eigenvalue_trace_KS_Pmix,&
                                              harris_energy_correction,&
                                              harris_postprocessing
-  USE input_constants,                 ONLY: core_guess,&
-                                             densities_guess,&
-                                             ot_precond_full_all,&
-                                             ot_precond_none,&
-                                             qs_debug_run
+  USE input_constants,                 ONLY: &
+       core_guess, densities_guess, ot_precond_full_all, &
+       ot_precond_full_kinetic, ot_precond_full_single, ot_precond_none, &
+       ot_precond_s_inverse, ot_precond_sparse_diag, &
+       ot_precond_sparse_firstorder, qs_debug_run
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: dp
@@ -114,7 +114,9 @@ MODULE qs_scf
   USE qs_mo_methods,                   ONLY: calculate_density_matrix,&
                                              calculate_magnitude,&
                                              calculate_orthonormality,&
-                                             calculate_subspace_eigenvalues
+                                             calculate_subspace_eigenvalues,&
+                                             make_basis_simple,&
+                                             make_basis_sm
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              init_mo_set,&
                                              mo_set_p_type,&
@@ -1096,7 +1098,7 @@ END SUBROUTINE qs_scf_print_summary
     CHARACTER(LEN=*), PARAMETER :: routineN = 'init_scf_loop', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, ispin, &
+    INTEGER                                  :: handle, i, ispin, nmo, &
                                                 number_of_OT_envs, stat
     LOGICAL                                  :: do_rotation, failure, &
                                                 has_unit_metric
@@ -1129,23 +1131,45 @@ END SUBROUTINE qs_scf_print_summary
 
     SELECT CASE (scf_env%method)
     CASE DEFAULT
+
       CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
                routineP,"unknown scf method method:"//&
                cp_to_string(scf_env%method),error,failure)
+
     CASE (general_diag_method_nr,special_diag_method_nr)
+
        IF (.NOT.ASSOCIATED(scf_env%scf_diis_buffer)) THEN       
           CALL qs_diis_b_create(scf_env%scf_diis_buffer,&
                nbuffer=scf_control%max_diis,&
                error=error)
        END IF
        CALL qs_diis_b_clear(scf_env%scf_diis_buffer,error=error)
+
     CASE (ot_method_nr)
-        has_unit_metric=.FALSE.
-        IF (dft_control%qs_control%semi_empirical) THEN
-            IF (dft_control%qs_control%se_control%orthogonal_basis) THEN
+
+       has_unit_metric=.FALSE.
+       IF (dft_control%qs_control%semi_empirical) THEN
+          IF (dft_control%qs_control%se_control%orthogonal_basis) THEN
                 has_unit_metric=.TRUE.
-            ENDIF
-        END IF
+          ENDIF
+       END IF
+
+       ! reortho the wavefunctions if we are having an outer scf and this is not the first iter
+       ! this is useful to avoid the build-up of numerical noise
+       ! however, we can play this trick if restricted (don't mix non-equivalent orbs)
+       IF (scf_control%outer_scf%have_scf .AND. .NOT. dft_control%restricted) THEN
+          IF (scf_env%outer_scf%iter_count>0) THEN
+             DO ispin=1,dft_control%nspins
+               CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff, nmo=nmo)
+               IF (has_unit_metric) THEN
+                  CALL make_basis_simple(mo_coeff,nmo)
+               ELSE
+                  CALL make_basis_sm(mo_coeff,nmo,matrix_s(1)%matrix)
+               ENDIF 
+             ENDDO
+          ENDIF
+       ENDIF
+
        IF (.NOT.ASSOCIATED(scf_env%qs_ot_env)) THEN
 
           ! restricted calculations require just on set of OT orbitals
@@ -1171,6 +1195,26 @@ END SUBROUTINE qs_scf_print_summary
           CALL qs_ks_update_qs_env(qs_env%ks_env,qs_env=qs_env,&
                error=error, calculate_forces=.FALSE.,just_energy=.FALSE.)
 
+          ! if an old preconditioner is still around (i.e. outer SCF is active),
+          ! remove it if this could be worthwhile
+          IF (ASSOCIATED(scf_env%ot_preconditioner)) THEN
+             SELECT CASE(scf_env%qs_ot_env(1)%settings%preconditioner_type)
+             CASE(ot_precond_full_all,ot_precond_full_single) ! these depend on the ks matrix
+               DO ispin=1,SIZE(scf_env%ot_preconditioner)
+                  CALL destroy_preconditioner(scf_env%ot_preconditioner(ispin)%preconditioner)
+                  DEALLOCATE(scf_env%ot_preconditioner(ispin)%preconditioner)
+               ENDDO
+               DEALLOCATE(scf_env%ot_preconditioner,stat=stat)
+               CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+             CASE(ot_precond_none,ot_precond_full_kinetic,ot_precond_s_inverse, &
+                  ot_precond_sparse_diag,ot_precond_sparse_firstorder) ! these are 'independent'
+                ! do nothing
+             CASE DEFAULT
+              CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure) 
+             END SELECT
+          END IF
+
+          ! add an OT preconditioner if none is present
           IF (.NOT.ASSOCIATED(scf_env%ot_preconditioner)) THEN
                IF (scf_env%qs_ot_env(1)%settings%preconditioner_type == ot_precond_full_all) THEN
                   ALLOCATE(scf_env%ot_preconditioner(dft_control%nspins), stat=stat)
