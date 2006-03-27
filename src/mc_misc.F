@@ -815,7 +815,6 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
          WRITE(unit,10000) "    &QS"
          CALL section_vals_val_get(input,"DFT%QS%EXTRAPOLATION",c_val=c_val)
          WRITE(unit,20001) "      EXTRAPOLATION  ",TRIM(ADJUSTL(c_val))
-!         WRITE(unit,10000) "      EXTRAPOLATION USE_PREV_WF"
          CALL section_vals_val_get(input,"DFT%QS%EPS_CORE_CHARGE",r_val=r_val)
          WRITE(unit,20004) "      EPS_CORE_CHARGE  ",r_val
          CALL section_vals_val_get(input,"DFT%QS%EPS_PPL",r_val=r_val)
@@ -836,11 +835,18 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
          WRITE(unit,10000) "    &XC"
          xc_fun_section => section_vals_get_subs_vals(input,&
             "DFT%XC%XC_FUNCTIONAL")
+! take care of the functionals...I had to put the extra if statement in for the kinetic
+! energy functional, as that doesn't just use the section name
          WRITE(unit,10000) "      &XC_FUNCTIONAL"
          DO ifunct=1,4
             xc_fun => section_vals_get_subs_vals2(xc_fun_section,i_section=ifunct)
             IF(ASSOCIATED(xc_fun)) THEN
                WRITE(unit,20001) "        &",TRIM(xc_fun%section%name)
+               IF(TRIM(xc_fun%section%name) == "KE_GGA") THEN
+                  CALL section_vals_val_get(input,"DFT%XC%XC_FUNCTIONAL%KE_GGA%FUNCTIONAL",&
+                       c_val=c_val)
+                  WRITE(unit,20001) "          FUNCTIONAL ",TRIM(c_val)
+               ENDIF
                WRITE(unit,20001) "        &END ",TRIM(xc_fun%section%name)
             ENDIF
          ENDDO
