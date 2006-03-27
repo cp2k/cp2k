@@ -935,7 +935,7 @@ CONTAINS
          ENDIF
 
          IF (rand .LT. w) THEN
-
+!            WRITE(6,*) 'ACCEPT: ',bias_energy_new,bias_energy_old
 ! accept the move
             moves%bias_rot%successes=moves%bias_rot%successes+1
             move_updates%bias_rot%successes=move_updates%bias_rot%successes+1
@@ -945,6 +945,8 @@ CONTAINS
                                  bias_energy_old
 
          ELSE
+
+!            WRITE(6,*) 'REJECT: ',bias_energy_new,bias_energy_old
 
 ! reject the move
 ! restore the coordinates
@@ -1127,9 +1129,8 @@ CONTAINS
       ENDIF
 
 ! make a test environment that we can alter to calculate the energy
-      globenv%input_file_name=dat_file
-      CALL mc_create_force_env(test_env, globenv, .FALSE., &
-         force_env%in_use,error=error)
+!      globenv%input_file_name=dat_file
+      CALL mc_create_force_env(test_env, globenv, dat_file,error=error)
 
 ! grab the coords so we can change them
       CALL force_env_get(test_env,subsys=testsys,error=error)
@@ -1140,7 +1141,6 @@ CONTAINS
 
 ! call a random number to figure out how far we're moving
       IF (ionode) rand=next_random_number(rng_stream)
-!         CALL RANDOM_NUMBER(rand)
       CALL mp_bcast(rand,source,group)
 
 ! find the test cell lenghts for the discrete volume move
@@ -1286,9 +1286,8 @@ CONTAINS
          CALL stop_program("mc_volume_move",&
          "Attempted a volume move where box size got too small.")
 
-      globenv%input_file_name=dat_file
-      CALL mc_create_force_env(test_env, globenv, .TRUE., &
-         force_env%in_use,error=error)
+!      globenv%input_file_name=dat_file
+      CALL mc_create_force_env(test_env, globenv, dat_file,error=error)
 
 ! now compute the energy
       CALL force_env_calc_energy_force(test_env,calc_force=.FALSE.,error=error)

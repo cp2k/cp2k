@@ -260,9 +260,9 @@ CONTAINS
 ! release the old force env and make the new one
          in_use=force_env%in_use
          CALL force_env_release(force_env)
-         globenv%input_file_name=dat_file
-         CALL mc_create_force_env(force_env, globenv, .TRUE., &
-              in_use,error=error)
+!         globenv%input_file_name=dat_file
+         CALL mc_create_force_env(force_env, globenv, &
+              dat_file,error=error)
       ENDIF
 
 ! now perform the calculation
@@ -292,9 +292,9 @@ CONTAINS
          IF ( isos /= 0 ) CALL stop_memory ( 'allocstruc', 'mc_par_2', 0 )
  
 ! read the input of the Monte Carlo section
-         globenv%input_file_name=box2_file
-         CALL mc_create_force_env(force_env_2, globenv, .FALSE., &
-            force_env%in_use,error=error)
+!         globenv%input_file_name=box2_file
+         CALL mc_create_force_env(force_env_2, globenv,  &
+            box2_file,error=error)
 
          IF (ionode) THEN
             WRITE(iw,*)
@@ -374,9 +374,9 @@ CONTAINS
          IF ( lrestart ) THEN
             CALL read_mc_restart(mc_par_2,force_env_2,iw,rng_stream)
             CALL force_env_release(force_env_2)
-            globenv%input_file_name=dat_file
-            CALL mc_create_force_env(force_env_2, globenv, .TRUE., &
-               force_env%in_use,error=error)
+!            globenv%input_file_name=dat_file
+            CALL mc_create_force_env(force_env_2, globenv, &
+               dat_file,error=error)
          ENDIF
 
 ! pull all the information together into one environment

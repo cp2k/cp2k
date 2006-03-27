@@ -779,7 +779,7 @@ CONTAINS
                initial_energy(ibox)+energy_check(ibox)
                WRITE(6,*) 'Box ',ibox
                WRITE(6,*) 'nchain ',nchain(ibox)
-               STOP
+               STOP 'mc_ensembles.F'
             ENDIF
          ENDDO
          ENDIF

@@ -284,6 +284,9 @@ CONTAINS
                bias_energy_old(ibox)=moves(ibox)%moves%bias_energy
             ENDDO
 
+!            WRITE(6,*) 'QS energies: ',new_energy,old_energy
+!            WRITE(6,*) 'KG energies: ',bias_energy_new,bias_energy_old
+
             energies=-BETA*((SUM(new_energy(:))-SUM(bias_energy_new(:)))&
                -(SUM(old_energy(:))-SUM(bias_energy_old(:))))
 
@@ -313,7 +316,6 @@ CONTAINS
             ELSE
                w=EXP(energies)
             ENDIF
-!               WRITE(6,*) 'w = ',w
          ENDIF
       ELSE
          w=0.0E0_dp
@@ -323,7 +325,6 @@ CONTAINS
          rand=0.0E0_dp
       ELSE
          IF(ionode) rand=next_random_number(rng_stream)
-!     CALL RANDOM_NUMBER(rand)
          CALL mp_bcast(rand,source,group)      
       ENDIF
 
@@ -406,6 +407,14 @@ CONTAINS
                   r_old(1:3,iparticle,ibox)
             ENDDO
          ENDDO
+
+! need to reset the energies of the biasing potential
+         IF ( lbias) THEN
+            DO ibox=1,nboxes
+               bias_energy_new(ibox)=moves(ibox)%moves%bias_energy
+            ENDDO
+         ENDIF
+
       ENDIF
 
 ! make sure the coordinates are transferred
@@ -798,21 +807,21 @@ CONTAINS
 ! now let's create the two new environments with the different number
 ! of molecules
 
-      IF(lbias) THEN
-         globenv%input_file_name=dat_file(insert_box)
-         CALL mc_create_force_env(insert_env, globenv, .FALSE., &
-            bias_env(insert_box)%force_env%in_use,error=error)
-         globenv%input_file_name=dat_file(remove_box)
-         CALL mc_create_force_env(remove_env, globenv, .FALSE., &
-            bias_env(remove_box)%force_env%in_use,error=error)
-      ELSE
-         globenv%input_file_name=dat_file(insert_box)
-         CALL mc_create_force_env(insert_env, globenv, .FALSE., &
-            force_env(insert_box)%force_env%in_use,error=error)
-         globenv%input_file_name=dat_file(remove_box)
-         CALL mc_create_force_env(remove_env, globenv, .FALSE., &
-            force_env(remove_box)%force_env%in_use,error=error)
-      ENDIF
+!      IF(lbias) THEN
+!         globenv%input_file_name=dat_file(insert_box)
+         CALL mc_create_force_env(insert_env, globenv, &
+              dat_file(insert_box),error=error)
+!         globenv%input_file_name=dat_file(remove_box)
+         CALL mc_create_force_env(remove_env, globenv, &
+            dat_file(remove_box),error=error)
+!      ELSE
+!         globenv%input_file_name=dat_file(insert_box)
+!         CALL mc_create_force_env(insert_env, globenv, &
+!            dat_file(insert_box),error=error)
+!         globenv%input_file_name=dat_file(remove_box)
+!         CALL mc_create_force_env(remove_env, globenv, &
+!            dat_file(remove_box),error=error)
+!      ENDIF
 
 ! allocate an array we'll need
       ALLOCATE(r_cbmc(1:3,1:ins_atoms),STAT=istat)
@@ -916,9 +925,9 @@ CONTAINS
          insert_env_bias => insert_env
          NULLIFY(insert_env)
 !         CALL force_env_release(insert_env)
-         globenv%input_file_name=dat_file(insert_box)
-         CALL mc_create_force_env(insert_env, globenv, .FALSE., &
-            force_env(insert_box)%force_env%in_use,error=error)
+!         globenv%input_file_name=dat_file(insert_box)
+         CALL mc_create_force_env(insert_env, globenv, &
+            dat_file(insert_box),error=error)
          CALL force_env_calc_energy_force(insert_env,&
             calc_force=.FALSE.,error=error)
          CALL force_env_get(insert_env,&
@@ -931,9 +940,9 @@ CONTAINS
                force_env(remove_box)%force_env,TRIM(fft_lib))
             remove_env_bias => remove_env
             NULLIFY(remove_env)
-            globenv%input_file_name=dat_file(remove_box)
-            CALL mc_create_force_env(remove_env, globenv, .FALSE., &
-               force_env(remove_box)%force_env%in_use,error=error)
+!            globenv%input_file_name=dat_file(remove_box)
+            CALL mc_create_force_env(remove_env, globenv, &
+               dat_file(remove_box),error=error)
             new_energy(remove_box)=0.0E0_dp
             bias_energy_new(remove_box)=0.0E0_dp
          ELSE
@@ -942,9 +951,9 @@ CONTAINS
                force_env(remove_box)%force_env,TRIM(fft_lib))
             remove_env_bias => remove_env
             NULLIFY(remove_env)
-            globenv%input_file_name=dat_file(remove_box)
-            CALL mc_create_force_env(remove_env, globenv, .FALSE., &
-               force_env(remove_box)%force_env%in_use,error=error)
+!            globenv%input_file_name=dat_file(remove_box)
+            CALL mc_create_force_env(remove_env, globenv, &
+               dat_file(remove_box),error=error)
             CALL force_env_calc_energy_force(remove_env,calc_force=.FALSE.,error=error)
             CALL force_env_get(remove_env,&
                potential_energy=new_energy(remove_box),error=error)
@@ -1367,9 +1376,9 @@ CONTAINS
 
       DO ibox=1,2
 ! make a test environment that we can alter to calculate the energy
-         globenv%input_file_name=dat_file(ibox)
-         CALL mc_create_force_env(test_env(ibox)%force_env, globenv, .FALSE., &
-               force_env(ibox)%force_env%in_use,error=error)
+!         globenv%input_file_name=dat_file(ibox)
+         CALL mc_create_force_env(test_env(ibox)%force_env, globenv, &
+               dat_file(ibox),error=error)
 
 ! grab the coords so we can change them
          CALL force_env_get(test_env(ibox)%force_env,&
@@ -1469,9 +1478,9 @@ CONTAINS
 
          CALL force_env_release(test_env(ibox)%force_env,error=error)
             
-         globenv%input_file_name=dat_file(ibox)
-         CALL mc_create_force_env(test_env(ibox)%force_env, globenv, .FALSE., &
-               force_env(ibox)%force_env%in_use,error=error)
+!         globenv%input_file_name=dat_file(ibox)
+         CALL mc_create_force_env(test_env(ibox)%force_env, globenv, &
+               dat_file(ibox),error=error)
          
          IF (lempty(ibox)) THEN
             new_energy(ibox)=0.0E0_dp

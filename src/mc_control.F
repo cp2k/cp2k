@@ -33,19 +33,20 @@ MODULE mc_control
   USE cp_units,                        ONLY: cp_unit_set_create,&
                                              cp_unit_set_release,&
                                              cp_unit_set_type
+  USE environment,                     ONLY: cp2k_read
   USE fist_main,                       ONLY: fist_create_force_env
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_release,&
-                                             force_env_type,&
-                                             use_fist_force
-  USE global_types,                    ONLY: global_environment_type
+                                             force_env_type
+  USE global_types,                    ONLY: global_environment_type,&
+                                             globenv_create,&
+                                             globenv_release
   USE input_constants,                 ONLY: do_fist,&
                                              do_kg,&
                                              do_qs
   USE input_cp2k,                      ONLY: create_cp2k_root_section
   USE input_parsing,                   ONLY: section_vals_parse
-  USE input_section_types,             ONLY: section_release,&
-                                             section_type,&
+  USE input_section_types,             ONLY: section_type,&
                                              section_vals_create,&
                                              section_vals_release,&
                                              section_vals_type,&
@@ -375,8 +376,6 @@ END SUBROUTINE read_mc_restart
 !!   ARGUMENTS
 !!     - force_env: the force environment to create
 !!     - globenv: the global environment parameters
-!!     - box_change: is this a volume or swap move?
-!!     - in_use: an integer that tells what kind of environment it is
 !!     - error: the CP error structure
 !!
 !!   Suitable for parallel.
@@ -385,46 +384,56 @@ END SUBROUTINE read_mc_restart
 !!     MJM
 !!
 !!*****************************************************************************
-SUBROUTINE mc_create_force_env ( force_env, globenv, box_change, in_use, &
-      error )
+SUBROUTINE mc_create_force_env ( force_env, globenv_old,input_file_name,error )
 
     TYPE(force_env_type), POINTER            :: force_env
-    TYPE(global_environment_type), POINTER   :: globenv
-    LOGICAL, INTENT(IN)                      :: box_change
-    INTEGER, INTENT(IN)                      :: in_use
+    TYPE(global_environment_type), POINTER   :: globenv_old
+!    LOGICAL, INTENT(IN)                      :: box_change
+!    INTEGER, INTENT(IN)                      :: in_use
+    CHARACTER(LEN=*),INTENT(IN)               :: input_file_name
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'mc_create_force_env', &
       routineP = moduleN//':'//routineN
 
+    TYPE(global_environment_type), POINTER   :: globenv
     INTEGER                                  :: i_val
     LOGICAL                                  :: failure
     TYPE(cp_parser_type), POINTER            :: my_parser
     TYPE(cp_unit_set_type), POINTER          :: default_units
     TYPE(section_type), POINTER              :: input_structure
-    TYPE(section_vals_type), POINTER         :: file_temp, input_file
+    TYPE(section_vals_type), POINTER         :: input_file
 
 !***************************************************************************
 
-      NULLIFY(file_temp,input_file,input_structure,my_parser,default_units)
+      NULLIFY(input_file,input_structure,my_parser,default_units,globenv)
 
-    ! parse the new input file input
+      NULLIFY(globenv, force_env )
+
+      ! init globenv with the data
+      CALL globenv_create(globenv, para_env=globenv_old%para_env,output_unit=globenv_old%scr, &
+           input_file_name=TRIM(ADJUSTL(input_file_name)), error=error)
+
+    ! parse the input
+      NULLIFY(input_structure)
       CALL create_cp2k_root_section(input_structure,error=error)
+      NULLIFY(input_file)
       CALL section_vals_create(input_file,input_structure, error=error)
-      CALL section_release(input_structure,error=error)
-      CALL parser_create(my_parser,file_name=globenv%input_file_name,&
-         error=error)
+      NULLIFY(my_parser)
+      CALL parser_create(my_parser,file_name=input_file_name,para_env=globenv%para_env,&
+           error=error)
       CALL cp_unit_set_create(default_units, "OUTPUT",error=error)
       CALL section_vals_parse(input_file,my_parser,root_section=.FALSE.,&
-      default_units=default_units,error=error)
+           default_units=default_units,error=error)
       CALL cp_unit_set_release(default_units,error=error)
       CALL parser_release(my_parser,error=error)
-      CALL cp_error_check(error,failure)
-      file_temp => globenv%input_file 
       globenv%input_file => input_file
+      NULLIFY(input_file)
 
-      CALL section_vals_val_get(input_file,"GLOBAL%PROGRAM_NAME",i_val=globenv%prog_name_id)      
+      CALL cp2k_read(globenv)
+
+      CALL section_vals_val_get(globenv%input_file,"GLOBAL%PROGRAM_NAME",i_val=globenv%prog_name_id)      
       SELECT CASE ( globenv%prog_name_id )
       CASE ( do_fist )
          CALL fist_create_force_env(force_env, globenv, error=error)
@@ -438,9 +447,8 @@ SUBROUTINE mc_create_force_env ( force_env, globenv, box_change, in_use, &
       END SELECT
 
 ! release some stuff created here
-      globenv%input_file => file_temp
-      CALL section_vals_release(input_file)     
-      NULLIFY(file_temp)
+      CALL section_vals_release(input_file)    
+      CALL globenv_release(globenv,error)
 
 
 END SUBROUTINE mc_create_force_env
@@ -497,9 +505,8 @@ SUBROUTINE mc_create_bias_force_env (bias_env,force_env,&
       NULLIFY(cell,subsys)
 
 ! create the bias_env from the template file
-      globenv%input_file_name='bias_template.inp'
-      CALL mc_create_force_env(bias_env, globenv, box_change, &
-         use_fist_force,error=error)
+!      globenv%input_file_name='bias_template.inp'
+      CALL mc_create_force_env(bias_env, globenv, 'bias_template.inp',error=error)
 
 ! grab the coordinates and cell parameters of the old environment
       CALL force_env_get(force_env,subsys=subsys,cell=cell,&
@@ -524,9 +531,8 @@ SUBROUTINE mc_create_bias_force_env (bias_env,force_env,&
          'bias_temp.inp',bias_env,TRIM(fft_lib))
 
       CALL force_env_release(bias_env,error=error)
-      globenv%input_file_name='bias_temp.inp'
-      CALL mc_create_force_env(bias_env, globenv, box_change, &
-         use_fist_force,error=error)
+!      globenv%input_file_name='bias_temp.inp'
+      CALL mc_create_force_env(bias_env, globenv, 'bias_temp.inp',error=error)
 
       DEALLOCATE(r,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
