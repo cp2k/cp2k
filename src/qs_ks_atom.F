@@ -403,6 +403,9 @@ CONTAINS
     IF (istat /= 0) CALL stop_memory(routine,moduleN,__LINE__,&
                               "C_int_h,C_int_s")
 
+    DO ispin = 1,nspins
+      NULLIFY(mat_h(ispin)%array,mat_p(ispin)%array)
+    END DO 
     DEALLOCATE(mat_h,mat_p, STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,moduleN,__LINE__,&
                               "mat_h,mat_p")

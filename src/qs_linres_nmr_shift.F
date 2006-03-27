@@ -37,9 +37,11 @@ MODULE qs_linres_nmr_shift
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
   USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                             cp_fm_get_submatrix,&
                                              cp_fm_p_type,&
                                              cp_fm_release,&
                                              cp_fm_set_all,&
+                                             cp_fm_set_submatrix,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -65,6 +67,9 @@ MODULE qs_linres_nmr_shift
                                              nmr_env_type
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
+  USE qs_operators_ao,                 ONLY: rRc_xyz_ao
+  USE sparse_matrix_types,             ONLY: set_matrix
+
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -89,32 +94,33 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: psi1, p_psi1
-    INTEGER, INTENT(IN)                      :: ispin, i_B
+
+    INTEGER, INTENT(IN)                      :: ispin
+    INTEGER, INTENT(IN)                      :: i_B
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'chi_soft_analytic', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: homo, i, idir, idir2, idir3, &
-                                                ii_B, iii_B, imom, istat, &
-                                                istate, j, nao, nmo
-    LOGICAL                                  :: failure, gapw, uni_occ
-    REAL(dp)                                 :: alpha, contrib, d1(3), &
-                                                d1dk(3), dk(3), maxocc, &
-                                                scale_fac
+
+    INTEGER :: homo, i,j,iao, idir, idir2, idir3, ii_B, iii_B, imom, istat, istate, nao, nmo 
+    LOGICAL :: failure, gapw, uni_occ
+    REAL(dp) :: alpha, contrib,d1dk(3),d1(3), dk(3),maxocc,scale_fac
     REAL(dp), DIMENSION(:), POINTER          :: occupation
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: d1mdk_i, d1mdk_ii
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: d1mdk_i,d1mdk_ii
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: d1mdk
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_fm_struct_type), POINTER         :: tmp_fm_struct
-    TYPE(cp_fm_type), POINTER                :: fm_work1, fm_work2, fm_work3, &
-                                                mo_coeff
+    TYPE(cp_fm_type), POINTER                :: mo_coeff
+    TYPE(cp_fm_type), POINTER                :: fm_work1,fm_work2
+    TYPE(cp_fm_type), POINTER                :: fm_work3
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(linres_control_type), POINTER       :: linres_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
+
 
     failure = .FALSE.
 
@@ -145,14 +151,14 @@ CONTAINS
     END IF
 
 !dbg
- WRITE(*,*) 'size ', nao, nmo, homo
+ write(*,*) 'size ', nao, nmo, homo
 !dbg
 !dbg
- WRITE(*,*) 'PSI1 '
- DO i = 1,nao
-     WRITE(*,'(I4,4f12.6)') i,(psi1(ispin)%matrix%local_data(i,j),j=1,4)
- ENDDO
- WRITE(*,*)
+ write(*,*) 'PSI1 '
+ do i = 1,nao
+     write(*,'(I4,4f12.6)') i,(psi1(ispin)%matrix%local_data(i,j),j=1,4)
+ enddo
+ write(*,*)
 !dbg
     ALLOCATE(d1mdk(3,homo),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -254,7 +260,7 @@ CONTAINS
              nmr_env%chi_tensor(i_B,idir3) = nmr_env%chi_tensor(i_B,idir3) +&
                       scale_fac*contrib
 
-      WRITE(*,*) contrib 
+      write(*,*) contrib 
 ! stop 'chi cont'
 
 ! first term psi0 times pp1
@@ -273,7 +279,7 @@ CONTAINS
              nmr_env%chi_tensor(i_B,idir3) = nmr_env%chi_tensor(i_B,idir3) +&
                       scale_fac*contrib
 
-      WRITE(*,*) contrib 
+      write(*,*) contrib 
 
              imom = ind_m2(idir2,iii_B)
              d1mdk_ii(1:homo) = d1mdk(iii_B,1:homo)
@@ -322,7 +328,7 @@ CONTAINS
                       scale_fac*contrib
 
 
-      WRITE(*,*) contrib 
+      write(*,*) contrib 
 
 ! second term psi0 times pp2
              CALL cp_fm_set_all(fm_work3,0.0_dp,error=error)
@@ -392,7 +398,7 @@ CONTAINS
              nmr_env%chi_tensor(i_B,idir3) = nmr_env%chi_tensor(i_B,idir3) +&
                       scale_fac*contrib
 
-      WRITE(*,*) contrib 
+      write(*,*) contrib 
 ! second term psi0 times pp3
              CALL cp_fm_set_all(fm_work3,0.0_dp,error=error)
              CALL cp_sm_fm_multiply(nmr_env%op_p_ao(idir)%matrix,fm_work2,&
@@ -422,16 +428,16 @@ CONTAINS
              CALL cp_fm_trace(fm_work1,fm_work3,contrib,error=error)
              nmr_env%chi_tensor(i_B,idir3) = nmr_env%chi_tensor(i_B,idir3) +&
                       scale_fac*contrib
-      WRITE(*,*) contrib 
+      write(*,*) contrib 
 
          END IF
        END DO  ! idir2
 
     END DO  ! idir
 
-    WRITE(*,*) 'chi ', nmr_env%chi_tensor(i_B,1:3)
+    write(*,*) 'chi ', nmr_env%chi_tensor(i_B,1:3)
  
- STOP 'vediamo'
+ stop 'vediamo'
 
     CALL cp_fm_release(fm_work1,error=error)
     CALL cp_fm_release(fm_work2,error=error)

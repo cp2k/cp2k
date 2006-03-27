@@ -95,7 +95,9 @@ CONTAINS
     dab = SQRT(rab2)
 
 !   *** Loop over all pairs of primitive Gaussian-type functions ***
-
+    angab = 0.0_dp
+    s = 0.0_dp
+    as = 0.0_dp
 
     na = 0
 
@@ -153,6 +155,7 @@ CONTAINS
           rap(:) = f1*rab(:)
 
 !         *** [p|s] = (Pi - Ai)*[s|s]  (i = x,y,z) ***
+!         *** [p|Ln|s] = (Pi - Ai)*[s|Ln|s]+xb/(xa+xb)*(1i x BC)*[s|s]  (i = x,y,z) ***
 
           s(2,1) = rap(1)*s(1,1)
           s(3,1) = rap(2)*s(1,1)
@@ -167,9 +170,9 @@ CONTAINS
           as(4,1,2) = rap(3)*as(1,1,2) + bc3(2)*s(1,1)
           as(4,1,3) = rap(3)*as(1,1,3) + bc3(3)*s(1,1)
 
-!         *** [a|s] = (Pi - Ai)*[a-1i|s] + f2*Ni(a-1i)*[a-2i|s]       ***
-!         *** [a|L|s] = (Pi - Ai)*[a-1i|L|s] + f2*Ni(a-1i)*[a-2i|L|s] ***
-!         ***           + xa/(xa+xb)*(1i x BC)*[a-1i|s]               ***
+!         *** [a|s] = (Pi - Ai)*[a-1i|s] + f2*Ni(a-1i)*[a-2i|s]          ***
+!         *** [a|Ln|s] = (Pi - Ai)*[a-1i|Ln|s] + f2*Ni(a-1i)*[a-2i|Ln|s] ***
+!         ***           + xb/(xa+xb)*{(1i x BC)}_n*[a-1i|s]                  ***
 
           DO la=2,la_max
 
@@ -308,7 +311,7 @@ CONTAINS
 !           *** [a|p] = (Pi - Bi)*[a|s] + f2*Ni(a)*[a-1i|s]       ***
 !           *** [a|L|p] = (Pi - Bi)*[a|L|s] + f2*Ni(a)*[a-1i|L|s] ***
 !           ***           + xa/(xa+xb)*(AC x 1i)*[a|s]            ***
-!           ***           + zetp*SUM_k Nk(a)*(1k x 1i)*[a-1k|s]   ***
+!           ***           + 0.5*zetp*SUM_k Nk(a)*(1k x 1i)*[a-1k|s]   ***
 
             DO ax=0,la_max
               fx = f2*REAL(ax,dp)
@@ -477,7 +480,7 @@ CONTAINS
 !             *** [a|L|b] = (Pi - Bi)*[a|L|b-1i] + f2*Ni(a)*[a-1i|L|b-1i] + ***
 !             ***         f2*Ni(b-1i)*[a|L|b-2i]                            ***
 !             ***         + xa/(xa+xb)*(AC x 1i)*[a|b-1i]                   ***
-!             ***         + zetp*SUM_k Nk(a)*(1k x 1i)*[a-1k|b-1i]          ***
+!             ***         + 0.5*zetp*SUM_k Nk(a)*(1k x 1i)*[a-1k|b-1i]          ***
 
               DO ax=0,la_max
                 fx = f2*REAL(ax,dp)

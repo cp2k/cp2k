@@ -43,6 +43,7 @@ MODULE qs_operators_ao
        get_neighbor_list_set, get_neighbor_node, neighbor_list_set_p_type, &
        neighbor_list_type, neighbor_node_type, next
   USE sparse_matrix_types,             ONLY: add_block_node,&
+                                             add_1d_block_node,&
                                              allocate_matrix,&
                                              get_block_node,&
                                              real_matrix_p_type,&
@@ -755,7 +756,7 @@ CONTAINS
                                    neighbor=jatom, r=rab)
 
             IF(my_minimum_image) THEN
-              IF(rab(1) > ABS(Lxo2) .OR. rab(2) > ABS(Lyo2) .OR. rab(3) > ABS(Lzo2)) THEN
+              IF(ABS(rab(1)) > ABS(Lxo2) .OR. ABS(rab(2)) > ABS(Lyo2) .OR. ABS(rab(3)) > ABS(Lzo2)) THEN
                 sab_orb_neighbor_node => next(sab_orb_neighbor_node)
                 CYCLE
               END IF
@@ -812,9 +813,19 @@ CONTAINS
                   rc(1:3) = ra(1:3)
                   rac(1:3) = 0.0_dp
                   rbc(1:3) = rab(1:3)
+!                  rac(1:3) = ra(1:3)
+!                  rbc(1:3) = rb(1:3)
                   CALL angmom(la_max(iset),npgfa(iset),zeta(:,iset),&
                         rpgfa(:,iset),la_min(iset), lb_max(jset),npgfb(jset),&
                         zetb(:,jset),rpgfb(:,jset),lb_min(jset),rac,rbc,angab)
+!dbg
+!   write(*,*) 'primitives straight', iatom, jatom, ncoa,ncob
+!    write(*,*) 'set ', iset, jset, la_max(iset), lb_max(jset)
+!   do i = 1,ncoa
+!    write(*,'(i4,23f10.5)') i,(angab(i,j,1), j=1,ncob)
+!   end do
+!dbg
+!   
 !            *** Contraction ***
                   DO i = 1,3
                      CALL dgemm("N","N",ncoa,nsgfb(jset),ncob,&
@@ -832,6 +843,8 @@ CONTAINS
                   rc(1:3) = rb(1:3)
                   rbc(1:3) = 0.0_dp
                   rac(1:3) = -rab(1:3)
+!                  rac(1:3) = ra(1:3)
+!                  rbc(1:3) = rb(1:3)
                   CALL angmom(lb_max(jset),npgfb(jset),zetb(:,jset),&
                         rpgfb(:,jset),lb_min(jset), la_max(iset),npgfa(iset),&
                         zeta(:,iset),rpgfa(:,iset),la_min(iset),rbc,rac,angab)
@@ -855,6 +868,20 @@ CONTAINS
               nrow = nrow + ncoa
 
             END DO ! iset
+!dbg
+   write(*,*) 'contracted straight', iatom, jatom, ldsa, ldsb
+   do i = 1,size(op_angij(1)%block,1)
+    write(*,'(i4,23f10.5)') i, (op_angij(1)%block(i,j), j=1,size(op_angij(1)%block,2))
+   end do
+!dbg
+!dbg
+ IF(jatom/=iatom) THEN
+   write(*,*) 'contracted reverse', jatom, iatom, ldsb,ldsa
+   do i = 1,size(op_angji(1)%block,1)
+    write(*,'(i4,23f10.5)') i, (op_angji(1)%block(i,j), j=1,size(op_angji(1)%block,2))
+   end do
+ END IF
+!dbg
 
 
             sab_orb_neighbor_node => next(sab_orb_neighbor_node)
@@ -867,6 +894,9 @@ CONTAINS
       END DO ! jkind
 
     END DO ! ikind
+ !dbg
+! stop 'integrals'
+!dbg
     DO i = 1,3
       DO j = 0,nthread-1
            NULLIFY(op_angijt(i,j)%block,op_angjit(i,j)%block)
@@ -930,10 +960,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'rRc_xyz_ao', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, i, iab, iatom, icol, ikind, ilist, imom, inode, irow, &
-      iset, istat, ithread, j, jatom, jkind, jset, last_jatom, ldab, ldsa, &
-      ldsb, ldwork, M_dim, maxl, ncoa, ncob, nkind, nlist, nnode, nrow, &
-      nseta, nsetb, nthread, sgfa, sgfb
+    INTEGER :: handle, i, iab, iatom, icol, ikind, ilist, imom, inode, irow, iset, &
+      istat, ithread, j, jatom, jkind, jset, last_jatom, ldab, ldsa, ldsb, &
+      ldwork, M_dim, maxl, ncoa, ncob, nkind, nlist, nnode, nrow, nseta, nsetb, &
+      nthread, sgfa, sgfb
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb
@@ -1381,14 +1411,14 @@ CONTAINS
             END IF
 
             NULLIFY(block)
-            CALL add_block_node(matrix=matrix,&
+            CALL add_1d_block_node(matrix=matrix,&
                                 block_row=iatom,&
                                 block_col=jatom,&
                                 block=block)
 
             IF(iatom/=jatom) THEN
               NULLIFY(block)
-              CALL add_block_node(matrix=matrix,&
+              CALL add_1d_block_node(matrix=matrix,&
                                   block_row=jatom,&
                                   block_col=iatom,&
                                   block=block)

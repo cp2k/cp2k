@@ -58,6 +58,7 @@ MODULE cp_sm_fm_interactions
   PUBLIC :: copy_fm_to_sm, &
        copy_sm_to_fm, &
        cp_sm_fm_multiply, &
+       cp_sm_fm_multiply_general,&
        cp_sm_plus_fm_fm_t
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_sm_fm_interactions'

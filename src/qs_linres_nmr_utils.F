@@ -203,7 +203,6 @@ CONTAINS
          linres_control%converged = .FALSE.
          CALL linres_scf(p_env, qs_env, psi1, h1_psi0,error=error)
 
-  STOP 'p1'
          IF(linres_control%converged) THEN
 
           ! the optimized wfns are copied in the  fm
@@ -240,6 +239,7 @@ CONTAINS
       END IF  
     END DO ! idir
 
+  stop 'p1'
     ! operator rxp
     DO idir = 1,3 
 
@@ -705,6 +705,11 @@ CONTAINS
 
      ! px py pz operator acting on the atomic orbitals
      CALL allocate_matrix_set(nmr_env%op_p_ao,3)
+     ! FIX_ME : this matrix should be antisymmetric, but the multiplication
+     !          between an amtisymmetric sparse-matrix and the full-matrix seems not
+     !          to wark properly. Therefore for the time being this is a 
+     !          sparse matrix with no specified symmetry, which means that
+     !          all the blocks need to be allocated and computed.
      CALL set_up_op_sm(nmr_env%op_p_ao(1)%matrix,qs_env,symmetry="none",&
           name="OP_P",error=error)
      CALL set_matrix(nmr_env%op_p_ao(1)%matrix,0.0_dp)
@@ -712,7 +717,7 @@ CONTAINS
        CALL replicate_matrix_structure(nmr_env%op_p_ao(1)%matrix, &
             nmr_env%op_p_ao(idir)%matrix,&
             "nmr_env%op_p_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir))),&
-            target_symmetry="antisymmetric")
+            target_symmetry="none")
        CALL set_matrix(nmr_env%op_p_ao(idir)%matrix,0.0_dp)
      END DO
 
@@ -750,9 +755,9 @@ CONTAINS
      END DO 
 
      CALL allocate_matrix_set(nmr_env%op_rmd_ao,3)
-
-     CALL set_up_op_sm(nmr_env%op_rmd_ao(1)%matrix,qs_env,symmetry="none",name="OP_RMD",error=error)
-
+     CALL set_up_op_sm(nmr_env%op_rmd_ao(1)%matrix,qs_env,symmetry="none",&
+          name="OP_RMD",error=error)
+     CALL set_matrix(nmr_env%op_rmd_ao(1)%matrix,0.0_dp)
      DO idir = 2,3 
        CALL replicate_matrix_structure( nmr_env%op_rmd_ao(1)%matrix, &
             nmr_env%op_rmd_ao(idir)%matrix,"nmr_env%op_rmd_ao"//&

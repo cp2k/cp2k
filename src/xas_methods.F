@@ -54,13 +54,15 @@ MODULE xas_methods
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
+  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply,&
+                                             cp_sm_fm_multiply_general
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: &
        do_loc_none, op_loc_berry, state_loc_upton, xas_1s_type, xas_2p_type, &
-       xas_2s_type, xas_dip_len2, xas_dip_vel, xas_dscf, xas_scf_default, &
-       xas_scf_general, xas_scf_ot, xas_tddft, xas_tp_fh, xas_tp_hh, &
-       xas_tp_xfh, xas_tp_xhh, xes_tp_val
+       xas_2s_type, xas_dip_len, xas_dip_vel, xas_dip_len2, xas_dscf, &
+       xas_scf_default, xas_scf_general, &
+       xas_scf_ot, xas_tddft, xas_tp_fh, xas_tp_hh, xas_tp_xfh, xas_tp_xhh, &
+       xes_tp_val
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: dp
@@ -178,15 +180,15 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'xas', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, homo, i, iat, iatom, ispin, istat, iter, my_homo(2), &
+    INTEGER :: handle, homo, i, iat, iatom, ispin, istat, iter, j, my_homo(2),&
       nao, nelectron, nexc_search, nmo, nspins, output_unit, &
       state_to_be_excited, xas_iter_count
     INTEGER, DIMENSION(:), POINTER           :: state_of_atom
     LOGICAL                                  :: converged, failure, ionode, &
                                                 my_uocc(2), should_stop, &
-                                                skip_scf, &
+                                                skip_scf, & 
                                                 transition_potential, uocc
-    REAL(dp)                                 :: maxocc
+    REAL(dp)                                 :: maxocc, ra(3), rc(3)
     REAL(dp), DIMENSION(:), POINTER          :: eigenvalues, &
                                                 occupation_numbers
     REAL(dp), DIMENSION(:, :), POINTER       :: vecbuffer
@@ -778,7 +780,16 @@ CONTAINS
         ALLOCATE(xas_env%all_evals(xas_env%nvirtual), STAT=istat)
         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-!        IF(xas_control%dipole_form /= xas_dip_len) THEN
+        IF(xas_control%dipole_form==xas_dip_len2) THEN
+          CALL allocate_matrix_set(xas_env%ostrength_sm,3)
+          DO i = 1,3
+             NULLIFY(xas_env%ostrength_sm(i)%matrix)
+             CALL replicate_matrix_structure(matrix_s(1)%matrix, &
+                  xas_env%ostrength_sm(i)%matrix,"xas_env%ostrength_sm"//&
+                  "-"//TRIM(ADJUSTL(cp_to_string(i))),target_symmetry="symmetric")
+             CALL set_matrix(xas_env%ostrength_sm(i)%matrix,0.0_dp)
+          END DO 
+        ELSEIF(xas_control%dipole_form==xas_dip_vel) THEN
           CALL allocate_matrix_set(xas_env%ostrength_sm,3)
           CALL set_up_op_sm(xas_env%ostrength_sm(1)%matrix,qs_env,symmetry="none",&
           name="xas_env%ostrength_sm",error=error)
@@ -787,10 +798,10 @@ CONTAINS
              NULLIFY(xas_env%ostrength_sm(i)%matrix)
              CALL replicate_matrix_structure(xas_env%ostrength_sm(1)%matrix, &
                   xas_env%ostrength_sm(i)%matrix,"xas_env%ostrength_sm"//&
-                  "-"//TRIM(ADJUSTL(cp_to_string(i))))
+                  "-"//TRIM(ADJUSTL(cp_to_string(i))),target_symmetry="none")
              CALL set_matrix(xas_env%ostrength_sm(i)%matrix,0.0_dp)
           END DO 
-!        END IF
+        END IF
  
       ELSE IF (xas_control%xas_method==xas_tddft) THEN
       !initialize td-dft calculation
@@ -964,10 +975,10 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cls_calculate_spectrum', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: homo, i, istat, output_unit
+    INTEGER                                  :: homo, i, istat,output_unit
     LOGICAL                                  :: failure, ionode, length
     REAL(dp)                                 :: rc(3)
-    REAL(dp), DIMENSION(:), POINTER          :: all_evals
+    REAL(dp), DIMENSION(:), POINTER          :: all_evals, eigenvalues
     REAL(dp), DIMENSION(:, :), POINTER       :: spectrum
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_fm_p_type), DIMENSION(:, :), &
@@ -1403,8 +1414,8 @@ CONTAINS
     TYPE(xas_control_type)                   :: xas_control
     TYPE(cp_fm_p_type), DIMENSION(:, :), &
       POINTER                                :: fm_set
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: op_sm
+    TYPE(real_matrix_p_type), &
+      DIMENSION(:), POINTER               :: op_sm
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(cp_fm_type), POINTER                :: excvec, all_vectors
@@ -1418,7 +1429,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'spectrum_dip_vel', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: homo, i, istate, nao, nmo, &
+    INTEGER                                  :: homo, i, ii, istate, j, nao, nmo, &
                                                 nvirtual
     LOGICAL                                  :: failure
     REAL(dp)                                 :: dip(3), ene_f, ene_i
@@ -1439,7 +1450,11 @@ CONTAINS
          CPPrecondition(ASSOCIATED(fm_set(1,i)%matrix),cp_failure_level,routineP,error,failure)
          CALL cp_fm_set_all(fm_set(1,i)%matrix, 0.0_dp, error=error)
          CALL cp_fm_set_all(fm_work, 0.0_dp, error=error)
+         IF(op_sm(i)%matrix%symmetry=="none") THEN
+         CALL cp_sm_fm_multiply_general(op_sm(i)%matrix,all_vectors,fm_work,ncol=nvirtual)
+         ELSE
          CALL cp_sm_fm_multiply(op_sm(i)%matrix,all_vectors,fm_work,ncol=nvirtual)
+         END IF
          CALL cp_fm_gemm("T","N",1,nvirtual,nao,1.0_dp,excvec,&
               fm_work,0.0_dp, fm_set(1,i)%matrix,b_first_col=1,error=error)
       END DO
@@ -1597,18 +1612,21 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cls_assign_core_states', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: i, iat, iatom, ikind, isgf, istat, istate, j, my_kind, nao, &
-      natom, nexc_atoms, nexc_search, output_unit
+
+    INTEGER :: i, iat, iatom, ikind, isgf, istat, istate, j, my_kind,&
+               nao, natom, nexc_atoms, nexc_search, output_unit
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf
     INTEGER, DIMENSION(:), POINTER           :: atom_of_state, &
                                                 mykind_of_kind, &
                                                 state_of_atom, &
-                                                state_of_mytype, type_of_state
+                                                state_of_mytype,&
+                                                type_of_state
     LOGICAL                                  :: failure, ionode
-    REAL(dp), DIMENSION(:), POINTER          :: max_overlap, sto_state_overlap
+    REAL(dp)                                 :: component, dist, distmin, &
+                                                maxocc, ra(3), rc(3), rac(3)
+    REAL(dp), DIMENSION(:), POINTER          :: max_overlap, &
+                                                sto_state_overlap
     REAL(dp), DIMENSION(:, :), POINTER       :: centers_wfn
-    REAL(KIND=dp)                            :: component, dist, distmin, &
-                                                maxocc, ra(3), rac(3), rc(3)
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: vecbuffer
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
