@@ -137,7 +137,8 @@ CONTAINS
     INTEGER, DIMENSION(1:3, 1:2)             :: discrete_array
     INTEGER :: box_number, cell_unit, com_crd, com_ene, com_mol, group, &
       handle, ibox, imove, iparticle, iprint, istat, iuptrans, iupvolume, iw, &
-      mol, mol_swap, mol_target, nmoves, nnstep, nstart, nstep, source
+      mol, mol_swap, mol_target, nmoves, nnstep, nstart, nstep, source,&
+      print_level
     CHARACTER(LEN=40), DIMENSION(1:nboxes) :: cell_file, coords_file, &
       data_file, displacement_file, energy_file, molecules_file, moves_file
     LOGICAL                                  :: ionode, lbias, ldiscrete, &
@@ -220,7 +221,7 @@ CONTAINS
          pmtraion=pmtraion,pmtrans=pmtrans,iuptrans=iuptrans,&
          iupvolume=iupvolume,cutoff=cutoff,ldiscrete=ldiscrete,&
          inner_cutoff=inner_cutoff,lbias=lbias,iprint=iprint,&
-         discrete_step=discrete_step,fft_lib=fft_lib,&
+         discrete_step=discrete_step,fft_lib=fft_lib,print_level=print_level,&
          conf_prob=conf_prob(:,1),pmavbmc=pmavbmc,pbias=pbias)
 
       IF(nboxes .GT. 1) THEN
@@ -275,12 +276,12 @@ CONTAINS
             old_energy(ibox)=0.0d0
          ENDIF
          initial_energy(ibox)=old_energy(ibox)
-      
+
 ! find the bias energy of the initial run
          IF(lbias) THEN
             CALL mc_create_bias_force_env(bias_env(ibox)%force_env,&
                force_env(ibox)%force_env,&
-               globenv,.FALSE.,TRIM(fft_lib),ionode,error)
+               globenv,.FALSE.,TRIM(fft_lib),print_level,ionode,error)
             IF(nchain(ibox) .NE. 0) THEN
                CALL force_env_calc_energy_force(bias_env(ibox)%force_env,&
                   calc_force=.FALSE.,error=error)
@@ -431,7 +432,7 @@ CONTAINS
                   CALL force_env_release(bias_env(ibox)%force_env,error=error)
                   CALL mc_create_bias_force_env(bias_env(ibox)%force_env,&
                      force_env(ibox)%force_env,&
-                     globenv,.FALSE.,TRIM(fft_lib),ionode,error)
+                     globenv,.FALSE.,TRIM(fft_lib),print_level,ionode,error)
                   IF(nchain(ibox) .NE. 0) THEN
                      CALL force_env_calc_energy_force(&
                         bias_env(ibox)%force_env,&

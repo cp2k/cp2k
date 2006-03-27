@@ -1042,7 +1042,7 @@ CONTAINS
     CHARACTER(LEN=200)                       :: fft_lib
     CHARACTER(LEN=40)                        :: dat_file
     INTEGER :: cl, group, handle, i, iatom, icurrent, iside, iside_change, &
-      istat, iunit, natoms, nchain, nunits, nunits_tot, source
+      istat, iunit, natoms, nchain, nunits, nunits_tot, source,print_level
     LOGICAL                                  :: ionode, ldiscrete, lincrease, &
                                                 loverlap, ltoo_small
     REAL(KIND=dp) :: BETA, discrete_step, energy_term, new_energy, pressure, &
@@ -1071,7 +1071,7 @@ CONTAINS
          nunits_tot=nunits_tot,dat_file=dat_file,&
          rmvolume=rmvolume,nunits=nunits,pressure=pressure,cl=cl,&
          fft_lib=fft_lib,discrete_step=discrete_step,&
-         ldiscrete=ldiscrete)
+         ldiscrete=ldiscrete,print_level=print_level)
 
 ! nullify some pointers
       NULLIFY(particles_old,particles_test,cell_old,oldsys,&
@@ -1125,7 +1125,7 @@ CONTAINS
       IF (ionode) THEN
          CALL mc_make_dat_file(r(:,:),nunits_tot,&
             test_cell_length(1:3)*angstrom,&
-            dat_file,force_env,TRIM(fft_lib))
+            dat_file,force_env,TRIM(fft_lib),print_level)
       ENDIF
 
 ! make a test environment that we can alter to calculate the energy
@@ -1242,7 +1242,7 @@ CONTAINS
 
       IF(ionode) CALL mc_make_dat_file(r(:,:),nunits_tot,&
          test_cell_length(1:3)*angstrom,&
-         dat_file,force_env,TRIM(fft_lib))
+         dat_file,force_env,TRIM(fft_lib),print_level)
 
 ! realease the environment
       CALL force_env_release(test_env,error=error)

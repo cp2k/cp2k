@@ -50,6 +50,7 @@ MODULE mc_control
                                              section_vals_create,&
                                              section_vals_release,&
                                              section_vals_type,&
+                                             section_release,&
                                              section_vals_val_get
   USE kg_main,                         ONLY: kg_create_force_env
   USE kinds,                           ONLY: dp,&
@@ -218,7 +219,7 @@ SUBROUTINE read_mc_restart ( mc_par, force_env, iw, rng_stream)
     CHARACTER(LEN=200)                       :: fft_lib
     CHARACTER(LEN=40)                        :: dat_file, restart_file_name
     INTEGER :: group, handle, i, ipart, istat, iunit, mc_nchain, mc_nunits, &
-      mc_nunits_tot, nstart, nunits_tot, source, unit
+      mc_nunits_tot, nstart, nunits_tot, source, unit,print_level
     LOGICAL                                  :: ionode
     REAL(KIND=dp)                            :: mc_temp, rand, temp
     REAL(KIND=dp), ALLOCATABLE, &
@@ -239,7 +240,7 @@ SUBROUTINE read_mc_restart ( mc_par, force_env, iw, rng_stream)
       CALL get_mc_par(mc_par,restart_file_name=restart_file_name,temp=mc_temp,&
          nunits_tot=mc_nunits_tot,ensemble=mc_ensemble,nunits=mc_nunits,&
          ionode=ionode,dat_file=dat_file,nchain=mc_nchain,fft_lib=fft_lib,&
-         group=group,source=source)
+         group=group,source=source,print_level=print_level)
 
       IF(ionode) THEN
 ! open the file and read some simulation parameters
@@ -323,7 +324,7 @@ SUBROUTINE read_mc_restart ( mc_par, force_env, iw, rng_stream)
 
          IF(ionode) THEN
             CALL mc_make_dat_file(r(:,:),mc_nunits,box_length(:),dat_file,&
-               force_env,TRIM(fft_lib))
+               force_env,TRIM(fft_lib),print_level)
             CALL close_file(unit_number=unit)
          ENDIF
       ELSE
@@ -340,7 +341,7 @@ SUBROUTINE read_mc_restart ( mc_par, force_env, iw, rng_stream)
             CALL close_file(unit_number=unit)
 
             CALL mc_make_dat_file(r(:,:),mc_nunits_tot,&
-               box_length(:),dat_file,force_env,TRIM(fft_lib))
+               box_length(:),dat_file,force_env,TRIM(fft_lib),print_level)
          ENDIF
       ENDIF
 
@@ -350,7 +351,6 @@ SUBROUTINE read_mc_restart ( mc_par, force_env, iw, rng_stream)
 ! advance the random number sequence based on the restart step
       IF(ionode) THEN
          DO i=1,nstart+1
-!         CALL random_number(rand)
             rand=next_random_number(rng_stream)
          ENDDO
       ENDIF
@@ -447,6 +447,7 @@ SUBROUTINE mc_create_force_env ( force_env, globenv_old,input_file_name,error )
       END SELECT
 
 ! release some stuff created here
+      CALL section_release(input_structure)    
       CALL section_vals_release(input_file)    
       CALL globenv_release(globenv,error)
 
@@ -479,13 +480,14 @@ END SUBROUTINE mc_create_force_env
 !!
 !!*****************************************************************************
 SUBROUTINE mc_create_bias_force_env (bias_env,force_env,&
-            globenv,box_change,fft_lib,ionode,error)
+            globenv,box_change,fft_lib,print_level,ionode,error)
 
     TYPE(force_env_type), POINTER            :: bias_env, force_env
     TYPE(global_environment_type), POINTER   :: globenv
     LOGICAL, INTENT(IN)                      :: box_change
     CHARACTER(LEN=*), INTENT(IN)             :: fft_lib
     LOGICAL, INTENT(IN)                      :: ionode
+    INTEGER,INTENT(IN)                       :: print_level
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'mc_create_bias_force_env', &
@@ -528,7 +530,7 @@ SUBROUTINE mc_create_bias_force_env (bias_env,force_env,&
       IF(ionode) &
          CALL mc_make_dat_file(r(:,:),nunits_tot,&
          abc(1:3)*angstrom,&
-         'bias_temp.inp',bias_env,TRIM(fft_lib))
+         'bias_temp.inp',bias_env,TRIM(fft_lib),print_level)
 
       CALL force_env_release(bias_env,error=error)
 !      globenv%input_file_name='bias_temp.inp'

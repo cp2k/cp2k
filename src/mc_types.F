@@ -84,6 +84,7 @@ MODULE mc_types
       INTEGER :: source
       INTEGER :: group
       INTEGER :: iprint
+      INTEGER :: print_level
       LOGICAL :: ldiscrete
       LOGICAL :: lbias
       LOGICAL :: ionode
@@ -189,7 +190,8 @@ CONTAINS
        ensemble,PROGRAM,restart_file_name,molecules_file,moves_file,coords_file,&
        energy_file,displacement_file,cell_file,dat_file,data_file,box2_file,&
        cutoff,inner_cutoff,fft_lib,iprint,rcut,ldiscrete,discrete_step,&
-       conf_prob,pmavbmc,pbias,avbmc_atom,avbmc_rmin,avbmc_rmax,rmdihedral)
+       conf_prob,pmavbmc,pbias,avbmc_atom,avbmc_rmin,avbmc_rmax,rmdihedral,&
+       print_level)
 
 ! *****************************************************************************
 !!****s* mc_types.F/get_mc_par
@@ -224,7 +226,7 @@ CONTAINS
       box2_file
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: cutoff, inner_cutoff
     CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: fft_lib
-    INTEGER, INTENT(OUT), OPTIONAL           :: iprint
+    INTEGER, INTENT(OUT), OPTIONAL           :: iprint,print_level
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: rcut
     LOGICAL, INTENT(OUT), OPTIONAL           :: ldiscrete
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: discrete_step
@@ -303,6 +305,7 @@ CONTAINS
     IF ( PRESENT ( data_file ) ) data_file = mc_par % data_file
     IF ( PRESENT ( box2_file ) ) box2_file = mc_par % box2_file
     IF ( PRESENT ( fft_lib ) ) fft_lib = mc_par % fft_lib
+    IF ( PRESENT ( print_level ) ) print_level = mc_par % print_level
 
 
   END SUBROUTINE get_mc_par
@@ -571,9 +574,10 @@ SUBROUTINE read_mc_section ( mc_par, globenv,error )
       CALL section_vals_val_set(mc_section,"ENERGY_FILE_NAME",&
              c_val=mc_par%energy_file,error=error)
 
-! grab the FFT library name...this is used for writing the dat file
+! grab the FFT library name and print level...this is used for writing the dat file
 ! and hopefully will be changed
       mc_par % fft_lib = globenv % default_fft_library
+      mc_par % print_level = globenv%print_level
 
  ! first, grab all the integer values
       CALL section_vals_val_get(mc_section,"NSTEP",i_val=mc_par%nstep,error=error)

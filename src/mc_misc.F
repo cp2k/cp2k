@@ -45,6 +45,11 @@ MODULE mc_misc
                                              use_fist_force,&
                                              use_kg_force,&
                                              use_qs_force
+  USE global_types,                    ONLY: SILENT,&
+                                             LOW,&
+                                             MEDIUM,&
+                                             HIGH,&
+                                             DEBUG
   USE input_constants,                 ONLY: do_ewald_ewald,&
                                              do_ewald_none,&
                                              do_ewald_pme,&
@@ -589,11 +594,11 @@ END SUBROUTINE final_mc_write
 !!
 !!*****************************************************************************
 SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
-      force_env,fft_lib)
+      force_env,fft_lib,print_level)
 
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: coordinates
-    INTEGER, INTENT(IN)                      :: natoms_tot
+    INTEGER, INTENT(IN)                      :: natoms_tot,print_level
     REAL(KIND=dp), DIMENSION(1:3), &
       INTENT(IN)                             :: box_length
     CHARACTER(LEN=*), INTENT(IN)             :: filename
@@ -940,8 +945,20 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
         CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
       END SELECT
       WRITE(unit,10000) ' PROJECT      H2O_MC'
-      WRITE(unit,20001) ' FFTLIB       ',fft_lib
-      WRITE(unit,10000) ' PRINT_LEVEL  LOW'
+      WRITE(unit,20001) ' FFTLIB       ',TRIM(ADJUSTL(fft_lib))
+! need to write the correct print level
+      SELECT CASE (print_level)
+      CASE(SILENT)
+         WRITE(unit,10000) ' PRINT_LEVEL SILENT'
+      CASE(LOW)
+         WRITE(unit,10000) ' PRINT_LEVEL LOW'
+      CASE(MEDIUM)
+         WRITE(unit,10000) ' PRINT_LEVEL MEDIUM'
+      CASE(HIGH)
+         WRITE(unit,10000) ' PRINT_LEVEL HIGH'
+      CASE(DEBUG)
+         WRITE(unit,10000) ' PRINT_LEVEL DEBUG'
+      END SELECT
       WRITE(unit,10000) "&END"
 
 ! close the file
