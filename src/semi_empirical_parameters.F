@@ -925,6 +925,9 @@ CONTAINS
         sep%gpp  =   7.3100000_dp
         sep%gp2  =   6.5400000_dp
         sep%hsp  =   1.3200000_dp
+        sep%fn1(1) =  0.25000000_dp; sep%fn2(1) = 9.00000000_dp; sep%fn3(1) = 0.91145300_dp
+        sep%fn1(2) =  0.06151300_dp; sep%fn2(2) = 5.00000000_dp; sep%fn3(2) = 1.99556900_dp
+        sep%fn1(3) =  0.00207890_dp; sep%fn2(3) = 5.00000000_dp; sep%fn3(3) = 2.99061000_dp
       CASE (15)
       !Phosphorus
         sep%defined = .TRUE.
@@ -947,6 +950,9 @@ CONTAINS
         sep%gpp  =    7.8775890_dp
         sep%gp2  =    7.3076480_dp
         sep%hsp  =    0.7792380_dp
+        sep%fn1(1) = -0.03182700_dp; sep%fn2(1) = 6.00000000_dp; sep%fn3(1) = 1.47432300_dp
+        sep%fn1(2) =  0.01847000_dp; sep%fn2(2) = 7.00000000_dp; sep%fn3(2) = 0.03329000_dp
+        sep%fn1(3) =  0.03329000_dp; sep%fn2(3) = 9.00000000_dp; sep%fn3(3) = 3.00657600_dp
       CASE (16)
         !Sulphur
         sep%defined = .TRUE.
@@ -969,6 +975,9 @@ CONTAINS
         sep%gpp  =   10.0393080_dp
         sep%gp2  =    7.7816880_dp
         sep%hsp  =    2.5321370_dp
+        sep%fn1(1) = -0.50919500_dp; sep%fn2(1) = 4.59369100_dp; sep%fn3(1) = 0.77066500_dp
+        sep%fn1(2) = -0.01186300_dp; sep%fn2(2) = 5.86573100_dp; sep%fn3(2) = 1.50331300_dp
+        sep%fn1(3) =  0.01233400_dp; sep%fn2(3) =13.55733600_dp; sep%fn3(3) = 2.00917300_dp
       CASE (17)
         !Chlorine
         sep%defined = .TRUE.

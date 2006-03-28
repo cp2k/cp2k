@@ -24,7 +24,7 @@ MODULE cp_control_utils
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: &
        bsse_run, do_ddapc_constraint, do_ddapc_restraint, do_loc_crazy, &
-       do_loc_direct, do_loc_jacobi, do_loc_none, do_method_am1, &
+       do_loc_direct, do_loc_jacobi, do_loc_none, do_method_am1, do_method_pdg, &
        do_method_eht, do_method_gapw, do_method_gapw_xc, do_method_gpw, &
        do_method_kg_pol, do_method_mndo, do_method_pm3, &
        do_pwgrid_ns_fullspace, do_pwgrid_ns_halfspace, do_pwgrid_spherical, &
@@ -424,7 +424,7 @@ CONTAINS
         qs_control%gapw_xc = .TRUE.
       CASE (do_method_gpw)
         qs_control%gpw = .TRUE.
-      CASE (do_method_eht,do_method_mndo,do_method_am1,do_method_pm3)
+      CASE (do_method_eht,do_method_mndo,do_method_am1,do_method_pm3,do_method_pdg)
         qs_control%semi_empirical = .TRUE.
     END SELECT
     
@@ -506,6 +506,7 @@ CONTAINS
                  r_val=qs_control%se_control%rc_range,error=error)
     IF(qs_control %method_id == do_method_mndo .OR. &
        qs_control %method_id == do_method_am1 .OR. &
+       qs_control %method_id == do_method_pdg .OR. &
        qs_control %method_id == do_method_pm3) THEN
          qs_control%se_control%orthogonal_basis=.TRUE.
     END IF
