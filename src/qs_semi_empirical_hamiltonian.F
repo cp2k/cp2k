@@ -45,7 +45,6 @@ MODULE qs_semi_empirical_hamiltonian
   USE qs_overlap,                      ONLY: build_overlap_matrix,&
                                              write_sparse_matrix
   USE qs_rho_types,                    ONLY: qs_rho_type
-  USE semi_empirical_integrals,        ONLY: set_taper_fn
   USE semi_empirical_types,            ONLY: semi_empirical_type
   USE semi_empirical_utils,            ONLY: get_se_param,&
                                              get_se_type
@@ -94,7 +93,7 @@ CONTAINS
     LOGICAL                                  :: defined, failure
     REAL(KIND=dp)                            :: delta, econst, eheat, eisol, &
                                                 enuclear, kh, range, rc, udd, &
-                                                uff, upp, uss
+                                                uff, upp, uss, dr
     REAL(KIND=dp), DIMENSION(16)             :: ha, hb, ua
     REAL(KIND=dp), DIMENSION(3)              :: force_ab, rij
     REAL(KIND=dp), DIMENSION(:), POINTER     :: beta_a, beta_b
@@ -140,11 +139,6 @@ CONTAINS
                      atomic_kind_set=atomic_kind_set,&
                      dft_control=dft_control,&
                      para_env=para_env)
-
-     ! set values for tapering function (only applies to long range interactions
-     rc = dft_control%qs_control%se_control%rc_interaction
-     range = dft_control%qs_control%se_control%rc_range
-     CALL set_taper_fn (2._dp*rc,range)
 
      IF(calculate_forces) THEN
        CALL get_qs_env(qs_env=qs_env,&
@@ -273,7 +267,8 @@ CONTAINS
                CALL get_neighbor_node(neighbor_node=sab_orb_neighbor_node,&
                                       neighbor=jatom,r=rij)
 
-               IF (iatom == jatom) THEN
+               dr = SUM(rij(:)**2)
+               IF (iatom == jatom .AND. dr < 0.001_dp) THEN
 
                  SELECT CASE (dft_control%qs_control%method)
                     CASE DEFAULT
@@ -359,7 +354,7 @@ CONTAINS
 
                END IF
 
-               IF(calculate_forces .AND. iatom/=jatom) THEN
+               IF(calculate_forces .AND. (iatom/=jatom .OR. dr > 0.001_dp)) THEN
                  IF ( irow == iatom ) force_ab = -force_ab
                  force(ikind)%all_potential(:,atom_a) =&
                      force(ikind)%all_potential(:,atom_a) - force_ab(:)

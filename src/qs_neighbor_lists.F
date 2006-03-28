@@ -152,7 +152,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: local_cols_array, &
                                                 local_rows_array
     LOGICAL :: all_potential_present, gth_potential_present, molecule_only, &
-      paw_atom, paw_atom_present, print_subcell_grid, rho0_present
+      paw_atom, paw_atom_present, print_subcell_grid, rho0_present, mic
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: all_present, oce_present, &
                                                 orb_present, ppl_present, &
                                                 ppnl_present, Qlm_present, &
@@ -547,6 +547,12 @@ CONTAINS
     END DO
 
     ! Build the orbital-orbital overlap neighbor lists
+    IF (qs_env%dft_control%qs_control%semi_empirical) THEN
+      ! we need strict minimum image convention for the interaction lists
+      mic = .TRUE.
+    ELSE
+      mic = .FALSE.
+    END IF
 
     IF (molecule_only) THEN
       CALL build_restricted_neighbor_lists(sab_orb,atom,cell,r_skin,&
@@ -560,7 +566,7 @@ CONTAINS
                                 orb_present,orb_present,orb_radius,orb_radius,&
                                 name="ORBITAL ORBITAL",&
                                 l3c_oce=paw_atom_present,&
-                                l3c_rho0=rho0_present)
+                                l3c_rho0=rho0_present,mic=mic)
     END IF
 
     ! Put the generated neighbor lists into the QS environment
@@ -1069,7 +1075,7 @@ CONTAINS
   SUBROUTINE build_neighbor_lists(ab,atom,cell,r_skin,maxatom_local,&
                                   print_subcell_grid,output_unit,&
                                   present_a,present_b,radius_a,radius_b,&
-                                  name,l3c_oce,l3c_rho0)
+                                  name,l3c_oce,l3c_rho0,mic)
 
     ! Purpose: Build simple pair neighbor lists.
 
@@ -1089,7 +1095,7 @@ CONTAINS
     LOGICAL, DIMENSION(:), INTENT(IN)        :: present_a, present_b
     REAL(dp), DIMENSION(:), INTENT(IN)       :: radius_a, radius_b
     CHARACTER(LEN=*), INTENT(IN)             :: name
-    LOGICAL, INTENT(IN), OPTIONAL            :: l3c_oce, l3c_rho0
+    LOGICAL, INTENT(IN), OPTIONAL            :: l3c_oce, l3c_rho0, mic
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'build_neighbor_lists'
 
@@ -1100,7 +1106,7 @@ CONTAINS
     INTEGER, DIMENSION(3)                    :: cell_a, cell_b, ncell, &
                                                 nsubcell, periodic
     LOGICAL                                  :: include_ab, my_l3c_oce, &
-                                                my_l3c_rho0
+                                                my_l3c_rho0, my_mic
     REAL(dp)                                 :: rab2, rab2_max, rab_max, &
                                                 subcells, unit_of_length
     REAL(dp), DIMENSION(3)                   :: r, rab, rb, s, sab_max, sb, &
@@ -1132,6 +1138,8 @@ CONTAINS
     IF (PRESENT(l3c_oce)) my_l3c_oce = l3c_oce
     my_l3c_rho0 = .FALSE.
     IF (PRESENT(l3c_rho0)) my_l3c_rho0 = l3c_rho0
+    my_mic = .FALSE.
+    IF (PRESENT(mic)) my_mic = mic
 
 
     ALLOCATE (ab(nkind*nkind),STAT=istat)
@@ -1188,7 +1196,11 @@ CONTAINS
         sab_max(2) = rab_max/plane_distance(0,1,0,cell)
         sab_max(3) = rab_max/plane_distance(0,0,1,cell)
 
-        ncell(:) = (INT(sab_max(:)) + 1)*periodic(:)
+        IF ( my_mic ) THEN
+          ncell(:) = 0
+        ELSE
+          ncell(:) = (INT(sab_max(:)) + 1)*periodic(:)
+        END IF
         nsubcell(:) = MIN(MAX(1,NINT(0.5_dp*subcells/sab_max(:))),20)
 
         ! Print subcell information for the current atomic kind pair
@@ -1272,6 +1284,7 @@ CONTAINS
                     END IF
                     IF (include_ab) THEN
                       rab(:) = rb(:) - atom(ikind)%r_pbc(:,iatom)
+                      IF ( my_mic ) rab(:) = pbc(rab(:),cell)
                       rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
                       IF (rab2 < rab2_max) THEN
                         CALL add_neighbor_node(&
@@ -1389,6 +1402,7 @@ CONTAINS
                           END IF
                           IF (include_ab) THEN
                             rab(:) = rb(:) - atom(ikind)%r_pbc(:,iatom)
+                            IF ( my_mic ) rab(:) = pbc(rab(:),cell)
                             rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
                             IF (rab2 < rab2_max) THEN
                               CALL add_neighbor_node(&

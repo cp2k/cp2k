@@ -50,7 +50,8 @@ MODULE nddo_methods
   USE semi_empirical_integrals,        ONLY: drotint,&
                                              drotnuc,&
                                              rotint,&
-                                             rotnuc
+                                             rotnuc,&
+                                             set_taper_fn
   USE semi_empirical_types,            ONLY: semi_empirical_type
   USE semi_empirical_utils,            ONLY: contract,&
                                              expand,&
@@ -230,17 +231,17 @@ CONTAINS
       routineN = 'build_nddo_fock_matrix_coulomb', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: atom_a, atom_b, handle, iab, iatom, icol, icor, ikind, ilist, &
-      inode, irow, ispin, istat, itype, jatom, jkind, natom, natorb_a, &
-      natorb_b, nkind, nlist, nnode, nspins
+    INTEGER :: atom_a, atom_b, handle, iab, iatom, icor, ikind, ilist, inode, &
+      ispin, istat, itype, jatom, jkind, natom, natorb_a, natorb_b, nkind, &
+      nlist, nnode, nspins
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
-    LOGICAL                                  :: defined, failure
-    REAL(dp)                                 :: ecore2, ecoul, enuc, enuclear
-    REAL(dp), DIMENSION(3)                   :: rij
-    REAL(KIND=dp)                            :: delta
+    LOGICAL                                  :: defined, failure, switch
+    REAL(KIND=dp)                            :: delta, dr1, dr2, ecore2, &
+                                                ecoul, enuc, enuclear, range, &
+                                                rc
     REAL(KIND=dp), DIMENSION(10)             :: e1b, e2a, pvec
     REAL(KIND=dp), DIMENSION(10, 3)          :: de1b, de2a
-    REAL(KIND=dp), DIMENSION(3)              :: denuc, force_ab
+    REAL(KIND=dp), DIMENSION(3)              :: denuc, force_ab, rij
     REAL(KIND=dp), DIMENSION(:, :), POINTER :: ksa_block_a, ksa_block_b, &
       ksb_block_a, ksb_block_b, pa_block_a, pa_block_b, pb_block_a, pb_block_b
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -279,6 +280,11 @@ CONTAINS
          matrix_h=matrix_h,&
          cell=cell,&
          para_env=para_env)
+
+    ! set values for tapering function 
+    rc = dft_control%qs_control%se_control%rc_coulomb
+    range = dft_control%qs_control%se_control%rc_range
+    CALL set_taper_fn (2._dp*rc,range)
 
     nspins=dft_control%nspins
     CPPrecondition(ASSOCIATED(matrix_h),cp_failure_level,routineP,error,failure)
@@ -392,14 +398,13 @@ CONTAINS
                  CALL get_neighbor_node(neighbor_node=sab_2c_neighbor_node,&
                                         neighbor=jatom,r=rij)
 
-                 IF ( iatom /= jatom ) THEN
+                 dr1 = SUM(rij(:)**2)
+                 IF ( dr1 > 0._dp ) THEN
 
                    IF (iatom <= jatom) THEN
-                     irow = iatom
-                     icol = jatom
+                     switch = .FALSE.
                    ELSE
-                     irow = jatom
-                     icol = iatom
+                     switch = .TRUE.
                    END IF
                    CPPrecondition(nspins<3,cp_failure_level,routineP,error,failure)
                    IF ( nspins >= 1 ) THEN
@@ -430,7 +435,7 @@ CONTAINS
                    SELECT CASE (dft_control%qs_control%method)
                      CASE ("EHT")
                      CASE ("MNDO","AM1","PM3","PDG")
-                     IF ( irow == iatom ) THEN
+                     IF ( .NOT. switch ) THEN
                        CALL rotnuc (se_kind_a,se_kind_b,rij,e1b,e2a,enuc,itype)
                      ELSE
                        CALL rotnuc (se_kind_b,se_kind_a,-rij,e2a,e1b,enuc,itype)
@@ -453,7 +458,7 @@ CONTAINS
                          ecore2=ecore2+e2a(1)*pb_block_a(1,1)
                        ELSE
                          CALL expand ( ksb_block_a, e2a )
-                         ecore2=ecore2+traceb(pb_block_a,e2a)
+                       ecore2=ecore2+traceb(pb_block_a,e2a)
                        END IF
                      END IF
                      IF ( nspins >= 2 ) THEN
@@ -477,7 +482,7 @@ CONTAINS
                      IF(calculate_forces) THEN
                        atom_a = atom_of_kind(iatom)
                        atom_b = atom_of_kind(jatom)
-                       IF ( irow == iatom ) THEN
+                       IF ( .NOT. switch ) THEN
                          CALL drotnuc (se_kind_a,se_kind_b,rij,de1b,de2a,&
                                        denuc,itype,delta)
                        ELSE
@@ -487,55 +492,55 @@ CONTAINS
                        force_ab(1:3)=-denuc(1:3)
                        CPPrecondition(nspins<3,cp_failure_level,routineP,error,failure)
                        IF ( nspins >= 1 ) THEN
-                         IF ( SIZE(ksa_block_a,1) == 1 ) THEN
-                           force_ab(1:3)=force_ab(1:3)-de1b(1,1:3)*pa_block_a(1,1)
-                         ELSE
-                           CALL contract ( pa_block_a, pvec )
-                           DO icor=1,3
-                             force_ab(icor)=force_ab(icor)-&
-                                            SUM(de1b(1:10,icor)*pvec(1:10))
-                           END DO
-                         END IF
-                         IF ( SIZE(ksb_block_a,1) == 1 ) THEN
-                           force_ab(1:3)=force_ab(1:3)-de2a(1,1:3)*pb_block_a(1,1)
-                         ELSE
-                           CALL contract ( pb_block_a, pvec )
-                           DO icor=1,3
-                             force_ab(icor)=force_ab(icor)-&
-                                            SUM(de2a(1:10,icor)*pvec(1:10))
-                           END DO
-                         END IF
+                           IF ( SIZE(ksa_block_a,1) == 1 ) THEN
+                             force_ab(1:3)=force_ab(1:3)-de1b(1,1:3)*pa_block_a(1,1)
+                           ELSE
+                             CALL contract ( pa_block_a, pvec )
+                             DO icor=1,3
+                               force_ab(icor)=force_ab(icor)-&
+                                              SUM(de1b(1:10,icor)*pvec(1:10))
+                             END DO
+                           END IF
+                           IF ( SIZE(ksb_block_a,1) == 1 ) THEN
+                             force_ab(1:3)=force_ab(1:3)-de2a(1,1:3)*pb_block_a(1,1)
+                           ELSE
+                             CALL contract ( pb_block_a, pvec )
+                             DO icor=1,3
+                               force_ab(icor)=force_ab(icor)-&
+                                              SUM(de2a(1:10,icor)*pvec(1:10))
+                             END DO
+                           END IF
                        END IF
                        IF ( nspins >= 2 ) THEN
-                         IF ( SIZE(ksa_block_b,1) == 1 ) THEN
-                           force_ab(1:3)=force_ab(1:3)-de1b(1,1:3)*pa_block_b(1,1)
-                         ELSE
-                           CALL contract ( pa_block_b, pvec )
-                           DO icor=1,3
-                             force_ab(icor)=force_ab(icor)-&
-                                            SUM(de1b(1:10,icor)*pvec(1:10))
-                           END DO
-                         END IF
-                         IF ( SIZE(ksb_block_b,1) == 1 ) THEN
-                           force_ab(1:3)=force_ab(1:3)-de2a(1,1:3)*pb_block_b(1,1)
-                         ELSE
-                           CALL contract ( pb_block_b, pvec )
-                           DO icor=1,3
-                             force_ab(icor)=force_ab(icor)-&
-                                            SUM(de2a(1:10,icor)*pvec(1:10))
-                           END DO
-                         END IF
+                           IF ( SIZE(ksa_block_b,1) == 1 ) THEN
+                             force_ab(1:3)=force_ab(1:3)-de1b(1,1:3)*pa_block_b(1,1)
+                           ELSE
+                             CALL contract ( pa_block_b, pvec )
+                             DO icor=1,3
+                               force_ab(icor)=force_ab(icor)-&
+                                              SUM(de1b(1:10,icor)*pvec(1:10))
+                             END DO
+                           END IF
+                           IF ( SIZE(ksb_block_b,1) == 1 ) THEN
+                             force_ab(1:3)=force_ab(1:3)-de2a(1,1:3)*pb_block_b(1,1)
+                           ELSE
+                             CALL contract ( pb_block_b, pvec )
+                             DO icor=1,3
+                               force_ab(icor)=force_ab(icor)-&
+                                              SUM(de2a(1:10,icor)*pvec(1:10))
+                             END DO
+                           END IF
                        END IF
-                       IF ( irow == iatom ) force_ab = -force_ab
-                       force(ikind)%all_potential(:,atom_a) =&
+                       IF ( .NOT. switch ) force_ab = -force_ab
+                          force(ikind)%all_potential(:,atom_a) =&
                             force(ikind)%all_potential(:,atom_a) - force_ab(:)
-                       force(jkind)%all_potential(:,atom_b) =&
+                          force(jkind)%all_potential(:,atom_b) =&
                             force(jkind)%all_potential(:,atom_b) + force_ab(:)
                      END IF
 
                      CPPrecondition(nspins<3,cp_failure_level,routineP,error,failure)
                      IF ( nspins == 1 ) THEN
-                       IF ( irow == iatom ) THEN
+                       IF ( .NOT. switch ) THEN
                          CALL fock2c(se_kind_a,se_kind_b,rij,pa_block_a,pb_block_a,&
                                     ksa_block_a,ksb_block_a,error)
                        ELSE
@@ -543,7 +548,7 @@ CONTAINS
                                     ksb_block_a,ksa_block_a,error)
                        ENDIF
                      ELSE IF ( nspins == 2 ) THEN
-                       IF ( irow == iatom ) THEN
+                       IF ( .NOT. switch ) THEN
                          CALL fock2c(se_kind_a,se_kind_b,rij,pa_block_a,pb_block_a,&
                                     ksa_block_a,ksb_block_a,&
                                     pa_block_b,pb_block_b,&
@@ -560,7 +565,7 @@ CONTAINS
                        force_ab = 0._dp
                        CPPrecondition(nspins<3,cp_failure_level,routineP,error,failure)
                        IF ( nspins == 1 ) THEN
-                         IF ( irow == iatom ) THEN
+                         IF ( .NOT. switch ) THEN
                            CALL dfock2c(se_kind_a,se_kind_b,rij,pa_block_a,&
                                 pb_block_a,force_ab,delta,error)
                          ELSE
@@ -568,7 +573,7 @@ CONTAINS
                                 pa_block_a,force_ab,delta,error)
                          ENDIF
                        ELSE IF ( nspins == 2 ) THEN
-                         IF ( irow == iatom ) THEN
+                         IF ( .NOT. switch ) THEN
                            CALL dfock2c(se_kind_a,se_kind_b,rij,pa_block_a,&
                                 pb_block_a,pa_block_b,pb_block_b,force_ab,delta,error)
                          ELSE
@@ -576,14 +581,14 @@ CONTAINS
                                 pa_block_a,pb_block_b,pa_block_b,force_ab,delta,error)
                          ENDIF
                        END IF
-                       IF ( irow /= iatom ) force_ab = -force_ab
+                       IF ( switch ) force_ab = -force_ab
                        force(ikind)%rho_elec(:,atom_a) =&
                          force(ikind)%rho_elec(:,atom_a) - force_ab(:)
                        force(jkind)%rho_elec(:,atom_b) =&
                          force(jkind)%rho_elec(:,atom_b) + force_ab(:)
                      END IF
 
-                 END SELECT
+                   END SELECT
 
                  END IF
 
@@ -649,10 +654,9 @@ CONTAINS
       nnode, nspins
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
     LOGICAL                                  :: defined, failure
-    REAL(dp)                                 :: gp2, gpp, gsp, gss, hsp
-    REAL(dp), DIMENSION(3)                   :: rij
-    REAL(KIND=dp)                            :: delta
-    REAL(KIND=dp), DIMENSION(3)              :: force_ab
+    REAL(KIND=dp)                            :: delta, dr, gp2, gpp, gsp, &
+                                                gss, hsp, range, rc
+    REAL(KIND=dp), DIMENSION(3)              :: force_ab, rij
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: ks_block_a, ks_block_b, &
                                                 p_block_a, p_block_b
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -689,6 +693,11 @@ CONTAINS
          matrix_h=matrix_h,&
          cell=cell,&
          para_env=para_env)
+
+    ! set values for tapering function
+    rc = dft_control%qs_control%se_control%rc_interaction
+    range = dft_control%qs_control%se_control%rc_range
+    CALL set_taper_fn (2._dp*rc,range)
 
     nspins=dft_control%nspins
     CPPrecondition(ASSOCIATED(matrix_h),cp_failure_level,routineP,error,failure)
@@ -795,7 +804,8 @@ CONTAINS
                    CPPostcondition(ASSOCIATED(p_block_b),cp_failure_level,routineP,error,failure)
                  END IF
 
-                 IF ( iatom == jatom ) THEN
+                 dr = SUM(rij(:)**2)
+                 IF ( iatom == jatom .AND. dr < 0.001_dp ) THEN
 
                    CPPrecondition(nspins<3,cp_failure_level,routineP,error,failure)
                    IF ( nspins == 1 ) THEN

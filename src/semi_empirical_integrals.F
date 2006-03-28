@@ -31,7 +31,7 @@ MODULE semi_empirical_integrals
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'semi_empirical_integrals'
 
-  PUBLIC :: rotint, rotnuc, drotint, drotnuc, set_taper_fn
+  PUBLIC :: rotint, rotnuc, drotint, drotnuc, set_taper_fn, taper
 
   REAL(KIND=dp), SAVE                  :: r0, al
   LOGICAL, SAVE                        :: taper_fn_init = .FALSE.
@@ -1446,10 +1446,11 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: rij
     REAL(KIND=dp)                            :: ft
 
-    REAL(KIND=dp)                            :: ep
+    REAL(KIND=dp)                            :: ep, dr
 
-    IF ( taper_fn_init ) THEN
-      ep = EXP(-al*(rij-r0))
+    dr = -al*(rij-r0)
+    IF ( taper_fn_init .AND. dr < 20._dp ) THEN
+      ep = EXP(dr)
       ft = ep/(1._dp+ep)
     ELSE
       ft = 1._dp

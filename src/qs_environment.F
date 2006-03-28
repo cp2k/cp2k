@@ -619,9 +619,9 @@ CONTAINS
            WRITE(globenv%scr,*)
            WRITE(globenv%scr,'(A,T34,A)')     " WARNING|",&
                                    " Integral interaction cutoff has been redefined"
-           WRITE(globenv%scr,'(A,T71,F10.3)') " WARNING| Old value ",&
+           WRITE(globenv%scr,'(A,T71,F10.3)') " WARNING| Old value [a.u.]",&
                                    se_control%rc_interaction
-           WRITE(globenv%scr,'(A,T71,F10.3)') " WARNING| New value ",rc
+           WRITE(globenv%scr,'(A,T71,F10.3)') " WARNING| New value [a.u.]",rc
            WRITE(globenv%scr,*)
          END IF
       END IF
