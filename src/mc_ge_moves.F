@@ -284,9 +284,6 @@ CONTAINS
                bias_energy_old(ibox)=moves(ibox)%moves%bias_energy
             ENDDO
 
-            WRITE(6,*) 'QS energies: ',new_energy,old_energy
-            WRITE(6,*) 'KG energies: ',bias_energy_new,bias_energy_old
-
             energies=-BETA*((SUM(new_energy(:))-SUM(bias_energy_new(:)))&
                -(SUM(old_energy(:))-SUM(bias_energy_old(:))))
 
