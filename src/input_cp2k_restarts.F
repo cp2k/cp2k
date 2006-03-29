@@ -187,9 +187,9 @@ CONTAINS
 
           CALL section_vals_write(globenv%input_file,unit_nr=ires,&
                      hide_root=.TRUE., error=error)
-        ENDIF
+       ENDIF
 
-        CALL cp_print_key_finished_output(ires,logger,motion_section,&
+       CALL cp_print_key_finished_output(ires,logger,motion_section,&
                       "PRINT%RESTART", error=error)
     ENDIF
 
