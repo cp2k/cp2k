@@ -168,8 +168,18 @@ CONTAINS
        CALL section_release(print_key,error=error)
 
        CALL cp_print_key_section_create(print_key,"RESTART",&
-            description="Controls the dumping of the restart file during runs.", &
+            description="Controls the dumping of the restart file during runs."//&
+                        "By default keeps a short history of three restarts."//&
+                        "See also RESTART_HISTORY", &
             print_level=silent_print_level, common_iter_levels=1,&
+            filename="",error=error)
+       CALL section_add_subsection(subsection,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"RESTART_HISTORY",&
+            description="Dumps unique restart files during the run keeping all of them."//&
+                        "Most useful if recovery is needed at a later point.",&
+            print_level=silent_print_level, common_iter_levels=0, each=(/500/), &
             filename="",error=error)
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)
