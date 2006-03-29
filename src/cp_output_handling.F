@@ -927,12 +927,13 @@ FUNCTION cp_print_key_unit_nr(logger, basis_section, print_key_path, extension,&
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_print_key_unit_nr', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(len=default_path_length)       :: filename
+    CHARACTER(len=default_path_length)       :: filename,filename_bak
     CHARACTER(len=default_string_length)     :: my_file_action, my_file_form, &
                                                 my_file_position, outPath
     LOGICAL                                  :: failure, found, my_do_backup, &
                                                 my_local, my_should_output
     TYPE(section_vals_type), POINTER         :: print_key
+    INTEGER, SAVE                            :: ibak=0
 
   failure=.FALSE.
   my_local=.FALSE.
@@ -977,7 +978,15 @@ FUNCTION cp_print_key_unit_nr(logger, basis_section, print_key_path, extension,&
            IF (my_do_backup) THEN
               INQUIRE(FILE=filename,EXIST=found)
               IF (found) THEN
-                 CALL move_file(TRIM(filename), TRIM(filename)//".bak")
+                 !
+                 ! try cycling through more than 1 bak file to avoid corruption
+                 ! if the original happens to be corrupted
+                 ! the current scheme is a bit of a hack, since it always starts from 0
+                 ! and the ibak is incremented for any backup being made
+                 !
+                 ibak=ibak+1
+                 filename_bak=TRIM(filename)//".bak-"//ADJUSTL(cp_to_string(1+MODULO(ibak,3)))
+                 CALL move_file(TRIM(filename), TRIM(filename_bak))
               END IF
            END IF
            CALL open_file(file_name=filename,file_status="UNKNOWN",&
