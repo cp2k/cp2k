@@ -368,6 +368,7 @@ CONTAINS
 !!     command is sent the program stops at the level of $runtype
 !!     when a general EXIT command is sent the program is stopped
 !!     at all levels (at least those that call this function)
+!!     if the file WAIT exists, the program waits here till it disappears
 !!
 !!   INPUTS
 !!
@@ -391,10 +392,11 @@ CONTAINS
       routineN = 'external_control', routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=10)                        :: exit_fname_level
-    INTEGER                                  :: unit_number
+    INTEGER                                  :: unit_number,i
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: time_check
+    REAL(KIND=dp)                            :: time_check,t1,t2
     TYPE(cp_logger_type), POINTER            :: logger
+    LOGICAL                                  :: should_wait
 
 !   ---------------------------------------------------------------------------
 
@@ -405,8 +407,32 @@ CONTAINS
     exit_fname_level = exit_fname//"_"//TRIM(flag)
 
     IF (logger%para_env%source==logger%para_env%mepos) THEN
-       INQUIRE (FILE=exit_fname_level,EXIST=should_stop)
+       ! allows for halting execution for a while
+       ! this is useful to copy a consistent snapshot of the output
+       ! while a simulation is running
+       INQUIRE (FILE="WAIT",EXIST=should_wait)
+       IF (should_wait) THEN
+          CALL open_file(file_name="WAITING",file_status="UNKNOWN",&
+             file_form="FORMATTED",file_action="WRITE",&
+             unit_number=unit_number)
+          WRITE (UNIT=cp_logger_get_default_unit_nr(logger),FMT="(/,T2,A,/)")&
+               "*** waiting till the file WAIT has been removed ***"
+          DO
+             ! sleep a bit (to save the file system)
+             t1=m_walltime()
+             DO I=1,100000000
+                t2=m_walltime()
+                IF (t2-t1>1.0_dp) EXIT
+             ENDDO
+             ! and ask again
+             INQUIRE (FILE="WAIT",EXIST=should_wait)
+             IF (.NOT.should_wait) EXIT
+          ENDDO
+          CALL close_file(unit_number=unit_number,file_status="DELETE")
+       ENDIF
 
+       ! EXIT control
+       INQUIRE (FILE=exit_fname_level,EXIST=should_stop)
        IF (should_stop) THEN
           CALL open_file(file_name=exit_fname_level,unit_number=unit_number)
           CALL close_file(unit_number=unit_number,file_status="DELETE")
