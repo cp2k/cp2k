@@ -507,7 +507,7 @@ CONTAINS
                                                 subsys_section, work_section
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
-    TYPE(tbmd_energy_type), POINTER          :: tbmd_energy
+    TYPE(tbmd_energy_type), POINTER          :: tbmd_ener
     TYPE(tbmd_environment_type), POINTER     :: tbmd_env
     TYPE(unit_convert_type), POINTER         :: unit
 
@@ -532,7 +532,7 @@ CONTAINS
             molecules_new, local_molecules, particles, itimes, used_time, rng_stream, &
             tmp_particle_set, t, local_particles, atomic_kind, atomic_kinds, &
             atom_list, unit, tmp_wf_history, dft_control, qs_env, particle_set, &
-            atomic_kind_set, kg_env, tbmd_env, eip_env, tbmd_energy, harris_energy)
+            atomic_kind_set, kg_env, tbmd_env, eip_env, tbmd_ener, harris_energy)
     NULLIFY(dft_section, input, motion_section)
     logger => cp_error_get_logger(error)
 
@@ -894,8 +894,8 @@ CONTAINS
               END IF
             END IF
          ELSE IF (globenv%prog_name_id == do_tbmd) THEN
-            CALL tbmd_env_get(tbmd_env=tbmd_env, tbmd_energy=tbmd_energy, error=error)
-            CALL tbmd_energy_get(tbmd_energy=tbmd_energy, E_tb=Econs, E_kinetic=Ekin_prev, error=error)
+            CALL tbmd_env_get(tbmd_env=tbmd_env, tbmd_energy=tbmd_ener, error=error)
+            CALL tbmd_energy_get(tbmd_energy=tbmd_ener, E_tb=Econs, E_kinetic=Ekin_prev, error=error)
             Epot_prev = Econs - Ekin_prev
             IF (.NOT. tot_energy) THEN
                prev_ldmc_energy = Epot_prev
@@ -1054,8 +1054,8 @@ CONTAINS
               END IF
             END IF
          ELSE IF (globenv%prog_name_id == do_tbmd) THEN
-            CALL tbmd_env_get(tbmd_env=tbmd_env, tbmd_energy=tbmd_energy, error=error)
-            CALL tbmd_energy_get(tbmd_energy=tbmd_energy, E_tb=Econs, E_kinetic=Ekin_new, error=error)
+            CALL tbmd_env_get(tbmd_env=tbmd_env, tbmd_energy=tbmd_ener, error=error)
+            CALL tbmd_energy_get(tbmd_energy=tbmd_ener, E_tb=Econs, E_kinetic=Ekin_new, error=error)
             Epot_new = Econs - Ekin_new
             IF (.NOT. tot_energy) THEN
                new_ldmc_energy = Epot_new
@@ -1455,7 +1455,7 @@ CONTAINS
     TYPE(harris_energy_type), POINTER        :: harris_energy
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_wf_history_type), POINTER        :: wf_history
-    TYPE(tbmd_energy_type), POINTER          :: tbmd_energy
+    TYPE(tbmd_energy_type), POINTER          :: tbmd_ener
     TYPE(tbmd_environment_type), POINTER     :: tbmd_env
 
 !   ------------------------------------------------------------------------
@@ -1463,7 +1463,7 @@ CONTAINS
     CALL timeset(routineN, "I", "", handle)
 
     NULLIFY(force_env_p, itimes, used_time, wf_history, qs_env, tbmd_env, &
-            eip_env, tbmd_energy, harris_energy)
+            eip_env, tbmd_ener, harris_energy)
 
     CALL get_md_env(md_env, force_env_p=force_env_p, itimes=itimes, &
                     used_time=used_time)
@@ -1560,8 +1560,8 @@ CONTAINS
               END IF
             END IF
           ELSE IF (globenv%prog_name_id == do_tbmd) THEN
-            CALL tbmd_env_get(tbmd_env=tbmd_env, tbmd_energy=tbmd_energy, error=error)
-            CALL tbmd_energy_get(tbmd_energy=tbmd_energy, E_tb=Econs, E_kinetic=Ekin_prev, error=error)
+            CALL tbmd_env_get(tbmd_env=tbmd_env, tbmd_energy=tbmd_ener, error=error)
+            CALL tbmd_energy_get(tbmd_energy=tbmd_ener, E_tb=Econs, E_kinetic=Ekin_prev, error=error)
             Epot_prev = Econs - Ekin_prev
             IF (.NOT. tot_energy) THEN
               prev_lpsc_energy = Epot_prev
@@ -1615,8 +1615,8 @@ CONTAINS
               END IF
             END IF
           ELSE IF (globenv%prog_name_id == do_tbmd) THEN
-            CALL tbmd_env_get(tbmd_env=tbmd_env, tbmd_energy=tbmd_energy, error=error)
-            CALL tbmd_energy_get(tbmd_energy=tbmd_energy, E_tb=Econs, E_kinetic=Ekin_new, error=error)
+            CALL tbmd_env_get(tbmd_env=tbmd_env, tbmd_energy=tbmd_ener, error=error)
+            CALL tbmd_energy_get(tbmd_energy=tbmd_ener, E_tb=Econs, E_kinetic=Ekin_new, error=error)
             Epot_new = Econs - Ekin_new
             IF (.NOT. tot_energy) THEN
               new_lpsc_energy = Epot_new
