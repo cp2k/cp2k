@@ -229,7 +229,11 @@ CONTAINS
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
-    IF (ionode) output_unit= cp_logger_get_default_unit_nr(logger)
+    IF (ionode) THEN
+      output_unit= cp_logger_get_default_unit_nr(logger)
+    ELSE
+      output_unit = -1
+    END IF
 
 
     NULLIFY(xas_env, groundstate_coeff, ostrength_sm, op_sm)
@@ -998,7 +1002,11 @@ CONTAINS
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
-    IF (ionode) output_unit= cp_logger_get_default_unit_nr(logger)
+    IF (ionode) THEN
+     output_unit= cp_logger_get_default_unit_nr(logger)
+    ELSE
+     output_unit = -1
+    END IF
 
     NULLIFY(fm_work,ostrength_sm,op_sm, dip_fm_set)
     NULLIFY(all_evals,all_vectors,excvec_coeff, spectrum)
@@ -1648,7 +1656,11 @@ CONTAINS
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
-    IF (ionode) output_unit= cp_logger_get_default_unit_nr(logger)
+    IF (ionode) THEN
+       output_unit= cp_logger_get_default_unit_nr(logger)
+    ELSE
+       output_unit = -1
+    END IF
 
     CALL get_qs_env(qs_env=qs_env, cell=cell, mos=mos, particle_set=particle_set)
 

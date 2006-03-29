@@ -164,7 +164,7 @@ CONTAINS
 
     INTEGER                                  :: ibuffer, ispin, istat, &
                                                 nbuffer, output_unit
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure, ionode
     TYPE(cp_logger_type), POINTER            :: logger
 
 !   ---------------------------------------------------------------------------
@@ -173,6 +173,12 @@ CONTAINS
     logger => cp_error_get_logger(error)
     CPPrecondition(ASSOCIATED(diis_buffer),cp_failure_level,routineP,error,failure)
     CPPrecondition(diis_buffer%ref_count>0,cp_failure_level,routineP,error,failure)
+    ionode = logger%para_env%source==logger%para_env%mepos
+    IF (ionode) THEN
+        output_unit= cp_logger_get_default_unit_nr(logger,local=.FALSE.)
+    ELSE
+        output_unit= -1
+    ENDIF
 
     nbuffer=diis_buffer%nbuffer
 
@@ -219,7 +225,7 @@ CONTAINS
        IF (istat /= 0) CALL stop_memory(routineP,"diis_buffer%b_matrix",&
             (nbuffer + 1)**2*dp_size)
        diis_buffer%b_matrix=0.0_dp
-      output_unit = cp_print_key_unit_nr(logger,scf_section,"PRINT%DIIS_INFO",&
+      IF(ionode) output_unit = cp_print_key_unit_nr(logger,scf_section,"PRINT%DIIS_INFO",&
             extension=".scfLog",error=error)
       IF (output_unit>0) THEN
           WRITE (UNIT=output_unit,FMT="(/,T2,A)")&
@@ -320,7 +326,7 @@ CONTAINS
     IF (ionode) THEN
         output_unit= cp_logger_get_default_unit_nr(logger,local=.FALSE.)
     ELSE
-        output_unit= 0
+        output_unit= -1
     ENDIF
 
     !   *** Quick return, if no DIIS is requested ***
@@ -379,7 +385,7 @@ CONTAINS
        error_max=MAX(error_max,tmp)
 
     ENDDO
-    output_unit = cp_print_key_unit_nr(logger,scf_section,"PRINT%DIIS_INFO",&
+    IF(ionode) output_unit = cp_print_key_unit_nr(logger,scf_section,"PRINT%DIIS_INFO",&
          extension=".scfLog",error=error)
     IF (output_unit>0) THEN
        WRITE (UNIT=output_unit,FMT="(/,T2,A,E12.3)")&
@@ -408,7 +414,7 @@ CONTAINS
           ENDDO
           b(ib,jb) = b(jb,ib)
        END DO
-       output_unit = cp_print_key_unit_nr(logger,scf_section,"PRINT%DIIS_INFO",&
+       IF(ionode) output_unit = cp_print_key_unit_nr(logger,scf_section,"PRINT%DIIS_INFO",&
             extension=".scfLog",error=error)
        IF (output_unit>0) THEN
           WRITE (UNIT=output_unit,FMT="(/,T2,A)")&

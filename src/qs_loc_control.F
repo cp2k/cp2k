@@ -245,8 +245,11 @@ CONTAINS
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
-    IF (ionode) output_unit= cp_logger_get_default_unit_nr(logger)
-
+    IF (ionode) THEN
+      output_unit= cp_logger_get_default_unit_nr(logger)
+    ELSE
+      output_unit = -1
+    END IF
 
     IF(.NOT. failure)  THEN
 
