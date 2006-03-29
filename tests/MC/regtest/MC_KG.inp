@@ -46,7 +46,7 @@
       POTENTIAL GTH-PADE-q1
     &END KIND
     &TOPOLOGY
-      CONN_FILE topology_1.psf
+      CONN_FILE topology_atoms_1.psf
       CONNECTIVITY PSF
     &END TOPOLOGY
   &END SUBSYS

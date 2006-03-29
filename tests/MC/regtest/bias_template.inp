@@ -2,8 +2,8 @@
 &FORCE_EVAL
   &MM
     &FORCEFIELD
-      parmfile water.pot
-      parmtype CHM
+#      parmfile water.pot
+#      parmtype CHM
       &CHARGE
         ATOM O
         CHARGE -0.8476
@@ -12,6 +12,21 @@
         ATOM H
         CHARGE 0.4238
       &END CHARGE
+      &BOND
+        ATOMS O  H
+        K  0.0
+        R0 0.97572
+      &END BOND
+      &BOND
+        ATOMS H  H
+        K  0.0
+        R0 1.5139
+      &END BOND
+      &BEND
+        ATOMS H  O  H
+        K  0.0
+        THETA0 1.82422
+      &END BEND
       &NONBONDED
         &LENNARD-JONES 
   	  ATOMS O O
@@ -241,7 +256,7 @@
  H       3.889107504717      6.253294143532     13.221731148935
     &END COORD
     &TOPOLOGY
-      CONN_FILE topology_64.psf
+      CONN_FILE topology_fist_64.psf
       CONNECTIVITY PSF
     &END TOPOLOGY
   &END SUBSYS
@@ -275,8 +290,8 @@
     RMBOND 0.074
     RMROT 26.0
     RMTRANS 0.38
-    RMVOLUME 1.0
-    TEMP 298.0
+    RMVOLUME 10.0
+    TEMP 398.0
     IPRINT 64
   &END MC
 &END MOTION

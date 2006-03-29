@@ -70,7 +70,10 @@ MODULE mc_misc
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
   USE molecule_kind_types,             ONLY: atom_type,&
                                              get_molecule_kind,&
-                                             molecule_kind_type
+                                             molecule_kind_type,&
+                                             bond_type,&
+                                             bend_type,&
+                                             torsion_type
   USE pair_potential_types,            ONLY: pair_potential_pp_type
   USE physcon,                         ONLY: angstrom,&
                                              kelvin
@@ -610,9 +613,12 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
 
     CHARACTER(LEN=2)                         :: element_symbol
     CHARACTER(LEN=5)                         :: cfile
-    CHARACTER(LEN=default_string_length)     :: c_val, name, unit_type
+    CHARACTER(LEN=default_string_length)     :: c_val, name, unit_type,&
+         name_a,name_b,name_c,name_d
     INTEGER :: ewald_type, gmax, handle, i_val, iatom, ichain, ifunct, itype, &
-      jtype, natoms, nchains, ns_max, ntypes, o_spline, unit
+      jtype, natoms, nchains, ns_max, ntypes, o_spline, unit,&
+      nbond,nbend,ntorsion,ibond,ibend,itorsion,jbond,stat,current_bond,&
+      jbend,current_bend,imul,current_torsion,jtorsion
     LOGICAL                                  :: failure, use_ref_cell
     REAL(KIND=dp)                            :: alpha, charge, epsilon, r_val
     REAL(KIND=dp), DIMENSION(1:3)            :: abc
@@ -636,7 +642,12 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
     TYPE(pair_potential_pp_type), POINTER    :: potparm
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(section_vals_type), POINTER         :: input, xc_fun, xc_fun_section
-
+    TYPE(bond_type), DIMENSION(:), POINTER   :: bond_list
+    TYPE(bend_type), DIMENSION(:), POINTER   :: bend_list
+    TYPE(torsion_type), DIMENSION(:), POINTER   :: torsion_list
+!    TYPE(input_info_type), POINTER           :: inp_info
+    CHARACTER(default_string_length),DIMENSION(:),ALLOCATABLE :: atom_a_done,&
+         atom_b_done,atom_c_done,atom_d_done
 !------------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
@@ -644,7 +655,8 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
 
 ! nullify some stuff
       NULLIFY(qs_env,atomic_kind_set,atomic_kind,gth_potential,&
-         orb_basis_set,elp_potential,input,xc_fun,kg_env)
+         orb_basis_set,elp_potential,input,xc_fun,kg_env,&
+         bond_list,bend_list,torsion_list)
 
 ! grab some of the structures we're gonna need
       SELECT CASE ( force_env%in_use )
@@ -678,10 +690,18 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
          molecule_kinds_new=molecule_kinds_new,error=error)
       molecule_kind => molecule_kinds_new%els(1)
       CALL get_molecule_kind(molecule_kind,atom_list=atom_list,&
-         natom=natoms)
+         natom=natoms,bond_list=bond_list,bend_list=bend_list,&
+         torsion_list=torsion_list,nbond=nbond,nbend=nbend,ntorsion=ntorsion)
       
 ! find out how many atom types we have
       ntypes=SIZE(atomic_kind_set(:))
+
+! a way to check and see what bond, bend, and tors types we've
+! already written
+!      ALLOCATE (lbond(1:nbonmolecule_kind_set(nmolecule_kind),STAT=istat)
+!    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+!                                     "molecule_kind_set",&
+!                                     nmolecule_kind*int_size)
 
 ! open the file
       CALL open_file(file_name=filename,unit_number=unit,&
@@ -727,8 +747,8 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
 ! now some of the force field stuff
          WRITE(unit,10000) "    &FORCEFIELD"
 ! doesn't look like these values are stored past read-in
-         WRITE(unit,10000) "      parmfile water.pot"
-         WRITE(unit,10000) "      parmtype CHM"
+!         WRITE(unit,10000) "      parmfile water.pot"
+!         WRITE(unit,10000) "      parmtype CHM"
 
          
 ! charges
@@ -743,6 +763,121 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
             WRITE(unit,20002) "        CHARGE ",charge
             WRITE(unit,10000) "      &END CHARGE"
          ENDDO
+
+! need to find all the bonds and write them out
+         ALLOCATE(atom_a_done(1:nbond),STAT=stat)
+         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+         ALLOCATE(atom_b_done(1:nbond),STAT=stat)
+         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+         atom_a_done(:)=""
+         atom_b_done(:)=""
+         current_bond=1
+         outer_bond:DO ibond=1,nbond
+            name_a=atom_list(bond_list(ibond)%a)%name
+            name_b=atom_list(bond_list(ibond)%b)%name
+            DO jbond=1,current_bond
+               IF(atom_a_done(jbond)==name_a .AND. atom_b_done(jbond)==name_b&
+                    .OR. atom_a_done(jbond)==name_b .AND. atom_b_done(jbond)==name_a)THEN
+                  CYCLE outer_bond
+               ENDIF
+            ENDDO
+            atom_a_done(current_bond)=name_a
+            atom_b_done(current_bond)=name_b
+            current_bond=current_bond+1
+            WRITE(unit,10000) "      &BOND"
+            WRITE(unit,30002) "        ATOMS ",TRIM(ADJUSTL(name_a)),TRIM(ADJUSTL(name_b))
+            WRITE(unit,20002) "        K ",bond_list(ibond)%bond_kind%k(1)
+            WRITE(unit,20002) "        R0 ",bond_list(ibond)%bond_kind%r0
+            WRITE(unit,10000) "      &END BOND"
+         ENDDO outer_bond
+         DEALLOCATE(atom_a_done)
+         DEALLOCATE(atom_b_done)
+
+! same thing for bends
+         ALLOCATE(atom_a_done(1:nbend),STAT=stat)
+         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+         ALLOCATE(atom_b_done(1:nbend),STAT=stat)
+         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+         ALLOCATE(atom_c_done(1:nbend),STAT=stat)
+         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+         atom_a_done(:)=""
+         atom_b_done(:)=""
+         atom_c_done(:)=""
+         current_bend=1
+         outer_bend:DO ibend=1,nbend
+            name_a=atom_list(bend_list(ibend)%a)%name
+            name_b=atom_list(bend_list(ibend)%b)%name
+            name_c=atom_list(bend_list(ibend)%c)%name
+            DO jbend=1,current_bend
+               IF(atom_a_done(jbend)==name_a .AND. atom_b_done(jbend)==name_b &
+                    .AND.atom_c_done(jbend)==name_c &
+                    .OR. atom_a_done(jbend)==name_c .AND. atom_b_done(jbend)==name_b .AND. &
+                    atom_c_done(jbend)==name_a)THEN
+                  CYCLE outer_bend
+               ENDIF
+            ENDDO
+            atom_a_done(current_bend)=name_a
+            atom_b_done(current_bend)=name_b
+            atom_c_done(current_bend)=name_c
+            current_bend=current_bend+1
+            WRITE(unit,10000) "      &BEND"
+            WRITE(unit,40004) "        ATOMS ",TRIM(ADJUSTL(name_a)),TRIM(ADJUSTL(name_b)),TRIM(ADJUSTL(name_c))
+            WRITE(unit,20002) "        K ",bend_list(ibend)%bend_kind%k
+            WRITE(unit,20002) "        THETA0 ",bend_list(ibend)%bend_kind%theta0
+            WRITE(unit,10000) "      &END BEND"
+         ENDDO outer_bend
+         DEALLOCATE(atom_a_done)
+         DEALLOCATE(atom_b_done)
+         DEALLOCATE(atom_c_done)
+
+! finally, write out the torsions
+         ALLOCATE(atom_a_done(1:ntorsion),STAT=stat)
+         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+         ALLOCATE(atom_b_done(1:ntorsion),STAT=stat)
+         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+         ALLOCATE(atom_c_done(1:ntorsion),STAT=stat)
+         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+         ALLOCATE(atom_d_done(1:ntorsion),STAT=stat)
+         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+         atom_a_done(:)=""
+         atom_b_done(:)=""
+         atom_c_done(:)=""
+         atom_d_done(:)=""
+         current_torsion=1
+         outer_torsion:DO itorsion=1,ntorsion
+            name_a=atom_list(torsion_list(itorsion)%a)%name
+            name_b=atom_list(torsion_list(itorsion)%b)%name
+            name_c=atom_list(torsion_list(itorsion)%c)%name
+            name_d=atom_list(torsion_list(itorsion)%d)%name
+            DO jtorsion=1,current_torsion
+               IF(atom_a_done(jtorsion)==name_a .AND. atom_b_done(jtorsion)==name_b &
+                    .AND.atom_c_done(jtorsion)==name_c .AND. atom_d_done(jtorsion)==name_d &
+                    .OR. atom_a_done(jtorsion)==name_d .AND. atom_b_done(jtorsion)==name_c .AND. &
+                    atom_c_done(jtorsion)==name_b .AND. atom_d_done(jtorsion)==name_a)THEN
+                  CYCLE outer_torsion
+               ENDIF
+            ENDDO
+            atom_a_done(current_torsion)=name_a
+            atom_b_done(current_torsion)=name_b
+            atom_c_done(current_torsion)=name_c
+            atom_d_done(current_torsion)=name_d
+            current_torsion=current_torsion+1
+            DO imul=1,torsion_list(itorsion)%torsion_kind%nmul
+               WRITE(unit,10000) "      &TORSION"
+               WRITE(unit,50001) "        ATOMS ",TRIM(ADJUSTL(name_a)),TRIM(ADJUSTL(name_b)),&
+                    TRIM(ADJUSTL(name_c)),TRIM(ADJUSTL(name_d))
+               WRITE(unit,20003) "        M ",torsion_list(itorsion)%torsion_kind%m(imul)
+               WRITE(unit,20002) "        K ",torsion_list(itorsion)%torsion_kind%k(imul)
+               WRITE(unit,20002) "        PHI0 ",torsion_list(itorsion)%torsion_kind%cosphi0(imul)
+               WRITE(unit,10000) "      &END TORSION"
+            ENDDO
+               
+         ENDDO outer_torsion
+         DEALLOCATE(atom_a_done)
+         DEALLOCATE(atom_b_done)
+         DEALLOCATE(atom_c_done)
+         DEALLOCATE(atom_d_done)
+
 
 ! nonbonded...only works for LJ at the moment
          WRITE(unit,10000) "      &NONBONDED"
@@ -934,8 +1069,19 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
       WRITE(unit,10000) "    &TOPOLOGY"
       WRITE(unit,10000) "      CONNECTIVITY PSF"
       WRITE(cfile,'(I4)') natoms_tot/natoms
-      WRITE(unit,10000) '      CONN_FILE topology_' &
-      // TRIM(ADJUSTL(cfile)) // '.psf'
+      SELECT CASE ( force_env%in_use )
+      CASE ( use_fist_force )
+         WRITE(unit,10000) '      CONN_FILE topology_fist_' &
+              // TRIM(ADJUSTL(cfile)) // '.psf'
+      CASE ( use_qs_force )
+         WRITE(unit,10000) '      CONN_FILE topology_atoms_' &
+              // TRIM(ADJUSTL(cfile)) // '.psf'
+      CASE ( use_kg_force )
+         WRITE(unit,10000) '      CONN_FILE topology_atoms_' &
+              // TRIM(ADJUSTL(cfile)) // '.psf'
+      CASE default
+        CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+      END SELECT
       WRITE(unit,10000) "    &END TOPOLOGY"
       WRITE(unit,10000) "  &END SUBSYS"
       WRITE(unit,10000) "&END FORCE_EVAL"
@@ -984,7 +1130,9 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
 40001 FORMAT(A,F12.8,2X,I8,2X,I8)
 40002 FORMAT(A,F12.8,2X,I8,2X,F12.8)
 40003 FORMAT(5X,A,3(F20.15,2X))
+40004 FORMAT(A,A,1X,A,1X,A)
 50000 FORMAT(A,3(F18.12,2X),A)
+50001 FORMAT(A,A,1X,A,1X,A,1X,A)
 60000 FORMAT(A,A,2X,A,2X,A,3(2X,F10.5))
 
 ! end the timing
