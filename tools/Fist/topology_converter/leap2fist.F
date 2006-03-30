@@ -474,17 +474,7 @@ CONTAINS
        DO j = 1, num_types
           my_ch = my_charge(j)
           num_types2 = COUNT(my_charge==my_ch)
-          IF ( my_ch==-9999 ) THEN 
-             CYCLE
-          ELSEIF(num_types2 < 10) THEN
-             IF (len_type>3) CALL stop_converter(" A type with more than 4 character should be created!")
-          ELSEIF(num_types2 < 100) THEN
-             IF (len_type>2) CALL stop_converter(" A type with more than 4 character should be created!")
-          ELSEIF(num_types2 < 1000) THEN
-             IF (len_type>1) CALL stop_converter(" A type with more than 4 character should be created!")
-          ELSE
-             CALL stop_converter(" A type with more than 4 character should be created!")
-          END IF
+          IF ( my_ch==-9999 ) CYCLE
           DO l = 1, num_types
              IF (my_charge(l) /= my_ch) CYCLE
              IF (k<10) THEN
@@ -501,6 +491,15 @@ CONTAINS
              my_done(my_index(l)) = 1
           END DO
           k = k + 1
+          IF(k < 10) THEN
+             IF (len_type>3) CALL stop_converter(" A type with more than 4 character should be created!"//TRIM(my_type))
+          ELSEIF(k < 100) THEN
+             IF (len_type>2) CALL stop_converter(" A type with more than 4 character should be created!"//TRIM(my_type))
+          ELSEIF(k < 1000) THEN
+             IF (len_type>1) CALL stop_converter(" A type with more than 4 character should be created!"//TRIM(my_type))
+          ELSE
+             CALL stop_converter(" A type with more than 4 character should be created!")
+          END IF
        END DO
        IF (ANY(my_charge /= -9999)) CALL stop_converter(" Should never reach this point!")
        DEALLOCATE(my_charge, my_index)
