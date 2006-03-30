@@ -542,8 +542,8 @@ CONTAINS
 
     atomic_kind_set => tbmd_env%subsystem%atomic_kinds%els
 
-    eV = 1/evolt
-    Am = 1/angstrom
+    eV = 1./27.2116  !1/evolt
+    Am = 1./0.529177 !1/angstrom
 
     ! loop over all kinds
     DO i=1,SIZE(atomic_kind_set)

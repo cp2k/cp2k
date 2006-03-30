@@ -392,9 +392,9 @@ CONTAINS
 
     TYPE(tbmd_neighbor_list_env_type), &
       POINTER                                :: tbmd_neighbor_list_env
-    INTEGER, INTENT(OUT), OPTIONAL           :: id_nr, counter, last_update, &
+    INTEGER, INTENT(IN), OPTIONAL            :: id_nr, counter, last_update, &
                                                 num_update
-    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: verlet_skin, lup, aup
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: verlet_skin, lup, aup
     REAL(KIND=dp), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: r_last_update, r_cutoff
     TYPE(neighbor_list_set_p_type), &

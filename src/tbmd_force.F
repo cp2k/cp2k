@@ -179,6 +179,7 @@ CONTAINS
 
     failure = .FALSE.
     logger => cp_error_get_logger(error)
+    ekin = 0.0_dp
 
     IF (PRESENT(orthogonal_basis)) THEN
       ortho_basis = orthogonal_basis
@@ -210,6 +211,7 @@ CONTAINS
                                       globenv=globenv, &
                                       force_env_section=force_env_section, error=error)
 
+      natom = SIZE(particle_set)
       CALL tbmd_force_clear(tbmd_env%tbmd_force, natom=natom, error=error)
       CALL tbmd_energy_clear(tbmd_env%tbmd_energy, error=error)
 
@@ -594,7 +596,7 @@ CONTAINS
         WRITE (output_unit,*) ""
 
         DO i = 1,SIZE(matrix(1,:))
-          WRITE (UNIT=output_unit, FMT='(32F8.3)') matrix(i,:)
+          WRITE (UNIT=output_unit, FMT='(32F12.8)') matrix(i,:)
         END DO
 
         CALL mp_sync(group)

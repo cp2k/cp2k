@@ -369,7 +369,6 @@ CONTAINS
 
     CALL section_release(input_structure,error=error)
 
-
     I_was_ionode=globenv%ionode
     CALL cp2k_finalize(globenv,error)
     CPPostconditionNoFail(globenv%ref_count==1,cp_failure_level,routineP,error)

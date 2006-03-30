@@ -497,7 +497,7 @@ CONTAINS
       WRITE (output_unit,*) ""
 
       DO i = 1,SIZE(matrix(1,:))
-        WRITE (UNIT=output_unit, FMT='(32F8.3)') matrix(i,:)
+        WRITE (UNIT=output_unit, FMT='(32F12.8)') matrix(i,:)
       END DO
 
       CALL mp_sync(group)

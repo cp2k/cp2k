@@ -1667,7 +1667,7 @@ CONTAINS
                 s2_dx(n2) = dx
                 s2_dy(n2) = dy
                 s2_dz(n2) = dz
-                 s2_r(n2) = r
+                s2_r(n2)  = r
                 n2 = n2 + 1
                 if (n2.gt.max_nbrs) then
                 write(6,*) 'WARNING enlarge max_nbrs'
@@ -2079,9 +2079,12 @@ CONTAINS
 1234    ncx=ncx*2
         allocate(icell(0:ncx,-1:ll1,-1:ll2,-1:ll3))
         do 984,l3=-1,ll3
-        do 984,l2=-1,ll2
-        do 984,l1=-1,ll1
-984     icell(0,l1,l2,l3)=0
+        do 985,l2=-1,ll2
+        do 986,l1=-1,ll1
+        icell(0,l1,l2,l3)=0
+986     continue
+985     continue
+984     continue
         rlc1i=ll1/alat(1)
         rlc2i=ll2/alat(2)
         rlc3i=ll3/alat(3)
@@ -2122,10 +2125,12 @@ CONTAINS
 4321    ncx=ncx*2
         allocate(icell(0:ncx,-1:ll1,-1:ll2,-1:ll3))
         do 3984,l3=-1,ll3
-        do 3984,l2=-1,ll2
-        do 3984,l1=-1,ll1
-3984    icell(0,l1,l2,l3)=0
-
+        do 3985,l2=-1,ll2
+        do 3986,l1=-1,ll1
+        icell(0,l1,l2,l3)=0
+3986    continue
+3985    continue
+3984    continue
         rlc1i=ll1/alat(1)
         rlc2i=ll2/alat(2)
         rlc3i=ll3/alat(3)
@@ -2565,8 +2570,8 @@ CONTAINS
 ! Verlet list, relative positions
         indlst=0
       do 6000,l3=0,ll3-1
-      do 6000,l2=0,ll2-1
-      do 6000,l1=0,ll1-1
+      do 6001,l2=0,ll2-1
+      do 6002,l1=0,ll1-1
       do 6600,ii=1,icell(0,l1,l2,l3)
         iat=icell(ii,l1,l2,l3)
         if ( ((iat-1)*npr)/nat .eq. iam) then
@@ -2581,6 +2586,8 @@ CONTAINS
         endif
 
 6600    continue
+6002    continue
+6001    continue
 6000    continue
 !$omp critical
         indlstx=max(indlstx,indlst)
@@ -2623,7 +2630,8 @@ CONTAINS
         do 121,iat=1,nat
         fxyz(1,iat)=0.d0
         fxyz(2,iat)=0.d0
-121     fxyz(3,iat)=0.d0
+        fxyz(3,iat)=0.d0
+121     continue
 !$omp barrier    
 
 ! Each thread treats at most lot atoms
@@ -2775,7 +2783,8 @@ CONTAINS
         do 121,iat=1,nat
         txyz(1,iat)=0.d0
         txyz(2,iat)=0.d0
-121     txyz(3,iat)=0.d0
+        txyz(3,iat)=0.d0
+121     continue
 
 
 ! calculation of forces, energy
@@ -3091,9 +3100,9 @@ CONTAINS
                   lstb(0:myspace-1),rel(5,0:myspace-1)
 
         do 6363,k3=l3-1,l3+1
-        do 6363,k2=l2-1,l2+1
-        do 6363,k1=l1-1,l1+1
-        do 6363,jj=1,icell(0,k1,k2,k3)
+        do 6364,k2=l2-1,l2+1
+        do 6365,k1=l1-1,l1+1
+        do 6366,jj=1,icell(0,k1,k2,k3)
           jat=icell(jj,k1,k2,k3)
           if (jat.eq.iat) goto 6363
           xrel= rxyz(1,iat)-rxyz(1,jat)
@@ -3113,7 +3122,10 @@ CONTAINS
            rel(5,indlst)=tti
            indlst= indlst+1
           endif
-6363        continue
+6366      continue
+6365      continue
+6364      continue
+6363      continue
 
         return
         end subroutine sublstiat_l

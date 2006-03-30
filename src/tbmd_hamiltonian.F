@@ -179,7 +179,8 @@ CONTAINS
                                                 r_cutoff, &
                                                 Phi, &
                                                 temp_pair_repulsion_force, &
-                                                unit_of_length
+                                                unit_of_length, &
+                                                sym
     REAL(KIND=dp), DIMENSION(3)              :: dra, &
                                                 drb, &
                                                 rab
@@ -272,7 +273,7 @@ CONTAINS
                                           TARGET=tbmd_env%matrix_dh(i_dim)%matrix, &
                                           target_name="Derivative of the Tight-Binding " //&
                                           "Hamiltonian Matrix with respect to the nuclear "//&
-                                          "coordinates", target_symmetry="symmetric") ! antisymmetric?
+                                          "coordinates", target_symmetry="antisymmetric") ! symmetric?
         END DO
 
         ALLOCATE(sint(4), STAT=stat)
@@ -388,9 +389,13 @@ CONTAINS
                   IF (atom_a <= atom_b) THEN
                     irow = atom_a
                     icol = atom_b
+
+                    sym = -1.0_dp
                   ELSE
                     irow = atom_b
                     icol = atom_a
+
+                    sym = +1.0_dp
                   END IF
                 END IF
 
@@ -431,9 +436,9 @@ CONTAINS
 
                   ! *** s-p orbtial interactions *** !
                   ! H_sx = l_ij * V_spS(r_ij)
-                  sint(1)%block(1,2) = temp_sm_st * spS * l
-                  sint(1)%block(1,3) = temp_sm_st * spS * m
-                  sint(1)%block(1,4) = temp_sm_st * spS * n
+                  sint(1)%block(1,2) = temp_sm_st * spS * l * sym
+                  sint(1)%block(1,3) = temp_sm_st * spS * m * sym
+                  sint(1)%block(1,4) = temp_sm_st * spS * n * sym
 
                   ! H_xs = -H_sx
                   sint(1)%block(2,1) = -sint(1)%block(1,2)
@@ -504,18 +509,18 @@ CONTAINS
                     ELSE
                       ! *** Diagonal elements of an off-diagonal-block *** !
                       ! d/dR_i <H_ss> = d/dR_i <V_ssS(r_ij)>
-                      sint(i_dim+1)%block(1,1) = temp_dsm_st * cos_temp * ssS
+                      sint(i_dim+1)%block(1,1) = temp_dsm_st * cos_temp * ssS * sym
 
                       ! d/dR_i <H_xx> = d/dR_i <(l_ij)^2 * V_ppS(r_ij) + (1 - (l_ij)^2) * V_ppP(r_ij)>
-                      sint(i_dim+1)%block(2,2) = temp_dsm_st * cos_temp &
+                      sint(i_dim+1)%block(2,2) = sym * (temp_dsm_st * cos_temp &
                                                  * (ppS * l*l + (1.0_dp - l*l) * ppP) &
-                                                 + temp_sm_st * 2.0_dp * l * dl * (ppS - ppP)
-                      sint(i_dim+1)%block(3,3) = temp_dsm_st * cos_temp &
+                                                 + temp_sm_st * 2.0_dp * l * dl * (ppS - ppP))
+                      sint(i_dim+1)%block(3,3) = sym * (temp_dsm_st * cos_temp &
                                                  * (ppS * m*m + (1.0_dp - m*m) * ppP) &
-                                                 + temp_sm_st * 2.0_dp * m * dm * (ppS - ppP)
-                      sint(i_dim+1)%block(4,4) = temp_dsm_st * cos_temp &
+                                                 + temp_sm_st * 2.0_dp * m * dm * (ppS - ppP))
+                      sint(i_dim+1)%block(4,4) = sym * (temp_dsm_st * cos_temp &
                                                  * (ppS * n*n + (1.0_dp - n*n) * ppP) &
-                                                 + temp_sm_st * 2.0_dp * n * dn * (ppS - ppP)
+                                                 + temp_sm_st * 2.0_dp * n * dn * (ppS - ppP))
 
                       ! *** s-p orbtial interactions *** !
                       ! d/dR_i <H_sx> = d/dR_i <l_ij * V_spS(r_ij)>
@@ -534,15 +539,15 @@ CONTAINS
                       ! *** p-p orbital interactions *** !
                       ! d/dR_i <H_xy> = d/dR_i <l_ij*m_ij * V_ppS(r_ij) - l_ij*m_ij * V_ppP(r_ij)>
                       !               = d/dR_i <l_ij*m_ij * (V_ppS(r_ij) - V_ppP(r_ij))>
-                      sint(i_dim+1)%block(2,3) = temp_dsm_st * cos_temp * l * m * (ppS - ppP) &
-                                                 + temp_sm_st * dl * m * (ppS - ppP) &
-                                                 + temp_sm_st * l * dm * (ppS - ppP)
-                      sint(i_dim+1)%block(2,4) = temp_dsm_st * cos_temp * l * n * (ppS - ppP) &
-                                                 + temp_sm_st * dl * n * (ppS - ppP) &
-                                                 + temp_sm_st * l * dn * (ppS - ppP)
-                      sint(i_dim+1)%block(3,4) = temp_dsm_st * cos_temp * m * n * (ppS - ppP) &
-                                                 + temp_sm_st * dm * n * (ppS - ppP) &
-                                                 + temp_sm_st * m * dn * (ppS - ppP)
+                      sint(i_dim+1)%block(2,3) = (temp_dsm_st * cos_temp * l * m * (ppS - ppP) &
+                                                  + temp_sm_st * dl * m * (ppS - ppP) &
+                                                  + temp_sm_st * l * dm * (ppS - ppP)) * sym
+                      sint(i_dim+1)%block(2,4) = (temp_dsm_st * cos_temp * l * n * (ppS - ppP) &
+                                                  + temp_sm_st * dl * n * (ppS - ppP) &
+                                                  + temp_sm_st * l * dn * (ppS - ppP)) * sym
+                      sint(i_dim+1)%block(3,4) = (temp_dsm_st * cos_temp * m * n * (ppS - ppP) &
+                                                  + temp_sm_st * dm * n * (ppS - ppP) &
+                                                  + temp_sm_st * m * dn * (ppS - ppP)) * sym
 
                       ! d/dR_i <H_yx> = d/dR_i <H_xy>
                       sint(i_dim+1)%block(3,2) = sint(i_dim+1)%block(2,3)
@@ -686,8 +691,8 @@ CONTAINS
     res = (r_0/r)**n * EXP(n*(-(r/r_calpha)**n_calpha &
         + (r_0/r_calpha)**n_calpha))
 
-    !res  = res - (r_0/r_cutoff)**n * EXP(n*(-(r_cutoff/r_calpha)**n_calpha &
-    !     + (r_0/r_calpha)**n_calpha))
+    res  = res - (r_0/r_cutoff)**n * EXP(n*(-(r_cutoff/r_calpha)**n_calpha &
+         + (r_0/r_calpha)**n_calpha))
 
   END FUNCTION tbmd_sm_st
 !***************************************************************************
