@@ -489,6 +489,12 @@ RECURSIVE SUBROUTINE force_env_get(force_env, in_use, &
                                   cell=cell,&
                                   error=error)
           ENDIF
+          IF (PRESENT(cell_ref)) THEN
+               CALL force_env_get(force_env%sub_force_env(1)%force_env,&
+                                  cell_ref=cell_ref,&
+                                  error=error)
+          ENDIF
+          IF (PRESENT(use_ref_cell)) use_ref_cell = .FALSE.
           IF (PRESENT(kinetic_energy)) THEN
              CALL force_env_get(force_env%sub_force_env(1)%force_env,&
                                 kinetic_energy=kinetic_energy,&
