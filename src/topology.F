@@ -386,7 +386,7 @@ CONTAINS
        END IF
     CASE (do_conn_off)
        CALL topology_set_atm_mass(topology,globenv,subsys_section,error)
-       CALL topology_generate_bond(topology,globenv,subsys_section,error) 
+       !CALL topology_generate_bond(topology,globenv,subsys_section,error) 
        CALL topology_generate_bend(topology,globenv,subsys_section,error)
        CALL topology_generate_ub(topology,globenv,subsys_section,error)
        CALL topology_generate_dihe(topology,globenv,subsys_section,error)

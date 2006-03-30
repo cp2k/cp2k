@@ -882,7 +882,13 @@ CONTAINS
 
     conn_info => topology%conn_info
     nbond = 0
-    IF(ASSOCIATED(conn_info%bond_a)) nbond = SIZE(conn_info%bond_a)
+    !IF(ASSOCIATED(conn_info%bond_a)) nbond = SIZE(conn_info%bond_a)
+    IF(ASSOCIATED(conn_info%bond_a)) THEN
+      nbond = SIZE(conn_info%bond_a)
+    ELSE
+      CALL reallocate(conn_info%bond_a,1,nbond)
+      CALL reallocate(conn_info%bond_b,1,nbond)
+    END IF
     ntheta = 0
     CALL reallocate(conn_info%theta_a,1,ntheta+nblock)
     CALL reallocate(conn_info%theta_b,1,ntheta+nblock)
