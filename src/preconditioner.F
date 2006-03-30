@@ -1,3 +1,7 @@
+!-----------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations
+!   Copyright (C) 2002 - 2006  CP2K developers group
+!-----------------------------------------------------------------------------!
 !******************************************************************************
 !!
 !!   NAME
@@ -15,7 +19,6 @@
 !!
 !!   SOURCE
 !******************************************************************************
-
 MODULE preconditioner
 ! *****************************************************************************
   USE cp_blacs_env,                    ONLY: cp_blacs_env_release,&
@@ -50,7 +53,7 @@ MODULE preconditioner
        lr_precond_full_all, lr_precond_h0_inverse, lr_precond_s_inverse, &
        ot_precond_full_all, ot_precond_full_kinetic, ot_precond_full_single, &
        ot_precond_s_inverse, ot_precond_sparse_diag, &
-       ot_precond_sparse_firstorder
+       ot_precond_sparse_firstorder, ot_precond_full_single_inverse
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
   USE qs_mo_methods,                   ONLY: calculate_subspace_eigenvalues,&
@@ -186,6 +189,8 @@ SUBROUTINE make_preconditioner_single(preconditioner_env, precon_type, matrix_h,
   !                  the case of non-equivalent MOs but also for the derivate
   ! we could already have all eigenvalues e.g. full_all and we could skip this
   ! to be optimised later.
+  ! one flaw is that not all SCF methods (i.e. that go over mo_derivs directly)
+  ! have a 'valid' matrix_h... (we even don't know what evals are in that case)
   CALL calculate_subspace_eigenvalues(mo_coeff,matrix_h,&
           eigenvalues_ot,para_env=preconditioner_env%para_env, &
                          do_rotation = .FALSE.)
@@ -194,27 +199,31 @@ SUBROUTINE make_preconditioner_single(preconditioner_env, precon_type, matrix_h,
 
   SELECT CASE (precon_type)
   CASE (ot_precond_sparse_diag)
-    preconditioner_env%in_use=1
+    preconditioner_env%in_use=ot_precond_sparse_diag
     CALL make_sparse_diag(preconditioner_env, matrix_h, matrix_s, &
                               energy_homo, energy_gap )
   CASE (ot_precond_full_single)
-    preconditioner_env%in_use=2
+    preconditioner_env%in_use=ot_precond_full_single
     CALL make_full_single(preconditioner_env, preconditioner_env%fm,&
                           matrix_h, matrix_s, energy_homo, energy_gap )
   CASE (ot_precond_s_inverse)
-    preconditioner_env%in_use=3
+    preconditioner_env%in_use=ot_precond_s_inverse
     CALL make_full_s_inverse(preconditioner_env, matrix_h, matrix_s, &
                                              energy_homo, energy_gap )
   CASE (ot_precond_sparse_firstorder)
-    preconditioner_env%in_use=4
+    preconditioner_env%in_use=ot_precond_sparse_firstorder
     CALL make_sparse_first_order(preconditioner_env, matrix_h, matrix_s, &
                                                  energy_homo, energy_gap )
   CASE (ot_precond_full_kinetic)
-    preconditioner_env%in_use=6
+    preconditioner_env%in_use=ot_precond_full_kinetic
     CALL make_full_kinetic(preconditioner_env, preconditioner_env%fm,&
                           matrix_t, matrix_s, energy_homo, energy_gap )
+  CASE (ot_precond_full_single_inverse)
+    preconditioner_env%in_use=ot_precond_full_single_inverse
+    CALL make_full_single_inverse(preconditioner_env,mo_coeff,matrix_h, matrix_s, &
+                       eigenvalues_ot, energy_gap)
   CASE (ot_precond_full_all)
-    preconditioner_env%in_use=19
+    preconditioner_env%in_use=ot_precond_full_all
     CALL make_full_all(preconditioner_env,mo_coeff,matrix_h, matrix_s, &
                        eigenvalues_ot, energy_gap)
   CASE DEFAULT
@@ -273,7 +282,7 @@ SUBROUTINE make_preconditioner_lr(preconditioner_env, precon_type, ev_h0,&
   SELECT CASE (precon_type)
   CASE (lr_precond_s_inverse)
 
-    preconditioner_env(1)%in_use=1
+    preconditioner_env(1)%in_use=lr_precond_s_inverse
     CALL get_matrix_info(matrix_s,nrow=n)
 
     CALL cp_fm_struct_create(fm_struct_tmp, nrow_global=n,ncol_global=n,&
@@ -290,12 +299,12 @@ SUBROUTINE make_preconditioner_lr(preconditioner_env, precon_type, ev_h0,&
     CALL cp_fm_release(fm_work)
     IF(nspins==2)THEN
       preconditioner_env(2)%fm => preconditioner_env(1)%fm
-      preconditioner_env(2)%in_use=1
+      preconditioner_env(2)%in_use=lr_precond_s_inverse
     END IF
 
   CASE (lr_precond_h0_inverse)
 
-    preconditioner_env(1)%in_use=1
+    preconditioner_env(1)%in_use=lr_precond_h0_inverse
     DO ispin = 1,nspins
       CALL get_matrix_info(matrix_h(ispin)%matrix,nrow=n)
       ALLOCATE(evals(n))
@@ -336,7 +345,7 @@ SUBROUTINE make_preconditioner_lr(preconditioner_env, precon_type, ev_h0,&
     CPPrecondition(ASSOCIATED(ev_h0),cp_failure_level,routineP,error,failure)
     CPPrecondition(nspins==SIZE(ev_h0,1),cp_failure_level,routineP,error,failure)
 
-    preconditioner_env(1)%in_use=2
+    preconditioner_env(1)%in_use=lr_precond_full_all
     DO ispin = 1,nspins
       CALL cp_fm_get_info(ev_h0(ispin)%matrix,nrow_global=n,ncol_global=k)
       !1) create vectors spanning the subspace orthogonal to ev_h0
@@ -425,13 +434,11 @@ SUBROUTINE apply_preconditioner(preconditioner_env, matrix_in, matrix_out)
   SELECT CASE (preconditioner_env%in_use)
   CASE (0)
     CALL stop_program("apply preconditioner","No preconditioner in use")
-  CASE (1,4) ! can share the apply since they are both sparse matrices
+  CASE (ot_precond_sparse_diag,ot_precond_sparse_firstorder)
     CALL apply_sparse_diag(preconditioner_env, matrix_in, matrix_out)
-  CASE (2,3,6)
+  CASE (ot_precond_full_single,ot_precond_s_inverse,ot_precond_full_kinetic,ot_precond_full_single_inverse)
       CALL apply_full_single(preconditioner_env, matrix_in, matrix_out)
-  ! CASE (3,6)  ! this would be without the symmetrised form, is about 50 percent slower in parallel
-  !   CALL apply_full_s_inverse(preconditioner_env, matrix_in, matrix_out)
-  CASE (19)
+  CASE (ot_precond_full_all)
     CALL apply_full_all(preconditioner_env, matrix_in, matrix_out)
   CASE DEFAULT
     CALL stop_program("apply preconditioner","implemented")
@@ -455,9 +462,9 @@ SUBROUTINE apply_preconditioner_lr(preconditioner_env, matrix_in, matrix_out)
   SELECT CASE (preconditioner_env%in_use)
   CASE (0)
     CALL stop_program("apply preconditioner","No preconditioner in use")
-  CASE (1)
+  CASE (lr_precond_s_inverse,lr_precond_h0_inverse)
     CALL apply_full_single(preconditioner_env, matrix_in, matrix_out)
-  CASE (2)
+  CASE (lr_precond_full_all)
     CALL apply_full_all(preconditioner_env, matrix_in, matrix_out) 
   CASE DEFAULT
     CALL stop_program("apply preconditioner","implemented")
@@ -811,6 +818,94 @@ SUBROUTINE apply_full_single(preconditioner_env, matrix_in, matrix_out)
                   matrix_in,0.0_dp,matrix_out)
 END SUBROUTINE apply_full_single
 
+!!****f* preconditioner/make_full_single_inverse *
+!!
+!!   NAME
+!!     make_full_single_inverse
+!!
+!!   FUNCTION
+!!     generates a preconditioner by cholesky inverting H-lambda S+(SC)shifts(SC)^T
+!!
+!!   NOTES
+!!     this might fail if the initial guess is bad, or if the system has 'holes'
+!!
+!!   INPUTS
+!!    - matrix_c0 must be already rotated correctly.
+!!
+!!   MODIFICATION HISTORY
+!!     03.2006 created [Joost VandeVondele]
+!!
+!!*** **********************************************************************
+SUBROUTINE make_full_single_inverse(preconditioner_env, matrix_c0, matrix_h, matrix_s, c0_evals, energy_gap)
+
+    TYPE(preconditioner_type)                :: preconditioner_env
+    TYPE(cp_fm_type), POINTER                :: matrix_c0
+    TYPE(real_matrix_type), POINTER          :: matrix_h, matrix_s
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: c0_evals
+    REAL(KIND=dp)                            :: energy_gap
+
+    TYPE(cp_fm_type), POINTER                :: matrix_sc0,matrix_tmp, matrix_tmp2
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: c0_shift
+    INTEGER                                  :: n,k
+    TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: evals
+    LOGICAL, PARAMETER                       :: check_it=.TRUE.
+
+    CALL cp_fm_get_info(matrix_c0,nrow_global=n,ncol_global=k)
+
+    IF (ASSOCIATED(preconditioner_env%fm)) CALL cp_fm_release(preconditioner_env%fm)
+    CALL cp_fm_struct_create(fm_struct_tmp,nrow_global=n,ncol_global=n, &
+                             context=preconditioner_env%ctxt, &
+                             para_env=preconditioner_env%para_env) 
+    CALL cp_fm_create(preconditioner_env%fm,fm_struct_tmp,name="preconditioner_env%fm")
+    CALL cp_fm_struct_release(fm_struct_tmp)
+
+    CALL cp_fm_create(matrix_sc0,matrix_c0%matrix_struct,"sc0")
+    CALL cp_sm_fm_multiply(matrix_s,matrix_c0,matrix_sc0,k)
+    ALLOCATE(c0_shift(k))
+   
+    ! this must be positive since c0_evals are sorted from most negative to most positive  ?
+    write(6,*) 'C0 evals', c0_evals
+    c0_shift=sqrt(-(c0_evals-c0_evals(k))+energy_gap)
+
+    CALL cp_fm_column_scale(matrix_sc0,c0_shift)
+    CALL cp_fm_gemm('N','T',n,n,k,1.0_dp,matrix_sc0,matrix_sc0,0.0_dp,preconditioner_env%fm)
+    CALL cp_fm_release(matrix_sc0)
+
+    CALL cp_fm_create(matrix_tmp,preconditioner_env%fm%matrix_struct, &
+                                 name="preconditioner matrix_tmp")
+    IF (check_it) CALL cp_fm_create(matrix_tmp2,preconditioner_env%fm%matrix_struct, &
+                                 name="preconditioner matrix_tmp2")
+    CALL copy_sm_to_fm(matrix_h,matrix_tmp)
+    CALL cp_fm_scale_and_add(1.0_dp,preconditioner_env%fm,1.0_dp,matrix_tmp)
+    CALL copy_sm_to_fm(matrix_s,matrix_tmp)
+
+    ! XXX
+    ! here we decide to scale up the evals with energy_gap, that is quite arbitrary 
+    ! however, in this way, one can control the if the cholesky decomposition crashes or not
+    CALL cp_fm_scale_and_add(1.0_dp,preconditioner_env%fm,-c0_evals(k)+energy_gap,matrix_tmp)
+
+    IF (check_it) THEN
+       CALL cp_fm_to_fm(preconditioner_env%fm,matrix_tmp2)
+       ALLOCATE(evals(n))
+       CALL cp_fm_syevd(matrix_tmp2,matrix_tmp,evals)
+       write(6,*) 'EVALS'
+       write(6,'(4F15.8)') evals
+       DEALLOCATE(evals)
+    ENDIF
+
+    ! the preconditioner ought now to be symmetric positive definite (provided C0 & system are OK)
+    CALL cp_fm_cholesky_decompose(preconditioner_env%fm)
+    CALL cp_fm_cholesky_invert(preconditioner_env%fm)
+    CALL cp_fm_upper_to_full(preconditioner_env%fm,matrix_tmp)
+
+
+    CALL cp_fm_release(matrix_tmp)
+    IF (check_it) CALL cp_fm_release(matrix_tmp2)
+    DEALLOCATE(c0_shift)
+
+END SUBROUTINE make_full_single_inverse
+
 !
 ! generates a preconditioner for each eigenstate i by keeping the factorized form
 ! U diag( something i ) U^T
@@ -1044,7 +1139,6 @@ SUBROUTINE make_full_s_inverse(preconditioner_env, matrix_h, matrix_s, &
 
   CALL copy_sm_to_fm(matrix_s,preconditioner_env%fm)
   CALL cp_fm_cholesky_decompose(preconditioner_env%fm)
-  CALL cp_fm_cholesky_invert(preconditioner_env%fm)
   CALL cp_fm_upper_to_full(preconditioner_env%fm,fm_work) ! symmetrizing makes the apply_ up to 50 percent faster
   CALL cp_fm_release(fm_work)
 

@@ -31,7 +31,8 @@ MODULE qs_ot_scf
   USE input_constants,                 ONLY: &
        ot_ls_2pnt, ot_ls_3pnt, ot_ls_gold, ot_ls_none, ot_mini_cg, &
        ot_mini_diis, ot_mini_sd, ot_precond_full_all, &
-       ot_precond_full_kinetic, ot_precond_full_single, ot_precond_none, &
+       ot_precond_full_kinetic, ot_precond_full_single, &
+       ot_precond_full_single_inverse, ot_precond_none, &
        ot_precond_s_inverse, ot_precond_sparse_diag
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
@@ -124,6 +125,8 @@ CONTAINS
            qs_ot_env(1)%settings%preconditioner_name="NONE"
        CASE(ot_precond_full_single)
            qs_ot_env(1)%settings%preconditioner_name="FULL_SINGLE"
+       CASE(ot_precond_full_single_inverse)
+           qs_ot_env(1)%settings%preconditioner_name="FULL_SINGLE_INVERSE"
        CASE(ot_precond_full_all)
            qs_ot_env(1)%settings%preconditioner_name="FULL_ALL"
        CASE(ot_precond_full_kinetic)
@@ -155,12 +158,12 @@ CONTAINS
     WRITE(globenv%scr,'(A,L2)') "  Allowing for rotations: ",qs_ot_env(1)%settings%do_rotation
     SELECT CASE (qs_ot_env(1)%settings%OT_METHOD)
     CASE ("SD")
-         WRITE(globenv%scr,'(A)') "  minimizer      : SD             : steepest descent"
+         WRITE(globenv%scr,'(A)') "  minimizer      : SD                  : steepest descent"
     CASE ("CG")
-         WRITE(globenv%scr,'(A)') "  minimizer      : CG             : conjugate gradient"
+         WRITE(globenv%scr,'(A)') "  minimizer      : CG                  : conjugate gradient"
     CASE ("DIIS")
-         WRITE(globenv%scr,'(A)') "  minimizer      : DIIS           : direct inversion in the iterative subspace"
-         WRITE(globenv%scr,'(A,I3,A)') "                            using : - ",qs_ot_env(1)%settings%diis_m," diis vectors"
+         WRITE(globenv%scr,'(A)') "  minimizer      : DIIS                : direct inversion in the iterative subspace"
+         WRITE(globenv%scr,'(A,I3,A)') "                            using      : - ",qs_ot_env(1)%settings%diis_m," diis vectors"
          IF (qs_ot_env(1)%settings%safer_diis) THEN
             WRITE(globenv%scr,'(A,I3,A)') "                                    - safer DIIS on"
          ELSE
@@ -171,13 +174,15 @@ CONTAINS
     END SELECT
     SELECT CASE (qs_ot_env(1)%settings%preconditioner_name)
     CASE ("FULL_SINGLE")
-         WRITE(globenv%scr,'(A)') "  preconditioner : FULL_SINGLE    : diagonalization based "
+         WRITE(globenv%scr,'(A)') "  preconditioner : FULL_SINGLE         : diagonalization based "
+    CASE ("FULL_SINGLE_INVERSE")
+         WRITE(globenv%scr,'(A)') "  preconditioner : FULL_SINGLE_INVERSE : cholesky inversion of H + eS "
     CASE ("FULL_ALL")
-         WRITE(globenv%scr,'(A)') "  preconditioner : FULL_ALL       : diagonalization, state selective "
+         WRITE(globenv%scr,'(A)') "  preconditioner : FULL_ALL            : diagonalization, state selective "
     CASE ("FULL_KINETIC")
-         WRITE(globenv%scr,'(A)') "  preconditioner : FULL_KINETIC   : cholesky inversion of T + eS"
+         WRITE(globenv%scr,'(A)') "  preconditioner : FULL_KINETIC        : cholesky inversion of T + eS"
     CASE ("FULL_S_INVERSE")
-         WRITE(globenv%scr,'(A)') "  preconditioner : FULL_S_INVERSE : cholesky inversion of S"
+         WRITE(globenv%scr,'(A)') "  preconditioner : FULL_S_INVERSE      : cholesky inversion of S"
     CASE ("SPARSE_DIAG")
          WRITE(globenv%scr,'(A)')  &
            "  preconditioner : SPARSE_DIAG    : diagonal atomic block diagonalization"

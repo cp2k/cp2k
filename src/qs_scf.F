@@ -82,7 +82,7 @@ MODULE qs_scf
        core_guess, densities_guess, ot_precond_full_all, &
        ot_precond_full_kinetic, ot_precond_full_single, ot_precond_none, &
        ot_precond_s_inverse, ot_precond_sparse_diag, &
-       ot_precond_sparse_firstorder, qs_debug_run
+       ot_precond_sparse_firstorder, qs_debug_run, ot_precond_full_single_inverse
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: dp
@@ -1199,7 +1199,7 @@ END SUBROUTINE qs_scf_print_summary
           ! remove it if this could be worthwhile
           IF (ASSOCIATED(scf_env%ot_preconditioner)) THEN
              SELECT CASE(scf_env%qs_ot_env(1)%settings%preconditioner_type)
-             CASE(ot_precond_full_all,ot_precond_full_single) ! these depend on the ks matrix
+             CASE(ot_precond_full_all,ot_precond_full_single, ot_precond_full_single_inverse) ! these depend on the ks matrix
                DO ispin=1,SIZE(scf_env%ot_preconditioner)
                   CALL destroy_preconditioner(scf_env%ot_preconditioner(ispin)%preconditioner)
                   DEALLOCATE(scf_env%ot_preconditioner(ispin)%preconditioner)
@@ -1216,12 +1216,14 @@ END SUBROUTINE qs_scf_print_summary
 
           ! add an OT preconditioner if none is present
           IF (.NOT.ASSOCIATED(scf_env%ot_preconditioner)) THEN
-               IF (scf_env%qs_ot_env(1)%settings%preconditioner_type == ot_precond_full_all) THEN
+               SELECT CASE(scf_env%qs_ot_env(1)%settings%preconditioner_type)
+               CASE(ot_precond_full_all,ot_precond_full_single_inverse)
                   ALLOCATE(scf_env%ot_preconditioner(dft_control%nspins), stat=stat)
-               ELSE
+                  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+               CASE DEFAULT
                   ALLOCATE(scf_env%ot_preconditioner(1), stat=stat)
-               ENDIF
-               CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+               END SELECT
                DO i=1,SIZE(scf_env%ot_preconditioner)
                   ALLOCATE(scf_env%ot_preconditioner(i)%preconditioner)
                   CALL init_preconditioner(scf_env%ot_preconditioner(i)%preconditioner,&
@@ -1230,65 +1232,56 @@ END SUBROUTINE qs_scf_print_summary
                ENDDO
           END IF
 
-          IF (scf_env%qs_ot_env(1)%settings%preconditioner_type /= ot_precond_none) THEN 
-             !
-             ! preconditioning still needs to be done correctly with has_unit_metric
-             ! notice that a big part of the preconditioning (S^-1) is fine anyhow
-             !
-             CPPrecondition(.NOT. has_unit_metric,cp_failure_level,routineP,error,failure) 
-             ! constuct the preconditioner based on the first spin set. 
-             ! this might or might not be reasonable. Presumably it is.
-
-             IF (scf_env%qs_ot_env(1)%settings%preconditioner_type == ot_precond_full_all) THEN
-                ! this will rotate the MOs to be eigen states, which is not compatible with rotation
-                do_rotation=scf_env%qs_ot_env(1)%settings%do_rotation
-
-               DO ispin=1,dft_control%nspins
-                  CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff)
-                  CALL calculate_subspace_eigenvalues(mo_coeff,matrix_ks(ispin)%matrix,&
-                            para_env=mo_coeff%matrix_struct%para_env, &
-                            do_rotation = .TRUE., co_rotate=qs_env%mo_derivs(ispin)%matrix)
-                  CALL make_preconditioner(scf_env%ot_preconditioner(ispin)%preconditioner, &
-                         scf_env%qs_ot_env(1)%settings%preconditioner_type, &
-                         matrix_ks(1)%matrix,matrix_s(1)%matrix,&
-                         qs_env%kinetic(1)%matrix, &
-                         mo_coeff,scf_env%qs_ot_env(1)%settings%energy_gap) 
-               ENDDO
-
-             ELSE
-
-               CALL get_mo_set(mo_set=mos(1)%mo_set, mo_coeff=mo_coeff)
-               CALL make_preconditioner(scf_env%ot_preconditioner(1)%preconditioner, &
-                       scf_env%qs_ot_env(1)%settings%preconditioner_type, &
-                       matrix_ks(1)%matrix,matrix_s(1)%matrix,&
-                       qs_env%kinetic(1)%matrix, &
-                       mo_coeff,scf_env%qs_ot_env(1)%settings%energy_gap) 
-
-             ENDIF
-
-          ENDIF
-
+          !
+          ! preconditioning still needs to be done correctly with has_unit_metric
+          ! notice that a big part of the preconditioning (S^-1) is fine anyhow
+          !
           IF (has_unit_metric) THEN
              NULLIFY(orthogonality_metric)
           ELSE
              orthogonality_metric=>matrix_s(1)%matrix
           ENDIF
 
-          CALL ot_scf_init(mos,orthogonality_metric,scf_env%qs_ot_env)
-          
-          IF (scf_env%qs_ot_env(1)%settings%preconditioner_type /= ot_precond_none) THEN
-             IF (scf_env%qs_ot_env(1)%settings%preconditioner_type == ot_precond_full_all) THEN
-                DO ispin=1,SIZE(scf_env%qs_ot_env)
-                    CALL qs_ot_new_preconditioner(scf_env%qs_ot_env(ispin),&
-                                                  scf_env%ot_preconditioner(ispin)%preconditioner)
-                ENDDO
-          ELSE
-                DO ispin=1,SIZE(scf_env%qs_ot_env)
-                    CALL qs_ot_new_preconditioner(scf_env%qs_ot_env(ispin),&
-                                                 scf_env%ot_preconditioner(1)%preconditioner)
-                ENDDO
-             ENDIF
-          ENDIF
+          SELECT CASE(scf_env%qs_ot_env(1)%settings%preconditioner_type)
+          CASE(ot_precond_none)
+            CALL ot_scf_init(mos,orthogonality_metric,scf_env%qs_ot_env)
+          CASE(ot_precond_full_all,ot_precond_full_single_inverse)
+            CPPrecondition(.NOT. has_unit_metric,cp_failure_level,routineP,error,failure) 
+            ! this will rotate the MOs to be eigen states, which is not compatible with rotation
+            do_rotation=scf_env%qs_ot_env(1)%settings%do_rotation
+            CPPrecondition(.NOT.do_rotation,cp_failure_level,routineP,error,failure)
+            DO ispin=1,dft_control%nspins
+               CALL get_mo_set(mo_set=mos(ispin)%mo_set, mo_coeff=mo_coeff)
+               CALL calculate_subspace_eigenvalues(mo_coeff,matrix_ks(ispin)%matrix,&
+                         para_env=mo_coeff%matrix_struct%para_env, &
+                         do_rotation = .TRUE., co_rotate=qs_env%mo_derivs(ispin)%matrix)
+               CALL make_preconditioner(scf_env%ot_preconditioner(ispin)%preconditioner, &
+                         scf_env%qs_ot_env(1)%settings%preconditioner_type, &
+                      matrix_ks(ispin)%matrix,matrix_s(1)%matrix,&
+                      qs_env%kinetic(1)%matrix, &
+                      mo_coeff,scf_env%qs_ot_env(1)%settings%energy_gap) 
+            ENDDO
+            CALL ot_scf_init(mos,orthogonality_metric,scf_env%qs_ot_env)
+            DO ispin=1,SIZE(scf_env%qs_ot_env)
+               CALL qs_ot_new_preconditioner(scf_env%qs_ot_env(ispin),&
+                          scf_env%ot_preconditioner(ispin)%preconditioner)
+            ENDDO
+          CASE DEFAULT
+            ! constuct the preconditioner based on the first spin set. 
+            ! this might or might not be reasonable. Presumably it is.
+            CPPrecondition(.NOT. has_unit_metric,cp_failure_level,routineP,error,failure) 
+            CALL get_mo_set(mo_set=mos(1)%mo_set, mo_coeff=mo_coeff)
+            CALL make_preconditioner(scf_env%ot_preconditioner(1)%preconditioner, &
+                    scf_env%qs_ot_env(1)%settings%preconditioner_type, &
+                    matrix_ks(1)%matrix,matrix_s(1)%matrix,&
+                    qs_env%kinetic(1)%matrix, &
+                    mo_coeff,scf_env%qs_ot_env(1)%settings%energy_gap) 
+            CALL ot_scf_init(mos,orthogonality_metric,scf_env%qs_ot_env)
+            DO ispin=1,SIZE(scf_env%qs_ot_env)
+               CALL qs_ot_new_preconditioner(scf_env%qs_ot_env(ispin),&
+                          scf_env%ot_preconditioner(1)%preconditioner)
+            ENDDO
+          END SELECT
        ENDIF
     END SELECT
 

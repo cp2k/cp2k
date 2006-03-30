@@ -14,3 +14,6 @@ CO_xastpxfh.inp
 He2-all-md.inp
 # small change
 CO_xastpval.inp
+# improved/corrected preconditioner for LSD
+He2-all.inp
+He2-all-md.inp

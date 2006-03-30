@@ -559,7 +559,8 @@ CONTAINS
              NULLIFY(preconditioner)
              IF (ASSOCIATED(scf_env%ot_preconditioner)) THEN
                 preconditioner=>scf_env%ot_preconditioner(1)%preconditioner
-                IF (scf_env%qs_ot_env(1)%settings%preconditioner_type == ot_precond_full_all) THEN
+                ! this one can for sure not be right (as it has to match a given C0)
+                IF (preconditioner%in_use == ot_precond_full_all) THEN
                     NULLIFY(preconditioner)
                 ENDIF
              ENDIF 

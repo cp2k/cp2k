@@ -3263,12 +3263,13 @@ SUBROUTINE create_ot_section(section,error)
                       "They differ in effectiveness, cost of construction, cost of application.",&
           usage="PRECONDITIONER FULL_SINGLE",&
           default_i_val=ot_precond_full_kinetic,&
-          enum_c_vals=s2a("FULL_ALL","FULL_SINGLE","FULL_KINETIC","FULL_S_INVERSE","SPARSE_DIAG","NONE"),&
-          enum_desc=s2a("State selective, similar to full_single","Based on diagonalisation", &
+          enum_c_vals=s2a("FULL_ALL","FULL_SINGLE","FULL_SINGLE_INVERSE","FULL_KINETIC","FULL_S_INVERSE","SPARSE_DIAG","NONE"),&
+          enum_desc=s2a("State selective, similar to full_single","Based on diagonalisation", "Based on H-eS cholesky inversion", &
                         "Cholesky inversion of S and T", &
                         "Cholesky inversion of S","Only based on atomic blocks", &
                         "skip preconditioning"),&
-          enum_i_vals=(/ot_precond_full_all,ot_precond_full_single,ot_precond_full_kinetic,ot_precond_s_inverse,&
+          enum_i_vals=(/ot_precond_full_all,ot_precond_full_single,ot_precond_full_single_inverse, &
+                        ot_precond_full_kinetic,ot_precond_s_inverse,&
                         ot_precond_sparse_diag,ot_precond_none/),&
           error=error)
      CALL section_add_keyword(section,keyword,error=error)

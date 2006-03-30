@@ -81,7 +81,7 @@ MODULE qs_ot
        LOGICAL           :: do_rotation
        CHARACTER(LEN=4)  :: ot_method
        CHARACTER(LEN=4)  :: line_search_method
-       CHARACTER(LEN=14) :: preconditioner_name
+       CHARACTER(LEN=20) :: preconditioner_name
        INTEGER           :: preconditioner_type
        LOGICAL           :: safer_diis
        REAL(KIND = dp)   :: ds_min
