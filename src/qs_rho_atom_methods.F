@@ -798,7 +798,7 @@ MODULE qs_rho_atom_methods
 
     INTEGER :: ia, ikind, il, iso, iso1, iso2, istat, l1, l1l2, l2, lc1, lc2, &
       lcleb, ll, llmax, lmax_sphere, lp, m1, m2, max_s_harm, max_s_set, &
-      maxlgto, mm, mp, na, nat, natom, nkind, nr, nspins, quadrature
+      maxlgto, mm, mp, na, nat, natom, nkind, nr, nspins, quadrature, la
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: paw_atom
     REAL(dp)                                 :: cosia, phi
@@ -910,17 +910,18 @@ MODULE qs_rho_atom_methods
 
 !     *** determine the Lebedev grid for this kind ***
 
-      ll =  get_number_of_lebedev_grid(n=na)
+      ll = get_number_of_lebedev_grid(n=na)
       na = lebedev_grid(ll)%n
+      la = lebedev_grid(ll)%l
       grid_atom%ng_sphere = na
       grid_atom%nr = nr
-  
-      IF(llmax>ll) THEN
+
+      IF (llmax > la) THEN
         WRITE(6,'(/,72("*"))')
         WRITE(6,'(T2,A,T66,I4)') & 
-          "WARNING: the lebedev grid is built for angular momentum l up to ",ll,&
-          "            the max l of spherical harmonics is larger, l_max = ", llmax,&
-          "                   good integration is guaranteed only for l <= ", ll
+          "WARNING: the lebedev grid is built for angular momentum l up to ",la,&
+          "         the max l of spherical harmonics is larger, l_max = ", llmax,&
+          "         good integration is guaranteed only for l <= ",la
         WRITE(6,'(72("*"),/)')
       END IF
 
