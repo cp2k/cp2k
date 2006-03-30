@@ -1364,7 +1364,8 @@ CONTAINS
     ALLOCATE (sto_basis_set,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "sto_basis_set",0)
-
+ 
+    sto_basis_set%name="NONAME" 
     NULLIFY (sto_basis_set%symbol)
     NULLIFY (sto_basis_set%nq)
     NULLIFY (sto_basis_set%lq)
