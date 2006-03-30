@@ -39,15 +39,15 @@ PROGRAM main
   INTEGER, POINTER, DIMENSION(:)              :: isel1, isel2
   REAL (KIND=dp), POINTER, DIMENSION(:)       :: gval, cell
   REAL(KIND=sp), POINTER, DIMENSION(:) ::  diff
-  INTEGER        :: nframe, ntap, skip_frame, start_frame, end_frame, ref_frame
-  REAL (KIND=dp) :: dr, dr_input
+  INTEGER        :: nframe, ntap, skip_frame, start_frame, end_frame, ref_frame, npoints
+  REAL (KIND=dp) :: dr, dr_input, max_range
 
   NULLIFY( coord, name, atom, element, residue, num, numres, isel1, isel2, gval, cell, diff)
 
   CALL read_command_line(file_pdb, file_dcd, file_xsc, file_xyz, &
                          out_file, sel1, sel2, skip_frame,&
                          start_frame, end_frame, ref_frame, dr_input, diffusion,&
-                         verbose)
+                         max_range, npoints, verbose)
   
   OPEN ( 9, file=file_pdb, status='old', form='formatted'  )
   IF (INDEX(file_dcd,"NULL") == 0) OPEN (10, file=file_dcd, status='old', form='unformatted')
@@ -65,7 +65,7 @@ PROGRAM main
   CALL makeSel(atom, residue, num, numres, element, ntap, sel1, isel1, verbose)
   CALL makeSel(atom, residue, num, numres, element, ntap, sel2, isel2, verbose)
   CALL evalG(coord, isel1, isel2, gval, cell, dr, nframe, &
-       start_frame, end_frame, skip_frame)
+       start_frame, end_frame, skip_frame, max_range, npoints)
   CALL DumpG(gval, file_pdb, out_file, sel1, sel2, dr)  
 
   DEALLOCATE(cell)
@@ -139,6 +139,9 @@ CONTAINS
     WRITE(*,'(2X,A,T20,A)')"-end_frame","End Frame for evaluation of g(r)" 
     WRITE(*,'(2X,A,T20,A)')"-skip_frame","Frames Stride" 
     WRITE(*,'(2X,A,T20,A)')"-diffusion","Evaluates the diffusion coefficient for the input TYPE" 
+    WRITE(*,'(2X,A,T20,A)')"-max_range","Defines the max range on which the g(r) is evaluated"
+    WRITE(*,'(2X,A,T20,A)')"-plotpoints ","Defines the number of points used in the range (see also -dr)"
+    WRITE(*,'(2X,A,T20,A)')"-dr ","Defines the length of dr in the g(r) (see also -plotpoints)"
     WRITE(*,'(2X,A,T20,A)')"-verbose","Print verbose information during executions" 
     WRITE(*,'(2X,A,T20,A)')"    ","    "
     WRITE(*,'(2X,A,T20,A)')"Comments:",&
@@ -148,18 +151,20 @@ CONTAINS
 
   SUBROUTINE read_command_line(file_pdb, file_dcd, file_xsc, file_xyz, out_file,&
                               sel1, sel2, skip_frame, start_frame, end_frame, ref_frame,&
-                              dr_input, diffusion, verbose)
+                              dr_input, diffusion, max_range, npoints, verbose)
     IMPLICIT NONE
     CHARACTER(len=80)  :: file_dcd, file_pdb, file_xsc, out_file, file_xyz
     CHARACTER(len=80)  :: sel1, sel2, argval, diffusion
-    INTEGER            :: skip_frame, start_frame, end_frame, ref_frame,narg, I
+    INTEGER            :: skip_frame, start_frame, end_frame, ref_frame,narg, I, npoints
     LOGICAL            :: sel_set, verbose
-    REAL(KIND=dp)      :: dr_input
+    REAL(KIND=dp)      :: dr_input, max_range
 
     skip_frame  = 1
     start_frame = 1
     ref_frame   = -999
-    dr_input    = 0.1_dp
+    max_range   = -999.0_dp
+    npoints     =  999
+    dr_input    =  0.1_dp
     end_frame   = -999
     verbose     = .FALSE.
     file_pdb    = "NULL"
@@ -213,6 +218,12 @@ CONTAINS
           READ(argval,*)skip_frame
        CASE ("-diffusion")
           CALL getarg(i+1,diffusion)
+       CASE ("-max_range")
+          CALL getarg(i+1,argval)
+          READ(argval,*)max_range
+       CASE ("-plotpoints")
+          CALL getarg(i+1,argval)
+          READ(argval,*)npoints          
        CASE ("-verbose")
           verbose = .TRUE.
        CASE DEFAULT
@@ -277,22 +288,31 @@ CONTAINS
   END SUBROUTINE DumpG
 
   SUBROUTINE EvalG(coord, isel1, isel2, gval, cell, dr, nframe,&
-       start_frame, end_frame,  skip_frame)
+       start_frame, end_frame,  skip_frame, max_range, npoints)
     IMPLICIT NONE
     REAL(KIND=sp), POINTER, DIMENSION(:,:,:) :: coord    
     INTEGER, POINTER, DIMENSION(:) :: isel1, isel2
     REAL(KIND=dp), POINTER, DIMENSION(:) :: gval, cell
     REAL(KIND=sp), POINTER, DIMENSION(:) :: x, y, z  
-    REAL(KIND=dp) :: gmax, dr, gnorm, pi, rho1, rho2, vol, r
+    REAL(KIND=dp) :: gmax, dr, gnorm, pi, rho1, rho2, vol, r, max_range
     REAL(KIND=sp) :: iframe_count
-    INTEGER :: np, nframe, iframe, skip_frame, i, start_frame, end_frame
+    INTEGER :: np, nframe, iframe, skip_frame, i, start_frame, end_frame, npoints
     
     IF (end_frame .LT. 0) end_frame = nframe
     pi    = ATAN(1.0_dp)*4.0_dp
-    dr    = dr_input
     gmax  = MINVAL(cell)/2.0_dp
-    np    = FLOOR(gmax/dr)
-    gmax  = dr * REAL(np,dp)
+    IF (max_range/= 999.0_dp) THEN
+       gmax = max_range
+    END IF
+    IF (npoints /= 999) THEN
+       dr = gmax/REAL(npoints,dp)
+       np = npoints
+    ELSE
+       dr    = dr_input
+       np    = FLOOR(gmax/dr)
+       gmax  = dr * REAL(np,dp)
+    END IF
+    !
     vol   = PRODUCT(cell)
     rho1  = REAL(SIZE(isel1),dp)/vol
     rho2  = REAL(SIZE(isel2),dp)/vol

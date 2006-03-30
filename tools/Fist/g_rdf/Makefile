@@ -1,4 +1,4 @@
-PROG  =	g_rdf
+PROG  =	cp2k_rdf
 
 OBJS  =	g_rdf.o
 
