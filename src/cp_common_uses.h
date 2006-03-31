@@ -1,7 +1,7 @@
 ! Common use statements and preprocessor macros
 ! should be included in the use statements
 
-  use cp_log_handling
+  USE cp_log_handling
       !  , only: cp_logger_type, cp_iteration_info_type,&
       !  cp_note_level, cp_warning_level, cp_failure_level,&
       !  cp_fatal_level,cp_get_default_logger, cp_add_default_logger, &
@@ -11,7 +11,7 @@
       !  cp_logger_set_log_level, cp_logger_generate_filename,&
       !  cp_to_string, cp_log, cp_iteration_info_create, cp_iteration_info_retain, &
       !  cp_iteration_info_release, cp_iter_undefined, max_iter_r_level
-  use cp_error_handling
+  USE cp_error_handling
       ! , only: cp_error_type, cp_debug, cp_no_error, &
       !  cp_caller_error, cp_wrong_args_error,&
       !  cp_precondition_failed, cp_internal_error, cp_postcondition_failed,&
@@ -55,62 +55,62 @@
 
 ! (cp_precondition_failed = 200)
 #define CPPrecondition(cond,level,routineP,error,failure) \
-if(.not.(cond)) call cp_assert(.false.,level,200,routineP,\
+IF(.NOT.(cond)) CALL cp_assert(.FALSE.,level,200,routineP,\
 'PRECONDITION(cond) failed at line '//cp_to_string(__LINE__),error,failure)
 
 ! (cp_postcondition_failed = -200)
 #define CPPostcondition(cond,level,routineP,error,failure) \
-if(.not.(cond)) call cp_assert(.false.,level,-200,routineP,\
+IF(.NOT.(cond)) CALL cp_assert(.FALSE.,level,-200,routineP,\
 'POSTCONDITION(cond) failed at line '//cp_to_string(__LINE__),error,failure)
 
 ! (cp_invariant_failed = -100)
 #define CPInvariant(cond,level,routineP,error,failure) \
-if(.not.(cond)) call cp_assert(.false., level, -100,routineP,\
+IF(.NOT.(cond)) CALL cp_assert(.FALSE., level, -100,routineP,\
 'INVARIANT (cond) failed at line '//cp_to_string(__LINE__),error,failure)
 
 ! (cp_assert_failed = -300)
 #define CPAssert(cond,level,routineP,error,failure) \
-if(.not.(cond)) call cp_assert(.false.,level,-300,routineP,\
+IF(.NOT.(cond)) CALL cp_assert(.FALSE.,level,-300,routineP,\
 'ASSERTION (cond) failed at line '//cp_to_string(__LINE__),error,failure)
 
 #define CPErrorMessage(level,routineP,msg,error) \
-call cp_error_message(level,routineP,msg//' at line '//cp_to_string(__LINE__),error)
+CALL cp_error_message(level,routineP,msg//' at line '//cp_to_string(__LINE__),error)
 
 #define CPPreconditionNoFail(cond,level,routineP,error) \
-if(.not.(cond)) call cp_assert(.false.,level,200,routineP,\
+IF(.NOT.(cond)) CALL cp_assert(.FALSE.,level,200,routineP,\
 'PRECONDITION(cond) failed at line '//cp_to_string(__LINE__),error)
 
 ! (cp_postcondition_failed = -200)
 #define CPPostconditionNoFail(cond,level,routineP,error) \
-if(.not.(cond)) call cp_assert(.false.,level,-200,routineP,\
+IF(.NOT.(cond)) CALL cp_assert(.FALSE.,level,-200,routineP,\
 'POSTCONDITION(cond) failed at line '//cp_to_string(__LINE__),error)
 
 ! (cp_invariant_failed = -100)
 #define CPInvariantNoFail(cond,level,routineP,error) \
-if(.not.(cond)) call cp_assert(.false., level, -100,routineP,\
+IF(.NOT.(cond)) CALL cp_assert(.FALSE., level, -100,routineP,\
 'INVARIANT (cond) failed at line '//cp_to_string(__LINE__),error)
 
 ! (cp_assert_failed = -300)
 #define CPAssertNoFail(cond,level,routineP,error) \
-if(.not.(cond)) call cp_assert(.false.,level,-300,routineP,\
+IF(.NOT.(cond)) CALL cp_assert(.FALSE.,level,-300,routineP,\
 'ASSERTION (cond) failed at line '//cp_to_string(__LINE__),error)
 
 
-#define CPPreconditionNoErr(cond, level, routine_name) \
-if(.not.(cond)) call cp_assert(.false., level, 200, routine_name ,\
+#define CPPreconditionNoErr(cond, level, routineN) \
+IF(.NOT.(cond)) CALL cp_assert(.FALSE., level, 200, routineN ,\
 "PRECONDITION failed on line " //cp_to_string(__LINE__))
 
-#define CPPostconditionNoErr(cond, level, routine_name) \
-if(.not.(cond)) call cp_assert(.false., level, -200, routine_name ,\
+#define CPPostconditionNoErr(cond, level, routineN) \
+IF(.NOT.(cond)) CALL cp_assert(.FALSE., level, -200, routineN ,\
 "POSTCONDITION failed on line " //cp_to_string(__LINE__))
 
 #define CPInvariantNoErr(cond,level,routineP) \
-if(.not.(cond)) call cp_assert(.false., level, -100,routineP,\
+IF(.NOT.(cond)) CALL cp_assert(.FALSE., level, -100,routineP,\
 'INVARIANT (cond) failed at line '//cp_to_string(__LINE__))
 
 ! (cp_assert_failed = -300)
 #define CPAssertNoErr(cond,level,routineP) \
-if(.not.(cond)) call cp_assert(.false.,level,-300,routineP,\
+IF(.NOT.(cond)) CALL cp_assert(.FALSE.,level,-300,routineP,\
 'ASSERTION (cond) failed at line '//cp_to_string(__LINE__))
 
 #else
@@ -118,36 +118,36 @@ if(.not.(cond)) call cp_assert(.false.,level,-300,routineP,\
 ! the test is not inlined (you have always a function call)
 
 #define CPPrecondition(cond,level,routineP,error,failure) \
-if(.not.(cond))call cp_a_l(0==1,level,routineP,__LINE__,error,failure)
+IF(.NOT.(cond))CALL cp_a_l(0==1,level,routineP,__LINE__,error,failure)
 #define CPPostcondition(cond,level,routineP,error,failure) \
-if(.not.(cond))call cp_a_l(0==1,level,routineP,__LINE__,error,failure)
+IF(.NOT.(cond))CALL cp_a_l(0==1,level,routineP,__LINE__,error,failure)
 #define CPInvariant(cond,level,routineP,error,failure) \
-if(.not.(cond))call cp_a_l(0==1,level,routineP,__LINE__,error,failure)
+IF(.NOT.(cond))CALL cp_a_l(0==1,level,routineP,__LINE__,error,failure)
 #define CPAssert(cond,level,routineP,error,failure) \
-if(.not.(cond))call cp_a_l(0==1,level,routineP,__LINE__,error,failure)
+IF(.NOT.(cond))CALL cp_a_l(0==1,level,routineP,__LINE__,error,failure)
 #define CPErrorMessage(level,routineP,msg,error) \
-call cp_error_message(level,routineP,msg,error)
+CALL cp_error_message(level,routineP,msg,error)
 #define CPPreconditionNoFail(cond,level,routineP,error) \
-if(.not.(cond))call cp_a_l(0==1,level,routineP,__LINE__,error)
+IF(.NOT.(cond))CALL cp_a_l(0==1,level,routineP,__LINE__,error)
 #define CPPostconditionNoFail(cond,level,routineP,error) \
-if(.not.(cond))call cp_a_l(0==1,level,routineP,__LINE__,error)
+IF(.NOT.(cond))CALL cp_a_l(0==1,level,routineP,__LINE__,error)
 #define CPInvariantNoFail(cond,level,routineP,error) \
-if(.not.(cond))call cp_a_l(0==1,level,routineP,__LINE__,error)
+IF(.NOT.(cond))CALL cp_a_l(0==1,level,routineP,__LINE__,error)
 #define CPAssertNoFail(cond,level,routineP,error) \
-if(.not.(cond))call cp_a_l(0==1,level,routineP,__LINE__,error)
-#define CPPreconditionNoErr(cond, level, routine_name) \
-if(.not.(cond))call cp_a_l(0==1,level,routine_name,__LINE__)
-#define CPPostconditionNoErr(cond, level, routine_name) \
-if(.not.(cond))call cp_a_l(0==1,level,routine_name ,__LINE__)
+IF(.NOT.(cond))CALL cp_a_l(0==1,level,routineP,__LINE__,error)
+#define CPPreconditionNoErr(cond, level, routineN) \
+IF(.NOT.(cond))CALL cp_a_l(0==1,level,routineN,__LINE__)
+#define CPPostconditionNoErr(cond, level, routineN) \
+IF(.NOT.(cond))CALL cp_a_l(0==1,level,routineN ,__LINE__)
 #define CPInvariantNoErr(cond,level,routineP) \
-if(.not.(cond))call cp_a_l(0==1, level, routineP,__LINE__)
+IF(.NOT.(cond))CALL cp_a_l(0==1, level, routineP,__LINE__)
 #define CPAssertNoErr(cond,level,routineP) \
-if(.not.(cond))call cp_a_l(0==1,level,routineP,__LINE__)
+IF(.NOT.(cond))CALL cp_a_l(0==1,level,routineP,__LINE__)
 
 #endif
 
 #define CPAAssert(condition) \
-call cp_simple_assert(condition, routineP, __LINE__)
+CALL cp_simple_assert(condition, routineP, __LINE__)
 
 #define CPTest WRITE(*,*) "#LINE"
 

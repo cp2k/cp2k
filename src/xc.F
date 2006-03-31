@@ -40,8 +40,8 @@ MODULE xc
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
-  USE kinds,                           ONLY: dp,&
-                                             mp
+  USE kahan_sum,                       ONLY: accurate_sum
+  USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
   USE pw_grid_types,                   ONLY: PW_MODE_DISTRIBUTED,&
                                              pw_grid_type
@@ -1799,7 +1799,7 @@ SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,xc_section,&
              rho_smooth_cutoff_range=density_smooth_cut_range,&
              error=error)
 
-        exc = SUM ( REAL( deriv_data, KIND=mp ) )*pw_grid%dvol
+        exc = accurate_sum ( deriv_data )*pw_grid%dvol
         IF ( pw_grid%para%mode == PW_MODE_DISTRIBUTED ) THEN
            CALL mp_sum ( exc, pw_grid%para%group )
         END IF
@@ -1950,7 +1950,7 @@ FUNCTION xc_exc_calc(rho_r,rho_g,tau,xc_section, cell,pw_pool,&
           rho_smooth_cutoff_range=density_smooth_cut_range,&
           error=error)
      
-     exc = SUM ( REAL( e_0, KIND=mp ) )*rho_r(1)%pw%pw_grid%dvol
+     exc = accurate_sum ( e_0 )*rho_r(1)%pw%pw_grid%dvol
      IF ( rho_r(1)%pw%pw_grid%para%mode == PW_MODE_DISTRIBUTED ) THEN
         CALL mp_sum ( exc, rho_r(1)%pw%pw_grid%para%group )
      END IF

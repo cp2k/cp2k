@@ -80,11 +80,12 @@ MODULE qs_scf
                                              harris_postprocessing
   USE input_constants,                 ONLY: &
        core_guess, densities_guess, ot_precond_full_all, &
-       ot_precond_full_kinetic, ot_precond_full_single, ot_precond_none, &
-       ot_precond_s_inverse, ot_precond_sparse_diag, &
-       ot_precond_sparse_firstorder, qs_debug_run, ot_precond_full_single_inverse
+       ot_precond_full_kinetic, ot_precond_full_single, &
+       ot_precond_full_single_inverse, ot_precond_none, ot_precond_s_inverse, &
+       ot_precond_sparse_diag, ot_precond_sparse_firstorder, qs_debug_run
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
+  USE kahan_sum,                       ONLY: accurate_sum
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_flush,&
                                              m_walltime
@@ -872,8 +873,8 @@ SUBROUTINE qs_scf_print_summary(output_unit,rho,qs_charges,energy,scf_env,dft_co
     IF (output_unit>0) THEN
        WRITE (UNIT=output_unit,FMT="(/,(T3,A,T40,2F20.10))")&
             "Total electronic density (r-space): ",&
-            SUM(rho%tot_rho_r),&
-            SUM(rho%tot_rho_r)+ REAL(scf_env%nelectron,dp),&
+            accurate_sum(rho%tot_rho_r),&
+            accurate_sum(rho%tot_rho_r)+ REAL(scf_env%nelectron,dp),&
             "Total core charge density (r-space):",&
             qs_charges%total_rho_core_rspace,&
             qs_charges%total_rho_core_rspace - REAL(scf_env%nelectron+dft_control%charge,dp)
@@ -889,16 +890,16 @@ SUBROUTINE qs_scf_print_summary(output_unit,rho,qs_charges,energy,scf_env,dft_co
                 tot1_h, tot1_s
           WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
                "Total Rho_soft + Rho1_hard - Rho1_soft (r-space): ",&
-               SUM(rho%tot_rho_r)+ tot1_h - tot1_s ,&
+               accurate_sum(rho%tot_rho_r)+ tot1_h - tot1_s ,&
                "Total charge density (r-space):      ",&
-               SUM(rho%tot_rho_r)+ tot1_h - tot1_s &
+               accurate_sum(rho%tot_rho_r)+ tot1_h - tot1_s &
                + qs_charges%total_rho_core_rspace,&
                "Total Rho_soft + Rho0_soft (g-space):",&
                qs_charges%total_rho_gspace
        ELSE
          WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
             "Total charge density (r-space):     ",&
-            SUM(rho%tot_rho_r)+&
+            accurate_sum(rho%tot_rho_r)+&
             qs_charges%total_rho_core_rspace,&
             "Total charge density (g-space):     ",qs_charges%total_rho_gspace
        END IF

@@ -75,9 +75,9 @@ MODULE qs_collocate_density
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
+  USE kahan_sum,                       ONLY: accurate_sum
   USE kinds,                           ONLY: dp,&
-                                             dp_size,&
-                                             mp
+                                             dp_size
   USE l_utils,                         ONLY: l_info_type,&
                                              return_l_info
   USE mathconstants,                   ONLY: pi,&
@@ -1437,7 +1437,7 @@ CONTAINS
                             rho%pw%pw_grid%bounds(1,3))
     ELSE IF (ASSOCIATED(rho%pw%cr3d)) THEN
       ! do reduction using maximum accuracy
-      total_rho = -rho%pw%pw_grid%dvol*SUM(REAL(rho%pw%cr3d,KIND=mp))
+      total_rho = -rho%pw%pw_grid%dvol*accurate_sum(rho%pw%cr3d)
     ELSE IF (ASSOCIATED(rho%pw%cc)) THEN
       IF ( rho%pw%pw_grid%have_g0 ) THEN
         total_rho = -rho%pw%pw_grid%vol*rho%pw%cc(1)
@@ -1467,7 +1467,7 @@ CONTAINS
 
     total_abs_rho = 0.0_dp
     IF (ASSOCIATED(rho%pw%cr3d)) THEN
-      total_abs_rho = rho%pw%pw_grid%dvol*SUM(ABS(rho%pw%cr3d))
+      total_abs_rho = rho%pw%pw_grid%dvol*accurate_sum(ABS(rho%pw%cr3d))
     ELSE
       CALL stop_program(routine,"Need density coefficients in real space !")
     END IF

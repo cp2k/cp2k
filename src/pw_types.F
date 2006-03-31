@@ -32,8 +32,8 @@ MODULE pw_types
   USE fft_tools,                       ONLY: BWFFT,&
                                              FWFFT,&
                                              fft3d
-  USE kinds,                           ONLY: dp,&
-                                             mp
+  USE kahan_sum,                       ONLY: accurate_sum
+  USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_loc_c,&
                                              m_loc_r
   USE message_passing,                 ONLY: mp_sendrecv,&
@@ -3427,33 +3427,33 @@ FUNCTION pw_integral_ab ( pw1, pw2, flag ) RESULT ( integral_value )
   ! does the sum using mp, which might be an enhanced precision, useful to
   ! avoid round-off
   IF ( pw1 % in_use == REALDATA3D .AND. pw2 % in_use == REALDATA3D ) THEN
-     integral_value = SUM ( REAL( pw1 % cr3d ( :, :, : ), KIND=mp )  &
+     integral_value = accurate_sum ( pw1 % cr3d ( :, :, : )  &
           * pw2 % cr3d ( :, :, : ) )
   ELSE IF ( pw1 % in_use == REALDATA3D &
        .AND. pw2 % in_use == COMPLEXDATA3D ) THEN
-     integral_value = SUM ( REAL( pw1 % cr3d ( :, :, : ), KIND=mp ) &
+     integral_value = accurate_sum (  pw1 % cr3d ( :, :, : )  &
           * pw2 % cc3d ( :, :, : ) )
   ELSE IF ( pw1 % in_use == COMPLEXDATA3D &
        .AND. pw2 % in_use == REALDATA3D ) THEN
-     integral_value = SUM ( pw1 % cc3d ( :, :, : ) &
-          * REAL( pw2 % cr3d ( :, :, : ), KIND=mp) )
+     integral_value = accurate_sum ( pw1 % cc3d ( :, :, : ) &
+          *  pw2 % cr3d ( :, :, : ) )
   ELSE IF ( pw1 % in_use == COMPLEXDATA3D &
        .AND. pw2 % in_use == COMPLEXDATA3D ) THEN
-     integral_value = SUM ( CONJG ( pw1 % cc3d ( :, :, : ) ) &
-          * CMPLX( pw2 % cc3d ( :, :, : ), KIND=mp ) )
+     integral_value = accurate_sum ( CONJG ( pw1 % cc3d ( :, :, : ) ) &
+          * pw2 % cc3d ( :, :, : ) )
 
   ELSE IF ( pw1 % in_use == REALDATA1D &
        .AND. pw2 % in_use == REALDATA1D ) THEN
-     integral_value = SUM ( pw1 % cr ( : ) * REAL( pw2 % cr ( : ), KIND=mp ) )
+     integral_value = accurate_sum ( pw1 % cr ( : ) *  pw2 % cr ( : ) )
   ELSE IF ( pw1 % in_use == REALDATA1D &
        .AND. pw2 % in_use == COMPLEXDATA1D ) THEN
-     integral_value = SUM ( REAL( pw1 % cr ( : ), KIND=mp ) * pw2 % cc ( : ) )
+     integral_value = accurate_sum ( pw1 % cr ( : ) * pw2 % cc ( : ) )
   ELSE IF ( pw1 % in_use == COMPLEXDATA1D &
        .AND. pw2 % in_use == REALDATA1D ) THEN
-     integral_value = SUM ( pw1 % cc ( : ) * REAL( pw2 % cr ( : ), KIND=mp ) )
+     integral_value = accurate_sum ( pw1 % cc ( : ) * pw2 % cr ( : ) )
   ELSE IF ( pw1 % in_use == COMPLEXDATA1D &
        .AND. pw2 % in_use == COMPLEXDATA1D ) THEN
-     integral_value = SUM ( CONJG ( pw1 % cc ( : ) ) * CMPLX( pw2 % cc ( : ), KIND=mp) )
+     integral_value = accurate_sum ( CONJG ( pw1 % cc ( : ) ) * pw2 % cc ( : ) )
   ELSE
      CALL stop_program ( "integral_ab", "no possible DATA" )
   END IF
@@ -3489,15 +3489,15 @@ FUNCTION pw_integral_aa ( pw1, flag ) RESULT ( integral_value )
   IF ( PRESENT ( flag ) ) THEN
      IF ( flag == SQUARE ) THEN
         IF ( pw1 % in_use == REALDATA3D ) THEN
-           integral_value = SUM ( REAL( pw1 % cr3d ( :, :, : ), KIND=mp ) ** 2 )
+           integral_value = accurate_sum ( pw1 % cr3d ( :, :, : )** 2 )
         ELSE IF ( pw1 % in_use == COMPLEXDATA3D ) THEN
-           integral_value = SUM ( CONJG ( pw1 % cc3d ( :, :, : ) ) &
-                * CMPLX( pw1 % cc3d ( :, :, : ), KIND=mp) )
+           integral_value = accurate_sum ( CONJG ( pw1 % cc3d ( :, :, : ) ) &
+                * pw1 % cc3d ( :, :, : )  )
         ELSE IF ( pw1 % in_use == REALDATA1D ) THEN
-           integral_value = SUM ( REAL( pw1 % cr ( : ), KIND=mp ) ** 2 )
+           integral_value = accurate_sum ( pw1 % cr ( : ) ** 2 )
         ELSE IF ( pw1 % in_use == COMPLEXDATA1D ) THEN
-           integral_value = SUM ( CONJG ( pw1 % cc ( : ) ) &
-                * CMPLX( pw1 % cc ( : ), KIND=mp ) )
+           integral_value = accurate_sum ( CONJG ( pw1 % cc ( : ) ) &
+                * pw1 % cc ( : ) )
            IF ( pw1 % pw_grid % grid_span == HALFSPACE ) THEN
               integral_value = 2.0_dp * integral_value
               IF ( pw1 % pw_grid % have_g0 ) integral_value = integral_value - &
@@ -3513,13 +3513,13 @@ FUNCTION pw_integral_aa ( pw1, flag ) RESULT ( integral_value )
 
   ELSE
      IF ( pw1 % in_use == REALDATA3D ) THEN
-        integral_value = SUM ( REAL( pw1 % cr3d ( :, :, : ), KIND=mp ) )
+        integral_value = accurate_sum ( pw1 % cr3d ( :, :, : ) )
      ELSE IF ( pw1 % in_use == COMPLEXDATA3D ) THEN
-        integral_value = SUM ( CMPLX( pw1 % cc3d ( :, :, : ), KIND=mp ) )
+        integral_value = accurate_sum ( pw1 % cc3d ( :, :, : ) )
      ELSE IF ( pw1 % in_use == REALDATA1D ) THEN
-        integral_value = SUM ( REAL( pw1 % cr ( : ), KIND=mp) )
+        integral_value = accurate_sum ( pw1 % cr ( : ) )
      ELSE IF ( pw1 % in_use == COMPLEXDATA1D ) THEN
-        integral_value = SUM ( CMPLX( pw1 % cc ( : ), KIND=mp) )
+        integral_value = accurate_sum ( pw1 % cc ( : ) )
      ELSE
         CALL stop_program ( "integral_aa", "no possible DATA" )
      END IF
@@ -3550,12 +3550,12 @@ FUNCTION pw_integral_a2b ( pw1, pw2 ) RESULT ( integral_value )
   END IF
   IF ( pw1 % in_use == REALDATA1D .AND. &
        pw2 % in_use == REALDATA1D ) THEN
-     integral_value = SUM ( pw1 % cr ( : ) * REAL( pw2 % cr ( : ), KIND=mp ) &
+     integral_value = accurate_sum ( pw1 % cr ( : ) * pw2 % cr ( : ) &
           * pw1 % pw_grid % gsq ( : ) )
   ELSE IF ( pw1 % in_use == COMPLEXDATA1D .AND. &
        pw2 % in_use == COMPLEXDATA1D ) THEN
-     integral_value = SUM ( REAL ( CONJG ( pw1 % cc ( : ) ) &
-          *  pw2 % cc ( : ) ,KIND=mp) * pw1 % pw_grid % gsq ( : ) )
+     integral_value = accurate_sum ( REAL ( CONJG ( pw1 % cc ( : ) ) &
+          *  pw2 % cc ( : ) ,KIND=dp) * pw1 % pw_grid % gsq ( : ) )
      IF ( pw1 % pw_grid % grid_span == HALFSPACE ) THEN
         integral_value = 2.0_dp * integral_value
      END IF

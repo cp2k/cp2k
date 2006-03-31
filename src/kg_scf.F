@@ -45,6 +45,7 @@ MODULE kg_scf
                                              random_guess,&
                                              restart_guess
   USE input_section_types,             ONLY: section_vals_type
+  USE kahan_sum,                       ONLY: accurate_sum
   USE kg_diis_methods,                 ONLY: kg_diis_b_clear,&
                                              kg_diis_b_create,&
                                              kg_diis_step_A,&
@@ -680,14 +681,14 @@ CONTAINS
     IF (output_unit>0) THEN
        WRITE (UNIT=output_unit,FMT="(/,(T3,A,T40,2F20.10))")&
             "Total electronic density (r-space): ",&
-            SUM(rho%tot_rho_r),&
-            SUM(rho%tot_rho_r)+ REAL(nelectron_global,dp),&
+            accurate_sum(rho%tot_rho_r),&
+            accurate_sum(rho%tot_rho_r)+ REAL(nelectron_global,dp),&
             "Total core charge density (r-space):",&
             qs_charges%total_rho_core_rspace,&
             qs_charges%total_rho_core_rspace - REAL(nelectron_global+dft_control%charge,dp)
        WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
             "Total charge density (r-space):     ",&
-            SUM(rho%tot_rho_r)+&
+            accurate_sum(rho%tot_rho_r)+&
             qs_charges%total_rho_core_rspace,&
             "Total charge density (g-space):     ",qs_charges%total_rho_gspace
        WRITE (UNIT=output_unit,FMT="(/,(T3,A,T55,F25.14))")&

@@ -48,6 +48,7 @@ MODULE qs_kpp1_env_methods
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
+  USE kahan_sum,                       ONLY: accurate_sum
   USE kinds,                           ONLY: dp
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
@@ -970,7 +971,7 @@ CONTAINS
     total_rho_gspace = calculate_total_rho(rho1_tot_gspace)
     WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
          "KPP1 total charge density (r-space):",&
-         SUM(rho1%tot_rho_r),&
+         accurate_sum(rho1%tot_rho_r),&
          "KPP1 total charge density (g-space):",&
                total_rho_gspace
 

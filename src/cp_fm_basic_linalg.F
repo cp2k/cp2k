@@ -1,9 +1,7 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations
-!   Copyright (C) 2001 - 2002  CP2K developers group
+!   Copyright (C) 2001 - 2006  CP2K developers group
 !-----------------------------------------------------------------------------!
-
-
 !!****h* cp2k/cp_fm_basic_linalg [1.0] *
 !!
 !!   NAME
@@ -29,6 +27,7 @@ MODULE cp_fm_basic_linalg
                                              cp_fm_get_info,&
                                              cp_fm_type
   USE cp_para_types,                   ONLY: cp_blacs_env_type
+  USE kahan_sum,                       ONLY: accurate_sum
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
   USE timings,                         ONLY: timeset,&
@@ -656,10 +655,9 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    INTEGER                                  :: group, handle, icol_local, &
-                                                irow_local, mypcol, myprow, &
-                                                ncol_local, npcol, nprow, &
-                                                nrow_local
+    INTEGER                                  :: group, handle, mypcol, &
+                                                myprow, ncol_local, npcol, &
+                                                nprow, nrow_local
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a, b
     TYPE(cp_blacs_env_type), POINTER         :: context
 
@@ -681,13 +679,9 @@ CONTAINS
     nrow_local = matrix_a%matrix_struct%nrow_locals(myprow)
     ncol_local = matrix_b%matrix_struct%ncol_locals(mypcol)
 
-    trace = 0.0_dp
-
-    DO icol_local=1,ncol_local
-       DO irow_local=1,nrow_local
-          trace = trace + a(irow_local,icol_local)*b(irow_local,icol_local)
-       END DO
-    END DO
+    ! cries for an accurate_dot_product
+    trace = accurate_sum(a(1:nrow_local,1:ncol_local) * &
+                         b(1:nrow_local,1:ncol_local) )
 
     CALL mp_sum(trace,group)
 

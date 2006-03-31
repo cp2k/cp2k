@@ -45,6 +45,7 @@ MODULE cp_ddapc
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
+  USE kahan_sum,                       ONLY: accurate_sum
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
   USE message_passing,                 ONLY: mp_sum
@@ -179,7 +180,7 @@ CONTAINS
        END DO
        Vol = rho%rho_r(1)%pw%pw_grid%vol
        core_ch = qs_charges%total_rho_core_rspace
-       elec_ch = SUM(rho%tot_rho_r)
+       elec_ch = accurate_sum(rho%tot_rho_r)
        ch_dens = - (elec_ch + core_ch)/Vol
        !
        ! Get Input Parameters

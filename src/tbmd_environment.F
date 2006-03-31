@@ -73,8 +73,6 @@ MODULE tbmd_environment
                                              write_particle_distances,&
                                              write_qs_particle_coordinates,&
                                              write_structure_data
-  USE physcon,                         ONLY: angstrom,&
-                                             evolt
   USE qs_mo_types,                     ONLY: allocate_mo_set,&
                                              mo_set_type
   USE tbmd_energy_types,               ONLY: tbmd_energy_create,&

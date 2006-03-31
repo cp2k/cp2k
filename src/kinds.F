@@ -34,14 +34,12 @@ MODULE kinds
   IMPLICIT NONE
   
   PRIVATE
-  PUBLIC :: sp, dp, mp, print_kind_info, dp_size, sp_size, int_size
+  PUBLIC :: sp, dp, print_kind_info, dp_size, sp_size, int_size
   PUBLIC :: default_string_length, default_path_length
 
 #if __SGL 
   INTEGER, PARAMETER :: sp = SELECTED_REAL_KIND ( 6, 30 )
   INTEGER, PARAMETER :: dp = SELECTED_REAL_KIND ( 6, 30 )
-  ! maximum precision, used for some selected reduction operations involving the grids
-  INTEGER, PARAMETER :: mp = SELECTED_REAL_KIND ( 14, 200 )
   ! we rely on this (libraries) but do not check this
   INTEGER, PARAMETER :: dp_size  = 4,&
                         int_size = BIT_SIZE(0)/8,&
@@ -49,8 +47,6 @@ MODULE kinds
 #else
   INTEGER, PARAMETER :: sp = SELECTED_REAL_KIND ( 6, 30 )
   INTEGER, PARAMETER :: dp = SELECTED_REAL_KIND ( 14, 200 )
-  ! maximum precision, used for some selected reduction operations involving the grids
-  INTEGER, PARAMETER :: mp = SELECTED_REAL_KIND ( 14, 200 )
   ! we rely on this (libraries) but do not check this
   INTEGER, PARAMETER :: dp_size  = 8,&
                         int_size = BIT_SIZE(0)/8,&

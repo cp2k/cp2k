@@ -68,6 +68,7 @@ MODULE qs_ks_methods
                                              sic_none
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
+  USE kahan_sum,                       ONLY: accurate_sum
   USE kg_environment_types,            ONLY: get_kg_env,&
                                              kg_environment_type
   USE kg_gpw_correction,               ONLY: kg_gpw_ekin_mol
@@ -910,8 +911,8 @@ CONTAINS
     
     WRITE (UNIT=output_unit,FMT="(/,(T3,A,T40,2F20.10))")&
          "Total electronic density (r-space): ",&
-         SUM(rho%tot_rho_r),&
-         SUM(rho%tot_rho_r) + &
+         accurate_sum(rho%tot_rho_r),&
+         accurate_sum(rho%tot_rho_r) + &
          REAL(n_electrons,dp),&
          "Total core charge density (r-space):",&
          qs_charges%total_rho_core_rspace,&
@@ -928,9 +929,9 @@ CONTAINS
             tot1_h, tot1_s
        WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
             "Total Rho_soft + Rho1_hard - Rho1_soft (r-space): ",&
-            SUM(rho%tot_rho_r)+ tot1_h - tot1_s ,&
+            accurate_sum(rho%tot_rho_r)+ tot1_h - tot1_s ,&
             "Total charge density (r-space):      ",&
-            SUM(rho%tot_rho_r)+ tot1_h - tot1_s &
+            accurate_sum(rho%tot_rho_r)+ tot1_h - tot1_s &
             + qs_charges%total_rho_core_rspace,&
             "Total Rho_soft + Rho0_soft (g-space):",&
             qs_charges%total_rho_gspace
@@ -946,11 +947,11 @@ CONTAINS
             tot1_h, tot1_s
        WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
             "Total Rho_soft + Rho1_hard - Rho1_soft (r-space): ",&
-            SUM(rho_xc%tot_rho_r)+ tot1_h - tot1_s 
+            accurate_sum(rho_xc%tot_rho_r)+ tot1_h - tot1_s 
     ELSE  
        WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
             "Total charge density (r-space):     ",&
-            SUM(rho%tot_rho_r)+&
+            accurate_sum(rho%tot_rho_r)+&
             qs_charges%total_rho_core_rspace,&
             "Total charge density (g-space):     ",&
             qs_charges%total_rho_gspace

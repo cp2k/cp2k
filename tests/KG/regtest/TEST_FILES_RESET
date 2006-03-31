@@ -21,3 +21,7 @@ nai-1.inp
 h2o.inp
 nai-1.inp
 nai-2.inp
+#  
+h2o_energy.inp
+#  
+kg_gpw_2H2O_llp.inp

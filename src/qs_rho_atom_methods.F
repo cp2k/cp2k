@@ -796,9 +796,9 @@ MODULE qs_rho_atom_methods
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'init_rho_atom'
 
-    INTEGER :: ia, ikind, il, iso, iso1, iso2, istat, l1, l1l2, l2, lc1, lc2, &
-      lcleb, ll, llmax, lmax_sphere, lp, m1, m2, max_s_harm, max_s_set, &
-      maxlgto, mm, mp, na, nat, natom, nkind, nr, nspins, quadrature, la
+    INTEGER :: ia, ikind, il, iso, iso1, iso2, istat, l1, l1l2, l2, la, lc1, &
+      lc2, lcleb, ll, llmax, lmax_sphere, lp, m1, m2, max_s_harm, max_s_set, &
+      maxlgto, mm, mp, na, nat, natom, nkind, nr, nspins, quadrature
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: paw_atom
     REAL(dp)                                 :: cosia, phi

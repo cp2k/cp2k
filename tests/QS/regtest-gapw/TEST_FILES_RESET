@@ -17,3 +17,13 @@ CO_xastpval.inp
 # improved/corrected preconditioner for LSD
 He2-all.inp
 He2-all-md.inp
+#  
+H2O-gapwxc-gth.inp
+#  
+H2S-gapw.inp
+#  
+H-gapw-all.inp
+#  
+He2-all.inp
+#  
+He2-all-md.inp

@@ -21,7 +21,6 @@
 MODULE kg_density
 
 ! *****************************************************************************
-
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
@@ -48,6 +47,7 @@ MODULE kg_density
                                              dyn_coeff_type
   USE gaussian_gridlevels,             ONLY: gaussian_gridlevel,&
                                              gridlevel_info_type
+  USE kahan_sum,                       ONLY: accurate_sum
   USE kg_environment_types,            ONLY: get_kg_env,&
                                              kg_environment_type
   USE kg_force_types,                  ONLY: kg_force_type
@@ -341,7 +341,7 @@ CONTAINS
                                                   lb_grid(2),&
                                                   lb_grid(3))
     ELSE IF (ASSOCIATED(rho%pw%cr3d)) THEN
-      total_rho = rho%pw%pw_grid%dvol*SUM(rho%pw%cr3d)
+      total_rho = rho%pw%pw_grid%dvol*accurate_sum(rho%pw%cr3d)
     ELSE IF (ASSOCIATED(rho%pw%cc)) THEN
       IF ( rho%pw%pw_grid%have_g0 ) THEN
         total_rho = rho%pw%pw_grid%vol*rho%pw%cc(1)

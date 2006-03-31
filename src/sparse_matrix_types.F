@@ -26,6 +26,7 @@ MODULE sparse_matrix_types
   USE distribution_2d_types,           ONLY: distribution_2d_release,&
                                              distribution_2d_retain,&
                                              distribution_2d_type
+  USE kahan_sum,                       ONLY: accurate_sum
   USE kinds,                           ONLY: dp,&
                                              dp_size,&
                                              int_size
@@ -1736,16 +1737,17 @@ END SUBROUTINE cp_sm_scale_and_add
     INTEGER, INTENT(IN)                      :: block_row, block_col
     REAL(KIND=dp), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: BLOCK
-    LOGICAL, OPTIONAL, INTENT(IN)            :: add
+    LOGICAL, INTENT(IN), OPTIONAL            :: add
 
     CHARACTER(LEN=*), PARAMETER :: routine = &
       "SUBROUTINE put_real_matrix_block (MODULE sparse_matrix_types)"
 
     INTEGER                                  :: ncol, nrow
-    TYPE(real_block_node_type), POINTER      :: block_node
     LOGICAL                                  :: add_block
+    TYPE(real_block_node_type), POINTER      :: block_node
 
 !   ---------------------------------------------------------------------------
+
     IF ( PRESENT (add) ) THEN
       add_block = add
     ELSE
@@ -2624,7 +2626,7 @@ SUBROUTINE cp_sm_maxabsval(matrix,maxabsval,para_env,error)
 !!     returns the trace of the product of two sparse matrices
 !!
 !!   NOTES
-!!     -
+!!     uses Kahan's sum
 !!
 !!   ARGUMENTS
 !!     - matrix: the matrix you are interested in
@@ -2651,26 +2653,28 @@ SUBROUTINE cp_sm_sm_trace_scalar(matrix1,matrix2,trace,para_env,error)
     INTEGER                                  :: block_col1, block_col2, &
                                                 iblock_row, nblock_row
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: sfactor, trace_block
+    REAL(KIND=dp)                            :: c, ks, sfactor, t, &
+                                                trace_block, y
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: matrix_block1, matrix_block2
     TYPE(real_block_node_type), POINTER      :: block_node1, block_node2
 
-  failure=.FALSE.
+    failure=.FALSE.
   
-  CPPrecondition(ASSOCIATED(matrix1),cp_failure_level,routineP,error,failure)
-  CPPrecondition(ASSOCIATED(matrix2),cp_failure_level,routineP,error,failure)
-  CPPrecondition(matrix1%ref_count>0,cp_failure_level,routineP,error,failure)
-  CPPrecondition(matrix2%ref_count>0,cp_failure_level,routineP,error,failure)
-  CPPrecondition(ASSOCIATED(para_env),cp_failure_level,routineP,error,failure)
-  CPPrecondition(para_env%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(matrix1),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(matrix2),cp_failure_level,routineP,error,failure)
+    CPPrecondition(matrix1%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(matrix2%ref_count>0,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(para_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(para_env%ref_count>0,cp_failure_level,routineP,error,failure)
   
-  trace=0.0_dp
+    trace=0.0_dp
+    ks = 0.0_dp ;  t = 0.0_dp ; y = 0.0_dp ; c = 0.0_dp
 
-  CALL get_matrix_info(matrix=matrix1,nblock_row=nblock_row)
-  ! we assume symmetric matrices
-  sfactor = 2._dp
+    CALL get_matrix_info(matrix=matrix1,nblock_row=nblock_row)
+    ! we assume symmetric matrices
+    sfactor = 2._dp
 
-  DO iblock_row=1,nblock_row
+    DO iblock_row=1,nblock_row
      
      block_node1 => first_block_node(matrix1,iblock_row)
      block_node2 => first_block_node(matrix2,iblock_row)
@@ -2683,22 +2687,31 @@ SUBROUTINE cp_sm_sm_trace_scalar(matrix1,matrix2,trace,para_env,error)
                             block_col=block_col2,BLOCK=matrix_block2)
         CPPostcondition(block_col1==block_col2,cp_warning_level,routineP,error,failure)
 
-        trace_block = SUM ( matrix_block1*matrix_block2 )
+
+        trace_block = accurate_sum ( matrix_block1*matrix_block2 )
 
         IF ( iblock_row == block_col1 ) THEN
-          trace = trace + trace_block
+          trace_block = trace_block
         ELSE
-          trace = trace + sfactor*trace_block
+          trace_block = sfactor*trace_block
         END IF
-
+   
+        ! use Kahan's sum to reduce roundoff
+        y  = trace_block - c
+        t  = ks + y
+        c  = (t - ks) - y
+        ks = t
+ 
         block_node1 => block_node1%next_block_node
         block_node2 => block_node2%next_block_node
 
      END DO
 
-  END DO
+    END DO
 
-  CALL mp_sum(trace,para_env%group)
+    trace = ks
+
+    CALL mp_sum(trace,para_env%group)
 
 END SUBROUTINE cp_sm_sm_trace_scalar
 !***************************************************************************
@@ -2774,7 +2787,7 @@ SUBROUTINE cp_sm_sm_trace_vector(matrix1, matrix2, trace_vec, para_env, error)
                             block_col=block_col2, BLOCK=matrix_block2)
         CPPostcondition(block_col1==block_col2, cp_warning_level, routineP, error, failure)
 
-        trace_block = SUM(matrix_block1*matrix_block2)
+        trace_block = accurate_sum(matrix_block1*matrix_block2)
 
         IF (iblock_row == block_col1) THEN
           trace_vec(iblock_row) = trace_vec(iblock_row) + trace_block
@@ -2804,18 +2817,19 @@ SUBROUTINE create_dbm_from_sm(dbm,sm,matrix_name,copy_in,para_env)
 !            same structure.
 !   ***************************************************************************
 
-    TYPE(real_matrix_type), POINTER            :: dbm, sm
-    CHARACTER(LEN=*), INTENT(IN)               :: matrix_name
-    LOGICAL, INTENT(IN)                        :: copy_in
-    TYPE(cp_para_env_type),OPTIONAL,INTENT(IN) :: para_env
+    TYPE(real_matrix_type), POINTER          :: dbm, sm
+    CHARACTER(LEN=*), INTENT(IN)             :: matrix_name
+    LOGICAL, INTENT(IN)                      :: copy_in
+    TYPE(cp_para_env_type), INTENT(IN), &
+      OPTIONAL                               :: para_env
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_dbm_from_sm', &
       routineP = moduleN//':'//routineN
 
-    TYPE(real_block_node_type), POINTER      :: block_node
+    INTEGER                                  :: handle, iblock_col, iblock_row
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: block
-    INTEGER                                  :: iblock_row, iblock_col
-    INTEGER                                  :: handle
+    TYPE(real_block_node_type), POINTER      :: block_node
+
 !   ---------------------------------------------------------------------------
 
     CALL timeset(routineN,"I","",handle)
@@ -2876,16 +2890,18 @@ SUBROUTINE deallocate_dbm_from_sm(dbm,sm,copy_out,para_env)
 !   Purpose: Deallocate a diagonal block matrix 
 !   ***************************************************************************
 
-    TYPE(real_matrix_type), POINTER            :: dbm, sm
-    LOGICAL, INTENT(IN)                        :: copy_out
-    TYPE(cp_para_env_type),OPTIONAL,INTENT(IN) :: para_env
+    TYPE(real_matrix_type), POINTER          :: dbm, sm
+    LOGICAL, INTENT(IN)                      :: copy_out
+    TYPE(cp_para_env_type), INTENT(IN), &
+      OPTIONAL                               :: para_env
 
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_dbm_from_sm', &
       routineP = moduleN//':'//routineN
 
-    TYPE(real_block_node_type), POINTER      :: block_node
+    INTEGER                                  :: handle, iblock_col, iblock_row
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: block
-    INTEGER                                  :: iblock_row, iblock_col, handle
+    TYPE(real_block_node_type), POINTER      :: block_node
+
 !   ---------------------------------------------------------------------------
 
   CALL timeset(routineN,"I","",handle)

@@ -173,6 +173,7 @@ OBJECTS_GENERIC =\
  input_types.o\
  input_val_types.o\
  integrator.o\
+ kahan_sum.o\
  kg_core.o\
  kg_density.o\
  kg_diis_methods.o\
