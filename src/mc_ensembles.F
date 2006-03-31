@@ -617,9 +617,9 @@ CONTAINS
                   IF(ionode) &
                      CALL find_mc_test_molecule(force_env,mol,box_number,&
                      nchain(:),rng_stream,error=error)
-                  box_flag(box_number)=1
                   CALL mp_bcast(mol,source,group)
                   CALL mp_bcast(box_number,source,group)  
+                  box_flag(box_number)=1
                   CALL mc_molecule_rotation(mc_par(box_number)%mc_par,&
                      force_env(box_number)%force_env,&
                      bias_env(box_number)%force_env,&
