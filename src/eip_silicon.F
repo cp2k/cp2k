@@ -1660,7 +1660,7 @@ CONTAINS
                 r=rel(4,n)
                 rinv=rel(5,n)
                 rmainv = 1.d0/(r-par_a)
-                s2_t0(n2) = par_cap_A*dexp(par_sig*rmainv)
+                s2_t0(n2) = par_cap_A*exp(par_sig*rmainv)
                 s2_t1(n2) = (par_cap_B*rinv)**par_rh
                 s2_t2(n2) = par_rh*rinv
                 s2_t3(n2) = par_sig*rmainv*rmainv
@@ -1693,7 +1693,7 @@ CONTAINS
                   num3(n3) = j
                   rmbinv = 1.d0/(r-par_bg)
                   temp1 = par_gam*rmbinv
-                  temp0 = dexp(temp1)
+                  temp0 = exp(temp1)
                   s3_g(n3) = temp0
                   s3_dg(n3) = -rmbinv*temp1*temp0
                   s3_dx(n3) = dx
@@ -1719,7 +1719,7 @@ CONTAINS
                     xinv3 = xinv*xinv*xinv
                     den = 1.d0/(1 - xinv3)
                     temp1 = par_alp*den
-                    fZ = dexp(temp1)
+                    fZ = exp(temp1)
                     Z = Z + fZ
                     numz(nz) = j
                     sz_df(nz) = fZ*temp1*den*3.d0*xinv3*xinv*cmbinv   
@@ -1753,7 +1753,7 @@ CONTAINS
 !   ENVIRONMENT-DEPENDENCE OF PAIR INTERACTION
         
               temp0 = par_bet*Z
-              pZ = par_palp*dexp(-temp0*Z)         
+              pZ = par_palp*exp(-temp0*Z)         
 !   bond order
               dp1 = -2.d0*temp0*pZ         
 !   derivative of bond order
