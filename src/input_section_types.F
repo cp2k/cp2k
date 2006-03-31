@@ -475,7 +475,8 @@ RECURSIVE SUBROUTINE section_describe(section, unit_nr, level, hide_root, recurs
      IF (.NOT.my_hide_root)&
           WRITE(unit_nr,"('*** &end section ',a,' ***')")TRIM(section%name)
   ELSE
-     WRITE(unit_nr,"('<section *null*>')")
+     !WRITE(unit_nr,"('<section *null*>')")
+     WRITE(unit_nr,"(a)") '<section *null*>'
   END IF
 END SUBROUTINE section_describe
 !***************************************************************************
@@ -1882,11 +1883,10 @@ END SUBROUTINE section_vals_val_set
 !!
 !!*** **********************************************************************
 SUBROUTINE section_vals_val_unset(section_vals,keyword_name,i_rep_section,&
-     i_rep_val,n_rep_val,error)
+     i_rep_val,error)
     TYPE(section_vals_type), POINTER         :: section_vals
     CHARACTER(len=*), INTENT(in)             :: keyword_name
     INTEGER, INTENT(in), OPTIONAL            :: i_rep_section, i_rep_val
-    INTEGER, INTENT(out), OPTIONAL           :: n_rep_val
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
