@@ -632,8 +632,8 @@ CONTAINS
    CALL timeset(routineN,"I","",handle)
 
    nspin=SIZE(mo_array)
-   mo_mag_min= HUGE(0.0D0)
-   mo_mag_max=-HUGE(0.0D0)
+   mo_mag_min= HUGE(0.0_dp)
+   mo_mag_max=-HUGE(0.0_dp)
    DO ispin=1,nspin
       CALL cp_fm_get_info(mo_array(ispin)%mo_set%mo_coeff,&
              nrow_global=n,ncol_global=k)
