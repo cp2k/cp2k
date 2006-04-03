@@ -200,7 +200,7 @@ CONTAINS
 
     CALL cp_add_iter_level(logger%iter_info,"MD",n_rlevel_new=iter_level,&
          error=error)
-    CALL cp_iterate(logger%iter_info,last=.FALSE.,iter_nr=1,error=error)    
+    CALL cp_iterate(logger%iter_info,last=.FALSE.,iter_nr=0,error=error)    
     CALL read_md_section ( simpar, globenv, error )
     
     CALL extended_type_init(extended_type)

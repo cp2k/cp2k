@@ -644,14 +644,20 @@ CONTAINS
 
        CALL cp_print_key_section_create(print_key,"LOCALIZATION",&
             Description="Controls the printing of the Wannier centers.", &
-            print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
-            error=error)
+            print_level=high_print_level,each=(/1/),common_iter_levels=1,&
+            filename="__STD_OUT__", error=error)
        CALL keyword_create(keyword, name="LOC_TYPE",&
             description="Specify the method to use for the localization.",&
             usage="LOC_TYPE (JACOBI|CRAZY|DIRECT|NONE)",&
             enum_c_vals=s2a("JACOBI","CRAZY","DIRECT","NONE"),&
             enum_i_vals=(/ do_loc_jacobi, do_loc_crazy, do_loc_direct, do_loc_none/),&
             default_i_val=do_loc_jacobi, error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword, name="TOTAL_DIPOLE",&
+            description="prints out the total dipole of the wannier centers.",&
+            usage="TOTAL_DIPOLE", default_l_val=.false., &
+            lone_keyword_l_val=.true., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

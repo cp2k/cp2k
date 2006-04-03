@@ -124,10 +124,16 @@ MODULE qs_scf_post
                                              rs_pw_to_cube
   USE s_square_methods,                ONLY: compute_s_square
   USE scf_control_types,               ONLY: scf_control_type
-  USE sparse_matrix_types,             ONLY: real_matrix_p_type
+  USE sparse_matrix_types,             ONLY: deallocate_matrix,&
+                                             real_matrix_p_type,&
+                                             real_matrix_type,&
+                                             replicate_matrix
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE external_potential_types,        ONLY: gth_potential_type, &
+                                             get_potential
+  USE mathconstants, only: twopi
   USE xray_diffraction,                ONLY: xray_diffraction_spectrum
 #include "cp_common_uses.h"
 
@@ -191,7 +197,7 @@ CONTAINS
 
     LOGICAL                                  :: failure, ionode, &
                                                 my_localized_wfn, p_loc, &
-                                                p_molstates
+                                                p_molstates, first_time
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -230,7 +236,7 @@ CONTAINS
     TYPE (evals_p_type), DIMENSION(:), POINTER :: unoccupied_evals
     INTEGER ::  handle, ispin, istat, n, nmo, output_unit,i
     CHARACTER(LEN=200) :: file_name
-    INTEGER            :: file_unit,ivector,nao,nlumos, homo, unit_nr
+    INTEGER            :: file_unit,ivector,nao,nlumos, homo, unit_nr, idir
     LOGICAL            :: homoEQnmo
     CHARACTER(LEN=80)  :: filename
     CHARACTER(LEN=80) :: title
@@ -288,7 +294,8 @@ CONTAINS
        IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
             "DFT%PRINT%MULLIKEN",error=error),cp_p_file)) THEN
           unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%MULLIKEN",&
-               extension=".mulliken",log_filename=.FALSE.,error=error)
+               extension=".mulliken",middle_name="",log_filename=.FALSE.,&
+               error=error)
           mulliken_title="  Mulliken charges : iteration level: " &
                                 //cp_iter_string(logger%iter_info, print_key)
           CALL mulliken_charges(rho%rho_ao,matrix_s(1)%matrix,globenv%para_env,particle_set, &
@@ -427,6 +434,23 @@ CONTAINS
           CALL qs_loc_driver(qs_env,qs_loc_env_new,error=error)
  
        ELSEIF (p_loc) THEN
+          if (btest(cp_print_key_should_output(logger%iter_info,input,&
+               "DFT%PRINT%LOCALIZATION/TOTAL_DIPOLE",&
+               error=error),cp_p_file)) then
+             
+             nullify(gth_potential)
+             dipole=0.0_dp
+             ! charges of the atoms involved
+             DO i=1,size(particle_set)
+                CALL get_atomic_kind(particle_set(i)%atomic_kind,gth_potential=gth_potential)
+                CALL get_potential(gth_potential,zeff=zeff)
+                CPPrecondition(cell%orthorhombic,cp_failure_level,routineP,error,failure)
+                DO idir=1,3
+                   r_pbc(idir) = particle_set(i) % r(idir)!-0.5_dp*cell%hmat(idir,idir)
+                END DO
+                dipole=dipole + zeff*r_pbc
+             END DO
+          end if
           DO ispin=1,dft_control%nspins
              CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff, &
                                               eigenvalues=mo_eigenvalues,homo=homo,nmo=nmo)
@@ -452,37 +476,23 @@ CONTAINS
              IF (ionode) WRITE(output_unit,*) ""
              IF (ionode) WRITE(output_unit,*) "Computing localization properties"
              unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%LOCALIZATION",&
-                  extension=".data",middle_name=TRIM(filename),log_filename=.FALSE.,error=error)
+                  extension=".data",middle_name=TRIM(filename),&
+                  log_filename=.FALSE.,on_file=.true.,error=error)
              CALL qs_loc_compute_properties(qs_loc_env,molecule_set,mo_localized,center,ionode,unit_nr)
              CALL cp_print_key_finished_output(unit_nr,logger,input,&
-                  "DFT%PRINT%LOCALIZATION",error=error)
+                  "DFT%PRINT%LOCALIZATION",on_file=.true.,error=error)
              IF (ionode) WRITE(output_unit,*) "Results in ",filename
 
-        NULLIFY(gth_potential)
-        dipole=0.0_dp
-        ! charges of the atoms involved
-        DO i=1,SIZE(particle_set)
-            CALL get_atomic_kind(particle_set(i)%atomic_kind,gth_potential=gth_potential)
-            CALL get_potential(gth_potential,zeff=zeff)
-            r_pbc = particle_set(i) % r
-            dipole=dipole + zeff*r_pbc
-        END DO
-        ! charges of the wfc involved
-        DO i=1,SIZE(center,1)
-           r_pbc = center(i,1:3)
-           dipole=dipole - 2.0_dp * r_pbc
-        ENDDO
-        dipole=pbc(dipole,cell)
-        IF (ionode) THEN
-           OPEN(unit=21,file="new.dipole",position="append")
-           iter=cp_iter_string(logger%iter_info,error=error)
-           WRITE(unit=21,fmt="(a,6(es18.8))")&
-                iter(1:15),&
-                dipole,pbc(dipole-old_dipole,cell)
-           CLOSE(21)
-        END IF
-        old_dipole=dipole
-                
+             if (btest(cp_print_key_should_output(logger%iter_info,input,&
+                  "DFT%PRINT%LOCALIZATION/TOTAL_DIPOLE",&
+                  error=error),cp_p_file)) then
+                ! charges of the wfc involved
+                DO i=1,SIZE(center,1)
+                   r_pbc = center(i,1:3)
+                   dipole=dipole - (3.0_dp-real(dft_control%nspins,dp)) * r_pbc
+                ENDDO
+             end if
+
              ! write the wannier functions to cubes
              IF (BTEST(cp_print_key_should_output(logger%iter_info,dft_section,"PRINT%LOCALIZATION%CUBES",&
                   error=error),cp_p_file).AND. .NOT. p_molstates ) THEN
@@ -530,6 +540,29 @@ CONTAINS
 
              DEALLOCATE(center)
           ENDDO
+
+          if (btest(cp_print_key_should_output(logger%iter_info,input,&
+               "DFT%PRINT%LOCALIZATION/TOTAL_DIPOLE",&
+               first_time=first_time,error=error),cp_p_file)) then
+             dipole=pbc(dipole,cell)
+             unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%LOCALIZATION",&
+                  extension=".newDipole",log_filename=.FALSE.,on_file=.true.,&
+                  error=error)
+             IF (unit_nr>0) THEN
+                if (first_time) then
+                   WRITE(unit=unit_nr,fmt="(a)")&
+                        "# iter_level    dipole(x,y,z)[au] delta_dipole(x,y,z)[au]"
+                end if
+                iter=cp_iter_string(logger%iter_info,error=error)
+                WRITE(unit=unit_nr,fmt="(a,6(es18.8))")&
+                     iter(1:15),&
+                     dipole,pbc(dipole-old_dipole,cell)
+             END IF
+             CALL cp_print_key_finished_output(unit_nr,logger,input,&
+                  "DFT%PRINT%LOCALIZATION",on_file=.true.,error=error)
+             old_dipole=dipole
+          end if
+
        ENDIF
 
 ! gets the lumos, and eigenvalues for the lumos 
@@ -762,7 +795,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'write_available_results', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure, ionode
+    LOGICAL                                  :: failure, ionode,first_time
     REAL(KIND=dp)                            :: total_abs_spin_dens
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -929,7 +962,7 @@ CONTAINS
 
 !    *** stupid (non periodic) calculation of the dipole moment ***
        IF (BTEST(cp_print_key_should_output(logger%iter_info,input,"DFT%PRINT%DIPOLE",&
-            error=error),cp_p_file)) THEN
+            first_time=first_time,error=error),cp_p_file)) THEN
           unit_nr=cp_print_key_unit_nr(logger,input, "DFT%PRINT%DIPOLE",&
                extension=".dipole", log_filename=.FALSE., error=error)
           CALL get_qs_env(qs_env=qs_env,pw_env=pw_env,error=error)
@@ -938,7 +971,7 @@ CONTAINS
           CALL calc_stupid_dipole(qs_env%subsys,rho%rho_r,qs_env%rho_core%pw,&
                aux_bas_pool=auxbas_pw_pool,cell=cell,&
                unit_nr=unit_nr,&
-               print_header=.FALSE.,&
+               print_header=first_time,&
                error=error)
           CALL cp_print_key_finished_output(unit_nr, logger,input,&
                "DFT%PRINT%DIPOLE",error=error)
@@ -1018,10 +1051,10 @@ SUBROUTINE calc_stupid_dipole(subsystem, rho_r, rho_core_g,aux_bas_pool,&
     INTEGER                                  :: i, ip, j, k, np(3)
     INTEGER, DIMENSION(2, 3)                 :: bo, gbo
     LOGICAL                                  :: failure, my_print_header
-    REAL(kind=dp)                            :: arg, dvol, mass, tot_m
-    REAL(kind=dp), DIMENSION(3)              :: bdipole, com, dipole_center, &
-                                                dipole_com, dr, r, r_com, &
-                                                shift
+    REAL(kind=dp)                            :: mass, tot_m, dvol, arg
+    REAL(kind=dp), DIMENSION(3)              :: com, dipole_center, &
+                                                dipole_com, dr, r, r_com,&
+                                                shift, bdipole
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(pw_type), POINTER                   :: total_charge
@@ -1077,41 +1110,43 @@ SUBROUTINE calc_stupid_dipole(subsystem, rho_r, rho_core_g,aux_bas_pool,&
         END DO
      END DO
   END DO
+  dipole_center=dipole_center*dvol
+  dipole_com=dipole_com*dvol
 
-  cdip=CMPLX(0._dp,0._dp,dp)
-  DO k=bo(1,3),bo(2,3)
-     arg=REAL(k-gbo(1,3),dp)/REAL(np(3),dp)*twopi
-     cr(3)=CMPLX(COS(arg),SIN(arg),dp)
-     DO j=bo(1,2),bo(2,2)
-        arg=REAL(j-gbo(1,2),dp)/REAL(np(2),dp)*twopi
-        cr(2)=CMPLX(COS(arg),SIN(arg),dp)
-        DO i=bo(1,1),bo(2,1)
-           arg=REAL(i-gbo(1,1),dp)/REAL(np(1),dp)*twopi
-           cr(1)=CMPLX(COS(arg),SIN(arg),dp)
-           cdip=cdip+cr*total_charge%cr3d(i,j,k)
-        END DO
-     END DO
-  END DO
-
-  cdip=cdip*dvol
-
-  CALL mp_sum(cdip,total_charge%pw_grid%para%group)
+!!FM  cdip=CMPLX(0._dp,0._dp,dp)
+!!FM  DO k=bo(1,3),bo(2,3)
+!!FM     arg=REAL(k-gbo(1,3),dp)/REAL(np(3),dp)*twopi
+!!FM     cr(3)=CMPLX(COS(arg),SIN(arg),dp)
+!!FM     DO j=bo(1,2),bo(2,2)
+!!FM        arg=REAL(j-gbo(1,2),dp)/REAL(np(2),dp)*twopi
+!!FM        cr(2)=CMPLX(COS(arg),SIN(arg),dp)
+!!FM        DO i=bo(1,1),bo(2,1)
+!!FM           arg=REAL(i-gbo(1,1),dp)/REAL(np(1),dp)*twopi
+!!FM           cr(1)=CMPLX(COS(arg),SIN(arg),dp)
+!!FM           cdip=cdip+cr*total_charge%cr3d(i,j,k)
+!!FM        END DO
+!!FM     END DO
+!!FM  END DO
+!!FM
+!!FM  cdip=cdip*dvol
+!!FM
+!!FM  CALL mp_sum(cdip,total_charge%pw_grid%para%group)
   CALL mp_sum(dipole_center,total_charge%pw_grid%para%group)
   CALL mp_sum(dipole_com,total_charge%pw_grid%para%group)
 
-  DO i =1,3
-     bdipole(i)=( cell % hmat ( i, i ) / twopi ) * AIMAG ( LOG ( cdip(i) ) )
-  END DO
+!!FM  DO i =1,3
+!!FM     bdipole(i)=( cell % hmat ( i, i ) / twopi ) * AIMAG ( LOG ( cdip(i) ) )
+!!FM  END DO
 
   IF (unit_nr>0) THEN
      IF (my_print_header) THEN
         WRITE(unit=unit_nr,fmt="('# iteration com(x,y,z)[Angstrom]"//&
-             " dipole_com(x,y,z)[au] dipole_cell_center(x,y,z)[au] bdipole(x,y,z)[au]')")
+             " dipole_com(x,y,z)[au] dipole_cell_center(x,y,z)[au]')")
      END IF
      iter=cp_iter_string(logger%iter_info,error=error)
-     WRITE(unit=unit_nr,fmt="(a,12(es18.8))")&
+     WRITE(unit=unit_nr,fmt="(a,9(es18.8))")&
           iter(1:15),&
-          com*angstrom,-dipole_com,-dipole_center,-bdipole
+          com*angstrom,-dipole_com,-dipole_center
   END IF
   CALL pw_pool_give_back_pw(aux_bas_pool,total_charge,error=error)
 
