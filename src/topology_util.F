@@ -675,7 +675,7 @@ CONTAINS
        ENDIF
        
        atom_info%atm_mass(iatom) = ptable(ielem_found)% amass
-       IF(iw>0) WRITE(iw,'(7X,A,A5)') "iatom = ",ptable(ielem_found)%symbol
+       IF(iw>0) WRITE(iw,'(7X,A,A5)') "In topology_set_atm_mass :: iatom = ",ptable(ielem_found)%symbol
     END DO
 
     DEALLOCATE(atm_symbol,STAT=stat)
@@ -789,7 +789,7 @@ CONTAINS
        CALL convert_to_cp2k_units("ANGSTROM",length=radius(iatom))
        
        atom_info%atm_mass(iatom) = ptable(ielem_found)% amass
-       IF(iw>0) WRITE(iw,'(7X,A,A5)') "iatom = ",ptable(ielem_found)%symbol
+       IF(iw>0) WRITE(iw,'(7X,A,A5)') "In topology_generate_bond :: iatom = ",ptable(ielem_found)%symbol
     END DO
     !------------------------------------------------------------------------------
     IF( (topology%bondparm_type==do_bondparm_covalent).OR.&
@@ -797,6 +797,14 @@ CONTAINS
        CALL generate_particle_distances(atom_info%r,topology%cell,radius,&
             topology%bondparm_factor,conn_info%bond_a,conn_info%bond_b,&
             topology%bondparm_type,globenv)
+       IF (iw>0) THEN
+          WRITE(iw,'(A,I6)')"Total number of generated bonds :: ",SIZE(conn_info%bond_a)
+          ! Dump info on the computed bonds
+          DO ibond = 1, SIZE(conn_info%bond_a)
+             WRITE(iw,'("BOND Nr.:",I6," between atoms:",2I6)')ibond,conn_info%bond_a(ibond),&
+                  conn_info%bond_b(ibond)
+          END DO
+       END IF
     ELSE 
        CALL stop_program ("topology_generate_bond","illegal bondparm_type")
     END IF
@@ -1709,9 +1717,11 @@ CONTAINS
                 IF(first<=atm_a .AND. atm_a <=last) c_intra = c_intra + 1
              END DO
           END IF
-          IF(iw>0) WRITE(iw,*) "    Total number bonds for molecule type ",&
-               SUM(checkme)+c_intra
-
+          IF(iw>0) THEN 
+             WRITE(iw,*) "    Total number bonds for molecule type ",SUM(checkme)+c_intra
+             WRITE(iw,*) "    checkme (bonds inside  molecules) :: ",checkme
+             WRITE(iw,*) "    c_intra (bonds between molecules) :: ",c_intra
+          END IF
           ibond = SUM(checkme) + c_intra
           ALLOCATE(bond_list(ibond),STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -1754,8 +1764,8 @@ CONTAINS
                            "offset number at",&
                            conn_info%c_bond_a(j)-first+1,&
                            conn_info%c_bond_b(j)-first+1
-                      ibond = ibond + 1
                    END IF
+                   ibond = ibond + 1
                 END IF
              END DO
           END IF
@@ -2578,7 +2588,7 @@ CONTAINS
              END IF
           END DO
        END IF
-
+       
        IF(topology%exclude_vdw==do_skip_vdw_13 .OR. &
             topology%exclude_vdw==do_skip_vdw_14) THEN
           DO j=1,nbend

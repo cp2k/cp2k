@@ -307,36 +307,7 @@ CONTAINS
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
-    ! 1. If reading in from external file, make sure its there first
-    !-----------------------------------------------------------------------------
-!    IF(topology%connectivity) THEN
-!       !------------------------------------------------------
-!       !Make sure the file really do exist before proceding
-!       IF(globenv%ionode) THEN
-!
-!          INQUIRE(FILE=topology%conn_file_name,EXIST=found)
-!          IF(found) THEN
-!             IF(iw>0) WRITE(iw,*) 'Using connectivity file ',topology%conn_file_name
-!          ELSE
-!
-!             section => section_vals_get_subs_vals(globenv%input_file,&
-!                        "FORCE_EVAL%SUBSYS%TOPOLOGY%MOL_SET",error=error)
-!             CALL section_vals_get(section,n_repetition=n_rep,error=error)
-!             DO i_rep=1,n_rep
-!                CALL section_vals_val_get(section,"CONN_FILE",&
-!                          c_val=filename,i_rep_section=i_rep,error=error)
-!                INQUIRE(FILE=file_name,EXIST=found)
-!                IF(.NOT.found) THEN
-!                  CALL stop_program ("connectivity_control","connectivity file missing")
-!             END DO
-!          END IF
-!       END IF
-!    END IF
-
-
-    !-----------------------------------------------------------------------------
-    !-----------------------------------------------------------------------------
-    ! 2. Read in or generate the connectivity information any way we can 
+    ! Read in or generate the connectivity information any way we can 
     !-----------------------------------------------------------------------------
     SELECT CASE (topology%conn_type)
     CASE (do_conn_mol_set)
