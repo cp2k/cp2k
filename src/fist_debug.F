@@ -94,8 +94,6 @@ SUBROUTINE  debug_control ( force_env, globenv, error)
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    LOGICAL, PARAMETER                       :: box_change = .FALSE.
-
     INTEGER                                  :: ewald_type, group, i, iatom, &
                                                 ir, isos, iw, iwf, natoms
     INTEGER, DIMENSION(2)                    :: dum
@@ -196,7 +194,7 @@ SUBROUTINE  debug_control ( force_env, globenv, error)
 
 ! Call to analytical force routine:
   CALL fist_force_control ( fist_env, force_env%virial, globenv, &
-                            box_change=.FALSE., debug = dbg, error=error )
+                             debug = dbg, error=error )
 
   CALL mp_sum ( dbg % f_bond, group )
   CALL mp_sum ( dbg % f_bend, group )
@@ -847,7 +845,7 @@ SUBROUTINE  debug_control ( force_env, globenv, error)
   SELECT CASE ( ewald_type )
   CASE ( do_ewald_ewald )
     energy_numer = 0.0_dp
-    CALL ewald_energy_numer ( ewald_env, ewald_pw, atomic_kind_set, &
+    CALL ewald_energy_numer ( ewald_env, ewald_pw, cell, atomic_kind_set, &
                               particle_set, local_particles, energy_numer )
     IF ( ionode ) &
     WRITE ( iw, '( A, T61, G20.12 )' ) ' G-SPACE DBG ENERGY = ', &
@@ -864,13 +862,13 @@ SUBROUTINE  debug_control ( force_env, globenv, error)
   SELECT CASE ( ewald_type )
   CASE ( do_ewald_ewald )
     f_numer = 0.0_dp
-    CALL ewald_force_numer ( ewald_env, ewald_pw, atomic_kind_set,  &
+    CALL ewald_force_numer ( ewald_env, ewald_pw, cell, atomic_kind_set,  &
                              particle_set, local_particles, delta, f_numer )
     CALL mp_sum ( f_numer, group )    
     CALL mp_sum ( dbg % f_g, group )    
   CASE ( do_ewald_pme )
     f_numer = 0.0_dp
-    CALL pme_force_numer ( ewald_env, ewald_pw, particle_set, delta, f_numer,&
+    CALL pme_force_numer ( ewald_env, ewald_pw, cell, particle_set, delta, f_numer,&
          force_env_section=force_env_section, error=error)
   CASE ( do_ewald_spme )
     CALL stop_program ( "fist_debug", " NO SPME debug routines " )
@@ -926,7 +924,7 @@ SUBROUTINE  debug_control ( force_env, globenv, error)
   SELECT CASE ( ewald_type )
   CASE ( do_ewald_ewald )
     pv_test = 0.0_dp
-    CALL pv_g_numer ( ewald_env, ewald_pw, atomic_kind_set, &
+    CALL pv_g_numer ( ewald_env, ewald_pw, cell, atomic_kind_set, &
                        particle_set, local_particles, delta, pv_test )
   CASE ( do_ewald_pme )
     CALL stop_program ( "fist_debug", " NO PME debug routines " )

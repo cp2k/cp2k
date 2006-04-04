@@ -31,14 +31,17 @@ MODULE force_env_methods
   USE cp_subsystem_types,              ONLY: cp_subsys_retain,&
                                              cp_subsystem_p_type
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_retain
-  USE eip_environment_types,           ONLY: eip_env_get,&
-                                             eip_env_retain,&
-                                             eip_environment_type
-  USE eip_silicon,                     ONLY: eip_bazant,&
+  USE ewald_environment_types,         ONLY: ewald_environment_type
+  USE ewald_pw_methods,                ONLY: ewald_pw_grid_change
+  USE ewald_pw_types,                  ONLY: ewald_pw_type
+  USE eip_environment_types,           ONLY: eip_environment_type, &
+                                             eip_env_get, &
+                                             eip_env_retain
+  USE eip_silicon,                     ONLY: eip_bazant, &
                                              eip_lenosky
   USE fist_environment_types,          ONLY: fist_env_retain,&
                                              fist_environment_type,&
-                                             get_fist_env
+                                             get_fist_env, set_fist_env
   USE fist_force,                      ONLY: fist_force_control
   USE force_env_types,                 ONLY: &
        force_env_get, force_env_p_type, force_env_type, use_eip_force, &
@@ -52,9 +55,15 @@ MODULE force_env_methods
                                              section_vals_type
   USE kg_energy,                       ONLY: kg_energies
   USE kg_environment_types,            ONLY: get_kg_env,&
+                                             set_kg_env,&
                                              kg_env_retain,&
                                              kg_environment_type
   USE kg_force,                        ONLY: kg_force_control
+  USE kg_rho_methods,                  ONLY: kg_rho_create
+  USE kg_rho_types,                    ONLY: kg_rho_type, &
+                                             kg_rho_release
+  USE kg_rspw_methods,                 ONLY: kg_rspw_rebuild
+  USE kg_rspw_types,                   ONLY: kg_rspw_type
   USE kinds,                           ONLY: dp
   USE metadynamics,                    ONLY: metadyn_add_forces
   USE metadynamics_types,              ONLY: meta_env_retain,&
@@ -78,7 +87,10 @@ MODULE force_env_methods
                                              qs_environment_type,&
                                              set_qs_env
   USE qs_force,                        ONLY: qs_forces
+  USE qs_ks_methods,                   ONLY: qs_ks_create
   USE qs_ks_qmmm_methods,              ONLY: ks_qmmm_env_rebuild
+  USE qs_ks_types,                     ONLY: qs_ks_env_type, & 
+                                             qs_ks_release 
   USE qs_numerical_pressure,           ONLY: qs_calc_numerical_pressure
   USE tbmd_energy,                     ONLY: tbmd_energies
   USE tbmd_environment_types,          ONLY: tbmd_env_get,&
@@ -143,7 +155,7 @@ RECURSIVE SUBROUTINE force_env_calc_energy_force ( force_env, &
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: energy_consistency, failure, &
-                                                my_box_change, need_f
+                                                need_f
     TYPE(virial_type), POINTER               :: virial
 
 !------------------------------------------------------------------------------
@@ -161,31 +173,28 @@ RECURSIVE SUBROUTINE force_env_calc_energy_force ( force_env, &
   IF (.NOT.failure) THEN
      CPPrecondition(force_env%ref_count>0,cp_failure_level,routineP,error,failure)
   END IF
-!JCS 
   CALL force_env_get(force_env,virial=virial)
   IF (virial%pv_availability) THEN
     CALL zero_virial(force_env%virial,force_env%virial%pv_availability,&
                    force_env%virial%pv_numer) 
   END IF
-!JCS
   IF (.NOT.failure) THEN
-     my_box_change=force_env%box_changed
      
      SELECT CASE ( force_env%in_use )
      CASE ( use_fist_force )
         CALL fist_force_control( force_env%fist_env,force_env%virial, &
-                                 force_env%globenv, my_box_change, error=error)
+                                 force_env%globenv, error=error)
      CASE ( use_qs_force )
         IF (.NOT.need_f) THEN
            CALL qs_energies(qs_env=force_env%qs_env, globenv=force_env%globenv, &
                             consistent_energies=energy_consistency, &
-                            calc_forces=calc_force,box_changed=my_box_change, error=error)
+                            calc_forces=calc_force, error=error)
            IF (virial%pv_availability.AND.virial%pv_numer) THEN
              CALL qs_calc_numerical_pressure(force_env,error=error) 
            END IF
         ELSE
            CALL qs_forces(force_env%qs_env,force_env%globenv,&
-                                            box_changed=my_box_change, error=error)
+                          error=error)
            IF (virial%pv_availability.AND.virial%pv_numer) THEN
              CALL qs_calc_numerical_pressure(force_env,error=error) 
            END IF
@@ -220,7 +229,6 @@ RECURSIVE SUBROUTINE force_env_calc_energy_force ( force_env, &
      IF (ASSOCIATED(force_env%meta_env)) THEN
         CALL metadyn_add_forces(force_env%meta_env,force_env, error=error)
      END IF
-!     force_env%box_changed=.FALSE.
      
      ! Constraint ONLY of Fixed Atom type
      CALL fix_atom_control(force_env, error=error)
@@ -300,7 +308,6 @@ SUBROUTINE force_env_create(force_env,globenv,fist_env,qs_env,kg_env,&
      force_env%id_nr=last_force_env_id
      force_env%ref_count=1
      force_env%in_use=0
-     force_env%box_changed=.FALSE.
 
      force_env%globenv => globenv
      CALL globenv_retain(force_env%globenv,error=error)
@@ -491,6 +498,11 @@ RECURSIVE SUBROUTINE force_env_set_cell(force_env, cell, error)
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
+    TYPE(qs_ks_env_type), POINTER            :: new_ks_env
+    TYPE ( ewald_environment_type ), POINTER         :: ewald_env
+    TYPE ( ewald_pw_type ), POINTER          :: ewald_pw
+    TYPE ( kg_rspw_type ), POINTER           :: kg_rspw 
+    TYPE ( kg_rho_type ), POINTER            :: kg_rho
 
   failure=.FALSE.
   CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
@@ -500,15 +512,29 @@ RECURSIVE SUBROUTINE force_env_set_cell(force_env, cell, error)
   IF (.NOT. failure) THEN
      SELECT CASE(force_env%in_use)
      CASE (use_qs_force)
+        NULLIFY ( new_ks_env )
         CPPrecondition(ASSOCIATED(force_env%qs_env),cp_failure_level,routineP,error,failure)
         CALL set_qs_env(force_env%qs_env,&
              cell=cell,&
              error=error)
-        CALL qs_env_rebuild_pw_env(force_env%qs_env,error=error) !avoidable?
+        CALL qs_env_rebuild_pw_env( force_env % qs_env, error=error)
+        CALL qs_ks_create ( new_ks_env,  force_env % qs_env )
+        CALL set_qs_env( force_env % qs_env, ks_env=new_ks_env )
+        CALL qs_ks_release ( new_ks_env )
      CASE (use_fist_force)
-        CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+        CPPrecondition(ASSOCIATED(force_env%fist_env),cp_failure_level,routineP,error,failure)
+        CALL get_fist_env ( force_env%fist_env, ewald_pw = ewald_pw,  &
+                            ewald_env = ewald_env )
+        CALL set_fist_env(force_env%fist_env, cell=cell, error=error)
+        CALL ewald_pw_grid_change ( ewald_pw, ewald_env, cell, error )
      CASE (use_kg_force)
-        CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+        CPPrecondition(ASSOCIATED(force_env%kg_env),cp_failure_level,routineP,error,failure)
+        CALL set_kg_env(force_env%kg_env,cell=cell, error=error)
+        CALL get_kg_env ( force_env%kg_env, rspw = kg_rspw, rho=kg_rho )
+        CALL kg_rspw_rebuild( kg_rspw, force_env % kg_env, error=error)
+     ! allocate rho structures
+        CALL kg_rho_create(kg_rho=kg_rho,kg_env=force_env % kg_env,error=error)
+        CALL set_kg_env(force_env % kg_env,rho=kg_rho)
      CASE (use_tbmd_force)
         CPAssert(.FALSE., cp_failure_level, routineP, error, failure)
      CASE (use_eip_force)
@@ -519,7 +545,6 @@ RECURSIVE SUBROUTINE force_env_set_cell(force_env, cell, error)
              CPSourceFileRef,&
              error,failure)
      END SELECT
-     force_env%box_changed=.TRUE.
   END IF
 END SUBROUTINE force_env_set_cell
 !***************************************************************************

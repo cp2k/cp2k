@@ -981,12 +981,13 @@ END SUBROUTINE force_imptors_numer
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE ewald_force_numer ( ewald_env, ewald_pw, atomic_kind_set, particle_set,  &
+SUBROUTINE ewald_force_numer ( ewald_env, ewald_pw, cell, atomic_kind_set, particle_set,  &
                                local_particles, numerical_shift, f_numer )
 
 
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
+    TYPE(cell_type), POINTER                 :: cell
     TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
     TYPE(particle_type), POINTER             :: particle_set( : )
     TYPE(distribution_1d_type), POINTER      :: local_particles
@@ -1002,14 +1003,13 @@ SUBROUTINE ewald_force_numer ( ewald_env, ewald_pw, atomic_kind_set, particle_se
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: gauss, r_delta
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: g
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(cell_type), POINTER                 :: cell
     TYPE(pw_grid_type), POINTER              :: pw_grid
     TYPE(pw_pool_type), POINTER              :: pw_pool
 
 !------------------------------------------------------------------------------
 
   nparticle_kind = SIZE ( atomic_kind_set )
-  CALL ewald_pw_get ( ewald_pw, pw_big_pool = pw_pool, cell = cell )
+  CALL ewald_pw_get ( ewald_pw, pw_big_pool = pw_pool )
   pw_grid => pw_pool % pw_grid
   g => pw_grid % g
   ngtot = pw_grid % ngpts_cut
@@ -1850,12 +1850,13 @@ END SUBROUTINE pv_nonbond_numer
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE pv_g_numer ( ewald_env, ewald_pw, atomic_kind_set, particle_set,  &
+SUBROUTINE pv_g_numer ( ewald_env, ewald_pw, cell, atomic_kind_set, particle_set,  &
                         local_particles, delta, pv_test )
 
 
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
+    TYPE(cell_type), POINTER                 :: cell
     TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
     TYPE(particle_type), POINTER             :: particle_set( : )
     TYPE(distribution_1d_type), POINTER      :: local_particles
@@ -1874,13 +1875,13 @@ SUBROUTINE pv_g_numer ( ewald_env, ewald_pw, atomic_kind_set, particle_set,  &
       DIMENSION(:, :)                        :: s
     REAL(KIND=dp), DIMENSION(3, 3)           :: dvdh
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: g
-    TYPE(cell_type), POINTER                 :: cell, cell_local
+    TYPE(cell_type), POINTER                 ::  cell_local
     TYPE(pw_grid_type), POINTER              :: pw_grid
     TYPE(pw_pool_type), POINTER              :: pw_pool
 
 !------------------------------------------------------------------------------
 
-  CALL ewald_pw_get ( ewald_pw, pw_big_pool = pw_pool, cell = cell )
+  CALL ewald_pw_get ( ewald_pw, pw_big_pool = pw_pool )
   pw_grid => pw_pool % pw_grid
   ngtot = pw_grid % ngpts_cut
 
@@ -2134,10 +2135,11 @@ END SUBROUTINE force_g_numer
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE pme_force_numer ( ewald_env, ewald_pw, particle_set, delta, f_part ,&
+SUBROUTINE pme_force_numer ( ewald_env, ewald_pw, cell, particle_set, delta, f_part ,&
      force_env_section, error)
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
+    TYPE ( cell_type ), POINTER              :: cell
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     REAL(KIND=dp), INTENT(IN)                :: delta
@@ -2154,10 +2156,10 @@ SUBROUTINE pme_force_numer ( ewald_env, ewald_pw, particle_set, delta, f_part ,&
   DO i = 1, natoms 
     DO id = 1, 3
       particle_set ( i ) % r ( id ) = particle_set ( i ) % r ( id ) + delta 
-      CALL pme_evaluate ( ewald_env, ewald_pw, particle_set, eplus,&
+      CALL pme_evaluate ( ewald_env, ewald_pw, cell, particle_set, eplus,&
            force_env_section=force_env_section,error=error)
       particle_set ( i ) % r ( id ) = particle_set ( i ) % r ( id ) - 2.0_dp * delta 
-      CALL pme_evaluate ( ewald_env, ewald_pw, particle_set, eminus,&
+      CALL pme_evaluate ( ewald_env, ewald_pw, cell, particle_set, eminus,&
            force_env_section=force_env_section,error=error )
       f_part ( id, i ) = eminus - eplus
       particle_set ( i ) % r ( id ) = particle_set ( i ) % r ( id ) + delta 
@@ -2184,12 +2186,13 @@ END SUBROUTINE pme_force_numer
 !!
 !!   SOURCE
 !******************************************************************************
- SUBROUTINE ewald_energy_numer ( ewald_env, ewald_pw, atomic_kind_set, &
+ SUBROUTINE ewald_energy_numer ( ewald_env, ewald_pw, cell, atomic_kind_set, &
                                  particle_set, local_particles, energy_numer )
 
 
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
+    TYPE(cell_type), POINTER                 :: cell
     TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
     TYPE(particle_type), POINTER             :: particle_set( : )
     TYPE(distribution_1d_type), POINTER      :: local_particles
@@ -2201,13 +2204,12 @@ END SUBROUTINE pme_force_numer
     REAL(KIND=dp)                            :: alpha, epsilon0
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: gauss
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: g
-    TYPE(cell_type), POINTER                 :: cell
     TYPE(pw_grid_type), POINTER              :: pw_grid
     TYPE(pw_pool_type), POINTER              :: pw_pool
 
 !------------------------------------------------------------------------------
 
-  CALL ewald_pw_get ( ewald_pw, pw_big_pool = pw_pool, cell = cell )
+  CALL ewald_pw_get ( ewald_pw, pw_big_pool = pw_pool )
   pw_grid => pw_pool % pw_grid
   g => pw_grid % g
   ngtot = pw_grid % ngpts_cut

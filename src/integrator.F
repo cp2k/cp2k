@@ -50,10 +50,10 @@ MODULE integrator
   USE extended_system_dynamics,        ONLY: lnhc
   USE extended_system_types,           ONLY: lnhc_parameters_type,&
                                              npt_info_type
-  USE force_env_methods,               ONLY: force_env_calc_energy_force
+  USE force_env_methods,               ONLY: force_env_calc_energy_force, &
+                                             force_env_set_cell
   USE force_env_types,                 ONLY: force_env_get,&
-                                             force_env_p_type,&
-                                             force_env_set
+                                             force_env_p_type
   USE input_constants,                 ONLY: &
        dyn_coeff_mass_atom, dyn_coeff_mass_coeff, dyn_coeff_mass_global, &
        dyn_coeff_mass_kind, nph_ensemble, nph_uniaxial_damped_ensemble, &
@@ -478,7 +478,6 @@ CONTAINS
 
 !     *** Update forces ***
 
-!      CALL force_env_set(force_env_p(1)%force_env,box_changed=.false.)
        CALL force_env_calc_energy_force(force_env_p(1)%force_env,error=error)
 
 !     *** Velocity Verlet (second part) ***
@@ -679,7 +678,6 @@ CONTAINS
         work(:,iparticle) = 0.0_dp
       END DO
 
-!      CALL force_env_set(force_env_p(1)%force_env,box_changed=.false.)
       CALL force_env_calc_energy_force(force_env_p(1)%force_env,error=error)
 
       ! compute K,a,b,s,ds
@@ -919,7 +917,6 @@ CONTAINS
 
 !     *** Update forces ***
 
-!      CALL force_env_set(force_env_p(1)%force_env,box_changed=.false.)
       CALL force_env_calc_energy_force(force_env_p(1)%force_env,error=error)
 
 !     *** Velocity Verlet (second part) ***
@@ -1225,7 +1222,7 @@ CONTAINS
 
 !     *** Update forces ***
 
-      CALL force_env_set(force_env_p(1)%force_env,box_changed=.TRUE.)
+      CALL force_env_set_cell(force_env_p(1)%force_env, cell, error)
       CALL force_env_calc_energy_force(force_env_p(1)%force_env,error=error)
 
 !     *** Velocity Verlet (second part) ***
@@ -1604,7 +1601,7 @@ CONTAINS
 
 !     *** Update forces (and stress)***
 
-      CALL force_env_set(force_env_p(1)%force_env,box_changed=.TRUE.)
+      CALL force_env_set_cell(force_env_p(1)%force_env, cell, error)
       CALL force_env_calc_energy_force(force_env_p(1)%force_env, error=error)
 
 !     *** Velocity Verlet (second part) ***
@@ -1806,7 +1803,6 @@ CONTAINS
 
 !------------------------------------------------------------------------------
 
-! CJM DBG
 ! perform damping on velocities
       CALL damp_v ( molecule_kind_set, molecule_set, atomic_kind_set,   &
                     particle_set, local_molecules, gamma1, npt ( 1, 1 ), &
@@ -1909,7 +1905,7 @@ CONTAINS
 
 !     *** Update forces ***
 
-      CALL force_env_set(force_env_p(1)%force_env,box_changed=.TRUE.)
+      CALL force_env_set_cell(force_env_p(1)%force_env, cell, error)
       CALL force_env_calc_energy_force(force_env_p(1)%force_env, error=error)
 
 !     *** Velocity Verlet (second part) ***
@@ -2473,7 +2469,7 @@ END SUBROUTINE deallocate_old
 
 !     *** Update forces ***
 
-       CALL force_env_set(force_env_p(1)%force_env,box_changed=.TRUE.)
+      CALL force_env_set_cell(force_env_p(1)%force_env, cell, error)
        CALL force_env_calc_energy_force(force_env_p(1)%force_env,error=error)
 
 !     *** Velocity Verlet (second part) ***

@@ -24,11 +24,15 @@
 MODULE mc_moves
   USE atomic_kind_types,               ONLY: get_atomic_kind
   USE cell_types,                      ONLY: cell_type,&
-                                             get_cell
+                                             get_cell,&
+                                             cell_release,&
+                                             cell_clone,&
+                                             cell_create
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsys_set,&
                                              cp_subsystem_p_type
-  USE force_env_methods,               ONLY: force_env_calc_energy_force
+  USE force_env_methods,               ONLY: force_env_calc_energy_force,&
+                                             force_env_set_cell
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_release,&
                                              force_env_type,&
@@ -834,7 +838,6 @@ CONTAINS
 
 ! call a random number to figure out how far we're moving
       IF(ionode) rand=next_random_number(rng_stream)
-!      CALL RANDOM_NUMBER(rand)
       CALL mp_bcast(rand,source,group)
       dgamma=rmrot*(rand-0.5E0_dp)*2.0E0_dp
 
@@ -935,7 +938,7 @@ CONTAINS
          ENDIF
 
          IF (rand .LT. w) THEN
-!            WRITE(6,*) 'ACCEPT: ',bias_energy_new,bias_energy_old
+
 ! accept the move
             moves%bias_rot%successes=moves%bias_rot%successes+1
             move_updates%bias_rot%successes=move_updates%bias_rot%successes+1
@@ -945,8 +948,6 @@ CONTAINS
                                  bias_energy_old
 
          ELSE
-
-!            WRITE(6,*) 'REJECT: ',bias_energy_new,bias_energy_old
 
 ! reject the move
 ! restore the coordinates
@@ -1050,15 +1051,16 @@ CONTAINS
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: mass
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: r
+    REAL(KIND=dp), DIMENSION(1:3,1:3) :: hmat_test
     REAL(KIND=dp), DIMENSION(1:3) :: abc, center_of_mass, center_of_mass_new, &
-      diff, new_cell_length, old_cell_length, test_cell_length
-    TYPE(cell_type), POINTER                 :: cell_old
+      diff, new_cell_length, old_cell_length
+    TYPE(cell_type), POINTER                 :: cell_old,cell_test,cell
     TYPE(cp_subsystem_p_type), &
-      DIMENSION(:), POINTER                  :: oldsys, testsys
-    TYPE(force_env_type), POINTER            :: test_env
+      DIMENSION(:), POINTER                  :: oldsys!, testsys
+!    TYPE(force_env_type), POINTER            :: test_env
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds_new
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
-    TYPE(particle_list_type), POINTER        :: particles_old, particles_test
+    TYPE(particle_list_type), POINTER        :: particles_old!, particles_test
 
 !   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
@@ -1074,8 +1076,9 @@ CONTAINS
          ldiscrete=ldiscrete,print_level=print_level)
 
 ! nullify some pointers
-      NULLIFY(particles_old,particles_test,cell_old,oldsys,&
-         testsys,test_env)
+!      NULLIFY(particles_old,particles_test,cell_old,oldsys,&
+!         testsys,test_env,cell_test)
+      NULLIFY(particles_old,cell_old,oldsys,cell_test,cell)
 
 ! do some allocation
       ALLOCATE (r(1:3,1:nunits_tot),STAT=istat)
@@ -1087,9 +1090,11 @@ CONTAINS
       move_updates%volume%attempts=move_updates%volume%attempts+1
 
 ! now let's grab the cell length and particle positions
-      CALL force_env_get(force_env,subsys=oldsys,cell=cell_old,&
+      CALL force_env_get(force_env,subsys=oldsys,cell=cell,&
          error=error)
-      CALL get_cell(cell_old,abc=abc)
+      CALL get_cell(cell,abc=abc)
+      CALL cell_create(cell_old)
+      CALL cell_clone(cell,cell_old,error=error)
       CALL cp_subsys_get(oldsys(1)%subsys,particles=particles_old, &
          molecule_kinds_new=molecule_kinds_new,error=error)
 
@@ -1108,9 +1113,6 @@ CONTAINS
       old_cell_length(1)=abc(1)
       old_cell_length(2)=abc(2)
       old_cell_length(3)=abc(3)
-      test_cell_length(1)=abc(1)
-      test_cell_length(2)=abc(2)
-      test_cell_length(3)=abc(3)
 
 ! save the old coordiantes
       DO iatom=1,nunits_tot
@@ -1119,23 +1121,13 @@ CONTAINS
 
 ! fold the coordinates into the central box
       CALL mc_coordinate_fold(r(:,:),nunits_tot,mass,nunits,&
-         test_cell_length(1:3))
+         old_cell_length(1:3))
 
-! make the new dat file
-      IF (ionode) THEN
-         CALL mc_make_dat_file(r(:,:),nunits_tot,&
-            test_cell_length(1:3)*angstrom,&
-            dat_file,force_env,TRIM(fft_lib),print_level)
-      ENDIF
+! save the folded coordiantes
+      DO iatom=1,nunits_tot
+         particles_old%els(iatom)%r(1:3)=r(1:3,iatom)
+      ENDDO
 
-! make a test environment that we can alter to calculate the energy
-!      globenv%input_file_name=dat_file
-      CALL mc_create_force_env(test_env, globenv, dat_file,error=error)
-
-! grab the coords so we can change them
-      CALL force_env_get(test_env,subsys=testsys,error=error)
-      CALL cp_subsys_get(testsys(1)%subsys, &
-             particles=particles_test, error=error)
 
 ! now do the move
 
@@ -1151,13 +1143,12 @@ CONTAINS
             lincrease=.FALSE.
          ENDIF
          
-         new_cell_length(1:3)=test_cell_length(1:3)
+         new_cell_length(1:3)=old_cell_length(1:3)
 
 ! if we're increasing the volume, we need to find a side we can increase
          IF(lincrease) THEN
             DO
                IF(ionode) rand=next_random_number(rng_stream)
-!     CALL RANDOM_NUMBER(rand)
                CALL mp_bcast(rand,source,group)
                iside_change=CEILING(3.0_dp*rand)
                IF(discrete_array(iside_change,1) .EQ. 1) THEN
@@ -1169,7 +1160,6 @@ CONTAINS
          ELSE
             DO
                IF(ionode) rand=next_random_number(rng_stream)
-!                  CALL RANDOM_NUMBER(rand)
                CALL mp_bcast(rand,source,group)
                iside_change=CEILING(3.0_dp*rand)
                IF(discrete_array(iside_change,2) .EQ. 1) THEN
@@ -1188,14 +1178,17 @@ CONTAINS
 !     vol_dis=5.0E0_dp/angstrom**3
 
          new_cell_length(1:3)=(vol_dis+&
-         test_cell_length(1)*test_cell_length(2)*&
-         test_cell_length(3))**(1.0E0_dp/3.0E0_dp)
+         old_cell_length(1)*old_cell_length(2)*&
+         old_cell_length(3))**(1.0E0_dp/3.0E0_dp)
       ENDIF
 
-! save the molecule coordinates
-      DO iatom=1,nunits_tot
-         r(1:3,iatom)=particles_test%els(iatom)%r(1:3)
-      ENDDO
+! now we need to make the new cell
+      hmat_test(:,:)=0.0d0
+      hmat_test(1,1)=new_cell_length(1)
+      hmat_test(2,2)=new_cell_length(2)
+      hmat_test(3,3)=new_cell_length(3)
+      CALL cell_create(cell_test,hmat_test(:,:),cell%perd,cell%orthorhombic,error=error)
+      CALL force_env_set_cell(force_env,cell_test,error=error)
 
 ! now we need to scale the coordinates of all the molecules by the
 ! center of mass, using the minimum image (not all molecules are in
@@ -1213,7 +1206,7 @@ CONTAINS
 !    old COM to the new one
          DO iside=1,3
             center_of_mass_new(iside)=center_of_mass(iside)*&
-               new_cell_length(iside)/test_cell_length(iside)
+               new_cell_length(iside)/old_cell_length(iside)
          ENDDO
             
          DO i=1,3
@@ -1221,31 +1214,15 @@ CONTAINS
 ! now change the particle positions
             DO iunit=0,nunits-1
                icurrent=iatom+iunit
-               particles_test%els(icurrent)%r(i)=&
-                  particles_test%els(icurrent)%r(i)+diff(i)
+               particles_old%els(icurrent)%r(i)=&
+                  particles_old%els(icurrent)%r(i)+diff(i)
             ENDDO
          ENDDO
       ENDDO
 
 ! check for overlap
-      CALL check_for_overlap(test_env,&
+      CALL check_for_overlap(force_env,&
          nchain,1,nchain,loverlap,cell_length=new_cell_length)
-
-      test_cell_length(1)=new_cell_length(1)
-      test_cell_length(2)=new_cell_length(2)
-      test_cell_length(3)=new_cell_length(3)
-
-! make the new dat file
-      DO iatom=1,nunits_tot
-         r(1:3,iatom)=particles_test%els(iatom)%r(1:3)
-      ENDDO
-
-      IF(ionode) CALL mc_make_dat_file(r(:,:),nunits_tot,&
-         test_cell_length(1:3)*angstrom,&
-         dat_file,force_env,TRIM(fft_lib),print_level)
-
-! realease the environment
-      CALL force_env_release(test_env,error=error)
 
 ! figure out if we have overlap problems
       CALL mp_bcast(loverlap,source,group)
@@ -1270,13 +1247,13 @@ CONTAINS
          ltoo_small=.FALSE.
          IF(force_env%in_use .EQ. use_fist_force) THEN
             CALL get_mc_par(mc_par,rcut=rcut)
-            IF(test_cell_length(1) .LT. 2.0_dp*rcut) ltoo_small=.TRUE.
-            IF(test_cell_length(2) .LT. 2.0_dp*rcut) ltoo_small=.TRUE.
-            IF(test_cell_length(3) .LT. 2.0_dp*rcut) ltoo_small=.TRUE.
+            IF(new_cell_length(1) .LT. 2.0_dp*rcut) ltoo_small=.TRUE.
+            IF(new_cell_length(2) .LT. 2.0_dp*rcut) ltoo_small=.TRUE.
+            IF(new_cell_length(3) .LT. 2.0_dp*rcut) ltoo_small=.TRUE.
             
             IF(ltoo_small) THEN
-               WRITE(iw,*) 'test_cell_lengths ',&
-               test_cell_length(1:3)/angstrom
+               WRITE(iw,*) 'new_cell_lengths ',&
+               new_cell_length(1:3)/angstrom
                WRITE(iw,*) 'rcut ',rcut/angstrom
             ENDIF
          ENDIF
@@ -1286,20 +1263,16 @@ CONTAINS
          CALL stop_program("mc_volume_move",&
          "Attempted a volume move where box size got too small.")
 
-!      globenv%input_file_name=dat_file
-      CALL mc_create_force_env(test_env, globenv, dat_file,error=error)
-
 ! now compute the energy
-      CALL force_env_calc_energy_force(test_env,calc_force=.FALSE.,error=error)
-      test_env%box_changed=.FALSE.
-      CALL force_env_get(test_env,&
+      CALL force_env_calc_energy_force(force_env,calc_force=.FALSE.,error=error)
+      CALL force_env_get(force_env,&
          potential_energy=new_energy,error=error)
            
 ! accept or reject the move
 ! to prevent overflows
       energy_term=new_energy-old_energy
       volume_term=-REAL(nchain,dp)/BETA*&
-      LOG(test_cell_length(1)*test_cell_length(2)*test_cell_length(3)/&
+      LOG(new_cell_length(1)*new_cell_length(2)*new_cell_length(3)/&
          (old_cell_length(1)*old_cell_length(2)*old_cell_length(3)))
       pressure_term=pressure*vol_dis
 
@@ -1330,12 +1303,12 @@ CONTAINS
 
 ! write cell length, volume, density, and trial displacement to a file
 
-!            IF(ionode) WRITE(cl,*) nnstep,test_cell_length(1:3)*angstrom,&
+!            IF(ionode) WRITE(cl,*) nnstep,new_cell_length(1:3)*angstrom,&
 !               (new_energy-old_energy)/3.16682968E-6_dp,classical_energy_diff/3.16682968E-6_dp,&
 !               -REAL(nchain,dp)/&
-!               BETA*3.0E0_dp*LOG(test_cell_length(1)/&
+!               BETA*3.0E0_dp*LOG(new_cell_length(1)/&
 !               old_cell_length)/3.16682968E-6_dp, &
-!               pressure*(test_cell_length(1)**3-old_cell_length**3)/3.16682968E-6_dp,&
+!               pressure*(new_cell_length(1)**3-old_cell_length**3)/3.16682968E-6_dp,&
 !               vol_dis*(angstrom)**3,rand,new_energy/3.16682968E-6_dp,old_energy/3.16682968E-6_dp,w
                
 ! accept the move
@@ -1346,42 +1319,37 @@ CONTAINS
          energy_check=energy_check+(new_energy-old_energy)
          old_energy=new_energy
 
-! and the coordiantes
-         CALL force_env_get(test_env,subsys=testsys,error=error)
-         CALL cp_subsys_get(testsys(1)%subsys, &
-            particles=particles_test, error=error)
-         
          DO iatom=1,nunits_tot
-            r_old(1:3,iatom)=particles_test%els(iatom)%r(1:3)
+            r_old(1:3,iatom)=particles_old%els(iatom)%r(1:3)
          ENDDO
          
-! switch the force env to the new env
-         CALL force_env_release(force_env,error=error)
-         force_env => test_env
-
 ! update discrete_array if we're doing a discrete volume move
          IF(ldiscrete) THEN
-            CALL create_discrete_array(test_cell_length(:),&
+            CALL create_discrete_array(new_cell_length(:),&
                discrete_array(:,:),discrete_step)
          ENDIF
 
       ELSE
 
 ! reject the move
+
+! reset the cell and particle positions
+         CALL force_env_set_cell(force_env,cell_old,error=error)
+         DO iatom=1,nunits_tot
+            particles_old%els(iatom)%r(1:3)=r_old(1:3,iatom)
+         ENDDO
+
 ! write cell length, volume, density, and trial displacement to a file
 !            IF(ionode) WRITE(cl,*) nnstep,old_cell_length*angstrom,&
 !               (new_energy-old_energy)/3.16682968E-6_dp,classical_energy_diff/3.16682968E-6_dp,&
 !               -REAL(nchain,dp)/&
-!               BETA*3.0E0_dp*LOG(test_cell_length(1)/&
+!               BETA*3.0E0_dp*LOG(new_cell_length(1)/&
 !               old_cell_length)/3.16682968E-6_dp, &
-!               pressure*(test_cell_length(1)*test_cell_length(2)*&
-!               test_cell_length(3)-old_cell_length**3)/3.16682968E-6_dp,&
+!               pressure*(new_cell_length(1)*new_cell_length(2)*&
+!               new_cell_length(3)-old_cell_length**3)/3.16682968E-6_dp,&
 !               vol_dis*(angstrom)**3,rand,new_energy/3.16682968E-6_dp,old_energy/3.16682968E-6_dp,w
                
 
-
-! release some memory
-         CALL force_env_release(test_env,error=error)
 
       ENDIF
 
@@ -1393,6 +1361,8 @@ CONTAINS
       DEALLOCATE(mass,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                        "mass")
+      CALL cell_release(cell_test,error=error)
+      CALL cell_release(cell_old,error=error)
 
 ! end the timing
       CALL timestop(0.0E0_dp,handle)
@@ -2464,8 +2434,6 @@ CONTAINS
 
 ! AVBMC with CBMC
          w=prefactor*weight_new/weight_old
-!     WRITE(6,*) 'einvodi ',new_energy,old_energy,lin,move_type
-!     WRITE(6,*) 'invodi ',weight_new,weight_old,w
       ENDIF
          
 ! check if the move is accepted
@@ -2521,8 +2489,6 @@ CONTAINS
 
 
       ELSE
-
-!         WRITE(6,*) 'REJECTED'
 
 ! reject the move...need to restore the old coordinates
          IF(lbias) THEN

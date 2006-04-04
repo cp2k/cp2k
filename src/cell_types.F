@@ -221,7 +221,7 @@ CONTAINS
       INTENT(OUT), OPTIONAL                  :: cell_angle
 
     REAL(KIND=dp)                            :: alpha, beta, gamma
-    TYPE(cell_type), POINTER                 :: cell
+   TYPE(cell_type), POINTER                 :: cell
 
 !   ---------------------------------------------------------------------------
 

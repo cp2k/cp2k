@@ -388,8 +388,6 @@ SUBROUTINE mc_create_force_env ( force_env, globenv_old,input_file_name,error )
 
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(global_environment_type), POINTER   :: globenv_old
-!    LOGICAL, INTENT(IN)                      :: box_change
-!    INTEGER, INTENT(IN)                      :: in_use
     CHARACTER(LEN=*),INTENT(IN)               :: input_file_name
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
@@ -437,7 +435,6 @@ SUBROUTINE mc_create_force_env ( force_env, globenv_old,input_file_name,error )
       SELECT CASE ( globenv%prog_name_id )
       CASE ( do_fist )
          CALL fist_create_force_env(force_env, globenv, error=error)
-         force_env%box_changed=.TRUE.
       CASE ( do_qs )
          CALL quickstep_create_force_env(force_env, globenv, error=error)
       CASE ( do_kg )
@@ -469,7 +466,6 @@ END SUBROUTINE mc_create_force_env
 !!     - force_env: the force environment we're copying cell length
 !!           and coordinates from
 !!     - globenv: the global environment parameters
-!!     - box_change: is this a volume or swap move?
 !!     - fft_lib: the FFT library we're using (e.g. FFTW, FFTSG)
 !!     - error: the CP error structure
 !!
@@ -480,11 +476,10 @@ END SUBROUTINE mc_create_force_env
 !!
 !!*****************************************************************************
 SUBROUTINE mc_create_bias_force_env (bias_env,force_env,&
-            globenv,box_change,fft_lib,print_level,ionode,error)
+            globenv,fft_lib,print_level,ionode,error)
 
     TYPE(force_env_type), POINTER            :: bias_env, force_env
     TYPE(global_environment_type), POINTER   :: globenv
-    LOGICAL, INTENT(IN)                      :: box_change
     CHARACTER(LEN=*), INTENT(IN)             :: fft_lib
     LOGICAL, INTENT(IN)                      :: ionode
     INTEGER,INTENT(IN)                       :: print_level

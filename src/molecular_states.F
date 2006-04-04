@@ -13,7 +13,7 @@
 !!     Routines for the calculation of molecular states
 !!
 !!   AUTHOR
-!!     Manu Manu (transcribed by CJM) 
+!!     CJM
 !!
 !!   MODIFICATION HISTORY
 !!

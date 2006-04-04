@@ -86,12 +86,13 @@ CONTAINS
 !!
 !!*** *************************************************************************
 
-SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, particle_set, &
+SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, box, particle_set, &
                            fg_coulomb, vg_coulomb, pv_g, force_env_section,error )
 
 
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
+    TYPE(cell_type), POINTER                 :: box
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     REAL(KIND=dp), DIMENSION(:, :), &
@@ -113,7 +114,6 @@ SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, particle_set, &
       DIMENSION(:, :, :)                     :: rhos
     REAL(KIND=dp), DIMENSION(3)              :: fat
     REAL(KIND=dp), DIMENSION(3, 3)           :: f_stress, h_stress
-    TYPE(cell_type), POINTER                 :: box
     TYPE(greens_fn_type), POINTER            :: green
     TYPE(pw_grid_type), POINTER              :: grid_spme
     TYPE(pw_p_type), DIMENSION(3)            :: dphi_g
@@ -127,11 +127,11 @@ SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, particle_set, &
 !------------------------------------------------------------------------------
 !-------------- INITIALISATION ---------------------
 
-    NULLIFY(box, poisson_env)
+    NULLIFY( poisson_env)
   CALL timeset ( 'SPME', 'I', ' ', handle )
   CALL ewald_env_get ( ewald_env, alpha=alpha, eps0 = eps0, &
                        o_spline = o_spline, group = group )
-  CALL ewald_pw_get ( ewald_pw, pw_big_pool=pw_pool, cell = box,&
+  CALL ewald_pw_get ( ewald_pw, pw_big_pool=pw_pool, &
        poisson_env=poisson_env)
   CALL pw_poisson_rebuild(poisson_env,error=error)
   green => poisson_env%green_fft

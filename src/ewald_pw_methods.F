@@ -83,9 +83,10 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE ewald_pw_grid_change ( ewald_pw, ewald_env, error )
+SUBROUTINE ewald_pw_grid_change ( ewald_pw, ewald_env, cell,  error )
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
     TYPE(ewald_environment_type), POINTER    :: ewald_env
+    TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -95,7 +96,6 @@ SUBROUTINE ewald_pw_grid_change ( ewald_pw, ewald_env, error )
     INTEGER                                  :: ewald_type, o_spline, stat
     LOGICAL                                  :: failure
     REAL(dp)                                 :: alpha
-    TYPE(cell_type), POINTER                 :: cell
     TYPE(dg_type), POINTER                   :: dg
     TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(pw_pool_p_type), DIMENSION(:), &
@@ -107,7 +107,6 @@ SUBROUTINE ewald_pw_grid_change ( ewald_pw, ewald_env, error )
  
   NULLIFY ( pw_big_pool )
   NULLIFY ( pw_small_pool )
-  NULLIFY ( cell )
   NULLIFY ( dg, poisson_env, poisson_section )
 
   CALL ewald_env_get ( ewald_env, ewald_type = ewald_type, &
@@ -115,7 +114,7 @@ SUBROUTINE ewald_pw_grid_change ( ewald_pw, ewald_env, error )
                        poisson_section=poisson_section)
   SELECT CASE ( ewald_type )
   CASE ( do_ewald_ewald )
-     CALL ewald_pw_get ( ewald_pw, cell = cell, pw_big_pool = pw_big_pool, &
+     CALL ewald_pw_get ( ewald_pw, pw_big_pool = pw_big_pool, &
                          dg = dg, poisson_env=poisson_env )
      CALL pw_grid_change ( cell, pw_big_pool % pw_grid )
      CALL ewald_pw_rho0_setup ( ewald_env, pw_big_pool % pw_grid, dg )
@@ -123,7 +122,7 @@ SUBROUTINE ewald_pw_grid_change ( ewald_pw, ewald_env, error )
      CALL ewald_pw_set ( ewald_pw, pw_big_pool = pw_big_pool, dg = dg, &
           poisson_env=poisson_env )
   CASE ( do_ewald_pme )
-     CALL ewald_pw_get ( ewald_pw, cell = cell, pw_big_pool = pw_big_pool, &
+     CALL ewald_pw_get ( ewald_pw, pw_big_pool = pw_big_pool, &
                          pw_small_pool = pw_small_pool, dg = dg, &
                          poisson_env=poisson_env )
      IF (.NOT.ASSOCIATED(poisson_env)) THEN
@@ -137,7 +136,7 @@ SUBROUTINE ewald_pw_grid_change ( ewald_pw, ewald_env, error )
                          pw_small_pool = pw_small_pool, dg = dg, &
                          poisson_env=poisson_env )
   CASE ( do_ewald_spme )
-     CALL ewald_pw_get ( ewald_pw, cell = cell, pw_big_pool = pw_big_pool,&
+     CALL ewald_pw_get ( ewald_pw, pw_big_pool = pw_big_pool,&
           poisson_env=poisson_env)
      IF (.NOT.ASSOCIATED(poisson_env)) THEN
         CALL pw_poisson_create(poisson_env,error=error)
@@ -155,7 +154,6 @@ SUBROUTINE ewald_pw_grid_change ( ewald_pw, ewald_env, error )
      pw_pools(1)%pool => pw_big_pool
      CALL pw_poisson_set(poisson_env,cell=cell,parameters=poisson_section,&
           use_level=1,pw_pools=pw_pools,error=error)
-   ! CJM  CALL pw_poisson_rebuild(poisson_env,error=error)
      DEALLOCATE(pw_pools,stat=stat)
      CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
   END IF

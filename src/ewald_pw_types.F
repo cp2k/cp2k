@@ -19,9 +19,7 @@
 !******************************************************************************
 
 MODULE ewald_pw_types
-  USE cell_types,                      ONLY: cell_release,&
-                                             cell_retain,&
-                                             cell_type
+  USE cell_types,                      ONLY: cell_type 
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -77,7 +75,6 @@ MODULE ewald_pw_types
      INTEGER :: ref_count, id_nr
      TYPE ( pw_pool_type ), POINTER       :: pw_small_pool
      TYPE ( pw_pool_type ), POINTER       :: pw_big_pool
-     TYPE ( cell_type ),    POINTER       :: cell, cell_ref
      TYPE ( pw_poisson_type ), POINTER    :: poisson_env
      TYPE ( dg_type ), POINTER            :: dg
   END TYPE ewald_pw_type
@@ -129,10 +126,10 @@ END SUBROUTINE ewald_pw_retain
 !!   MODIFICATION HISTORY
 !!
 !!*** **********************************************************************
-SUBROUTINE ewald_pw_create ( ewald_pw, cell, cell_ref, ewald_env, force_env_section, error )
+SUBROUTINE ewald_pw_create ( ewald_pw, ewald_env, cell, cell_ref, force_env_section, error )
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
-    TYPE(cell_type), POINTER                 :: cell, cell_ref
     TYPE(ewald_environment_type), POINTER    :: ewald_env
+    TYPE ( cell_type ), POINTER              :: cell, cell_ref
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -152,14 +149,12 @@ SUBROUTINE ewald_pw_create ( ewald_pw, cell, cell_ref, ewald_env, force_env_sect
      NULLIFY ( ewald_pw % pw_big_pool ) 
      NULLIFY ( ewald_pw % pw_small_pool ) 
      NULLIFY ( ewald_pw % poisson_env )
-     NULLIFY ( ewald_pw % cell ) 
-     NULLIFY ( ewald_pw % cell_ref ) 
      CALL dg_create ( dg, error )
      ewald_pw % dg => dg 
      ewald_pw%ref_count=1
      last_ewald_pw_id_nr=last_ewald_pw_id_nr+1
      ewald_pw%id_nr=last_ewald_pw_id_nr
-     CALL ewald_pw_init ( ewald_pw, cell, cell_ref, ewald_env, force_env_section,&
+     CALL ewald_pw_init ( ewald_pw, ewald_env, cell, cell_ref, force_env_section,&
           error=error )
   END IF
 END SUBROUTINE ewald_pw_create
@@ -199,8 +194,6 @@ END SUBROUTINE ewald_pw_create
       CALL pw_pool_release ( ewald_pw % pw_small_pool, error = error )
       CALL pw_pool_release ( ewald_pw % pw_big_pool, error = error )
       CALL pw_poisson_release ( ewald_pw % poisson_env, error = error )
-      CALL cell_release ( ewald_pw % cell, error )
-      CALL cell_release ( ewald_pw % cell_ref, error )
       CALL dg_release ( ewald_pw % dg, error )
       DEALLOCATE (  ewald_pw , stat = stat )
       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
@@ -230,11 +223,11 @@ END SUBROUTINE ewald_pw_create
 !!   SOURCE
 !!*****
 !******************************************************************************
-SUBROUTINE ewald_pw_init ( ewald_pw, cell, cell_ref, ewald_env, print_section, error )
+SUBROUTINE ewald_pw_init ( ewald_pw, ewald_env, cell, cell_ref, print_section, error )
   
 
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
-    TYPE(cell_type), POINTER                 :: cell, cell_ref
+    TYPE ( cell_type ), POINTER              :: cell_ref, cell
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(section_vals_type), POINTER         :: print_section
     TYPE(cp_error_type), INTENT(inout), &
@@ -393,19 +386,13 @@ SUBROUTINE ewald_pw_init ( ewald_pw, cell, cell_ref, ewald_env, print_section, e
        DEALLOCATE(pw_pools,stat=stat)
        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
     END IF
-    CALL cell_retain ( cell )
-    CALL cell_retain ( cell_ref )
-    CALL cell_release ( ewald_pw % cell )
-    CALL cell_release ( ewald_pw % cell_ref )
-    ewald_pw % cell => cell
-    ewald_pw % cell_ref => cell_ref
   ENDIF
   CALL timestop(0.0_dp,handle)
 
 END SUBROUTINE ewald_pw_init
 
 ! *****************************************************************************
-  SUBROUTINE ewald_pw_get (ewald_pw, cell, cell_ref, pw_big_pool,  &
+  SUBROUTINE ewald_pw_get (ewald_pw, pw_big_pool,  &
                             pw_small_pool, poisson_env, dg )
 !
 !   Purpose: get the ewald_pw environment to the correct program.
@@ -413,7 +400,6 @@ END SUBROUTINE ewald_pw_init
 ! ***************************************************************************
 
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
-    TYPE(cell_type), OPTIONAL, POINTER       :: cell, cell_ref
     TYPE(pw_pool_type), OPTIONAL, POINTER    :: pw_big_pool, pw_small_pool
     TYPE(pw_poisson_type), OPTIONAL, POINTER :: poisson_env
     TYPE(dg_type), OPTIONAL, POINTER         :: dg
@@ -425,13 +411,11 @@ END SUBROUTINE ewald_pw_init
     IF ( PRESENT ( pw_big_pool ) )  pw_big_pool => ewald_pw % pw_big_pool
     IF ( PRESENT ( pw_small_pool ) )  pw_small_pool => ewald_pw % pw_small_pool
     IF ( PRESENT ( dg ) )  dg => ewald_pw % dg
-    IF ( PRESENT ( cell ) )  cell => ewald_pw % cell
-    IF ( PRESENT ( cell_ref ) )  cell_ref => ewald_pw % cell_ref
     
   END SUBROUTINE ewald_pw_get 
          
 ! *****************************************************************************
-  SUBROUTINE ewald_pw_set (ewald_pw, cell, cell_ref, pw_big_pool,  &
+  SUBROUTINE ewald_pw_set (ewald_pw, pw_big_pool,  &
                            pw_small_pool, dg, poisson_env, error )
 
 !!   Purpose: Set the ewald_pw environment to the correct program.
@@ -439,7 +423,6 @@ END SUBROUTINE ewald_pw_init
 !   ***************************************************************************
 
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
-    TYPE(cell_type), OPTIONAL, POINTER       :: cell, cell_ref
     TYPE(pw_pool_type), OPTIONAL, POINTER    :: pw_big_pool, pw_small_pool
     TYPE(dg_type), OPTIONAL, POINTER         :: dg
     TYPE(pw_poisson_type), OPTIONAL, POINTER :: poisson_env
@@ -464,16 +447,6 @@ END SUBROUTINE ewald_pw_init
         CALL dg_release ( ewald_pw % dg, error = error )
         ewald_pw % dg => dg
     ENDIF
-    IF (PRESENT(cell)) THEN
-       CALL cell_retain(cell, error=error)
-       CALL cell_release(ewald_pw%cell,error=error)
-       ewald_pw%cell => cell
-    END IF
-    IF (PRESENT(cell_ref)) THEN
-       CALL cell_retain(cell_ref, error=error)
-       CALL cell_release(ewald_pw%cell_ref,error=error)
-       ewald_pw%cell_ref => cell_ref
-    END IF
     IF (PRESENT(poisson_env)) THEN
        IF (ASSOCIATED(poisson_env)) &
             CALL pw_poisson_retain(poisson_env,error=error)

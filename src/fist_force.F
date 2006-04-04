@@ -32,7 +32,6 @@ MODULE fist_force
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE ewald_environment_types,         ONLY: ewald_env_get,&
                                              ewald_environment_type
-  USE ewald_pw_methods,                ONLY: ewald_pw_grid_change
   USE ewald_pw_types,                  ONLY: ewald_pw_type
   USE ewalds,                          ONLY: ewald_evaluate,&
                                              ewald_print
@@ -105,17 +104,17 @@ MODULE fist_force
 !!     JGH (15-Mar-2001) : box_change replaces ensemble parameter
 !!                         Call ewald_setup if box has changed
 !!                         Consistent setup for PME and SPME
+!!     cjm, 28-Feb-2006: box_change is gone
 !!
 !!   SOURCE
 !!******************************************************************************
 
-SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug ,error)
+SUBROUTINE fist_force_control ( fist_env, virial, globenv,  debug ,error)
 
 
     TYPE(fist_environment_type), POINTER     :: fist_env
     TYPE(virial_type), POINTER               :: virial
     TYPE(global_environment_type), POINTER   :: globenv
-    LOGICAL, INTENT(IN)                      :: box_change
     TYPE(debug_variables_type), &
       INTENT(INOUT), OPTIONAL                :: debug
     TYPE(cp_error_type), INTENT(inout), &
@@ -185,10 +184,6 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug ,er
 
   ALLOCATE ( f_nonbond ( 3, natoms ), STAT = stat )
   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-! reinitialize the gspace for the new box
-  IF ( ( box_change ) .OR. ( first_time ) ) THEN
-    CALL ewald_pw_grid_change ( ewald_pw, ewald_env )
-  ENDIF
 
 ! first check with list_control to update neighbor lists
 
@@ -261,7 +256,7 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug ,er
         ALLOCATE ( fg_coulomb ( 3, nlocal_particles ), STAT=stat )
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         fg_coulomb = 0.0_dp
-        CALL ewald_evaluate ( ewald_env, ewald_pw, atomic_kind_set, particle_set, &
+        CALL ewald_evaluate ( ewald_env, ewald_pw, cell, atomic_kind_set, particle_set, &
                               local_particles, fg_coulomb, vg_coulomb, pv_g )
         
      CASE ( do_ewald_pme )
@@ -269,7 +264,7 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug ,er
         ALLOCATE ( fg_coulomb ( 3, natoms ), STAT=stat )
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         fg_coulomb = 0.0_dp
-        CALL pme_evaluate ( ewald_env, ewald_pw, particle_set, &
+        CALL pme_evaluate ( ewald_env, ewald_pw, cell, particle_set, &
                             vg_coulomb, fg_coulomb, pv_g , force_env_section, error)
         CALL mp_sum ( fg_coulomb, globenv % group ) 
      CASE ( do_ewald_spme )
@@ -277,7 +272,7 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv, box_change, debug ,er
         ALLOCATE ( fg_coulomb ( 3, natoms ), STAT=stat )
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         fg_coulomb = 0.0_dp
-        CALL spme_evaluate ( ewald_env, ewald_pw, particle_set, &
+        CALL spme_evaluate ( ewald_env, ewald_pw, cell, particle_set, &
                              fg_coulomb, vg_coulomb, pv_g, force_env_section, error)
         CALL mp_sum ( fg_coulomb, globenv % group ) 
         

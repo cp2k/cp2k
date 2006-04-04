@@ -99,10 +99,11 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
 
-  SUBROUTINE pme_evaluate ( ewald_env, ewald_pw, particle_set, vg_coulomb, fg_coulomb,&
+  SUBROUTINE pme_evaluate ( ewald_env, ewald_pw, box, particle_set, vg_coulomb, fg_coulomb,&
        pv_g, force_env_section, error )
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
+    TYPE(cell_type), POINTER                 :: box
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     REAL(KIND=dp), INTENT(OUT)               :: vg_coulomb
@@ -122,7 +123,6 @@ CONTAINS
                                                 inv_fourpi_eps0
     REAL(KIND=dp), DIMENSION(3)              :: fat
     REAL(KIND=dp), DIMENSION(3, 3)           :: f_stress, h_stress
-    TYPE(cell_type), POINTER                 :: box
     TYPE(coeff_type)                         :: rhos1, rhos2
     TYPE(dg_rho0_type), POINTER              :: dg_rho0
     TYPE(dg_type), POINTER                   :: dg
@@ -136,12 +136,12 @@ CONTAINS
     TYPE(realspace_grid_type), POINTER       :: rden
     TYPE(structure_factor_type)              :: exp_igr
 
-    NULLIFY( box, poisson_env, rden, drpot)
+    NULLIFY( poisson_env, rden, drpot)
     failure = .FALSE.
     CALL timeset ( 'PME', 'I', ' ', handle )
     CALL ewald_env_get (ewald_env, alpha=alpha, eps0 = eps0, group = group )
     CALL ewald_pw_get (ewald_pw, pw_big_pool=pw_big_pool, & 
-                       pw_small_pool=pw_small_pool, cell=box, &
+                       pw_small_pool=pw_small_pool, &
                        poisson_env=poisson_env, dg = dg )
 
     grid_b => pw_big_pool % pw_grid

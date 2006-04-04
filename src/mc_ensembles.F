@@ -281,7 +281,7 @@ CONTAINS
          IF(lbias) THEN
             CALL mc_create_bias_force_env(bias_env(ibox)%force_env,&
                force_env(ibox)%force_env,&
-               globenv,.FALSE.,TRIM(fft_lib),print_level,ionode,error)
+               globenv,TRIM(fft_lib),print_level,ionode,error)
             IF(nchain(ibox) .NE. 0) THEN
                CALL force_env_calc_energy_force(bias_env(ibox)%force_env,&
                   calc_force=.FALSE.,error=error)
@@ -432,7 +432,7 @@ CONTAINS
                   CALL force_env_release(bias_env(ibox)%force_env,error=error)
                   CALL mc_create_bias_force_env(bias_env(ibox)%force_env,&
                      force_env(ibox)%force_env,&
-                     globenv,.FALSE.,TRIM(fft_lib),print_level,ionode,error)
+                     globenv,TRIM(fft_lib),print_level,ionode,error)
                   IF(nchain(ibox) .NE. 0) THEN
                      CALL force_env_calc_energy_force(&
                         bias_env(ibox)%force_env,&

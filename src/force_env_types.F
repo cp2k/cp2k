@@ -17,6 +17,7 @@
 !!     cjm, FEB-20-2001: pass variable box_ref
 !!     cjm, SEPT-12-2002: major reorganization
 !!     fawzi, APR-12-2003: introduced force_env
+!!     cjm, FEB-27-2006: no more box_change
 !!
 !!   SOURCE
 !******************************************************************************
@@ -105,9 +106,6 @@ MODULE force_env_types
 !!       environment of the fragments
 !!     - meta_env: the metadynamics environment, allocated if there is
 !!       metadynamics
-!!     - box_changed: if the cell has canged since the last evaluation
-!!       of the forces
-!!
 !!     read-only attributes (get them *only* through force_env_get):
 !!     - subsys: the fragments that build up the actual system.
 !!       The subsystems (and thus their para_envs) are supposed to be ordered in
@@ -128,7 +126,6 @@ MODULE force_env_types
   TYPE force_env_type
 !     PRIVATE
      INTEGER :: id_nr,ref_count,in_use
-     LOGICAL :: box_changed
      TYPE ( fist_environment_type ), POINTER :: fist_env 
      TYPE ( kg_environment_type ), POINTER :: kg_env
      TYPE ( meta_env_type ), POINTER :: meta_env
@@ -334,7 +331,7 @@ END SUBROUTINE force_env_release
 RECURSIVE SUBROUTINE force_env_get(force_env, in_use, &
      fist_env, qs_env, kg_env, meta_env, dyn_coeff_set, subsys, para_env, &
      potential_energy, kinetic_energy, cell, cell_ref, sub_force_env, qmmm_env,&
-     tbmd_env, eip_env, virial, box_changed, use_ref_cell, globenv, input, error)
+     tbmd_env, eip_env, virial, use_ref_cell, globenv, input, error)
     TYPE(force_env_type), POINTER            :: force_env
     INTEGER, INTENT(out), OPTIONAL           :: in_use
     TYPE(fist_environment_type), OPTIONAL, &
@@ -362,7 +359,7 @@ RECURSIVE SUBROUTINE force_env_get(force_env, in_use, &
     TYPE(eip_environment_type), OPTIONAL, &
       POINTER                                :: eip_env
     TYPE(virial_type), OPTIONAL, POINTER     :: virial
-    LOGICAL, INTENT(out), OPTIONAL           :: box_changed, use_ref_cell
+    LOGICAL, INTENT(out), OPTIONAL           :: use_ref_cell
     TYPE(global_environment_type), &
       OPTIONAL, POINTER                      :: globenv
     TYPE(section_vals_type), OPTIONAL, &
@@ -547,7 +544,6 @@ RECURSIVE SUBROUTINE force_env_get(force_env, in_use, &
      IF (PRESENT(sub_force_env)) sub_force_env => force_env%sub_force_env
      IF (PRESENT(qmmm_env)) qmmm_env => force_env%qmmm_env
      IF ( PRESENT ( virial ) )   virial => force_env % virial
-     IF (PRESENT(box_changed)) box_changed = force_env%box_changed
      IF (PRESENT(globenv)) globenv => force_env%globenv
   END IF
 END SUBROUTINE force_env_get
@@ -578,11 +574,10 @@ END SUBROUTINE force_env_get
 !!     09.2003 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE force_env_set(force_env, meta_env, virial, box_changed, error)
+SUBROUTINE force_env_set(force_env, meta_env, virial, error)
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(meta_env_type), OPTIONAL, POINTER   :: meta_env
     TYPE(virial_type), OPTIONAL, POINTER     :: virial
-    LOGICAL, INTENT(in), OPTIONAL            :: box_changed
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -611,7 +606,6 @@ SUBROUTINE force_env_set(force_env, meta_env, virial, box_changed, error)
         CALL virial_release(force_env%virial,error=error)
         force_env%virial => virial
      END IF
-     IF (PRESENT(box_changed)) force_env%box_changed=box_changed
   END IF
 END SUBROUTINE force_env_set
 !***************************************************************************

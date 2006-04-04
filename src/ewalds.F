@@ -83,10 +83,11 @@ MODULE ewalds
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE ewald_evaluate (ewald_env, ewald_pw, atomic_kind_set, particle_set,  &
+SUBROUTINE ewald_evaluate (ewald_env, ewald_pw, cell, atomic_kind_set, particle_set,  &
                            local_particles, fg_coulomb, vg_coulomb, pv_g )
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
+    TYPE(cell_type), POINTER                 :: cell
     TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
     TYPE(particle_type), POINTER             :: particle_set( : )
     TYPE(distribution_1d_type), POINTER      :: local_particles
@@ -111,7 +112,6 @@ SUBROUTINE ewald_evaluate (ewald_env, ewald_pw, atomic_kind_set, particle_set,  
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: rho0
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(cell_type), POINTER                 :: cell
     TYPE(dg_rho0_type), POINTER              :: dg_rho0
     TYPE(dg_type), POINTER                   :: dg
     TYPE(pw_grid_type), POINTER              :: pw_grid
@@ -126,8 +126,7 @@ SUBROUTINE ewald_evaluate (ewald_env, ewald_pw, atomic_kind_set, particle_set,  
 
 ! pointing
   CALL ewald_env_get (ewald_env, alpha=alpha, eps0 = eps0, group = group )
-  CALL ewald_pw_get (ewald_pw, pw_big_pool=pw_pool, dg = dg, &
-                     cell = cell )
+  CALL ewald_pw_get (ewald_pw, pw_big_pool=pw_pool, dg = dg )
   CALL dg_get ( dg, dg_rho0=dg_rho0 )
   rho0 => dg_rho0 % density % pw % cr3d
   pw_grid => pw_pool % pw_grid

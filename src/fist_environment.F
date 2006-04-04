@@ -43,6 +43,7 @@ MODULE fist_environment
                                              ewald_env_set,&
                                              ewald_environment_type,&
                                              read_ewald_section
+  USE ewald_pw_methods,                ONLY: ewald_pw_grid_change
   USE ewald_pw_types,                  ONLY: ewald_pw_create,&
                                              ewald_pw_release,&
                                              ewald_pw_type
@@ -302,10 +303,13 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
                                  force_env_section=force_env_section,&
                                  error=error )
 
-! Initialize ewald grids
+! Create ewald grids
   grid_print_section => section_vals_get_subs_vals(force_env_section,&
        "PRINT%GRID_INFORMATION",error=error)
-  CALL ewald_pw_create ( ewald_pw, cell, cell_ref, ewald_env, grid_print_section, error )
+  CALL ewald_pw_create ( ewald_pw, ewald_env, cell, cell_ref, grid_print_section, error )
+
+! initialize ewald grids
+  CALL ewald_pw_grid_change ( ewald_pw, ewald_env, cell, error )
 
 ! Initialize self-interaction and neutralizing background
   CALL ewald_self ( ewald_env, atomic_kind_set, local_particles, &

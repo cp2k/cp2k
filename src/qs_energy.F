@@ -30,12 +30,9 @@ MODULE qs_energy
   USE qs_environment_methods,          ONLY: qs_env_rebuild_pw_env,&
                                              qs_env_update_s_mstruct
   USE qs_environment_types,            ONLY: get_qs_env,&
-                                             qs_environment_type,&
-                                             set_qs_env
-  USE qs_ks_methods,                   ONLY: qs_ks_create,&
-                                             qs_ks_update_qs_env
-  USE qs_ks_types,                     ONLY: qs_ks_env_type,&
-                                             qs_ks_release
+                                             qs_environment_type
+  USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
+  USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE qs_neighbor_lists,               ONLY: build_qs_neighbor_lists
   USE qs_scf,                          ONLY: scf
   USE qs_semi_empirical_hamiltonian,   ONLY: build_se_core_matrix
@@ -62,8 +59,7 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE qs_energies (qs_env, globenv, consistent_energies, calc_forces, &
-                          box_changed, error)
-
+                          error)
 !   Purpose: QUICKSTEP single point wavefunction optimization.
 
 !   History: - Creation (29.10.2002,MK)
@@ -73,8 +69,7 @@ CONTAINS
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(global_environment_type), POINTER   :: globenv
-    LOGICAL, INTENT(IN), OPTIONAL            :: consistent_energies, &
-                                                calc_forces, box_changed
+    LOGICAL, INTENT(IN), OPTIONAL            :: consistent_energies,  calc_forces 
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -84,24 +79,11 @@ CONTAINS
     INTEGER                                  :: handle
     LOGICAL                                  :: right_iteration_level
     TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(qs_ks_env_type), POINTER            :: new_ks_env
     TYPE(section_vals_type), POINTER         :: input
 
 !   ---------------------------------------------------------------------------
 
     CALL timeset(routineN,"I","",handle)
-
-!JCS
-!  **** Rebuild pw_env and ks_env if box has changed ****
-    IF (PRESENT(box_changed)) THEN
-      IF (box_changed) THEN
-        CALL qs_env_rebuild_pw_env(qs_env)
-        CALL qs_ks_create ( new_ks_env, qs_env )
-        CALL set_qs_env(qs_env, ks_env=new_ks_env )
-        CALL qs_ks_release ( new_ks_env )
-      END IF
-    END IF
-!JCS
 
     CALL get_qs_env(qs_env=qs_env,input=input, dft_control=dft_control, &
                     error=error)

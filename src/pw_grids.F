@@ -2390,7 +2390,6 @@ SUBROUTINE pw_find_cutoff_qs ( bounds, h_inv, cutoff, error )
     REAL(KIND=dp), DIMENSION(3, 3)           :: gmat, gmat_inv
 
 !------------------------------------------------------------------------------
-
    gmat = MATMUL ( h_inv, TRANSPOSE ( h_inv ) )
    CALL dsyev("V","U",3,gmat,3,eig,work,lwork,info)
    IF ( info /= 0 ) CALL stop_program ( "pw_find_cutoff", "dsyev:info" )

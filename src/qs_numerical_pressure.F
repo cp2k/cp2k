@@ -31,9 +31,14 @@ MODULE qs_numerical_pressure
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
-  USE input_constants,                 ONLY: qs_debug_run
+  USE input_constants,                 ONLY: qs_debug_run, energy_force_run
   USE kinds,                           ONLY: dp
   USE particle_types,                  ONLY: particle_type
+  USE qs_environment_methods,          ONLY: qs_env_rebuild_pw_env
+  USE qs_environment_types,            ONLY: set_qs_env
+  USE qs_ks_methods,                   ONLY: qs_ks_create 
+  USE qs_ks_types,                     ONLY: qs_ks_release, &
+                                             qs_ks_env_type 
   USE qs_energy,                       ONLY: qs_energies
   USE virial_types,                    ONLY: virial_type
 #include "cp_common_uses.h"
@@ -68,6 +73,7 @@ MODULE qs_numerical_pressure
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particles
     TYPE(virial_type), POINTER               :: virial
+    TYPE ( qs_ks_env_type ), POINTER         :: new_ks_env
 
     NULLIFY(cell_local)
     failure = .FALSE.
@@ -83,8 +89,6 @@ MODULE qs_numerical_pressure
            'NUMERICAL STRESS ********************************'
        END IF
 
-!       CALL qs_energies(force_env%qs_env,globenv,&
-!                        consistent_energies=.TRUE.,box_changed=.FALSE.)
        iseq = 0
        DO isubsys=1, SIZE(subsys)
           iseq = iseq + subsys(isubsys)%subsys%particles%n_els
@@ -130,15 +134,24 @@ MODULE qs_numerical_pressure
            !
            ! Since the box has changed, rebuild grids, i.e. pw_env and ks_env
            !
-           force_env%box_changed = .TRUE.
-           force_env%qs_env%use_ref_cell=.TRUE.
+           NULLIFY ( new_ks_env )
+!           force_env%qs_env%use_ref_cell=.TRUE.
+           CALL set_qs_env(force_env%qs_env,&
+                           cell=cell,error=error)
+           CALL qs_env_rebuild_pw_env( force_env % qs_env, error=error)
+           CALL qs_ks_create ( new_ks_env, force_env % qs_env )
+           CALL set_qs_env(force_env % qs_env, ks_env=new_ks_env )
+           CALL qs_ks_release ( new_ks_env )
+           !
+           ! Compute energies
+           !
            CALL qs_energies(force_env%qs_env,globenv,&
-                            consistent_energies=.TRUE.,box_changed=.TRUE.,error=error)
+                            consistent_energies=.TRUE.,error=error)
            numer_energy(k) = force_env%qs_env%energy%total
 ! reset cell
            cell%hmat(ip,ip) = cell_local%hmat(ip,ip)
          END DO
-       CALL get_hinv( cell )
+         CALL get_hinv( cell )
          numer_stress(ip) = (numer_energy(1) - numer_energy(2) ) / (2.0_dp*Dx)                
          virial%pv_virial(ip,ip) = (-1.0_dp)*numer_stress(ip) * cell_local%hmat(ip,ip)
          IF (globenv%run_type_id.EQ.qs_debug_run) THEN
@@ -160,15 +173,17 @@ MODULE qs_numerical_pressure
          END DO
        END DO
        CALL get_hinv ( cell )
-       force_env%box_changed = .TRUE.
-       force_env%qs_env%use_ref_cell=.TRUE.
-!       CALL qs_env_rebuild_pw_env(force_env%qs_env,error=error)
-!       CALL qs_ks_create ( new_ks_env, force_env%qs_env, error=error )
-!       CALL set_qs_env(force_env%qs_env, ks_env=new_ks_env,error=error)
-!       CALL qs_ks_release ( new_ks_env, error=error )
-!       force_env%box_changed = .FALSE.
-!      CALL qs_energies(force_env%qs_env,globenv,&
-!                       consistent_energies=.TRUE.,box_changed=.TRUE.)
+!       force_env%qs_env%use_ref_cell=.TRUE.
+       !
+       ! Rebuild the appropriate environments to obtain original environment
+       !
+       NULLIFY ( new_ks_env )
+       CALL set_qs_env(force_env%qs_env,&
+                       cell=cell,error=error)
+       CALL qs_env_rebuild_pw_env( force_env % qs_env, error=error)
+       CALL qs_ks_create ( new_ks_env, force_env % qs_env )
+       CALL set_qs_env (force_env % qs_env, ks_env=new_ks_env )
+       CALL qs_ks_release ( new_ks_env )
 
        IF (globenv%ionode) THEN
        WRITE ( iw, '( /A,A/ )' ) ' **************************** ', &

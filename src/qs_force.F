@@ -96,7 +96,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE qs_forces(qs_env,globenv,box_changed,error)
+  SUBROUTINE qs_forces(qs_env,globenv,error)
 
 !   Purpose: Calculate the Quickstep forces.
 
@@ -106,7 +106,6 @@ CONTAINS
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(global_environment_type), POINTER   :: globenv
-    LOGICAL, OPTIONAL                        :: box_changed
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -161,15 +160,6 @@ CONTAINS
     NULLIFY (harris_env)
 
     harris_flag = qs_env%use_harris
-!JCS
-!  **** Rebuild pw_env and ks_env if box has changed ****
-    IF (box_changed) THEN
-      CALL qs_env_rebuild_pw_env(qs_env)
-      CALL qs_ks_create ( new_ks_env, qs_env )
-      CALL set_qs_env(qs_env, ks_env=new_ks_env )
-      CALL qs_ks_release ( new_ks_env )
-    END IF
-!JCS
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
                     dft_control=dft_control,&
