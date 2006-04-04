@@ -1188,6 +1188,7 @@ CONTAINS
       hmat_test(2,2)=new_cell_length(2)
       hmat_test(3,3)=new_cell_length(3)
       CALL cell_create(cell_test,hmat_test(:,:),cell%perd,cell%orthorhombic,error=error)
+      cell_test%subcells=cell_old%subcells
       CALL force_env_set_cell(force_env,cell_test,error=error)
 
 ! now we need to scale the coordinates of all the molecules by the
