@@ -156,7 +156,9 @@ CONTAINS
     NULLIFY (set_radius_a,set_radius_b,rpgfa, rpgfb, sphi_a,sphi_b,zeta, zetb )
 
     CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set,&
-         cell=cell,particle_set=particle_set,sab_orb=sab_orb)
+         cell=cell,particle_set=particle_set,&
+!         sab_orb=sab_orb)
+         sab_all=sab_orb)
 
     nkind = SIZE(atomic_kind_set)
 
@@ -331,15 +333,15 @@ CONTAINS
                                      block_row=irow,&
                                      block_col=icol,&
                                      block=op_dip(i)%block)
-                 IF(iatom/=jatom) THEN
-                   NULLIFY(op_dip2(i)%block)
-                   irow = jatom
-                   icol = iatom
-                   CALL get_block_node(matrix=op_sm(i)%matrix,&
-                                     block_row=irow,&
-                                     block_col=icol,&
-                                     block=op_dip2(i)%block)
-                 END IF
+!                 IF(iatom/=jatom) THEN
+!                   NULLIFY(op_dip2(i)%block)
+!                   irow = jatom
+!                   icol = iatom
+!                   CALL get_block_node(matrix=op_sm(i)%matrix,&
+!                                     block_row=irow,&
+!                                     block_col=icol,&
+!                                     block=op_dip2(i)%block)
+!                 END IF
               END DO
             END IF  ! new_atom_b
             rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
@@ -425,38 +427,38 @@ CONTAINS
 !                          SIZE(op_dip(3)%block,1))
 !                   END IF
 !dbg
-                IF(iatom == jatom) GOTO 100
+!                IF(iatom == jatom) GOTO 100
 !            *** Calculate the primitive overlap integrals ***
-                   CALL diffop(lb_max(jset),npgfb(jset),zetb(:,jset),&
-                        rpgfb(:,jset),lb_min(jset), la_max(iset),npgfa(iset),&
-                        zeta(:,iset),rpgfa(:,iset),la_min(iset),-rab,difab)
+!                   CALL diffop(lb_max(jset),npgfb(jset),zetb(:,jset),&
+!                        rpgfb(:,jset),lb_min(jset), la_max(iset),npgfa(iset),&
+!                        zeta(:,iset),rpgfa(:,iset),la_min(iset),-rab,difab)
 !            *** Contraction ***
-                   CALL dgemm("N","N",ncob,nsgfa(iset),ncoa,&
-                        1.0_dp,difab(1,1,1),ldab,sphi_a(1,sgfa),ldsa,&
-                        0.0_dp,work(1,1),ldwork)
-                   CALL dgemm("T","N",nsgfb(jset),nsgfa(iset),ncob,&
-                        1.0_dp,sphi_b(1,sgfb),ldsb,&
-                        work(1,1),ldwork,&
-                        1.0_dp,op_dip2(1)%block(sgfb,sgfa),&
-                        SIZE(op_dip2(1)%block,1))
+!                   CALL dgemm("N","N",ncob,nsgfa(iset),ncoa,&
+!                        1.0_dp,difab(1,1,1),ldab,sphi_a(1,sgfa),ldsa,&
+!                        0.0_dp,work(1,1),ldwork)
+!                   CALL dgemm("T","N",nsgfb(jset),nsgfa(iset),ncob,&
+!                        1.0_dp,sphi_b(1,sgfb),ldsb,&
+!                        work(1,1),ldwork,&
+!                        1.0_dp,op_dip2(1)%block(sgfb,sgfa),&
+!                        SIZE(op_dip2(1)%block,1))
 !            *** Contraction ***
-                   CALL dgemm("N","N",ncob,nsgfa(iset),ncoa,&
-                        1.0_dp,difab(1,1,2),ldab,sphi_a(1,sgfa),ldsa,&
-                        0.0_dp,work(1,1),ldwork)
-                   CALL dgemm("T","N",nsgfb(jset),nsgfa(iset),ncob,&
-                        1.0_dp,sphi_b(1,sgfb),ldsb,&
-                        work(1,1),ldwork,&
-                        1.0_dp,op_dip2(2)%block(sgfb,sgfa),&
-                        SIZE(op_dip2(2)%block,1))
+!                   CALL dgemm("N","N",ncob,nsgfa(iset),ncoa,&
+!                        1.0_dp,difab(1,1,2),ldab,sphi_a(1,sgfa),ldsa,&
+!                        0.0_dp,work(1,1),ldwork)
+!                   CALL dgemm("T","N",nsgfb(jset),nsgfa(iset),ncob,&
+!                        1.0_dp,sphi_b(1,sgfb),ldsb,&
+!                        work(1,1),ldwork,&
+!                        1.0_dp,op_dip2(2)%block(sgfb,sgfa),&
+!                        SIZE(op_dip2(2)%block,1))
 !!            *** Contraction ***
-                   CALL dgemm("N","N",ncob,nsgfa(iset),ncoa,&
-                        1.0_dp,difab(1,1,3),ldab,sphi_a(1,sgfa),ldsa,&
-                        0.0_dp,work(1,1),ldwork)
-                   CALL dgemm("T","N",nsgfb(jset),nsgfa(iset),ncob,&
-                        1.0_dp,sphi_b(1,sgfb),ldsb,&
-                        work(1,1),ldwork,&
-                        1.0_dp,op_dip2(3)%block(sgfb,sgfa),&
-                        SIZE(op_dip2(3)%block,1))
+!                   CALL dgemm("N","N",ncob,nsgfa(iset),ncoa,&
+!                        1.0_dp,difab(1,1,3),ldab,sphi_a(1,sgfa),ldsa,&
+!                        0.0_dp,work(1,1),ldwork)
+!                   CALL dgemm("T","N",nsgfb(jset),nsgfa(iset),ncob,&
+!                        1.0_dp,sphi_b(1,sgfb),ldsb,&
+!                        work(1,1),ldwork,&
+!                        1.0_dp,op_dip2(3)%block(sgfb,sgfa),&
+!                        SIZE(op_dip2(3)%block,1))
 
 !dbg
 !   write(*,*) 'primitives reverse', jatom, iatom, ncob,ncoa
@@ -464,7 +466,7 @@ CONTAINS
 !    write(*,'(i4,23f10.5)') i, (difab(i,j,1), j=1,ncoa)
 !   end do
 !dbg
- 100 CONTINUE
+! 100 CONTINUE
 !dbg
                 END IF  !  >= dab
 
@@ -615,7 +617,9 @@ CONTAINS
     NULLIFY (set_radius_a,set_radius_b,rpgfa, rpgfb, sphi_a,sphi_b,zeta, zetb )
 
     CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set,&
-         cell=cell,particle_set=particle_set,sab_orb=sab_orb)
+         cell=cell,particle_set=particle_set,&
+!         sab_orb=sab_orb)
+         sab_all=sab_orb)
 
     nkind = SIZE(atomic_kind_set)
 
@@ -838,28 +842,28 @@ CONTAINS
                           SIZE(op_angij(i)%block,1))
                   END DO 
 
-             IF(iatom/=jatom) THEN
+!             IF(iatom/=jatom) THEN
 !            *** Calculate the primitive overlap integrals (jatom iatom)***
-                  rc(1:3) = rb(1:3)
-                  rbc(1:3) = 0.0_dp
-                  rac(1:3) = -rab(1:3)
-!                  rac(1:3) = ra(1:3)
-!                  rbc(1:3) = rb(1:3)
-                  CALL angmom(lb_max(jset),npgfb(jset),zetb(:,jset),&
-                        rpgfb(:,jset),lb_min(jset), la_max(iset),npgfa(iset),&
-                        zeta(:,iset),rpgfa(:,iset),la_min(iset),rbc,rac,angab)
+!                  rc(1:3) = rb(1:3)
+!                  rbc(1:3) = 0.0_dp
+!                  rac(1:3) = -rab(1:3)
+!!                  rac(1:3) = ra(1:3)
+!!                  rbc(1:3) = rb(1:3)
+!                  CALL angmom(lb_max(jset),npgfb(jset),zetb(:,jset),&
+!                        rpgfb(:,jset),lb_min(jset), la_max(iset),npgfa(iset),&
+!                        zeta(:,iset),rpgfa(:,iset),la_min(iset),rbc,rac,angab)
 !            *** Contraction ***
-                  DO i = 1,3
-                     CALL dgemm("N","N",ncob,nsgfa(iset),ncoa,&
-                          1.0_dp,angab(1,1,i),ldab,sphi_a(1,sgfa),ldsa,&
-                          0.0_dp,work(1,1),ldwork)
-                     CALL dgemm("T","N",nsgfb(jset),nsgfa(iset),ncob,&
-                          1.0_dp,sphi_b(1,sgfb),ldsb,&
-                          work(1,1),ldwork,&
-                          1.0_dp,op_angji(i)%block(sgfb,sgfa),&
-                          SIZE(op_angji(i)%block,1))
-                  END DO 
-               END IF
+!                  DO i = 1,3
+!                     CALL dgemm("N","N",ncob,nsgfa(iset),ncoa,&
+!                          1.0_dp,angab(1,1,i),ldab,sphi_a(1,sgfa),ldsa,&
+!                          0.0_dp,work(1,1),ldwork)
+!                     CALL dgemm("T","N",nsgfb(jset),nsgfa(iset),ncob,&
+!                          1.0_dp,sphi_b(1,sgfb),ldsb,&
+!                          work(1,1),ldwork,&
+!                          1.0_dp,op_angji(i)%block(sgfb,sgfa),&
+!                          SIZE(op_angji(i)%block,1))
+!                  END DO 
+!               END IF
 
                 END IF  !  >= dab
 
@@ -1303,7 +1307,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'set_up_op_sm', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: iab, iatom, ikind, ilist, inode, istat, jatom, jkind, &
+    INTEGER :: iab, iatom, icol, ikind, ilist, inode, irow, istat, jatom, jkind, &
       last_jatom, natom, neighbor_list_id, nkind, nlist, nnode, nsgf
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf, last_sgf
     LOGICAL                                  :: failure, new_atom_b
@@ -1329,8 +1333,15 @@ CONTAINS
          atomic_kind_set=atomic_kind_set,&
          particle_set=particle_set,&
          distribution_2d=distribution_2d,&
-         neighbor_list_id=neighbor_list_id,&
-         sab_orb=sab_orb)
+         neighbor_list_id=neighbor_list_id)
+
+    IF(symmetry=="none") THEN
+      CALL get_qs_env(qs_env=qs_env,&
+           sab_all=sab_orb)
+    ELSE
+      CALL get_qs_env(qs_env=qs_env,&
+           sab_all=sab_orb)
+    END IF
 
     nkind = SIZE(atomic_kind_set,1)
     natom = SIZE(particle_set)
@@ -1411,18 +1422,36 @@ CONTAINS
             END IF
 
             NULLIFY(block)
-            CALL add_1d_block_node(matrix=matrix,&
-                                block_row=iatom,&
-                                block_col=jatom,&
-                                block=block)
-
-            IF(iatom/=jatom) THEN
-              NULLIFY(block)
-              CALL add_1d_block_node(matrix=matrix,&
-                                  block_row=jatom,&
-                                  block_col=iatom,&
+            IF(symmetry=="none") THEN
+              CALL add_block_node(matrix=matrix,&
+                                  block_row=iatom,&
+                                  block_col=jatom,&
+                                  block=block)
+            ELSE
+              IF(iatom<=jatom) THEN
+                irow = iatom
+                icol = jatom
+              ELSE
+                irow = jatom
+                icol = iatom
+              END IF
+              CALL add_block_node(matrix=matrix,&
+                                  block_row=irow,&
+                                  block_col=icol,&
                                   block=block)
             END IF
+!            CALL add_1d_block_node(matrix=matrix,&
+!                                block_row=iatom,&
+!                                block_col=jatom,&
+!                                block=block)
+!
+!            IF(iatom/=jatom) THEN
+!              NULLIFY(block)
+!              CALL add_1d_block_node(matrix=matrix,&
+!                                  block_row=jatom,&
+!                                  block_col=iatom,&
+!                                  block=block)
+!            END IF
             sab_orb_neighbor_node => next(sab_orb_neighbor_node)
           END DO  ! inode
 

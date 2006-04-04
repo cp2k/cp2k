@@ -67,6 +67,7 @@ MODULE qs_linres_nmr_current
                                              rs_pool_give_back_rs,&
                                              rs_pools_create_rs_vect
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply,&
+                                             cp_sm_fm_multiply_general,&
                                              cp_sm_plus_fm_fm_t
   USE cube_utils,                      ONLY: cube_info_type,&
                                              return_cube
@@ -334,7 +335,7 @@ CONTAINS
 
 ! First compute the contribution to the CHI tensor coming from the soft density
           CALL chi_soft_analytic(nmr_env,qs_env,psi1,p_psi1,ispin,i_B,error=error)
- STOP 'chi'
+ stop 'chi'
 
           CALL cp_fm_set_all(psi1(ispin)%matrix,0.0_dp,error=error)
           !First contribution from the response psi1_p
@@ -375,8 +376,13 @@ CONTAINS
             ! Apply the p operator
 
             CALL cp_fm_set_all(p_psi1(ispin)%matrix,0.0_dp,error=error)
-            CALL cp_sm_fm_multiply(nmr_env%op_p_ao(idir)%matrix,psi1(ispin)%matrix,&
-                 p_psi1(ispin)%matrix,ncol=nmo,alpha=-1.0_dp,error=error)
+            IF(nmr_env%op_p_ao(idir)%matrix%symmetry=="none") THEN
+               CALL cp_sm_fm_multiply_general(nmr_env%op_p_ao(idir)%matrix,psi1(ispin)%matrix,&
+                    p_psi1(ispin)%matrix,ncol=nmo,alpha=-1.0_dp,error=error)
+            ELSE
+               CALL cp_sm_fm_multiply(nmr_env%op_p_ao(idir)%matrix,psi1(ispin)%matrix,&
+                    p_psi1(ispin)%matrix,ncol=nmo,alpha=-1.0_dp,error=error)
+            END IF
        ! These additional terms should give zero contribution due to
        ! the orthogonality of the response functions with respect to the unperturbed set
             IF(idir==ii_B) THEN
@@ -417,8 +423,13 @@ CONTAINS
             psi3 => fm_work1
             p_psi3 => p_psi1(ispin)%matrix
             CALL cp_fm_to_fm(nmr_env%psi1_p(ispin,iii_B)%matrix,psi3)
-            CALL cp_sm_fm_multiply(nmr_env%op_p_ao(idir)%matrix,psi3,&
-                 p_psi3,ncol=nmo,alpha=-1.0_dp,error=error)
+            IF(nmr_env%op_p_ao(idir)%matrix%symmetry=="none") THEN
+              CALL cp_sm_fm_multiply_general(nmr_env%op_p_ao(idir)%matrix,psi3,&
+                   p_psi3,ncol=nmo,alpha=-1.0_dp,error=error)
+            ELSE
+              CALL cp_sm_fm_multiply(nmr_env%op_p_ao(idir)%matrix,psi3,&
+                   p_psi3,ncol=nmo,alpha=-1.0_dp,error=error)
+            END IF
             IF ( .NOT. uni_occ ) THEN
               CALL cp_fm_column_scale(psi3,occupation(1:homo))
               CALL cp_fm_column_scale(p_psi3,occupation(1:homo))
@@ -439,8 +450,13 @@ CONTAINS
             psi2 => fm_work1
             p_psi2 => p_psi1(ispin)%matrix
             CALL cp_fm_to_fm(nmr_env%psi1_p(ispin,ii_B)%matrix,psi2)
-            CALL cp_sm_fm_multiply(nmr_env%op_p_ao(idir)%matrix,psi2,&
-                 p_psi2,ncol=nmo,alpha=-1.0_dp,error=error)
+            IF(nmr_env%op_p_ao(idir)%matrix%symmetry=="none") THEN
+              CALL cp_sm_fm_multiply_general(nmr_env%op_p_ao(idir)%matrix,psi2,&
+                   p_psi2,ncol=nmo,alpha=-1.0_dp,error=error)
+            ELSE
+              CALL cp_sm_fm_multiply(nmr_env%op_p_ao(idir)%matrix,psi2,&
+                   p_psi2,ncol=nmo,alpha=-1.0_dp,error=error)
+            END IF
             IF ( .NOT. uni_occ ) THEN
               CALL cp_fm_column_scale(psi2,occupation(1:homo))
               CALL cp_fm_column_scale(p_psi2,occupation(1:homo))
@@ -574,7 +590,8 @@ CONTAINS
 
  ! *****************************************************************************
  
-  SUBROUTINE calculate_jrho_resp(mat_jp,mat_jp_rii,mat_jp_riii,ii_B,iii_B,rho_rs, rho_gs, qs_env, soft_valid, error)
+  SUBROUTINE calculate_jrho_resp(mat_jp,mat_jp_rii,mat_jp_riii,ii_B,iii_B,&
+             rho_rs, rho_gs, qs_env, soft_valid, error)
 
     TYPE(real_matrix_type), POINTER          :: mat_jp, mat_jp_rii, &
                                                 mat_jp_riii
@@ -675,7 +692,7 @@ CONTAINS
                     cell=cell,&
                     dft_control=dft_control,&
                     particle_set=particle_set,&
-                    sab_orb=sab_orb,&
+                    sab_all=sab_orb,&
                     para_env=para_env,&
                     input=input,&
                     pw_env=pw_env)
@@ -689,6 +706,8 @@ CONTAINS
          error=error)
 !    CALL section_vals_val_get(interp_section,"KIND",i_val=interp_kind,error=error)
 
+!   Check that the neighbor list with all the pairs is associated
+    CPPrecondition(ASSOCIATED(sab_orb),cp_failure_level,routineP,error,failure)
     ! *** set up the pw multi-grids
     CPPrecondition(ASSOCIATED(pw_env),cp_failure_level,routineP,error,failure)
     CALL pw_env_get(pw_env, rs_pools=rs_pools, error=error)
@@ -969,109 +988,109 @@ CONTAINS
 !!!!!!!!!!
 !!!!!!!!!!  The response current density is not a symmetric function
 !!!!!!!!!!
-            IF(iatom/=jatom) THEN
-              brow = jatom
-              bcol = iatom
-  
-               CALL get_block_node(matrix=mat_jp,&
-                                   block_row=brow,&
-                                   block_col=bcol,&
-                                   BLOCK=jp_block)
-               CALL get_block_node(matrix=mat_jp_rii,&
-                                   block_row=brow,&
-                                   block_col=bcol,&
-                                   BLOCK=jp_block_rii)
-               CALL get_block_node(matrix=mat_jp_riii,&
-                                   block_row=brow,&
-                                   block_col=bcol,&
-                                   BLOCK=jp_block_riii)
-
-               IF (.NOT.ASSOCIATED(jp_block)) THEN
-                 sab_orb_neighbor_node => next(sab_orb_neighbor_node)
-                 CYCLE
-               END IF
-
-               IF (distributed_rs_grids) THEN
-                 NULLIFY (jpblock,jpblock_rii,jp_block_riii )
-                 CALL add_block_node ( deltajp, brow, bcol, jpblock )
-                 jpblock = jp_block
-                 CALL add_block_node ( deltajp_rii, brow, bcol, jpblock_rii )
-                 jpblock_rii = jp_block_rii
-                 CALL add_block_node ( deltajp_riii, brow, bcol, jpblock_riii )
-                 jpblock_riii = jp_block_riii
-               ELSE
-                 jpblock => jp_block
-                 jpblock_rii => jp_block_rii
-                 jpblock_riii => jp_block_riii
-               ENDIF
-
-               IF (.NOT. map_consistent) THEN
-                 IF ( ALL ( 100.0_dp*ABS(jpblock) < eps_rho_rspace) ) THEN
-                   sab_orb_neighbor_node => next(sab_orb_neighbor_node)
-                   CYCLE
-                 END IF
-               END IF
-
-               rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
-               dab = SQRT(rab2)
-
-               DO jset=1,nsetb
-                 IF (set_radius_b(jset) + kind_radius_a < dab) CYCLE
- 
-                 DO iset = 1,nseta
-                   IF (set_radius_a(iset) + set_radius_b(jset) < dab) CYCLE
-
-                   DO jpgf=1,npgfb(jset)
-                     IF (rpgfb(jpgf,jset) + set_radius_a(iset) < dab) CYCLE
-
-                     DO ipgf=1,npgfa(iset)
-                       IF (rpgfb(jpgf,jset) + rpgfa(ipgf,iset) < dab) CYCLE
-
-                       zetp = zeta(ipgf,iset) + zetb(jpgf,jset)
-
-                       IF (dab.lt.0.1E0_dp .AND. dft_control%qs_control%map_paa) THEN
-                           igrid_level = 1
-                       ELSE
-                           igrid_level = gaussian_gridlevel(gridlevel_info,zetp)
-                       ENDIF
-
-                       ntasks(igrid_level) = ntasks(igrid_level) + 1
-                       n = ntasks(igrid_level)
-                       IF ( n > curr_tasks ) THEN
-                         curr_tasks = curr_tasks*mult_tasks
-                         CALL reallocate(tasks,1,8,1,curr_tasks,&
-                                         1,gridlevel_info%ngrid_levels)
-                         CALL reallocate(dist_ab,1,3,1,curr_tasks,&
-                                         1,gridlevel_info%ngrid_levels)
-                       END IF
-                       dir = rs_rho(igrid_level)%rs_grid%direction
-                       tasks (1,n,igrid_level) = n
-                       IF ( dir /= 0) THEN
-                         rb(:) = ra(:) + rab(:)
-                         rp(:) = rb(:) + zeta(ipgf,iset)/zetp*rab(:)
-                         rp(:) = pbc(rp,cell)
-                         tp = FLOOR(rp(dir)/rs_rho(igrid_level)%rs_grid%dr(dir))
-                         tp = MODULO ( tp, rs_rho(igrid_level)%rs_grid%npts(dir) )
-                         tasks (2,n,igrid_level) = tp + rs_rho(igrid_level)%rs_grid%lb(dir)
-                       END IF
-                       tasks (3,n,igrid_level) = jatom
-                       tasks (4,n,igrid_level) = iatom
-                       tasks (5,n,igrid_level) = jset
-                       tasks (6,n,igrid_level) = iset
-                       tasks (7,n,igrid_level) = jpgf
-                       tasks (8,n,igrid_level) = ipgf
-                       dist_ab (1,n,igrid_level) = -rab(1)
-                       dist_ab (2,n,igrid_level) = -rab(2)
-                       dist_ab (3,n,igrid_level) = -rab(3)
-
-                     END DO  ! jpgf
-
-                   END DO  ! ipgf
-
-                 END DO  ! jset
-
-               END DO  ! iset
-             END IF  ! iatom/=jatom
+!            IF(iatom/=jatom) THEN
+!              brow = jatom
+!              bcol = iatom
+!  
+!               CALL get_block_node(matrix=mat_jp,&
+!                                   block_row=brow,&
+!                                   block_col=bcol,&
+!                                   BLOCK=jp_block)
+!               CALL get_block_node(matrix=mat_jp_rii,&
+!                                   block_row=brow,&
+!                                   block_col=bcol,&
+!                                   BLOCK=jp_block_rii)
+!               CALL get_block_node(matrix=mat_jp_riii,&
+!                                   block_row=brow,&
+!                                   block_col=bcol,&
+!                                   BLOCK=jp_block_riii)
+!
+!               IF (.NOT.ASSOCIATED(jp_block)) THEN
+!                 sab_orb_neighbor_node => next(sab_orb_neighbor_node)
+!                 CYCLE
+!               END IF
+!
+!               IF (distributed_rs_grids) THEN
+!                 NULLIFY (jpblock,jpblock_rii,jp_block_riii )
+!                 CALL add_block_node ( deltajp, brow, bcol, jpblock )
+!                 jpblock = jp_block
+!                 CALL add_block_node ( deltajp_rii, brow, bcol, jpblock_rii )
+!                 jpblock_rii = jp_block_rii
+!                 CALL add_block_node ( deltajp_riii, brow, bcol, jpblock_riii )
+!                 jpblock_riii = jp_block_riii
+!               ELSE
+!                 jpblock => jp_block
+!                 jpblock_rii => jp_block_rii
+!                 jpblock_riii => jp_block_riii
+!               ENDIF
+!
+!               IF (.NOT. map_consistent) THEN
+!                 IF ( ALL ( 100.0_dp*ABS(jpblock) < eps_rho_rspace) ) THEN
+!                   sab_orb_neighbor_node => next(sab_orb_neighbor_node)
+!                   CYCLE
+!                 END IF
+!!               END IF
+!
+!               rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
+!               dab = SQRT(rab2)
+!
+!               DO jset=1,nsetb
+!                 IF (set_radius_b(jset) + kind_radius_a < dab) CYCLE
+! 
+!                 DO iset = 1,nseta
+!                   IF (set_radius_a(iset) + set_radius_b(jset) < dab) CYCLE
+!
+!                   DO jpgf=1,npgfb(jset)
+!                     IF (rpgfb(jpgf,jset) + set_radius_a(iset) < dab) CYCLE
+!
+!                     DO ipgf=1,npgfa(iset)
+!                       IF (rpgfb(jpgf,jset) + rpgfa(ipgf,iset) < dab) CYCLE
+!
+!                       zetp = zeta(ipgf,iset) + zetb(jpgf,jset)
+!
+!                       IF (dab.lt.0.1E0_dp .AND. dft_control%qs_control%map_paa) THEN
+!                           igrid_level = 1
+!                       ELSE
+!                           igrid_level = gaussian_gridlevel(gridlevel_info,zetp)
+!                       ENDIF
+!
+!                       ntasks(igrid_level) = ntasks(igrid_level) + 1
+!                       n = ntasks(igrid_level)
+!                       IF ( n > curr_tasks ) THEN
+!                         curr_tasks = curr_tasks*mult_tasks
+!                         CALL reallocate(tasks,1,8,1,curr_tasks,&
+!                                         1,gridlevel_info%ngrid_levels)
+!                         CALL reallocate(dist_ab,1,3,1,curr_tasks,&
+!                                         1,gridlevel_info%ngrid_levels)
+!                       END IF
+!                       dir = rs_rho(igrid_level)%rs_grid%direction
+!                       tasks (1,n,igrid_level) = n
+!                       IF ( dir /= 0) THEN
+!                         rb(:) = ra(:) + rab(:)
+!                         rp(:) = rb(:) + zeta(ipgf,iset)/zetp*rab(:)
+!                         rp(:) = pbc(rp,cell)
+!                         tp = FLOOR(rp(dir)/rs_rho(igrid_level)%rs_grid%dr(dir))
+!                         tp = MODULO ( tp, rs_rho(igrid_level)%rs_grid%npts(dir) )
+!                         tasks (2,n,igrid_level) = tp + rs_rho(igrid_level)%rs_grid%lb(dir)
+!                       END IF
+!                       tasks (3,n,igrid_level) = jatom
+!                       tasks (4,n,igrid_level) = iatom
+!                       tasks (5,n,igrid_level) = jset
+!                       tasks (6,n,igrid_level) = iset
+!                       tasks (7,n,igrid_level) = jpgf
+!                       tasks (8,n,igrid_level) = ipgf
+!                       dist_ab (1,n,igrid_level) = -rab(1)
+!                       dist_ab (2,n,igrid_level) = -rab(2)
+!                       dist_ab (3,n,igrid_level) = -rab(3)
+!
+!                     END DO  ! jpgf
+!
+!                   END DO  ! ipgf
+!
+!                 END DO  ! jset
+!
+!               END DO  ! iset
+!             END IF  ! iatom/=jatom
 !!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!!!!

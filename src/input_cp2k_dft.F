@@ -3782,7 +3782,7 @@ END SUBROUTINE create_ot_section
     IF (.NOT. failure) THEN
        CALL section_create(section,name="nmr",&
             description="The chemical shift is calculated by DFPT ",&
-            n_keywords=5, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=5, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
             error=error)
 
        CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&

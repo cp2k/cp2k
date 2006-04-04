@@ -37,7 +37,8 @@ MODULE qs_linres_nmr_op
                                              cp_fm_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
-  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
+  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply,&
+                                             cp_sm_fm_multiply_general
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: dp
@@ -159,8 +160,13 @@ CONTAINS
       DO ispin = 1, dft_control%nspins
          CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff, nao=nao, nmo=nmo)
          CALL cp_fm_set_all(nmr_env%p_psi0(ispin,idir)%matrix,0.0_dp,error=error)
-         CALL cp_sm_fm_multiply(nmr_env%op_p_ao(idir)%matrix,mo_coeff,&
-              nmr_env%p_psi0(ispin,idir)%matrix,ncol=nmo,alpha=-1.0_dp,error=error)
+         IF(nmr_env%op_p_ao(idir)%matrix%symmetry=="none") THEN
+            CALL cp_sm_fm_multiply_general(nmr_env%op_p_ao(idir)%matrix,mo_coeff,&
+                nmr_env%p_psi0(ispin,idir)%matrix,ncol=nmo,alpha=-1.0_dp,error=error)
+         ELSE
+            CALL cp_sm_fm_multiply(nmr_env%op_p_ao(idir)%matrix,mo_coeff,&
+                nmr_env%p_psi0(ispin,idir)%matrix,ncol=nmo,alpha=-1.0_dp,error=error)
+         END IF
 !dbg
 ! write(*,*) 'idir ', idir
 !         ov_tmp = 0.0_dp
@@ -203,8 +209,13 @@ CONTAINS
       DO ispin = 1, dft_control%nspins
          CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff, nao=nao, nmo=nmo)
          CALL cp_fm_set_all(nmr_env%rxp_psi0(ispin,idir)%matrix,0.0_dp,error=error)
-!         CALL cp_sm_fm_multiply(nmr_env%op_rmd_ao(idir)%matrix,mo_coeff,&
-!              nmr_env%rxp_psi0(ispin,idir)%matrix,ncol=nmo,alpha=-1.0_dp,error=error)
+         IF(nmr_env%op_rmd_ao(idir)%matrix%symmetry=="none") THEN
+            CALL cp_sm_fm_multiply_general(nmr_env%op_rmd_ao(idir)%matrix,mo_coeff,&
+                nmr_env%rxp_psi0(ispin,idir)%matrix,ncol=nmo,alpha=-1.0_dp,error=error)
+         ELSE
+           CALL cp_sm_fm_multiply(nmr_env%op_rmd_ao(idir)%matrix,mo_coeff,&
+                nmr_env%rxp_psi0(ispin,idir)%matrix,ncol=nmo,alpha=-1.0_dp,error=error)
+         END IF
       END DO 
     END DO 
 

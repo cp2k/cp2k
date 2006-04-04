@@ -46,12 +46,13 @@ MODULE qs_neighbor_lists
                                              get_potential,&
                                              gth_potential_type
   USE global_types,                    ONLY: global_environment_type
-  USE input_section_types,             ONLY: section_vals_type
+  USE input_section_types,             ONLY: section_vals_type,&
+                                             section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
                                              dp_size,&
                                              int_size
-  USE message_passing,                 ONLY: mp_sum
+  USE message_passing,                 ONLY: mp_sum,mp_sync
   USE molecule_types_new,              ONLY: molecule_type
   USE particle_types,                  ONLY: particle_type
   USE paw_proj_set_types,              ONLY: get_paw_proj_set,&
@@ -151,8 +152,9 @@ CONTAINS
       output_unit
     INTEGER, DIMENSION(:), POINTER           :: local_cols_array, &
                                                 local_rows_array
-    LOGICAL :: all_potential_present, gth_potential_present, molecule_only, &
-      paw_atom, paw_atom_present, print_subcell_grid, rho0_present, mic
+    LOGICAL :: all_pairs_list, all_potential_present, cls, gth_potential_present, &
+      molecule_only, paw_atom, paw_atom_present, print_subcell_grid, &
+      rho0_present, mic, nmr
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: all_present, oce_present, &
                                                 orb_present, ppl_present, &
                                                 ppnl_present, Qlm_present, &
@@ -176,7 +178,7 @@ CONTAINS
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
     TYPE(neighbor_list_set_p_type), &
-      DIMENSION(:), POINTER                  :: sab_2c, sab_orb, sac_3c, &
+      DIMENSION(:), POINTER                  :: sab_2c, sab_all, sab_orb, sac_3c, &
                                                 sac_oce, sac_ppl, sac_ppnl, &
                                                 sbc_3c, sbc_oce, sbc_ppnl
     TYPE(particle_type), DIMENSION(:), &
@@ -212,6 +214,7 @@ CONTAINS
     NULLIFY (sab_2c)
     NULLIFY (sac_3c)
     NULLIFY (sbc_3c)
+    NULLIFY (sab_all)
 
     print_subcell_grid = .FALSE.
     output_unit = cp_print_key_unit_nr(logger=logger,&
@@ -223,6 +226,20 @@ CONTAINS
 
     molecule_only = .FALSE.
     IF (PRESENT(molecular)) molecule_only = molecular
+
+    CALL section_vals_val_get(force_env_section,&
+            "DFT%XAS%_SECTION_PARAMETERS_", l_val=cls,error=error)
+    CALL section_vals_val_get(qs_env%input,&
+            "PROPERTIES%LINRES%NMR%_SECTION_PARAMETERS_",l_val=nmr,error=error)
+    IF(cls .OR. nmr) THEN
+       all_pairs_list = .TRUE.
+    ELSE
+       all_pairs_list = .FALSE.
+    END IF
+
+!dbg
+!    WRITE(*,*) qs_env%para_env%mepos, all_pairs_list
+!dbg
 
     ! This sets the id number of the qs neighbor lists, new lists, means new version
     ! new version implies new sparsity of the matrices
@@ -251,7 +268,8 @@ CONTAINS
                     sbc_oce=sbc_oce,&
                     sab_2c=sab_2c,&
                     sac_3c=sac_3c,&
-                    sbc_3c=sbc_3c)
+                    sbc_3c=sbc_3c,&
+                    sab_all=sab_all)
 
     rho0_present=ASSOCIATED(rho0_mpole)
 
@@ -596,6 +614,25 @@ CONTAINS
                                         local=.TRUE.,&
                                         error=error)
     END IF
+
+    ! Build orbital-orbital list containing all the pairs, to be used with
+    ! non-symmetric operators. Beware: the cutoff of the orbital-orbital overlap
+    ! might be not optimal. It should be verified for each operator.
+    IF(all_pairs_list) THEN
+      CALL build_neighbor_lists(sab_all,atom,cell,r_skin,maxatom_local,&
+                                print_subcell_grid,output_unit,&
+                                orb_present,orb_present,orb_radius,orb_radius,&
+                                name="ALL_ORBITAL ORBITAL",&
+                                symmetric=.FALSE.)
+      ! Put the generated neighbor lists into the QS environment
+      CALL set_qs_env(qs_env=qs_env,sab_all=sab_all)
+    END IF
+
+!dbg
+!     WRITE(*,*) qs_env%para_env%mepos, ASSOCIATED(qs_env%sab_all)
+!    CALL mp_sync(qs_env%para_env%group)
+!    stop 'pippo'
+!dbg
 
     ! Build orbital GTH-PPL operator overlap list
 
@@ -957,7 +994,6 @@ CONTAINS
     END IF
 
     ! Release work storage
-
     DO ikind=1,nkind
       NULLIFY (atom(ikind)%list)
       IF (ASSOCIATED(atom(ikind)%list_local_a_index)) THEN
@@ -1075,7 +1111,7 @@ CONTAINS
   SUBROUTINE build_neighbor_lists(ab,atom,cell,r_skin,maxatom_local,&
                                   print_subcell_grid,output_unit,&
                                   present_a,present_b,radius_a,radius_b,&
-                                  name,l3c_oce,l3c_rho0,mic)
+                                  name,l3c_oce,l3c_rho0,mic,symmetric)
 
     ! Purpose: Build simple pair neighbor lists.
 
@@ -1096,6 +1132,7 @@ CONTAINS
     REAL(dp), DIMENSION(:), INTENT(IN)       :: radius_a, radius_b
     CHARACTER(LEN=*), INTENT(IN)             :: name
     LOGICAL, INTENT(IN), OPTIONAL            :: l3c_oce, l3c_rho0, mic
+    LOGICAL, INTENT(IN), OPTIONAL            :: symmetric
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'build_neighbor_lists'
 
@@ -1106,7 +1143,7 @@ CONTAINS
     INTEGER, DIMENSION(3)                    :: cell_a, cell_b, ncell, &
                                                 nsubcell, periodic
     LOGICAL                                  :: include_ab, my_l3c_oce, &
-                                                my_l3c_rho0, my_mic
+                                                my_l3c_rho0, my_mic, my_symmetric
     REAL(dp)                                 :: rab2, rab2_max, rab_max, &
                                                 subcells, unit_of_length
     REAL(dp), DIMENSION(3)                   :: r, rab, rb, s, sab_max, sb, &
@@ -1140,6 +1177,9 @@ CONTAINS
     IF (PRESENT(l3c_rho0)) my_l3c_rho0 = l3c_rho0
     my_mic = .FALSE.
     IF (PRESENT(mic)) my_mic = mic
+    my_symmetric = .TRUE.
+    IF(PRESENT(symmetric)) my_symmetric = symmetric
+
 
 
     ALLOCATE (ab(nkind*nkind),STAT=istat)
@@ -1277,16 +1317,23 @@ CONTAINS
                   DO iatom_local=1,natom_local_a
                     iatom = atom(ikind)%list_local_a_index(iatom_local)
                     atom_a = atom(ikind)%list(iatom)
-                    IF (atom_a > atom_b) THEN
-                      include_ab = (MODULO(atom_a + atom_b,2) /= 0)
+                    IF(my_symmetric) THEN 
+                      IF (atom_a > atom_b) THEN
+                        include_ab = (MODULO(atom_a + atom_b,2) /= 0)
+                      ELSE
+                        include_ab = (MODULO(atom_a + atom_b,2) == 0)
+                      END IF
                     ELSE
-                      include_ab = (MODULO(atom_a + atom_b,2) == 0)
+                      include_ab = .TRUE.
                     END IF
                     IF (include_ab) THEN
                       rab(:) = rb(:) - atom(ikind)%r_pbc(:,iatom)
                       IF ( my_mic ) rab(:) = pbc(rab(:),cell)
                       rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
                       IF (rab2 < rab2_max) THEN
+                      !dbg
+!                      write(*,*) 'included ', atom_a, atom_b
+                      !dbg
                         CALL add_neighbor_node(&
                           neighbor_list=kind_a(iatom_local)%neighbor_list,&
                           neighbor=atom_b,&
@@ -1395,11 +1442,15 @@ CONTAINS
                           iatom_local = subcell(i,j,k)%atom_list(iatom_subcell)
                           iatom = atom(ikind)%list_local_a_index(iatom_local)
                           atom_a = atom(ikind)%list(iatom)
-                          IF (atom_a > atom_b) THEN
-                            include_ab = (MODULO(atom_a + atom_b,2) /= 0)
-                          ELSE
-                            include_ab = (MODULO(atom_a + atom_b,2) == 0)
-                          END IF
+                           IF(my_symmetric) THEN 
+                             IF (atom_a > atom_b) THEN
+                               include_ab = (MODULO(atom_a + atom_b,2) /= 0)
+                             ELSE
+                               include_ab = (MODULO(atom_a + atom_b,2) == 0)
+                             END IF
+                           ELSE
+                             include_ab = .TRUE.
+                           END IF
                           IF (include_ab) THEN
                             rab(:) = rb(:) - atom(ikind)%r_pbc(:,iatom)
                             IF ( my_mic ) rab(:) = pbc(rab(:),cell)

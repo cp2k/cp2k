@@ -85,8 +85,8 @@ CONTAINS
     TYPE(preconditioner_type), OPTIONAL, &
       POINTER                                :: preconditioner
     REAL(KIND=dp)                            :: eps_gradient
-    INTEGER                                  :: iter_max
-    INTEGER, OPTIONAL                        :: size_ortho_space
+    INTEGER, INTENT(IN)                      :: iter_max
+    INTEGER, INTENT(IN), OPTIONAL            :: size_ortho_space
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 

@@ -56,6 +56,7 @@ MODULE xas_tp_scf
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_flush,&
                                              m_walltime
+  USE message_passing,                 ONLY: mp_sync
   USE particle_types,                  ONLY: get_particle_set,&
                                              particle_type
   USE preconditioner,                  ONLY: destroy_preconditioner,&
@@ -82,8 +83,6 @@ MODULE xas_tp_scf
                                              set_mo_set,&
                                              write_mo_set
   USE qs_ot_eigensolver,               ONLY: ot_eigensolver
-!  USE qs_ot_scf,                       ONLY: ot_scf_mini
-!  USE qs_rho_atom_methods,             ONLY: calculate_rho_atom_coeff
   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE qs_scf,                          ONLY: init_scf_run,&
@@ -168,7 +167,7 @@ CONTAINS
                                                 output_unit
     INTEGER, DIMENSION(:), POINTER           :: col_indices
     LOGICAL :: diis_step, do_level_shift, energy_only, failure, gapw, &
-      id_equal, ionode, uniform_occupation, use_cholesky, use_jacobi
+      ionode, uniform_occupation, use_cholesky, use_jacobi
     REAL(KIND=dp)                            :: a_max, b_max, diis_error, &
                                                 IP_energy, t1, t2, tot1_h, &
                                                 tot1_s
@@ -194,16 +193,14 @@ CONTAINS
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_h, matrix_ks, &
-                                                matrix_p, matrix_s
+                                                matrix_s
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: dft_section, input, &
                                                 scf_section
 
-!    REAL(dp), DIMENSION(6)                   :: weights
-!    REAL(dp), DIMENSION(:, :), POINTER       :: centers_wfn
 
     CALL timeset(routineN,"I"," ",handle)
-    NULLIFY(dft_control,matrix_h,matrix_s,matrix_ks,matrix_p)
+    NULLIFY(dft_control,matrix_h,matrix_s,matrix_ks)
     NULLIFY(rho,energy,scf_control,logger, ks_env,mos,atomic_kind_set)
     NULLIFY(particle_set,vecbuffer,vecbuffer2, occupation_numbers)
     NULLIFY( scf_work1,ortho,scf_work2,excvec_coeff,excvec_overlap,mo_coeff)
@@ -254,7 +251,6 @@ CONTAINS
     ortho => scf_env%ortho
 
     CALL get_qs_env(qs_env,matrix_ks=matrix_ks,rho=rho,mos=mos)
-    matrix_p => rho%rho_ao
     nao = mos(1)%mo_set%nao
     ALLOCATE(vecbuffer(1,nao),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -262,26 +258,6 @@ CONTAINS
     ALLOCATE(vecbuffer2(1,xas_control%nexc_search),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     vecbuffer2 = 0.0_dp
-
-    ! do some assertions here on these matrices having the same structure, 
-    ! as is currently required
-    DO ispin=1,SIZE(matrix_s)
-      id_equal=(matrix_s(ispin)%matrix%sparsity_id==matrix_s(1)%matrix%sparsity_id)
-      CPPrecondition(id_equal,cp_failure_level,routineP,error,failure)
-    ENDDO
-    DO ispin=1,SIZE(matrix_p)
-      id_equal=(matrix_p(ispin)%matrix%sparsity_id==matrix_s(1)%matrix%sparsity_id)
-      CPPrecondition(id_equal,cp_failure_level,routineP,error,failure)
-    ENDDO
-    DO ispin=1,SIZE(matrix_h)
-      id_equal=(matrix_h(ispin)%matrix%sparsity_id==matrix_s(1)%matrix%sparsity_id)
-      CPPrecondition(id_equal,cp_failure_level,routineP,error,failure)
-    ENDDO
-    DO ispin=1,SIZE(matrix_ks)
-      id_equal=(matrix_ks(ispin)%matrix%sparsity_id==matrix_s(1)%matrix%sparsity_id)
-      CPPrecondition(id_equal,cp_failure_level,routineP,error,failure)
-    ENDDO
-    ! end sparsity check
 
     ! Some elements from the xas_env
      CALL get_xas_env(xas_env=xas_env,excvec_coeff=excvec_coeff,&
@@ -420,7 +396,7 @@ CONTAINS
                         occupation_numbers=occupation_numbers)
 
                  b_max = 0.0_dp 
-
+                 ic_max = dft_control%xas_estate
                  DO i = 1,xas_control%nexc_search
                    a_max = ABS(vecbuffer2(1,i))
                    IF(a_max > b_max)THEN
@@ -575,12 +551,15 @@ CONTAINS
        CALL m_flush(output_unit)
     END IF
 
+    CALL mp_sync(qs_env%para_env%group)
     CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,error=error)
 
     DEALLOCATE(vecbuffer,vecbuffer2,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     CALL cls_prepare_states(xas_control,xas_env,qs_env,iatom,error=error)
+
+    CALL mp_sync(qs_env%para_env%group)
 
     CALL cp_print_key_finished_output(output_unit,logger,scf_section,&
          "PRINT%PROGRAM_RUN_INFO", error=error)    
@@ -804,19 +783,22 @@ CONTAINS
       CALL get_atomic_kind(atomic_kind=atomic_kind,&
            kind_number=ikind)
       my_kind = mykind_of_kind(ikind)
-  WRITE(*,*) 'kind ',  ikind , my_kind
 
       max_overlap = 0.0_dp
       DO istate = 1,xas_control%nexc_search
          centers_wfn(1,istate) =  localized_wfn_control%centers_set(1)%array(1,istate)
          centers_wfn(2,istate) =  localized_wfn_control%centers_set(1)%array(2,istate)
          centers_wfn(3,istate) =  localized_wfn_control%centers_set(1)%array(3,istate)
-   WRITE(*,*) 'center i =',istate , centers_wfn(1,istate),centers_wfn(2,istate),centers_wfn(3,istate)      
+!dbg
+!   WRITE(*,*) 'center i =',istate , centers_wfn(1,istate),centers_wfn(2,istate),centers_wfn(3,istate)      
+!dbg
 
          rc(1:3) = centers_wfn(1:3,istate)
          rac = pbc(ra,rc,cell)
          dist = rac(1)*rac(1) + rac(2)*rac(2) + rac(3)*rac(3)
-      WRITE(*,*) 'dist ', dist,SQRT(dist)
+!dbg
+!      WRITE(*,*) 'dist ', dist,SQRT(dist)
+!dbg
 
          IF(dist < 1.0_dp) THEN
            CALL cp_fm_get_submatrix(mo_coeff,vecbuffer,1,istate,&
@@ -841,7 +823,9 @@ CONTAINS
   
       CALL cp_fm_get_submatrix(mo_coeff,vecbuffer2,1,my_state,&
                 nao,1,transpose=.TRUE.,error=error)
- WRITE(*,*) 'my state loc ', my_state, ' exc state ',dft_control%xas_estate
+!dbg
+! WRITE(*,*) 'my state loc ', my_state, ' exc state ',dft_control%xas_estate
+!dbg
 
       
     ! Rotate the wfn to get the eigenstate of the KS hamiltonian
@@ -858,9 +842,11 @@ CONTAINS
       CALL get_mo_set(mos(1)%mo_set, mo_coeff=mo_coeff)
       CALL cp_fm_get_submatrix(mo_coeff,vecbuffer,1,dft_control%xas_estate,&
                 nao,1,transpose=.TRUE.,error=error)
-  DO i = 1,nao
-       WRITE(*,*) 'icomp ', i, vecbuffer(1,i),vecbuffer2(1,i)
-  END DO 
+!dbg
+!  DO i = 1,nao
+!       WRITE(*,*) 'icomp ', i, vecbuffer(1,i),vecbuffer2(1,i)
+!  END DO 
+!dbg
 
 !      CALL cp_fm_set_submatrix(excvec_coeff,vecbuffer,1,1,&
 !                nao,1,transpose=.TRUE.,error=error)
@@ -869,8 +855,8 @@ CONTAINS
 !      
     END IF
 
-
-
+!   WRITE(*,*) qs_env%para_env%mepos, 'nvirtual2 ', nvirtual2
+    CALL mp_sync(qs_env%para_env%group)
     !Calculate the virtual states from the KS matrix matrix_ks(1)
     IF(nvirtual2 .GT. 0) THEN
       NULLIFY(mo_coeff,uno_orbs,uno_evals,preconditioner)
@@ -885,20 +871,30 @@ CONTAINS
                   matrix_t=qs_env%kinetic(1)%matrix, &
                   mo_coeff=mo_coeff,energy_gap=0.2_dp)
 
+!   WRITE(*,*) qs_env%para_env%mepos,'precond done'
+
       CALL get_xas_env(xas_env=xas_env,unoccupied_orbs=uno_orbs,&
            unoccupied_evals=uno_evals,unoccupied_eps=uno_eps,unoccupied_max_iter=uno_iter)
       CALL cp_fm_init_random(uno_orbs,nvirtual2)
+
+!   WRITE(*,*) qs_env%para_env%mepos,'orb initialized', uno_iter
+
       CALL ot_eigensolver(matrix_h=matrix_ks(1)%matrix,matrix_s=matrix_s(1)%matrix, &
            matrix_c=uno_orbs,matrix_orthogonal_space=mo_coeff,&
            preconditioner=preconditioner,eps_gradient=uno_eps,&
            iter_max=uno_iter,size_ortho_space=nmo,error=error)
+
+!   WRITE(*,*) qs_env%para_env%mepos,'out eigensolver'
+
       CALL calculate_subspace_eigenvalues(uno_orbs,matrix_ks(1)%matrix,&
            uno_evals,para_env=qs_env%para_env,do_rotation=.TRUE.)
       CALL destroy_preconditioner(preconditioner)
+!   WRITE(*,*) qs_env%para_env%mepos,'prec destroyed'
       DEALLOCATE(preconditioner,STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     END IF
 
+    CALL mp_sync(qs_env%para_env%group)
     ! Prapare arrays for the calculation of the spectrum
     IF(.NOT. xas_control%xas_method == xas_dscf) THEN
       ! Copy the final vectors in the array
