@@ -860,9 +860,10 @@ SUBROUTINE generate_particle_distances(r,cell,radius,bondparm_factor,&
       rbond2 = rbond*rbond
 
       !Look for the right factor to use...
-      rbond2 = rbond2*(bondparm_factor)
-
+      !
+      rbond2 = rbond2*(bondparm_factor)**2
       !Test the distance to the sum of the covalent radius
+      !
       IF(r2 < rbond2) THEN
         nbond=nbond+1
         IF(nbond > SIZE(tbond_a)) THEN

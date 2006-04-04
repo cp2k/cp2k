@@ -1179,7 +1179,7 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: my_tag, name, rcval
     INTEGER                                  :: ik, imol, irk, k, last_atom, &
                                                 Nlist
-    LOGICAL                                  :: failure, ldum
+    LOGICAL                                  :: failure, ldum, molname_generated
     TYPE(cp_sll_val_type), POINTER           :: new_pos, vals
     TYPE(molecule_type), POINTER             :: molecule_now
     TYPE(section_type), POINTER              :: section
@@ -1207,13 +1207,13 @@ CONTAINS
     last_atom=0
     DO irk=1,particles%n_els
        CALL get_atomic_kind(particles%els(irk)%atomic_kind,name=name)
-       !my_tag = particles%els(irk)%molname
-       !ldum = qmmm_ff_precond_only_qm(name)
        IF(last_atom<irk) THEN
          imol=imol+1
          molecule_now => molecules%els(imol)
          CALL get_molecule(molecule_now,last_atom=last_atom)
-         CALL get_molecule_kind(molecule_now%molecule_kind,name=my_tag)
+         CALL get_molecule_kind(molecule_now%molecule_kind,molname_generated=molname_generated,&
+              name=my_tag)
+         IF (molname_generated) my_tag=""
        END IF
        ldum = qmmm_ff_precond_only_qm(my_tag)
        line = TRIM(name)

@@ -154,6 +154,7 @@ MODULE molecule_kind_types
     TYPE(colvar_counters)                             :: ncolv
     INTEGER                                           :: nsgf, nelectron
     INTEGER, DIMENSION(:), POINTER                    :: molecule_list
+    LOGICAL                                           :: molname_generated
   END TYPE molecule_kind_type
 
 ! *** Public subroutines ***
@@ -238,6 +239,7 @@ CONTAINS
       NULLIFY (molecule_kind_set(imolecule_kind)%charge)
       NULLIFY (molecule_kind_set(imolecule_kind)%mass)
       molecule_kind_set(imolecule_kind)%name = ""
+      molecule_kind_set(imolecule_kind)%molname_generated = .FALSE.
       molecule_kind_set(imolecule_kind)%nhcopt = -1
       molecule_kind_set(imolecule_kind)%kind_number = imolecule_kind
       molecule_kind_set(imolecule_kind)%natom = 0
@@ -440,7 +442,8 @@ CONTAINS
                                ncolv,ng3x3,ng4x6,nmolecule,nsgf,ntorsion,&
                                molecule_list,nelectron,&
                                bond_kind_set,bend_kind_set,ub_kind_set,&
-                               impr_kind_set,onfo_kind_set,torsion_kind_set)
+                               impr_kind_set,onfo_kind_set,torsion_kind_set,&
+                               molname_generated)
 
 !   Purpose: Get informations about a molecule kind.
 
@@ -497,6 +500,7 @@ CONTAINS
       OPTIONAL, POINTER                      :: onfo_kind_set
     TYPE(torsion_kind_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: torsion_kind_set
+    LOGICAL, INTENT(OUT), OPTIONAL           :: molname_generated
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'get_molecule_kind'
 
@@ -522,6 +526,7 @@ CONTAINS
       IF (PRESENT(fixd_list)) fixd_list => molecule_kind%fixd_list
       IF (PRESENT(torsion_list)) torsion_list => molecule_kind%torsion_list
       IF (PRESENT(name)) name = molecule_kind%name
+      IF (PRESENT(molname_generated)) molname_generated = molecule_kind%molname_generated
       IF (PRESENT(nhcopt)) nhcopt = molecule_kind%nhcopt
       IF (PRESENT(mass)) mass => molecule_kind%mass
       IF (PRESENT(charge)) charge => molecule_kind%charge
@@ -715,7 +720,7 @@ CONTAINS
                                ncolv,colv_list,ng3x3,g3x3_list,ng4x6,nfixd,g4x6_list,&
                                bond_kind_set,bend_kind_set,ub_kind_set,&
                                torsion_kind_set,impr_kind_set,onfo_kind_set,&
-                               nelectron,nsgf)
+                               nelectron,nsgf,molname_generated)
 
 !   Purpose: Set the components of a molecule kind.
 
@@ -774,6 +779,7 @@ CONTAINS
     TYPE(onfo_kind_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: onfo_kind_set
     INTEGER, INTENT(IN), OPTIONAL            :: nelectron, nsgf
+    LOGICAL, INTENT(IN), OPTIONAL            :: molname_generated
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'set_molecule_kind'
 
@@ -788,6 +794,7 @@ CONTAINS
         molecule_kind%natom = n
         molecule_kind%atom_list => atom_list
       END IF
+      IF (PRESENT(molname_generated)) molecule_kind%molname_generated = molname_generated
       IF (PRESENT(name)) molecule_kind%name = name
       IF (PRESENT(nhcopt)) molecule_kind%nhcopt = nhcopt
       IF (PRESENT(mass)) molecule_kind%mass => mass
@@ -877,7 +884,9 @@ CONTAINS
           WRITE (UNIT=output_unit,FMT="(T20,I6,(7X,A18,11X,A19))")&
             iatom,TRIM(name),TRIM(molecule_kind%atom_list(iatom)%name)
         END DO
-        WRITE (UNIT=output_unit,FMT="(/,T9,A,I6,/,T9,A,(T30,10I5))")&
+        WRITE (UNIT=output_unit,FMT="(/,T9,A,L1)")"The name was automatically generated: ",&
+             molecule_kind%molname_generated
+        WRITE (UNIT=output_unit,FMT="(T9,A,I6,/,T9,A,(T30,10I5))")&
           "Number of molecules:",nmolecule,"Molecule list:",&
           (molecule_kind%molecule_list(imolecule),imolecule=1,nmolecule)
         WRITE (UNIT=output_unit,FMT="(1X,A30,I6)")&

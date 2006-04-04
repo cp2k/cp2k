@@ -1503,10 +1503,10 @@ CONTAINS
              END IF
           END IF
        END DO
-       name = TRIM(atom_info%label_molname(j))//"-"//&
-            TRIM(atom_info%label_resname(j))
+       name = TRIM(atom_info%label_molname(j))
        CALL set_molecule_kind(molecule_kind=molecule_kind,&
             kind_number=ikind,&
+            molname_generated=topology%molname_generated,&
             name=TRIM(name),&
             nhcopt=nhcopt,&
             nsgf=nsgf,&

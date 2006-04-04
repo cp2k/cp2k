@@ -82,8 +82,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: nblock_atom = 1000
 
-    CHARACTER(LEN=default_string_length)     :: root_mol_name
-    INTEGER                                  :: frame, handle, i, inum_mol, &
+    INTEGER                                  :: frame, handle, i, &
                                                 iw, j, natom
     LOGICAL                                  :: my_end
     TYPE(atom_info_type), POINTER            :: atom_info
@@ -102,12 +101,7 @@ CONTAINS
     CALL parser_create(parser,topology%coord_file_name,&
          para_env=globenv%para_env,error=error)      
 
-    natom         = 0
-    inum_mol      = 1
-    WRITE(root_mol_name,'(A3,I7)')"MOL",inum_mol
-    DO i =  1, 10
-       IF (root_mol_name(i:i) == " ") root_mol_name(i:i) = "0" 
-    END DO
+    natom = 0
     frame = 0
     CALL parser_get_next_line(parser,1,error=error)
     Frames: DO 
@@ -132,14 +126,13 @@ CONTAINS
        END IF
        ! Dummy line
        CALL parser_get_next_line(parser,2,error=error)
+       topology%molname_generated = .TRUE.
        DO j = 1, natom
           ! Atom coordinates
-          atom_info%label_molname(j) = TRIM(root_mol_name)
           CALL parser_get_object  (parser,atom_info%label_atmname(j))
           CALL uppercase(atom_info%label_atmname(j))
           ! For default, set atom name to residue name to molecule name
-          atom_info%label_molname(j)   = TRIM(atom_info%label_molname(j))//"_"//&
-                                         TRIM(atom_info%label_atmname(j))
+          atom_info%label_molname(j)   = TRIM(atom_info%label_atmname(j))
           atom_info%label_resname(j)   = atom_info%label_molname(j)
           atom_info%label_resid(j)     = 1
           CALL parser_get_object  (parser,atom_info%r(1,j))

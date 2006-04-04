@@ -563,7 +563,7 @@ SUBROUTINE val_get(val,has_l,has_i,has_r,has_lc,has_c,l_val,l_vals,i_val,&
                  IF (l_out<=i*default_string_length) EXIT
               END DO
               IF (l_out>SIZE(val%c_val)*default_string_length) &
-                   c_val(SIZE(val%c_val)*default_string_length:l_out)=""
+                   c_val(SIZE(val%c_val)*default_string_length+1:l_out)=""
            ELSE
               l_in=LEN_TRIM(val%c_val(1))
               CALL cp_assert(l_out>=l_in,cp_warning_level,cp_assertion_failed,&

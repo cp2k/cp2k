@@ -90,7 +90,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: nblock_atom = 10000
 
-    CHARACTER(len=default_path_length)       :: line_att
+    CHARACTER(len=2*default_string_length)   :: line_att
     INTEGER                                  :: atm_equal_mol, end_c, iatom, &
                                                 ILEN, j, natom, start_c, wrd
     LOGICAL                                  :: explicit, failure, &
@@ -216,10 +216,11 @@ CONTAINS
           atom_info%label_molname(iatom) = atom_info%label_atmname(iatom)
           atom_info%label_resname(iatom) = atom_info%label_atmname(iatom)
           atom_info%element(iatom) = atom_info%label_atmname(iatom)
-
+          topology%molname_generated = .TRUE.
           IF (start_c<=LEN_TRIM(line_att)) THEN
              READ(line_att(start_c:LEN_TRIM(line_att)),*)atom_info%label_molname(iatom)
              atom_info%label_resname(iatom) = atom_info%label_molname(iatom)
+             topology%molname_generated = .FALSE.
           END IF
           atom_info%atm_mass(iatom) = 0.0_dp 
           atom_info%atm_charge(iatom) = 0.0_dp 

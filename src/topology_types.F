@@ -132,6 +132,7 @@ MODULE topology_types
     INTEGER                                   :: natoms, natom_type
     INTEGER                                   :: nmol, nmol_type, nmol_conn
     !TRY TO REMOVE THIS FOUR VARIABLE IN THE FUTURE
+    LOGICAL                                   :: molname_generated
     REAL(KIND=dp)                             :: bondparm_factor
     LOGICAL                                   :: reorder_atom
     LOGICAL                                   :: molecules_check
@@ -214,7 +215,6 @@ SUBROUTINE init_topology (topology)
   topology%nmol_type=0
   topology%nmol_conn=0
   topology%bondparm_type=do_bondparm_covalent
-  topology%bondparm_factor=1.1
   topology%reorder_atom=.FALSE.
   topology%molecules_check=.FALSE.
   topology%coordinate=.FALSE.
@@ -236,6 +236,7 @@ SUBROUTINE init_topology (topology)
   topology%exclude_ei=do_skip_ei_14
   topology%exclude_check=3
   topology%para_res=.FALSE.
+  topology%molname_generated=.FALSE.
 
 
   !-----------------------------------------------------------------------------
