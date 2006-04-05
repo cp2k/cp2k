@@ -27,12 +27,16 @@ MODULE mc_ge_moves
   USE atomic_kind_types,               ONLY: get_atomic_kind
   USE cell_types,                      ONLY: cell_p_type,&
                                              cell_type,&
+                                             cell_create,&
+                                             cell_release,&
+                                             cell_clone,&
                                              get_cell
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsys_set,&
                                              cp_subsystem_p_type,&
                                              cp_subsystem_pp_type
-  USE force_env_methods,               ONLY: force_env_calc_energy_force
+  USE force_env_methods,               ONLY: force_env_calc_energy_force,&
+                                             force_env_set_cell
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_p_type,&
                                              force_env_release,&
@@ -1223,7 +1227,7 @@ CONTAINS
     CHARACTER(LEN=200)                       :: fft_lib
     CHARACTER(LEN=40), DIMENSION(1:2)        :: dat_file
     INTEGER                                  :: all_atoms, cl, group, handle, &
-                                                i, iatom, ibox, iside, istat, &
+                                                iatom, ibox, iside, istat, &
                                                 j, jatom, natoms, nunits, &
                                                 source,print_level
     INTEGER, DIMENSION(1:2)                  :: nchain, nunits_tot
@@ -1239,18 +1243,17 @@ CONTAINS
                                                 volume_old
     REAL(KIND=dp), DIMENSION(1:3)            :: center_of_mass, &
                                                 center_of_mass_new, diff
+    REAL(KIND=dp), DIMENSION(1:3, 1:3, 1:2)  :: hmat_test
     REAL(KIND=dp), DIMENSION(1:3, 1:2)       :: abc, new_cell_length, &
                                                 old_cell_length
-    TYPE(cell_p_type), DIMENSION(:), POINTER :: cell_old
+    TYPE(cell_p_type), DIMENSION(:), POINTER :: cell_old,cell,cell_test
     TYPE(cp_subsystem_pp_type), &
-      DIMENSION(:), POINTER                  :: oldsys, testsys
-    TYPE(force_env_p_type), DIMENSION(:), &
-      POINTER                                :: test_env
+      DIMENSION(:), POINTER                  :: oldsys
     TYPE(mol_kind_new_list_p_type), &
       DIMENSION(:), POINTER                  :: molecule_kinds_new
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(particle_list_p_type), &
-      DIMENSION(:), POINTER                  :: particles_old, particles_test
+      DIMENSION(:), POINTER                  :: particles_old
 
 !   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
@@ -1258,8 +1261,7 @@ CONTAINS
       CALL timeset(routineN,'I','',handle)
 
 ! nullify some pointers
-      NULLIFY(particles_old,particles_test,cell_old,oldsys,&
-         testsys,test_env)
+      NULLIFY(particles_old,cell,oldsys,cell_old,cell_test)
 
 ! get some data from mc_par
       CALL get_mc_par(mc_par(1)%mc_par,ionode=ionode,source=source,&
@@ -1280,18 +1282,15 @@ CONTAINS
       ALLOCATE(particles_old(1:2),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "particles_old",2)
+      ALLOCATE(cell(1:2),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+         "cell",2)
+      ALLOCATE(cell_test(1:2),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+         "cell_test",2)
       ALLOCATE(cell_old(1:2),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "cell_old",2)
-      ALLOCATE(test_env(1:2),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-         "test_env",2)
-      ALLOCATE(testsys(1:2),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-         "testsys",2)
-      ALLOCATE(particles_test(1:2),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-         "particles_test",2)      
       ALLOCATE(loverlap(1:2),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "loverlap",2)      
@@ -1319,8 +1318,11 @@ CONTAINS
 ! now let's grab the cell length and particle positions
       DO ibox=1,2
          CALL force_env_get(force_env(ibox)%force_env,&
-            subsys=oldsys(ibox)%subsys,cell=cell_old(ibox)%cell,error=error)
-         CALL get_cell(cell_old(ibox)%cell,abc=abc(:,ibox))
+            subsys=oldsys(ibox)%subsys,cell=cell(ibox)%cell,error=error)
+         CALL get_cell(cell(ibox)%cell,abc=abc(:,ibox))
+         NULLIFY(cell_old(ibox)%cell)
+         CALL cell_create(cell_old(ibox)%cell)
+         CALL cell_clone(cell(ibox)%cell,cell_old(ibox)%cell,error=error)
          CALL cp_subsys_get(oldsys(ibox)%subsys(1)%subsys, &
             molecule_kinds_new=molecule_kinds_new(ibox)%list,&
             particles=particles_old(ibox)%list, error=error)
@@ -1346,9 +1348,9 @@ CONTAINS
          IF(lempty(ibox)) THEN
 
 ! make the new dat file
-            IF (ionode) CALL mc_make_dat_file(r(:,:,ibox),0,&
-               old_cell_length(:,ibox)*angstrom,dat_file(ibox),&
-               force_env(ibox)%force_env,TRIM(fft_lib),print_level)
+!            IF (ionode) CALL mc_make_dat_file(r(:,:,ibox),0,&
+!               old_cell_length(:,ibox)*angstrom,dat_file(ibox),&
+!               force_env(ibox)%force_env,TRIM(fft_lib),print_level)
             
          ELSE
             
@@ -1361,32 +1363,35 @@ CONTAINS
             CALL mc_coordinate_fold(r(:,:,ibox),&
                nunits_tot(ibox),mass,nunits,&
                old_cell_length(1:3,ibox))
-
+!            WRITE(6,*) 'iour ',ibox,nunits_tot(ibox)
 ! make the new dat file
-            IF(ionode) CALL mc_make_dat_file(r(:,:,ibox),nunits_tot(ibox),&
-               old_cell_length(:,ibox)*angstrom,dat_file(ibox),&
-               force_env(ibox)%force_env,TRIM(fft_lib),print_level)
+!            IF(ionode) CALL mc_make_dat_file(r(:,:,ibox),nunits_tot(ibox),&
+!               old_cell_length(:,ibox)*angstrom,dat_file(ibox),&
+!               force_env(ibox)%force_env,TRIM(fft_lib),print_level)
 
+! save the folded coordinates
+            DO iatom=1,nunits_tot(ibox)
+               particles_old(ibox)%list%els(iatom)%r(1:3)=r(1:3,iatom,ibox)
+            ENDDO
          ENDIF
          
       ENDDO
 
-      DO ibox=1,2
+!      DO ibox=1,2
 ! make a test environment that we can alter to calculate the energy
 !         globenv%input_file_name=dat_file(ibox)
-         CALL mc_create_force_env(test_env(ibox)%force_env, globenv, &
-               dat_file(ibox),error=error)
+!         CALL mc_create_force_env(test_env(ibox)%force_env, globenv, &
+!               dat_file(ibox),error=error)
 
 ! grab the coords so we can change them
-         CALL force_env_get(test_env(ibox)%force_env,&
-            subsys=testsys(ibox)%subsys,error=error)
-         CALL cp_subsys_get(testsys(ibox)%subsys(1)%subsys, &
-            particles=particles_test(ibox)%list, error=error)
+!         CALL force_env_get(test_env(ibox)%force_env,&
+!            subsys=testsys(ibox)%subsys,error=error)
+!         CALL cp_subsys_get(testsys(ibox)%subsys(1)%subsys, &
+!            particles=particles_test(ibox)%list, error=error)
 
-      ENDDO
+!      ENDDO
 
 ! call a random number to figure out how far we're moving
-!         CALL RANDOM_NUMBER(rand)
       IF(ionode) rand=next_random_number(rng_stream)
       CALL mp_bcast(rand,source,group)
 
@@ -1409,83 +1414,99 @@ CONTAINS
             vol_dis)**(1.0E0_dp/3.0E0_dp)
       ENDDO
       
-      DO i=1,2
+! now we need to make the new cells
+      DO ibox=1,2
+         hmat_test(:,:,ibox)=0.0d0
+         hmat_test(1,1,ibox)=new_cell_length(1,ibox)
+         hmat_test(2,2,ibox)=new_cell_length(2,ibox)
+         hmat_test(3,3,ibox)=new_cell_length(3,ibox)
+         NULLIFY(cell_test(ibox)%cell)
+         CALL cell_create(cell_test(ibox)%cell,hmat_test(:,:,ibox),&
+              cell(ibox)%cell%perd,cell(ibox)%cell%orthorhombic,error=error)
+         cell_test(ibox)%cell%subcells=cell_old(ibox)%cell%subcells
+         CALL force_env_set_cell(force_env(ibox)%force_env,&
+              cell_test(ibox)%cell,error=error)         
+      ENDDO
+
+
+      DO ibox=1,2
 
 ! save the coords
-         DO iatom=1,nunits_tot(i)
-            r(1:3,iatom,i)=particles_test(i)%list%els(iatom)%r(1:3)
+         DO iatom=1,nunits_tot(ibox)
+            r(1:3,iatom,ibox)=particles_old(ibox)%list%els(iatom)%r(1:3)
          ENDDO
 
 ! now we need to scale the coordinates of all the molecules by the
 ! center of mass
-         DO iatom=1,nunits_tot(i),nunits
+         DO iatom=1,nunits_tot(ibox),nunits
 
 ! now find the center of mass
-            CALL get_center_of_mass(r(:,iatom:iatom+nunits-1,i),&
+            CALL get_center_of_mass(r(:,iatom:iatom+nunits-1,ibox),&
                nunits,center_of_mass(:),mass(:))
 
 ! scale the center of mass and determine the vector that points from the
 !    old COM to the new one
             center_of_mass_new(1:3)=center_of_mass(1:3)*&
-               new_cell_length(1:3,i)/old_cell_length(1:3,i)
+               new_cell_length(1:3,ibox)/old_cell_length(1:3,ibox)
             DO j=1,3
                diff(j)=center_of_mass_new(j)-center_of_mass(j)
 ! now change the particle positions
                DO jatom=iatom,iatom+nunits-1
-                  particles_test(i)%list%els(jatom)%r(j)=&
-                     particles_test(i)%list%els(jatom)%r(j)+diff(j)
+                  particles_old(ibox)%list%els(jatom)%r(j)=&
+                     particles_old(ibox)%list%els(jatom)%r(j)+diff(j)
                ENDDO
                
             ENDDO
          ENDDO
         
 ! check for any overlaps we might have
-         CALL check_for_overlap(test_env(i)%force_env,&
-            nchain(i),1,nchain(i),loverlap(i),&
-            cell_length=new_cell_length(:,i))
+         CALL check_for_overlap(force_env(ibox)%force_env,&
+            nchain(ibox),1,nchain(ibox),loverlap(ibox),&
+            cell_length=new_cell_length(:,ibox))
                
       ENDDO
 
 ! determine the overall energy difference
 
-      DO ibox=1,2
-
-         IF(lempty(ibox)) THEN
-               
+!      DO ibox=1,2
+!
+!         IF(lempty(ibox)) THEN
+!               
 ! make the new dat file
-            IF(ionode) CALL mc_make_dat_file(r(:,:,ibox),0,&
-               new_cell_length(:,ibox)*angstrom,dat_file(ibox),&
-               force_env(ibox)%force_env,TRIM(fft_lib),print_level)
-
-         ELSE
-
+!            IF(ionode) CALL mc_make_dat_file(r(:,:,ibox),0,&
+!               new_cell_length(:,ibox)*angstrom,dat_file(ibox),&
+!               force_env(ibox)%force_env,TRIM(fft_lib),print_level)
+!
+!         ELSE
+!
 ! make the new dat file
-            DO iatom=1,nunits_tot(ibox)
-               r(1:3,iatom,ibox)=particles_test(ibox)%list%els(iatom)%r(1:3)
-            ENDDO
-               
-            IF(ionode) CALL mc_make_dat_file(r(:,:,ibox),&
-               nunits_tot(ibox),new_cell_length(:,ibox)*angstrom,&
-               dat_file(ibox),force_env(ibox)%force_env,TRIM(fft_lib),print_level)
-         ENDIF
-      ENDDO
+!            DO iatom=1,nunits_tot(ibox)
+!               r(1:3,iatom,ibox)=particles(ibox)%list%els(iatom)%r(1:3)
+!            ENDDO
+!               
+!            IF(ionode) CALL mc_make_dat_file(r(:,:,ibox),&
+!               nunits_tot(ibox),new_cell_length(:,ibox)*angstrom,&
+!               dat_file(ibox),force_env(ibox)%force_env,TRIM(fft_lib),print_level)
+!         ENDIF
+!      ENDDO
 
       DO ibox=1,2
+         IF(loverlap(ibox)) CYCLE
 ! remake the force environment and calculate the energy
 
-         CALL force_env_release(test_env(ibox)%force_env,error=error)
+!         CALL force_env_release(test_env(ibox)%force_env,error=error)
             
 !         globenv%input_file_name=dat_file(ibox)
-         CALL mc_create_force_env(test_env(ibox)%force_env, globenv, &
-               dat_file(ibox),error=error)
+!         CALL mc_create_force_env(test_env(ibox)%force_env, globenv, &
+!               dat_file(ibox),error=error)
          
          IF (lempty(ibox)) THEN
             new_energy(ibox)=0.0E0_dp
          ELSE
 
-            CALL force_env_calc_energy_force(test_env(ibox)%force_env,&
+            CALL force_env_calc_energy_force(force_env(ibox)%force_env,&
                calc_force=.FALSE.,error=error)
-            CALL force_env_get(test_env(ibox)%force_env,&
+            CALL force_env_get(force_env(ibox)%force_env,&
                potential_energy=new_energy(ibox),error=error)
 
          ENDIF
@@ -1500,19 +1521,21 @@ CONTAINS
       ENDDO
       prefactor=(volume_new(1)/volume_old(1))**nchain(1)*&
          (volume_new(2)/volume_old(2))**nchain(2)
-      w=prefactor*EXP(-BETA*&
-         (new_energy(1)+new_energy(2)-&
-         old_energy(1)-old_energy(2)))
       
-      IF(loverlap(1) .OR. loverlap(2)) w=0.0E0_dp
-         
+      IF( loverlap(1) .OR. loverlap(2)) THEN
+         w=0.0E0_dp
+      ELSE
+         w=prefactor*EXP(-BETA*&
+              (new_energy(1)+new_energy(2)-&
+              old_energy(1)-old_energy(2)))
+      
+      ENDIF
 
       IF ( w .GE. 1.0E0_dp ) THEN
          w=1.0E0_dp
          rand=0.0E0_dp
       ELSE
          IF(ionode) rand=next_random_number(rng_stream)
-!            CALL RANDOM_NUMBER(rand)
          CALL mp_bcast(rand,source,group)
       ENDIF
 
@@ -1542,23 +1565,23 @@ CONTAINS
             old_energy(ibox)=new_energy(ibox)
 
 ! and the coordiantes
-            CALL force_env_get(test_env(ibox)%force_env,subsys=&
-               testsys(ibox)%subsys,error=error)
-            CALL cp_subsys_get(testsys(ibox)%subsys(1)%subsys, &
-               particles=particles_test(ibox)%list, error=error)
+!            CALL force_env_get(test_env(ibox)%force_env,subsys=&
+!               testsys(ibox)%subsys,error=error)
+!            CALL cp_subsys_get(testsys(ibox)%subsys(1)%subsys, &
+!               particles=particles_test(ibox)%list, error=error)
             
             DO iatom=1,nunits_tot(ibox)
                r_old(1:3,iatom,ibox)=&
-                  particles_test(ibox)%list%els(iatom)%r(1:3)
+                  particles_old(ibox)%list%els(iatom)%r(1:3)
             ENDDO
             
          ENDDO
 
 ! switch the force env to the new env
-         DO ibox=1,2
-            CALL force_env_release(force_env(ibox)%force_env,error=error)
-            force_env(ibox)%force_env => test_env(ibox)%force_env
-         ENDDO
+!         DO ibox=1,2
+!            CALL force_env_release(force_env(ibox)%force_env,error=error)
+!            force_env(ibox)%force_env => test_env(ibox)%force_env
+!         ENDDO
       ELSE
 
 ! reject the move
@@ -1575,22 +1598,32 @@ CONTAINS
          ENDIF
 
 ! release some memory
-         DO i=1,2
-            CALL force_env_release(test_env(i)%force_env,error=error)
+!         DO i=1,2
+!            CALL force_env_release(test_env(i)%force_env,error=error)
+!         ENDDO
+
+! reset the cell and particle positions
+         DO ibox=1,2
+            CALL force_env_set_cell(force_env(ibox)%force_env,&
+                 cell_old(ibox)%cell,error=error)
+            DO iatom=1,nunits_tot(ibox)
+               particles_old(ibox)%list%els(iatom)%r(1:3)=r_old(1:3,iatom,ibox)
+            ENDDO
          ENDDO
 
       ENDIF
 
 ! free up some memory
+      DO ibox=1,2
+         CALL cell_release(cell_test(ibox)%cell,error=error)
+         CALL cell_release(cell_old(ibox)%cell,error=error)
+      ENDDO
       DEALLOCATE(mass,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
          __LINE__,"mass")
       DEALLOCATE(molecule_kinds_new,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
          __LINE__,"molecule_kinds_new")
-      DEALLOCATE(test_env,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,&
-         __LINE__,"test_env")
       DEALLOCATE(r,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "r")
@@ -1600,15 +1633,15 @@ CONTAINS
       DEALLOCATE(particles_old,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "particles_old")
+      DEALLOCATE(cell,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+         "cell")
       DEALLOCATE(cell_old,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "cell_old")
-      DEALLOCATE(testsys,STAT=istat)
+      DEALLOCATE(cell_test,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-         "testsys")
-      DEALLOCATE(particles_test,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-         "particles_test")      
+         "cell_test")
       DEALLOCATE(loverlap,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
          "loverlap")      
