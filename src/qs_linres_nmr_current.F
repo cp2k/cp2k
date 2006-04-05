@@ -376,13 +376,13 @@ CONTAINS
             ! Apply the p operator
 
             CALL cp_fm_set_all(p_psi1(ispin)%matrix,0.0_dp,error=error)
-            IF(nmr_env%op_p_ao(idir)%matrix%symmetry=="none") THEN
-               CALL cp_sm_fm_multiply_general(nmr_env%op_p_ao(idir)%matrix,psi1(ispin)%matrix,&
-                    p_psi1(ispin)%matrix,ncol=nmo,alpha=-1.0_dp,error=error)
-            ELSE
+!            IF(nmr_env%op_p_ao(idir)%matrix%symmetry=="none") THEN
+!               CALL cp_sm_fm_multiply_general(nmr_env%op_p_ao(idir)%matrix,psi1(ispin)%matrix,&
+!                    p_psi1(ispin)%matrix,ncol=nmo,alpha=-1.0_dp,error=error)
+!            ELSE
                CALL cp_sm_fm_multiply(nmr_env%op_p_ao(idir)%matrix,psi1(ispin)%matrix,&
                     p_psi1(ispin)%matrix,ncol=nmo,alpha=-1.0_dp,error=error)
-            END IF
+!            END IF
        ! These additional terms should give zero contribution due to
        ! the orthogonality of the response functions with respect to the unperturbed set
             IF(idir==ii_B) THEN
@@ -423,13 +423,13 @@ CONTAINS
             psi3 => fm_work1
             p_psi3 => p_psi1(ispin)%matrix
             CALL cp_fm_to_fm(nmr_env%psi1_p(ispin,iii_B)%matrix,psi3)
-            IF(nmr_env%op_p_ao(idir)%matrix%symmetry=="none") THEN
-              CALL cp_sm_fm_multiply_general(nmr_env%op_p_ao(idir)%matrix,psi3,&
-                   p_psi3,ncol=nmo,alpha=-1.0_dp,error=error)
-            ELSE
+!            IF(nmr_env%op_p_ao(idir)%matrix%symmetry=="none") THEN
+!              CALL cp_sm_fm_multiply_general(nmr_env%op_p_ao(idir)%matrix,psi3,&
+!                   p_psi3,ncol=nmo,alpha=-1.0_dp,error=error)
+!            ELSE
               CALL cp_sm_fm_multiply(nmr_env%op_p_ao(idir)%matrix,psi3,&
                    p_psi3,ncol=nmo,alpha=-1.0_dp,error=error)
-            END IF
+!            END IF
             IF ( .NOT. uni_occ ) THEN
               CALL cp_fm_column_scale(psi3,occupation(1:homo))
               CALL cp_fm_column_scale(p_psi3,occupation(1:homo))
@@ -450,13 +450,13 @@ CONTAINS
             psi2 => fm_work1
             p_psi2 => p_psi1(ispin)%matrix
             CALL cp_fm_to_fm(nmr_env%psi1_p(ispin,ii_B)%matrix,psi2)
-            IF(nmr_env%op_p_ao(idir)%matrix%symmetry=="none") THEN
-              CALL cp_sm_fm_multiply_general(nmr_env%op_p_ao(idir)%matrix,psi2,&
-                   p_psi2,ncol=nmo,alpha=-1.0_dp,error=error)
-            ELSE
+!            IF(nmr_env%op_p_ao(idir)%matrix%symmetry=="none") THEN
+!              CALL cp_sm_fm_multiply_general(nmr_env%op_p_ao(idir)%matrix,psi2,&
+!                   p_psi2,ncol=nmo,alpha=-1.0_dp,error=error)
+!            ELSE
               CALL cp_sm_fm_multiply(nmr_env%op_p_ao(idir)%matrix,psi2,&
                    p_psi2,ncol=nmo,alpha=-1.0_dp,error=error)
-            END IF
+!            END IF
             IF ( .NOT. uni_occ ) THEN
               CALL cp_fm_column_scale(psi2,occupation(1:homo))
               CALL cp_fm_column_scale(p_psi2,occupation(1:homo))

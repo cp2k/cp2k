@@ -472,9 +472,9 @@ CONTAINS
              WRITE(UNIT=output_unit,FMT="(/,T3,A,/)")&
                   "*** SCF run NOT converged ***"
           END IF
+          converged = .FALSE.
           CALL timestop(0.0_dp,handle2)
           EXIT scf_loop
-          converged = .FALSE.
        END IF
 
        IF (.NOT.BTEST(cp_print_key_should_output(logger%iter_info,&

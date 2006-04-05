@@ -47,7 +47,7 @@ MODULE cp_sm_fm_interactions
                                              real_matrix_type,&
                                              sparse_plus_loc_loct,&
                                              sparse_times_local
-  USE termination,                     ONLY: stop_memory
+  USE termination,                     ONLY: stop_memory,stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -1068,6 +1068,8 @@ CONTAINS
                   alpha=my_alpha,beta=1.0_dp,transpose_sm=.TRUE.,&
                   do_diagonal_blocks=.FALSE.,antisymmetric=.FALSE.,error=error)
           CASE("antisymmetric")
+             CALL stop_program(routineN,moduleN,__LINE__,&
+           "Check this! sm_fm_multiply for antisymmetric matrix seems not to work properly ")
              CALL cp_sm_fm_multiply_2d(sparse_matrix,v_in,v_out,ncol=ncol,&
                   alpha=my_alpha,beta=my_beta,transpose_sm=.FALSE.,&
                   do_diagonal_blocks=.TRUE.,antisymmetric=.TRUE.,error=error)

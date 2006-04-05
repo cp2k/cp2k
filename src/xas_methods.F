@@ -1464,11 +1464,11 @@ CONTAINS
          CPPrecondition(ASSOCIATED(fm_set(1,i)%matrix),cp_failure_level,routineP,error,failure)
          CALL cp_fm_set_all(fm_set(1,i)%matrix, 0.0_dp, error=error)
          CALL cp_fm_set_all(fm_work, 0.0_dp, error=error)
-         IF(op_sm(i)%matrix%symmetry=="none") THEN
-           CALL cp_sm_fm_multiply_general(op_sm(i)%matrix,all_vectors,fm_work,ncol=nvirtual)
-         ELSE
+!         IF(op_sm(i)%matrix%symmetry=="none") THEN
+!           CALL cp_sm_fm_multiply_general(op_sm(i)%matrix,all_vectors,fm_work,ncol=nvirtual)
+!         ELSE 
            CALL cp_sm_fm_multiply(op_sm(i)%matrix,all_vectors,fm_work,ncol=nvirtual)
-         END IF
+!         END IF
          CALL cp_fm_gemm("T","N",1,nvirtual,nao,1.0_dp,excvec,&
               fm_work,0.0_dp, fm_set(1,i)%matrix,b_first_col=1,error=error)
       END DO

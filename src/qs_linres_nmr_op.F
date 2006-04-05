@@ -160,13 +160,13 @@ CONTAINS
       DO ispin = 1, dft_control%nspins
          CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff, nao=nao, nmo=nmo)
          CALL cp_fm_set_all(nmr_env%p_psi0(ispin,idir)%matrix,0.0_dp,error=error)
-         IF(nmr_env%op_p_ao(idir)%matrix%symmetry=="none") THEN
-            CALL cp_sm_fm_multiply_general(nmr_env%op_p_ao(idir)%matrix,mo_coeff,&
-                nmr_env%p_psi0(ispin,idir)%matrix,ncol=nmo,alpha=-1.0_dp,error=error)
-         ELSE
+!         IF(nmr_env%op_p_ao(idir)%matrix%symmetry=="none") THEN
+!            CALL cp_sm_fm_multiply_general(nmr_env%op_p_ao(idir)%matrix,mo_coeff,&
+!                nmr_env%p_psi0(ispin,idir)%matrix,ncol=nmo,alpha=-1.0_dp,error=error)
+!         ELSE
             CALL cp_sm_fm_multiply(nmr_env%op_p_ao(idir)%matrix,mo_coeff,&
                 nmr_env%p_psi0(ispin,idir)%matrix,ncol=nmo,alpha=-1.0_dp,error=error)
-         END IF
+!         END IF
 !dbg
 ! write(*,*) 'idir ', idir
 !         ov_tmp = 0.0_dp
@@ -209,13 +209,13 @@ CONTAINS
       DO ispin = 1, dft_control%nspins
          CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff, nao=nao, nmo=nmo)
          CALL cp_fm_set_all(nmr_env%rxp_psi0(ispin,idir)%matrix,0.0_dp,error=error)
-         IF(nmr_env%op_rmd_ao(idir)%matrix%symmetry=="none") THEN
-            CALL cp_sm_fm_multiply_general(nmr_env%op_rmd_ao(idir)%matrix,mo_coeff,&
-                nmr_env%rxp_psi0(ispin,idir)%matrix,ncol=nmo,alpha=-1.0_dp,error=error)
-         ELSE
+!         IF(nmr_env%op_rmd_ao(idir)%matrix%symmetry=="none") THEN
+!            CALL cp_sm_fm_multiply_general(nmr_env%op_rmd_ao(idir)%matrix,mo_coeff,&
+!                nmr_env%rxp_psi0(ispin,idir)%matrix,ncol=nmo,alpha=-1.0_dp,error=error)
+!         ELSE
            CALL cp_sm_fm_multiply(nmr_env%op_rmd_ao(idir)%matrix,mo_coeff,&
                 nmr_env%rxp_psi0(ispin,idir)%matrix,ncol=nmo,alpha=-1.0_dp,error=error)
-         END IF
+!         END IF
       END DO 
     END DO 
 
