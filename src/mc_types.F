@@ -556,7 +556,6 @@ SUBROUTINE read_mc_section ( mc_par, globenv, input_file_name, input_file,&
       mc_par%data_file = mc_par % program(ia:ie) // '.data'
       stop_num=ie-3
       mc_par%dat_file = mc_par % program(ia:stop_num) // 'dat'
-      WRITE(6,*) 'evnkx,v c ',mc_par % program
 
 ! set them into the input parameter structure as the new defaults
       CALL section_vals_val_set(mc_section,"COORDINATE_FILE_NAME",&
