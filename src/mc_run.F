@@ -54,7 +54,8 @@ MODULE mc_run
                                              force_env_release,&
                                              force_env_type,&
                                              use_fist_force
-  USE global_types,                    ONLY: global_environment_type
+  USE global_types,                    ONLY: global_environment_type,&
+                                             globenv_release
   USE kinds,                           ONLY: dp
   USE mc_control,                      ONLY: mc_create_force_env,&
                                              read_mc_restart
@@ -159,6 +160,7 @@ CONTAINS
                                                 molecule_kinds_new_2
     TYPE(molecule_kind_type), POINTER        :: molecule_kind, molecule_kind_2
     TYPE(rng_stream_type), POINTER           :: rng_stream
+    TYPE(global_environment_type), POINTER   :: globenv_2
 
 !------------------------------------------------------------------------------
 
@@ -179,7 +181,8 @@ CONTAINS
                              distribution_type=UNIFORM)
 
 ! read the input of the Monte Carlo section
-      CALL read_mc_section ( mc_par, globenv ,error)
+      CALL read_mc_section ( mc_par, globenv ,globenv%input_file_name,&
+           globenv%input_file,error)
 
 ! if we're doing a classical simulation, figure out the largest
 ! potential cutoff and write it to the screen
@@ -293,8 +296,8 @@ CONTAINS
  
 ! read the input of the Monte Carlo section
 !         globenv%input_file_name=box2_file
-         CALL mc_create_force_env(force_env_2, globenv,  &
-            box2_file,error=error)
+         CALL mc_create_force_env(force_env_2, globenv,&
+            box2_file,globenv_new=globenv_2,error=error)
 
          IF (ionode) THEN
             WRITE(iw,*)
@@ -306,7 +309,8 @@ CONTAINS
             '*************************************'
          ENDIF
          
-         CALL read_mc_section ( mc_par_2, globenv ,error)
+         CALL read_mc_section ( mc_par_2, globenv ,box2_file,&
+              globenv_2%input_file,error)
 
 ! determine the total number of molecules and atoms
          CALL force_env_get(force_env_2,subsys=subsys_2,error=error)
@@ -399,6 +403,7 @@ CONTAINS
          DEALLOCATE ( mc_par_2, STAT = isos )
          CPPostconditionNoFail(isos==0,cp_warning_level,routineP,error)
 
+         CALL globenv_release(globenv_2,error)
       CASE DEFAULT
          IF (ionode) THEN
             WRITE(6,*) "No idea how we got here...input section ",&

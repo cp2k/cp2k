@@ -145,7 +145,7 @@ CONTAINS
                                                 lnew_bias_env, loverlap, &
                                                 lreject, lstop, should_stop
     REAL(dp), DIMENSION(1:3, 1:2)            :: conf_prob
-    REAL(KIND=dp) :: cutoff, discrete_step, inner_cutoff, pbias, pmavbmc, &
+    REAL(KIND=dp) :: discrete_step, pbias, pmavbmc, &
       pmswap, pmtraion, pmtrans, pmvolume, rand, test_energy
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: r_old
@@ -219,8 +219,8 @@ CONTAINS
          lstop=lstop,nstep=nstep,nstart=nstart,pmvolume=pmvolume,&
          molecules_file=molecules_file(1),pmswap=pmswap,nmoves=nmoves,&
          pmtraion=pmtraion,pmtrans=pmtrans,iuptrans=iuptrans,&
-         iupvolume=iupvolume,cutoff=cutoff,ldiscrete=ldiscrete,&
-         inner_cutoff=inner_cutoff,lbias=lbias,iprint=iprint,&
+         iupvolume=iupvolume,ldiscrete=ldiscrete,&
+         lbias=lbias,iprint=iprint,&
          discrete_step=discrete_step,fft_lib=fft_lib,print_level=print_level,&
          conf_prob=conf_prob(:,1),pmavbmc=pmavbmc,pbias=pbias)
 
@@ -778,8 +778,8 @@ CONTAINS
                WRITE(iw,'(A,T64,F16.10)') 'Final Energy = ',test_energy
                WRITE(iw,'(A,T64,F16.10)') 'Inital Energy+energy_check=',&
                initial_energy(ibox)+energy_check(ibox)
-               WRITE(6,*) 'Box ',ibox
-               WRITE(6,*) 'nchain ',nchain(ibox)
+               WRITE(iw,*) 'Box ',ibox
+               WRITE(iw,*) 'nchain ',nchain(ibox)
                STOP 'mc_ensembles.F'
             ENDIF
          ENDDO

@@ -384,10 +384,13 @@ END SUBROUTINE read_mc_restart
 !!     MJM
 !!
 !!*****************************************************************************
-SUBROUTINE mc_create_force_env ( force_env, globenv_old,input_file_name,error )
+SUBROUTINE mc_create_force_env ( force_env, globenv_old,input_file_name,&
+     globenv_new,error )
 
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(global_environment_type), POINTER   :: globenv_old
+    TYPE(global_environment_type), POINTER,OPTIONAL   :: globenv_new
+
     CHARACTER(LEN=*),INTENT(IN)               :: input_file_name
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
@@ -445,9 +448,12 @@ SUBROUTINE mc_create_force_env ( force_env, globenv_old,input_file_name,error )
 
 ! release some stuff created here
       CALL section_release(input_structure)    
-      CALL section_vals_release(input_file)    
-      CALL globenv_release(globenv,error)
 
+      IF(PRESENT(globenv_new))THEN
+         globenv_new => globenv
+      ELSE
+         CALL globenv_release(globenv,error)
+      ENDIF
 
 END SUBROUTINE mc_create_force_env
 

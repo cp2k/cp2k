@@ -120,11 +120,10 @@ MODULE mc_types
       REAL ( dp ) :: pmtrans
       REAL ( dp ) :: BETA
       REAL ( dp ) :: rcut
-      REAL ( dp ) :: cutoff
-      REAL ( dp ) :: inner_cutoff
       REAL ( dp ) :: avbmc_rmin
       REAL ( dp ) :: avbmc_rmax
       REAL ( dp ),DIMENSION(1:3) :: conf_prob
+      TYPE(section_vals_type),POINTER :: input_file
   END TYPE mc_simulation_parameters_type
 
   TYPE mc_simulation_parameters_p_type
@@ -189,9 +188,9 @@ CONTAINS
        rmrot,rmtrans,temp,pressure,BETA,pmswap,pmvolume,pmtraion,pmtrans,&
        ensemble,PROGRAM,restart_file_name,molecules_file,moves_file,coords_file,&
        energy_file,displacement_file,cell_file,dat_file,data_file,box2_file,&
-       cutoff,inner_cutoff,fft_lib,iprint,rcut,ldiscrete,discrete_step,&
+       fft_lib,iprint,rcut,ldiscrete,discrete_step,&
        conf_prob,pmavbmc,pbias,avbmc_atom,avbmc_rmin,avbmc_rmax,rmdihedral,&
-       print_level)
+       print_level,input_file)
 
 ! *****************************************************************************
 !!****s* mc_types.F/get_mc_par
@@ -224,7 +223,6 @@ CONTAINS
       restart_file_name, molecules_file, moves_file, coords_file, &
       energy_file, displacement_file, cell_file, dat_file, data_file, &
       box2_file
-    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: cutoff, inner_cutoff
     CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: fft_lib
     INTEGER, INTENT(OUT), OPTIONAL           :: iprint,print_level
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: rcut
@@ -236,6 +234,8 @@ CONTAINS
     INTEGER, INTENT(OUT), OPTIONAL           :: avbmc_atom
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: avbmc_rmin, avbmc_rmax, &
                                                 rmdihedral
+     TYPE(section_vals_type), POINTER, &
+          OPTIONAL                           :: input_file
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_mc_par', &
       routineP = moduleN//':'//routineN
@@ -271,8 +271,6 @@ CONTAINS
     IF ( PRESENT ( avbmc_rmin ) ) avbmc_rmin = mc_par % avbmc_rmin
     IF ( PRESENT ( avbmc_rmax ) ) avbmc_rmax = mc_par % avbmc_rmax
     IF ( PRESENT ( rcut ) ) rcut = mc_par % rcut
-    IF ( PRESENT ( cutoff ) ) cutoff = mc_par % cutoff
-    IF ( PRESENT ( inner_cutoff ) ) inner_cutoff = mc_par % inner_cutoff
     IF ( PRESENT ( discrete_step ) ) discrete_step = mc_par % discrete_step
     IF ( PRESENT ( rmvolume ) ) rmvolume = mc_par % rmvolume
     IF ( PRESENT ( rmbond ) ) rmbond = mc_par % rmbond
@@ -307,6 +305,7 @@ CONTAINS
     IF ( PRESENT ( fft_lib ) ) fft_lib = mc_par % fft_lib
     IF ( PRESENT ( print_level ) ) print_level = mc_par % print_level
 
+    IF ( PRESENT ( input_file ) ) input_file => mc_par % input_file
 
   END SUBROUTINE get_mc_par
 
@@ -455,10 +454,6 @@ CONTAINS
 !!                                        trans
 !!I iupvolume:                            every iupvolume step, update maximum
 !!                                        volume displacement
-!!I cutoff:                               the cutoff for the classical 
-!!                                        potential
-!!I inner_cutoff:                         a smaller cutoff for the classical 
-!!                                        potential
 !!I conf_prob:                            holds the probabilities of doing a
 !!                                        bond langth change (1), 
 !!                                  angle change (2), or dihedral change(3)
@@ -482,27 +477,38 @@ CONTAINS
 !!I---------------------------------------------------------------------------I
 !!*****************************************************************************
 
-SUBROUTINE read_mc_section ( mc_par, globenv,error )
+SUBROUTINE read_mc_section ( mc_par, globenv, input_file_name, input_file,&
+     error )
 
 
     TYPE(mc_simulation_parameters_type), &
       INTENT(OUT)                            :: mc_par
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout)       :: error
+    TYPE(section_vals_type), POINTER         :: input_file
+    CHARACTER(LEN=*),INTENT(IN)              :: input_file_name
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'read_mc_section'
 
     INTEGER                                  :: handle, ia, ie, iw, stop_num
     TYPE(section_vals_type), POINTER         :: mc_section
+    LOGICAL                                  :: failure
 
 !------------------------------------------------------------------------------
 ! begin the timing of the subroutine
 
+    CPPrecondition(ASSOCIATED(input_file),cp_failure_level,routineN,error,failure)
+
+    
       CALL timeset(routineN,'I','',handle)
 
       NULLIFY(mc_section)
-      mc_section => section_vals_get_subs_vals(globenv%input_file,&
+      mc_section => section_vals_get_subs_vals(input_file,&
          "MOTION%MC",error=error)
+
+! need the input file sturcutre that we're reading from for when we make
+! dat files
+      mc_par % input_file => input_file
 
 ! set the ionode and mepos
       mc_par % ionode = globenv % ionode
@@ -534,18 +540,11 @@ SUBROUTINE read_mc_section ( mc_par, globenv,error )
          mc_par % iprint = 1
       END SELECT
  
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! for two different classical cutoffs
-!  mc_par % cutoff = 7.8e0_dp / angstrom
-!  mc_par % inner_cutoff = 4.0e0_dp / angstrom
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! for BLYP with IPBV biasing
-      mc_par % cutoff = 6.211e0_dp / angstrom
-      mc_par % inner_cutoff = 6.211e0_dp / angstrom
-
       iw = globenv % scr
       IF(globenv%ionode) WRITE ( iw, * )
 
 !..filenames
-      mc_par % program = globenv % input_file_name
+      mc_par % program = input_file_name
       CALL xstring ( mc_par % program, ia, ie )
       mc_par%coords_file = mc_par % program(ia:ie) // '.coordinates'
       mc_par%molecules_file = mc_par % program(ia:ie) // '.molecules'
@@ -557,6 +556,7 @@ SUBROUTINE read_mc_section ( mc_par, globenv,error )
       mc_par%data_file = mc_par % program(ia:ie) // '.data'
       stop_num=ie-3
       mc_par%dat_file = mc_par % program(ia:stop_num) // 'dat'
+      WRITE(6,*) 'evnkx,v c ',mc_par % program
 
 ! set them into the input parameter structure as the new defaults
       CALL section_vals_val_set(mc_section,"COORDINATE_FILE_NAME",&

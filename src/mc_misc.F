@@ -1069,6 +1069,7 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
       WRITE(unit,10000) "    &TOPOLOGY"
       WRITE(unit,10000) "      CONNECTIVITY PSF"
       WRITE(cfile,'(I4)') natoms_tot/natoms
+      IF(nchains == 0) cfile="1"
       SELECT CASE ( force_env%in_use )
       CASE ( use_fist_force )
          WRITE(unit,10000) '      CONN_FILE topology_fist_' &
