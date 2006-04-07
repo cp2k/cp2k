@@ -67,7 +67,7 @@ having CVS write permission.
 <ul>
  <li><a href="download.html">Download and Install</a></li>
  <li><a href="input/index.html">Input reference manual</a></li>
- <li><a href="cp2k_input.htm">Input reference manual</a> (single DHTML page, requires Javascript)</li>
+ <li><a href="cp2k_input.htm">Input reference manual</a> (single DHTML page, requires Javascript; Konqueror: ignore error messages, just continue)</li>
  <li><a href="http://cvs.berlios.de/cgi-bin/viewcvs.cgi/cp2k/cp2k/src/?sortby=date">Browse the sources and follow development</a></li>
  <li><a href="regtest.html">Automatic regression tester</a></li>
  <li><a href="http://developer.berlios.de/projects/cp2k">The Berlios project page</a></li>
