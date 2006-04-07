@@ -239,8 +239,13 @@ CONTAINS
       END IF  
     END DO ! idir
 
-  stop 'p1'
     ! operator rxp
+!dbg
+      DO idir = 1,3
+         CALL cp_fm_set_all(nmr_env%psi1_rxp(1,idir)%matrix,0.0_dp,error=error)
+      END DO 
+!dbg
+
     DO idir = 1,3 
 
       IF(.NOT. nmr_env%simplenmr_done(idir+3)) THEN
@@ -722,8 +727,8 @@ CONTAINS
      END DO
 
      ! x  y z   x2 xy xz y2 yz z2 operators (in this order)
-     CALL allocate_matrix_set(nmr_env%op_mom_ao,9)
-     DO idir = 1,9 
+     CALL allocate_matrix_set(nmr_env%op_mom_ao,3)
+     DO idir = 1,3 
        CALL replicate_matrix_structure(matrix_s(1)%matrix, &
             nmr_env%op_mom_ao(idir)%matrix,&
             "nmr_env%op_mom_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir))),&

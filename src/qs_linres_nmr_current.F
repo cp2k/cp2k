@@ -306,7 +306,7 @@ CONTAINS
       nmr_env%chi_tensor = 0.0_dp
       nmr_env%chi_tensor_loc = 0.0_dp
 !-----------------------------------------------------------------------!
-
+ 
 ! Loop on the field direction 
       DO i_B = 1,3
         DO ispin = 1,dft_control%nspins
@@ -319,7 +319,7 @@ CONTAINS
           CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff,&
                 occupation_numbers=occupation, homo=homo, nao=nao,nmo=nmo,&
                 uniform_occupation=uni_occ,maxocc=maxocc)
-
+ 
           NULLIFY(psi2,psi3,p_psi2,p_psi3,fm_work1)
           ! create a new matrix 
           NULLIFY(tmp_fm_struct)
@@ -333,8 +333,11 @@ CONTAINS
           CALL cp_fm_struct_release ( tmp_fm_struct )
 
 
+
 ! First compute the contribution to the CHI tensor coming from the soft density
           CALL chi_soft_analytic(nmr_env,qs_env,psi1,p_psi1,ispin,i_B,error=error)
+!dbg
+!dbg
  stop 'chi'
 
           CALL cp_fm_set_all(psi1(ispin)%matrix,0.0_dp,error=error)

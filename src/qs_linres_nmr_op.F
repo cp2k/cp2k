@@ -160,13 +160,8 @@ CONTAINS
       DO ispin = 1, dft_control%nspins
          CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff, nao=nao, nmo=nmo)
          CALL cp_fm_set_all(nmr_env%p_psi0(ispin,idir)%matrix,0.0_dp,error=error)
-!         IF(nmr_env%op_p_ao(idir)%matrix%symmetry=="none") THEN
-!            CALL cp_sm_fm_multiply_general(nmr_env%op_p_ao(idir)%matrix,mo_coeff,&
-!                nmr_env%p_psi0(ispin,idir)%matrix,ncol=nmo,alpha=-1.0_dp,error=error)
-!         ELSE
-            CALL cp_sm_fm_multiply(nmr_env%op_p_ao(idir)%matrix,mo_coeff,&
+         CALL cp_sm_fm_multiply(nmr_env%op_p_ao(idir)%matrix,mo_coeff,&
                 nmr_env%p_psi0(ispin,idir)%matrix,ncol=nmo,alpha=-1.0_dp,error=error)
-!         END IF
 !dbg
 ! write(*,*) 'idir ', idir
 !         ov_tmp = 0.0_dp
@@ -179,9 +174,6 @@ CONTAINS
 !dbg
       END DO 
     END DO 
-!dbg
-!      stop 'pippo ov'
-!dbg
 
     DO idir = 1,3 
       NULLIFY(vecbuf_p0(idir)%array,vecbuf_rxp0(idir)%array,vecbuf_cmd(idir)%array)
@@ -209,13 +201,8 @@ CONTAINS
       DO ispin = 1, dft_control%nspins
          CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff, nao=nao, nmo=nmo)
          CALL cp_fm_set_all(nmr_env%rxp_psi0(ispin,idir)%matrix,0.0_dp,error=error)
-!         IF(nmr_env%op_rmd_ao(idir)%matrix%symmetry=="none") THEN
-!            CALL cp_sm_fm_multiply_general(nmr_env%op_rmd_ao(idir)%matrix,mo_coeff,&
-!                nmr_env%rxp_psi0(ispin,idir)%matrix,ncol=nmo,alpha=-1.0_dp,error=error)
-!         ELSE
-           CALL cp_sm_fm_multiply(nmr_env%op_rmd_ao(idir)%matrix,mo_coeff,&
+         CALL cp_sm_fm_multiply(nmr_env%op_rmd_ao(idir)%matrix,mo_coeff,&
                 nmr_env%rxp_psi0(ispin,idir)%matrix,ncol=nmo,alpha=-1.0_dp,error=error)
-!         END IF
       END DO 
     END DO 
 
@@ -257,6 +244,7 @@ CONTAINS
          END DO
          DO idir = 1,3
            CALL set_vecp(idir,ii,iii)
+
            !get the full matrix vector containing only the first term, 
            !to which now the second term will be added
            CALL cp_fm_get_submatrix(nmr_env%rxp_psi0(ispin,idir)%matrix,vecbuf_rxp0(idir)%array,&
@@ -267,10 +255,11 @@ CONTAINS
              DO idir2 = 1,3
                ck(idir2) = nmr_env%basisfun_center(idir2,iao)
              END DO
-!             ckdk = pbc(dk,ck,cell)
-             ckdk(1) = ck(1)-dk(1)
-             ckdk(2) = ck(2)-dk(2)
-             ckdk(3) = ck(3)-dk(3)
+
+             ckdk = pbc(dk,ck,cell)
+!             ckdk(1) = ck(1)-dk(1)
+!             ckdk(2) = ck(2)-dk(2)
+!             ckdk(3) = ck(3)-dk(3)
              !Add the second term element by element (not very efficient indeed)
 !                                ckdk(iii)*vecbuf_p0(ii)%array(1,iao)
              vecbuf_rxp0(idir)%array(1,iao) =  vecbuf_rxp0(idir)%array(1,iao) + & 
@@ -278,30 +267,30 @@ CONTAINS
                                 ckdk(iii)*vecbuf_p0(ii)%array(1,iao)
 !                                vecbuf_p0(iii)%array(1,iao) - &
 !                                vecbuf_p0(ii)%array(1,iao)
-  if(idir == 1) then
-  write(*,'(A,I4,A,i4,4f10.6)') ' is ', istate , 'iao ', iao, ckdk(1:3), vecbuf_rxp0(idir)%array(1,iao)
-  end if
-           END DO
+!  if(idir == 1) then
+!  write(*,'(A,I4,A,i4,4f10.6)') ' is ', istate , 'iao ', iao, ckdk(1:3), vecbuf_rxp0(idir)%array(1,iao)
+!  end if
+           END DO  ! iao
+
            !Give back the modified vector to the full matrix
            CALL cp_fm_set_submatrix(nmr_env%rxp_psi0(ispin,idir)%matrix,vecbuf_rxp0(idir)%array,&
                 1,istate,nao,1,transpose=.TRUE.,error=error)
-         END DO 
-
+         END DO   ! idir
        END DO  ! istate
     END DO  ! ispin
 !dbg
-    DO idir = 1,3
-       CALL get_mo_set(mos(1)%mo_set, mo_coeff=mo_coeff, nao=nao)
- write(*,*) 'idir ', idir
-         ov_tmp = 0.0_dp
-         CALL dgemm('T','N',4,4,nao,1.0_dp,mo_coeff%local_data(1,1),&
-              nao, nmr_env%rxp_psi0(ispin,idir)%matrix%local_data(1,1),&
-              nao,0.0_dp,ov_tmp(1,1),4)
-         do i = 1,4
-         write(*,'(I4,4f12.6)') i,( ov_tmp(i,j), j=1,4)
-         end do 
-        stop 'rxp'
-    END DO
+!    DO idir = 1,3
+!       CALL get_mo_set(mos(1)%mo_set, mo_coeff=mo_coeff, nao=nao)
+! write(*,*) 'idir ', idir
+!         ov_tmp = 0.0_dp
+!         CALL dgemm('T','N',4,4,nao,1.0_dp,mo_coeff%local_data(1,1),&
+!              nao, nmr_env%rxp_psi0(ispin,idir)%matrix%local_data(1,1),&
+!              nao,0.0_dp,ov_tmp(1,1),4)
+!         do i = 1,4
+!         write(*,'(I4,4f12.6)') i,( ov_tmp(i,j), j=1,4)
+!         end do 
+!        stop 'rxp'
+!    END DO
 !dbg
 
     ! Calculate the x y z x2 xy xz y2 yz z2 operators (in this order)
@@ -315,7 +304,7 @@ CONTAINS
          "PRINT%PROGRAM_RUN_INFO",error=error)
     soft_only = dft_control%qs_control%gapw
     dk =  linres_control%localized_wfn_control%centers_set(1)%array(1:3,1)
-    CALL rRc_xyz_ao(nmr_env%op_mom_ao,qs_env,dk,order=2,minimum_image=.TRUE.,error=error)
+    CALL rRc_xyz_ao(nmr_env%op_mom_ao,qs_env,dk,order=1,minimum_image=.TRUE.,error=error)
     DEALLOCATE (first_sgf,last_sgf,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 

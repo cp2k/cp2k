@@ -530,9 +530,9 @@ CONTAINS
 !!     Calculation of the components of the (r-c)xp operator 
 !!     where p is in the velocity form and c is the center of the primitive
 !!     function multiplied from the left.
-!!     The resulting sparse matrix is not symmetric, therefore for each
-!!     couple of neighbors (iatom,jatom), the two blocks (ij) and (ji)
-!!     need to be calculated. The center c will be the position of
+!!     The resulting sparse matrix is not symmetric, therefore all_couples
+!!     lists are used, which cntain the couples ab and ba
+!!     The center c will be the position of
 !!     iatom and the position of jatom respectively.
 !!     The elements of the  sparse matrices are the integrals in the
 !!     basis functions
@@ -590,9 +590,9 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(block_p_type), DIMENSION(:), &
-      POINTER                                :: op_angij, op_angji
+      POINTER                                :: op_angij
     TYPE(block_p_type), DIMENSION(:, :), &
-      POINTER                                :: op_angijt, op_angjit
+      POINTER                                :: op_angijt
     TYPE(cell_type), POINTER                 :: cell
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(neighbor_list_set_p_type), &
@@ -612,13 +612,12 @@ CONTAINS
     NULLIFY (cell, particle_set, orb_basis_set)
     NULLIFY (sab_orb,sab_orb_neighbor_list,sab_orb_neighbor_list_local,&
              sab_orb_neighbor_node)
-    NULLIFY (angab,angabt,op_angij,op_angijt,op_angji,op_angjit,work,workt)
+    NULLIFY (angab,angabt,op_angij,op_angijt,work,workt)
     NULLIFY (la_max, la_min, lb_max, lb_min, npgfa, npgfb, nsgfa, nsgfb)
     NULLIFY (set_radius_a,set_radius_b,rpgfa, rpgfb, sphi_a,sphi_b,zeta, zetb )
 
     CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set,&
          cell=cell,particle_set=particle_set,&
-!         sab_orb=sab_orb)
          sab_all=sab_orb)
 
     nkind = SIZE(atomic_kind_set)
@@ -644,13 +643,12 @@ CONTAINS
     ALLOCATE (workt(ldwork,ldwork,0:nthread-1),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     workt(1:ldwork,1:ldwork,0:nthread-1)=0.0_dp
-    ALLOCATE (op_angijt(3,0:nthread-1),op_angjit(3,0:nthread-1),STAT=istat)
+    ALLOCATE (op_angijt(3,0:nthread-1),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     DO i = 1, 3
       DO j=0,nthread-1
         NULLIFY (op_angijt(i,j)%block)
-        NULLIFY (op_angjit(i,j)%block)
       END DO
     END DO
 
@@ -714,14 +712,14 @@ CONTAINS
 !$OMP private(ithread,angab,work,ilist,iatom,jatom)&
 !$OMP private(last_jatom,new_atom_b,istat,sgfa,sgfb,ra,rb)&
 !$OMP private(nrow,iset,jset,ncoa,ncob,nnode,inode,irow,icol)&
-!$OMP private(op_angij,op_angji,rab,rab2,dab,i)&
+!$OMP private(op_angij,rab,rab2,dab,i)&
 !$OMP private(sab_orb_neighbor_node,sab_orb_neighbor_list_local)&
 !$OMP private(rc,rac,rbc)&
 !$OMP shared(ikind,jkind,rpgfb,zetb,sphi_b,sphi_a,nsgfa,nsgfb,set_radius_b,ldab,ldwork)&
 !$OMP shared(lb_max,npgfb,nsetb,iab,la_min,rpgfa,zeta)&
 !$OMP shared(set_radius_a,nco,ncoset,npgfa,nseta,ldsa,ldsb)&
 !$OMP shared(nkind,sab_orb_neighbor_list,nlist,workt,angabt,qs_env)&
-!$OMP shared(op_angijt,op_angjit)&
+!$OMP shared(op_angijt)&
 !$OMP shared(first_sgfa,first_sgfb,sab_orb,lb_min,la_max,op_sm)&
 !$OMP shared(atomic_kind_set,particle_set,cell)&
 !$OMP shared(my_minimum_image,Lxo2)
@@ -732,7 +730,6 @@ CONTAINS
         angab => angabt(:,:,:,ithread)
         work  => workt(:,:,ithread)
         op_angij => op_angijt(:,ithread)
-        op_angji => op_angjit(:,ithread)
 
 !$OMP do
        DO ilist = 1,nlist
@@ -785,15 +782,6 @@ CONTAINS
                                      block_row=irow,&
                                      block_col=icol,&
                                      block=op_angij(i)%block)
-                 IF(iatom/=jatom) THEN
-                   NULLIFY(op_angji(i)%block)
-                   irow = jatom
-                   icol = iatom
-                   CALL get_block_node(matrix=op_sm(i)%matrix,&
-                                     block_row=irow,&
-                                     block_col=icol,&
-                                     block=op_angji(i)%block)
-                 END IF
               END DO
             END IF  !new_atom_b
             rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
@@ -842,29 +830,6 @@ CONTAINS
                           SIZE(op_angij(i)%block,1))
                   END DO 
 
-!             IF(iatom/=jatom) THEN
-!            *** Calculate the primitive overlap integrals (jatom iatom)***
-!                  rc(1:3) = rb(1:3)
-!                  rbc(1:3) = 0.0_dp
-!                  rac(1:3) = -rab(1:3)
-!!                  rac(1:3) = ra(1:3)
-!!                  rbc(1:3) = rb(1:3)
-!                  CALL angmom(lb_max(jset),npgfb(jset),zetb(:,jset),&
-!                        rpgfb(:,jset),lb_min(jset), la_max(iset),npgfa(iset),&
-!                        zeta(:,iset),rpgfa(:,iset),la_min(iset),rbc,rac,angab)
-!            *** Contraction ***
-!                  DO i = 1,3
-!                     CALL dgemm("N","N",ncob,nsgfa(iset),ncoa,&
-!                          1.0_dp,angab(1,1,i),ldab,sphi_a(1,sgfa),ldsa,&
-!                          0.0_dp,work(1,1),ldwork)
-!                     CALL dgemm("T","N",nsgfb(jset),nsgfa(iset),ncob,&
-!                          1.0_dp,sphi_b(1,sgfb),ldsb,&
-!                          work(1,1),ldwork,&
-!                          1.0_dp,op_angji(i)%block(sgfb,sgfa),&
-!                          SIZE(op_angji(i)%block,1))
-!                  END DO 
-!               END IF
-
                 END IF  !  >= dab
 
               END DO ! jset
@@ -873,18 +838,10 @@ CONTAINS
 
             END DO ! iset
 !dbg
-   write(*,*) 'contracted straight', iatom, jatom, ldsa, ldsb
-   do i = 1,size(op_angij(1)%block,1)
-    write(*,'(i4,23f10.5)') i, (op_angij(1)%block(i,j), j=1,size(op_angij(1)%block,2))
-   end do
-!dbg
-!dbg
- IF(jatom/=iatom) THEN
-   write(*,*) 'contracted reverse', jatom, iatom, ldsb,ldsa
-   do i = 1,size(op_angji(1)%block,1)
-    write(*,'(i4,23f10.5)') i, (op_angji(1)%block(i,j), j=1,size(op_angji(1)%block,2))
-   end do
- END IF
+!   write(*,*) 'contracted straight', iatom, jatom, ldsa, ldsb
+!   do i = 1,size(op_angij(1)%block,1)
+!    write(*,'(i4,23f10.5)') i, (op_angij(1)%block(i,j), j=1,size(op_angij(1)%block,2))
+!   end do
 !dbg
 
 
@@ -903,10 +860,10 @@ CONTAINS
 !dbg
     DO i = 1,3
       DO j = 0,nthread-1
-           NULLIFY(op_angijt(i,j)%block,op_angjit(i,j)%block)
+           NULLIFY(op_angijt(i,j)%block)
       END DO
     END DO
-    DEALLOCATE(op_angijt,op_angjit, STAT=istat)
+    DEALLOCATE(op_angijt, STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     DEALLOCATE(angabt,workt,STAT=istat)
