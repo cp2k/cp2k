@@ -16,19 +16,24 @@
 !!
 !!   MODIFICATION HISTORY
 !!     - Joost VandeVondele (03.2006)
+!!     - combine_ks_matrices added (05.04.06,MK)
 !!
 !!   SOURCE
 !******************************************************************************
 
 MODULE qs_scf_methods
+
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
                                              cp_fm_symm
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_reduce,&
                                              cp_fm_cholesky_restore
-  USE cp_fm_diag,                      ONLY: cp_fm_block_jacobi_classic,&
+  USE cp_fm_diag,                      ONLY: cp_fm_block_jacobi,&
                                              cp_fm_syevd,&
                                              cp_fm_syevx
+  USE cp_fm_struct,                    ONLY: cp_fm_struct_equivalent,&  
+                                             cp_fm_struct_type
   USE cp_fm_types,                     ONLY: cp_fm_get_element,&
+                                             cp_fm_get_info,&
                                              cp_fm_set_element,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
@@ -61,16 +66,21 @@ MODULE qs_scf_methods
 
   PRIVATE
 
-! *** Global parameters ***
+  CHARACTER(len=*), PARAMETER :: moduleN = "qs_scf_methods"
+  REAL(KIND=dp), PARAMETER    :: ratio = 0.25_dp
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_scf_methods'
-  REAL(KIND=dp), PARAMETER             :: ratio=0.25_dp
+  ! Public subroutines
 
-  PUBLIC :: eigensolver, simple_eigensolver, scf_env_density_mixing
+  PUBLIC :: combine_ks_matrices,&
+            eigensolver,&
+            scf_env_density_mixing,&
+            simple_eigensolver
 
 ! *****************************************************************************
 
 CONTAINS
+
+! *****************************************************************************
 
 !!****f* qs_scf/scf_env_density_mixing [1.0] *
 !!
@@ -164,7 +174,7 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE eigensolver(matrix_ks,mo_set,ortho,work,do_level_shift,level_shift,&
-       use_cholesky, work_syevx, use_jacobi,jacobi_threshold,smear,&
+       use_cholesky, work_syevx, use_jacobi,jacobi_threshold,smear,ao2mo,&
        error)
 
 !   Purpose: Diagonalise the Kohn-Sham matrix to get a new set of MO eigen-
@@ -184,6 +194,7 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: work_syevx
     LOGICAL, INTENT(IN)                      :: use_jacobi
     REAL(KIND=dp), INTENT(IN)                :: jacobi_threshold, smear
+    TYPE(cp_fm_type), POINTER, OPTIONAL      :: ao2mo
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -236,23 +247,12 @@ CONTAINS
 
        CALL cp_fm_symm("L","U",nao,homo,1.0_dp,matrix_ks,mo_coeff,0.0_dp,work)
        CALL cp_fm_gemm("T","N",homo,nao-homo,nao,1.0_dp,work,mo_coeff,&
-            0.0_dp,matrix_ks,b_first_col=homo+1,c_first_col=homo+1)
+                       0.0_dp,matrix_ks,b_first_col=homo+1,c_first_col=homo+1)
 
-!     epsi =1e-11
-!     Anz_max=4
-!     N=matrix_ks%matrix_struct%nrow_global
+       ! Block Jacobi (pseudo-diagonalization, only one sweep)
 
-!     *** Scale the elements with the inverse ***
-!     *** difference of the old eigenvalues   ***
-
-!     CALL blacs_block_jacobi_scaled(matrix_ks,work,mo_eigenvalues,&
-!                                    jacobi_threshold,homo+1)
-
-!     *** Klassisches Jacobi-Block-Verfahren ***
-!     *** Rotiere Elemente nur, wenn sie groesser als thresh sind ***
-
-       CALL cp_fm_block_jacobi_classic(matrix_ks,mo_coeff,mo_eigenvalues,&
-            jacobi_threshold,homo+1)
+       CALL cp_fm_block_jacobi(matrix_ks,mo_coeff,mo_eigenvalues,&
+                               jacobi_threshold,homo+1)
 
     ELSE ! full S^-1 has been computed
 
@@ -270,17 +270,15 @@ CONTAINS
 
        CALL cp_fm_syevx(matrix_ks,work,mo_eigenvalues,nmo,work_syevx)
 
+       ! Store orthonormal MO set for ROKS
+
+       IF (PRESENT(ao2mo)) CALL cp_fm_to_fm(work,ao2mo)
+
        CALL cp_fm_gemm("N","N",nao,nmo,nao,1.0_dp,ortho,work,0.0_dp,&
-            mo_coeff)
+                       mo_coeff)
 
        IF (do_level_shift) THEN
-
-          CALL correct_mo_eigenvalues(mo_set,level_shift)
-
-!     *** Use last MO set as orthogonalization matrix ***
-
-          CALL cp_fm_to_fm(mo_coeff,ortho)
-
+         CALL correct_mo_eigenvalues(mo_set,level_shift)
        END IF
 
     END IF
@@ -322,7 +320,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    CALL timeset("eigensolver","I"," ",handle)
+    CALL timeset("simple_eigensolver","I"," ",handle)
 
     NULLIFY(mo_eigenvalues,mo_occupation,mo_coeff)
 
@@ -476,5 +474,90 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE cp_sm_mix
+
+  ! ***************************************************************************
+
+  SUBROUTINE combine_ks_matrices(ksa,ksb,occa,occb,roks_parameter,level_shift,&
+                                 homoa,homob,error)
+
+    ! Combine the alpha and beta Kohn-Sham matrices during a restricted open
+    ! Kohn-Sham (ROKS) calculation
+    ! On input ksa and ksb contain the alpha and beta Kohn-Sham matrices,
+    ! respectively. occa and occb contain the corresponding MO occupation
+    ! numbers. On output the combined ROKS operator matrix is returned in ksa.
+
+    TYPE(cp_fm_type), POINTER                         :: ksa,ksb
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)           :: occa,occb
+    REAL(KIND=dp), DIMENSION(0:2,0:2,1:2), INTENT(IN) :: roks_parameter
+    REAL(KIND=dp), INTENT(IN)                         :: level_shift
+    INTEGER, INTENT(IN)                               :: homoa,homob
+    TYPE(cp_error_type), INTENT(INOUT), OPTIONAL      :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = "combine_ks_matrices",&
+                                   routineP = moduleN//":"//routineN
+
+    TYPE(cp_fm_struct_type), POINTER :: ksa_struct,ksb_struct
+
+    INTEGER :: i,icol_global,icol_local,irow_global,irow_local,j,handle,&
+               ncol_local,nrow_local
+    LOGICAL :: compatible_matrices,failure
+
+    INTEGER, DIMENSION(:), POINTER :: col_indices,row_indices
+
+    REAL(KIND=dp), DIMENSION(:,:), POINTER :: matrix_a,matrix_b
+
+    ! -------------------------------------------------------------------------
+
+    CALL timeset(routineN,"I","",handle)
+
+    failure = .FALSE.
+
+    CPPrecondition(ASSOCIATED(ksa),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(ksb),cp_failure_level,routineP,error,failure)
+
+    CALL cp_fm_get_info(matrix=ksa,&
+                        matrix_struct=ksa_struct,&
+                        nrow_local=nrow_local,&
+                        ncol_local=ncol_local,&
+                        row_indices=row_indices,&
+                        col_indices=col_indices,&
+                        local_data=matrix_a,&
+                        error=error)
+
+    CALL cp_fm_get_info(matrix=ksb,&
+                        matrix_struct=ksb_struct,&
+                        local_data=matrix_b,&
+                        error=error)
+
+    compatible_matrices = cp_fm_struct_equivalent(ksa_struct,ksb_struct,error=error)
+    CPPrecondition(compatible_matrices,cp_failure_level,routineP,error,failure)
+
+    DO icol_local=1,ncol_local
+      icol_global = col_indices(icol_local)
+      i = INT(occa(icol_global)) + INT(occb(icol_global))
+      DO irow_local=1,nrow_local
+        irow_global = row_indices(irow_local)
+        j = INT(occa(irow_global)) + INT(occb(irow_global))
+        matrix_a(irow_local,icol_local) =&
+          roks_parameter(i,j,1)*matrix_a(irow_local,icol_local) +&
+          roks_parameter(i,j,2)*matrix_b(irow_local,icol_local)
+        ! Perform level-shift of the diagonal elements
+        IF (irow_global == icol_global) THEN
+          IF (irow_global > homoa) THEN
+            matrix_a(irow_local,icol_local) =&
+              matrix_a(irow_local,icol_local) + level_shift
+          ELSE IF (irow_global > homob) THEN
+            matrix_a(irow_local,icol_local) =&
+              matrix_a(irow_local,icol_local) + 0.5_dp*level_shift
+          END IF
+        END IF
+      END DO
+    END DO
+
+    CALL timestop(0.0_dp,handle)
+
+  END SUBROUTINE combine_ks_matrices
+
+  ! ***************************************************************************
 
 END MODULE qs_scf_methods

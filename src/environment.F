@@ -263,7 +263,7 @@ CONTAINS
         WRITE (UNIT=output_unit,FMT="(T44,A)")&
           cwd(l:MIN(LEN_TRIM(cwd),l+36))
       END DO
-      WRITE (UNIT=output_unit,FMT="(T2,A,T31,A50)")&
+      WRITE (UNIT=output_unit,FMT="(/,T2,A,T31,A50)")&
         "CP2K| Program compiled at",&
         ADJUSTR(compile_date(1:MIN(50,LEN(compile_date))))
       WRITE (UNIT=output_unit,FMT="(T2,A,T31,A50)")&

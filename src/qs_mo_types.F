@@ -1022,7 +1022,7 @@ CONTAINS
   ! ***************************************************************************
 
   SUBROUTINE write_mo_set_to_output_unit(mo_set,atomic_kind_set,particle_set,&
-                                         before,after,dft_section,error)
+                                         before,after,dft_section,spin,error)
     
     ! Purpose: Write the MO eigenvalues, MO occupation numbers and
     !          MO mo_coeff.
@@ -1046,6 +1046,7 @@ CONTAINS
       POINTER                                :: particle_set
     INTEGER, INTENT(IN)                      :: before, after
     TYPE(section_vals_type), POINTER         :: dft_section
+    CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: spin
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -1068,6 +1069,8 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: cmatrix, smatrix
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
+
+    ! -------------------------------------------------------------------------
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
@@ -1132,7 +1135,7 @@ CONTAINS
           IF (p_cart) THEN
 
              name = "MO EIGENVALUES, MO OCCUPATION NUMBERS AND "//&
-                  "CARTESIAN MO EIGENVECTORS"
+                    "CARTESIAN MO EIGENVECTORS"
 
              ALLOCATE(cmatrix(ncgf,ncgf),STAT=istat)
              IF (istat /= 0) THEN
@@ -1169,7 +1172,7 @@ CONTAINS
           ELSE
 
              name = "MO EIGENVALUES, MO OCCUPATION NUMBERS AND "//&
-                  "SPHERICAL MO EIGENVECTORS"
+                    "SPHERICAL MO EIGENVECTORS"
 
           END IF
 
@@ -1185,7 +1188,11 @@ CONTAINS
 
        ! Print headline
 
-       WRITE (UNIT=iw,FMT="(/,/,T2,A)") TRIM(name)
+       IF (PRESENT(spin)) THEN
+         WRITE (UNIT=iw,FMT="(/,/,T2,A)") spin//" "//TRIM(name)
+       ELSE
+         WRITE (UNIT=iw,FMT="(/,/,T2,A)") TRIM(name)
+       END IF
 
        ! Print MO information
        DO icol=1,mo_set%nmo,ncol

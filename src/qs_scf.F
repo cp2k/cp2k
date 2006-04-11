@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
-!   CP2K: A general program to perform molecular dynamics simulations
-!   Copyright (C) 2001 - 2006  CP2K developers group
+!   CP2K: A general program to perform molecular dynamics simulations         !
+!   Copyright (C) 2001 - 2006  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 !!****** cp2k/qs_scf [1.0] *
@@ -43,6 +43,7 @@
 !!     - got rid of nrebuild (01.2004, Joost VandeVondele)
 !!     - 10.2004 removed pao [fawzi]
 !!     - 03.2006 large cleaning action [Joost VandeVondele]
+!!     - High-spin ROKS added (05.04.06,MK)
 !!
 !!   SOURCE
 !******************************************************************************
@@ -51,15 +52,20 @@ MODULE qs_scf
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE cp_control_types,                ONLY: dft_control_type
+
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose
-  USE cp_fm_diag,                      ONLY: cp_fm_power
+  USE cp_fm_diag,                      ONLY: cp_fm_power,&
+                                             cp_fm_syevd
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
+                                             cp_fm_symm
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                              fm_pool_get_el_struct
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_get,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
-  USE cp_fm_types,                     ONLY: cp_fm_create,&
+  USE cp_fm_types,                     ONLY: cp_fm_to_fm,&
+                                             cp_fm_create,&
                                              cp_fm_p_type,&
                                              cp_fm_release,&
                                              cp_fm_type
@@ -138,7 +144,8 @@ MODULE qs_scf
   USE qs_rho_methods,                  ONLY: duplicate_rho_type,&
                                              qs_rho_update_rho
   USE qs_rho_types,                    ONLY: qs_rho_type
-  USE qs_scf_methods,                  ONLY: eigensolver,&
+  USE qs_scf_methods,                  ONLY: combine_ks_matrices,&
+                                             eigensolver,&
                                              scf_env_density_mixing,&
                                              simple_eigensolver
   USE qs_scf_post,                     ONLY: scf_post_calculation
@@ -336,7 +343,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'scf_env_do_scf', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, handle2, i, ispin, &
+    INTEGER                                  :: handle, handle2, ispin, &
                                                 output_unit
     LOGICAL :: diis_step, energy_only, failure, gapw, gapw_xc, harris_flag, &
       has_unit_metric, outer_loop_converged, use_jacobi
@@ -454,8 +461,14 @@ CONTAINS
                     routineP,"unknown scf method: "//&
                     cp_to_string(scf_env%method),error,failure)
           CASE(general_diag_method_nr) 
-             CALL qs_scf_loop_do_general_diag(scf_env,mos,rho,matrix_ks,matrix_s,scf_control,scf_section, &
-                                          diis_step,use_jacobi,error)
+            IF (dft_control%roks) THEN
+              CALL qs_scf_loop_do_roks_diag(scf_env,mos,matrix_ks,matrix_s,&
+                                            scf_control,scf_section,diis_step,&
+                                            has_unit_metric,error)
+            ELSE
+              CALL qs_scf_loop_do_general_diag(scf_env,mos,rho,matrix_ks,matrix_s,scf_control,scf_section, &
+                                               diis_step,use_jacobi,error)
+            END IF
           CASE(special_diag_method_nr)
              CALL qs_scf_loop_do_special_diag(scf_env,mos,rho,matrix_ks,scf_control,scf_section, &
                                           diis_step,error)
@@ -465,10 +478,15 @@ CONTAINS
           END SELECT
 
           ! another heavy weight print object, print controlled by dft_section
-          DO ispin=1,SIZE(mos)
-             CALL write_mo_set(mos(ispin)%mo_set,atomic_kind_set,&
-                               particle_set,4,6,dft_section,error=error)
-          ENDDO
+          IF (SIZE(mos) > 1) THEN
+            CALL write_mo_set(mos(1)%mo_set,atomic_kind_set,particle_set,&
+                              4,6,dft_section,spin="ALPHA",error=error)
+            CALL write_mo_set(mos(2)%mo_set,atomic_kind_set,particle_set,&
+                               4,6,dft_section,spin="BETA",error=error)
+          ELSE
+            CALL write_mo_set(mos(1)%mo_set,atomic_kind_set,particle_set,&
+                              4,6,dft_section,error=error)
+          END IF
 
           ! ** calculation of the harris energy correction *** !
           IF (harris_flag) THEN
@@ -1361,6 +1379,7 @@ END SUBROUTINE qs_scf_print_summary
          mos=mos,matrix_ks=matrix_ks, rho=rho, &
          matrix_h=matrix_h,matrix_s=matrix_s, error=error)
 
+
     ! some special checks to eliminate the first problems with restricted
     ! should move earlier I think
     IF (dft_control%restricted) THEN
@@ -1416,11 +1435,11 @@ END SUBROUTINE qs_scf_print_summary
     IF (scf_env%method /= ot_method_nr .AND. &
         scf_env%method /= special_diag_method_nr ) THEN
        CALL copy_sm_to_fm(matrix_s(1)%matrix,scf_env%ortho)
-       IF (scf_control%use_cholesky ) THEN
-          CALL cp_fm_cholesky_decompose(scf_env%ortho)
+       IF (scf_control%use_cholesky) THEN
+         CALL cp_fm_cholesky_decompose(scf_env%ortho)
        ELSE 
-          CALL cp_fm_power(scf_env%ortho,scf_env%scf_work2,-0.5_dp,scf_control%eps_eigval,ndep)
-       ENDIF
+         CALL cp_fm_power(scf_env%ortho,scf_env%scf_work2,-0.5_dp,scf_control%eps_eigval,ndep)
+       END IF
        IF (BTEST(cp_print_key_should_output(logger%iter_info,&
             qs_env%input,"DFT%PRINT%AO_MATRICES/ORTHO",error=error),cp_p_file)) THEN
           iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/ORTHO",&
@@ -1432,9 +1451,9 @@ END SUBROUTINE qs_scf_print_summary
     ENDIF
     output_unit=cp_print_key_unit_nr(logger,scf_section,"PRINT%PROGRAM_RUN_INFO",&
                extension=".scfLog",error=error)
-    IF (output_unit>0) THEN
-       WRITE (UNIT=output_unit,FMT="(T3,A,I10)")&
-                  "Number of independent orbital functions:",nao - ndep
+    IF (output_unit > 0) THEN
+       WRITE (UNIT=output_unit,FMT="(/,T3,A,I10)")&
+         "Number of independent orbital functions:",nao - ndep
     END IF
     CALL cp_print_key_finished_output(output_unit,logger,scf_section,&
           "PRINT%PROGRAM_RUN_INFO", error=error)
@@ -1443,7 +1462,6 @@ END SUBROUTINE qs_scf_print_summary
     IF (scf_control%outer_scf%have_scf) THEN
        CALL outer_loop_extrapolate(qs_env,error)
     ENDIF
-
 
     my_transition_potential = (dft_control%do_xas_calculation .AND. dft_control%xas_estate>0)
     ! initializes rho and the mos
@@ -1662,6 +1680,13 @@ END SUBROUTINE qs_scf_print_summary
                "WORK_MATRIX-2",&
                error=error)
        END IF
+       IF (dft_control%roks.AND.(.NOT.ASSOCIATED(scf_env%scf_work3))) THEN
+         CALL cp_fm_create(scf_env%scf_work3,&
+                           matrix_struct=ao_ao_fmstruct,&
+                           name="SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))//&
+                                "WORK_MATRIX-3",&
+                           error=error)
+       END IF
        CALL cp_fm_struct_release(ao_ao_fmstruct,error=error)
 
     END IF
@@ -1790,6 +1815,7 @@ END SUBROUTINE qs_scf_print_summary
                "Extrapolation method: "//&
                TRIM(wfi_get_method_label(extrapolation_method_nr,error=error))
        END IF
+
        CALL cp_print_key_finished_output(output_unit,logger,scf_section,&
             "PRINT%PROGRAM_RUN_INFO", error=error)
        IF (extrapolation_method_nr==wfi_use_guess_method_nr) THEN
@@ -1804,7 +1830,9 @@ END SUBROUTINE qs_scf_print_summary
     END IF
 
     CALL timestop(0.0_dp,handle)
+
   END SUBROUTINE scf_env_initial_rho_setup
+
 !***************************************************************************
 
 !!****f* qs_scf/scf_env_cleanup [1.0] *
@@ -1864,6 +1892,7 @@ END SUBROUTINE qs_scf_print_summary
           DEALLOCATE(scf_env%scf_work1)
        ENDIF
        IF (ASSOCIATED(scf_env%scf_work2)) CALL cp_fm_release(scf_env%scf_work2)
+       IF (ASSOCIATED(scf_env%scf_work3)) CALL cp_fm_release(scf_env%scf_work3)
        IF (ASSOCIATED(scf_env%ortho)) CALL cp_fm_release(scf_env%ortho)
 
        IF (ASSOCIATED(scf_env%p_mix_new)) THEN
@@ -1967,6 +1996,192 @@ END SUBROUTINE qs_scf_print_summary
     END IF
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE cleanup_scf_loop
-!***************************************************************************
+
+  ! ***************************************************************************
+
+  SUBROUTINE qs_scf_loop_do_roks_diag(scf_env,mos,matrix_ks,matrix_s,&
+                                      scf_control,scf_section,diis_step,&
+                                      orthogonal_basis,error)
+
+    ! Solve a set restricted open Kohn-Sham (ROKS) equations based on the
+    ! alpha and beta Kohn-Sham matrices from unrestricted Kohn-Sham.
+    ! Note, this is only a high-spin ROKS.
+
+    ! Literature: - C. C. J. Roothaan, Rev. Mod. Phys. 32, 179 (1960)
+    !             - M. F. Guest and V. R. Saunders, Mol. Phys. 28(3), 819 (1974)
+
+    ! - Creation (05.04.06,MK)
+
+    TYPE(qs_scf_env_type), POINTER           :: scf_env
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mos
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_ks, matrix_s
+    TYPE(scf_control_type), POINTER          :: scf_control
+    TYPE(section_vals_type), POINTER         :: scf_section
+    LOGICAL, INTENT(INOUT)                   :: diis_step
+    LOGICAL, INTENT(IN)                      :: orthogonal_basis
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = "qs_scf_loop_do_roks_diag",&
+                                   routineP = moduleN//":"//routineN
+
+    TYPE(cp_fm_type), POINTER :: ao2mo,ksa,ksb,moa,mob,ortho,work
+
+    REAL(kind=dp) :: diis_error,level_shift
+    INTEGER       :: handle,homoa,homob,imo,nao,nmo
+
+    REAL(kind=dp), DIMENSION(:), POINTER :: eiga,eigb,occa,occb
+
+    ! -------------------------------------------------------------------------
+
+    CALL timeset(routineN,"I","",handle)
+
+    ortho => scf_env%ortho
+    work  => scf_env%scf_work2
+    ao2mo => scf_env%scf_work3
+
+    ksa => scf_env%scf_work1(1)%matrix
+    ksb => scf_env%scf_work1(2)%matrix
+
+    CALL copy_sm_to_fm(matrix_ks(1)%matrix,ksa)
+    CALL copy_sm_to_fm(matrix_ks(2)%matrix,ksb)
+
+    ! Get MO information
+
+    CALL get_mo_set(mo_set=mos(1)%mo_set,&
+                    nao=nao,&
+                    nmo=nmo,&
+                    homo=homoa,&
+                    eigenvalues=eiga,&
+                    occupation_numbers=occa,&
+                    mo_coeff=moa)
+
+    CALL get_mo_set(mo_set=mos(2)%mo_set,&
+                    homo=homob,&
+                    eigenvalues=eigb,&
+                    occupation_numbers=occb,&
+                    mo_coeff=mob)
+
+    ! Define amount of level-shifting
+
+    IF ((scf_control%level_shift /= 0.0_dp).AND.&
+        ((scf_control%density_guess == core_guess).OR.&
+         (scf_env%iter_count > 1))) THEN
+      level_shift = scf_control%level_shift
+    ELSE
+      level_shift = 0.0_dp
+    END IF
+
+    IF ((scf_env%iter_count > 1).OR.&
+        (scf_control%density_guess == core_guess)) THEN
+
+      ! Transform the spin unrestricted alpha and beta Kohn-Sham matrices
+      ! from AO basis to MO basis
+
+      CALL cp_fm_symm("L","U",nao,nao,1.0_dp,ksa,ao2mo,0.0_dp,work)
+      CALL cp_fm_gemm("T","N",nao,nao,nao,1.0_dp,ao2mo,work,0.0_dp,ksa)
+
+      CALL cp_fm_symm("L","U",nao,nao,1.0_dp,ksb,ao2mo,0.0_dp,work)
+      CALL cp_fm_gemm("T","N",nao,nao,nao,1.0_dp,ao2mo,work,0.0_dp,ksb)
+
+      ! Combine the spin unrestricted alpha and beta Kohn-Sham matrices
+      ! in the MO basis and perform level-shifting in turn if requested
+
+      CALL combine_ks_matrices(ksa,ksb,occa,occb,scf_control%roks_parameter,&
+                               level_shift,homoa,homob,error=error)
+
+      ! Back-transform the restricted open Kohn-Sham matrix from MO basis
+      ! to AO basis
+
+      CALL cp_fm_gemm("N","T",nao,nao,nao,1.0_dp,ksa,ao2mo,0.0_dp,work)
+      CALL cp_fm_gemm("N","N",nao,nao,nao,1.0_dp,ao2mo,work,0.0_dp,ksa)
+
+    ELSE
+
+      ! No transformation matrix available, yet. The closed shell part,
+      ! i.e. the beta Kohn-Sham matrix in AO basis, is taken.
+      ! There might be better choices, anyhow.
+
+      CALL cp_fm_to_fm(ksb,ksa,error=error)
+
+    END IF
+
+    ! Update DIIS buffer
+
+    IF (scf_env%iter_count > 1) THEN
+      CALL qs_diis_b_step(diis_buffer=scf_env%scf_diis_buffer,&
+                          mo_array=mos,&
+                          kc=scf_env%scf_work1,&
+                          sc=work,&
+                          delta=scf_env%iter_delta,&
+                          error_max=diis_error,&
+                          diis_step=diis_step,&
+                          eps_diis=scf_control%eps_diis,&
+                          scf_section=scf_section,&
+                          s_matrix=matrix_s,&
+                          roks=.TRUE.,&
+                          error=error)
+    END IF
+
+    IF (diis_step) THEN
+      scf_env%p_mix = 1.0_dp
+      scf_env%iter_param = diis_error
+      scf_env%iter_method = "DIIS/Diag."
+    ELSE
+      scf_env%iter_method = "Mixing/Diag."
+    END IF
+
+    scf_env%iter_delta = 0.0_dp
+
+    IF (.NOT.orthogonal_basis) THEN
+      CALL cp_fm_symm("L","U",nao,nao,1.0_dp,ksa,ortho,0.0_dp,work)
+      CALL cp_fm_gemm("N","N",nao,nao,nao,1.0_dp,ortho,work,0.0_dp,ksa)
+    END IF
+
+    ! Diagonalization of the ROKS operator matrix
+
+    CALL cp_fm_syevd(ksa,work,eiga)
+
+    ! Store the current orthonormal MO set for the transformation from
+    ! AO basis to MO basis in the next SCF iteration step
+
+    CALL cp_fm_to_fm(work,ao2mo,error=error)
+
+    ! Back-transformation of the orthonormal eigenvectors
+
+    IF (.NOT.orthogonal_basis) THEN
+      CALL cp_fm_gemm("N","N",nao,nmo,nao,1.0_dp,ortho,work,0.0_dp,moa)
+    END IF
+
+    ! Correct MO eigenvalues, if level-shifting was applied
+
+    IF (level_shift /= 0.0_dp) THEN
+      DO imo=homob+1,homoa
+        eiga(imo) = eiga(imo) - 0.5_dp*level_shift
+      END DO
+      DO imo=homoa+1,nmo
+        eiga(imo) = eiga(imo) - level_shift
+      END DO
+    END IF
+
+    ! Update also the beta MO set
+
+    eigb(:) = eiga(:)
+    CALL cp_fm_to_fm(moa,mob,error=error)
+
+    ! Calculate the new alpha and beta density matrix
+
+    CALL calculate_density_matrix(mos(1)%mo_set,scf_env%p_mix_new(1)%matrix,&
+                                  error=error)
+    CALL calculate_density_matrix(mos(2)%mo_set,scf_env%p_mix_new(2)%matrix,&
+                                  error=error)
+
+    CALL timestop(0.0_dp,handle)
+
+  END SUBROUTINE qs_scf_loop_do_roks_diag
+
+  ! ***************************************************************************
 
 END MODULE qs_scf

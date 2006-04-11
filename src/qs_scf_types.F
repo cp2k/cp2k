@@ -104,7 +104,7 @@ TYPE qs_scf_env_type
    CHARACTER (len=15) :: iter_method
    LOGICAL :: print_iter_line
    TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: scf_work1
-   TYPE(cp_fm_type), POINTER  :: scf_work2, ortho
+   TYPE(cp_fm_type), POINTER  :: scf_work2, ortho, scf_work3
    ! p_mix_new should only be needed for mixing methods (ao_mixing_nr)
    TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: p_mix_new 
    TYPE(preconditioner_p_type), DIMENSION(:), POINTER :: ot_preconditioner
@@ -185,6 +185,7 @@ CONTAINS
        NULLIFY(scf_env%scf_work1, scf_env%scf_work2, scf_env%ortho,&
             scf_env%p_mix_new, scf_env%ot_preconditioner, scf_env%qs_ot_env,&
             scf_env%scf_diis_buffer)
+       NULLIFY (scf_env%scf_work3)
 
     END IF
 
@@ -339,6 +340,7 @@ SUBROUTINE scf_env_release(scf_env,error)
      IF (scf_env%ref_count==0) THEN
         CALL cp_fm_vect_dealloc(scf_env%scf_work1,error=error)
         CALL cp_fm_release(scf_env%scf_work2,error=error)
+        CALL cp_fm_release(scf_env%scf_work3,error=error)
         CALL cp_fm_release(scf_env%ortho,error=error)
         IF (ASSOCIATED(scf_env%p_mix_new)) THEN
            CPPreconditionNoFail(.TRUE.,cp_failure_level,routineP,error) ! we should not end up here, and give back using the pools

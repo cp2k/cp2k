@@ -71,8 +71,8 @@ CONTAINS
 !!      by the spin up and spin down orbitals
 !!
 !!   NOTES
-!!      see E.q. 2.271 in Modern Quantum Chemistry
-!!      szabo and ostlund
+!!      see Eq. 2.271 in Modern Quantum Chemistry
+!!      Szabo and Ostlund
 !!
 !!
 !!   INPUTS
@@ -86,7 +86,8 @@ CONTAINS
 !!
 !!   SOURCE
 !!*** **********************************************************************
-   SUBROUTINE compute_s_square(mos, matrix_s, s_square, s_square_ideal, mo_derivs,strength,error)
+   SUBROUTINE compute_s_square(mos, matrix_s, s_square, s_square_ideal,&
+                               mo_derivs,strength,error)
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(real_matrix_p_type), DIMENSION(:), &
@@ -102,7 +103,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, j, na, nb, &
-                                                ncol_local, nrow, nrow_local
+                                                ncol_local, nrow, nrow_local, &
+                                                nalpha, nbeta
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: tmp
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: local_data
@@ -121,16 +123,16 @@ CONTAINS
 
     SELECT CASE (SIZE(mos))
     CASE (1)
-          s_square=0.0_dp
-          s_square_ideal=0.0_dp
+          s_square = 0.0_dp
+          s_square_ideal = 0.0_dp
           ! let's not do this
           CPPrecondition(PRESENT(mo_derivs),cp_failure_level,routineP,error,failure)
     CASE (2)
-          CALL get_mo_set(mo_set=mos(1)%mo_set,mo_coeff=c_alpha)
-          CALL get_mo_set(mo_set=mos(2)%mo_set,mo_coeff=c_beta)
+          CALL get_mo_set(mo_set=mos(1)%mo_set,mo_coeff=c_alpha,homo=nalpha)
+          CALL get_mo_set(mo_set=mos(2)%mo_set,mo_coeff=c_beta,homo=nbeta)
           CALL cp_fm_get_info(c_alpha,ncol_global=na)
           CALL cp_fm_get_info(c_beta,ncol_global=nb)
-          s_square_ideal=(na-nb)*(na-nb+2)/4.0_dp
+          s_square_ideal = REAL((nalpha - nbeta)*(nalpha - nbeta + 2),KIND=dp)/4.0_dp
           ! create overlap matrix
           CALL cp_fm_get_info(c_alpha,para_env=para_env,context=context)
           CALL cp_fm_struct_create(fm_struct_tmp,para_env=para_env,context=context, &
@@ -143,7 +145,10 @@ CONTAINS
           CALL cp_sm_fm_multiply(matrix_s(1)%matrix,c_beta,matrix_sc_b,nb)
           CALL cp_fm_gemm('T','N',na,nb,nrow,1.0_dp,c_alpha,matrix_sc_b,0.0_dp,matrix_overlap)
           ! invoke formula 2.271
-          CALL cp_fm_get_info(matrix_overlap,local_data=local_data, nrow_local=nrow_local, ncol_local=ncol_local)
+          CALL cp_fm_get_info(matrix_overlap,&
+                              local_data=local_data,&
+                              nrow_local=nrow_local,&
+                              ncol_local=ncol_local)
           tmp=0.0_dp
           DO j=1,ncol_local
           DO i=1,nrow_local
@@ -151,7 +156,7 @@ CONTAINS
           ENDDO
           ENDDO
           CALL mp_sum(tmp,para_env%group)
-          s_square=s_square_ideal+nb-tmp
+          s_square = s_square_ideal + nb - tmp
           IF (PRESENT(mo_derivs)) THEN
             CPPrecondition(SIZE(mo_derivs,1)==2,cp_failure_level,routineP,error,failure)
             CALL cp_fm_gemm('N','T',nrow,na,nb,-2.0_dp*strength,matrix_sc_b,matrix_overlap,1.0_dp,mo_derivs(1)%matrix)

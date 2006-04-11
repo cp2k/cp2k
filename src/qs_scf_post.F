@@ -69,7 +69,6 @@ MODULE qs_scf_post
                                              dp
   USE level_shift,                     ONLY: level_shift_testing
   USE lowdin,                          ONLY: lowdin_charges
-  USE mathconstants,                   ONLY: twopi
   USE message_passing,                 ONLY: mp_sum
   USE molecular_states,                ONLY: construct_molecular_states
   USE molecule_types_new,              ONLY: molecule_type
@@ -823,10 +822,10 @@ CONTAINS
          REAL(KIND = dp), DIMENSION(:), POINTER :: evals
     END TYPE
     INTEGER :: ispin, output_unit
-    REAL(KIND=dp)      :: s_square_ideal,s_square
+    REAL(KIND=dp)      :: s_square_ideal,s_square,maxocc
     LOGICAL            :: all_equal
     REAL(KIND=dp), DIMENSION(:), POINTER :: occupation_numbers
-    INTEGER            :: nmo, unit_nr
+    INTEGER            :: homo, nmo, unit_nr
     TYPE(section_vals_type), POINTER :: dft_section, input
     TYPE(cp_rs_pool_type), POINTER           :: auxbas_rs_pool
     TYPE(realspace_grid_type), POINTER       :: rs
@@ -853,11 +852,17 @@ CONTAINS
 
     dft_section => section_vals_get_subs_vals(input,"DFT",error=error)
 
-!   *** Write last wavefunction to screen ***
-       DO ispin=1,dft_control%nspins
-          CALL write_mo_set(mos(ispin)%mo_set,atomic_kind_set,particle_set,4,6,&
-               dft_section,error=error)
-       ENDDO
+    ! Write last wavefunction to screen
+
+    IF (dft_control%nspins == 2) THEN
+      CALL write_mo_set(mos(1)%mo_set,atomic_kind_set,particle_set,4,6,&
+                        dft_section,spin="ALPHA",error=error)
+      CALL write_mo_set(mos(2)%mo_set,atomic_kind_set,particle_set,4,6,&
+                        dft_section,spin="BETA",error=error)
+    ELSE
+      CALL write_mo_set(mos(1)%mo_set,atomic_kind_set,particle_set,4,6,&
+                        dft_section,error=error)
+    END IF
 
 !   *** Integrated absolute spin density and spin contamination ***
        IF (dft_control%nspins.eq.2) THEN
@@ -877,17 +882,23 @@ CONTAINS
           ! XXX Fix Me XXX
           ! should be extended to the case where added MOs are present 
           !
-          all_equal=.TRUE.
+          all_equal = .TRUE.
           DO ispin=1,dft_control%nspins
-             CALL get_mo_set(mo_set=mos(ispin)%mo_set,occupation_numbers=occupation_numbers,nmo=nmo)
-             IF (nmo.GT.0) THEN
-                all_equal=all_equal .AND. ALL(occupation_numbers.EQ.occupation_numbers(1))
-             ENDIF
-          ENDDO
-          IF (.NOT. all_equal) THEN
-             IF (ionode) WRITE(UNIT=output_unit,fmt='(T3,A)') &
-                   "Warning: S**2 computation does not yet treat empty/fractional orbitals"
-          ENDIF
+            CALL get_mo_set(mo_set=mos(ispin)%mo_set,&
+                            occupation_numbers=occupation_numbers,&
+                            homo=homo,&
+                            nmo=nmo,&
+                            maxocc=maxocc)
+            IF (nmo > 0) THEN
+              all_equal = all_equal.AND.&
+                          (ALL(occupation_numbers(1:homo) == maxocc).AND.&
+                           ALL(occupation_numbers(homo+1:nmo) == 0.0_dp))
+             END IF
+          END DO
+          IF (.NOT.all_equal) THEN
+            IF (ionode) WRITE(UNIT=output_unit,FMT="(T3,A)")&
+              "WARNING: S**2 computation does not yet treat fractional occupied orbitals"
+          END IF
           CALL compute_s_square(mos=mos, matrix_s=matrix_s, s_square=s_square, s_square_ideal=s_square_ideal)
           IF (ionode) WRITE(UNIT=output_unit,fmt='(T3,A,T60,2F10.5)') &
                "Ideal and single determinant S**2 : ",s_square_ideal,s_square

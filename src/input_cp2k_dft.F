@@ -115,10 +115,27 @@ CONTAINS
          default_lc_val="RESTART",error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
-    CALL keyword_create(keyword, name="LSD",&
-         description="If the calculation should use alpha and beta orbitals (i.e no spin restriction)",&
-         usage="lsd",&
-         default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+    CALL keyword_create(keyword=keyword,&
+                        name="UKS",&
+                        variants=s2a("UNRESTRICTED_KOHN_SHAM",&
+                                     "LSD",&
+                                     "SPIN_POLARIZED"),&
+                        description="Requests a spin-polarized calculation using alpha "//&
+                                    "and beta orbitals, i.e. no spin restriction is applied",&
+                        usage="lsd",&
+                        default_l_val=.FALSE.,&
+                        lone_keyword_l_val=.TRUE.,&
+                        error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword=keyword,&
+                        name="ROKS",&
+                        variants=(/"RESTRICTED_OPEN_KOHN_SHAM"/),&
+                        description="Requests a restricted open Kohn-Sham calculation",&
+                        usage="ROKS",&
+                        default_l_val=.FALSE.,&
+                        lone_keyword_l_val=.TRUE.,&
+                        error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
     CALL keyword_create(keyword, name="RESTRICTED",&
@@ -127,11 +144,17 @@ CONTAINS
          default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
-    CALL keyword_create(keyword, name="MULTIPLICITY",&
-         description="Two times the total spin plus one. "//&
-            "Default is 1 for an even number 2 for an odd number of electrons",&
-         usage="MULTIPLICITY 1",&
-         default_i_val=0,error=error) ! this default value is just a flag to get the above
+    CALL keyword_create(keyword=keyword,&
+                        name="MULTIPLICITY",&
+                        variants=(/"MULTIP"/),&
+                        description="Two times the total spin plus one. "//&
+                                    "Specify 3 for a triplet, 4 for a quartet, "//&
+                                    "and so on. Default is 1 (singlet) for an "//&
+                                    "even number and 2 (doublet) for an odd number "//&
+                                    "of electrons.",&
+                        usage="MULTIPLICITY 3",&
+                        default_i_val=0,& ! this default value is just a flag to get the above
+                        error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
     CALL keyword_create(keyword, name="CHARGE",&
@@ -2242,6 +2265,21 @@ SUBROUTINE create_tddfpt_section(section,error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword=keyword,&
+                           name="ROKS_PARAMETERS",&
+                           variants=(/"ROKS_PARAMETER"/),&
+                           description="Allows to define all ROKS parameters explicitly. "//&
+                                       "The full set of 6 parameters has to be specified "//&
+                                       "in the order acc, bcc, aoo, boo, avv, bvv",&
+                           usage="ROKS_PARAMETERS 1/2 1/2 1/2 1/2 1/2 1/2",&
+                           repeats=.FALSE.,&
+                           required=.FALSE.,&
+                           n_var=6,&
+                           type_of_var=real_t,&
+                           default_r_vals=(/-0.5_dp,1.5_dp,0.5_dp,0.5_dp,1.5_dp,-0.5_dp/),&
+                           error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
 
        CALL section_create(subsection,"PRINT","printing of information during the scf",&
             error=error,repeats=.FALSE.,required=.FALSE.)

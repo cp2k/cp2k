@@ -730,10 +730,19 @@ CONTAINS
 !   *** Some options require that all MOs are computed ... ***
 
     IF (BTEST(cp_print_key_should_output(logger%iter_info,dft_section,&
-            "PRINT%MO/CARTESIAN",error=error),cp_p_file).OR.&
-        (scf_control%level_shift /= 0.0_dp).OR.(scf_control%eps_jacobi /= 0.0_dp)) THEN
+                                         "PRINT%MO/CARTESIAN",error=error),&
+              cp_p_file).OR.&
+        (scf_control%level_shift /= 0.0_dp).OR.&
+        (scf_control%eps_jacobi /= 0.0_dp).OR.&
+        dft_control%roks) THEN
        n_mo(1) = n_ao
        IF (n_mo(2) /= 0) n_mo(2) = n_ao
+    END IF
+
+    ! Disable Cholesky decomposition, if ROKS is requested
+
+    IF (dft_control%roks) THEN
+      scf_control%use_cholesky = .FALSE.
     END IF
 
     ALLOCATE (mos(dft_control%nspins),STAT=istat)

@@ -107,19 +107,17 @@ CONTAINS
     xc_section => section_vals_get_subs_vals(dft_section,"XC",error=error)
     xc_fun_section => section_vals_get_subs_vals(xc_section,"XC_FUNCTIONAL",&
          error=error)
-    
-    
+
+    CALL section_vals_val_get(dft_section,"ROKS",l_val=dft_control%roks,error=error)
     CALL section_vals_val_get(dft_section,"LSD",l_val=l_param,error=error)
-    IF (l_param) THEN
-       dft_control % nspins = 2
+    IF (l_param.OR.dft_control%roks) THEN
+       dft_control%nspins = 2
     ELSE
-       dft_control % nspins = 1
+       dft_control%nspins = 1
     END IF
     needs=xc_functionals_get_needs(xc_fun_section,lsd=l_param,&
          add_basic_components=.TRUE.,error=error)
     dft_control%use_kinetic_energy_density=(needs%tau_spin.or.needs%tau)
-
-
 
     CALL section_vals_val_get(dft_section,"RESTRICTED",l_val=l_param,error=error)
     dft_control % restricted = l_param
@@ -609,7 +607,7 @@ CONTAINS
     CHARACTER(len=160)                       :: reference
     CHARACTER(len=20)                        :: tmpStr
     INTEGER                                  :: ifun, output_unit
-    LOGICAL                                  :: failure, lsd
+    LOGICAL                                  :: failure, lsd, roks
     REAL(kind=dp)                            :: density_cut, &
                                                 density_smooth_cut_range, &
                                                 gradient_cut, tau_cut
@@ -629,26 +627,37 @@ CONTAINS
        xc_section => section_vals_get_subs_vals(dft_section,&
             "XC",error=error)
        CALL section_vals_val_get(dft_section,"LSD",&
-            l_val=lsd,error=error)
-       IF (dft_control%forces) THEN
-          WRITE (UNIT=output_unit,FMT="(/,T2,A,T78,A)")&
-               "DFT| Force calculation","YES"
+                                 l_val=lsd,error=error)
+       CALL section_vals_val_get(dft_section,"ROKS",&
+                                 l_val=roks,error=error)
+       IF (lsd) THEN
+         WRITE (UNIT=output_unit,FMT="(/,T2,A,T78,A)")&
+           "DFT| Spin unrestricted (spin-polarized) Kohn-Sham calculation","UKS"
+       ELSE IF (roks) THEN
+         WRITE (UNIT=output_unit,FMT="(/,T2,A,T77,A)")&
+           "DFT| Spin restricted open Kohn-Sham calculation","ROKS"
        ELSE
-          WRITE (UNIT=output_unit,FMT="(/,T2,A,T78,A)")&
-               "DFT| Force calculation"," NO"
+         WRITE (UNIT=output_unit,FMT="(/,T2,A,T78,A)")&
+           "DFT| Spin restricted Kohn-Sham (RKS) calculation","RKS"
        END IF
 
-       IF ( lsd ) THEN
-          WRITE ( output_unit, '( A, T60, A )' ) " DFT| ","spin polarized system"
-       ELSE
-          WRITE ( output_unit, '( A, T60, A, T77, I4 )' ) " DFT| ","sets of spin states:",&
-               dft_control % nspins
-       END IF
+       WRITE (UNIT=output_unit,FMT="(T2,A,T76,I5)")&
+         "DFT| Multiplicity",dft_control%multiplicity
+       WRITE (UNIT=output_unit,FMT="(T2,A,T76,I5)")&
+         "DFT| Number of spin states",dft_control%nspins
 
        IF ( dft_control % restricted ) THEN
           WRITE ( output_unit, '( A, T60, A )' ) " DFT| ","      spin restricted"
        ENDIF
        
+       IF (dft_control%forces) THEN
+          WRITE (UNIT=output_unit,FMT="(T2,A,T78,A)")&
+               "DFT| Force calculation","YES"
+       ELSE
+          WRITE (UNIT=output_unit,FMT="(T2,A,T78,A)")&
+               "DFT| Force calculation"," NO"
+       END IF
+
        SELECT CASE ( dft_control%sic_method_id )
        CASE ( sic_none )
           WRITE ( output_unit, '( A, T60, A )' ) " DFT| ","               NO SIC"

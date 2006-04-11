@@ -160,11 +160,12 @@ CONTAINS
          "**                                                ... make the atoms dance   **",&
          "**                                                                           **",&
          "**            Copyright (C) by CP2K Developers Group (2000 - 2006)           **",&
-         "**                                                                           **"
+         "**                                                                           **",&
+         "*******************************************************************************"
          !
          ! add QS related method papers here. Also update the webpages.
          !
-    WRITE (UNIT=output_unit,FMT="(/,(T2,A79))")&
+    WRITE (UNIT=output_unit,FMT="(T2,A79)")&
          "*******************************************************************************",&
          "** G. Lippert, J. Hutter, and M. Parrinello,                                 **",&
          "** A hybrid Gaussian and plane wave density functional scheme,               **",&

@@ -210,7 +210,7 @@ MODULE cp_control_types
                                         do_tddfpt_calculation, &
                                         do_xas_calculation, &
                                         use_kinetic_energy_density, & 
-                                        restricted
+                                        restricted,roks
      !FM add xc_section ?
   END TYPE dft_control_type
 

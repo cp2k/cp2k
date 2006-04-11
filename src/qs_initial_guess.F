@@ -135,7 +135,8 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: work1
-    TYPE(cp_fm_type), POINTER                :: mo_coeff, ortho, sv, work2
+    TYPE(cp_fm_type), POINTER                :: mo_coeff, moa, mob, ortho, sv, &
+                                                work2
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(gth_potential_type), POINTER        :: gth_potential
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
@@ -156,6 +157,7 @@ CONTAINS
          ortho,work2,work1,mo_array,s_sparse,p_rmpv,scf_control, &
          dft_control,h_core_sparse)
     NULLIFY(dft_section, input)
+    NULLIFY (moa,mob)
 
     CALL timeset("calculate_first_density_matrix","I"," ",handle)
 
@@ -197,7 +199,7 @@ CONTAINS
        DO ispin=1,nspin
           IF (scf_control%level_shift /= 0.0_dp) THEN
              CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
-                  mo_coeff=mo_coeff)
+                             mo_coeff=mo_coeff)
              CALL cp_fm_to_fm(mo_coeff,ortho)
           END IF
 
@@ -241,70 +243,98 @@ CONTAINS
        ENDDO
 
     ELSE IF (scf_control%density_guess == core_guess) THEN
- 
-       IF (dft_control%restricted) CALL stop_program("calculate_first_density_matrix","Option not yet implemented")
 
-       ! work1(1) should contain the core hamiltonian
-       ! we need a copy the core matrix for every spin (the dumbest solution,
-       ! we should copy the mos)..
-       
-       CALL copy_sm_to_fm(h_core_sparse(1)%matrix,work1(1)%matrix)
+       IF (dft_control%restricted) THEN
+         CALL stop_program(routineN,moduleN,__LINE__,&
+                           "Option not yet implemented")
+       END IF
 
-       IF (dft_control%nspins.eq.2) THEN
-          IF (.NOT.scf_control%use_ot) THEN
-             CALL cp_fm_to_fm(work1(1)%matrix,&
-                  work1(2)%matrix)
-          ENDIF
-       ENDIF
+       ispin = 1
+
+       ! Load core Hamiltonian into work matrix
+
+       CALL copy_sm_to_fm(h_core_sparse(1)%matrix,work1(ispin)%matrix)
+
+       ! Diagonalize the core Hamiltonian matrix and retrieve a first set of
+       ! molecular orbitals (MOs)
+
+       IF (ortho_basis) THEN
+         CALL simple_eigensolver(work1(ispin)%matrix,mo_array(ispin)%mo_set,&
+                                 work2,.FALSE.,0.0_dp,&
+                                 work_syevx=scf_control%work_syevx,&
+                                 smear=0.0_dp,&
+                                 error=error)
+       ELSE
+         IF (ASSOCIATED(scf_env%scf_work3)) THEN
+           CALL eigensolver(work1(ispin)%matrix,mo_array(ispin)%mo_set,ortho,work2,&
+                            .FALSE.,0.0_dp,&
+                            use_cholesky=scf_control%use_cholesky,&
+                            work_syevx=scf_control%work_syevx,&
+                            use_jacobi=.FALSE.,&
+                            jacobi_threshold=scf_control%jacobi_threshold,&
+                            smear=0.0_dp,&
+                            ao2mo=scf_env%scf_work3,&
+                            error=error)
+         ELSE
+           CALL eigensolver(work1(ispin)%matrix,mo_array(ispin)%mo_set,ortho,work2,&
+                            .FALSE.,0.0_dp,&
+                            use_cholesky=scf_control%use_cholesky,&
+                            work_syevx=scf_control%work_syevx,&
+                            use_jacobi=.FALSE.,&
+                            jacobi_threshold=scf_control%jacobi_threshold,&
+                            smear=0.0_dp,&
+                            error=error)
+         END IF
+       END IF
+
+       ! Open shell case: copy alpha MOs to beta MOs
+
+       IF (nspin == 2) THEN
+         CALL get_mo_set(mo_set=mo_array(1)%mo_set,mo_coeff=moa)
+         CALL get_mo_set(mo_set=mo_array(2)%mo_set,mo_coeff=mob,nmo=nmo)
+         CALL cp_fm_to_fm(moa,mob,nmo)
+       END IF
+
+       ! Build an initial density matrix (for each spin in the case of
+       ! an open shell calculation) from the first MOs set
+
        DO ispin=1,nspin
-          IF(ortho_basis) THEN
-            CALL simple_eigensolver(work1(ispin)%matrix,mo_array(ispin)%mo_set,&
-                 work2,.FALSE.,0.0_dp,work_syevx=scf_control%work_syevx,&
-                 smear=0.0_dp,error=error)
-          ELSE
-            CALL eigensolver(work1(ispin)%matrix,mo_array(ispin)%mo_set,ortho,work2, &
-               .FALSE.,0.0_dp,&
-               use_cholesky=scf_control%use_cholesky, &
-               work_syevx=scf_control%work_syevx,&
-               use_jacobi=.FALSE.,&
-               jacobi_threshold=scf_control%jacobi_threshold,&
-               smear=0.0_dp,&
-               error=error)
-          END IF
-          IF (scf_control%level_shift /= 0.0_dp) THEN
-             CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
-                  mo_coeff=mo_coeff)
-             CALL cp_fm_to_fm(mo_coeff,ortho)
-          END IF
-          CALL calculate_density_matrix(mo_array(ispin)%mo_set,&
-               p_rmpv(ispin)%matrix,error=error)
-       ENDDO
+         CALL calculate_density_matrix(mo_array(ispin)%mo_set,&
+                                       p_rmpv(ispin)%matrix,&
+                                       error=error)
+       END DO
 
     ELSE IF (scf_control%density_guess == atomic_guess) THEN
 
-      IF (dft_control%restricted) CALL stop_program("calculate_first_density_matrix","Option not yet implemented")
+      IF (dft_control%restricted) THEN
+        CALL stop_program(routineN,moduleN,__LINE__,&
+                          "Option not yet implemented")
+      END IF
 
       group = qs_env%para_env%group
 
       natom = SIZE(particle_set)
       ALLOCATE (first_sgf(natom),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineP,"first_sgf",natom*int_size)
-      CALL get_particle_set(particle_set=particle_set,&
-                            first_sgf=first_sgf)
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                       "first_sgf",natom*int_size)
+      CALL get_particle_set(particle_set=particle_set,first_sgf=first_sgf)
 
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,maxlgto=maxl)
       ALLOCATE (econf(0:maxl),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineP,"econf",(maxl + 1)*int_size)
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                       "econf",(maxl + 1)*int_size)
 
       CALL get_mo_set(mo_array(1)%mo_set,nao=nao)
       ALLOCATE (pdiag(nao),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineP,"pdiag",nao*dp_size)
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                       "pdiag",nao*dp_size)
       pdiag(:) = 0.0_dp
 
       ALLOCATE (sdiag(nao),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineP,"sdiag",nao*dp_size)
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                       "sdiag",nao*dp_size)
       IF (ortho_basis) THEN
-        sdiag=1._dp
+        sdiag(:) = 1.0_dp
       ELSE
         CALL get_matrix_diagonal(s_sparse(1)%matrix,sdiag)
         CALL mp_sum(sdiag,group)
@@ -323,77 +353,78 @@ CONTAINS
 
         IF (nelectron /= 0) THEN 
 
-           DO ikind=1,SIZE(atomic_kind_set)
+          DO ikind=1,SIZE(atomic_kind_set)
 
-              atomic_kind => atomic_kind_set(ikind)
+            atomic_kind => atomic_kind_set(ikind)
    
-              CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                                   natom=natom,&
-                                   atom_list=atom_list,&
-                                   all_potential=all_potential,&
-                                   gth_potential=gth_potential,&
-                                   orb_basis_set=orb_basis_set)
+            CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                                 natom=natom,&
+                                 atom_list=atom_list,&
+                                 all_potential=all_potential,&
+                                 gth_potential=gth_potential,&
+                                 orb_basis_set=orb_basis_set)
 
-              IF (ASSOCIATED(all_potential)) THEN
-                 CALL get_potential(potential=all_potential,elec_conf=elec_conf)
-              ELSE IF (ASSOCIATED(gth_potential)) THEN
-                 CALL get_potential(potential=gth_potential,elec_conf=elec_conf)
-              ELSE
-                 CYCLE
-              END IF
+            IF (ASSOCIATED(all_potential)) THEN
+              CALL get_potential(potential=all_potential,elec_conf=elec_conf)
+            ELSE IF (ASSOCIATED(gth_potential)) THEN
+              CALL get_potential(potential=gth_potential,elec_conf=elec_conf)
+            ELSE
+              CYCLE
+            END IF
 
-              maxll = MIN(SIZE(elec_conf) - 1,maxl)
-              econf(:) = 0.0_dp
-              econf(0:maxll) = 0.5_dp*maxocc*REAL(elec_conf(0:maxll),dp)
+            maxll = MIN(SIZE(elec_conf) - 1,maxl)
+            econf(:) = 0.0_dp
+            econf(0:maxll) = 0.5_dp*maxocc*REAL(elec_conf(0:maxll),dp)
 
-              CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
-                                     nset=nset,&
-                                     nshell=nshell,&
-                                     l=l,&
-                                     first_sgf=first_sgfa,&
-                                     last_sgf=last_sgfa)
+            CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
+                                   nset=nset,&
+                                   nshell=nshell,&
+                                   l=l,&
+                                   first_sgf=first_sgfa,&
+                                   last_sgf=last_sgfa)
 
-              DO iset=1,nset
-                 DO ishell=1,nshell(iset)
-                    la = l(ishell,iset)
-                    nelec = maxocc*REAL(2*la + 1,dp)
-                    IF (econf(la) > 0.0_dp) THEN
-                       IF (econf(la) >= nelec) THEN
-                          paa = maxocc
-                          econf(la) = econf(la) - nelec
-                       ELSE
-                          paa = maxocc*econf(la)/nelec
-                          econf(la) = 0.0_dp
-                          ncount = ncount + NINT(nelec/maxocc)
-                       END IF
-                       DO isgfa=first_sgfa(ishell,iset),last_sgfa(ishell,iset)
-                          DO iatom=1,natom
-                             atom_a = atom_list(iatom)
-                             isgf = first_sgf(atom_a) + isgfa - 1
-                             pdiag(isgf) = paa
-                             IF (paa == maxocc) THEN
-                                trps1 = trps1 + paa*sdiag(isgf)
-                             ELSE
-                                trps2 = trps2 + paa*sdiag(isgf)
-                             END IF
-                          END DO
-                       END DO
-                    END IF
-                 END DO
-              END DO
+            DO iset=1,nset
+              DO ishell=1,nshell(iset)
+                la = l(ishell,iset)
+                nelec = maxocc*REAL(2*la + 1,dp)
+                IF (econf(la) > 0.0_dp) THEN
+                  IF (econf(la) >= nelec) THEN
+                    paa = maxocc
+                    econf(la) = econf(la) - nelec
+                  ELSE
+                    paa = maxocc*econf(la)/nelec
+                    econf(la) = 0.0_dp
+                    ncount = ncount + NINT(nelec/maxocc)
+                  END IF
+                  DO isgfa=first_sgfa(ishell,iset),last_sgfa(ishell,iset)
+                    DO iatom=1,natom
+                      atom_a = atom_list(iatom)
+                      isgf = first_sgf(atom_a) + isgfa - 1
+                      pdiag(isgf) = paa
+                      IF (paa == maxocc) THEN
+                        trps1 = trps1 + paa*sdiag(isgf)
+                      ELSE
+                        trps2 = trps2 + paa*sdiag(isgf)
+                      END IF
+                    END DO
+                  END DO
+                END IF
+              END DO ! ishell
+            END DO ! iset
 
-           END DO
+          END DO ! ikind
 
-           IF (trps2 == 0.0_dp) THEN
-              DO isgf=1,nao
-                 IF (sdiag(isgf) > 0.0_dp) pdiag(isgf) = pdiag(isgf)/sdiag(isgf)
-              END DO
-           ELSE
-              scale = (REAL(nelectron,dp) - trps1)/trps2
-              DO isgf=1,nao 
-                 IF (pdiag(isgf) < maxocc) pdiag(isgf) = scale*pdiag(isgf)
-              END DO
-           END IF
+          IF (trps2 == 0.0_dp) THEN
+            DO isgf=1,nao
+              IF (sdiag(isgf) > 0.0_dp) pdiag(isgf) = pdiag(isgf)/sdiag(isgf)
+            END DO
+          ELSE
+            scale = (REAL(nelectron,dp) - trps1)/trps2
+            DO isgf=1,nao 
+              IF (pdiag(isgf) < maxocc) pdiag(isgf) = scale*pdiag(isgf)
+            END DO
+          END IF
+
         END IF
 
         CALL set_matrix_diagonal(p_rmpv(ispin)%matrix,pdiag)
@@ -401,46 +432,53 @@ CONTAINS
         ! do we require an initial wavefunction ?
         ! assume p is a projector (it is not ..) and generate an initial  
         ! wavefunction and the corresponding dm
+
         IF (scf_control%use_ot) THEN
           CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
-               mo_coeff=mo_coeff, nmo=nmo)
+                          mo_coeff=mo_coeff,&
+                          nmo=nmo)
           CALL cp_fm_init_random(mo_coeff,nmo)
           CALL cp_fm_create(sv,mo_coeff%matrix_struct,"SV")
 
           ! multiply times PS
+
           IF (ortho_basis) THEN
-             CALL cp_fm_to_fm(mo_coeff,sv)
+            CALL cp_fm_to_fm(mo_coeff,sv)
           ELSE
-             CALL cp_sm_fm_multiply(s_sparse(1)%matrix,mo_coeff,sv,nmo)
-          ENDIF
+            CALL cp_sm_fm_multiply(s_sparse(1)%matrix,mo_coeff,sv,nmo)
+          END IF
+
           ! here we could easily multiply with the diag that we actually have replicated already 
+
           CALL cp_sm_fm_multiply(p_rmpv(ispin)%matrix,sv,mo_coeff,nmo)
           CALL cp_fm_release(sv)
 
           ! and ortho the result
+
           IF (ortho_basis) THEN
-             CALL make_basis_simple(mo_coeff,nmo)
+            CALL make_basis_simple(mo_coeff,nmo)
           ELSE
-             CALL make_basis_sm(mo_coeff,nmo,s_sparse(1)%matrix)
+            CALL make_basis_sm(mo_coeff,nmo,s_sparse(1)%matrix)
           ENDIF
 
           CALL calculate_density_matrix(mo_array(ispin)%mo_set,&
-               p_rmpv(ispin)%matrix,error=error)
-        ENDIF
+                                        p_rmpv(ispin)%matrix,&
+                                        error=error)
+        END IF
 
       END DO
 
       DEALLOCATE (econf,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineP,"econf")
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"econf")
 
       DEALLOCATE (first_sgf,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineP,"first_sgf")
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"first_sgf")
 
       DEALLOCATE (pdiag,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineP,"pdiag")
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"pdiag")
 
       DEALLOCATE (sdiag,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineP,"sdiag")
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"sdiag")
 
     ELSE IF (scf_control%density_guess == densities_guess) THEN
 
@@ -513,5 +551,7 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE calculate_first_density_matrix
+
+  ! ***************************************************************************
 
 END MODULE qs_initial_guess
