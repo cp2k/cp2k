@@ -18,6 +18,10 @@
   &END DFT
   &MM
     &FORCEFIELD
+      &CHARGE
+        ATOM Ar
+        CHARGE 0.0
+      &END CHARGE
       &NONBONDED
         &LENNARD-JONES
           atoms Ar Ar

@@ -10,6 +10,10 @@
           RCUT 8.4
         &END LENNARD-JONES
       &END NONBONDED
+      &CHARGE
+        ATOM Ar
+        CHARGE 0.0
+      &END CHARGE
     &END FORCEFIELD
     &POISSON
       &EWALD

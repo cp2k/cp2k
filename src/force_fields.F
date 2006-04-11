@@ -616,6 +616,8 @@ CONTAINS
        nonbonded%pot(start+isec)%pot %type = "EAM"
        nonbonded%pot(start+isec)%pot %at1 = atm_names(1)
        nonbonded%pot(start+isec)%pot %at2 = atm_names(2)
+       CALL uppercase(nonbonded%pot(start+isec)%pot %at1)
+       CALL uppercase(nonbonded%pot(start+isec)%pot %at2)
        CALL section_vals_val_get(section,"PARMFILE",i_rep_section=isec,&
             c_val=nonbonded%pot(start+isec)%pot%eam%eam_file_name,error=error)
        CALL read_eam_data ( nonbonded%pot(start+isec)%pot%eam, globenv, mm_section,error)
@@ -664,6 +666,8 @@ CONTAINS
        nonbonded%pot(start+isec)%pot %type = "LENNARD-JONES"
        nonbonded%pot(start+isec)%pot %at1 = atm_names(1)
        nonbonded%pot(start+isec)%pot %at2 = atm_names(2)
+       CALL uppercase(nonbonded%pot(start+isec)%pot %at1)
+       CALL uppercase(nonbonded%pot(start+isec)%pot %at2)
        nonbonded%pot(start+isec)%pot %lj%epsilon = epsilon
        nonbonded%pot(start+isec)%pot %lj%sigma6  = sigma**6
        nonbonded%pot(start+isec)%pot %lj%sigma12 = sigma**12
@@ -713,6 +717,8 @@ CONTAINS
        nonbonded%pot(start+isec)%pot %type = "WILLIAMS"
        nonbonded%pot(start+isec)%pot %at1 = atm_names(1)
        nonbonded%pot(start+isec)%pot %at2 = atm_names(2)
+       CALL uppercase(nonbonded%pot(start+isec)%pot %at1)
+       CALL uppercase(nonbonded%pot(start+isec)%pot %at2)
        nonbonded%pot(start+isec)%pot %willis%a = a
        nonbonded%pot(start+isec)%pot %willis%b = b
        nonbonded%pot(start+isec)%pot %willis%c = c
@@ -764,6 +770,8 @@ CONTAINS
        nonbonded%pot(start+isec)%pot %type = "GOODWIN"
        nonbonded%pot(start+isec)%pot %at1 = atm_names(1)
        nonbonded%pot(start+isec)%pot %at2 = atm_names(2)
+       CALL uppercase(nonbonded%pot(start+isec)%pot %at1)
+       CALL uppercase(nonbonded%pot(start+isec)%pot %at2)
        nonbonded%pot(start+isec)%pot %goodwin%vr0 = vr0
        nonbonded%pot(start+isec)%pot %goodwin%d = d
        nonbonded%pot(start+isec)%pot %goodwin%dc = dc
@@ -810,6 +818,8 @@ CONTAINS
        nonbonded%pot(start+isec)%pot %type = "IPBV"
        nonbonded%pot(start+isec)%pot %at1  = atm_names(1)
        nonbonded%pot(start+isec)%pot %at2  = atm_names(2)
+       CALL uppercase(nonbonded%pot(start+isec)%pot %at1)
+       CALL uppercase(nonbonded%pot(start+isec)%pot %at2)
        CALL set_IPBV_ff(nonbonded%pot(start+isec)%pot %at1, nonbonded%pot(start+isec)%pot %at2,&
             nonbonded%pot(start+isec)%pot )
        CALL section_vals_val_get(section,"RCUT",i_rep_section=isec,r_val=rcut,error=error)
@@ -852,10 +862,10 @@ CONTAINS
     DO isec = 1, n_items         
        CALL section_vals_val_get(section,"ATOMS",i_rep_section=isec,c_vals=atm_names,error=error)
        nonbonded%pot(start+isec)%pot %type = "BMHFT"
-       CALL uppercase(atm_names(1))
-       CALL uppercase(atm_names(2))
        nonbonded%pot(start+isec)%pot %at1  = atm_names(1)
        nonbonded%pot(start+isec)%pot %at2  = atm_names(2)
+       CALL uppercase(nonbonded%pot(start+isec)%pot %at1)
+       CALL uppercase(nonbonded%pot(start+isec)%pot %at2)
        CALL set_BMHFT_ff(nonbonded%pot(start+isec)%pot %at1, nonbonded%pot(start+isec)%pot %at2,&
             nonbonded%pot(start+isec)%pot )
        CALL section_vals_val_get(section,"RCUT",i_rep_section=isec,r_val=rcut,error=error)
@@ -892,11 +902,13 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: isec, n_items
+    CHARACTER(LEN=default_string_length)     :: atm_name
 
     CALL section_vals_get(section,n_repetition=n_items,error=error)
     DO isec = 1, n_items         
-       CALL section_vals_val_get(section,"ATOM",i_rep_section=isec,c_val=charge_atm(start+isec),&
+       CALL section_vals_val_get(section,"ATOM",i_rep_section=isec,c_val=atm_name,&
             error=error)
+       charge_atm(start+isec) = atm_name
        CALL uppercase(charge_atm(start+isec))
        CALL section_vals_val_get(section,"CHARGE",i_rep_section=isec,r_val=charge(start+isec),&
             error=error)
@@ -947,6 +959,8 @@ CONTAINS
        CALL section_vals_val_get(section,"ATOMS",i_rep_section=isec,c_vals=atm_names,error=error)
        bond_a(start+isec) = atm_names(1)
        bond_b(start+isec) = atm_names(2)
+       call uppercase(bond_a(start+isec))
+       call uppercase(bond_b(start+isec))
        CALL section_vals_val_get(section,"K",i_rep_section=isec,r_vals=Kvals,error=error)
        CPPostcondition(SIZE(Kvals) <= 3, cp_failure_level, routineP, error, failure)
        bond_k(:,start+isec) = 0.0_dp
@@ -1002,6 +1016,9 @@ CONTAINS
        bend_a(start+isec) = atm_names(1)
        bend_b(start+isec) = atm_names(2)
        bend_c(start+isec) = atm_names(3)
+       CALL uppercase(bend_a(start+isec))
+       CALL uppercase(bend_b(start+isec))
+       CALL uppercase(bend_c(start+isec))
        CALL section_vals_val_get(section,"K",i_rep_section=isec,r_vals=Kvals,error=error)
        CPPostcondition(SIZE(Kvals) == 1, cp_failure_level, routineP, error, failure)
        bend_k(start+isec) = Kvals(1)
@@ -1053,8 +1070,9 @@ CONTAINS
        ub_a(start+isec) = atm_names(1)
        ub_b(start+isec) = atm_names(2)
        ub_c(start+isec) = atm_names(3)
-       !CALL section_vals_val_get(section,"UB%K",i_rep_section=isec,r_val=ub_k(start+isec),error=error)
-       !CALL section_vals_val_get(section,"UB%R0",i_rep_section=isec,r_val=ub_k(start+isec),error=error)
+       CALL uppercase(ub_a(start+isec))
+       CALL uppercase(ub_b(start+isec))
+       CALL uppercase(ub_c(start+isec))
     END DO
   END SUBROUTINE read_ubs_section
 
@@ -1106,6 +1124,10 @@ CONTAINS
        torsion_b(start+isec) = atm_names(2)
        torsion_c(start+isec) = atm_names(3)
        torsion_d(start+isec) = atm_names(4)
+       CALL uppercase(torsion_a(start+isec))
+       CALL uppercase(torsion_b(start+isec))
+       CALL uppercase(torsion_c(start+isec))
+       CALL uppercase(torsion_d(start+isec))
        CALL section_vals_val_get(section,"K",i_rep_section=isec,r_val=torsion_k(start+isec),error=error)
        CALL section_vals_val_get(section,"PHI0",i_rep_section=isec,r_val=torsion_cosphi0(start+isec),error=error)
        CALL section_vals_val_get(section,"M",i_rep_section=isec,r_val=torsion_m(start+isec),error=error)
@@ -2180,6 +2202,8 @@ CONTAINS
                name=name_atm_b)
           found = .FALSE.
           only_qm = qmmm_ff_precond_only_qm(id1=name_atm_a, id2=name_atm_b)
+          CALL uppercase(name_atm_a)
+          CALL uppercase(name_atm_b)
 
           ! loop over params from charmm
           IF(ASSOCIATED(chm_info%bond_a)) THEN
@@ -2267,7 +2291,9 @@ CONTAINS
                name=name_atm_c)
           found = .FALSE.
           only_qm = qmmm_ff_precond_only_qm(id1=name_atm_a, id2=name_atm_b, id3=name_atm_c)
-
+          CALL uppercase(name_atm_a)
+          CALL uppercase(name_atm_b)
+          CALL uppercase(name_atm_c)
           ! loop over params from charmm
           IF(ASSOCIATED(chm_info%bend_a)) THEN
              DO k=1,SIZE(chm_info%bend_a)
@@ -2360,7 +2386,9 @@ CONTAINS
                name=name_atm_c)
           found = .FALSE.
           only_qm = qmmm_ff_precond_only_qm(id1=name_atm_a, id2=name_atm_b, id3=name_atm_c)
-
+          CALL uppercase(name_atm_a)
+          CALL uppercase(name_atm_b)
+          CALL uppercase(name_atm_c)
           ! loop over params from charmm
           IF(ASSOCIATED(chm_info%ub_a)) THEN
              DO k=1,SIZE(chm_info%ub_a)
@@ -2458,7 +2486,10 @@ CONTAINS
                   name=name_atm_d)
              found = .FALSE.
              only_qm = qmmm_ff_precond_only_qm(id1=name_atm_a, id2=name_atm_b, id3=name_atm_c, id4=name_atm_d)
-
+             CALL uppercase(name_atm_a)
+             CALL uppercase(name_atm_b)
+             CALL uppercase(name_atm_c)
+             CALL uppercase(name_atm_d)
              ! loop over params from charmm
              IF(ASSOCIATED(chm_info%torsion_a)) THEN
                 DO k=1,SIZE(chm_info%torsion_a)
@@ -2612,7 +2643,10 @@ CONTAINS
                name=name_atm_d)
           found = .FALSE.
           only_qm = qmmm_ff_precond_only_qm(id1=name_atm_a, id2=name_atm_b, id3=name_atm_c, id4=name_atm_d)
-
+          CALL uppercase(name_atm_a)
+          CALL uppercase(name_atm_b)
+          CALL uppercase(name_atm_c)
+          CALL uppercase(name_atm_d)
           ! loop over params from charmm
           IF(ASSOCIATED(chm_info%impr_a)) THEN
              DO k=1,SIZE(chm_info%impr_a)
@@ -2722,6 +2756,8 @@ CONTAINS
           name_atm_a = name_atm_a_local
           name_atm_b = name_atm_b_local
           only_qm = qmmm_ff_precond_only_qm(id1=name_atm_a, id2=name_atm_b)
+          CALL uppercase(name_atm_a)
+          CALL uppercase(name_atm_b)
 
           ! loop over params from charmm
           ii = 0 
@@ -2901,6 +2937,8 @@ CONTAINS
           CALL get_atomic_kind(atomic_kind=atomic_kind,&
                name=name_atm_b, kind_number = jkind )
           only_qm = qmmm_ff_precond_only_qm(id1=name_atm_a, id2=name_atm_b)
+          CALL uppercase(name_atm_a)
+          CALL uppercase(name_atm_b)
           onfo_list(j)%onfo_kind%name   = "CHARMM"
           onfo_list(j)%onfo_kind%name   = potparm_bond%pot(ikind,jkind)%pot%type
 
@@ -2934,11 +2972,12 @@ CONTAINS
        CALL get_potential(potential=elp_potential,&
             qeff=charge(i))
 
-       found = .TRUE.
+       found = .FALSE.
        only_qm = qmmm_ff_precond_only_qm(id1=atmname,is_link=is_link_atom)
-       IF(charge(i)<=-100.0) found = .FALSE.
+       CALL uppercase(atmname)
+       IF(charge(i)/=0.0_dp) found = .TRUE.
 
-       ! loop over params from charmm
+       ! loop over params from charmm  
        IF(ASSOCIATED(ff_type%chm_info%charge_atm)) THEN
           DO j=1,SIZE(ff_type%chm_info%charge_atm)
              IF(TRIM(ff_type%chm_info%charge_atm(j))==atmname) THEN
@@ -2947,7 +2986,6 @@ CONTAINS
                      " overwriting!",globenv,error)
                 found = .TRUE.
              END IF
-             !IF(found) EXIT
           END DO
        END IF
 
@@ -2964,8 +3002,24 @@ CONTAINS
           END DO
        END IF
 
-       IF(.NOT.found) THEN
-          CALL stop_program("FF_coordinate_pack","missing qeff parm "//atmname)
+       
+       IF (ASSOCIATED(ff_type%inp_info%nonbonded)) THEN
+          IF (ASSOCIATED(ff_type%inp_info%nonbonded%pot)) THEN
+             ! Let's find the nonbonded potential where this atom is involved
+             DO j = 1, SIZE(ff_type%inp_info%nonbonded%pot)
+                IF (atmname==ff_type%inp_info%nonbonded%pot(j)%pot %at1.OR.&
+                     atmname==ff_type%inp_info%nonbonded%pot(j)%pot %at2) THEN                
+                   SELECT CASE(ff_type%inp_info%nonbonded%pot(j)%pot%type)
+                   CASE ("EAM")
+                      ! Nothing to complain.. we don't need charges
+                   CASE default
+                      IF(.NOT.found) THEN
+                         CALL stop_program("FF_coordinate_pack","missing qeff parm "//atmname)
+                      END IF
+                   END SELECT
+                END IF
+             END DO
+          END IF
        END IF
        !
        ! QM/MM modifications
@@ -3012,7 +3066,8 @@ CONTAINS
           name_atm_a = name_atm_a_local
           name_atm_b = name_atm_b_local
           only_qm = qmmm_ff_precond_only_qm(id1=name_atm_a, id2=name_atm_b)
-
+          CALL uppercase(name_atm_a)
+          CALL uppercase(name_atm_b)
           ! loop over params from charmm
           IF(ASSOCIATED(chm_info%nonbond_a)) THEN
              ii = 0 

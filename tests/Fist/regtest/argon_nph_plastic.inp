@@ -10,6 +10,10 @@
           RCUT 11.66
         &END LENNARD-JONES
       &END NONBONDED
+      &CHARGE
+        ATOM Ar
+        CHARGE 0.0
+      &END CHARGE
     &END FORCEFIELD
     &POISSON
       &EWALD
