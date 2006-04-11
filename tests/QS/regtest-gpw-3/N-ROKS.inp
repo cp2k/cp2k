@@ -1,0 +1,61 @@
+&GLOBAL
+  FFTLIB FFTSG
+  PROGRAM Quickstep
+  PROJECT N
+  PRINT_LEVEL LOW
+&END GLOBAL
+
+&FORCE_EVAL
+  &DFT
+    ROKS
+    MULTIPLICITY 4
+    &MGRID
+      CUTOFF 200
+    &END MGRID
+    &PRINT
+      &AO_MATRICES
+#       DENSITY
+#       KOHN_SHAM_MATRIX
+#       ORTHO
+#       OVERLAP
+      &END AO_MATRICES
+      &MO
+#       EIGENVALUES
+#       EIGENVECTORS
+#       OCCUPATION_NUMBERS
+      &END MO
+    &END
+    &QS
+      EPS_DEFAULT 1.0E-8
+    &END QS
+    &SCF
+      # let's fool around ...
+      EPS_SCF: 1.0E-6
+      MIXING = 0.4
+      SCF_GUESS=core
+      ROKS_PARAMETERS: 0.5,1/2; 1/2,1/2; 1/2,7/14
+      # ... the parser should digest it ;-)
+      &PRINT
+        &DIIS_INFO
+        &END DIIS_INFO
+      &END
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL Pade
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 5.0 5.0 5.0
+      UNIT ANGSTROM
+    &END CELL
+    &COORD
+    N   0.000000  0.000000  0.000000
+    &END COORD
+    &KIND N
+      BASIS_SET DZVP-GTH-PADE
+      POTENTIAL GTH-PADE-q5
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
