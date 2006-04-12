@@ -1622,7 +1622,7 @@ CONTAINS
     CHARACTER(LEN=default_string_length) :: atmname, name, name_atm_a, &
       name_atm_a2, name_atm_a_local, name_atm_b, name_atm_b2, &
       name_atm_b_local, name_atm_c, name_atm_c2, name_atm_d, name_atm_d2
-    INTEGER :: atm_a, atm_b, atm_c, atm_d, counter, first, handle, i, ii, &
+    INTEGER :: atm_a, atm_b, atm_c, atm_d, counter, first, handle, handle2, i, ii, &
       ikind, ilink, imul, iw, j, jj, jkind, k, last, match_names, n, natom, &
       nbend, nbond, nimpr, nkinds, nonfo, ntorsion, nub, stat
     INTEGER, DIMENSION(:), POINTER           :: molecule_list, my_atom_list
@@ -1696,6 +1696,7 @@ CONTAINS
     !-----------------------------------------------------------------------------
     ! 1. Determine the number of unique bond kind and allocate bond_kind_set
     !-----------------------------------------------------------------------------
+    CALL timeset(routineN//'_bond1','I','',handle2)
     DO i=1,SIZE(molecule_kind_set)
        molecule_kind => molecule_kind_set(i)
        CALL get_molecule_kind(molecule_kind=molecule_kind,&
@@ -1756,12 +1757,14 @@ CONTAINS
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
     END DO
+    CALL timestop(handle2)
 
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 2. Determine the number of unique bend kind and allocate bend_kind_set
     !-----------------------------------------------------------------------------
+    CALL timeset(routineN//'_bend1',handle2)
     DO i=1,SIZE(molecule_kind_set)
        molecule_kind => molecule_kind_set(i)
        CALL get_molecule_kind(molecule_kind=molecule_kind,&
@@ -1833,12 +1836,14 @@ CONTAINS
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
     END DO
+    CALL timestop(handle2)
 
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 3. Determine the number of unique Urey-Bradley kind and allocate ub_kind_set
     !-----------------------------------------------------------------------------
+    CALL timeset(routineN//'_UB1',handle2)
     DO i=1,SIZE(molecule_kind_set)
        molecule_kind => molecule_kind_set(i)
        CALL get_molecule_kind(molecule_kind=molecule_kind,&
@@ -1910,12 +1915,14 @@ CONTAINS
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
     END DO
+    CALL timestop(handle2)
 
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 4. Determine the number of unique torsion kind and allocate torsion_kind_set
     !-----------------------------------------------------------------------------
+    CALL timeset(routineN//'_torsion1',handle2)
     DO i=1,SIZE(molecule_kind_set)
        molecule_kind => molecule_kind_set(i)
        CALL get_molecule_kind(molecule_kind=molecule_kind,&
@@ -2007,12 +2014,14 @@ CONTAINS
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
     END DO
+    CALL timestop(handle2)
 
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 5. Determine the number of unique impr kind and allocate impr_kind_set
     !-----------------------------------------------------------------------------
+    CALL timeset(routineN//'_impr1',handle2)
     DO i=1,SIZE(molecule_kind_set)
        molecule_kind => molecule_kind_set(i)
        CALL get_molecule_kind(molecule_kind=molecule_kind,&
@@ -2104,12 +2113,14 @@ CONTAINS
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
     END DO
+    CALL timestop(handle2)
 
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 6. Determine the number of unique onfo kind and allocate onfo_kind_set
     !-----------------------------------------------------------------------------
+    CALL timeset(routineN//'_onfo1',handle2)
     DO i=1,SIZE(molecule_kind_set)
        molecule_kind => molecule_kind_set(i)
        CALL get_molecule_kind(molecule_kind=molecule_kind,&
@@ -2175,12 +2186,14 @@ CONTAINS
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
     END DO
+    CALL timestop(handle2)
 
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 7. BONDS
     !-----------------------------------------------------------------------------
+    CALL timeset(routineN//'_bonds2',handle2)
     DO i=1,SIZE(molecule_kind_set)
        molecule_kind => molecule_kind_set(i)
        CALL get_molecule_kind(molecule_kind=molecule_kind,&
@@ -2259,12 +2272,14 @@ CONTAINS
        CALL set_molecule_kind(molecule_kind=molecule_kind,&
             bond_list=bond_list)
     END DO
+    CALL timestop(handle2)
 
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 8. BENDS
     !-----------------------------------------------------------------------------
+    CALL timeset(routineN//'_bends2',handle2)
     DO i=1,SIZE(molecule_kind_set)
        molecule_kind => molecule_kind_set(i)
        CALL get_molecule_kind(molecule_kind=molecule_kind,&
@@ -2354,12 +2369,14 @@ CONTAINS
        CALL set_molecule_kind(molecule_kind=molecule_kind,&
             bend_list=bend_list)
     END DO
+    CALL timestop(handle2)
 
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 9. Urey-Bradley
     !-----------------------------------------------------------------------------
+    CALL timeset(routineN//'_UB2',handle2)
     DO i=1,SIZE(molecule_kind_set)
        molecule_kind => molecule_kind_set(i)
        CALL get_molecule_kind(molecule_kind=molecule_kind,&
@@ -2448,12 +2465,14 @@ CONTAINS
        CALL set_molecule_kind(molecule_kind=molecule_kind,&
             ub_list=ub_list)
     END DO
+    CALL timestop(handle2)
 
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 10. TORSION
     !-----------------------------------------------------------------------------
+    CALL timeset(routineN//'_torsion2',handle2)
     DO i=1,SIZE(molecule_kind_set)
        molecule_kind => molecule_kind_set(i)
        CALL get_molecule_kind(molecule_kind=molecule_kind,&
@@ -2606,12 +2625,14 @@ CONTAINS
        CALL set_molecule_kind(molecule_kind=molecule_kind,&
             torsion_list=torsion_list)
     END DO
+    CALL timestop(handle2)
 
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 11. IMPROPERS
     !-----------------------------------------------------------------------------
+    CALL timeset(routineN//'_impr2',handle2)
     DO i=1,SIZE(molecule_kind_set)
        molecule_kind => molecule_kind_set(i)
        CALL get_molecule_kind(molecule_kind=molecule_kind,&
@@ -2735,12 +2756,14 @@ CONTAINS
        CALL set_molecule_kind(molecule_kind=molecule_kind,&
             impr_list=impr_list)
     END DO
+    CALL timestop(handle2)
 
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 12. Set spline_bond_env, use for ONFO interaction
     !-----------------------------------------------------------------------------
+    CALL timeset(routineN//'_onfo2',handle2)
     CALL pair_potential_pp_create ( potparm_bond,  &
          SIZE ( atomic_kind_set ), &
          error )
@@ -2911,12 +2934,14 @@ CONTAINS
           END DO
        END DO
 !   END IF
+    CALL timestop(handle2)
 
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 13. ONFO
     !-----------------------------------------------------------------------------
+    CALL timeset(routineN//'_onfo3',handle2)
     DO i=1,SIZE(molecule_kind_set)
        molecule_kind => molecule_kind_set(i)
        CALL get_molecule_kind(molecule_kind=molecule_kind,&
@@ -2955,12 +2980,14 @@ CONTAINS
             onfo_list=onfo_list)
     END DO
     CALL pair_potential_pp_release ( potparm_bond, error )
+    CALL timestop(handle2)
 
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 14. Set up atomic_kind_set()%elp_potentail%qeff (PART 2)
     !-----------------------------------------------------------------------------
+    CALL timeset(routineN//'_qeff',handle2)
     ALLOCATE(charge(SIZE(atomic_kind_set)),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DO i=1,SIZE(atomic_kind_set)
@@ -3048,11 +3075,13 @@ CONTAINS
     END DO
     DEALLOCATE (charge,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CALL timestop(handle2)
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 15. Set spline_nonbond_env
     !-----------------------------------------------------------------------------
+    CALL timeset(routineN//'_nonbond',handle2)
     CALL pair_potential_pp_create ( potparm_nonbond,  &
          SIZE ( atomic_kind_set ), &
          error )
@@ -3214,6 +3243,7 @@ CONTAINS
        END DO
     END DO
     CALL fist_nonbond_env_create (  fist_nonbond_env, potparm_nonbond, error )
+    CALL timestop(handle2)
 
     ! Release all spline_environments
     CALL spline_env_release (spline_manybody_env,error)
