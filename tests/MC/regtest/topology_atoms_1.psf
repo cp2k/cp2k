@@ -1,29 +1,20 @@
  PSF
 
    1 !NTITLE
-     Topology file for  1  ethane molecule
+     Topology file for  1  water molecules
 
-    8   !NATOM
-       1 ETH     1 ETH  C    C       0.000000        12.011             0
-       2 ETH     1 ETH  C    C       0.000000        12.011             0
-       3 ETH     1 ETH  H    H       0.000000         1.0080            0
-       4 ETH     1 ETH  H    H       0.000000         1.0080            0
-       5 ETH     1 ETH  H    H       0.000000         1.0080            0
-       6 ETH     1 ETH  H    H       0.000000         1.0080            0
-       7 ETH     1 ETH  H    H       0.000000         1.0080            0
-       8 ETH     1 ETH  H    H       0.000000         1.0080            0
+    3   !NATOM
+       1 H2O     1 H2O  O    O       0.000000        15.9994            0
+       2 H2O     1 H2O  H    H       0.000000         1.0080            0
+       3 H2O     1 H2O  H    H       0.000000         1.0080            0
 
-    7   !NBOND
-       1       2       1       4      1      5     1      6
-       2       3       2       7      2      8
+    2   !NBOND
+       1       2       1       3 
 
-    6   !NTHETA
-       1       2       3       1       2       7       1       2       8    
-       2       1       6       2       1       4       2       1       5
+    1   !NTHETA
+       2       1       3 
 
-    3   !NPHI
-       3      2       1      6     8      2     1     4
-      7     2     1     5
+    0   !NPHI
 
     0   !NIMPHI
 

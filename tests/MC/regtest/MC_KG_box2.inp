@@ -5,6 +5,9 @@
       &XC_FUNCTIONAL
         &PADE
         &END
+        &KE_GGA
+          FUNCTIONAL  LLP
+        &END
       &END
     &END XC
     &MGRID
@@ -24,26 +27,21 @@
   &END DFT
   &SUBSYS
     &CELL
-     ABC 10.0 10.0 10.0
+     ABC 5.0 5.0 5.0
       UNIT ANGSTROM
     &END CELL
     &COORD
- C     0.000000     0.000000     0.000000
- C     0.000000     0.000000     1.450000
- H     1.026719     0.000000     1.813000
- H    -0.513360    -0.889165    -0.363000
- H    -0.513360     0.889165    -0.363000
- H     1.026719     0.000000    -0.363000
- H    -0.513360     0.889165     1.813000
- H    -0.513360    -0.889165     1.813000
+     O          2.8618391587       1.1262212638       0.8067716497
+     H          3.7885812039       1.2213178792       0.4837188849
+     H          2.4050791412       1.6367607407       0.0086990777
     &END COORD
-    &KIND C
-      BASIS_SET DZVP-GTH-PADE
-      POTENTIAL GTH-PADE-q4
+    &KIND O
+      BASIS_SET KG-FEDPD-BARKER
+      POTENTIAL ELP
     &END KIND
     &KIND H
-      BASIS_SET DZVP-GTH-PADE
-      POTENTIAL GTH-PADE-q1
+      BASIS_SET KG-FEDPD-BARKER
+      POTENTIAL ELP
     &END KIND
     &TOPOLOGY
       CONN_FILE topology_atoms_1.psf
@@ -63,18 +61,20 @@
     IUPTRANS 6400000
     IUPVOLUME 3200000
     LBIAS no
-    LSTOP no
+    LSTOP yes
     NMOVES 1
-    NSTEP 30
+    NSTEP 4
+    NSWAPMOVES 4
     NVOLMOVES 1
-    PMSWAP 0.0
+    PMSWAP 1.0
     PMTRAION 1.0
     PMTRANS 0.00
-    PMVOLUME 0.1
+    PMVOLUME 1.0
     PRESSURE 1.013
-    PROGRAM traditional
+    PROGRAM gemc
     RESTART no
-    RESTART_FILE_NAME mc_restart_1
+    RESTART_FILE_NAME mc_restart_2
+    BOX2_FILE_NAME MC_KG_box1.inp
     RMANGLE 1.0
     RMDIHEDRAL 5.0
     RMBOND 0.04
