@@ -80,7 +80,7 @@ SUBROUTINE force_nonbond ( fist_nonbond_env, particle_set, cell,  &
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'force_nonbond'
 
-    INTEGER                                  :: ab, atom_a, atom_b, handle, &
+    INTEGER                                  :: ab, atom_a, atom_b, &
                                                 ikind, ilist, inode, jkind, &
                                                 nkinds, nlist, nnode
     REAL(KIND=dp)                            :: energy, f_eam, flops, &
@@ -99,8 +99,7 @@ SUBROUTINE force_nonbond ( fist_nonbond_env, particle_set, cell,  &
 
 !------------------------------------------------------------------------------
 
-  CALL timeset ( routineN, 'E', 'Mflops', handle )
-  flops = 0.0_dp
+  CALL timeset ( routineN, handle )
   CALL fist_nonbond_env_get ( fist_nonbond_env, nonbonded = nonbonded, &
                              r_last_update = r_last_update,            &
                              potparm = potparm, natom_types = nkinds )
@@ -217,7 +216,7 @@ SUBROUTINE force_nonbond ( fist_nonbond_env, particle_set, cell,  &
 !       pot_nonbond=pot_nonbond+lrc*(1./box % deth)
 !
 
-  CALL timestop ( flops, handle )
+  CALL timestop ( handle )
 
 END SUBROUTINE force_nonbond
 
