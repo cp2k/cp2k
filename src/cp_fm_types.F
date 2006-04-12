@@ -1,8 +1,7 @@
 !-----------------------------------------------------------------------------!
-!   CP2K: A general program to perform molecular dynamics simulations
-!   Copyright (C) 2001,2002,2003  CP2K developers group
+!   CP2K: A general program to perform molecular dynamics simulations         !
+!   Copyright (C) 2001 - 2006  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-
 
 !!****h* cp2k/cp_fm_types [1.0] *
 !!
@@ -24,7 +23,9 @@
 !!
 !!   SOURCE
 !****************************************************************************
+
 MODULE cp_fm_types
+
   USE cp_blacs_calls,                  ONLY: cp_blacs_dgebr2d,&
                                              cp_blacs_dgebs2d
   USE cp_fm_struct,                    ONLY: cp_fm_struct_equivalent,&
@@ -44,14 +45,13 @@ MODULE cp_fm_types
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
+
   PRIVATE
 
-  LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_fm_types'
+  CHARACTER(LEN=*), PARAMETER :: moduleN = "cp_fm_types"
+  LOGICAL, PARAMETER          :: debug_this_module = .TRUE.
 
-  INTEGER,SAVE,PRIVATE :: last_fm_id_nr=0
-
-
+  INTEGER, SAVE :: last_fm_id_nr = 0
 
   PUBLIC :: cp_fm_type, &
             cp_fm_p_type
@@ -68,7 +68,7 @@ MODULE cp_fm_types
             cp_fm_init_random, &         
             cp_fm_maxabsval, &         ! find the maximum absolute value
             cp_fm_maxabsrownorm, &     ! find the maximum of the sum of the abs of the elements of a row
-            cp_fm_to_fm,&             ! copy (parts of) a fm to a fm
+            cp_fm_to_fm,&              ! copy (parts of) a fm to a fm
             cp_fm_vectorsnorm          ! compute the norm of the column-vectors      
 
 
@@ -1170,17 +1170,12 @@ CONTAINS
     CALL timestop(handle)
   END SUBROUTINE
 
+  ! ***************************************************************************
 
 !!****f* cp_fm_types/cp_fm_to_fm_matrix [1.0] *
 !!
 !!   NAME
 !!     cp_fm_to_fm_matrix  ! interface cp_fm_to_fm
-!!
-!!   SYNOPSIS
-!!     SUBROUTINE cp_fm_to_fm_matrix(source,destination,error)
-!!       TYPE(cp_fm_type), POINTER :: source,destination
-!!       TYPE(cp_error_type), INTENT(inout), OPTIONAL :: error
-!!     END SUBROUTINE
 !!
 !!   FUNCTION
 !!     copy one identically sized matrix in the other
@@ -1195,46 +1190,52 @@ CONTAINS
 !!   MODIFICATION HISTORY
 !!
 !!*** *********************************************************************
+
   SUBROUTINE cp_fm_to_fm_matrix(source,destination,error)
+
     TYPE(cp_fm_type), POINTER                :: source, destination
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: &
-      routine = "SUBROUTINE cp_fm_to_fm (MODULE cp_fm_types)"
+    CHARACTER(LEN=*), PARAMETER :: routineN = "cp_fm_to_fm_matrix", &
+                                   routineP = moduleN//":"//routineN
 
-    INTEGER                                  :: npcol, nprow
+    INTEGER                                  :: handle, npcol, nprow
     LOGICAL                                  :: failure
 
 !   ---------------------------------------------------------------------------
 
+    CALL timeset(routineN,"I","",handle)
+
     failure=.TRUE.
+
     nprow = source%matrix_struct%context%num_pe(1)
     npcol = source%matrix_struct%context%num_pe(2)
 
-    IF(.NOT. cp2k_is_parallel .OR.&
+    IF ((.NOT. cp2k_is_parallel).OR.&
          cp_fm_struct_equivalent(source%matrix_struct,&
          destination%matrix_struct,error=error)) THEN
       CALL cp_assert(SIZE(source%local_data,1)==SIZE(destination%local_data,1).AND.&
          SIZE(source%local_data,2)==SIZE(destination%local_data,2),cp_failure_level,&
-         cp_assertion_failed, routine, &
-         "internal error, local_data has different sizes"//&
-         CPSourceFileRef,&
+         cp_assertion_failed, routineP,&
+         "Cannot copy full matrix <"//TRIM(source%name)//&
+         "> to full matrix <"//TRIM(destination%name)//&
+         ">. The local_data blocks have different sizes."//CPSourceFileRef,&
          error=error)
       CALL dcopy(SIZE(source%local_data,1)*SIZE(source%local_data,2),&
            source%local_data(1,1),1,destination%local_data(1,1),1)
-   ELSE
+    ELSE
       CALL cp_assert(source%matrix_struct%nrow_global==&
            destination%matrix_struct%nrow_global,&
            cp_failure_level,&
-           cp_assertion_failed, routine, &
-           "cannot copy between full matrixes of differen sizes"//&
+           cp_assertion_failed, routineP, &
+           "cannot copy between full matrixes of different sizes"//&
            CPSourceFileRef,&
            error=error)
       CALL cp_assert(source%matrix_struct%ncol_global==&
            destination%matrix_struct%ncol_global,&
            cp_failure_level,&
-           cp_assertion_failed, routine, &
+           cp_assertion_failed, routineP, &
            "cannot copy between full matrixes of differen sizes"//&
            CPSourceFileRef,&
            error=error)
@@ -1244,22 +1245,20 @@ CONTAINS
            source%local_data(1,1),1,1,source%matrix_struct%descriptor,1,&
            destination%local_data(1,1),1,1,destination%matrix_struct%descriptor,1)
 #else
-      CPAssert(.FALSE.,cp_failure_level,routine,error,failure)
+      CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
 #endif
-   END IF
+    END IF
+
+    CALL timestop(0.0_dp,handle)
+
   END SUBROUTINE cp_fm_to_fm_matrix
+
+  ! ***************************************************************************
 
 !!****f* cp_fm_types/cp_fm_to_fm_columns [1.0] *
 !!
 !!   NAME
 !!     cp_fm_to_fm_columns ! interface cp_fm_to_fm
-!!
-!!   SYNOPSIS
-!!     SUBROUTINE cp_fm_to_fm_columns(msource,mtarget,ncol,source_start,target_start)
-!!       TYPE(cp_fm_type), POINTER                 :: msource,mtarget
-!!       INTEGER, INTENT(IN)                       :: ncol
-!!       INTEGER, INTENT(IN), OPTIONAL             :: source_start,target_start
-!!     END SUBROUTINE
 !!
 !!   FUNCTION
 !!     copy just a subset of columns of a fm to a fm
@@ -1273,7 +1272,10 @@ CONTAINS
 !!   MODIFICATION HISTORY
 !!
 !!*** *********************************************************************
-  SUBROUTINE cp_fm_to_fm_columns(msource,mtarget,ncol,source_start,target_start)
+
+  SUBROUTINE cp_fm_to_fm_columns(msource,mtarget,ncol,source_start,&
+                                 target_start)
+
     TYPE(cp_fm_type), POINTER                :: msource, mtarget
     INTEGER, INTENT(IN)                      :: ncol
     INTEGER, INTENT(IN), OPTIONAL            :: source_start, target_start
@@ -1283,14 +1285,24 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a, b
     TYPE(cp_blacs_env_type), POINTER         :: context
 
-    ss=1
-    ts=1
-    IF (PRESENT(source_start)) ss=source_start
-    IF (PRESENT(target_start)) ts=target_start
+    CHARACTER(LEN=*), PARAMETER :: routineN = "cp_fm_to_fm_columns", &
+                                   routineP = moduleN//":"//routineN
+
+    INTEGER :: handle
+
+    ! -------------------------------------------------------------------------
+
+    CALL timeset(routineN,"I","",handle)
+
+    ss = 1
+    ts = 1
+
+    IF (PRESENT(source_start)) ss = source_start
+    IF (PRESENT(target_start)) ts = target_start
 
     context => msource%matrix_struct%context
-    myprow=context%mepos(1)
-    mypcol=context%mepos(2)
+    myprow = context%mepos(1)
+    mypcol = context%mepos(2)
     n = msource%matrix_struct%nrow_global
 
     a => msource%local_data
@@ -1301,11 +1313,15 @@ CONTAINS
     descb(:) = mtarget%matrix_struct%descriptor(:)
     DO i=0,ncol-1
       CALL pdcopy(n,a(1,1),1,ss+i,desca,1,b(1,1),1,ts+i,descb,1)
-    ENDDO
+    END DO
 #else
     CALL dcopy(ncol*n,a(1,ss),1,b(1,ts),1)
 #endif
 
+    CALL timestop(0.0_dp,handle)
+
   END SUBROUTINE cp_fm_to_fm_columns
+
+  ! ***************************************************************************
 
 END MODULE cp_fm_types
