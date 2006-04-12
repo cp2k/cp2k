@@ -80,10 +80,10 @@ SUBROUTINE force_nonbond ( fist_nonbond_env, particle_set, cell,  &
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'force_nonbond'
 
-    INTEGER                                  :: ab, atom_a, atom_b, &
+    INTEGER                                  :: ab, atom_a, atom_b, handle, &
                                                 ikind, ilist, inode, jkind, &
                                                 nkinds, nlist, nnode
-    REAL(KIND=dp)                            :: energy, f_eam, flops, &
+    REAL(KIND=dp)                            :: energy, f_eam, &
                                                 fscalar, rab2, rab2_max
     REAL(KIND=dp), DIMENSION(3)              :: dra, drb, fr, rab
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: r_last_update
