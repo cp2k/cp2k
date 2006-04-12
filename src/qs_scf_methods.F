@@ -254,7 +254,7 @@ CONTAINS
        CALL cp_fm_block_jacobi(matrix_ks,mo_coeff,mo_eigenvalues,&
                                jacobi_threshold,homo+1)
 
-    ELSE ! full S^-1 has been computed
+    ELSE ! full S^(-1/2) has been computed
 
        CALL cp_fm_symm("L","U",nao,nao,1.0_dp,matrix_ks,ortho,0.0_dp,work)
        CALL cp_fm_gemm("T","N",nao,nao,nao,1.0_dp,ortho,work,0.0_dp,matrix_ks)
@@ -268,9 +268,13 @@ CONTAINS
           END DO
        END IF
 
-       CALL cp_fm_syevx(matrix_ks,work,mo_eigenvalues,nmo,work_syevx)
+       IF (nmo == nao) THEN
+         CALL cp_fm_syevd(matrix_ks,work,mo_eigenvalues,error)
+       ELSE
+         CALL cp_fm_syevx(matrix_ks,work,mo_eigenvalues,nmo,work_syevx,error)
+       END IF
 
-       ! Store orthonormal MO set for ROKS
+       ! Optionally store orthonormal MO set for ROKS
 
        IF (PRESENT(ao2mo)) CALL cp_fm_to_fm(work,ao2mo)
 
