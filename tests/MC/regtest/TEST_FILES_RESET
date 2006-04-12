@@ -1,3 +1,6 @@
 #
 # just add file names for which the reference needs to be reset below, with some comment
 #
+# now I'm paying attention to the resulting energy
+MC_QS.inp
+MC_Fist.inp
