@@ -1,0 +1,299 @@
+####################################
+#ikuo - NOT working yet. I'll move it over to regtest 
+#       when all the energy matches up 04.12.2006
+
+&FORCE_EVAL
+  &MM
+    &FORCEFIELD
+
+#####################################################
+#####################################################
+# SET SPECIFIC K TO ZERO TO TEST EACH TERM ###
+#####################################################
+#####################################################
+      &BOND
+        ATOMS   CTL2 HAL2
+        KIND    CHARMM
+        #K       [charmm_k] 309.0
+        #K       [charmm_k] 0.0
+        K 0.0
+        R0      1.111
+      &END BOND
+      &BOND
+        ATOMS   CTL3 HAL3
+        KIND    CHARMM
+        #K       [charmm_k] 322.0
+        #K       [charmm_k] 0.0
+        K 0.0
+        R0      1.111
+      &END BOND
+      &BOND
+        ATOMS   CTL2 CTL2
+        KIND    CHARMM
+        #K       [charmm_k] 222.5
+        K       [charmm_kbond] 0.0
+        R0      1.530
+      &END BOND
+      &BOND
+        ATOMS   CTL2 CTL3
+        KIND    CHARMM
+        #K       [charmm_k] 222.5
+        #K       [charmm_k] 0.0
+        K 0.0
+        R0      1.528
+      &END BOND
+#####################################################
+      &BEND
+        ATOMS   HAL2 CTL2 HAL2
+        #K       35.5
+        K       0.0
+        THETA0  109.0
+      &END BEND
+      &BEND
+        ATOMS   HAL3 CTL3 HAL3
+        #K       35.5
+        K       0.0
+        THETA0  108.4
+      &END BEND
+      &BEND
+        ATOMS   HAL2 CTL2 CTL3
+        #K       34.6
+        K       0.0
+        THETA0  110.1
+      &END BEND
+      &BEND
+        ATOMS   CTL2 CTL2 CTL3
+        #K       58.0
+        K       0.0
+        THETA0  115.0
+      &END BEND
+      &BEND
+        ATOMS   HAL3 CTL3 CTL2
+        #K       34.6
+        K       0.0
+        THETA0  110.1
+      &END BEND
+      &BEND
+        ATOMS   HAL2 CTL2 CTL2
+        #K       26.5
+        K       0.0
+        THETA0  110.1
+      &END BEND
+#####################################################
+      &TORSION
+        ATOMS   CTL3 CTL2 CTL2 CTL3
+        #K         0.10
+        K       0.0
+        PHI0    180.0
+        M         2
+      &END TORSION
+      &TORSION
+        ATOMS   CTL3 CTL2 CTL2 CTL3
+        #K         0.15
+        K       0.0
+        PHI0      0.0
+        M         4
+      &END TORSION
+      &TORSION
+        ATOMS   CTL3 CTL2 CTL2 CTL3
+        #K         0.10
+        K       0.0
+        PHI0    180.0
+        M         6
+      &END TORSION
+      &TORSION
+        ATOMS   HAL2 CTL2 CTL3 HAL3
+        #K         0.16
+        K       0.0
+        PHI0      0.0
+        M         3
+      &END TORSION
+      &TORSION
+        ATOMS   CTL2 CTL2 CTL3 HAL3
+        #K         0.16
+        K       0.0
+        PHI0      0.0
+        M         3
+      &END TORSION
+      &TORSION
+        ATOMS   CTL3 CTL2 CTL2 HAL2
+        #K         0.19
+        K       0.0
+        PHI0      0.0
+        M         3
+      &END TORSION
+      &TORSION
+        ATOMS   HAL2 CTL2 CTL2 HAL2
+        #K         0.19
+        K       0.0
+        PHI0      0.0
+        M         3
+      &END TORSION
+#####################################################
+      &NONBONDED14
+        &LENNARD-JONES
+          ATOMS       HAL2 HAL2
+          EPSILON        0.0
+          SIGMA          1.0
+          RCUT           9.0
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS       HAL2 HAL3
+          EPSILON        0.0
+          SIGMA          1.0
+          RCUT           9.0
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS       HAL2 CTL2
+          EPSILON        0.0
+          SIGMA          1.0
+          RCUT           9.0
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS       HAL2 CTL3
+          EPSILON        0.0
+          SIGMA          1.0
+          RCUT           9.0
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS       HAL3 HAL3
+          EPSILON        0.0
+          SIGMA          1.0
+          RCUT           9.0
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS       HAL3 CTL2
+          EPSILON        0.0
+          SIGMA          1.0
+          RCUT           9.0
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS       HAL3 CTL3
+          EPSILON        0.0
+          SIGMA          1.0
+          RCUT           9.0
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS       CTL2 CTL2
+          EPSILON        0.0
+          SIGMA          1.0
+          RCUT           9.0
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS       CTL2 CTL3
+          EPSILON        0.0
+          SIGMA          1.0
+          RCUT           9.0
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS       CTL3 CTL3
+          EPSILON        0.0
+          SIGMA          1.0
+          RCUT           9.0
+        &END LENNARD-JONES
+      &END NONBONDED14
+#####################################################
+      &NONBONDED
+        &LENNARD-JONES
+          ATOMS       HAL2 HAL2
+          EPSILON        0.0
+          SIGMA          1.0
+          RCUT           9.0
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS       HAL2 HAL3
+          EPSILON        0.0
+          SIGMA          1.0
+          RCUT           9.0
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS       HAL2 CTL2
+          EPSILON        0.0
+          SIGMA          1.0
+          RCUT           9.0
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS       HAL2 CTL3
+          EPSILON        0.0
+          SIGMA          1.0
+          RCUT           9.0
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS       HAL3 HAL3
+          EPSILON        0.0
+          SIGMA          1.0
+          RCUT           9.0
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS       HAL3 CTL2
+          EPSILON        0.0
+          SIGMA          1.0
+          RCUT           9.0
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS       HAL3 CTL3
+          EPSILON        0.0
+          SIGMA          1.0
+          RCUT           9.0
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS       CTL2 CTL2
+          EPSILON        0.0
+          SIGMA          1.0
+          RCUT           9.0
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS       CTL2 CTL3
+          EPSILON        0.0
+          SIGMA          1.0
+          RCUT           9.0
+        &END LENNARD-JONES
+        &LENNARD-JONES
+          ATOMS       CTL3 CTL3
+          EPSILON        0.0
+          SIGMA          1.0
+          RCUT           9.0
+        &END LENNARD-JONES
+      &END NONBONDED
+#####################################################
+#####################################################
+# SET SPECIFIC K TO ZERO TO TEST EACH TERM ###
+#####################################################
+#####################################################
+
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE spme
+        ALPHA .44
+        GMAX 24
+        O_SPLINE 6
+      &END EWALD
+    &END POISSON
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC 24.955 24.955 24.955
+      UNIT ANGSTROM
+    &END CELL
+    &TOPOLOGY
+      CHARGE_O
+      COORD_FILE sample_pdb/butane.pdb
+      COORDINATE pdb
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  FFTLIB FFTW
+  PROGRAM FIST
+  PROJECT pot_bond
+  RUN_TYPE debug
+&END GLOBAL
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 1
+    TIMESTEP 0.5
+    TEMPERATURE 298
+  &END MD
+&END MOTION
