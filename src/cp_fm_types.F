@@ -1220,7 +1220,8 @@ CONTAINS
          cp_assertion_failed, routineP,&
          "Cannot copy full matrix <"//TRIM(source%name)//&
          "> to full matrix <"//TRIM(destination%name)//&
-         ">. The local_data blocks have different sizes."//CPSourceFileRef,&
+         ">. The local_data blocks have different sizes."//&
+         CPSourceFileRef,&
          error=error)
       CALL dcopy(SIZE(source%local_data,1)*SIZE(source%local_data,2),&
            source%local_data(1,1),1,destination%local_data(1,1),1)
