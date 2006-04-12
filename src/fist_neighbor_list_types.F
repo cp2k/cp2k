@@ -21,7 +21,7 @@
 
 MODULE fist_neighbor_list_types
 
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: dp, ik1
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
 
@@ -35,12 +35,17 @@ MODULE fist_neighbor_list_types
 
 ! *** Definition of the data types for a linked list of neighbors ***
 
+  ! save some memory by putting elements in the right order to avoid padding.
+  ! real*8 followed by pointers (4-8bytes), followed by default integer, 
+  ! followed by non-default integers and characters
+  ! uses the ik1 which is a limited range in (typically a byte), 
+  ! but at least -99..99 
   TYPE neighbor_node_type
     PRIVATE
+    REAL(dp), DIMENSION(3)            :: r
     TYPE(neighbor_node_type), POINTER :: next_neighbor_node
     INTEGER                           :: neighbor
-    REAL(dp), DIMENSION(3)            :: r
-    INTEGER, DIMENSION(3)             :: cell
+    INTEGER(KIND=ik1), DIMENSION(3)   :: cell
   END TYPE neighbor_node_type
 
   TYPE neighbor_list_type
