@@ -1,7 +1,8 @@
 !-----------------------------------------------------------------------------!
-!   CP2K: A general program to perform molecular dynamics simulations
-!   Copyright (C) 2001 - 2004  CP2K developers group
+!   CP2K: A general program to perform molecular dynamics simulations         !
+!   Copyright (C) 2001 - 2006  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
+
 !!****** cp2k/qs_environment [1.0] *
 !!
 !!   NAME
@@ -735,14 +736,20 @@ CONTAINS
         (scf_control%level_shift /= 0.0_dp).OR.&
         (scf_control%eps_jacobi /= 0.0_dp).OR.&
         dft_control%roks) THEN
-       n_mo(1) = n_ao
-       IF (n_mo(2) /= 0) n_mo(2) = n_ao
+       n_mo(:) = n_ao
+!MK    IF (n_mo(2) /= 0) n_mo(2) = n_ao
     END IF
 
     ! Disable Cholesky decomposition, if ROKS is requested
 
     IF (dft_control%roks) THEN
+      CALL stop_program(routineN,moduleN,__LINE__,&
+                        "ROKS is not yet working")
       scf_control%use_cholesky = .FALSE.
+      IF (scf_control%use_ot) THEN
+        CALL stop_program(routineN,moduleN,__LINE__,&
+                          "The options ROKS and OT are not compatible")
+      END IF
     END IF
 
     ALLOCATE (mos(dft_control%nspins),STAT=istat)
