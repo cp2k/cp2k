@@ -5,8 +5,8 @@
 #      for details see cp2k/tools/do_regtest
 #
 # QS MC test for volume moves and the ref_cell on water
-MC_QS.inp 1
+MC_QS.inp 6
 # FIST MC testing NpT simulation with biasing on water
-MC_Fist.inp 1
+MC_Fist.inp 6
 # KG MC testing GEMC simulation on water
-MC_KG_box1.inp 1
+MC_KG_box1.inp 6
