@@ -2038,7 +2038,7 @@ END SUBROUTINE qs_scf_print_summary
 
     TYPE(cp_fm_type), POINTER :: ao2mo,ksa,ksb,moa,mob,ortho,work
 
-    REAL(kind=dp) :: diis_error,level_shift
+    REAL(kind=dp) :: diis_error,level_shift_loc
     INTEGER       :: handle,homoa,homob,imo,nao,nmo
 
     REAL(kind=dp), DIMENSION(:), POINTER :: eiga,eigb,occa,occb
@@ -2078,9 +2078,9 @@ END SUBROUTINE qs_scf_print_summary
     IF ((scf_control%level_shift /= 0.0_dp).AND.&
         ((scf_control%density_guess == core_guess).OR.&
          (scf_env%iter_count > 1))) THEN
-      level_shift = scf_control%level_shift
+      level_shift_loc = scf_control%level_shift
     ELSE
-      level_shift = 0.0_dp
+      level_shift_loc = 0.0_dp
     END IF
 
     IF ((scf_env%iter_count > 1).OR.&
@@ -2099,7 +2099,7 @@ END SUBROUTINE qs_scf_print_summary
       ! in the MO basis and perform level-shifting in turn if requested
 
       CALL combine_ks_matrices(ksa,ksb,occa,occb,scf_control%roks_parameter,&
-                               level_shift,homoa,homob,error=error)
+                               level_shift_loc,homoa,homob,error=error)
 
       ! Back-transform the restricted open Kohn-Sham matrix from MO basis
       ! to AO basis
@@ -2166,12 +2166,12 @@ END SUBROUTINE qs_scf_print_summary
 
     ! Correct MO eigenvalues, if level-shifting was applied
 
-    IF (level_shift /= 0.0_dp) THEN
+    IF (level_shift_loc /= 0.0_dp) THEN
       DO imo=homob+1,homoa
-        eiga(imo) = eiga(imo) - 0.5_dp*level_shift
+        eiga(imo) = eiga(imo) - 0.5_dp*level_shift_loc
       END DO
       DO imo=homoa+1,nmo
-        eiga(imo) = eiga(imo) - level_shift
+        eiga(imo) = eiga(imo) - level_shift_loc
       END DO
     END IF
 
