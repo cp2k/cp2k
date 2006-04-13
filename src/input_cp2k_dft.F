@@ -2237,6 +2237,24 @@ SUBROUTINE create_tddfpt_section(section,error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(&
+              keyword=keyword,&
+              name="GSPACE_MIXING",&
+              variants=(/"GSPACE_DENSITY_MIXING"/),&
+              description="Controls the mixing of the old and the new density "//&
+                          "in the reciprocal space combined with the Kerker "//&
+                          "damping in order to suppress charge sloshing:"//&
+                          "rho_mix(g) = rho_old(g) + A*g^2/(g^2 + B^2)*(rho_new(g) - rho_old(g))",&
+              usage="GSPACE_MIXING {real A} {real B}",&
+              repeats=.FALSE.,&
+              required=.FALSE.,&
+              n_var=2,&
+              type_of_var=real_t,&
+              default_r_vals=(/1.0_dp,0.0_dp/),&
+              error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="SCF_GUESS",&
             description="Change the initial guess for the wavefunction.",&
             usage="SCF_GUESS RESTART", default_i_val=atomic_guess,&

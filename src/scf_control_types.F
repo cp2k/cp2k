@@ -135,7 +135,7 @@ MODULE scf_control_types
     INTEGER               :: density_guess
     REAL(KIND = dp)       :: eps_eigval,eps_scf,level_shift,p_mix,smear,&
                              work_syevx,eps_lumos, eps_diis,eps_jacobi,&
-                             jacobi_threshold
+                             jacobi_threshold, gspace_mixing_a, gspace_mixing_b
     INTEGER               :: max_iter_lumos, max_diis
     INTEGER               :: max_scf,nrow_block,max_scf_aspc,&
                              ncol_block,maxl,nkind, write_restart_each, &
@@ -222,6 +222,8 @@ CONTAINS
       scf_control%write_restart_each=10
       scf_control%added_mos=0
       scf_control%max_scf_aspc = 1
+      scf_control%gspace_mixing_a = 1.0_dp
+      scf_control%gspace_mixing_b = 0.0_dp
       scf_control%fill_wf_history = .FALSE.
       scf_control%harris_max_scf = 1
 
@@ -405,6 +407,7 @@ CONTAINS
 
     REAL(KIND=dp), DIMENSION(:), POINTER     :: parameter
     INTEGER, DIMENSION(:), POINTER           :: added_mos
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: r_vals
     LOGICAL                                  :: explicit, failure
     TYPE(section_vals_type), POINTER         :: harris_section, &
                                                 outer_scf_section, scf_section
@@ -412,6 +415,8 @@ CONTAINS
     ! -------------------------------------------------------------------------
 
     failure = .FALSE.
+
+    NULLIFY (r_vals)
 
     CPPrecondition(ASSOCIATED(scf_control),cp_failure_level,routineP,error,failure)
     CPPrecondition(scf_control%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -431,6 +436,10 @@ CONTAINS
             i_val=scf_control%density_guess,error=error)
        CALL section_vals_val_get(scf_section,"MIXING",&
             r_val=scf_control%p_mix,error=error)
+       CALL section_vals_val_get(scf_section,"GSPACE_MIXING",&
+                                 r_vals=r_vals,error=error)
+       scf_control%gspace_mixing_a = r_vals(1)
+       scf_control%gspace_mixing_b = r_vals(2)
        CALL section_vals_val_get(scf_section,"EPS_DIIS",&
             r_val=scf_control%eps_diis,error=error)
        CALL section_vals_val_get(scf_section,"eps_eigval",&
@@ -605,23 +614,25 @@ CONTAINS
           WRITE (UNIT=output_unit,&
                  FMT="(/,/,T2,A,T25,A,T71,A10,/,T25,56('-'),4(/,T25,A,T76,I5),"//&
                      "T25,56('-'),5(/,T25,A,T72,ES9.2),T25,56('-'),"//&
-                     "4(/,T25,A,T76,F5.2),1(/,T25,A,T71,2I5))")&
-             "SCF PARAMETERS",&
-             "Density guess:     ",ADJUSTR(TRIM(enum_i2c(enum,scf_control%density_guess))),&
-             "max_scf:           ",scf_control%max_scf,&
-             "max_scf_aspc:      ",scf_control%max_scf_aspc,&
-             "max_diis:          ",scf_control%max_diis,&
-             "write_restart_each:",scf_control%write_restart_each,&
-             "eps_scf:           ",scf_control%eps_scf,&
-             "eps_diis:          ",scf_control%eps_diis,&
-             "eps_eigval:        ",scf_control%eps_eigval,&
-             "eps_jacobi:        ",scf_control%eps_jacobi,&
-             "jacobi_threshold:  ",scf_control%jacobi_threshold,&
-             "p_mix:             ",scf_control%p_mix,&
-             "work_syevx:        ",scf_control%work_syevx,&
-             "level_shift [a.u.]:",scf_control%level_shift,&
-             "smear [a.u.]:      ",scf_control%smear,&
-             "added MOs          ",scf_control%added_mos
+                     "6(/,T25,A,T76,F5.2),1(/,T25,A,T71,2I5))")&
+            "SCF PARAMETERS",&
+            "Density guess:     ",ADJUSTR(TRIM(enum_i2c(enum,scf_control%density_guess))),&
+            "max_scf:           ",scf_control%max_scf,&
+            "max_scf_aspc:      ",scf_control%max_scf_aspc,&
+            "max_diis:          ",scf_control%max_diis,&
+            "write_restart_each:",scf_control%write_restart_each,&
+            "eps_scf:           ",scf_control%eps_scf,&
+            "eps_diis:          ",scf_control%eps_diis,&
+            "eps_eigval:        ",scf_control%eps_eigval,&
+            "eps_jacobi:        ",scf_control%eps_jacobi,&
+            "jacobi_threshold:  ",scf_control%jacobi_threshold,&
+            "p_mix:             ",scf_control%p_mix,&
+            "G-space mixing a:  ",scf_control%gspace_mixing_a,&
+            "G-space mixing b:  ",scf_control%gspace_mixing_b,&
+            "work_syevx:        ",scf_control%work_syevx,&
+            "level_shift [a.u.]:",scf_control%level_shift,&
+            "smear [a.u.]:      ",scf_control%smear,&
+            "added MOs          ",scf_control%added_mos
 
           dft_section => section_vals_get_subs_vals(force_env_section,"DFT",&
                                                     error=error)

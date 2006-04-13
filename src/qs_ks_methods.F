@@ -324,7 +324,13 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: input, scf_section
 
 ! shorter for output
-
+!MK
+    TYPE(qs_rho_type), POINTER              :: rho_buffer
+    INTEGER                                 :: ig
+    REAL(KIND=dp)                           :: a_mix,b_mix,f_mix
+    REAL(KIND=dp), DIMENSION(:), POINTER    :: g2
+    COMPLEX(KIND=dp), DIMENSION(:), POINTER :: cc_new,cc_old
+!MK
     failure=.FALSE.
     NULLIFY(matrix_h,matrix_s,dft_control,auxbas_pw_pool, pw_pools,&
          pw_env, cell, logger, v_rspace_new, v_tau_rspace,&
@@ -342,7 +348,12 @@ CONTAINS
     ! Check for a KG_GPW calculation: KE for total rho and for molecular rho
     my_kg_gpw = .FALSE.
     IF(PRESENT(kg_gpw)) my_kg_gpw = kg_gpw
-
+!MK
+    NULLIFY (cc_new)
+    NULLIFY (cc_old)
+    NULLIFY (g2)
+    NULLIFY (rho_buffer)
+!MK
     CALL get_qs_env(qs_env=qs_env,&
          dft_control=dft_control,&
          matrix_h=matrix_h,&
@@ -351,6 +362,7 @@ CONTAINS
          cell=cell,&
          para_env=para_env,&
          input=input,&
+         rho_buffer=rho_buffer,&
          error=error)
     
     scf_section => section_vals_get_subs_vals(input,"DFT%SCF",error=error)
@@ -394,15 +406,55 @@ CONTAINS
 
        ! *** calculate the hartree potential on the pw density ***
        ! *** Hartree contributions ***
-       IF (.NOT.failure) THEN
-           CALL pw_pool_init_coeff(auxbas_pw_pool, v_hartree_gspace, &
-                                   use_data = COMPLEXDATA1D,&
-                                   in_space = RECIPROCALSPACE, error=error)
-           CALL pw_pool_init_coeff(auxbas_pw_pool, rho_tot_gspace,&
-                                   use_data = COMPLEXDATA1D,&
-                                   in_space = RECIPROCALSPACE, error=error)
-       END IF
 
+       IF (.NOT.failure) THEN
+         CALL pw_pool_init_coeff(pool=auxbas_pw_pool,&
+                                 coeff=v_hartree_gspace, &
+                                 use_data=COMPLEXDATA1D,&
+                                 in_space=RECIPROCALSPACE,&
+                                 error=error)
+         CALL pw_pool_init_coeff(pool=auxbas_pw_pool,&
+                                 coeff=rho_tot_gspace,&
+                                 use_data=COMPLEXDATA1D,&
+                                 in_space=RECIPROCALSPACE,&
+                                 error=error)
+       END IF
+!MK
+       ! G space mixing (combined with Kerker)
+
+       a_mix = qs_env%scf_control%gspace_mixing_a
+       b_mix = qs_env%scf_control%gspace_mixing_b
+
+       IF ((a_mix /= 1.0_dp).OR.(b_mix /= 0.0_dp)) THEN
+         CPPrecondition(ASSOCIATED(rho_buffer),cp_failure_level,routineP,error,failure)
+         CPPrecondition(rho_buffer%rho_r_valid,cp_failure_level,routineP,error,failure)
+         CPPrecondition(rho_buffer%rho_g_valid,cp_failure_level,routineP,error,failure)
+         IF (b_mix == 0.0_dp) THEN
+           DO ispin=1,nspins
+             cc_new => rho%rho_g(ispin)%pw%cc
+             cc_old => rho_buffer%rho_g(ispin)%pw%cc
+             cc_new = (1.0_dp - a_mix)*cc_old + a_mix*cc_new
+             cc_old = cc_new
+           END DO
+         ELSE
+           DO ispin=1,nspins
+             g2 => rho%rho_g(ispin)%pw%pw_grid%gsq
+             cc_new => rho%rho_g(ispin)%pw%cc
+             cc_old => rho_buffer%rho_g(ispin)%pw%cc
+             DO ig=1,SIZE(g2)
+               f_mix = a_mix*g2(ig)/(g2(ig) + b_mix*b_mix)
+               cc_new(ig) = (1.0_dp - f_mix)*cc_old(ig) +&
+                            f_mix*cc_new(ig)
+             END DO
+             cc_old = cc_new
+           END DO
+         END IF
+         DO ispin=1,nspins
+           CALL coeff_transform_space(rho%rho_g(ispin),rho%rho_r(ispin))
+           rho%tot_rho_r(ispin) = calculate_total_rho(rho%rho_r(ispin))
+         END DO
+       END IF
+!MK
        CALL calc_rho_tot_gspace(rho_tot_gspace, qs_env, rho)
 
        output_unit = cp_print_key_unit_nr(logger,scf_section,"PRINT%TOTAL_DENSITIES",&

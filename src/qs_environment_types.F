@@ -20,6 +20,7 @@
 !******************************************************************************
 
 MODULE qs_environment_types
+
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE cell_types,                      ONLY: cell_release,&
@@ -154,15 +155,18 @@ MODULE qs_environment_types
 
 ! *** Public data types ***
 
-  PUBLIC :: qs_environment_type, qs_environment_p_type
+  PUBLIC :: qs_environment_p_type,&
+            qs_environment_type
 
 ! *** Public subroutines ***
 
   PUBLIC :: get_qs_env,&
             init_qs_env,&
-            set_qs_env,&
-            qs_env_create, qs_env_retain, qs_env_release,&
-            qs_env_reorthogonalize_vectors
+            qs_env_create,&
+            qs_env_release,&
+            qs_env_reorthogonalize_vectors,&
+            qs_env_retain,&
+            set_qs_env
 
 !!***
 !****************************************************************************
@@ -284,8 +288,9 @@ MODULE qs_environment_types
                                                              matrix_s,&
                                                              kinetic,&
                                                              matrix_w
-    TYPE(qs_rho_type), POINTER                            :: rho
-    TYPE(qs_rho_type), POINTER                            :: rho_XC
+    TYPE(qs_rho_type), POINTER                            :: rho,&
+                                                             rho_buffer,&
+                                                             rho_xc
     TYPE(scf_control_type), POINTER                       :: scf_control
     TYPE(pw_env_type), POINTER                            :: pw_env
     TYPE(cp_para_env_type), POINTER                       :: para_env
@@ -350,7 +355,7 @@ CONTAINS
                         sac_oce,sbc_oce,sab_2c,sac_3c,sbc_3c,&
                         particle_set,energy,force,harris_env,&
                         matrix_h,matrix_ks,matrix_s,matrix_w,&
-                        rho, rho_xc, pw_env, mpools,input,&
+                        rho, rho_buffer, rho_xc, pw_env, mpools,input,&
                         para_env, blacs_env, scf_control,&
                         kinetic,qs_charges, rho_core, ks_env, ks_qmmm_env,&
                         wf_history,scf_env,use_harris,&
@@ -395,7 +400,7 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: matrix_h, matrix_ks, &
                                                 matrix_s, matrix_w
-    TYPE(qs_rho_type), OPTIONAL, POINTER     :: rho, rho_xc
+    TYPE(qs_rho_type), OPTIONAL, POINTER     :: rho, rho_buffer, rho_xc
     TYPE(pw_env_type), OPTIONAL, POINTER     :: pw_env
     TYPE(qs_matrix_pools_type), OPTIONAL, &
       POINTER                                :: mpools
@@ -515,6 +520,7 @@ CONTAINS
     IF (PRESENT(matrix_s)) matrix_s => qs_env%matrix_s
     IF (PRESENT(matrix_w)) matrix_w => qs_env%matrix_w
     IF (PRESENT(rho)) rho => qs_env%rho
+    IF (PRESENT(rho_buffer)) rho_buffer => qs_env%rho_buffer
     IF (PRESENT(rho_xc)) rho_xc => qs_env%rho_xc
     IF (PRESENT(pw_env)) pw_env => qs_env%pw_env
     IF (PRESENT(mpools)) mpools => qs_env%mpools
@@ -586,7 +592,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE init_qs_env(qs_env,para_env, error)
+  SUBROUTINE init_qs_env(qs_env,para_env,error)
 
 !   Purpose: Initialise the QUICKSTEP environment.
 
@@ -628,6 +634,7 @@ CONTAINS
     NULLIFY (qs_env%matrix_w)
     NULLIFY (qs_env%mpools)
     NULLIFY (qs_env%rho)
+    NULLIFY (qs_env%rho_buffer)
     NULLIFY (qs_env%rho_xc)
     NULLIFY (qs_env%pw_env)
     NULLIFY (qs_env%scf_control)
@@ -669,6 +676,7 @@ CONTAINS
     qs_env%requires_mo_derivs=.FALSE.
     qs_env%use_harris=.FALSE.
     NULLIFY(qs_env%mo_derivs)
+
   END SUBROUTINE init_qs_env
 
 ! *****************************************************************************
@@ -679,7 +687,7 @@ CONTAINS
                         sac_oce,sbc_oce,sab_2c,sac_3c,sbc_3c,&
                         energy,force,harris_env,&
                         matrix_h,matrix_ks,matrix_s,matrix_w,&
-                        pw_env,mpools,rho,rho_xc,kinetic,&
+                        pw_env,mpools,rho,rho_buffer,rho_xc,kinetic,&
                         scf_control,qs_charges,rho_core,ks_env,ks_qmmm_env,&
                         wf_history,scf_env,use_harris,&
                         distribution_2d,dft_section,input,&
@@ -719,7 +727,7 @@ CONTAINS
     TYPE(pw_env_type), OPTIONAL, POINTER     :: pw_env
     TYPE(qs_matrix_pools_type), OPTIONAL, &
       POINTER                                :: mpools
-    TYPE(qs_rho_type), OPTIONAL, POINTER     :: rho, rho_xc
+    TYPE(qs_rho_type), OPTIONAL, POINTER     :: rho, rho_buffer, rho_xc
     TYPE(real_matrix_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: kinetic
     TYPE(scf_control_type), OPTIONAL, &
@@ -835,6 +843,11 @@ CONTAINS
       IF (ASSOCIATED(rho)) CALL qs_rho_retain(rho,error=error)
       CALL qs_rho_release(qs_env%rho,error=error)
       qs_env%rho => rho
+    END IF
+    IF (PRESENT(rho_buffer)) THEN ! accepts also null pointers !
+      IF (ASSOCIATED(rho_buffer)) CALL qs_rho_retain(rho_buffer,error=error)
+      CALL qs_rho_release(qs_env%rho_buffer,error=error)
+      qs_env%rho_buffer => rho_buffer
     END IF
     IF (PRESENT(rho_xc)) THEN ! accepts also null pointers !
       IF (ASSOCIATED(rho_xc)) CALL qs_rho_retain(rho_xc,error=error)
@@ -1230,6 +1243,7 @@ SUBROUTINE qs_env_release(qs_env,error)
           CALL qs_rho_release(qs_env%rho_xc, error=error)
         END IF
         CALL qs_rho_release(qs_env%rho, error=error)
+        CALL qs_rho_release(qs_env%rho_buffer,error=error)
         CALL scf_c_release(qs_env%scf_control, error=error)
 
         IF(ASSOCIATED(qs_env%linres_control)) THEN

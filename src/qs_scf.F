@@ -1823,6 +1823,15 @@ END SUBROUTINE qs_scf_print_summary
                globenv=globenv, error=error)
           IF (.NOT.(qs_env%scf_control%density_guess==densities_guess)) THEN
             CALL qs_rho_update_rho(qs_env%rho,qs_env=qs_env, error=error)
+!MK
+            IF ((qs_env%scf_control%gspace_mixing_a /= 1.0_dp).OR.&
+                (qs_env%scf_control%gspace_mixing_b /= 0.0_dp)) THEN
+              CALL duplicate_rho_type(rho_input=qs_env%rho,&
+                                      rho_output=qs_env%rho_buffer,&
+                                      qs_env=qs_env,&
+                                      error=error)
+            END IF
+!MK
             CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE.,&
                  error=error)
           END IF
