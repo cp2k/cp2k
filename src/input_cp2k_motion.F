@@ -1100,11 +1100,11 @@ CONTAINS
 
        NULLIFY(keyword, coeff_section, nose_section, uni_section, baro_section, subsection)
        CALL keyword_create(keyword, name="ensemble",&
-            description="The ensemble that you want to sample with the md."//&
-            " npt_i uses an isotropic resize of the cell, npt_f a flexible cell.",&
+            description="The ensemble/integrator that you want to use for MD propagation",&
             usage="ensemble nve",&
             default_i_val=nve_ensemble,&
             enum_c_vals=ensemble_name_types,&
+            enum_desc=ensemble_name_desc,&
             enum_i_vals=ensemble_name_index,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

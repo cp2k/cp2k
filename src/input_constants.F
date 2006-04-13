@@ -123,6 +123,17 @@ MODULE input_constants
          npt_f_ensemble,nph_ensemble,nph_uniaxial_ensemble,&
          nph_uniaxial_damped_ensemble,isokin_ensemble,reftraj_ensemble,&
          langevin_ensemble/)
+  CHARACTER (LEN=default_string_length), PARAMETER, DIMENSION(10), PUBLIC :: ensemble_name_desc=&
+   (/"constant energy (microcanonical)                                             ",&
+     "constant temperature (canonical, Nose-Hoover)                                ",&
+     "constant pressure using an isotropic cell                                    ",&
+     "constant pressure using a flexible cell                                      ",&
+     "hugoniot (shocks) general                                                    ",&
+     "hugoniot (shocks) uniaxial                                                   ",&
+     "hugoniot (shocks) uniaxial damped                                            ",&
+     "constant kinetic energy                                                      ",&
+     "reading frames from a file called reftraj.xyz (e.g. for property calculation)",&
+     "langevin dynamics (constant temperature)                                     "/)
 
   INTEGER, PARAMETER, PUBLIC :: nhc_global=101,nhc_massive=102
   !
