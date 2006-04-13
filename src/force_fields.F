@@ -3002,7 +3002,7 @@ CONTAINS
        found = .FALSE.
        only_qm = qmmm_ff_precond_only_qm(id1=atmname,is_link=is_link_atom)
        CALL uppercase(atmname)
-       IF(charge(i)/=0.0_dp) found = .TRUE.
+       IF(charge(i)/=-HUGE(0.0_dp)) found = .TRUE.
 
        ! loop over params from charmm  
        IF(ASSOCIATED(ff_type%chm_info%charge_atm)) THEN

@@ -457,7 +457,7 @@ CONTAINS
         IF (ASSOCIATED(atomic_kind%elp_potential)) THEN
           CALL get_potential(potential=atomic_kind%elp_potential,qeff=qeff)
         ELSE
-          qeff = 0.0_dp
+          qeff = -HUGE(0.0_dp)
         END IF
       END IF
       IF (PRESENT(soft_basis_set)) soft_basis_set => atomic_kind%soft_basis_set
