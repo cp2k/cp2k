@@ -273,7 +273,10 @@ CONTAINS
 !!
 !!*** *********************************************************************
   SUBROUTINE qs_ks_build_kohn_sham_matrix(ks_env,qs_env,ks_matrix,&
-       rho,energy,calculate_forces,just_energy,rho_xc,kg_gpw,kg_fm_set,kg_sub_pw_env, error)
+                                          rho,energy,calculate_forces,&
+                                          just_energy,rho_xc,kg_gpw,&
+                                          kg_fm_set,kg_sub_pw_env,&
+                                          diis_step,error)
 
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -287,11 +290,12 @@ CONTAINS
     TYPE(kg_fm_p_type), OPTIONAL, POINTER    :: kg_fm_set
     TYPE(kg_sub_pw_env_type), OPTIONAL, &
       POINTER                                :: kg_sub_pw_env
+    LOGICAL, INTENT(IN), OPTIONAL            :: diis_step
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'qs_ks_build_kohn_sham_matrix', &
-      routineP = moduleN//':'//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = "qs_ks_build_kohn_sham_matrix", &
+                                   routineP = moduleN//":"//routineN
 
     INTEGER                                  :: handle, ispin, k, k2, n, &
                                                 nspins, output_unit, stat
@@ -323,14 +327,13 @@ CONTAINS
       POINTER                                :: matrix_h, matrix_s
     TYPE(section_vals_type), POINTER         :: input, scf_section
 
-! shorter for output
-!MK
     TYPE(qs_rho_type), POINTER              :: rho_buffer
     INTEGER                                 :: ig
+    LOGICAL                                 :: my_diis_step
     REAL(KIND=dp)                           :: a_mix,b_mix,f_mix
     REAL(KIND=dp), DIMENSION(:), POINTER    :: g2
     COMPLEX(KIND=dp), DIMENSION(:), POINTER :: cc_new,cc_old
-!MK
+
     failure=.FALSE.
     NULLIFY(matrix_h,matrix_s,dft_control,auxbas_pw_pool, pw_pools,&
          pw_env, cell, logger, v_rspace_new, v_tau_rspace,&
@@ -348,12 +351,18 @@ CONTAINS
     ! Check for a KG_GPW calculation: KE for total rho and for molecular rho
     my_kg_gpw = .FALSE.
     IF(PRESENT(kg_gpw)) my_kg_gpw = kg_gpw
-!MK
+
     NULLIFY (cc_new)
     NULLIFY (cc_old)
     NULLIFY (g2)
     NULLIFY (rho_buffer)
-!MK
+
+    IF (PRESENT(diis_step)) THEN
+      my_diis_step = diis_step
+    ELSE
+      my_diis_step = .FALSE.
+    END IF
+
     CALL get_qs_env(qs_env=qs_env,&
          dft_control=dft_control,&
          matrix_h=matrix_h,&
@@ -419,42 +428,46 @@ CONTAINS
                                  in_space=RECIPROCALSPACE,&
                                  error=error)
        END IF
-!MK
-       ! G space mixing (combined with Kerker)
 
-       a_mix = qs_env%scf_control%gspace_mixing_a
-       b_mix = qs_env%scf_control%gspace_mixing_b
+       IF (.NOT.my_diis_step) THEN
 
-       IF ((a_mix /= 1.0_dp).OR.(b_mix /= 0.0_dp)) THEN
-         CPPrecondition(ASSOCIATED(rho_buffer),cp_failure_level,routineP,error,failure)
-         CPPrecondition(rho_buffer%rho_r_valid,cp_failure_level,routineP,error,failure)
-         CPPrecondition(rho_buffer%rho_g_valid,cp_failure_level,routineP,error,failure)
-         IF (b_mix == 0.0_dp) THEN
-           DO ispin=1,nspins
-             cc_new => rho%rho_g(ispin)%pw%cc
-             cc_old => rho_buffer%rho_g(ispin)%pw%cc
-             cc_new = (1.0_dp - a_mix)*cc_old + a_mix*cc_new
-             cc_old = cc_new
-           END DO
-         ELSE
-           DO ispin=1,nspins
-             g2 => rho%rho_g(ispin)%pw%pw_grid%gsq
-             cc_new => rho%rho_g(ispin)%pw%cc
-             cc_old => rho_buffer%rho_g(ispin)%pw%cc
-             DO ig=1,SIZE(g2)
-               f_mix = a_mix*g2(ig)/(g2(ig) + b_mix*b_mix)
-               cc_new(ig) = (1.0_dp - f_mix)*cc_old(ig) +&
-                            f_mix*cc_new(ig)
+         ! G space mixing (combined with Kerker)
+
+         a_mix = qs_env%scf_control%gspace_mixing_a
+         b_mix = qs_env%scf_control%gspace_mixing_b
+
+         IF ((a_mix /= 1.0_dp).OR.(b_mix /= 0.0_dp)) THEN
+           CPPrecondition(ASSOCIATED(rho_buffer),cp_failure_level,routineP,error,failure)
+           CPPrecondition(rho_buffer%rho_r_valid,cp_failure_level,routineP,error,failure)
+           CPPrecondition(rho_buffer%rho_g_valid,cp_failure_level,routineP,error,failure)
+           IF (b_mix == 0.0_dp) THEN
+             DO ispin=1,nspins
+               cc_new => rho%rho_g(ispin)%pw%cc
+               cc_old => rho_buffer%rho_g(ispin)%pw%cc
+               cc_new = (1.0_dp - a_mix)*cc_old + a_mix*cc_new
+               cc_old = cc_new
              END DO
-             cc_old = cc_new
+           ELSE
+             DO ispin=1,nspins
+               g2 => rho%rho_g(ispin)%pw%pw_grid%gsq
+               cc_new => rho%rho_g(ispin)%pw%cc
+               cc_old => rho_buffer%rho_g(ispin)%pw%cc
+               DO ig=1,SIZE(g2)
+                 f_mix = a_mix*g2(ig)/(g2(ig) + b_mix*b_mix)
+                 cc_new(ig) = (1.0_dp - f_mix)*cc_old(ig) +&
+                              f_mix*cc_new(ig)
+               END DO
+               cc_old = cc_new
+             END DO
+           END IF
+           DO ispin=1,nspins
+             CALL coeff_transform_space(rho%rho_g(ispin),rho%rho_r(ispin))
+             rho%tot_rho_r(ispin) = calculate_total_rho(rho%rho_r(ispin))
            END DO
          END IF
-         DO ispin=1,nspins
-           CALL coeff_transform_space(rho%rho_g(ispin),rho%rho_r(ispin))
-           rho%tot_rho_r(ispin) = calculate_total_rho(rho%rho_r(ispin))
-         END DO
+
        END IF
-!MK
+
        CALL calc_rho_tot_gspace(rho_tot_gspace, qs_env, rho)
 
        output_unit = cp_print_key_unit_nr(logger,scf_section,"PRINT%TOTAL_DENSITIES",&
@@ -1042,18 +1055,20 @@ CONTAINS
 !!     4.2002 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE qs_ks_update_qs_env(ks_env,qs_env, kg_env, &
-     calculate_forces, just_energy, error)
+SUBROUTINE qs_ks_update_qs_env(ks_env,qs_env, kg_env,calculate_forces,&
+                               just_energy,diis_step,error)
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(kg_environment_type), OPTIONAL, &
       POINTER                                :: kg_env
-    LOGICAL, INTENT(in), OPTIONAL            :: calculate_forces, just_energy
+    LOGICAL, INTENT(IN), OPTIONAL            :: calculate_forces, &
+                                                diis_step, &
+                                                just_energy
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'qs_ks_update_qs_env', &
-      routineP = moduleN//':'//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = "qs_ks_update_qs_env", &
+                                   routineP = moduleN//":"//routineN
 
     INTEGER                                  :: handle, ispin
     LOGICAL                                  :: c_forces, did_update, &
@@ -1123,17 +1138,17 @@ SUBROUTINE qs_ks_update_qs_env(ks_env,qs_env, kg_env, &
                ks_matrix=matrix_ks, rho=rho, energy=energy,&
                calculate_forces=c_forces,just_energy=energy_only,&
                kg_gpw = .TRUE.,kg_sub_pw_env=kg_sub_pw_env, kg_fm_set=kg_fm_set, &
-               error=error)
+               diis_step=diis_step,error=error)
         ELSEIF (dft_control%qs_control%gapw_xc) THEN
           CALL qs_ks_build_kohn_sham_matrix(ks_env,qs_env=qs_env,&
                ks_matrix=matrix_ks, rho=rho, energy=energy,&
                calculate_forces=c_forces,just_energy=energy_only,&
-               rho_xc=rho_xc,error=error)
+               rho_xc=rho_xc,diis_step=diis_step,error=error)
         ELSE
           CALL qs_ks_build_kohn_sham_matrix(ks_env,qs_env=qs_env,&
                ks_matrix=matrix_ks, rho=rho, energy=energy,&
                calculate_forces=c_forces,just_energy=energy_only,&
-               error=error)
+               diis_step=diis_step,error=error)
         END IF
         IF(.NOT.energy_only) THEN
            ks_env%rho_changed=.FALSE.

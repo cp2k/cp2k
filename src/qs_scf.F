@@ -444,8 +444,12 @@ CONTAINS
 
           IF (output_unit > 0) CALL m_flush(output_unit)
 
-          CALL qs_ks_update_qs_env(ks_env,qs_env=qs_env,&
-               calculate_forces=.FALSE.,just_energy=energy_only,error=error)
+          CALL qs_ks_update_qs_env(ks_env,&
+                                   qs_env=qs_env,&
+                                   calculate_forces=.FALSE.,&
+                                   just_energy=energy_only,&
+                                   diis_step=diis_step,&
+                                   error=error)
 
           ! print 'heavy weight' or relatively expensive quantities
           CALL qs_scf_loop_print(qs_env,scf_env,globenv,error)
@@ -1211,8 +1215,11 @@ END SUBROUTINE qs_scf_print_summary
           ENDIF
 
           ! might need the KS matrix to init properly
-          CALL qs_ks_update_qs_env(qs_env%ks_env,qs_env=qs_env,&
-               error=error, calculate_forces=.FALSE.,just_energy=.FALSE.)
+          CALL qs_ks_update_qs_env(qs_env%ks_env,&
+                                   qs_env=qs_env,&
+                                   calculate_forces=.FALSE.,&
+                                   just_energy=.FALSE.,&
+                                   error=error)
 
           ! if an old preconditioner is still around (i.e. outer SCF is active),
           ! remove it if this could be worthwhile
