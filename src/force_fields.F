@@ -281,7 +281,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'read_force_field_section1', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ipbv, nbends, nbmhft, nbonds, &
+    INTEGER                                  :: nbends, nbmhft, nbonds, &
                                                 nchg, neam, ngd, nipbv, nlj, &
                                                 ntors, ntot, nubs, nwl
     LOGICAL                                  :: explicit, failure
@@ -1209,7 +1209,7 @@ CONTAINS
     CHARACTER(LEN=default_string_length), &
       DIMENSION(2)                           :: angl_section, impr_section, &
                                                 nbon_section, thet_section
-    INTEGER                                  :: dummy, handle, i, ilab, iw, &
+    INTEGER                                  :: dummy, handle, ilab, iw, &
                                                 nbend, nbond, nimpr, &
                                                 nnonbond, nonfo, ntorsion, nub
     LOGICAL                                  :: failure, found
@@ -1271,25 +1271,23 @@ CONTAINS
                 nbond = nbond + 1
                 CALL reallocate(chm_info%bond_a,1,nbond)
                 CALL reallocate(chm_info%bond_b,1,nbond)
-                CALL reallocate(chm_info%bond_k,1,3,1,nbond)
+                CALL reallocate(chm_info%bond_k,1,nbond)
                 CALL reallocate(chm_info%bond_r0,1,nbond)
                 chm_info%bond_a(nbond) = string
                 chm_info%bond_b(nbond) = string2
-                CALL parser_get_object(parser,chm_info%bond_k(1,nbond))
+                CALL parser_get_object(parser,chm_info%bond_k(nbond))
                 CALL parser_get_object(parser,chm_info%bond_r0(nbond))
                 IF(iw>0) WRITE(iw,*) "    CHM BOND ",nbond,&
                      TRIM(chm_info%bond_a(nbond))," ",&
                      TRIM(chm_info%bond_b(nbond))," ",&
-                     chm_info%bond_k(1,nbond),&
+                     chm_info%bond_k(nbond),&
                      chm_info%bond_r0(nbond)
                 ! Do some units conversion into internal atomic units
                 CALL convert_to_cp2k_units("ANGSTROM",length=chm_info%bond_r0(nbond))
-                CALL convert_to_cp2k_units("KCAL",energy=chm_info%bond_k(1,nbond))
-                CALL convert_to_cp2k_units("BOHR",length=chm_info%bond_k(1,nbond))
-                CALL convert_to_cp2k_units("BOHR",length=chm_info%bond_k(1,nbond))
-                chm_info%bond_k(1,nbond) = 2.0_dp * chm_info%bond_k(1,nbond)
-                chm_info%bond_k(2,nbond) = 0.0_dp
-                chm_info%bond_k(3,nbond) = 0.0_dp
+                CALL convert_to_cp2k_units("KCAL",energy=chm_info%bond_k(nbond))
+                CALL convert_to_cp2k_units("BOHR",length=chm_info%bond_k(nbond))
+                CALL convert_to_cp2k_units("BOHR",length=chm_info%bond_k(nbond))
+                chm_info%bond_k(nbond) = 2.0_dp * chm_info%bond_k(nbond)
                 CALL parser_get_next_line(parser,1,error=error)
              END DO
           ELSE
@@ -1619,7 +1617,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'force_field_pack', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=default_string_length) :: atmname, name, name_atm_a, &
+    CHARACTER(LEN=default_string_length) :: atmname, name_atm_a, &
       name_atm_a2, name_atm_a_local, name_atm_b, name_atm_b2, &
       name_atm_b_local, name_atm_c, name_atm_c2, name_atm_d, name_atm_d2
     INTEGER :: atm_a, atm_b, atm_c, atm_d, counter, first, handle, handle2, i, ii, &
@@ -2226,7 +2224,7 @@ CONTAINS
                      ((TRIM(chm_info%bond_a(k))==TRIM(name_atm_b)) .AND. &
                      (TRIM(chm_info%bond_b(k))==TRIM(name_atm_a))) ) THEN
                    bond_list(j)%bond_kind%name = "CHARMM"
-                   bond_list(j)%bond_kind%k    = chm_info%bond_k(:,k)
+                   bond_list(j)%bond_kind%k(1) = chm_info%bond_k(k)
                    bond_list(j)%bond_kind%r0   = chm_info%bond_r0(k)
                    IF (found) CALL Pwarning("Multiple Bond declarations: "//TRIM(name_atm_a)//&
                         " and "//TRIM(name_atm_b)//" overwriting!",globenv,error)
@@ -2244,7 +2242,7 @@ CONTAINS
                      ((TRIM(inp_info%bond_a(k))==TRIM(name_atm_b)) .AND. &
                      (TRIM(inp_info%bond_b(k))==TRIM(name_atm_a))) ) THEN
                    bond_list(j)%bond_kind%name = inp_info%bond_kind(k)
-                   bond_list(j)%bond_kind%k    = inp_info%bond_k(:,k)
+                   bond_list(j)%bond_kind%k(:) = inp_info%bond_k(:,k)
                    bond_list(j)%bond_kind%r0   = inp_info%bond_r0(k)
                    IF (found) CALL Pwarning("Multiple Bond declarations: "//TRIM(name_atm_a)//&
                         " and "//TRIM(name_atm_b)//" overwriting!",globenv,error)
@@ -3291,7 +3289,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: atmname, molname
-    INTEGER                                  :: handle, i, iatom, imol, iw
+    INTEGER                                  :: handle, iatom, imol, iw
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: qeff, qeff_mol, qeff_sum
     TYPE(atom_type), DIMENSION(:), POINTER   :: atom_list

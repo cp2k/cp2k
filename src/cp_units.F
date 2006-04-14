@@ -43,7 +43,7 @@ MODULE cp_units
   USE mathconstants,                   ONLY: radians
   USE physcon,                         ONLY: &
        a_bohr, bohr, e_mass, evolt, femtoseconds, h_bar, hz, joule, kcalmol, &
-       kelvin, massunit, seconds, wavenum
+       kelvin, kjmol, massunit, seconds, wavenum
   USE string_utilities,                ONLY: compress,&
                                              uppercase
   USE timings,                         ONLY: timeset,&
@@ -65,7 +65,7 @@ MODULE cp_units
   INTEGER, PARAMETER, PUBLIC ::  cp_units_none=0,cp_units_au=11
   INTEGER, PARAMETER, PUBLIC :: cp_units_m_e=100,cp_units_amu=101, cp_units_kg=102
   INTEGER, PARAMETER, PUBLIC :: cp_units_hartree=120, cp_units_wavenum=121,&
-       cp_units_joule=122, cp_units_kcalmol=123, cp_units_Ry=124, cp_units_eV=125
+       cp_units_joule=122, cp_units_kcalmol=123, cp_units_Ry=124, cp_units_eV=125, cp_units_kjmol=126
   INTEGER, PARAMETER, PUBLIC :: cp_units_bohr=140, cp_units_angstrom=141,&
        cp_units_m=142
   INTEGER, PARAMETER, PUBLIC ::  cp_units_k=150
@@ -247,6 +247,9 @@ CONTAINS
           kind_id(i_unit)=cp_ukind_energy
        CASE("kcalmol")
           unit_id(i_unit)=cp_units_kcalmol
+          kind_id(i_unit)=cp_ukind_energy
+       CASE("kjmol")
+          unit_id(i_unit)=cp_units_kjmol
           kind_id(i_unit)=cp_ukind_energy
        CASE("Ry")
           unit_id(i_unit)=cp_units_Ry
@@ -674,6 +677,7 @@ FUNCTION cp_basic_unit_check(basic_kind,basic_unit,error_level,error)&
      CASE(cp_ukind_energy)
         SELECT CASE (basic_unit)
         CASE(cp_units_hartree, cp_units_wavenum, cp_units_joule, cp_units_kcalmol,&
+             cp_units_kjmol,&
              cp_units_Ry, cp_units_eV,cp_units_au,cp_units_k, cp_units_none)
         CASE default
            CALL cp_assert(.FALSE.,my_error_level,cp_assertion_failed,&
@@ -804,6 +808,8 @@ FUNCTION cp_basic_unit_to_cp2k(value,basic_kind,basic_unit,power,error)&
            res=joule**(-my_power)*value
         CASE(cp_units_kcalmol)
            res=kcalmol**(-my_power)*value
+        CASE(cp_units_kjmol)
+           res=kjmol**(-my_power)*value
         CASE(cp_units_Ry)
            res=0.5_dp**my_power*value
         CASE(cp_units_eV)
@@ -967,6 +973,8 @@ FUNCTION cp_basic_unit_desc(basic_kind,basic_unit,power,&
            res="joule"
         CASE(cp_units_kcalmol)
            res="kcalmol"
+        CASE(cp_units_kjmol)
+           res="kjmol"
         CASE(cp_units_Ry)
            res="Ry"
         CASE(cp_units_eV)

@@ -124,7 +124,7 @@ MODULE force_field_types
     REAL(KIND=dp), POINTER                         :: charge(:)
     CHARACTER (LEN=default_string_length), POINTER :: bond_a(:)
     CHARACTER (LEN=default_string_length), POINTER :: bond_b(:)
-    REAL(KIND=dp), POINTER                         :: bond_k(:,:)
+    REAL(KIND=dp), POINTER                         :: bond_k(:)
     REAL(KIND=dp), POINTER                         :: bond_r0(:)
     CHARACTER (LEN=default_string_length), POINTER :: bend_a(:)
     CHARACTER (LEN=default_string_length), POINTER :: bend_b(:)
@@ -285,7 +285,7 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DO ikind=1,nkind
           bond_kind_set(ikind)%name = "UNSET"
-          bond_kind_set(ikind)%k = 0.0_dp
+          bond_kind_set(ikind)%k(:) = 0.0_dp
           bond_kind_set(ikind)%r0 = 0.0_dp
           bond_kind_set(ikind)%kind_number = ikind
        END DO
