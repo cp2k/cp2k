@@ -105,7 +105,7 @@ CONTAINS
 !!
 !!   NOTES
 !!     same implementation for all machines. 
-!!     might still roll, if not called often
+!!     might still roll, if not called multiple times per count_max/count_rate
 !!
 !!   INPUTS
 !!
@@ -119,10 +119,23 @@ FUNCTION m_walltime() RESULT (wt)
     INTEGER                                  :: count, count_max, count_rate
     INTEGER, SAVE                            :: cycles = 0, last_count = -1
 
-! count lies in [0,count_max]
-
+    ! count lies in [0,count_max] and increases monotonically
     CALL SYSTEM_CLOCK(count=count,count_rate=count_rate,count_max=count_max)
-    IF (count<last_count) cycles=cycles+1
+
+    ! protect against non-standard cases where time might be non-monotonous,
+    ! but it is unlikely that the clock cycled (e.g. underlying system clock adjustments)
+    ! i.e. if count is smaller than last_count by only a small fraction of count_max,
+    ! we use last_count instead
+    ! if count is smaller, we assume that the clock cycled.
+    IF (count<last_count) THEN
+       IF ( last_count-count < count_max / 100 ) THEN
+          count=last_count 
+       ELSE
+          cycles=cycles+1
+       ENDIF
+    ENDIF
+
+    ! keep track of our history
     last_count=count
 
     wt = ( REAL(count,KIND=dp)+REAL(cycles,KIND=dp)*(1.0_dp+REAL(count_max,KIND=dp)) ) &
