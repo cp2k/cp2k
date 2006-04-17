@@ -103,6 +103,7 @@ MODULE qs_environment
   USE molecule_types_new,              ONLY: molecule_type
   USE orbital_pointers,                ONLY: init_orbital_pointers
   USE orbital_transformation_matrices, ONLY: init_spherical_harmonics
+  USE output_utilities,                ONLY: print_message
   USE particle_list_types,             ONLY: particle_list_create,&
                                              particle_list_release,&
                                              particle_list_type
@@ -743,8 +744,7 @@ CONTAINS
     ! Disable Cholesky decomposition, if ROKS is requested
 
     IF (dft_control%roks) THEN
-      CALL stop_program(routineN,moduleN,__LINE__,&
-                        "ROKS is not yet working")
+      CALL print_message("WARNING: ROKS option is not fully tested",globenv%scr,2,1,1)
       scf_control%use_cholesky = .FALSE.
       IF (scf_control%use_ot) THEN
         CALL stop_program(routineN,moduleN,__LINE__,&

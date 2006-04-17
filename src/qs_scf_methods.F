@@ -481,8 +481,8 @@ CONTAINS
 
   ! ***************************************************************************
 
-  SUBROUTINE combine_ks_matrices(ksa,ksb,occa,occb,roks_parameter,level_shift,&
-                                 homoa,homob,error)
+  SUBROUTINE combine_ks_matrices(ksa,ksb,occa,occb,f,level_shift,nalpha,nbeta,&
+                                 error)
 
     ! Combine the alpha and beta Kohn-Sham matrices during a restricted open
     ! Kohn-Sham (ROKS) calculation
@@ -490,11 +490,14 @@ CONTAINS
     ! respectively. occa and occb contain the corresponding MO occupation
     ! numbers. On output the combined ROKS operator matrix is returned in ksa.
 
+    ! Literature: - C. C. J. Roothaan, Rev. Mod. Phys. 32, 179 (1960)
+    !             - M. F. Guest and V. R. Saunders, Mol. Phys. 28(3), 819 (1974)
+    !             - M. Filatov and S. Shaik, Chem. Phys. Lett. 288, 689 (1998)
+
     TYPE(cp_fm_type), POINTER                         :: ksa,ksb
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)           :: occa,occb
-    REAL(KIND=dp), DIMENSION(0:2,0:2,1:2), INTENT(IN) :: roks_parameter
-    REAL(KIND=dp), INTENT(IN)                         :: level_shift
-    INTEGER, INTENT(IN)                               :: homoa,homob
+    REAL(KIND=dp), INTENT(IN)                         :: f,level_shift
+    INTEGER, INTENT(IN)                               :: nalpha,nbeta
     TYPE(cp_error_type), INTENT(INOUT), OPTIONAL      :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = "combine_ks_matrices",&
@@ -502,13 +505,14 @@ CONTAINS
 
     TYPE(cp_fm_struct_type), POINTER :: ksa_struct,ksb_struct
 
-    INTEGER :: i,icol_global,icol_local,irow_global,irow_local,j,handle,&
-               ncol_local,nrow_local
-    LOGICAL :: compatible_matrices,failure
+    REAL(KIND=dp) :: beta,t1,t2,ta,tb
+    INTEGER       :: i,icol_global,icol_local,irow_global,irow_local,j,&
+                     handle,ncol_local,nrow_local
+    LOGICAL       :: compatible_matrices,failure
 
     INTEGER, DIMENSION(:), POINTER :: col_indices,row_indices
 
-    REAL(KIND=dp), DIMENSION(:,:), POINTER :: matrix_a,matrix_b
+    REAL(KIND=dp), DIMENSION(:,:), POINTER :: fa,fb
 
     ! -------------------------------------------------------------------------
 
@@ -525,36 +529,97 @@ CONTAINS
                         ncol_local=ncol_local,&
                         row_indices=row_indices,&
                         col_indices=col_indices,&
-                        local_data=matrix_a,&
+                        local_data=fa,&
                         error=error)
 
     CALL cp_fm_get_info(matrix=ksb,&
                         matrix_struct=ksb_struct,&
-                        local_data=matrix_b,&
+                        local_data=fb,&
                         error=error)
 
     compatible_matrices = cp_fm_struct_equivalent(ksa_struct,ksb_struct,error=error)
     CPPrecondition(compatible_matrices,cp_failure_level,routineP,error,failure)
 
+    beta = 1.0_dp/(1.0_dp - f)
+
     DO icol_local=1,ncol_local
+
       icol_global = col_indices(icol_local)
-      i = INT(occa(icol_global)) + INT(occb(icol_global))
+
       DO irow_local=1,nrow_local
+
         irow_global = row_indices(irow_local)
-        j = INT(occa(irow_global)) + INT(occb(irow_global))
-        matrix_a(irow_local,icol_local) =&
-          roks_parameter(i,j,1)*matrix_a(irow_local,icol_local) +&
-          roks_parameter(i,j,2)*matrix_b(irow_local,icol_local)
-        ! Perform level-shift of the diagonal elements
-        IF (irow_global == icol_global) THEN
-          IF (irow_global > homoa) THEN
-            matrix_a(irow_local,icol_local) =&
-              matrix_a(irow_local,icol_local) + level_shift
-          ELSE IF (irow_global > homob) THEN
-            matrix_a(irow_local,icol_local) =&
-              matrix_a(irow_local,icol_local) + 0.5_dp*level_shift
+
+        t1 = 0.5_dp*(fa(irow_local,icol_local) + fb(irow_local,icol_local))
+
+        IF ((0 < irow_global).AND.(irow_global <= nbeta)) THEN
+          IF ((0 < icol_global).AND.(icol_global <= nbeta)) THEN
+            ! closed-closed
+            fa(irow_local,icol_local) = t1
+          ELSE IF ((nbeta < icol_global).AND.(icol_global <= nalpha)) THEN
+            ! closed-open
+            ta = 0.5_dp*(f - REAL(occa(icol_global),KIND=dp))/f
+            tb = 0.5_dp*(f - REAL(occb(icol_global),KIND=dp))/f
+            t2 = ta*fa(irow_local,icol_local) + tb*fb(irow_local,icol_local)
+            fa(irow_local,icol_local) = t1 + (beta - 1.0_dp)*t2
+          ELSE
+            ! closed-virtual
+            fa(irow_local,icol_local) = t1
+          END IF
+        ELSE IF ((nbeta < irow_global).AND.(irow_global <= nalpha)) THEN
+          IF ((0 < irow_global).AND.(irow_global <= nbeta)) THEN
+            ! open-closed
+            ta = 0.5_dp*(f - REAL(occa(irow_global),KIND=dp))/f
+            tb = 0.5_dp*(f - REAL(occb(irow_global),KIND=dp))/f
+            t2 = ta*fa(irow_local,icol_local) + tb*fb(irow_local,icol_local)
+            fa(irow_local,icol_local) = t1 + (beta - 1.0_dp)*t2
+          ELSE IF ((nbeta < icol_global).AND.(icol_global <= nalpha)) THEN
+            ! open-open
+            ta = 0.5_dp*(f - REAL(occa(icol_global),KIND=dp))/f
+            tb = 0.5_dp*(f - REAL(occb(icol_global),KIND=dp))/f
+            t2 = ta*fa(irow_local,icol_local) + tb*fb(irow_local,icol_local)
+            IF (irow_global == icol_global) THEN
+              fa(irow_local,icol_local) = t1 - t2
+            ELSE
+              fa(irow_local,icol_local) = t1 - 0.5_dp*t2
+            END IF
+          ELSE
+            ! open-virtual
+            ta = 0.5_dp*(f - REAL(occa(irow_global),KIND=dp))/f
+            tb = 0.5_dp*(f - REAL(occb(irow_global),KIND=dp))/f
+            t2 = ta*fa(irow_local,icol_local) + tb*fb(irow_local,icol_local)
+            fa(irow_local,icol_local) = t1 - t2
+          END IF
+        ELSE
+          IF ((0 < irow_global).AND.(irow_global < nbeta)) THEN
+            ! virtual-closed
+            fa(irow_local,icol_local) = t1
+          ELSE IF ((nbeta < icol_global).AND.(icol_global <= nalpha)) THEN
+            ! virtual-open
+            ta = 0.5_dp*(f - REAL(occa(icol_global),KIND=dp))/f
+            tb = 0.5_dp*(f - REAL(occb(icol_global),KIND=dp))/f
+            t2 = ta*fa(irow_local,icol_local) + tb*fb(irow_local,icol_local)
+            fa(irow_local,icol_local) = t1 - t2
+          ELSE
+            ! virtual-virtual
+            fa(irow_local,icol_local) = t1
           END IF
         END IF
+
+        ! Perform level-shift of the diagonal elements, if requested
+
+        IF (level_shift /= 0.0_dp) THEN
+          IF (irow_global == icol_global) THEN
+            IF (irow_global > nalpha) THEN
+              fa(irow_local,icol_local) =&
+                fa(irow_local,icol_local) + level_shift
+            ELSE IF (irow_global > nbeta) THEN
+              fa(irow_local,icol_local) =&
+                fa(irow_local,icol_local) + 0.5_dp*level_shift
+            END IF
+          END IF
+        END IF
+
       END DO
     END DO
 

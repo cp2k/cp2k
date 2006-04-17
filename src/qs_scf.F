@@ -486,7 +486,7 @@ CONTAINS
             CALL write_mo_set(mos(1)%mo_set,atomic_kind_set,particle_set,&
                               4,6,dft_section,spin="ALPHA",error=error)
             CALL write_mo_set(mos(2)%mo_set,atomic_kind_set,particle_set,&
-                               4,6,dft_section,spin="BETA",error=error)
+                              4,6,dft_section,spin="BETA",error=error)
           ELSE
             CALL write_mo_set(mos(1)%mo_set,atomic_kind_set,particle_set,&
                               4,6,dft_section,error=error)
@@ -2025,6 +2025,7 @@ END SUBROUTINE qs_scf_print_summary
 
     ! Literature: - C. C. J. Roothaan, Rev. Mod. Phys. 32, 179 (1960)
     !             - M. F. Guest and V. R. Saunders, Mol. Phys. 28(3), 819 (1974)
+    !             - M. Filatov and S. Shaik, Chem. Phys. Lett. 288, 689 (1998)
 
     ! - Creation (05.04.06,MK)
 
@@ -2045,10 +2046,10 @@ END SUBROUTINE qs_scf_print_summary
 
     TYPE(cp_fm_type), POINTER :: ao2mo,ksa,ksb,moa,mob,ortho,work
 
-    REAL(kind=dp) :: diis_error,level_shift_loc
-    INTEGER       :: handle,homoa,homob,imo,nao,nmo
+    REAL(KIND=dp) :: diis_error,level_shift_loc
+    INTEGER       :: handle,homoa,homob,imo,nalpha,nao,nbeta,nmo, iao
 
-    REAL(kind=dp), DIMENSION(:), POINTER :: eiga,eigb,occa,occb
+    REAL(KIND=dp), DIMENSION(:), POINTER :: eiga,eigb,occa,occb
 
     ! -------------------------------------------------------------------------
 
@@ -2069,12 +2070,14 @@ END SUBROUTINE qs_scf_print_summary
     CALL get_mo_set(mo_set=mos(1)%mo_set,&
                     nao=nao,&
                     nmo=nmo,&
+                    nelectron=nalpha,&
                     homo=homoa,&
                     eigenvalues=eiga,&
                     occupation_numbers=occa,&
                     mo_coeff=moa)
 
     CALL get_mo_set(mo_set=mos(2)%mo_set,&
+                    nelectron=nbeta,&
                     homo=homob,&
                     eigenvalues=eigb,&
                     occupation_numbers=occb,&
@@ -2105,8 +2108,8 @@ END SUBROUTINE qs_scf_print_summary
       ! Combine the spin unrestricted alpha and beta Kohn-Sham matrices
       ! in the MO basis and perform level-shifting in turn if requested
 
-      CALL combine_ks_matrices(ksa,ksb,occa,occb,scf_control%roks_parameter,&
-                               level_shift_loc,homoa,homob,error=error)
+      CALL combine_ks_matrices(ksa,ksb,occa,occb,scf_control%f_roks,&
+                               level_shift_loc,nalpha,nbeta,error=error)
 
       ! Back-transform the restricted open Kohn-Sham matrix from MO basis
       ! to AO basis

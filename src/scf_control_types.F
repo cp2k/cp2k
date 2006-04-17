@@ -144,7 +144,7 @@ MODULE scf_control_types
                              use_cholesky,use_ot,fill_wf_history
     INTEGER               :: ref_count,id_nr
     INTEGER, DIMENSION(2) :: added_mos
-    REAL(KIND=dp), DIMENSION(0:2,0:2,1:2) :: roks_parameter
+    REAL(KIND=dp)         :: f_roks
   END TYPE scf_control_type
 !!***
 !*****************************************************************************
@@ -226,34 +226,7 @@ CONTAINS
       scf_control%gspace_mixing_b = 0.0_dp
       scf_control%fill_wf_history = .FALSE.
       scf_control%harris_max_scf = 1
-
-      ! Initialize the diagonal blocks with the default ROKS parameters
-      ! 0 = v)irtual, 1 = o)pen shell, 2 = c)losed shell
-
-      scf_control%roks_parameter(0,0,1) =  1.5_dp ! avv
-      scf_control%roks_parameter(0,0,2) = -0.5_dp ! bvv
-      scf_control%roks_parameter(1,1,1) =  0.5_dp ! aoo
-      scf_control%roks_parameter(1,1,2) =  0.5_dp ! boo
-      scf_control%roks_parameter(2,2,1) = -0.5_dp ! acc
-      scf_control%roks_parameter(2,2,2) =  1.5_dp ! bcc
-
-      ! Initialize off-diagonal blocks (fixed)
-
-      scf_control%roks_parameter(0,1,1) =  1.0_dp ! avo
-      scf_control%roks_parameter(0,1,2) =  0.0_dp ! bvo
-      scf_control%roks_parameter(0,2,1) =  0.5_dp ! avc
-      scf_control%roks_parameter(0,2,2) =  0.5_dp ! bvc
-      scf_control%roks_parameter(1,2,1) =  0.0_dp ! aoc
-      scf_control%roks_parameter(1,2,2) =  1.0_dp ! boc
-
-      ! Symmetry enforces
-
-      scf_control%roks_parameter(1,0,1) = scf_control%roks_parameter(0,1,1) ! aov
-      scf_control%roks_parameter(1,0,2) = scf_control%roks_parameter(0,1,2) ! bov
-      scf_control%roks_parameter(2,0,1) = scf_control%roks_parameter(0,2,1) ! acv
-      scf_control%roks_parameter(2,0,2) = scf_control%roks_parameter(0,2,2) ! bcv
-      scf_control%roks_parameter(2,1,1) = scf_control%roks_parameter(1,2,1) ! aco
-      scf_control%roks_parameter(2,1,2) = scf_control%roks_parameter(1,2,2) ! bco
+      scf_control%f_roks = 0.5_dp
 
       ! Outer SCF default settings
 
@@ -465,22 +438,10 @@ CONTAINS
        scf_control%work_syevx = MIN(MAX(0.0_dp,scf_control%work_syevx),1.0_dp)
        CALL section_vals_val_get(scf_section,"write_restart_each",&
             i_val=scf_control%write_restart_each,error=error)
-
-       ! Read ROKS parameters for the diagonal block
-       ! 0 = v)irtual, 1 = o)pen shell, 2 = c)losed shell
-
-       NULLIFY (parameter)
-       CALL section_vals_val_get(scf_section,"ROKS_PARAMETERS",&
-                                 r_vals=parameter,&
+       ! Read ROKS parameters
+       CALL section_vals_val_get(scf_section,"ROKS_PARAMETER",&
+                                 r_val=scf_control%f_roks,&
                                  error=error)
-       IF (ASSOCIATED(parameter)) THEN
-         scf_control%roks_parameter(2,2,1) = parameter(1) ! acc
-         scf_control%roks_parameter(2,2,2) = parameter(2) ! bcc
-         scf_control%roks_parameter(1,1,1) = parameter(3) ! aoo
-         scf_control%roks_parameter(1,1,2) = parameter(4) ! boo
-         scf_control%roks_parameter(0,0,1) = parameter(5) ! avv
-         scf_control%roks_parameter(0,0,2) = parameter(6) ! bvv
-       END IF
 
        ! should be moved to printkey
        CALL section_vals_val_get(scf_section,"eps_lumo",&
@@ -638,16 +599,8 @@ CONTAINS
                                                     error=error)
           CALL section_vals_val_get(dft_section,"ROKS",l_val=roks,error=error)
           IF (roks) THEN
-            WRITE (UNIT=output_unit,&
-                   FMT="(T25,A,/,T25,A,6(/,T25,A,T71,F10.6))")&
-              REPEAT("-",56),&
-              "ROKS parameter: a)lpha, b)eta; c)losed, o)pen, v)irtual",&
-              "acc",scf_control%roks_parameter(2,2,1),&
-              "bcc",scf_control%roks_parameter(2,2,2),&
-              "aoo",scf_control%roks_parameter(1,1,1),&
-              "boo",scf_control%roks_parameter(1,1,2),&
-              "avv",scf_control%roks_parameter(0,0,1),&
-              "bvv",scf_control%roks_parameter(0,0,2)
+            WRITE (UNIT=output_unit,FMT="(T25,A,T71,F10.6)")&
+              "ROKS parameter f:",scf_control%f_roks
           END IF
 
           CALL section_release(scf_sect,error=error)
