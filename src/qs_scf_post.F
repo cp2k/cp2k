@@ -62,6 +62,7 @@ MODULE qs_scf_post
                                              ot_precond_full_all
   USE input_section_types,             ONLY: section_get_ival,&
                                              section_get_rval,&
+                                             section_get_lval,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -373,7 +374,7 @@ CONTAINS
                   ionode=ionode, do_rotation=.TRUE.)
 
              IF (BTEST(cp_print_key_should_output(logger%iter_info,dft_section,"PRINT%MO_CUBES",&
-                  error=error),cp_p_file)) THEN
+                  error=error),cp_p_file) .AND. section_get_lval(dft_section,"PRINT%MO_CUBES%WRITE_CUBE")) THEN
                 DO ivector=MAX(1,&
                    homo-section_get_ival(dft_section,"PRINT%MO_CUBES%NHOMO") +1),homo
                    CALL get_qs_env(qs_env=qs_env,&
@@ -625,7 +626,7 @@ CONTAINS
              ENDIF
 
              IF (BTEST(cp_print_key_should_output(logger%iter_info,dft_section,"PRINT%MO_CUBES",&
-                  error=error),cp_p_file)) THEN
+                  error=error),cp_p_file) .AND. section_get_lval(dft_section,"PRINT%MO_CUBES%WRITE_CUBE") ) THEN
                 DO ivector=1,nlumos
                    CALL get_qs_env(qs_env=qs_env,&
                                    atomic_kind_set=atomic_kind_set,&
