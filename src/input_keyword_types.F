@@ -1088,20 +1088,23 @@ END SUBROUTINE keyword_describe_html
   END SUBROUTINE write_keyword_xml
 
 ! *****************************************************************************
- SUBROUTINE keyword_typo_match(keyword,unknown_string,location_string,unit_number,error)
+ SUBROUTINE keyword_typo_match(keyword,unknown_string,location_string,matching_rank,matching_string,error)
 
     TYPE(keyword_type), POINTER              :: keyword
     CHARACTER(LEN=*)                         :: unknown_string, &
                                                 location_string
-    INTEGER, INTENT(IN)                      :: unit_number
+    INTEGER, DIMENSION(:), INTENT(INOUT)     :: matching_rank
+    CHARACTER(LEN=*), DIMENSION(:), INTENT(INOUT) :: matching_string
+
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'keyword_typo_match', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, j
+    INTEGER                                  :: i, j, imatch,irank,imax,k
     LOGICAL                                  :: failure
+    CHARACTER(LEN=LEN(matching_string(1)))   :: line
 
 !   ---------------------------------------------------------------------------
 
@@ -1113,16 +1116,40 @@ END SUBROUTINE keyword_describe_html
     IF (.NOT.failure) THEN
 
       DO i=1,SIZE(keyword%names)
-         IF (typo_match(TRIM(keyword%names(i)),TRIM(unknown_string))) THEN
-            WRITE(unit_number,'(T2,A)') "In section "//TRIM(location_string)//" found keyword "//TRIM(keyword%names(i))
+         imatch=typo_match(TRIM(keyword%names(i)),TRIM(unknown_string))
+         IF (imatch>0) THEN
+            WRITE(line,'(T2,A)') " keyword "//TRIM(keyword%names(i))//" in section "//TRIM(location_string)
+            imax=SIZE(matching_rank,1)
+            irank=imax+1
+            DO k=imax,1,-1
+               IF (imatch>matching_rank(k)) irank=k
+            ENDDO
+            IF (irank<=imax) THEN
+               matching_rank(irank+1:imax)=matching_rank(irank:imax-1)
+               matching_string(irank+1:imax)=matching_string(irank:imax-1)
+               matching_rank(irank)=imatch
+               matching_string(irank)=line
+            ENDIF
          END IF
     
          IF (keyword%type_of_var==enum_t) THEN
            DO j=1,SIZE(keyword%enum%c_vals)
-             IF (typo_match(TRIM(keyword%enum%c_vals(j)),TRIM(unknown_string))) THEN
-                WRITE(unit_number,'(T2,A)') "In section "//TRIM(location_string)// &
-                                            " found enum "//TRIM(keyword%enum%c_vals(j))// &
+             imatch=typo_match(TRIM(keyword%enum%c_vals(j)),TRIM(unknown_string))
+             IF (imatch>0) THEN
+                WRITE(line,'(T2,A)')        " enum "//TRIM(keyword%enum%c_vals(j))//&
+                                            " in section "//TRIM(location_string)// &
                                             " for keyword "//TRIM(keyword%names(i))
+                imax=SIZE(matching_rank,1)
+                irank=imax+1
+                DO k=imax,1,-1
+                   IF (imatch>matching_rank(k)) irank=k
+                ENDDO
+                IF (irank<=imax) THEN
+                   matching_rank(irank+1:imax)=matching_rank(irank:imax-1)
+                   matching_string(irank+1:imax)=matching_string(irank:imax-1)
+                   matching_rank(irank)=imatch
+                   matching_string(irank)=line
+                ENDIF
              END IF
            END DO
          END IF

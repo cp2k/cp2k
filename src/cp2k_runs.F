@@ -144,7 +144,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=512)                       :: unknown_string
-    INTEGER                                  :: mc_method, unit_nr
+    CHARACTER(LEN=512)                       :: matching_string(15)
+    INTEGER                                  :: matching_rank(15)
+    INTEGER                                  :: mc_method, unit_nr, i
     LOGICAL                                  :: echo_input, failure, &
                                                 I_was_ionode, was_present
     TYPE(cp_error_type)                      :: error, suberror
@@ -201,10 +203,18 @@ CONTAINS
        IF (unit_nr>0) THEN
           CALL cp_error_get(error,info=unknown_string)
           WRITE(unit_nr,'(T2,A)') ""
-          WRITE(unit_nr,'(T2,A)') "Looking for words in the input similar to the unknown "//TRIM(unknown_string)
+          WRITE(unit_nr,'(T2,A)') "Looking for words in the input similar to the unknown: "
+          WRITE(unit_nr,'(T4,A)') ''''//TRIM(unknown_string)//''''
           WRITE(unit_nr,'(T2,A)') ""
+          matching_rank=0
+          matching_string=""
           CALL section_typo_match(input_structure,unknown_string,location_string="", &
-                                  unit_number=unit_nr,error=error)
+                                  matching_rank=matching_rank,matching_string=matching_string,error=error)
+          DO I=1,SIZE(matching_rank,1)
+             IF (matching_rank(i)>0) THEN
+                 WRITE(unit_nr,'(T2,A)') TRIM(matching_string(I))
+             ENDIF
+          ENDDO
           WRITE(unit_nr,'(T15,A)') ""
           WRITE(unit_nr,'(T15,A)') "CP2K failed to parse the input file."
           WRITE(unit_nr,'(T15,A)') "A full description of the input can be generated using"

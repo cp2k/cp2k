@@ -2186,41 +2186,54 @@ END SUBROUTINE section_vals_write
 
 ! *****************************************************************************
 
-  RECURSIVE SUBROUTINE section_typo_match(section,unknown_string,location_string,unit_number,error)
+  RECURSIVE SUBROUTINE section_typo_match(section,unknown_string,location_string,matching_rank,matching_string,error)
 
     TYPE(section_type), POINTER              :: section
     CHARACTER(LEN=*)                         :: unknown_string, &
                                                 location_string
-    INTEGER, INTENT(IN)                      :: unit_number
+    INTEGER, DIMENSION(:), INTENT(INOUT)     :: matching_rank
+    CHARACTER(LEN=*), DIMENSION(:), INTENT(INOUT) :: matching_string
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'section_typo_match', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i
+    INTEGER                                  :: i,imatch,irank,imax
     LOGICAL                                  :: failure
+    CHARACTER(LEN=LEN(matching_string(1)))   :: line
 
 !   ---------------------------------------------------------------------------
 
     failure = .FALSE.
     IF (ASSOCIATED(section)) THEN
       CPPrecondition(section%ref_count>0,cp_failure_level,routineP,error,failure)
-
-      IF (typo_match(TRIM(section%name),TRIM(unknown_string))) THEN
-         WRITE(unit_number,'(T2,A)') "In section "//TRIM(location_string)//" found subsection "//TRIM(section%name)
+      imatch=typo_match(TRIM(section%name),TRIM(unknown_string))
+      IF (imatch>0) THEN
+         WRITE(line,'(T2,A)') " subsection "//TRIM(section%name)//" in section "//TRIM(location_string)
+         imax=SIZE(matching_rank,1)
+         irank=imax+1
+         DO I=imax,1,-1
+            IF (imatch>matching_rank(I)) irank=i
+         ENDDO
+         IF (irank<=imax) THEN
+            matching_rank(irank+1:imax)=matching_rank(irank:imax-1)
+            matching_string(irank+1:imax)=matching_string(irank:imax-1)
+            matching_rank(irank)=imatch
+            matching_string(irank)=line
+         ENDIF
       END IF
            
       DO i=-1,section%n_keywords
         IF (ASSOCIATED(section%keywords(i)%keyword)) THEN
           CALL keyword_typo_match(section%keywords(i)%keyword,unknown_string,location_string// &
-                                  "%"//TRIM(section%name),unit_number,error)
+                                  "%"//TRIM(section%name),matching_rank,matching_string,error)
         END IF
       END DO
 
       DO i=1,section%n_subsections
         CALL section_typo_match(section%subsections(i)%section,unknown_string,&
-            location_string//"%"//TRIM(section%name),unit_number,error)
+            location_string//"%"//TRIM(section%name),matching_rank,matching_string,error)
       END DO
 
     END IF

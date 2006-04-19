@@ -60,8 +60,8 @@ CONTAINS
 !!    typo_match
 !!
 !!   FUNCTION
-!!    returns true if typo_string equals string apart from a few typos. It is case sensitive, apart from typos.
-!! returns true if there is any string match for two 'stars'/'questions' walking the typo_string and string
+!!    returns a non-zero positive value if typo_string equals string apart from a few typos.
+!!    It is case sensitive, apart from typos.
 !!
 !!   NOTES
 !!    could maybe be made a bit smarter
@@ -73,14 +73,14 @@ CONTAINS
 !!*** **********************************************************************
 FUNCTION typo_match(string,typo_string) RESULT(match)
     CHARACTER(LEN=*), INTENT(IN)             :: string, typo_string
-    LOGICAL                                  :: match
+    INTEGER                                  :: match
 
     CHARACTER(LEN=1)                         :: kind
     CHARACTER(LEN=LEN(string))               :: tmp2
     CHARACTER(LEN=LEN(typo_string))          :: tmp
     INTEGER                                  :: i, j
 
-    match=.FALSE.
+    match=0
     IF (LEN_TRIM(typo_string).LE.4) THEN
        kind=question 
     ELSE
@@ -92,8 +92,7 @@ FUNCTION typo_match(string,typo_string) RESULT(match)
       tmp(i:i)=kind
       tmp(j:j)=kind
       IF (i==j .AND. LEN_TRIM(tmp)>2 ) tmp(i:i)=star
-   !dbg   IF (pattern_match(string=string,pattern=tmp)) write(6,*) "->"//string//"<-","->"//tmp//"<-"
-      match=match.OR.pattern_match(string=string,pattern=tmp)
+      IF (pattern_match(string=string,pattern=tmp)) match=match+1
      ENDDO
     ENDDO
     IF (LEN_TRIM(string).LE.4) THEN
@@ -107,8 +106,7 @@ FUNCTION typo_match(string,typo_string) RESULT(match)
       tmp2(i:i)=kind
       tmp2(j:j)=kind
       IF (i==j .AND. LEN_TRIM(tmp2)>2 ) tmp2(i:i)=star
-   !dbg   IF (pattern_match(string=typo_string,pattern=tmp2)) write(6,*) "->"//typo_string//"<-","->"//TRIM(tmp2)//"<-"
-      match=match.OR.pattern_match(string=typo_string,pattern=tmp2)
+      IF (pattern_match(string=typo_string,pattern=tmp2)) match=match+1
      ENDDO
     ENDDO
 
