@@ -1254,7 +1254,7 @@ CONTAINS
     !-----------------------------------------------------------------------------
     nbond = 0
     DO ilab = 1, SIZE(bond_section)
-       CALL parser_create(parser,ff_type%ff_file_name,comment_char='!',para_env=globenv%para_env)
+       CALL parser_create(parser,ff_type%ff_file_name,para_env=globenv%para_env)
        label = TRIM(bond_section(ilab))
        DO 
           CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
@@ -1309,7 +1309,7 @@ CONTAINS
     nbend = 0
     nub = 0
     DO ilab = 1, SIZE(angl_section)
-       CALL parser_create(parser,ff_type%ff_file_name,comment_char='!',para_env=globenv%para_env)
+       CALL parser_create(parser,ff_type%ff_file_name,para_env=globenv%para_env)
        label = TRIM(angl_section(ilab))
        DO 
           CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
@@ -1387,7 +1387,7 @@ CONTAINS
     !-----------------------------------------------------------------------------
     ntorsion = 0
     DO ilab = 1, SIZE(thet_section)
-       CALL parser_create(parser,ff_type%ff_file_name,comment_char='!',para_env=globenv%para_env)
+       CALL parser_create(parser,ff_type%ff_file_name,para_env=globenv%para_env)
        label = TRIM(thet_section(ilab))
        DO 
           CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
@@ -1451,7 +1451,7 @@ CONTAINS
     !-----------------------------------------------------------------------------
     nimpr = 0
     DO ilab = 1, SIZE(impr_section)
-       CALL parser_create(parser,ff_type%ff_file_name,comment_char='!',para_env=globenv%para_env)
+       CALL parser_create(parser,ff_type%ff_file_name,para_env=globenv%para_env)
        label = TRIM(impr_section(ilab))
        DO 
           CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
@@ -1509,7 +1509,7 @@ CONTAINS
     nnonbond = 0
     nonfo = 0
     DO ilab = 1, SIZE(nbon_section)
-       CALL parser_create(parser,ff_type%ff_file_name,comment_char='!',para_env=globenv%para_env)
+       CALL parser_create(parser,ff_type%ff_file_name,para_env=globenv%para_env)
        label = TRIM(nbon_section(ilab))
        DO 
           CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)

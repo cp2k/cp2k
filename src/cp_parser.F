@@ -59,14 +59,15 @@ MODULE cp_parser
   INTEGER, PARAMETER, PUBLIC :: max_line_length = 2*default_path_length
 
 ! *** Global variables ***
-
-  CHARACTER(LEN=4),PARAMETER, PUBLIC:: default_separators = ",:;="
-  CHARACTER(LEN=3),PARAMETER, PUBLIC:: default_end_section_label = "END"
-  CHARACTER(LEN=1),PARAMETER, PUBLIC:: blank_character = " ",&
-                                       default_comment_character = "#",&
-                                       default_continuation_character = CHAR(92),& ! backslash
-                                       default_section_character = "&",&
-                                       horizontal_tab = CHAR(9)
+  CHARACTER(LEN=1),PARAMETER, PUBLIC :: default_continuation_character = CHAR(92) ! backslash
+  CHARACTER(LEN=4),PARAMETER, PRIVATE:: default_separators = ",:;="
+  CHARACTER(LEN=3),PARAMETER, PRIVATE:: default_end_section_label = "END"
+  CHARACTER(LEN=1),PARAMETER, PRIVATE:: blank_character = " ",&
+                                        default_comment_character(2) = (/"#","!"/),&
+                                        !default_comment_character = "#",&
+                                        default_section_character = "&",&
+                                        horizontal_tab = CHAR(9)
+ 
   INTEGER,PARAMETER, PUBLIC :: max_unit_number = 999
 
   INTEGER, SAVE, PRIVATE :: last_parser_id=0
@@ -96,14 +97,14 @@ MODULE cp_parser
 !!
 !!   SOURCE
   !***************************************************************************
-  TYPE cp_parser_type
+  TYPE cp_parser_type 
      INTEGER :: id_nr,ref_count,input_unit    
      CHARACTER(LEN=default_string_length) :: end_section,&
           start_section
      CHARACTER(LEN=10) :: separators
-     CHARACTER(LEN=1)  :: comment_character,&
-          continuation_character,&
-          section_character
+     CHARACTER(LEN=1)  :: comment_character(2),&
+                          continuation_character,&
+                          section_character
      CHARACTER(LEN=default_path_length) :: input_file_name
      CHARACTER(LEN=max_line_length)      :: input_line
      INTEGER :: icol,icol1,icol2,input_line_number
@@ -377,7 +378,7 @@ SUBROUTINE parser_skip_space(parser,multiline,error)
         !       *** Quick return, if the end of line is found ***
         
         IF ((parser%icol > LEN_TRIM(parser%input_line)).OR.&
-             (parser%input_line(parser%icol:parser%icol) == parser%comment_character)) THEN
+             ANY(parser%input_line(parser%icol:parser%icol) == parser%comment_character)) THEN
            parser%icol1 = 1
            parser%icol2 = -1
            RETURN
@@ -397,8 +398,8 @@ SUBROUTINE parser_skip_space(parser,multiline,error)
                  IF ((parser%input_line(i:i) /= blank_character).AND.&
                       (parser%input_line(i:i) /= horizontal_tab)) EXIT
               END DO
-              IF (parser%icol == i.OR.parser%input_line(i:i)==&
-                   parser%comment_character) THEN
+              IF (parser%icol == i.OR. ANY(parser%input_line(i:i)==&
+                   parser%comment_character)) THEN
                  CALL parser_get_next_line(parser,1,error=error) 
                  ! does not pass at_end, it is an error to continue to EOF, change this behavoiur?
                  CYCLE
@@ -490,7 +491,7 @@ SUBROUTINE parser_next_token(parser,string_length,error)
            !       *** Quick return, if the end of line is found ***
 
            IF ((parser%icol > LEN_TRIM(parser%input_line)).OR.&
-                (parser%input_line(parser%icol:parser%icol) == parser%comment_character)) THEN
+                ANY(parser%input_line(parser%icol:parser%icol) == parser%comment_character)) THEN
               parser%icol1 = 1
               parser%icol2 = -1
               RETURN
@@ -504,8 +505,8 @@ SUBROUTINE parser_next_token(parser,string_length,error)
                  IF ((parser%input_line(i:i) /= blank_character).AND.&
                       (parser%input_line(i:i) /= horizontal_tab)) EXIT
               END DO
-              IF (parser%icol == i.or.parser%input_line(i:i)==&
-                   parser%comment_character) THEN
+              IF (parser%icol == i.or.ANY(parser%input_line(i:i)==&
+                   parser%comment_character)) THEN
                  CALL parser_get_next_line(parser,1,error=error) 
                  ! does not pass at_end, it is an error to continue to EOF, change this behavoiur?
                  CYCLE
@@ -569,7 +570,7 @@ SUBROUTINE parser_next_token(parser,string_length,error)
               parser%icol = parser%icol + 1
               IF ((parser%icol > LEN_TRIM(parser%input_line)).OR.&
                    (parser%input_line(parser%icol:parser%icol) == blank_character).OR.&
-                   (parser%input_line(parser%icol:parser%icol) == parser%comment_character).OR.&
+                   ANY(parser%input_line(parser%icol:parser%icol) == parser%comment_character).OR.&
                    (parser%input_line(parser%icol:parser%icol) == parser%continuation_character).OR.&
                    (parser%input_line(parser%icol:parser%icol) == horizontal_tab)) THEN
                  EXIT
@@ -889,11 +890,15 @@ END SUBROUTINE parser_next_token
              END IF
 
              !       *** Check for comments ***
-
-             icomment = INDEX(parser%input_line,parser%comment_character)
+             !           find first comment_char in the line, but 0 if none is present
+             IF (ANY(INDEX(parser%input_line,parser%comment_character).NE.0)) THEN
+                icomment=MINVAL(INDEX(parser%input_line,parser%comment_character), &
+                                INDEX(parser%input_line,parser%comment_character).NE.0)
+             ELSE
+                icomment=0
+             ENDIF
 
              !       *** Ignore empty lines ***
-
              IF (icomment > 0) THEN
                 !MK xlf 8.1.1 bug -> len_trim returns -1 for an empty string
                 !         IF (LEN_TRIM(parser%input_line(:icomment-1)) == 0) iline = iline - 1
@@ -1240,8 +1245,9 @@ END SUBROUTINE parser_next_token
 
 ! *****************************************************************************
 
-  SUBROUTINE parser_create(parser,file_name,unit_nr,para_env,end_section_label,&
-       separator_chars,comment_char,continuation_char, section_char,error)
+  SUBROUTINE parser_create(parser,file_name,unit_nr,para_env, &
+       end_section_label,separator_chars,comment_char,continuation_char, section_char, &
+          error)
 
     !   Purpose: Start a parser run.
 
