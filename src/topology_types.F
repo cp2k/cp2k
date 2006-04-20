@@ -34,6 +34,8 @@ MODULE topology_types
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE termination,                     ONLY: stop_memory
+  USE colvar_types,                    ONLY: colvar_p_type,&
+                                             colvar_release
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -71,27 +73,11 @@ MODULE topology_types
      INTEGER, POINTER :: fixed_atoms(:)
      LOGICAL          :: freeze_qm, freeze_mm
      CHARACTER(LEN=default_string_length), POINTER :: fixed_molnames(:)
-     ! Distance
-     INTEGER          :: nconst_dist
-     INTEGER, POINTER :: const_dist_mol(:)
-     INTEGER, POINTER :: const_dist_a(:)
-     INTEGER, POINTER :: const_dist_b(:)
-     REAL(KIND=dp), POINTER :: const_dist_dab(:)
-     ! Angle
-     INTEGER          :: nconst_angle
-     INTEGER, POINTER :: const_angle_mol(:)
-     INTEGER, POINTER :: const_angle_a(:)
-     INTEGER, POINTER :: const_angle_b(:)
-     INTEGER, POINTER :: const_angle_c(:)
-     REAL(KIND=dp), POINTER :: const_angle_abc(:)
-     ! Torsion
-     INTEGER          :: nconst_tors
-     INTEGER, POINTER :: const_tors_mol(:)
-     INTEGER, POINTER :: const_tors_a(:)
-     INTEGER, POINTER :: const_tors_b(:)
-     INTEGER, POINTER :: const_tors_c(:)
-     INTEGER, POINTER :: const_tors_d(:)
-     REAL(KIND=dp), POINTER :: const_tors_abcd(:)
+     ! Collective constraints
+     INTEGER          :: nconst_colv
+     INTEGER, POINTER :: const_colv_mol(:)
+     REAL(KIND=dp), POINTER :: const_colv_target(:)
+     TYPE(colvar_p_type), POINTER, DIMENSION(:) :: colvar_set
      ! G3x3
      INTEGER          :: nconst_g33
      INTEGER, POINTER :: const_g33_mol(:)
@@ -114,8 +100,6 @@ MODULE topology_types
      REAL(KIND=dp), POINTER :: const_g46_dad(:)
      REAL(KIND=dp), POINTER :: const_g46_dbd(:)
      REAL(KIND=dp), POINTER :: const_g46_dcd(:)
-     ! Collectives
-     INTEGER          :: ncollective
   END TYPE constraint_info_type
 
   TYPE topology_parameters_type
@@ -143,7 +127,7 @@ MODULE topology_types
     CHARACTER (LEN=default_string_length)     :: conn_file_name
     LOGICAL                                   :: const_atom
     LOGICAL                                   :: const_hydr
-    LOGICAL                                   :: const_dist
+    LOGICAL                                   :: const_colv
     LOGICAL                                   :: const_33
     LOGICAL                                   :: const_46
     LOGICAL                                   :: charge_occup
@@ -227,7 +211,7 @@ SUBROUTINE init_topology (topology)
   topology%conn_file_name='OFF'
   topology%const_atom=.FALSE.
   topology%const_hydr=.FALSE.
-  topology%const_dist=.FALSE.
+  topology%const_colv=.FALSE.
   topology%const_33=.FALSE.
   topology%const_46=.FALSE.
   topology%charge_occup=.FALSE.
@@ -300,33 +284,16 @@ SUBROUTINE init_constraint(constraint_info)
     TYPE(constraint_info_type), POINTER      :: constraint_info
 
 ! Fixed Atoms
-
   constraint_info%nfixed_atoms = 0
   constraint_info%freeze_mm = .FALSE.
   constraint_info%freeze_qm = .FALSE.
   NULLIFY(constraint_info%fixed_atoms)
   NULLIFY(constraint_info%fixed_molnames)
-  ! Distance
-  constraint_info%nconst_dist = 0
-  NULLIFY(constraint_info%const_dist_mol)
-  NULLIFY(constraint_info%const_dist_a)
-  NULLIFY(constraint_info%const_dist_b)
-  NULLIFY(constraint_info%const_dist_dab)
-  ! Angle
-  constraint_info%nconst_angle=0
-  NULLIFY(constraint_info%const_angle_mol)
-  NULLIFY(constraint_info%const_angle_a)
-  NULLIFY(constraint_info%const_angle_b)
-  NULLIFY(constraint_info%const_angle_c)
-  NULLIFY(constraint_info%const_angle_abc)
-  ! Torsion
-  constraint_info%nconst_tors = 0
-  NULLIFY(constraint_info%const_tors_mol)
-  NULLIFY(constraint_info%const_tors_a)
-  NULLIFY(constraint_info%const_tors_b)
-  NULLIFY(constraint_info%const_tors_c)
-  NULLIFY(constraint_info%const_tors_d)
-  NULLIFY(constraint_info%const_tors_abcd)
+  ! Collective Constraints
+  constraint_info%nconst_colv = 0
+  NULLIFY(constraint_info%colvar_set)
+  NULLIFY(constraint_info%const_colv_mol)
+  NULLIFY(constraint_info%const_colv_target)
   ! G3x3
   constraint_info%nconst_g33 = 0
   NULLIFY(constraint_info%const_g33_mol)
@@ -568,7 +535,7 @@ SUBROUTINE deallocate_constraint(constraint_info, error)
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_constraint', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
+    INTEGER                                  :: stat, i
     LOGICAL                                  :: failure
 
   failure = .FALSE.
@@ -582,69 +549,23 @@ SUBROUTINE deallocate_constraint(constraint_info, error)
         DEALLOCATE(constraint_info%fixed_molnames, stat=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
      END IF
-     ! Distance
-     IF(ASSOCIATED(constraint_info%const_dist_mol)) THEN
-        DEALLOCATE(constraint_info%const_dist_mol,STAT=stat)
+     ! Collective Constraint
+     IF (ASSOCIATED(constraint_info%colvar_set)) THEN
+        DO i = 1, SIZE(constraint_info%colvar_set)
+           IF (ASSOCIATED(constraint_info%colvar_set(i)%colvar)) THEN
+              CALL colvar_release(constraint_info%colvar_set(i)%colvar,error)
+              NULLIFY(constraint_info%colvar_set(i)%colvar)
+           END IF
+        END DO
+     END IF
+     IF(ASSOCIATED(constraint_info%const_colv_mol)) THEN
+        DEALLOCATE(constraint_info%const_colv_mol,STAT=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
      END IF
-     IF(ASSOCIATED(constraint_info%const_dist_a)) THEN
-        DEALLOCATE(constraint_info%const_dist_a,STAT=stat)
+     IF(ASSOCIATED(constraint_info%const_colv_target)) THEN
+        DEALLOCATE(constraint_info%const_colv_target,STAT=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
      END IF
-     IF(ASSOCIATED(constraint_info%const_dist_b)) THEN
-        DEALLOCATE(constraint_info%const_dist_b,STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-     END IF
-     IF(ASSOCIATED(constraint_info%const_dist_dab)) THEN
-        DEALLOCATE(constraint_info%const_dist_dab,STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-     END IF
-     ! Angle
-     IF(ASSOCIATED(constraint_info%const_angle_mol)) THEN
-        DEALLOCATE(constraint_info%const_angle_mol,STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-     END IF
-     IF(ASSOCIATED(constraint_info%const_angle_a)) THEN
-        DEALLOCATE(constraint_info%const_angle_a,STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-     END IF
-     IF(ASSOCIATED(constraint_info%const_angle_b)) THEN
-        DEALLOCATE(constraint_info%const_angle_b,STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-     END IF
-     IF(ASSOCIATED(constraint_info%const_angle_c)) THEN
-        DEALLOCATE(constraint_info%const_angle_c,STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-     END IF
-     IF(ASSOCIATED(constraint_info%const_angle_abc)) THEN
-        DEALLOCATE(constraint_info%const_angle_abc,STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-     END IF     
-     ! Torsion
-     IF(ASSOCIATED(constraint_info%const_tors_mol)) THEN
-        DEALLOCATE(constraint_info%const_tors_mol,STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-     END IF
-     IF(ASSOCIATED(constraint_info%const_tors_a)) THEN
-        DEALLOCATE(constraint_info%const_tors_a,STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-     END IF
-     IF(ASSOCIATED(constraint_info%const_tors_b)) THEN
-        DEALLOCATE(constraint_info%const_tors_b,STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-     END IF
-     IF(ASSOCIATED(constraint_info%const_tors_c)) THEN
-        DEALLOCATE(constraint_info%const_tors_c,STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-     END IF 
-     IF(ASSOCIATED(constraint_info%const_tors_d)) THEN
-        DEALLOCATE(constraint_info%const_tors_d,STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-     END IF     
-     IF(ASSOCIATED(constraint_info%const_tors_abcd)) THEN
-        DEALLOCATE(constraint_info%const_tors_abcd,STAT=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-     END IF     
      ! G3x3
      IF(ASSOCIATED(constraint_info%const_g33_mol)) THEN
         DEALLOCATE(constraint_info%const_g33_mol,STAT=stat)

@@ -434,7 +434,7 @@ CONTAINS
 
       IF (simpar%constraint) CALL shake_control( local_molecules, molecule_set,   &
                                                 molecule_kind_set, particle_set, &
-                                                pos, vel, simpar )
+                                                pos, vel, simpar, cell, error )
 
 !     *** Broadcast the new particle positions ***
 
@@ -496,7 +496,7 @@ CONTAINS
 
       IF (simpar%constraint) CALL rattle_control( local_molecules, molecule_set, &
                                                  molecule_kind_set, particle_set, &
-                                                 vel, simpar )
+                                                 vel, simpar, cell, error )
 
       IF (simpar%annealing)  vel(:,:)=vel(:,:)*simpar%f_annealing
 
@@ -874,7 +874,7 @@ CONTAINS
 
       IF (simpar%constraint) CALL shake_control( local_molecules, molecule_set,   &
                                                  molecule_kind_set, particle_set, &
-                                                 pos, vel, simpar )
+                                                 pos, vel, simpar, cell, error )
 
 !     *** Broadcast the new particle positions ***
       CALL update_particle_set ( particle_set, para_env % group, pos = pos )
@@ -935,7 +935,7 @@ CONTAINS
 
       IF (simpar%constraint) CALL rattle_control( local_molecules, molecule_set, &
                                                   molecule_kind_set, particle_set, &  
-                                                  vel, simpar )
+                                                  vel, simpar, cell, error )
 
 ! perform Nose'-Hoover chain dynamimcs
       CALL lnhc ( nhc ( isubsys ), molecule_kind_set, molecule_set, &
@@ -1197,7 +1197,7 @@ CONTAINS
                                         molecule_set, molecule_kind_set, &
                                         particle_set, pos, vel, simpar,  &
                                         roll_tol, iroll, vector_r, vector_v,  &
-                                        para_env % group )
+                                        para_env % group, cell=cell, error=error )
   END DO SR
      
 
@@ -1253,7 +1253,8 @@ CONTAINS
                                       molecule_kind_set, molecule_set,  &
                                       local_molecules, vel,  &
                                       cell, npt, simpar, virial, vector_v,  &
-                                      roll_tol, iroll, infree, first, para_env )
+                                      roll_tol, iroll, infree, first, para_env,&
+                                      error=error)
 
           CALL update_pv ( simpar, atomic_kind_set, vel, particle_set, &
                            local_molecules, molecule_set, molecule_kind_set, &
@@ -1582,7 +1583,7 @@ CONTAINS
                                         molecule_set, molecule_kind_set, &
                                         particle_set, pos, vel, simpar,  &
                                         roll_tol, iroll, vector_r, vector_v,  &
-                                        para_env % group )
+                                        para_env % group, cell=cell, error=error )
   END DO SR
 
 ! Update h_mat
@@ -1636,7 +1637,8 @@ CONTAINS
                                       molecule_kind_set, molecule_set,  &
                                       local_molecules, vel,  &
                                       cell, npt, simpar, virial, vector_v,  &
-                                      roll_tol, iroll, infree, first, para_env )
+                                      roll_tol, iroll, infree, first, para_env,&
+                                      error=error )
 
           CALL update_pv ( simpar, atomic_kind_set, vel, particle_set, &
                            local_molecules, molecule_set, molecule_kind_set, &
@@ -1884,7 +1886,7 @@ CONTAINS
                                         molecule_set, molecule_kind_set, &
                                         particle_set, pos, vel, simpar,  &
                                         roll_tol, iroll, vector_r, vector_v,  &
-                                        para_env % group )
+                                        para_env % group, cell=cell, error=error )
   END DO SR
 
 ! Update h_mat
@@ -1940,7 +1942,8 @@ CONTAINS
                                       molecule_kind_set, molecule_set,  &
                                       local_molecules, vel,  &
                                       cell, npt, simpar, virial, vector_v,  &
-                                      roll_tol, iroll, infree, first, para_env )
+                                      roll_tol, iroll, infree, first, para_env,&
+                                      error=error)
 ! perform damping on the barostat momentum
           CALL damp_veps ( npt ( 1, 1 ), gamma1, dt )
 
@@ -2444,7 +2447,8 @@ END SUBROUTINE deallocate_old
                                           molecule_set, molecule_kind_set, &
                                           particle_set, pos, vel, simpar,  &
                                           roll_tol, iroll, scale_r*poly_r, &
-                                          scale_v*poly_v, para_env % group, u )
+                                          scale_v*poly_v, para_env % group, u, cell,&
+                                          error=error )
   END DO SR
 
 ! Update h_mat
@@ -2502,7 +2506,8 @@ END SUBROUTINE deallocate_old
                                      molecule_kind_set, molecule_set,  &
                                      local_molecules, vel, &
                                      cell, npt, simpar, virial, vector_v,  &
-                                     roll_tol, iroll, infree, first, para_env, u )
+                                     roll_tol, iroll, infree, first, para_env, u,&
+                                     error=error)
 
         CALL update_pv ( simpar, atomic_kind_set, vel, particle_set, &
                            local_molecules, molecule_set, molecule_kind_set, &
@@ -2762,7 +2767,7 @@ END SUBROUTINE damp_veps
 SUBROUTINE rattle_roll_setup ( atomic_kind_set, particle_set, local_particles, &
                                molecule_kind_set, molecule_set, local_molecules, &
                                vel, cell, npt, simpar, virial, vector_v,  &
-                               roll_tol, iroll, infree, first, para_env, u )
+                               roll_tol, iroll, infree, first, para_env, u, error )
 
 
     TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
@@ -2785,6 +2790,8 @@ SUBROUTINE rattle_roll_setup ( atomic_kind_set, particle_set, local_particles, &
     LOGICAL, INTENT(INOUT)                   :: first
     TYPE(cp_para_env_type), INTENT(IN)       :: para_env
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: u( : , : )
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
     REAL(KIND=dp)                            :: kin
     REAL(KIND=dp), DIMENSION(3, 3)           :: pv_kin
@@ -2823,7 +2830,7 @@ SUBROUTINE rattle_roll_setup ( atomic_kind_set, particle_set, local_particles, &
    CALL rattle_roll_control( local_molecules, molecule_set, molecule_kind_set, &
                              particle_set, vel, simpar, virial, vector_v,   &
                              npt_loc % v, npt_loc %  mass, roll_tol, iroll,    &
-                             para_env, u )
+                             para_env, u, cell, error=error )
 
 
 END SUBROUTINE rattle_roll_setup

@@ -24,6 +24,8 @@
 !!   SOURCE
 !****************************************************************************
 MODULE colvar_methods
+  USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                             get_atomic_kind
   USE cell_types,                      ONLY: cell_type
   USE colvar_types,                    ONLY: angle_colvar_id,&
                                              colvar_create,&
@@ -48,7 +50,9 @@ MODULE colvar_methods
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
   USE particle_list_types,             ONLY: particle_list_type
-  USE particle_types,                  ONLY: particle_type
+  USE particle_types,                  ONLY: particle_type,&
+                                             allocate_particle_set,&
+                                             deallocate_particle_set
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -237,24 +241,30 @@ CONTAINS
   !!     Teodoro Laino
   !!
   !!*** **********************************************************************
-  SUBROUTINE colvar_eval_mol_f(colvar, cell, particles, error)
-    TYPE(colvar_type), POINTER               :: colvar
+  SUBROUTINE colvar_eval_mol_f(colvar, cell, particles, pos, error)
+    TYPE(colvar_type),POINTER                   :: colvar
+    TYPE(particle_type), POINTER , DIMENSION(:) :: particles
+    REAL(kind=dp), DIMENSION(:,:), INTENT(IN), OPTIONAL :: pos
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particles
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'colvar_eval_mol_f', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: colvar_ok, failure
-
+    LOGICAL                                     :: failure, colvar_ok
+    INTEGER                                     :: i, j
     failure=.FALSE.
 
     colvar_ok=ASSOCIATED(colvar)
     CPAssert(colvar_ok,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
+       IF (PRESENT(pos)) THEN
+          DO i = 1, SIZE(colvar%i_atom)
+             j = colvar%i_atom(i)
+             particles(j)%r=pos(:,j)
+          END DO
+       END IF
        SELECT CASE(colvar%type_id)
        CASE (dist_colvar_id)
           CALL dist_colvar(colvar,cell,particles=particles,error=error)
@@ -511,7 +521,6 @@ CONTAINS
 
   END SUBROUTINE angle_colvar
 
-
   !!****f* colvar/dist_colvar [1.0] *
   !!
   !!   NAME
@@ -559,7 +568,6 @@ CONTAINS
        my_particles => particles_i%els
     END IF
 
-
     i=colvar%dist_param%i_at
     j=colvar%dist_param%j_at
     xpi=my_particles(i)%r(1:3)
@@ -574,7 +582,6 @@ CONTAINS
 
   END SUBROUTINE dist_colvar
   !***************************************************************************
-
 
   !!****f* colvar/coord_colvar [1.0] *
   !!
@@ -752,21 +759,21 @@ CONTAINS
     rt2 = xt*xt + yt*yt + zt*zt
     ru2 = xu*xu + yu*yu + zu*zu
     rtru = SQRT(rt2 * ru2)
-    IF (rtru .NE. 0.0e0_dp) THEN
+    IF (rtru .NE. 0.0_dp) THEN
        rcb = SQRT(xcb*xcb + ycb*ycb + zcb*zcb)
        cosine = (xt*xu + yt*yu + zt*zu) / rtru
        sine = (xcb*xtu + ycb*ytu + zcb*ztu) / (rcb*rtru)
-       cosine = MIN(1.0e0_dp,MAX(-1.0e0_dp,cosine))
+       cosine = MIN(1.0_dp,MAX(-1.0_dp,cosine))
        angle = radian * ACOS(cosine)
-       IF (sine .LT. 0.0e0_dp)  angle = -angle
-       dt = angle 
+       IF (sine .LT. 0.0_dp)  angle = -angle
+       dt = angle
        DO ii=1,100
           IF(dt<180._dp) EXIT
-          dt = dt - 360.0e0_dp
+          dt = dt - 360.0_dp
        ENDDO
        DO ii=1,100
           IF(dt>-180._dp) EXIT
-          dt = dt + 360.0e0_dp
+          dt = dt + 360.0_dp
        ENDDO
        dt = dt / radian
        !
@@ -820,7 +827,6 @@ CONTAINS
     colvar%dsdr(1,4)=dedxid
     colvar%dsdr(2,4)=dedyid
     colvar%dsdr(3,4)=dedzid
-
   END SUBROUTINE torsion_colvar
   !***************************************************************************
 

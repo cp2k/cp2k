@@ -41,6 +41,13 @@ MODULE molecule_kind_types
                                              int_size
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
+  USE colvar_types,                    ONLY: colvar_counters,&
+                                             angle_colvar_id,&
+                                             coord_colvar_id,&
+                                             dist_colvar_id,&
+                                             plane_distance_colvar_id,&
+                                             torsion_colvar_id
+  
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -112,10 +119,6 @@ MODULE molecule_kind_types
      INTEGER :: fixd
   END TYPE fixd_constraint_type
 
-  TYPE colvar_counters
-     INTEGER :: ndist
-  END TYPE colvar_counters
-
   TYPE molecule_kind_type
     PRIVATE
     TYPE(atom_type), DIMENSION(:), POINTER            :: atom_list
@@ -166,7 +169,8 @@ MODULE molecule_kind_types
             num_ao_el_per_molecule,&
             set_molecule_kind,&
             write_molecule_kind,&
-            write_molecule_kind_set
+            write_molecule_kind_set,&
+            setup_colvar_counters
 
 ! *** Public data types ***
 
@@ -177,7 +181,6 @@ MODULE molecule_kind_types
             torsion_type,&
             impr_type,&
             onfo_type,&
-            colvar_counters,&
             colvar_constraint_type,&
             g3x3_constraint_type,&
             g4x6_constraint_type,&
@@ -190,6 +193,45 @@ MODULE molecule_kind_types
 CONTAINS
 
 ! *****************************************************************************
+
+
+  SUBROUTINE setup_colvar_counters(colv_list, ncolv)
+    IMPLICIT NONE
+    ! Arguments
+    TYPE(colvar_constraint_type), &
+         DIMENSION(:), POINTER                  :: colv_list
+    TYPE(colvar_counters)                       :: ncolv
+    ! Local Variables
+    INTEGER                                     :: k
+    
+    ncolv%ndist       = 0
+    ncolv%nangle      = 0
+    ncolv%ntorsion    = 0
+    ncolv%ncoord      = 0
+    ncolv%nplane_dist = 0
+    DO k = 1, SIZE(colv_list)
+       SELECT CASE(colv_list(k)%type_id)       
+       CASE(angle_colvar_id)
+          ncolv%nangle = ncolv%nangle + 1
+       CASE(coord_colvar_id)
+          ncolv%ncoord = ncolv%ncoord + 1
+       CASE(dist_colvar_id)
+          ncolv%ndist = ncolv%ndist + 1
+       CASE(plane_distance_colvar_id)
+          ncolv%nplane_dist = ncolv%nplane_dist + 1
+       CASE(torsion_colvar_id)
+          ncolv%ntorsion = ncolv%ntorsion + 1
+       END SELECT
+    END DO
+    ncolv%ntot = ncolv%ndist        +&      
+                 ncolv%nangle       +&
+                 ncolv%ntorsion     +&
+                 ncolv%ncoord       +&
+                 ncolv%nplane_dist 
+
+  END SUBROUTINE setup_colvar_counters
+
+
 
   SUBROUTINE allocate_molecule_kind_set(molecule_kind_set,nmolecule_kind)
 

@@ -25,6 +25,7 @@
 !****************************************************************************
 MODULE colvar_types
   USE kinds,                           ONLY: dp
+  USE termination,                     ONLY: stop_memory
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -36,8 +37,10 @@ MODULE colvar_types
   PUBLIC :: colvar_type,&
             colvar_p_type,&
             colvar_create,&
+            colvar_clone,&
             colvar_setup,&
             colvar_release,&
+            colvar_counters,&
             dist_colvar_type,&
             coord_colvar_type,&
             torsion_colvar_type,&
@@ -119,7 +122,7 @@ MODULE colvar_types
   TYPE colvar_type
      INTEGER :: type_id
      REAL(kind=dp)                            :: ss               ! Value of the colvar
-     REAL(kind=dp), DIMENSION (:,:), POINTER  :: dsdr             ! Derivative of colvar 
+     REAL(kind=dp), DIMENSION (:,:), POINTER  :: dsdr             ! Derivative of colvar (3,:)
      INTEGER, DIMENSION (:), POINTER          :: i_atom           ! Mapping of dsdr
      INTEGER                                  :: n_atom_s
      TYPE(dist_colvar_type),POINTER           :: dist_param
@@ -132,6 +135,16 @@ MODULE colvar_types
   TYPE colvar_p_type
      TYPE(colvar_type), POINTER :: colvar
   END TYPE colvar_p_type
+
+  TYPE colvar_counters
+     INTEGER :: ndist
+     INTEGER :: nangle
+     INTEGER :: ntorsion
+     INTEGER :: ncoord
+     INTEGER :: nplane_dist
+     !
+     INTEGER :: ntot
+  END TYPE colvar_counters
   !!***
   !****************************************************************************
 
@@ -361,5 +374,74 @@ CONTAINS
     CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
 
   END SUBROUTINE colvar_release
+
+  !!****f* colvar_types/colvar_clone *
+  !!
+  !!   NAME
+  !!     colvar_clone
+  !!
+  !!   FUNCTION
+  !!     Clone a colvar type
+  !!
+  !!   NOTES
+  !!     -
+  !!
+  !!   INPUTS
+  !!     - colvar: the colvar to deallocate
+  !!     - error: variable to control error logging, stopping,... 
+  !!       see module cp_error_handling 
+  !!
+  !!   AUTHOR
+  !!     Teodoro Laino [tlaino] 04.2006
+  !!
+  !!*** **********************************************************************
+  SUBROUTINE colvar_clone(colvar_out, colvar_in, i_atom_offset, error)
+    IMPLICIT NONE
+    ! Arguments
+    TYPE(colvar_type), POINTER :: colvar_out, colvar_in
+    INTEGER, INTENT(IN), OPTIONAL :: i_atom_offset
+    TYPE(cp_error_type), INTENT(inout), &
+         OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'colvar_clone', &
+         routineP = moduleN//':'//routineN
+    ! Local Variables
+    INTEGER                                  :: stat,ndim, my_offset
+    LOGICAL                                  :: failure
+    
+    my_offset = 0   
+    failure=.FALSE.
+    CPPostcondition(ASSOCIATED(colvar_in),cp_warning_level,routineP,error,failure)
+    CPPostcondition(.NOT.ASSOCIATED(colvar_out),cp_warning_level,routineP,error,failure)
+    IF (PRESENT(i_atom_offset)) my_offset = i_atom_offset
+    CALL colvar_create(colvar_out, colvar_in%type_id, error)
+    SELECT CASE(colvar_out%type_id)
+    CASE(dist_colvar_id)
+       colvar_out%dist_param%i_at = colvar_in%dist_param%i_at + my_offset
+       colvar_out%dist_param%j_at = colvar_in%dist_param%j_at + my_offset
+    CASE(coord_colvar_id)
+       colvar_out%coord_param%n_atoms_to   = colvar_in%coord_param%n_atoms_to  
+       colvar_out%coord_param%n_atoms_from = colvar_in%coord_param%n_atoms_from
+       colvar_out%coord_param%nncrd        = colvar_in%coord_param%nncrd       
+       colvar_out%coord_param%ndcrd        = colvar_in%coord_param%ndcrd       
+       colvar_out%coord_param%r_0          = colvar_in%coord_param%r_0         
+       ndim = SIZE(colvar_out%coord_param%i_at_from)
+       ALLOCATE(colvar_out%coord_param%i_at_from(ndim),stat=stat)
+       CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       ndim = SIZE(colvar_out%coord_param%i_at_to)
+       ALLOCATE(colvar_out%coord_param%i_at_from(ndim),stat=stat)
+       CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+       colvar_out%coord_param%i_at_from    = colvar_in%coord_param%i_at_from + my_offset
+       colvar_out%coord_param%i_at_to      = colvar_in%coord_param%i_at_from + my_offset
+    CASE(angle_colvar_id)
+       colvar_out%angle_param%i_at_angle   = colvar_in%angle_param%i_at_angle + my_offset
+    CASE(torsion_colvar_id)
+       colvar_out%torsion_param%i_at_tors     = colvar_in%torsion_param%i_at_tors + my_offset
+    CASE(plane_distance_colvar_id)
+       colvar_out%plane_distance_param%plane = colvar_in%plane_distance_param%plane + my_offset
+       colvar_out%plane_distance_param%point = colvar_in%plane_distance_param%point + my_offset
+    END SELECT    
+    CALL colvar_setup(colvar_out, error) 
+  END SUBROUTINE colvar_clone
 
 END MODULE colvar_types

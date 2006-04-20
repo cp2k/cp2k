@@ -78,3 +78,8 @@ acn.inp                   2
 #metadynamics distance_point_plane and angle
 nh3-meta-1.inp            2
 nh3-meta-2.inp            2
+#collective constraint both for nve and npt
+ethene_colv1.inp          2
+ethene_colv1_npt.inp      2
+ethene_colv2.inp          2
+ethene_colv2_npt.inp      2

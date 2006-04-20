@@ -26,7 +26,8 @@ MODULE topology_input
   USE colvar_types,                    ONLY: angle_colvar_id,&
                                              colvar_p_type,&
                                              dist_colvar_id,&
-                                             torsion_colvar_id
+                                             torsion_colvar_id,& 
+                                             colvar_clone
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: do_conn_mol_set,&
                                              do_conn_psf,&
@@ -332,70 +333,37 @@ SUBROUTINE read_constraints_section(topology, globenv, colvar_p, constraint_sect
            cons_info%nfixed_atoms =  isize
         END IF
      END IF
-     ! INTERNAL
+     ! Collective Constraints
      CALL section_vals_get(collective_section,explicit=explicit, n_repetition=ncons, error=error)
      IF (explicit) THEN
         CPPostcondition(ncons<=SIZE(colvar_p),cp_failure_level,routineP,error,failure)
-        isize = 0
-        ! DISTANCE
+        !
+        topology%const_colv = .TRUE.
         DO ig = 1, ncons
            CALL section_vals_val_get(collective_section,"COLVAR",i_rep_section=ig, i_val=icolvar, error=error)
            CPPostcondition(icolvar<=SIZE(colvar_p),cp_failure_level,routineP,error,failure)
-           IF (colvar_p(icolvar)%colvar%type_id==dist_colvar_id) isize = isize + 1
         END DO
-
-        IF (isize /= 0) THEN
-           topology%const_dist=.TRUE.
-           cons_info%nconst_dist = isize
-           !
-           ALLOCATE(cons_info%const_dist_mol(isize), stat=stat)
-           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-           ALLOCATE(cons_info%const_dist_a(isize), stat=stat)
-           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-           ALLOCATE(cons_info%const_dist_b(isize), stat=stat)
-           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-           ALLOCATE(cons_info%const_dist_dab(isize), stat=stat)
-           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-           isize = 0
-           DO ig = 1, ncons
-              ! DISTANCE
-              CALL section_vals_val_get(collective_section,"COLVAR",i_rep_section=ig, i_val=icolvar, error=error)
-              IF (colvar_p(icolvar)%colvar%type_id==dist_colvar_id) THEN
-                 isize = isize + 1
-                 CALL section_vals_val_get(collective_section,"MOLECULE",i_val=cons_info%const_dist_mol(isize),&
-                      i_rep_section=ig,error=error)
-                 CALL section_vals_val_get(collective_section,"TARGET",&
-                      r_val=cons_info%const_dist_dab(isize),i_rep_section=ig, error=error)
-                 cons_info%const_dist_a(isize) = colvar_p(icolvar)%colvar%dist_param%i_at
-                 cons_info%const_dist_b(isize) = colvar_p(icolvar)%colvar%dist_param%j_at
-              END IF
-           END DO
-        END IF
-        ! ANGLE
-        isize = 0
+        cons_info%nconst_colv = ncons
+        ALLOCATE(cons_info%const_colv_mol(ncons), stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        ALLOCATE(cons_info%const_colv_target(ncons), stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        ALLOCATE(cons_info%colvar_set(ncons), stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         DO ig = 1, ncons
-           CALL section_vals_val_get(collective_section,"COLVAR",i_rep_section=ig, i_val=icolvar, error=error)
-           CPPostcondition(icolvar<=SIZE(colvar_p),cp_failure_level,routineP,error,failure)
-           IF (colvar_p(icolvar)%colvar%type_id==angle_colvar_id) isize = isize + 1
+           NULLIFY(cons_info%colvar_set(ig)%colvar)
+           CALL section_vals_val_get(collective_section,"COLVAR",i_rep_section=ig,&
+                i_val=icolvar, error=error)
+           CALL colvar_clone(cons_info%colvar_set(ig)%colvar,&
+                colvar_p(icolvar)%colvar, error=error)
+           CALL section_vals_val_get(collective_section,"MOLECULE",i_val=cons_info%const_colv_mol(ig),&
+                i_rep_section=ig,error=error)
+           CALL section_vals_val_get(collective_section,"TARGET",&
+                r_val=cons_info%const_colv_target(ig),i_rep_section=ig, error=error)
         END DO
-        IF (isize /= 0) THEN
-           ! Not implemented yet
-           CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
-        END IF
-        ! TORSION
-        isize = 0
-        DO ig = 1, ncons
-           CALL section_vals_val_get(collective_section,"COLVAR",i_rep_section=ig, i_val=icolvar, error=error)
-           CPPostcondition(icolvar<=SIZE(colvar_p),cp_failure_level,routineP,error,failure)
-           IF (colvar_p(icolvar)%colvar%type_id==torsion_colvar_id) isize = isize + 1
-        END DO
-        IF (isize /= 0) THEN
-           ! Not implemented yet
-           CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
-        END IF
      END IF
   END IF
-
+  
 END SUBROUTINE read_constraints_section
 
 END MODULE topology_input

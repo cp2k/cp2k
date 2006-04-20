@@ -94,3 +94,10 @@ water_IPBV_flex.inp
 water_IPBV.inp
 #  
 water_3_g3x3.inp
+#resetting after new collective constraint scheme
+water_3_dist.inp
+water32_hbonds_2.inp
+water_hbonds_dist.inp
+nh3_dist.inp
+nh3_dist_npt.inp
+

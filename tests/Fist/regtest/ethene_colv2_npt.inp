@@ -1,0 +1,77 @@
+
+&FORCE_EVAL
+  &MM
+    &FORCEFIELD
+      parmfile charmm.pot
+      parmtype CHM
+      &CHARGE
+        ATOM CE2
+        CHARGE -0.42
+      &END CHARGE
+      &CHARGE
+        ATOM HE2
+        CHARGE 0.21
+      &END CHARGE
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE spme
+        ALPHA .44
+        GMAX 24
+        O_SPLINE 6
+      &END EWALD
+    &END POISSON
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC 24.955 24.955 24.955
+      UNIT ANGSTROM
+    &END CELL
+    &TOPOLOGY
+      COORD_FILE ../sample_pdb/ethene.pdb
+      COORDINATE pdb
+    &END TOPOLOGY
+    &CONSTRAINT
+      &COLLECTIVE
+        TARGET 0.34905
+        MOLECULE 1
+        COLVAR 1
+      &END COLLECTIVE
+      &COLLECTIVE
+        TARGET 2.09433
+        MOLECULE 1
+        COLVAR 2
+      &END COLLECTIVE
+    &END CONSTRAINT
+    &COLVAR
+      &TORSION
+        ATOMS 3 2 1 4
+      &END
+    &END
+    &COLVAR
+      &ANGLE
+        ATOMS 5 1 3
+      &END
+    &END
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  FFTLIB FFTW
+  PROGRAM FIST
+  PROJECT ethene
+  RUN_TYPE md
+&END GLOBAL
+&MOTION
+  &MD
+    ENSEMBLE NPT_I
+    STEPS 50
+    TIMESTEP 2.5
+    TEMPERATURE 298
+    &NOSE
+      LENGTH 1
+      YOSHIDA 3
+      TIMECON 500
+      MTS 2
+    &END NOSE
+  &END MD
+&END MOTION

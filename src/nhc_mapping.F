@@ -41,14 +41,14 @@ MODULE nhc_mapping
   USE message_passing,                 ONLY: mp_allgather,&
                                              mp_bcast,&
                                              mp_sum
-  USE molecule_kind_types,             ONLY: colvar_counters,&
-                                             get_molecule_kind,&
+  USE molecule_kind_types,             ONLY: get_molecule_kind,&
                                              molecule_kind_type
   USE molecule_types_new,              ONLY: get_molecule,&
                                              molecule_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
-
+  USE colvar_types,                    ONLY: colvar_counters
+                                             
   IMPLICIT NONE
 
   PRIVATE
@@ -352,7 +352,7 @@ SUBROUTINE nhc_to_particle_mapping ( simpar, local_molecules, molecule_set, &
            icount = icount + 1
            point ( 1, icount ) = atm_offset + 1 
            point ( 2, icount ) = atm_offset + natom 
-           const_mol ( icount ) =  ncolv%ndist + 3 *  n3x3con + 6 * n4x6con
+           const_mol ( icount ) =  ncolv%ntot + 3 *  n3x3con + 6 * n4x6con
            tot_const ( icount ) = const_mol ( icount )
            atm_offset =  point ( 2, icount )
          END DO
@@ -372,7 +372,7 @@ SUBROUTINE nhc_to_particle_mapping ( simpar, local_molecules, molecule_set, &
         molecule_kind => molecule_kind_set ( ikind )
         CALL get_molecule_kind ( molecule_kind, natom=natom, ncolv = ncolv, &
                                  ng3x3 = n3x3con, ng4x6 = n4x6con, nmolecule=nmolecule )
-        const_mol ( ikind ) =  ncolv%ndist + 3 * n3x3con + 6 * n4x6con
+        const_mol ( ikind ) =  ncolv%ntot + 3 * n3x3con + 6 * n4x6con
         tot_const ( ikind ) = const_mol ( ikind ) * nmolecule
         point ( 1, ikind ) = atm_offset + 1 
         point ( 2, ikind ) = atm_offset + natom * nmol_per_kind

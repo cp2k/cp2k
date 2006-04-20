@@ -40,8 +40,8 @@ MODULE molecule_types_new
 ! *** Data types ***
   TYPE local_colvar_constraint_type
      TYPE(colvar_type),POINTER     :: colvar
-     REAL(KIND = dp)               :: lambda, scale, scale_old, sigma
-     REAL(KIND = dp), DIMENSION(3) :: f, ra_old, rb_old
+     TYPE(colvar_type),POINTER     :: colvar_old
+     REAL(KIND = dp)               :: lambda, sigma
   END TYPE local_colvar_constraint_type
 
   TYPE local_g3x3_constraint_type
@@ -171,8 +171,10 @@ CONTAINS
          IF (ASSOCIATED(molecule_set(imolecule)%lci)) THEN
             IF (ASSOCIATED(molecule_set(imolecule)%lci%lcolv)) THEN
                DO j = 1, SIZE(molecule_set(imolecule)%lci%lcolv)
-                  CALL colvar_release(molecule_set(imolecule)%lci%lcolv(j)%colvar)             
+                  CALL colvar_release(molecule_set(imolecule)%lci%lcolv(j)%colvar)
+                  CALL colvar_release(molecule_set(imolecule)%lci%lcolv(j)%colvar_old)
                   NULLIFY(molecule_set(imolecule)%lci%lcolv(j)%colvar)
+                  NULLIFY(molecule_set(imolecule)%lci%lcolv(j)%colvar_old)
                END DO
                DEALLOCATE (molecule_set(imolecule)%lci%lcolv,STAT=istat)
                IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&

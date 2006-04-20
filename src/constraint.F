@@ -20,7 +20,8 @@
 MODULE constraint
   USE cell_types,                      ONLY: cell_type
   USE colvar_methods,                  ONLY: colvar_eval_mol_f
-  USE colvar_types,                    ONLY: dist_colvar_id
+  USE colvar_types,                    ONLY: dist_colvar_id,&
+                                             colvar_counters
   USE constraint_3x3,                  ONLY: rattle_3x3,&
                                              rattle_roll_3x3,&
                                              shake_3x3,&
@@ -29,10 +30,10 @@ MODULE constraint
                                              rattle_roll_4x6,&
                                              shake_4x6,&
                                              shake_roll_4x6
-  USE constraint_clv,                  ONLY: rattle,&
-                                             rattle_roll,&
-                                             shake,&
-                                             shake_roll
+  USE constraint_clv,                  ONLY: rattle_colv,&
+                                             rattle_roll_colv,&
+                                             shake_colv,&
+                                             shake_roll_colv
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE input_constants,                 ONLY: npt_f_ensemble,&
@@ -41,7 +42,6 @@ MODULE constraint
   USE md,                              ONLY: simulation_parameters_type
   USE message_passing,                 ONLY: mp_sum
   USE molecule_kind_types,             ONLY: colvar_constraint_type,&
-                                             colvar_counters,&
                                              g3x3_constraint_type,&
                                              g4x6_constraint_type,&
                                              get_molecule_kind,&
@@ -58,6 +58,10 @@ MODULE constraint
   USE util,                            ONLY: matmul_3x3,&
                                              transpose_3d
   USE virial_types,                    ONLY: virial_type
+  USE colvar_types, ONLY: dist_colvar_id
+  USE colvar_methods, ONLY: colvar_eval_mol_f
+  USE atomic_kind_types, ONLY: atomic_kind_type, get_atomic_kind
+
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -83,30 +87,41 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
   SUBROUTINE shake_control( local_molecules, molecule_set, molecule_kind_set, &
-       particle_set, pos, vel, simpar )
+       particle_set, pos, vel, simpar, cell, error )
 
     TYPE(distribution_1d_type), POINTER      :: local_molecules
     TYPE(molecule_type), POINTER             :: molecule_set( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
-    TYPE(particle_type), POINTER             :: particle_set( : )
+    TYPE(particle_type), POINTER             :: particle_set( : )   
     REAL(KIND=dp), INTENT(INOUT)             :: pos( :, : ), vel( :, : )
+    TYPE(cell_type), POINTER                 :: cell
     TYPE(simulation_parameters_type), &
       INTENT(IN)                             :: simpar
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error 
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'shake_control', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, ikind, imol, &
-                                                ishake, n3x3con, n4x6con, &
+                                                n3x3con, n4x6con, &
                                                 nkind, nmol_per_kind
     REAL(KIND=dp)                            :: max_sigma
     TYPE(colvar_counters)                    :: ncolv
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    REAL(KIND=dp)                            :: mass
+    INTEGER                                  :: k
+    REAL(KIND=dp), DIMENSION(SIZE(pos,2))    :: imass
 
     CALL timeset ( routineN, 'I', ' ', handle )
     nkind = SIZE ( molecule_kind_set )
-
+    DO k = 1, SIZE(pos,2)
+       atomic_kind=>particle_set (k) % atomic_kind
+       CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+       imass(k) = 1.0_dp/mass
+    END DO
     MOL:  DO ikind = 1, nkind
        nmol_per_kind = local_molecules % n_el ( ikind )
        DO imol = 1, nmol_per_kind
@@ -118,25 +133,16 @@ CONTAINS
 
           ! 3x3
           IF ( n3x3con /= 0 ) CALL shake_3x3( molecule, particle_set,  &
-               pos, vel, simpar, ishake )
+               pos, vel, simpar )
 
           ! 4x6
           IF ( n4x6con /= 0 ) CALL shake_4x6( molecule, particle_set, &
-               pos, vel, simpar, ishake )
+               pos, vel, simpar )
 
-          !
           ! collective variables
-          !
-          ishake = 0       
-          IF ( ncolv%ndist /= 0 ) THEN
-             max_sigma = -1.0E+10_dp
-             CONS: DO WHILE (ABS(max_sigma)>=simpar%shake_tol)
-                max_sigma = 0.0_dp
-                ishake = ishake + 1
-                CALL shake( molecule, particle_set, pos, vel, simpar, &
-                     max_sigma,ishake )
-             END DO CONS
-          END IF
+          IF ( ncolv%ntot /= 0 ) CALL shake_colv(molecule, particle_set,&
+               pos, vel, simpar, cell, ncolv, imass, error )
+
        END DO
     END DO MOL
 
@@ -159,7 +165,7 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
   SUBROUTINE rattle_control( local_molecules, molecule_set, molecule_kind_set,  &
-       particle_set, vel, simpar )
+       particle_set, vel, simpar, cell, error )
 
     TYPE(distribution_1d_type), POINTER      :: local_molecules
     TYPE(molecule_type), POINTER             :: molecule_set( : )
@@ -168,20 +174,31 @@ CONTAINS
     REAL(KIND=dp), INTENT(INOUT)             :: vel( :, : )
     TYPE(simulation_parameters_type), &
       INTENT(IN)                             :: simpar
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error 
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'rattle_control', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, ikind, imol, &
-                                                irattle, n3x3con, n4x6con, &
+                                                n3x3con, n4x6con, &
                                                 nkind, nmol_per_kind
-    REAL(KIND=dp)                            :: max_sigma
     TYPE(colvar_counters)                    :: ncolv
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    REAL(KIND=dp)                            :: mass
+    INTEGER                                  :: k
+    REAL(KIND=dp), DIMENSION(SIZE(vel,2))    :: imass
 
     CALL timeset ( routineN, 'I', ' ', handle )
     nkind = SIZE ( molecule_kind_set )
+    DO k = 1, SIZE(vel,2)
+       atomic_kind=>particle_set (k) % atomic_kind
+       CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+       imass(k) = 1.0_dp/mass
+    END DO
     MOL: DO ikind = 1, nkind
        nmol_per_kind = local_molecules % n_el ( ikind )
        DO imol = 1, nmol_per_kind
@@ -196,16 +213,10 @@ CONTAINS
           ! 4x6
           IF ( n4x6con /= 0 ) CALL rattle_4x6 ( molecule, particle_set, vel, simpar )
 
-          irattle = 0
-          ! dist
-          IF ( ncolv%ndist /= 0 ) THEN
-             max_sigma = -1.0E+10_dp
-             CONS: DO WHILE ( ABS ( max_sigma ) >= simpar % shake_tol )
-                max_sigma = 0.0_dp
-                irattle = irattle + 1
-                CALL rattle ( molecule, particle_set, vel, simpar, max_sigma, irattle )
-             END DO CONS
-          END IF
+          ! collective variables
+          IF ( ncolv%ntot /= 0 ) CALL rattle_colv ( molecule, particle_set, vel, simpar,&
+               ncolv, cell, imass, error )
+
        END DO
     END DO MOL
     CALL timestop ( 0.0_dp, handle )
@@ -228,7 +239,7 @@ CONTAINS
 !******************************************************************************
   SUBROUTINE shake_roll_control( local_molecules, molecule_set, molecule_kind_set, &
        particle_set, pos, vel, simpar, roll_tol, iroll,  &
-       vector_r, vector_v, group, u )
+       vector_r, vector_v, group, u, cell, error )
 
     TYPE(distribution_1d_type), POINTER      :: local_molecules
     TYPE(molecule_type), POINTER             :: molecule_set( : )
@@ -243,18 +254,24 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: group
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(IN), OPTIONAL                   :: u
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'shake_roll_control', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, ikind, imol, &
-                                                ishake, n3x3con, n4x6con, &
+                                                n3x3con, n4x6con, &
                                                 nkind, nmol_per_kind
-    REAL(KIND=dp)                            :: max_sigma
-    REAL(KIND=dp), DIMENSION(3, 3)           :: r_shake, v_shake
     TYPE(colvar_counters)                    :: ncolv
+    REAL(KIND=dp), DIMENSION(3, 3)           :: r_shake, v_shake
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    REAL(KIND=dp)                            :: mass
+    INTEGER                                  :: k
+    REAL(KIND=dp), DIMENSION(SIZE(pos,2))    :: imass
 
     CALL timeset ( routineN, 'I', ' ', handle )
     nkind = SIZE ( molecule_kind_set )
@@ -264,7 +281,11 @@ CONTAINS
     ELSE IF ( simpar % ensemble == npt_f_ensemble ) THEN
        CALL get_roll_matrix ('SHAKE', r_shake, v_shake, vector_r, vector_v, u )
     END IF
-
+    DO k = 1, SIZE(pos,2)
+       atomic_kind=>particle_set (k) % atomic_kind
+       CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+       imass(k) = 1.0_dp/mass
+    END DO
     MOL:  DO ikind = 1, nkind
        nmol_per_kind = local_molecules % n_el ( ikind )
        DO imol = 1, nmol_per_kind
@@ -276,26 +297,15 @@ CONTAINS
 
           ! 3x3
           IF ( n3x3con /= 0 ) CALL shake_roll_3x3( molecule, particle_set,  &
-               pos, vel, r_shake, v_shake, &
-               simpar, ishake )
+               pos, vel, r_shake, v_shake, simpar )
 
           ! 4x6
           IF ( n4x6con /= 0 ) CALL shake_roll_4x6( molecule, particle_set, &
-               pos, vel, r_shake, v_shake, &
-               simpar, ishake )
+               pos, vel, r_shake, v_shake, simpar )
 
-          ishake = 0
-
-          ! dist
-          IF ( ncolv%ndist /= 0 ) THEN
-             max_sigma = -1.0E+10_dp
-             CONS: DO WHILE (ABS(max_sigma)>=simpar%shake_tol)
-                max_sigma = 0.0_dp
-                ishake = ishake + 1
-                CALL shake_roll( molecule, particle_set, pos, vel, &
-                     r_shake, v_shake, simpar, max_sigma,ishake )
-             END DO CONS
-          END IF
+          ! collective variables
+          IF ( ncolv%ntot /= 0 ) CALL shake_roll_colv( molecule, particle_set, pos, vel, &
+                     r_shake, v_shake, simpar, ncolv, cell, imass, error )
        END DO
     END DO MOL
 
@@ -321,7 +331,7 @@ CONTAINS
 !******************************************************************************
   SUBROUTINE rattle_roll_control( local_molecules, molecule_set, molecule_kind_set, &
        particle_set, vel, simpar, virial, vector,   &
-       veps, mass, roll_tol, iroll, para_env, u )
+       veps, mass, roll_tol, iroll, para_env, u, cell, error )
 
     TYPE(distribution_1d_type), POINTER      :: local_molecules
     TYPE(molecule_type), POINTER             :: molecule_set( : )
@@ -341,18 +351,24 @@ CONTAINS
     TYPE(cp_para_env_type), INTENT(IN)       :: para_env
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(IN), OPTIONAL                   :: u
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'rattle_roll_control', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, ikind, imol, &
-                                                irattle, n3x3con, n4x6con, &
+                                                n3x3con, n4x6con, &
                                                 nkind, nmol_per_kind
-    REAL(KIND=dp)                            :: max_sigma
-    REAL(KIND=dp), DIMENSION(3, 3)           :: r_rattle
     TYPE(colvar_counters)                    :: ncolv
+    REAL(KIND=dp), DIMENSION(3, 3)           :: r_rattle
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    REAL(KIND=dp)                            :: amass
+    INTEGER                                  :: k
+    REAL(KIND=dp), DIMENSION(SIZE(vel,2))    :: imass
 
     CALL timeset ( routineN, 'I', ' ', handle )
     ! initialize locals
@@ -363,6 +379,11 @@ CONTAINS
     ELSE IF ( simpar % ensemble == npt_f_ensemble ) THEN
        CALL get_roll_matrix ('RATTLE', v_shake=r_rattle, vector_v=vector, u=u )
     END IF
+    DO k = 1, SIZE(vel,2)
+       atomic_kind=>particle_set (k) % atomic_kind
+       CALL get_atomic_kind(atomic_kind=atomic_kind,mass=amass)
+       imass(k) = 1.0_dp/amass
+    END DO
     MOL: DO ikind = 1, nkind
        nmol_per_kind = local_molecules % n_el ( ikind )
        DO imol = 1, nmol_per_kind
@@ -378,17 +399,11 @@ CONTAINS
           ! 4x6
           IF ( n4x6con /= 0 ) CALL rattle_roll_4x6 ( molecule, particle_set, vel, r_rattle, &
                simpar, veps )
-          irattle = 0 
-          ! dist
-          IF ( ncolv%ndist /= 0 )  THEN
-             max_sigma = -1.0E+10_dp
-             CONS: DO WHILE (ABS(max_sigma)>=simpar%shake_tol)
-                max_sigma = 0.0_dp
-                irattle = irattle + 1
-                CALL rattle_roll ( molecule, particle_set, vel, r_rattle, &
-                     simpar, veps, max_sigma, irattle )
-             END DO CONS
-          ENDIF
+
+          ! collective variables
+          IF ( ncolv%ntot /= 0 )CALL rattle_roll_colv ( molecule, particle_set, vel, r_rattle, &
+                     simpar, veps, ncolv, cell, imass, error  )
+
        END DO
     END DO MOL
 
@@ -454,17 +469,11 @@ CONTAINS
                colv_list=colv_list, g3x3_list=g3x3_list, g4x6_list=g4x6_list )
           CALL get_molecule ( molecule, first_atom=first_atom, &
                lcolv=lcolv, lg3x3=lg3x3, lg4x6=lg4x6 )
-          ! distance constraints
+          ! Collective constraints
           IF (ASSOCIATED(colv_list)) THEN
              DO iconst = 1, SIZE(colv_list)
-                CALL colvar_eval_mol_f(lcolv ( iconst ) % colvar, cell,&
+                CALL colvar_eval_mol_f(lcolv ( iconst ) % colvar_old, cell,&
                      particles=particle_set, error=error)
-                IF ( colv_list ( iconst ) % type_id == dist_colvar_id ) THEN
-                   index = colv_list ( iconst ) % i_atoms(1) + first_atom - 1
-                   lcolv ( iconst ) % ra_old = particle_set ( index ) % r 
-                   index = colv_list ( iconst ) % i_atoms(2) + first_atom - 1
-                   lcolv ( iconst ) % rb_old = particle_set ( index ) % r 
-                END IF
              ENDDO
           END IF
           ! 3x3 constraints
@@ -551,40 +560,7 @@ CONTAINS
           ! dist
           IF (ASSOCIATED(colv_list)) THEN
              DO iconst = 1, SIZE(colv_list)
-                IF ( colv_list ( iconst ) % type_id == dist_colvar_id ) THEN
-                   !  pv gets updated with FULL multiplier
-                   
-                   lambda = lcolv ( iconst ) % lambda
-                   index_a = colv_list ( iconst ) % i_atoms(1) + first_atom -1
-                   index_b = colv_list ( iconst ) % i_atoms(2) + first_atom -1
-                   !pv(1,1)
-                   pv(1,1) = pv(1,1) + lambda*lcolv ( iconst ) %f(1)*particle_set ( index_a ) % r ( 1 )
-                   pv(1,1) = pv(1,1) - lambda*lcolv ( iconst ) %f(1)*particle_set ( index_b ) % r ( 1 )
-                   !pv(1,2)
-                   pv(1,2) = pv(1,2) + lambda*lcolv ( iconst ) %f(1)*particle_set ( index_a ) % r ( 2 )
-                   pv(1,2) = pv(1,2) - lambda*lcolv ( iconst ) %f(1)*particle_set ( index_b ) % r ( 2 )
-                   !pv(1,3)
-                   pv(1,3) = pv(1,3) + lambda*lcolv ( iconst ) %f(1)*particle_set ( index_a ) % r ( 3 )
-                   pv(1,3) = pv(1,3) - lambda*lcolv ( iconst ) %f(1)*particle_set ( index_b ) % r ( 3 )
-                   !pv(2,1)
-                   pv(2,1) = pv(2,1) + lambda*lcolv ( iconst ) %f(2)*particle_set ( index_a ) % r ( 1 )
-                   pv(2,1) = pv(2,1) - lambda*lcolv ( iconst ) %f(2)*particle_set ( index_b ) % r ( 1 )
-                   !pv(2,2)
-                   pv(2,2) = pv(2,2) + lambda*lcolv ( iconst ) %f(2)*particle_set ( index_a ) % r ( 2 )
-                   pv(2,2) = pv(2,2) - lambda*lcolv ( iconst ) %f(2)*particle_set ( index_b ) % r ( 2 )
-                   !pv(2,3)
-                   pv(2,3) = pv(2,3) + lambda*lcolv ( iconst ) %f(2)*particle_set ( index_a ) % r ( 3 )
-                   pv(2,3) = pv(2,3) - lambda*lcolv ( iconst ) %f(2)*particle_set ( index_b ) % r ( 3 )
-                   !pv(3,1)
-                   pv(3,1) = pv(3,1) + lambda*lcolv ( iconst ) %f(3)*particle_set ( index_a ) % r ( 1 )
-                   pv(3,1) = pv(3,1) - lambda*lcolv ( iconst ) %f(3)*particle_set ( index_b ) % r ( 1 )
-                   !pv(3,2)
-                   pv(3,2) = pv(3,2) + lambda*lcolv ( iconst ) %f(3)*particle_set ( index_a ) % r ( 2 )
-                   pv(3,2) = pv(3,2) - lambda*lcolv ( iconst ) %f(3)*particle_set ( index_b ) % r ( 2 )
-                   !pv(3,3)
-                   pv(3,3) = pv(3,3) + lambda*lcolv ( iconst ) %f(3)*particle_set ( index_a ) % r ( 3 )
-                   pv(3,3) = pv(3,3) - lambda*lcolv ( iconst ) %f(3)*particle_set ( index_b ) % r ( 3 )
-                END IF
+                CALL pv_colv_eval(pv, lcolv ( iconst ), particle_set)
              END DO
           END IF
           ! 3x3
@@ -718,6 +694,47 @@ CONTAINS
     virial % pv_constraint = pv
 
   END SUBROUTINE pv_constraint
+
+!!****** constraint/check_tol [1.0] *
+!!
+!!   NAME
+!!     check_tol
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   SOURCE
+!******************************************************************************
+  SUBROUTINE pv_colv_eval(pv, lcolv, particle_set)
+    IMPLICIT NONE
+    ! Arguments
+    REAL(KIND=dp), INTENT(INOUT), DIMENSION(3,3) :: pv
+    TYPE(local_colvar_constraint_type), &
+         INTENT(IN)                              :: lcolv
+    TYPE(particle_type), POINTER, dimension(:)   :: particle_set
+    ! Local Variables
+    INTEGER :: iatm, ind, i, j
+    REAL(KIND=dp), DIMENSION(3) :: f
+    REAL(KIND=dp)               :: tmp, lambda
+
+    DO iatm = 1, SIZE( lcolv % colvar_old % i_atom )
+       ind =   lcolv % colvar_old % i_atom (iatm)
+       f   = - lcolv % colvar_old % dsdr(:,iatm)
+       !  pv gets updated with FULL multiplier                      
+       lambda = lcolv % lambda
+       DO i = 1,3
+          tmp = lambda * particle_set(ind)%r(i)
+          DO j = 1,3
+             pv(j,i) = pv(j,i) + f(j) * tmp
+          END DO
+       END DO
+    END DO
+
+  END SUBROUTINE pv_colv_eval
 
 !!****** constraint/check_tol [1.0] *
 !!

@@ -63,14 +63,13 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE shake_3x3( molecule, particle_set, pos, vel, simpar, ishake )
+  SUBROUTINE shake_3x3( molecule, particle_set, pos, vel, simpar )
 
     TYPE(molecule_type), POINTER             :: molecule
     TYPE(particle_type), POINTER             :: particle_set( : )
     REAL(KIND=dp), INTENT(INOUT)             :: pos( :, : ), vel( :, : )
     TYPE(simulation_parameters_type), &
       INTENT(IN)                             :: simpar
-    INTEGER, INTENT(OUT)                     :: ishake
 
     INTEGER                                  :: first_atom, iconst, index_a, &
                                                 index_b, index_c, ng3x3
@@ -87,6 +86,7 @@ CONTAINS
     TYPE(local_g3x3_constraint_type), &
       POINTER                                :: lg3x3( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
+    INTEGER                                  :: ishake
 
     dtsqby2 = simpar%dt*simpar%dt*.5_dp
     idtsq = 1.0_dp/simpar%dt/simpar%dt
@@ -211,7 +211,7 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
   SUBROUTINE shake_roll_3x3( molecule, particle_set, pos, vel, r_shake,  &
-       v_shake, simpar, ishake )
+       v_shake, simpar )
 
     TYPE(molecule_type), POINTER             :: molecule
     TYPE(particle_type), POINTER             :: particle_set( : )
@@ -220,10 +220,9 @@ CONTAINS
       INTENT(IN)                             :: r_shake, v_shake
     TYPE(simulation_parameters_type), &
       INTENT(IN)                             :: simpar
-    INTEGER, INTENT(OUT)                     :: ishake
 
     INTEGER                                  :: first_atom, iconst, index_a, &
-                                                index_b, index_c, ng3x3
+                                                index_b, index_c, ng3x3, ishake
     REAL(KIND=dp)                            :: dtby2, dtsqby2, idtsq, &
                                                 imass1, imass2, imass3, mass, &
                                                 max_sigma, sigma

@@ -939,7 +939,7 @@ CONTAINS
        !
        CALL keyword_create(keyword, name="SHAKE",&
             description="Set the tolerance for the shake constraint algorithm.",&
-            usage="SHAKE real",&
+            usage="SHAKE <REAL>",&
             default_r_val=1.0E-6_dp,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -1006,7 +1006,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        CALL section_create(section,name="COLLECTIVE",&
             description="This section is used to constraint collective (general) degrees of freedom"//&
-            "using general routines, and writing langrangian multipliers to file ",&
+            "using general routines, and writing langrangian multipliers to file",&
             n_subsections=0, repeats=.TRUE., required=.TRUE.,&
             error=error)
        NULLIFY(keyword)
@@ -1019,9 +1019,8 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="MOLECULE",&
-            variants=(/"MOL"/),&
-            description="Specifies the molecule number on which constraint will be applied",&
-            usage="MOL {integer}", required=.TRUE., n_var=1, type_of_var=integer_t, error=error)
+            description="Specifies the index of the molecule kind on which constraint will be applied",&
+            usage="MOLECULE {integer}", required=.TRUE., n_var=1, type_of_var=integer_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
