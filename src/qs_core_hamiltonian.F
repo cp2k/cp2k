@@ -87,6 +87,7 @@ MODULE qs_core_hamiltonian
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
+  USE cp_para_types,                   ONLY: cp_para_env_type 
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
@@ -129,7 +130,8 @@ MODULE qs_core_hamiltonian
   USE qs_oce_methods,                  ONLY: set_up_oce
   USE qs_oce_types,                    ONLY: &
        allocate_oce_set, allocate_vtriple, build_reduced_3c_lists, &
-       create_oce_set, dist_list_4oce_type, oce_matrix_type, &
+       create_oce_set, deallocate_vtriple, dist_list_4oce_type,&
+       oce_matrix_type, &
        prepare_oce_coeff, retrieve_sac_list, vtriple_type
   USE qs_overlap,                      ONLY: write_matrix_distribution,&
                                              write_sparse_matrix
@@ -308,6 +310,7 @@ CONTAINS
     INTEGER :: neighbor_list_id
 
     TYPE(harris_env_type), POINTER              :: harris_env
+    TYPE(cp_para_env_type), POINTER             :: para_env
     TYPE(section_vals_type), POINTER            :: input
     TYPE(section_vals_type), POINTER            :: lr_section, xas_section
 
@@ -362,6 +365,7 @@ CONTAINS
     NULLIFY (matrix_v)
     NULLIFY (workt)
     NULLIFY (harris_env)
+    NULLIFY (para_env)
 
 
 ! Default
@@ -394,7 +398,7 @@ CONTAINS
                     scf_control=scf_control,&
                     distribution_2d=distribution_2d,&
                     virial = virial,&
-                    input=input)
+                    input=input,para_env=para_env)
 
     nkind = SIZE(atomic_kind_set)
     natom = SIZE(particle_set)
@@ -1237,11 +1241,11 @@ CONTAINS
                                     reduced_3c_oce=reduced_3c_oce)
 !            *** Build reduced 3-center lists
               IF(.NOT. calculate_forces) &
-                CALL build_reduced_3c_lists(atomic_kind_set, iatom, jatom, jkind,&
-                                          sbc_oce, oce%voce, reduced_3c_oce, .TRUE.)
+                CALL build_reduced_3c_lists(atomic_kind_set, iatom, jatom,&
+                     ikind, jkind, sbc_oce, oce%voce, reduced_3c_oce,.TRUE.,error)
 
 !            *** Calculate the coefficients of the one center expansions ***
-              CALL set_up_oce(atomic_kind_set,reduced_3c_oce,oce,&
+                CALL set_up_oce(atomic_kind_set,reduced_3c_oce,oce,&
                               ikind,iatom,jkind,jatom,rab,&
                               oceh,oces,nder,dist_list,error=error)
             END IF
@@ -1251,8 +1255,8 @@ CONTAINS
                                     reduced_3c_rho0=reduced_3c_rho0)
 !            *** Build reduced 3-center lists
               IF(.NOT. calculate_forces) &
-                CALL build_reduced_3c_lists(atomic_kind_set, iatom, jatom, jkind,&
-                                          sbc_3c, VH_3c_list, reduced_3c_rho0, .FALSE.)
+                CALL build_reduced_3c_lists(atomic_kind_set, iatom, jatom, &
+                    ikind, jkind, sbc_3c, VH_3c_list, reduced_3c_rho0,.FALSE.,error)
             END IF
 
             IF (calculate_forces) atom_b = atom_of_kind(jatom)
@@ -2053,14 +2057,17 @@ CONTAINS
       END DO ! jkind
 
     END DO ! ikind
+
+!  stop 'pippo'
+
 !   *** Put the core Hamiltonian matrix in the QS environment ***
 
     CALL set_qs_env(qs_env=qs_env,&
                     matrix_s=matrix_s,&
                     kinetic=matrix_t,&
                     matrix_h=matrix_h,&
-                    oce=oce,&
-                    VH_3c_list=VH_3c_list)
+                    oce=oce)!,&
+                    !VH_3c_list=VH_3c_list)
 !   *** Release work storage ***
 
     IF (ppl_present) THEN
@@ -2098,6 +2105,14 @@ CONTAINS
       DEALLOCATE (vallt,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "vallt")
+    END IF
+
+!   Maybe the vlist can be deallocated already here
+    IF(ASSOCIATED(oce))THEN
+      CALL deallocate_vtriple(oce%voce)
+    END IF
+    IF(ASSOCIATED(VH_3c_list))THEN
+      CALL deallocate_vtriple(VH_3c_list)
     END IF
 
     DEALLOCATE (habt,STAT=istat)

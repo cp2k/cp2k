@@ -446,7 +446,10 @@ MODULE qs_rho_atom_methods
       POINTER                                :: p_block_spin
     TYPE(rho_atom_type), DIMENSION(:), &
       POINTER                                :: rho_atom
-
+!dbg
+!    INTEGER :: num
+!    REAL(dp) :: maxelement,minelement,sumelemet
+!dbg 
 !
 ! *****************************************************************************
 
@@ -465,6 +468,10 @@ MODULE qs_rho_atom_methods
             atomic_kind_set=atomic_kind_set,&
             oce=oce,sab_orb=sab_orb,&
             rho_atom_set=rho_atom)
+
+!dbg
+!   num = qs_env%para_env%mepos + 200
+!dbg
 
     IF (PRESENT(rho_atom_set)) rho_atom => rho_atom_set
 
@@ -690,11 +697,18 @@ MODULE qs_rho_atom_methods
                                  C_coeff_hh_b,SIZE(C_coeff_hh_b,1),&
                                  0.0_dp,PC,max_nsgf)
 
-
+!dbg
+! coef_aux_h=0.0_dp
+!dbg
                       CALL dgemm('N','N',nsoctot,nsoctot,nsgfa,&
                                  1.0_dp,C_coeff_hh_a,SIZE(C_coeff_hh_a,1),&
                                  PC,max_nsgf,0.0_dp,&
                                  coef_aux_h(1,1,ispin),max_gau)
+!dbg
+!  maxelement = MAXVAL(coef_aux_h)
+!  minelement = MINVAL(coef_aux_h)
+!  write(num,'(A,3I5,2f12.6)') 'cpc ', iatom, jatom, katom, maxelement,minelement
+!dbg
 
                       CALL dgemm('N','T',nsgfa,nsoctot,nsgfb,1.0_dp,&
                                  p_block_spin(ispin)%r_coef,&
@@ -733,12 +747,20 @@ MODULE qs_rho_atom_methods
                                  C_coeff_hh_a,SIZE(C_coeff_hh_a,1),&
                                  0.0_dp,PC,max_nsgf)
 
+!dbg
+! coef_aux_h=0.0_dp
+!dbg
 
                       CALL dgemm('N','N',nsoctot,nsoctot,nsgfb,&
                                  1.0_dp,C_coeff_hh_b,SIZE(C_coeff_hh_b,1),&
                                  PC,max_nsgf,0.0_dp,&
                                  coef_aux_h(1,1,ispin),max_gau)
 
+!dbg
+!  maxelement = MAXVAL(coef_aux_h)
+!  minelement = MINVAL(coef_aux_h)
+!  write(num,'(A,3I5,2f12.6)') 'cpc ', jatom, iatom, katom, maxelement,minelement
+!dbg
                       CALL dgemm('N','T',nsgfb,nsoctot,nsgfa,1.0_dp,&
                                  p_block_spin(ispin)%r_coef,&
                                  SIZE(p_block_spin(ispin)%r_coef,1),&
@@ -796,7 +818,7 @@ MODULE qs_rho_atom_methods
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'init_rho_atom'
 
-    INTEGER :: ia, ikind, il, iso, iso1, iso2, istat, l1, l1l2, l2, la, lc1, &
+    INTEGER :: handle, ia, ikind, il, iso, iso1, iso2, istat, l1, l1l2, l2, la, lc1, &
       lc2, lcleb, ll, llmax, lmax_sphere, lp, m1, m2, max_s_harm, max_s_set, &
       maxlgto, mm, mp, na, nat, natom, nkind, nr, nspins, quadrature
     INTEGER, DIMENSION(:), POINTER           :: atom_list
@@ -815,6 +837,8 @@ MODULE qs_rho_atom_methods
       POINTER                                :: rho_atom_set
 
 ! -----------------------------------------------------------------------------
+
+    CALL timeset("init_rho_atom","I"," ",handle)
 
     NULLIFY(rho_atom_set)
     NULLIFY(atomic_kind_set)
@@ -972,6 +996,8 @@ MODULE qs_rho_atom_methods
 
     CALL set_qs_env(qs_env=qs_env, rho_atom_set=rho_atom_set)
 
+    CALL timestop(0.0_dp,handle)
+
   END SUBROUTINE init_rho_atom
 
 ! *****************************************************************************
@@ -984,7 +1010,7 @@ MODULE qs_rho_atom_methods
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_rho_atom_internals'
 
-    INTEGER :: iat, iatom, ikind, ispin, istat, j, max_iso_not0, maxso, nat, &
+    INTEGER :: handle, iat, iatom, ikind, ispin, istat, j, max_iso_not0, maxso, nat, &
       natom, nkind, nr, nset, nsotot, nspins, tmpstat
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: paw_atom
@@ -995,6 +1021,8 @@ MODULE qs_rho_atom_methods
     TYPE(harmonics_atom_type), POINTER       :: harmonics
 
 ! --------------------------------------------------------------------------
+
+    CALL timeset("allocate_rho_atom_internals","I"," ",handle)
 
     NULLIFY(atomic_kind_set)
     NULLIFY(rho_atom_set)
@@ -1142,6 +1170,8 @@ MODULE qs_rho_atom_methods
        END DO ! iat
 
     END DO
+
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE allocate_rho_atom_internals
 

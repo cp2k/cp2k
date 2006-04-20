@@ -269,6 +269,7 @@ CONTAINS
         END IF
      END IF
   END IF  ! use_kinetic_energy_density
+
   CALL timestop(0.0_dp,handle) 
 END SUBROUTINE qs_rho_rebuild
 !***************************************************************************

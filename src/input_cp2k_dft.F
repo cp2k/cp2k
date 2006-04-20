@@ -856,6 +856,14 @@ SUBROUTINE create_qs_section(section,error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error)
 
+     CALL keyword_create(keyword, name="EPS_3C_REDUCE",&
+          description="GAPW: Factor to reduce the precision in the construction"//&
+          " of the 3 center lists for the calculation of the OCE coefficients.",&
+          usage="EPS_3C_REDUCE real", default_r_val=1.0_dp,&
+          type_of_var=real_t, error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+
      CALL keyword_create(keyword, name="EPS_PPL",&
           description="Sets precision of the local part of the pseudo potential.Overrides EPS_DEFAULT/100.0 value",&
           usage="EPS_PPL real", type_of_var=real_t,&

@@ -447,10 +447,16 @@ CONTAINS
     REAL(KIND=dp)                            :: dac, dbc
     REAL(KIND=dp), DIMENSION(3)              :: rac, rbc, rdist
     TYPE(atomic_kind_type), POINTER          :: at_a, at_b, atomic_kind
+    TYPE(cp_logger_type), POINTER            :: logger
+    INTEGER :: mepos,num
 
 !   ---------------------------------------------------------------------------
 
     CALL timeset(routineN,"I"," ",handle)
+
+    logger => cp_error_get_logger(error)
+    mepos = logger%para_env%mepos
+    num = 1000+mepos
 
     nkind = SIZE(atomic_kind_set)
 
@@ -515,6 +521,7 @@ CONTAINS
                                  block_col=iatom,&
                                  BLOCK=oces(i)%block)
              ENDDO
+!       write(num,"(A,4I5)") 'aloc ', katom, iatom, size(oceh(1)%block,1),size(oceh(1)%block,2)
            END IF
            at_a => atomic_kind_set(kkind)
            at_b => atomic_kind_set(ikind)
@@ -566,6 +573,7 @@ CONTAINS
                                 block_col=jatom,&
                                 BLOCK=oces(i)%block)
              END DO
+!       write(num,"(A,4I5)") 'aloc ', katom, jatom, size(oceh(1)%block,1),size(oceh(1)%block,2)
            ELSE
              DO i=1,SIZE(oce%hardo)
                 NULLIFY (oceh(i)%block)

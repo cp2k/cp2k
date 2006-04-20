@@ -701,7 +701,8 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    rab = rac - rbc
+!    rab = rac - rbc
+    rab = rbc - rac
     rab2= SUM( rab**2 )
     dab = SQRT(rab2)
 
@@ -740,7 +741,9 @@ CONTAINS
 
 !       *** Calculate the basic two-center moment integral [s|M|s] ***
 
-        rpc = -zetp*(zeta(ipgf)*rac+zetb(jpgf)*rbc)
+
+      
+        rpc = zetp*(zeta(ipgf)*rac+zetb(jpgf)*rbc)
         s(1,1,1) = f0*EXP(-zeta(ipgf)*f1*rab2)
         DO l=2, ncoset(lc_max)
           lx = indco(1,l)

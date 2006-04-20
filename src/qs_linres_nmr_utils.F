@@ -76,7 +76,8 @@ MODULE qs_linres_nmr_utils
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_linres_methods,               ONLY: linres_scf
-  USE qs_linres_nmr_current,           ONLY: nmr_response_current
+  USE qs_linres_nmr_current,           ONLY: nmr_response_current,&
+                                             test_func
   USE qs_linres_nmr_op,                ONLY: set_vecp
   USE qs_linres_types,                 ONLY: linres_control_type,&
                                              nmr_env_create,&
@@ -203,6 +204,8 @@ CONTAINS
          linres_control%converged = .FALSE.
          CALL linres_scf(p_env, qs_env, psi1, h1_psi0,error=error)
 
+!         CALL test_func(qs_env,psi1,nmr_env,error)
+
          IF(linres_control%converged) THEN
 
           ! the optimized wfns are copied in the  fm
@@ -246,7 +249,7 @@ CONTAINS
       END DO 
 !dbg
 
-    DO idir = 1,3 
+    DO idir = 1,-1!3 
 
       IF(.NOT. nmr_env%simplenmr_done(idir+3)) THEN
 
@@ -727,8 +730,8 @@ CONTAINS
      END DO
 
      ! x  y z   x2 xy xz y2 yz z2 operators (in this order)
-     CALL allocate_matrix_set(nmr_env%op_mom_ao,3)
-     DO idir = 1,3 
+     CALL allocate_matrix_set(nmr_env%op_mom_ao,9)
+     DO idir = 1,SIZE(nmr_env%op_mom_ao,1)
        CALL replicate_matrix_structure(matrix_s(1)%matrix, &
             nmr_env%op_mom_ao(idir)%matrix,&
             "nmr_env%op_mom_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir))),&

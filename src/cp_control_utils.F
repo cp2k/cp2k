@@ -360,6 +360,7 @@ CONTAINS
     ! Gapw
     CALL gapw_control_create(qs_control%gapw_control)
 
+    CALL section_vals_val_get(qs_section,"EPS_3C_REDUCE",r_val=qs_control%gapw_control%eps_3c_reduce,error=error)
     CALL section_vals_val_get(qs_section,"EPSFIT",r_val=qs_control%gapw_control%eps_fit,error=error)
     CALL section_vals_val_get(qs_section,"EPSISO",r_val=qs_control%gapw_control%eps_iso,error=error)
     CALL section_vals_val_get(qs_section,"EPSSVD",r_val=qs_control%gapw_control%eps_svd,error=error)

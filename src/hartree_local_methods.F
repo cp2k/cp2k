@@ -44,7 +44,6 @@ MODULE  hartree_local_methods
                                              set_qs_env
   USE qs_grid_atom,                    ONLY: grid_atom_type
   USE qs_harmonics_atom,               ONLY: harmonics_atom_type
-  USE qs_oce_types,                    ONLY: vtriple_type
   USE qs_p_env_types,                  ONLY: qs_p_env_type
   USE qs_rho_atom_types,               ONLY: get_rho_atom,&
                                              rho_atom_coeff,&
@@ -99,11 +98,13 @@ MODULE  hartree_local_methods
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: paw_atom, my_tddft
 
-    INTEGER                                  :: iat, iatom, ikind, istat,&
+    INTEGER                                  :: handle, iat, iatom, ikind, istat,&
                                                 max_iso_not0, maxso, nat,&
                                                 natom, nkind, nr, nset, nsotot 
 
 !   ---------------------------------------------------------------------------
+
+    CALL timeset("init_coulomb_local","I"," ",handle)
 
     NULLIFY(atomic_kind_set)
     NULLIFY(atom_kind)
@@ -151,10 +152,13 @@ MODULE  hartree_local_methods
        p_env%hartree_local%vtriple => qs_env%hartree_local%vtriple
     END IF
 
+    CALL timestop(0.0_dp,handle)
+
   END SUBROUTINE init_coulomb_local
 
 
 !******************************************************************************
+
   SUBROUTINE calculate_Vh_1center(vrad_h,vrad_s,rrad_h,rrad_s,rrad_0,rrad_z,grid_atom)
 
     REAL(dp), DIMENSION(:,:), INTENT(OUT)      :: vrad_h, vrad_s
@@ -170,10 +174,12 @@ MODULE  hartree_local_methods
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)     :: rho_1, rho_2
     REAL(dp), DIMENSION(:), POINTER             :: wr
     REAL(dp), DIMENSION(:,:), POINTER          :: r2l, oor2l
-    INTEGER                                    :: ir, iso, ispin, l_ang, &
+    INTEGER                                    :: handle, ir, iso, ispin, l_ang, &
                                                   max_s_harm, nchannels, &
                                                   nr, nspins
 !   ---------------------------------------------------------------------------
+
+    CALL timeset("calculate_Vh_1center","I"," ",handle)
 
     nr = grid_atom%nr
     max_s_harm = SIZE(vrad_h,2)
@@ -242,6 +248,8 @@ MODULE  hartree_local_methods
     END DO
 
     DEALLOCATE(rho_1,rho_2)
+
+    CALL timestop(0.0_dp, handle)
 
   END SUBROUTINE calculate_Vh_1center
 

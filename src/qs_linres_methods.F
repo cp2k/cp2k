@@ -38,6 +38,7 @@ MODULE qs_linres_methods
                                              fm_pools_create_fm_vect,&
                                              fm_pools_give_back_fm_vect
   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
+                                             cp_fm_get_element,&
                                              cp_fm_maxabsval,&
                                              cp_fm_p_type,&
                                              cp_fm_release,&
@@ -48,6 +49,7 @@ MODULE qs_linres_methods
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
+  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: &
        do_loc_none, lr_cg, lr_diis, lr_ls_2pnt, lr_ls_3pnt, lr_ls_gold, &
@@ -233,7 +235,7 @@ CONTAINS
 
     INTEGER                                  :: handle, homo, i, ik, ispin, &
                                                 istat, iter, last_ik, &
-                                                nvectors, output_unit
+                                                nao, nvectors, output_unit
     LOGICAL                                  :: energy_only, failure, ionode, &
                                                 vec_zero
     REAL(dp)                                 :: eps_perturbation, &
@@ -280,37 +282,6 @@ CONTAINS
      output_unit = cp_print_key_unit_nr(logger,lr_section,"PRINT%PROGRAM_RUN_INFO",&
           extension=".linresLog",error=error)
 
-     IF(.NOT.  linres_control%do_kernel) THEN
-     ! Check the max size of the perturbation operator matrix elements
-       max_input_norm = 0.0_dp
-       eps_perturbation = 1.0E-10_dp
-       DO ispin = 1,dft_control%nspins
-         CALL get_mo_set(mo_set=mos(ispin)%mo_set,homo=homo )
-         ALLOCATE(vectorsnorm(homo), STAT=istat)
-         CALL cp_fm_vectorsnorm(h1_psi0(ispin)%matrix,vectorsnorm) 
-         DO i=1,homo
-           max_input_norm = MAX(max_input_norm,vectorsnorm(i))
-         END DO 
-         DEALLOCATE(vectorsnorm,STAT=istat)
-       END DO 
-
-       ! If too small set solution to zero and return
-       IF(max_input_norm .LT. eps_perturbation) THEN
-         DO ispin = 1,dft_control%nspins
-           CALL cp_fm_set_all(psi1(ispin)%matrix,0.0_dp,error=error)
-         END DO
-         IF(output_unit>0) THEN
-           WRITE (UNIT=output_unit,FMT="(T10,A/)")&
-           "The Perturbation is too small, psi1 remain zero. "
-         END IF
-         RETURN
-       END IF
-       max_input_norm = 1.0_dp / max_input_norm
-       DO ispin = 1,dft_control%nspins
-         CALL cp_fm_scale(max_input_norm,h1_psi0(ispin)%matrix,error=error)
-       END DO
-     END IF
-
      !----------------------!
      ! allocate the vectors !
      !----------------------!
@@ -336,6 +307,49 @@ CONTAINS
                name="Ab"//TRIM(ADJUSTL(cp_to_string(ispin))),error=error)
      END DO
 
+!    Scaling input for conditioning
+     IF(.NOT.  linres_control%do_kernel) THEN
+     ! Check the max size of the perturbation operator matrix elements
+       max_input_norm = 0.0_dp
+       eps_perturbation = 1.0E-10_dp
+       DO ispin = 1,dft_control%nspins
+         CALL get_mo_set(mo_set=mos(ispin)%mo_set,homo=homo,nao=nao )
+         CALL cp_sm_fm_multiply(matrix_s(1)%matrix,h1_psi0(ispin)%matrix,&
+              psi1(ispin)%matrix,ncol=homo,alpha=1.0_dp,error=error)
+         CALL cp_fm_gemm(transa='T',transb='N',n=homo,&
+                  m=homo,k=nao,alpha=1.0_dp,&
+                  matrix_a=h1_psi0(ispin)%matrix, &
+                  matrix_b=psi1(ispin)%matrix,&
+                  beta=0.0_dp,matrix_c=Ab(ispin)%matrix,&
+                  error=error)
+         
+         ALLOCATE(vectorsnorm(homo), STAT=istat)
+         DO i=1,homo
+           CALL cp_fm_get_element(Ab(ispin)%matrix,i,i,vectorsnorm(i))
+           write(*,*) i , vectorsnorm(i),sqrt(vectorsnorm(i))
+           max_input_norm = MAX(max_input_norm,sqrt(vectorsnorm(i)))
+         END DO 
+         DEALLOCATE(vectorsnorm,STAT=istat)
+       END DO 
+
+       ! If too small set solution to zero and return
+       IF(max_input_norm .LT. eps_perturbation) THEN
+         DO ispin = 1,dft_control%nspins
+           CALL cp_fm_set_all(psi1(ispin)%matrix,0.0_dp,error=error)
+         END DO
+         IF(output_unit>0) THEN
+           WRITE (UNIT=output_unit,FMT="(T10,A/)")&
+           "The Perturbation is too small, psi1 remain zero. "
+         END IF
+         RETURN
+       END IF
+       max_input_norm = 1.0_dp / max_input_norm !/ 2.0_dp
+       DO ispin = 1,dft_control%nspins
+         CALL cp_fm_scale(max_input_norm,h1_psi0(ispin)%matrix,error=error)
+       END DO
+     END IF
+
+
      CALL check_p_env_init(p_env,linres_control, dft_control%nspins, error=error)
 
     !Orthogonalize with respect to the psi0
@@ -358,6 +372,11 @@ CONTAINS
             REPEAT("-",77)
      END IF
 
+     DO ispin = 1, dft_control%nspins
+       CALL get_mo_set(mo_set=mos(ispin)%mo_set, &
+                       occupation_numbers=occupations )
+       CALL cp_fm_column_scale(h1_psi0(ispin)%matrix, occupations)
+     END DO
 
      ik = 1
      last_ik = 1
@@ -375,18 +394,21 @@ CONTAINS
 
        ! Apply the perturbative operator
        DO ispin=1, dft_control%nspins
+          CALL get_mo_set(mo_set=mos(ispin)%mo_set, &
+                          occupation_numbers=occupations )
+          CALL cp_fm_column_scale(Ab(ispin)%matrix, occupations)
           CALL cp_fm_trace(psi1(ispin)%matrix,Ab(ispin)%matrix,tmp1,error)
           CALL cp_fm_trace(psi1(ispin)%matrix,h1_psi0(ispin)%matrix,tmp2,error)
           CALL cp_fm_scale_and_add(+1.0_dp, Ab(ispin)%matrix, &
                                    +1.0_dp, h1_psi0(ispin)%matrix) ! add h1_psi0 to Ab 
-          CALL get_mo_set(mo_set=mos(ispin)%mo_set, &
-                          occupation_numbers=occupations )
-          CALL cp_fm_column_scale(Ab(ispin)%matrix, occupations)
 !        Total perturbation energy :
 !                \sum_kl <psi1_k|H_0 d_kl-lambda_kl|psi1_l> + 
 !                 sum_k (<psi1_k|H_1|psi0_k> + <psi0_k|H_1|psi1_k>)
 !        Since H_1 and psi1_k are purely imaginary the second term is 
 !                        2*\sum_k <psi1_k|H_1|psi0_k>
+!          CALL get_mo_set(mo_set=mos(ispin)%mo_set, &
+!                          occupation_numbers=occupations )
+!          CALL cp_fm_column_scale(Ab(ispin)%matrix, occupations)
  write(*,*) 'ene ', tmp1,tmp2
           p_env%etotal = p_env%etotal + tmp1+2.0_dp*tmp2 
        END DO
@@ -445,6 +467,13 @@ CONTAINS
        ENDIF
 
      END DO  iteration
+
+
+!    Scaling output
+     max_input_norm = 1._dp/max_input_norm
+     DO ispin = 1,dft_control%nspins
+       CALL cp_fm_scale(max_input_norm,psi1(ispin)%matrix,error=error)
+     END DO
 
     !----------!
     ! clean up !

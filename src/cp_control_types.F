@@ -52,8 +52,17 @@ MODULE cp_control_types
 
 ! *** Control parameters for GAPW method within QUICKSTEP ***
 
+! eps_3c_reduce:to reduce the cutoff value for the interaction of 
+!              the primitive Gaussian-type
+!              functions with the GAPW projectors in the construction of
+!              the 3 center terms. This factor multiplies eps_pgf_orb in 
+!              the calculation of a shorter radius that can be used for 
+!              the construction of the OCE coefficients. The default is 1 
+!              (no effects). Larger values can be used to reduce the memory
+!              allocations, but should be tested first. 
   TYPE gapw_control_type
-    REAL(KIND = dp)                 :: eps_fit,eps_iso,eps_Vrho0,eps_svd
+    REAL(KIND = dp)                 :: eps_3c_reduce,&
+                                       eps_fit,eps_iso,eps_Vrho0,eps_svd
     INTEGER                         :: ladd_rho0,lmax_rho0,&
                                        lmax_sphere, quadrature
     CHARACTER(LEN=30)               :: quadrature_name

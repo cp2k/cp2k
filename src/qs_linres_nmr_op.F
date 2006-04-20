@@ -42,6 +42,8 @@ MODULE qs_linres_nmr_op
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: dp
+  USE orbital_pointers,                ONLY: coset,&
+                                             ncoset
   USE particle_types,                  ONLY: get_particle_set,&
                                              particle_type
   USE qs_environment_types,            ONLY: get_qs_env,&
@@ -304,7 +306,7 @@ CONTAINS
          "PRINT%PROGRAM_RUN_INFO",error=error)
     soft_only = dft_control%qs_control%gapw
     dk =  linres_control%localized_wfn_control%centers_set(1)%array(1:3,1)
-    CALL rRc_xyz_ao(nmr_env%op_mom_ao,qs_env,dk,order=1,minimum_image=.TRUE.,error=error)
+    CALL rRc_xyz_ao(nmr_env%op_mom_ao,qs_env,dk,order=2,minimum_image=.TRUE.,error=error)
     DEALLOCATE (first_sgf,last_sgf,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
@@ -338,16 +340,22 @@ CONTAINS
 !****************************************************************************
   FUNCTION ind_m2(ii,iii) RESULT(i)
 
-    INTEGER                                  :: i, ii, iii
+    INTEGER                                  :: i, ii, iii, l(3)
 
      i = 0.0_dp
-
-     IF (ii /= 1) THEN
-       i = ii+iii
+     l(1:3) = 0
+     IF(ii==0) THEN
+       l(iii) = 1
+     ELSEIF(iii==0) THEN
+       l(ii) = 1
+     ELSEIF(ii==iii) THEN
+       l(ii) = 2
+       i = coset(l(1),l(2),l(3)) - 1
      ELSE
-       i = ii+iii-1
-     END IF
-
+       l(ii) = 1
+       l(iii) = 1
+     ENDIF
+     i = coset(l(1),l(2),l(3)) - 1
   END FUNCTION ind_m2
 
 !****************************************************************************

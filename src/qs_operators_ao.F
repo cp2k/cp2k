@@ -157,7 +157,6 @@ CONTAINS
 
     CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set,&
          cell=cell,particle_set=particle_set,&
-!         sab_orb=sab_orb)
          sab_all=sab_orb)
 
     nkind = SIZE(atomic_kind_set)
@@ -1022,7 +1021,7 @@ CONTAINS
 
       IF (.NOT.ASSOCIATED(orb_basis_set)) CYCLE
 
-        CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
+      CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
                              first_sgf=first_sgfa,&
                              lmax=la_max,&
                              lmin=la_min,&

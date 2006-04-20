@@ -56,7 +56,6 @@ MODULE  hartree_local_3centers
                                              neighbor_node_type,&
                                              next,&
                                              reduced_3c_list_type
-  USE qs_oce_types,                    ONLY: vtriple_type
   USE qs_p_env_types,                  ONLY: qs_p_env_type
   USE qs_rho0_types,                   ONLY: get_rho0_mpole,&
                                              rho0_mpole_type
@@ -64,7 +63,7 @@ MODULE  hartree_local_3centers
                                              rho_atom_coeff,&
                                              rho_atom_type
   USE qs_util,                         ONLY: trace_r_AxB, trace_r_AxB_new 
-  USE cell_types,                 ONLY: cell_type,&
+  USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE sparse_matrix_types,             ONLY: get_block_node,&
                                              real_matrix_p_type

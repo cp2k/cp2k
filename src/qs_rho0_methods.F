@@ -95,7 +95,7 @@ MODULE qs_rho0_methods
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_mpole_gau'
 
-    INTEGER                                  :: icg, ig1, ig2, ipgf1, ipgf2, &
+    INTEGER                                  :: handle, icg, ig1, ig2, ipgf1, ipgf2, &
                                                 iset1, iset2, iso, iso1, &
                                                 iso2, l, l1, l2, m1, m2, &
                                                 maxso, n1, n2, nset
@@ -105,6 +105,8 @@ MODULE qs_rho0_methods
     REAL(dp), DIMENSION(:, :, :), POINTER    :: my_CG
 
 !   ---------------------------------------------------------------------------
+
+    CALL timeset("calculate_mpole_gau","I"," ",handle)
 
     NULLIFY(lmax,lmin,npgf,my_CG,zet)
 
@@ -148,6 +150,7 @@ MODULE qs_rho0_methods
       m1 = m1 + maxso
     END DO  ! iset1
 
+    CALL timestop(0.0_dp, handle)
   END SUBROUTINE calculate_mpole_gau
 
 ! *****************************************************************************
@@ -328,7 +331,7 @@ MODULE qs_rho0_methods
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'init_rho0'
 
-    INTEGER :: iat, iatom, ikind, istat, l, l_rho1_max, laddg, lmaxg, max_nr, &
+    INTEGER :: handle, iat, iatom, ikind, istat, l, l_rho1_max, laddg, lmaxg, max_nr, &
       maxl, maxnset, maxso, nat, natom, nchan_c, nchan_s, nkind, nr, nset, &
       nsotot, output_unit
     INTEGER, DIMENSION(:), POINTER           :: atom_list
@@ -349,6 +352,9 @@ MODULE qs_rho0_methods
     TYPE(rho0_mpole_type), POINTER           :: rho0_mpole
     TYPE(rhoz_type), DIMENSION(:), POINTER   :: rhoz_set
     TYPE(section_vals_type), POINTER         :: dft_section
+
+! -----------------------------------------------------------------------------
+    CALL timeset("init_rho0","I"," ",handle)
 
     failure = .FALSE.
     NULLIFY(logger)
@@ -570,6 +576,8 @@ MODULE qs_rho0_methods
     END IF
     CALL cp_print_key_finished_output(output_unit,logger,dft_section,&
          "PRINT%GAPW/RHO0_INFORMATION",error=error)
+
+    CALL timestop(0.0_dp,handle)
 
     END SUBROUTINE init_rho0
 

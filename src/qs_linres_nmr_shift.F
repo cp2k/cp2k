@@ -47,6 +47,8 @@ MODULE qs_linres_nmr_shift
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE kinds,                           ONLY: dp
+  USE orbital_pointers,                ONLY: coset,&
+                                             ncoset
   USE particle_types,                  ONLY: particle_type
   USE pw_grid_types,                   ONLY: pw_grid_type
   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
@@ -88,7 +90,7 @@ MODULE qs_linres_nmr_shift
 CONTAINS
 
 
-  SUBROUTINE chi_soft_analytic_b(nmr_env,qs_env,psi1,p_psi1,ispin,i_B,error)
+  SUBROUTINE chi_soft_analytic(nmr_env,qs_env,psi1,p_psi1,ispin,i_B,error)
 
     TYPE(nmr_env_type)                       :: nmr_env
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -192,16 +194,16 @@ CONTAINS
 
    ! Apply the component idir of the p operator
        CALL cp_sm_fm_multiply(nmr_env%op_p_ao(idir)%matrix,psi1(ispin)%matrix,&
-              p_psi1(ispin)%matrix,ncol=homo,alpha=-1.0_dp,error=error)
+              p_psi1(ispin)%matrix,ncol=homo,alpha=+1.0_dp,error=error)
        ! These additional terms should give zero contribution due to
        ! the orthogonality of the response functions with respect to the unperturbed set
-!       IF(idir==ii_B) THEN
-!         CALL  cp_fm_scale_and_add(1.0_dp,p_psi1(ispin)%matrix,+1.0_dp,&
-!               nmr_env%psi1_p(ispin,iii_B)%matrix,error=error)
-!       ELSEIF(idir==iii_B)THEN
-!         CALL  cp_fm_scale_and_add(1.0_dp,p_psi1(ispin)%matrix,-1.0_dp,&
-!               nmr_env%psi1_p(ispin,ii_B)%matrix,error=error)
-!       END IF
+       IF(idir==ii_B) THEN
+         CALL  cp_fm_scale_and_add(1.0_dp,p_psi1(ispin)%matrix,-1.0_dp,&
+               nmr_env%psi1_p(ispin,iii_B)%matrix,error=error)
+       ELSEIF(idir==iii_B)THEN
+         CALL  cp_fm_scale_and_add(1.0_dp,p_psi1(ispin)%matrix,+1.0_dp,&
+               nmr_env%psi1_p(ispin,ii_B)%matrix,error=error)
+       END IF
 
        IF ( .NOT. uni_occ ) THEN
           CALL cp_fm_column_scale(p_psi1(ispin)%matrix,occupation(1:homo))
@@ -223,67 +225,51 @@ CONTAINS
              CALL set_vecp_rev(idir,idir2,idir3)
              scale_fac=fac_vecp(idir3,idir2,idir)
              d1mdk_i(1:homo) = d1mdk(idir2,1:homo)
-! write(*,*) 'idir ', idir, idir2, idir3
-!  write(*,*) 'scale ', scale_fac, alpha
 
 ! first term ppsi0 times p1
              CALL cp_sm_fm_multiply(nmr_env%op_mom_ao(idir2)%matrix,psi1(ispin)%matrix,&
-                  fm_work1,ncol=homo,alpha=alpha,error=error)
-!             CALL cp_fm_gemm('T','N',homo,homo,nao,1.0_dp,&
-!                  nmr_env%p_psi0(ispin,idir)%matrix,&
-!                  fm_work1,0.0_dp,fm_overlap1,error=error)
-!dbg
-! write(*,*) 'r PSI1 dir=', idir2
-! do i = 1,nao
-!     write(*,'(I4,4f12.6)') i,(fm_work1%local_data(i,j),j=1,4)
-! enddo
-! write(*,*)
-!dbg
+                  fm_work1,ncol=homo,alpha=1.0_dp,error=error)
 
 
              CALL cp_fm_to_fm(psi1(ispin)%matrix,fm_work2,ncol=homo)
              CALL cp_fm_column_scale(fm_work2,d1mdk_i(1:homo))
              CALL  cp_fm_scale_and_add(1.0_dp,fm_work1,1.0_dp,fm_work2,error=error)
-!             CALL cp_fm_gemm('T','N',homo,homo,nao,1.0_dp,&
-!                  nmr_env%p_psi0(ispin,idir)%matrix,&
-!                  fm_work1,1.0_dp,fm_overlap1,error=error)
-!dbg
-! write(*,*) 'r PSI1 - d1-dk dir=', idir2
-! do i = 1,nao
-!     write(*,'(I4,4f12.6)') i,(fm_work1%local_data(i,j),j=1,4)
-! enddo
-! write(*,*)
-!dbg
 
              CALL cp_fm_to_fm(nmr_env%p_psi0(ispin,idir)%matrix,&
-                  fm_work3,ncol=homo)
+                 fm_work3,ncol=homo)
              CALL cp_fm_trace(fm_work3,fm_work1,contrib,error=error)
              nmr_env%chi_tensor(i_B,idir3) = nmr_env%chi_tensor(i_B,idir3) +&
-                      scale_fac*contrib
+                      scale_fac*contrib*alpha
 
-      write(*,*) contrib 
-! stop 'chi cont'
+      write(*,*) idir3, idir2, idir, contrib 
 
 ! first term psi0 times pp1
              CALL cp_sm_fm_multiply(nmr_env%op_mom_ao(idir2)%matrix,p_psi1(ispin)%matrix,&
-                  fm_work1,ncol=homo,alpha=-alpha,error=error)
-!             CALL cp_fm_gemm('T','N',homo,homo,nao,1.0_dp, mo_coeff,&
-!                  fm_work1,-1.0_dp,fm_overlap1,error=error)
+                  fm_work1,ncol=homo,alpha=1.0_dp,error=error)
 
              CALL cp_fm_to_fm(p_psi1(ispin)%matrix,fm_work2,ncol=homo)
              CALL cp_fm_column_scale(fm_work2,d1mdk_i(1:homo))
-!             CALL cp_fm_gemm('T','N',homo,homo,nao,1.0_dp,mo_coeff,&
-!                  fm_work1,-1.0_dp,fm_overlap1,error=error)
+             CALL  cp_fm_scale_and_add(1.0_dp,fm_work1,1.0_dp,fm_work2,error=error)
 
              CALL cp_fm_to_fm(mo_coeff, fm_work3,ncol=homo)
              CALL cp_fm_trace(fm_work3,fm_work1,contrib,error=error)
              nmr_env%chi_tensor(i_B,idir3) = nmr_env%chi_tensor(i_B,idir3) +&
-                      scale_fac*contrib
+                      scale_fac*contrib*alpha
 
-      write(*,*) contrib 
+      write(*,*) idir3, idir2, idir, contrib 
 
              imom = ind_m2(idir2,iii_B)
              d1mdk_ii(1:homo) = d1mdk(iii_B,1:homo)
+!dbg
+!    write(*,*) 1 , 1 , ind_m2(1,1), coset(2,0,0)
+!    write(*,*) 2 , 2 , ind_m2(2,2),coset(0,2,0)
+!    write(*,*) 3 , 3 , ind_m2(3,3),coset(0,0,2)
+!    write(*,*) 1 , 2 , ind_m2(1,2),coset(1,1,0)
+!    write(*,*) 1 , 3 , ind_m2(1,3),coset(1,0,1)
+!    write(*,*) 2 , 3 , ind_m2(2,3),coset(0,1,1)
+!dbg
+
+
 ! second term ppsi0 times p2
              CALL cp_fm_set_all(fm_work1,0.0_dp,error=error)
              CALL cp_fm_set_all(fm_work2,0.0_dp,error=error)
@@ -293,74 +279,61 @@ CONTAINS
                CALL cp_fm_column_scale(fm_work2,occupation(1:homo))
              END IF
              CALL cp_sm_fm_multiply(nmr_env%op_mom_ao(imom)%matrix,&
-                  fm_work2,fm_work3,ncol=homo,alpha=alpha,error=error)
+                  fm_work2,fm_work3,ncol=homo,alpha=1.0_dp,error=error)
 
              CALL cp_fm_to_fm(fm_work2,fm_work1,ncol=homo)
              CALL cp_fm_column_scale(fm_work1,d1mdk_i(1:homo))
              CALL cp_fm_column_scale(fm_work1,d1mdk_ii(1:homo))
              CALL  cp_fm_scale_and_add(1.0_dp,fm_work3,1.0_dp,fm_work1,error=error)
-!             CALL cp_fm_gemm('T','N',homo,homo,nao,1.0_dp,&
-!                  nmr_env%p_psi0(ispin,idir)%matrix,&
-!                  fm_work1,1.0_dp,fm_overlap2,error=error)
 
              CALL cp_sm_fm_multiply(nmr_env%op_mom_ao(idir2)%matrix,&
                   fm_work2,fm_work1,ncol=homo,alpha=1.0_dp,error=error)
              CALL cp_fm_column_scale(fm_work1,d1mdk_ii(1:homo))
-             CALL  cp_fm_scale_and_add(1.0_dp,fm_work3,-1.0_dp,fm_work1,error=error)
-!             CALL cp_fm_gemm('T','N',homo,homo,nao,1.0_dp,&
-!                  nmr_env%p_psi0(ispin,idir)%matrix,&
-!                  fm_work1,-1.0_dp,fm_overlap2,error=error)
+             CALL  cp_fm_scale_and_add(1.0_dp,fm_work3,1.0_dp,fm_work1,error=error)
 
              CALL cp_sm_fm_multiply(nmr_env%op_mom_ao(iii_B)%matrix,&
                   fm_work2,fm_work1,ncol=homo,alpha=1.0_dp,error=error)
              CALL cp_fm_column_scale(fm_work1,d1mdk_i(1:homo))
-             CALL  cp_fm_scale_and_add(1.0_dp,fm_work3,-1.0_dp,fm_work1,error=error)
-!             CALL cp_fm_gemm('T','N',homo,homo,nao,1.0_dp,&
-!                  nmr_env%p_psi0(ispin,idir)%matrix,&
-!                  fm_work1,-1.0_dp,fm_overlap2,error=error)
+             CALL  cp_fm_scale_and_add(1.0_dp,fm_work3,1.0_dp,fm_work1,error=error)
 
-!             CALL cp_fm_gemm('T','N',homo,homo,nao,1.0_dp,&
-!                  nmr_env%p_psi0(ispin,idir)%matrix,&
-!                  fm_work3,0.0_dp,fm_overlap2,error=error)
              CALL cp_fm_to_fm(nmr_env%p_psi0(ispin,idir)%matrix,&
                   fm_work1,ncol=homo)
              CALL cp_fm_trace(fm_work1,fm_work3,contrib,error=error)
              nmr_env%chi_tensor(i_B,idir3) = nmr_env%chi_tensor(i_B,idir3) +&
-                      scale_fac*contrib
+                      scale_fac*contrib*alpha
 
 
-      write(*,*) contrib 
+      write(*,*) idir3, idir2, idir, contrib 
 
 ! second term psi0 times pp2
              CALL cp_fm_set_all(fm_work3,0.0_dp,error=error)
              CALL cp_sm_fm_multiply(nmr_env%op_p_ao(idir)%matrix,fm_work2,&
-                  fm_work1,ncol=homo,alpha=-1.0_dp,error=error)
+                  fm_work1,ncol=homo,alpha=1.0_dp,error=error)
              
              CALL cp_sm_fm_multiply(nmr_env%op_mom_ao(imom)%matrix,&
-                  fm_work1,fm_work3,ncol=homo,alpha=-alpha,error=error)
+                  fm_work1,fm_work3,ncol=homo,alpha=1.0_dp,error=error)
              
              CALL cp_fm_to_fm(fm_work1,fm_work2,ncol=homo)
              CALL cp_fm_column_scale(fm_work2,d1mdk_i(1:homo))
              CALL cp_fm_column_scale(fm_work2,d1mdk_ii(1:homo))
-             CALL  cp_fm_scale_and_add(1.0_dp,fm_work3,-1.0_dp,fm_work1,error=error)
+             CALL  cp_fm_scale_and_add(1.0_dp,fm_work3,1.0_dp,fm_work2,error=error)
 
              CALL cp_sm_fm_multiply(nmr_env%op_mom_ao(idir2)%matrix,&
                   fm_work1,fm_work2,ncol=homo,alpha=1.0_dp,error=error)
              CALL cp_fm_column_scale(fm_work2,d1mdk_ii(1:homo))
-             CALL  cp_fm_scale_and_add(1.0_dp,fm_work3,+1.0_dp,fm_work1,error=error)
+             CALL  cp_fm_scale_and_add(1.0_dp,fm_work3,+1.0_dp,fm_work2,error=error)
 
              CALL cp_sm_fm_multiply(nmr_env%op_mom_ao(iii_B)%matrix,&
                   fm_work1,fm_work2,ncol=homo,alpha=1.0_dp,error=error)
              CALL cp_fm_column_scale(fm_work2,d1mdk_i(1:homo))
-             CALL  cp_fm_scale_and_add(1.0_dp,fm_work3,+1.0_dp,fm_work1,error=error)
+             CALL cp_fm_scale_and_add(1.0_dp,fm_work3,+1.0_dp,fm_work2,error=error)
 
-!             CALL cp_fm_gemm('T','N',homo,homo,nao,1.0_dp,mo_coeff,&
-!                  fm_work3,1.0_dp,fm_overlap2,error=error)
              CALL cp_fm_to_fm(mo_coeff,fm_work1,ncol=homo)
              CALL cp_fm_trace(fm_work1,fm_work3,contrib,error=error)
              nmr_env%chi_tensor(i_B,idir3) = nmr_env%chi_tensor(i_B,idir3) +&
-                      scale_fac*contrib
+                      scale_fac*contrib*alpha
 
+      write(*,*) idir3, idir2, idir, contrib 
 
              imom = ind_m2(idir2,ii_B)
              d1mdk_ii(1:homo) = d1mdk(ii_B,1:homo)
@@ -373,7 +346,7 @@ CONTAINS
                CALL cp_fm_column_scale(fm_work2,occupation(1:homo))
              END IF
              CALL cp_sm_fm_multiply(nmr_env%op_mom_ao(imom)%matrix,&
-                  fm_work2,fm_work3,ncol=homo,alpha=-alpha,error=error)
+                  fm_work2,fm_work3,ncol=homo,alpha=-1.0_dp,error=error)
 
              CALL cp_fm_to_fm(fm_work2,fm_work1,ncol=homo)
              CALL cp_fm_column_scale(fm_work1,d1mdk_i(1:homo))
@@ -383,53 +356,49 @@ CONTAINS
              CALL cp_sm_fm_multiply(nmr_env%op_mom_ao(idir2)%matrix,&
                   fm_work2,fm_work1,ncol=homo,alpha=1.0_dp,error=error)
              CALL cp_fm_column_scale(fm_work1,d1mdk_ii(1:homo))
-             CALL  cp_fm_scale_and_add(1.0_dp,fm_work3,1.0_dp,fm_work1,error=error)
+             CALL  cp_fm_scale_and_add(1.0_dp,fm_work3,-1.0_dp,fm_work1,error=error)
 
              CALL cp_sm_fm_multiply(nmr_env%op_mom_ao(ii_B)%matrix,&
                   fm_work2,fm_work1,ncol=homo,alpha=1.0_dp,error=error)
              CALL cp_fm_column_scale(fm_work1,d1mdk_i(1:homo))
-             CALL  cp_fm_scale_and_add(1.0_dp,fm_work3,1.0_dp,fm_work1,error=error)
+             CALL  cp_fm_scale_and_add(1.0_dp,fm_work3,-1.0_dp,fm_work1,error=error)
 
-!             CALL cp_fm_gemm('T','N',homo,homo,nao,1.0_dp,&
-!                  nmr_env%p_psi0(ispin,idir)%matrix,&
-!                  fm_work3,0.0_dp,fm_overlap3,error=error)
              CALL cp_fm_to_fm(nmr_env%p_psi0(ispin,idir)%matrix,&
                   fm_work1,ncol=homo)
              CALL cp_fm_trace(fm_work1,fm_work3,contrib,error=error)
              nmr_env%chi_tensor(i_B,idir3) = nmr_env%chi_tensor(i_B,idir3) +&
-                      scale_fac*contrib
+                      scale_fac*contrib*alpha
 
-      write(*,*) contrib 
+      write(*,*)  idir3, idir2, idir, contrib 
 ! second term psi0 times pp3
              CALL cp_fm_set_all(fm_work3,0.0_dp,error=error)
              CALL cp_sm_fm_multiply(nmr_env%op_p_ao(idir)%matrix,fm_work2,&
-                  fm_work1,ncol=homo,alpha=-1.0_dp,error=error)
+                  fm_work1,ncol=homo,alpha=1.0_dp,error=error)
              
              CALL cp_sm_fm_multiply(nmr_env%op_mom_ao(imom)%matrix,&
-                  fm_work1,fm_work3,ncol=homo,alpha=alpha,error=error)
+                  fm_work1,fm_work3,ncol=homo,alpha=-1.0_dp,error=error)
              
              CALL cp_fm_to_fm(fm_work1,fm_work2,ncol=homo)
              CALL cp_fm_column_scale(fm_work2,d1mdk_i(1:homo))
              CALL cp_fm_column_scale(fm_work2,d1mdk_ii(1:homo))
-             CALL  cp_fm_scale_and_add(1.0_dp,fm_work3,1.0_dp,fm_work1,error=error)
+             CALL  cp_fm_scale_and_add(1.0_dp,fm_work3,-1.0_dp,fm_work2,error=error)
 
              CALL cp_sm_fm_multiply(nmr_env%op_mom_ao(idir2)%matrix,&
                   fm_work1,fm_work2,ncol=homo,alpha=1.0_dp,error=error)
              CALL cp_fm_column_scale(fm_work2,d1mdk_ii(1:homo))
-             CALL  cp_fm_scale_and_add(1.0_dp,fm_work3,-1.0_dp,fm_work1,error=error)
+             CALL  cp_fm_scale_and_add(1.0_dp,fm_work3,-1.0_dp,fm_work2,error=error)
 
              CALL cp_sm_fm_multiply(nmr_env%op_mom_ao(ii_B)%matrix,&
                   fm_work1,fm_work2,ncol=homo,alpha=1.0_dp,error=error)
              CALL cp_fm_column_scale(fm_work2,d1mdk_i(1:homo))
-             CALL cp_fm_scale_and_add(1.0_dp,fm_work3,-1.0_dp,fm_work1,error=error)
+             CALL cp_fm_scale_and_add(1.0_dp,fm_work3,-1.0_dp,fm_work2,error=error)
 
-!             CALL cp_fm_gemm('T','N',homo,homo,nao,1.0_dp,mo_coeff,&
-!                  fm_work3,1.0_dp,fm_overlap3,error=error)
              CALL cp_fm_to_fm(mo_coeff,fm_work1,ncol=homo)
              CALL cp_fm_trace(fm_work1,fm_work3,contrib,error=error)
              nmr_env%chi_tensor(i_B,idir3) = nmr_env%chi_tensor(i_B,idir3) +&
-                      scale_fac*contrib
-      write(*,*) contrib 
+                      scale_fac*contrib*alpha
+
+      write(*,*) idir3, idir2, idir, contrib 
 
          END IF
        END DO  ! idir2
@@ -438,7 +407,8 @@ CONTAINS
 
     write(*,*) 'chi ', nmr_env%chi_tensor(i_B,1:3)
  
- stop 'vediamo'
+! stop 'vediamo'
+
 
     CALL cp_fm_release(fm_work1,error=error)
     CALL cp_fm_release(fm_work2,error=error)
@@ -447,9 +417,11 @@ CONTAINS
     DEALLOCATE(d1mdk,d1mdk_i,d1mdk_ii,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
   
-  END SUBROUTINE chi_soft_analytic_b
+  END SUBROUTINE chi_soft_analytic
 
-  SUBROUTINE chi_soft_analytic(nmr_env,qs_env,psi1,p_psi1,ispin,i_B,error)
+!  *****************************************************************************************
+
+  SUBROUTINE chi_soft_analytic_b(nmr_env,qs_env,psi1,p_psi1,ispin,i_B,error)
 
     TYPE(nmr_env_type)                       :: nmr_env
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -569,14 +541,14 @@ CONTAINS
 
 ! Generate right part with gradient
        CALL cp_sm_fm_multiply(nmr_env%op_p_ao(idir)%matrix,psi1(ispin)%matrix,&
-              p_psi1(ispin)%matrix,ncol=homo,alpha=-1.0_dp,error=error)
+              p_psi1(ispin)%matrix,ncol=homo,alpha=+1.0_dp,error=error)
        ! These additional terms should give zero contribution due to
        ! the orthogonality of the response functions with respect to the unperturbed set
        IF(idir==ii_B) THEN
-         CALL  cp_fm_scale_and_add(1.0_dp,p_psi1(ispin)%matrix,+1.0_dp,&
+         CALL  cp_fm_scale_and_add(1.0_dp,p_psi1(ispin)%matrix,-1.0_dp,&
                nmr_env%psi1_p(ispin,iii_B)%matrix,error=error)
        ELSEIF(idir==iii_B)THEN
-         CALL  cp_fm_scale_and_add(1.0_dp,p_psi1(ispin)%matrix,-1.0_dp,&
+         CALL  cp_fm_scale_and_add(1.0_dp,p_psi1(ispin)%matrix,+1.0_dp,&
                nmr_env%psi1_p(ispin,ii_B)%matrix,error=error)
        END IF
 
@@ -619,7 +591,7 @@ CONTAINS
              nmr_env%chi_tensor(i_B,idir3) = nmr_env%chi_tensor(i_B,idir3) +&
                       scale_fac*contrib*alpha
 
-      write(*,'(A,3I4,2f12.6)') 'r p_psi0 psi1 ', idir3, idir2 , idir, contrib , scale_fac*contrib*alpha
+      write(*,'(A,3I4,3f12.6)') 'r p_psi0 psi1 ', idir3, idir2 , idir, scale_fac, contrib , scale_fac*contrib*alpha
 ! stop 'chi cont'
 
 
@@ -629,13 +601,13 @@ CONTAINS
              CALL cp_fm_column_scale(fm_work1,d1mdk_i(1:homo))
              CALL cp_sm_fm_multiply(nmr_env%op_mom_ao(idir2)%matrix,&
                   mo_coeff,&
-                  fm_work1,ncol=homo,alpha=-1.0_dp,beta=-1.0_dp,error=error)
+                  fm_work1,ncol=homo,alpha=1.0_dp,beta=1.0_dp,error=error)
 
              CALL cp_fm_trace(fm_work1,p_psi1(ispin)%matrix,contrib,error=error)
              nmr_env%chi_tensor(i_B,idir3) = nmr_env%chi_tensor(i_B,idir3) +&
                       scale_fac*contrib*alpha
 
-      write(*,'(A,3I4,2f12.6)') 'r psi0 p_psi1 ', idir3, idir2 , idir, contrib , scale_fac*contrib*alpha
+      write(*,'(A,3I4,3f12.6)') 'r psi0 p_psi1 ', idir3, idir2 , idir, scale_fac, contrib , scale_fac*contrib*alpha
 
          END IF
        END DO  ! idir2
@@ -653,7 +625,7 @@ CONTAINS
     DEALLOCATE(d1mdk,d1mdk_i,d1mdk_ii,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
   
-  END SUBROUTINE chi_soft_analytic
+  END SUBROUTINE chi_soft_analytic_b
 
 !!****f* qs_linres_nmr_shift%interpolate_shift_pwgrid
 !!

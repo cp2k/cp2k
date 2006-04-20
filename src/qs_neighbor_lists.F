@@ -161,7 +161,8 @@ CONTAINS
                                                 semi_present
     REAL(dp)                                 :: r_skin, rcprj
     REAL(dp), ALLOCATABLE, DIMENSION(:) :: all_pot_rad, oce_radius, &
-      orb_rad_3c, orb_radius, ppl_radius, ppnl_radius, V0hmv0s_radius, c_radius
+      orb_rad_3c, orb_radius, ppl_radius, ppnl_radius, short_orb_radius,&
+       V0hmv0s_radius, c_radius
     REAL(dp), DIMENSION(3)                   :: r_pbc
     TYPE(all_potential_type), POINTER        :: all_potential
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -295,6 +296,10 @@ CONTAINS
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "orb_radius",nkind*dp_size)
     orb_radius(:) = 0.0_dp
+    ALLOCATE (short_orb_radius(nkind),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                     "short_orb_radius",nkind*dp_size)
+    short_orb_radius(:) = 0.0_dp
 
     IF (gth_potential_present) THEN
 
@@ -409,7 +414,8 @@ CONTAINS
         orb_present(ikind) = .TRUE.
 
         CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
-                               kind_radius=orb_radius(ikind))
+                               kind_radius=orb_radius(ikind),&
+                               short_kind_radius=short_orb_radius(ikind))
 
         ! Block rows
 
@@ -749,7 +755,8 @@ CONTAINS
         CALL build_gth_ppnl_neighbor_lists(sac_oce,sbc_oce,atom,cell,r_skin,&
                                            maxatom,maxatom_local,print_subcell_grid,&
                                            output_unit,orb_present,oce_present,&
-                                           orb_radius,oce_radius,&
+!                                           orb_radius,oce_radius,&
+                                           short_orb_radius,oce_radius,&
                                            name="ORBITAL PAW-PRJ")
 
         ! Put the generated neighbor lists into the QS environment
@@ -1039,6 +1046,9 @@ CONTAINS
     DEALLOCATE (orb_radius,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "orb_radius")
+    DEALLOCATE (short_orb_radius,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                     "short_orb_radius")
 
     IF (gth_potential_present) THEN
 

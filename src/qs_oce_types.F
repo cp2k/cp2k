@@ -18,6 +18,8 @@ MODULE qs_oce_types
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
+  USE basis_set_types,                 ONLY: get_gto_basis_set,&
+                                             gto_basis_set_type
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp,&
@@ -28,6 +30,8 @@ MODULE qs_oce_types
   USE orbital_symbols,                 ONLY: cgf_symbol
   USE particle_types,                  ONLY: get_particle_set,&
                                              particle_type
+  USE paw_proj_set_types,              ONLY: get_paw_proj_set,&
+                                             paw_proj_set_type
   USE qs_neighbor_list_types,          ONLY: &
        find_neighbor_list, first_node, get_neighbor_list, get_neighbor_node, &
        neighbor_list_set_p_type, neighbor_list_type, neighbor_node_type, &
@@ -301,10 +305,12 @@ CONTAINS
 
     CHARACTER(LEN=12)                        :: cgfsym
     CHARACTER(LEN=80)                        :: name
-    INTEGER                                  :: i, istat, maxder, nsotot
+    INTEGER                                  :: handle, i, istat, maxder, nsotot
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_nso, last_nso
 
 !   ---------------------------------------------------------------------------
+
+    CALL timeset(routineN,"I"," ",handle)
 
     ALLOCATE (first_nso(natom),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
@@ -375,16 +381,18 @@ CONTAINS
 !   Initialize the control variable couple
     oce%couple(1:natom,1:natom)%block_created = .FALSE.
 
+    CALL timestop(0.0_dp,handle)
+
   END SUBROUTINE prepare_oce_coeff
 
 ! *****************************************************************************
 
-  SUBROUTINE build_reduced_3c_lists(atomic_kind_set,iatom,jatom,jkind, &
-                                    sbc_list, vlist,reduced_3c_list,pippo)
+  SUBROUTINE build_reduced_3c_lists(atomic_kind_set,iatom,jatom,ikind,jkind, &
+                                    sbc_list, vlist,reduced_3c_list,pippo,error)
 
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    INTEGER, INTENT(IN)                      :: iatom, jatom, jkind
+    INTEGER, INTENT(IN)                      :: iatom, jatom, ikind, jkind
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sbc_list
     TYPE(vtriple_type), DIMENSION(:, :), &
@@ -392,19 +400,24 @@ CONTAINS
     TYPE(reduced_3c_list_type), &
       DIMENSION(:), POINTER                  :: reduced_3c_list
     LOGICAL                                  :: pippo
+    TYPE(cp_error_type), INTENT(inout), &
+         OPTIONAL                            :: error
+!   *** Local parameters ***
+
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'build_reduced_3c_lists'
 
     INTEGER :: handle, i, ibc, iblock, istat, katom, kkind, kkneighbor, &
-      kneighbor, nblock_kkind, nkind, nneighbor, nneighbor_old
+      kneighbor, nblock_kkind, nkind, nneighbor, nneighbor_old, num
     INTEGER, DIMENSION(3)                    :: cell_c
     INTEGER, DIMENSION(:), POINTER           :: index_atom
-    LOGICAL                                  :: paw_atom
-    REAL(KIND=dp)                            :: dac2, dbc2
+    LOGICAL                                  :: add_node,paw_atom
+    REAL(KIND=dp)                            :: dac2, dbc2, maxab, maxabc
     REAL(KIND=dp), DIMENSION(3)              :: rac, rbc
     REAL(KIND=dp), DIMENSION(:), POINTER     :: rac2_tmp, rbc2_tmp
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rac_tmp, rbc_tmp
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(neighbor_list_type), POINTER        :: sbc_list_neighbor_list
     TYPE(neighbor_node_type), POINTER        :: sbc_list_neighbor_node
     TYPE(qlist_type), DIMENSION(:, :, :), &
@@ -414,6 +427,11 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     CALL timeset(routineN,"I"," ",handle)
+
+
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
+    num = logger%para_env%mepos + 300
 
     NULLIFY(index_atom, rac_tmp, rac2_tmp, rbc_tmp, rbc2_tmp)
     nneighbor_old = 0
@@ -443,9 +461,6 @@ CONTAINS
 
        IF(.NOT. paw_atom .AND. pippo)  CYCLE
 
-!       sbc_list_neighbor_list =>&
-!         find_neighbor_list(neighbor_list_set=&
-!                         sbc_list(ibc)%neighbor_list_set,atom=jatom)
 
        CALL get_neighbor_list(neighbor_list=sbc_list_neighbor_list,&
                                      nnode=nneighbor)
@@ -503,6 +518,21 @@ CONTAINS
            rac(:) = sac_list_neighbor%r(:,kkneighbor)
            dac2 = rac(1)*rac(1)+ rac(2)*rac(2) + rac(3)*rac(3)
 
+!  Check whether this node has to be really added to the list
+           add_node = .TRUE.
+!           IF(pippo) THEN
+!              CALL check_oce_overlap(atomic_kind_set,ikind,rac,dac2,&
+!                   jkind,rbc,dbc2,kkind,maxab,maxabc)
+!            write(num,'(A,3I5,2f12.6,2(1E16.8))')' overlap ', iatom,jatom,katom,&
+!                sqrt(dac2),sqrt(dbc2),maxab,maxabc
+!           END IF
+           IF(.NOT. add_node) THEN
+             sbc_list_neighbor_node => next(sbc_list_neighbor_node)
+             CYCLE
+           END IF
+!  end check
+
+
            ! add one block to the reduced list and fill in data
            nblock_kkind = nblock_kkind + 1
 
@@ -552,10 +582,108 @@ CONTAINS
        END IF
     ENDDO  ! kkind
 
-
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE build_reduced_3c_lists
+
+  SUBROUTINE check_oce_overlap(atomic_kind_set,ikind,rac,dac2,jkind,rbc,dbc2,&
+             kkind,maxab,maxabc)
+
+    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
+    INTEGER, INTENT(IN) :: ikind,jkind,kkind
+    REAL(dp) :: dac2, dbc2
+    REAL(dp), INTENT(IN) :: rac(3), rbc(3)
+    REAL(dp), INTENT(INOUT) :: maxab,maxabc
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'build_reduced_3c_lists'
+
+    INTEGER :: iexp, ip, iset, jset, kset, lc_max, lshella, lshellb, nseta, nsetb
+    INTEGER , DIMENSION(:), POINTER :: la_max, la_min, lb_max, lb_min, npgfa, npgfb, nprjc
+    REAL(dp) :: gauss_value_a, gauss_value_b, gauss_value_c
+    REAL(dp) :: max_overlap_ab, max_overlap_abc, overlap_ab, overlap_abc
+    REAL(dp) :: rcprj, zetamin, zetbmin, zetcmin
+    REAL(dp), DIMENSION(:,:), POINTER :: zeta, zetb, zetc
+    TYPE(atomic_kind_type),  POINTER :: atomic_kind
+    TYPE(gto_basis_set_type), POINTER          :: orb_basis_set
+    TYPE(paw_proj_set_type),  POINTER          :: paw_proj_c
+    
+
+
+    NULLIFY(atomic_kind,orb_basis_set,paw_proj_c)
+    NULLIFY(la_max,lb_max,npgfa,npgfb,nprjc,zeta,zetb,zetc)
+
+! ikind
+    atomic_kind => atomic_kind_set(ikind)
+    CALL get_atomic_kind(atomic_kind=atomic_kind,&
+         orb_basis_set=orb_basis_set)
+    CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
+         lmax=la_max,lmin=la_min,npgf=npgfa,nset=nseta,zet=zeta)
+
+! jkind
+    atomic_kind => atomic_kind_set(jkind)
+    CALL get_atomic_kind(atomic_kind=atomic_kind,&
+         orb_basis_set=orb_basis_set)
+    CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
+         lmax=lb_max,lmin=lb_min,npgf=npgfb,nset=nsetb,zet=zetb)
+
+! kkind
+    atomic_kind => atomic_kind_set(kkind)
+    CALL get_atomic_kind(atomic_kind=atomic_kind,&
+         paw_proj_set=paw_proj_c)
+    CALL get_paw_proj_set(paw_proj_set=paw_proj_c,&
+         maxl=lc_max, nprj=nprjc, zetprj=zetc,rcprj=rcprj)
+
+    max_overlap_ab  = 0.0_dp
+    max_overlap_abc = 0.0_dp
+    DO iset = 1,nseta
+       zetamin = 10.0_dp
+       DO iexp = 1,npgfa(iset)
+         zetamin = MIN(zetamin,zeta(iexp,iset))
+       END DO 
+       DO lshella = la_min(iset),la_max(iset)
+!         gauss_value_a = (sqrt(dac2)- rcprj)**(lshella)*exp(-zetamin*(sqrt(dac2)- rcprj)**2)
+         IF(dac2<1.0E-8_dp .AND. lshella==0) THEN
+           gauss_value_a = 1.0_dp
+         ELSE
+           gauss_value_a = (sqrt(dac2))**(lshella)*exp(-zetamin*(sqrt(dac2))**2)
+         END IF
+         DO jset = 1,nsetb
+           zetbmin = 10.0_dp
+           DO iexp = 1,npgfa(iset)
+             zetbmin = MIN(zetbmin,zetb(iexp,jset))
+           END DO
+           DO lshellb=lb_min(jset), lb_max(jset)
+!             gauss_value_b = (sqrt(dbc2)- rcprj)**(lshellb)*exp(-zetbmin*(sqrt(dbc2)- rcprj)**2)
+             IF(dbc2<1.0E-8_dp .AND. lshellb==0) THEN
+               gauss_value_b = 1.0_dp
+             ELSE
+               gauss_value_b = (sqrt(dbc2))**(lshellb)*exp(-zetbmin*(sqrt(dbc2))**2)
+             END IF
+
+
+             overlap_ab = gauss_value_b*gauss_value_a
+             max_overlap_ab = MAX(overlap_ab,max_overlap_ab)
+             DO kset = 0,lc_max
+               zetcmin= 100.0_dp
+               DO ip = 1,nprjc(kset)
+                  zetcmin = MIN(zetcmin,zetc(ip,kset))
+               END DO
+               gauss_value_c = (rcprj**kset)*exp(-zetcmin*rcprj**2)
+
+               overlap_abc = overlap_ab*gauss_value_c
+               max_overlap_abc = MAX(overlap_abc,max_overlap_abc)
+
+             END DO ! kset
+
+           END DO  ! lshellb
+         END DO  ! jset
+       END DO  ! lshella
+    END DO  ! iset
+        
+    maxab = max_overlap_ab
+    maxabc = max_overlap_abc
+
+  END SUBROUTINE
 
 ! *****************************************************************************
  
@@ -570,7 +698,8 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'retrieve_sac_list'
 
-    INTEGER                                  :: i, iac, icell, istat, jcell, &
+    INTEGER                                  :: handle, i, iac, icell,&
+                                                istat, jcell, &
                                                 katom, kcell, kkind, &
                                                 kneighbor, n, nneighbor
     INTEGER, DIMENSION(3)                    :: cell_c, cell_c_max, cell_c_min
@@ -581,6 +710,8 @@ CONTAINS
     TYPE(qlist_type), POINTER                :: sac_list_neighbor
 
 !   ---------------------------------------------------------------------------
+
+    CALL timeset(routineN,"I"," ",handle)
 
     IF (ASSOCIATED(sac_list)) THEN
       DO kkind=1,nkind
@@ -705,6 +836,9 @@ CONTAINS
                "The pointer sac_list is not associated",&
                 globenv)
     END IF
+
+    CALL timestop(0.0_dp,handle)
+
   END SUBROUTINE  retrieve_sac_list
 ! *****************************************************************************
 

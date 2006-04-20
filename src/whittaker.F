@@ -66,7 +66,7 @@ CONTAINS
 
 ! -----------------------------------------------------------------------------
 
-    CALL timeset("whittaker_c0","I"," ",handle)
+!    CALL timeset("whittaker_c0","I"," ",handle)
 
     IF ( MOD(l,2) /= 0 ) THEN
         CALL stop_program(moduleN,routineN,__LINE__,&
@@ -260,7 +260,7 @@ CONTAINS
 
     END SELECT
 
-   CALL timestop(0.0_dp,handle)
+!   CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE whittaker_c0
 
@@ -295,7 +295,7 @@ CONTAINS
 
 ! -----------------------------------------------------------------------------
 
-    CALL timeset("whittaker_ci","I"," ",handle)
+!    CALL timeset("whittaker_ci","I"," ",handle)
 
     IF ( MOD(l,2) /= 0 ) THEN
         CALL stop_program(moduleN,routineN,__LINE__,&
@@ -433,7 +433,7 @@ CONTAINS
 
     END SELECT
 
-   CALL timestop(0.0_dp,handle)
+!   CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE whittaker_ci
 
