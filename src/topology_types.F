@@ -557,6 +557,8 @@ SUBROUTINE deallocate_constraint(constraint_info, error)
               NULLIFY(constraint_info%colvar_set(i)%colvar)
            END IF
         END DO
+        DEALLOCATE(constraint_info%colvar_set, stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
      END IF
      IF(ASSOCIATED(constraint_info%const_colv_mol)) THEN
         DEALLOCATE(constraint_info%const_colv_mol,STAT=stat)

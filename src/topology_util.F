@@ -3274,6 +3274,10 @@ CONTAINS
           CALL setup_colvar_counters(colv_list,ncolv)
           CALL set_molecule_kind(molecule_kind,colv_list=colv_list,ncolv=ncolv)
        END DO
+       DEALLOCATE(colv_mol_num,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE(colv_mol_map,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
 
     !-----------------------------------------------------------------------------

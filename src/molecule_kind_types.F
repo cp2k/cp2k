@@ -209,20 +209,22 @@ CONTAINS
     ncolv%ntorsion    = 0
     ncolv%ncoord      = 0
     ncolv%nplane_dist = 0
-    DO k = 1, SIZE(colv_list)
-       SELECT CASE(colv_list(k)%type_id)       
-       CASE(angle_colvar_id)
-          ncolv%nangle = ncolv%nangle + 1
-       CASE(coord_colvar_id)
-          ncolv%ncoord = ncolv%ncoord + 1
-       CASE(dist_colvar_id)
-          ncolv%ndist = ncolv%ndist + 1
-       CASE(plane_distance_colvar_id)
-          ncolv%nplane_dist = ncolv%nplane_dist + 1
-       CASE(torsion_colvar_id)
-          ncolv%ntorsion = ncolv%ntorsion + 1
-       END SELECT
-    END DO
+    IF (ASSOCIATED(colv_list)) THEN
+      DO k = 1, SIZE(colv_list)
+         SELECT CASE(colv_list(k)%type_id)       
+         CASE(angle_colvar_id)
+            ncolv%nangle = ncolv%nangle + 1
+         CASE(coord_colvar_id)
+            ncolv%ncoord = ncolv%ncoord + 1
+         CASE(dist_colvar_id)
+            ncolv%ndist = ncolv%ndist + 1
+         CASE(plane_distance_colvar_id)
+            ncolv%nplane_dist = ncolv%nplane_dist + 1
+         CASE(torsion_colvar_id)
+            ncolv%ntorsion = ncolv%ntorsion + 1
+         END SELECT
+      END DO
+    END IF
     ncolv%ntot = ncolv%ndist        +&      
                  ncolv%nangle       +&
                  ncolv%ntorsion     +&
@@ -290,7 +292,8 @@ CONTAINS
       molecule_kind_set(imolecule_kind)%nimpr = 0
       molecule_kind_set(imolecule_kind)%nonfo = 0
       molecule_kind_set(imolecule_kind)%nub = 0
-      molecule_kind_set(imolecule_kind)%ncolv%ndist = 0
+      CALL setup_colvar_counters(molecule_kind_set(imolecule_kind)%colv_list,&
+        molecule_kind_set(imolecule_kind)%ncolv)
       molecule_kind_set(imolecule_kind)%ng3x3 = 0
       molecule_kind_set(imolecule_kind)%ng4x6 = 0
       molecule_kind_set(imolecule_kind)%nfixd = 0
