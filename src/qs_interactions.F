@@ -713,7 +713,7 @@ CONTAINS
           CALL stop_program("write_pgf_orb_radii","undefined basis type")
         END IF
         IF(ASSOCIATED(aux_basis_set).OR.ASSOCIATED(orb_basis_set)) THEN
-          WRITE (UNIT=output_unit,FMT="(T45,I5,T53,A5,T59,F12.6,T73)")&
+          WRITE (UNIT=output_unit,FMT="(T45,I5,T53,A5,T59,F12.6,T73,F12.6)")&
             ikind,name,kind_radius/unit_of_length,short_kind_radius/unit_of_length
         ELSE
            WRITE (UNIT=output_unit,FMT="(T55,I5,T63,A5,T72,A9)")&
