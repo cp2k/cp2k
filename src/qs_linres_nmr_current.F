@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2005  CP2K developers group                                 !
+!   Copyright (C) 2005,2006  CP2K developers group                            !
 !-----------------------------------------------------------------------------!
 
 
@@ -1053,16 +1053,17 @@ CONTAINS
           END IF
 !$OMP parallel &
 !$OMP default(none) &
-!$OMP private(ijatoms,ithread,itask,iatom,jatom,ra,brow,bcol,p_block) &
-!$OMP private(ijsets,iset,jset,ncoi,ncoj,sgfi,sgfj) &
-!$OMP private(work,jpab,jpab_ii,jpab_iii,istat) &
-!$OMP private(li_max,lj_max,li_min,lj_min,sphi_i,sphi_j,zeti,zetj)
-!$OMP private(rb,rab,rab2,ipgf,jpgf,na1,na2,nb1,nb2,scale) &
+!$OMP private(ijatoms,ithread,itask,iatom,jatom,ra,brow,bcol) &
+!$OMP private(ijsets,iset,jset,ncoi,ncoj,sgfi,sgfj,nsgfi,nsgfj) &
+!$OMP private(work,jpab,jpab_ii,jpab_iii,istat,kind_i) &
+!$OMP private(li_max,lj_max,li_min,lj_min,sphi_i,sphi_j,zeti,zetj) &
+!$OMP private(rb,rab,rab2,ipgf,jpgf,na1,na2,nb1,nb2,scale,atomic_kind_i) &
+!$OMP private(jp_block,jp_block_rii,jp_block_riii) &
 !$OMP shared(maxco,maxsgf_set,natom_pairs,atasks,asets,ival,particle_set,cell) &
 !$OMP shared(deltajp,deltajp_rii,deltajp_riii,npgfa,npgfb)&
 !$OMP shared(ncoset,la_max,lb_max,first_sgfa,first_sgfb) &
-!$OMP shared(nsgfa,nsgfb,sphi_a,dab_local)&
-!$OMP shared(la_min,lb_min,zeta,zetb) &
+!$OMP shared(nsgfa,nsgfb,sphi_a,sphi_b,dab_local,atomic_kind)&
+!$OMP shared(la_min,lb_min,zeta,zetb,ikind,jkind,ii_B,iii_B) &
 !$OMP shared(rs_rho,igrid_level,cube_info,l_info,eps_rho_rspace,lgrid,nthread) &
 !$OMP shared(workt,jpabt,jpabt_ii,jpabt_iii,map_consistent)
           ithread = 0

@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations
-!   Copyright (C) 2001 - 2004  CP2K developers group
+!   Copyright (C) 2001 - 2006  CP2K developers group
 !-----------------------------------------------------------------------------!
 !!****** cp2k/qs_core_hamiltonian [1.1] *
 !!
@@ -877,7 +877,7 @@ CONTAINS
 !$OMP shared(build_kinetic_energy_matrix,matrix_s,maxder,nder,la_min,rpgfa,zeta) &
 !$OMP shared(set_radius_a,nco,ncoset,npgfa,nseta,ncoa_sum,vppnlt,vallt,sac_ppnl,ppnl_present,all_potential_present) &
 !$OMP shared(vpplt,sac_ppl,nkind,ppl_present,atom_of_kind,sab_orb_neighbor_list,rho0_present) &
-!$OMP shared(nlist,calculate_forces,pabt,workt,sdabt,sabt,habt,la_max,sintt,tintt,oceht,ocest,dist_list,qs_env) &
+!$OMP shared(nlist,calculate_forces,pabt,workt,sdabt,sabt,habt,la_max,sintt,tintt,oceht,ocest,dist_list,qs_env,error) &
 !$OMP shared(atomic_kind_set,virial,use_virial)
         ithread = 0
 !$      ithread = omp_get_thread_num()
