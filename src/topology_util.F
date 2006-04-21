@@ -31,7 +31,9 @@ MODULE topology_util
                                              colvar_setup,&
                                              dist_colvar_id,&
                                              colvar_counters,&
-                                             colvar_clone
+                                             colvar_clone,&
+                                             colvar_p_reallocate
+  USE colvar_methods,                  ONLY: colvar_eval_mol_f
   USE convert_units,                   ONLY: convert_to_cp2k_units
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
@@ -3025,7 +3027,8 @@ CONTAINS
       DIMENSION(:), POINTER                  :: atom_typeh
     INTEGER :: dum, first, first_atom, handle, i, iglob, iw, j, k, kk, last, &
       m, nbond, nhdist, nfixed_atoms, ng3x3, ng4x6, nmolecule, nrep, search1, &
-      search2, stat, n_start_colv, ncolv_tot, ncolv_mol, kdim, i_map_ind
+      search2, stat, n_start_colv, ncolv_tot, ncolv_mol, kdim, ii, natom, &
+      last_atom
     INTEGER, DIMENSION(:), POINTER           :: molecule_list,&
                                                 colv_mol_num,&
                                                 colv_mol_map
@@ -3085,7 +3088,7 @@ CONTAINS
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
-    ! 3. Add more stuff to cons_info%const_dist_* if constraint hydrogen is on
+    ! 2. Add more stuff to cons_info%const_dist_* if constraint hydrogen is on
     !-----------------------------------------------------------------------------
     IF(topology%const_hydr) THEN
        topology%const_colv = .TRUE.
@@ -3100,36 +3103,23 @@ CONTAINS
           CPPostcondition(SIZE(hdist)==SIZE(atom_typeh),cp_failure_level,routineP,error,failure)
        END IF
        nhdist = 0
-       DO i=1,SIZE(molecule_set)
-          molecule_kind => molecule_set(i)%molecule_kind
-          iglob = molecule_set(i)%first_atom-1
+       DO i=1,SIZE(molecule_kind_set)
+          molecule_kind => molecule_kind_set(i)
           CALL get_molecule_kind(molecule_kind=molecule_kind,&
-               atom_list=atom_list,&
-               nbond=nbond,bond_list=bond_list)
-          DO j=1,SIZE(atom_list)
+               bond_list=bond_list, nbond=nbond, atom_list=atom_list,&
+               molecule_list=molecule_list)
+          ! Let's tag all requested atoms involving Hydrogen 
+          ! on the first molecule of this kind
+          molecule => molecule_set(molecule_list(1))
+          CALL get_molecule ( molecule, first_atom = first_atom, last_atom= last_atom)
+          natom = last_atom - first_atom +1
+          DO j =  1, natom
              atomic_kind => atom_list(j)%atomic_kind
              CALL get_atomic_kind(atomic_kind=atomic_kind,&
                   name=name,element_symbol=element_symbol) 
              IF((TRIM(name)=="H").OR.(TRIM(element_symbol)=="H")) THEN
                 DO k=1,nbond
                    IF ((bond_list(k)%a==j).OR.(bond_list(k)%b==j))  THEN
-                      rvec = particle_set(iglob+bond_list(k)%a)%r-particle_set(iglob+bond_list(k)%b)%r
-                      rmod = SQRT(DOT_PRODUCT(rvec,rvec))
-                      IF (ASSOCIATED(hdist)) THEN
-                         IF (SIZE(hdist)>0) THEN
-                            IF (bond_list(k)%a==j) atomic_kind => atom_list(bond_list(k)%b)%atomic_kind
-                            IF (bond_list(k)%b==j) atomic_kind => atom_list(bond_list(k)%a)%atomic_kind
-                            CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                                 name=name,element_symbol=element_symbol) 
-                            DO m = 1, SIZE(hdist)
-                               IF (TRIM(name)==TRIM(atom_typeh(m))) EXIT
-                               IF (TRIM(element_symbol)==TRIM(atom_typeh(m))) EXIT
-                            END DO
-                            IF (m<=SIZE(hdist)) THEN
-                               rmod = hdist(m)
-                            END IF
-                         END IF
-                      END IF
                       nhdist = nhdist + 1
                    END IF
                 END DO
@@ -3138,24 +3128,20 @@ CONTAINS
        END DO
        n_start_colv = cons_info%nconst_colv
        cons_info%nconst_colv = nhdist + n_start_colv
-       ALLOCATE(cons_info%const_colv_mol(cons_info%nconst_colv),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE(cons_info%const_colv_target(cons_info%nconst_colv),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE(cons_info%colvar_set(cons_info%nconst_colv),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DO i = 1, cons_info%nconst_colv
-          NULLIFY(cons_info%colvar_set(i)%colvar)
-       END DO
+       CALL reallocate(cons_info%const_colv_mol,1,cons_info%nconst_colv)
+       CALL reallocate(cons_info%const_colv_target,1,cons_info%nconst_colv)
+       CALL colvar_p_reallocate(cons_info%colvar_set,1,cons_info%nconst_colv)
        !
        nhdist = 0
-       DO i=1,SIZE(molecule_set)
-          molecule_kind => molecule_set(i)%molecule_kind
-          iglob = molecule_set(i)%first_atom-1
+       DO i=1,SIZE(molecule_kind_set)
+          molecule_kind => molecule_kind_set(i)
           CALL get_molecule_kind(molecule_kind=molecule_kind,&
-               atom_list=atom_list,&
-               nbond=nbond,bond_list=bond_list)
-          DO j=1,SIZE(atom_list)
+               bond_list=bond_list, atom_list=atom_list, molecule_list=molecule_list)
+          molecule => molecule_set(molecule_list(1))
+          CALL get_molecule ( molecule, first_atom = first_atom, last_atom= last_atom)
+          natom = last_atom  - first_atom + 1
+          iglob = first_atom - 1
+          DO j =  1, natom
              atomic_kind => atom_list(j)%atomic_kind
              CALL get_atomic_kind(atomic_kind=atomic_kind,&
                   name=name,element_symbol=element_symbol) 
@@ -3196,107 +3182,103 @@ CONTAINS
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
-    ! 4. sort and find duplicates cons_info%const_dist_*
-    !-----------------------------------------------------------------------------
-    
-    IF(topology%const_colv) THEN
-       ncolv_tot = cons_info%nconst_colv
-       NULLIFY(colv_mol_num, colv_mol_map)
-       ALLOCATE(colv_mol_num(ncolv_tot),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE(colv_mol_map(ncolv_tot),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DO i = 1, ncolv_tot
-          colv_mol_num(i) =  cons_info%const_colv_mol(i)
-          colv_mol_map(i) =  i
-       END DO
-       !Sort according the Molecules
-       DO i=1,ncolv_tot
-          DO j=1,ncolv_tot
-             IF(colv_mol_num(i)<colv_mol_num(j)) THEN
-                !
-                dum = colv_mol_num(i)
-                colv_mol_num(i) = colv_mol_num(j)
-                colv_mol_num(j) = dum
-                !
-                dum = colv_mol_map(i)
-                colv_mol_map(i) = colv_mol_map(j)
-                colv_mol_map(j) = dum
-                !
-             END IF
-          END DO
-       END DO
-    END IF
-
-    !-----------------------------------------------------------------------------
-    !-----------------------------------------------------------------------------
-    ! 5. Set the distance constraint molecule_kind_set(ikind)%colv_list
+    ! 3. Set the distance constraint molecule_kind_set(ikind)%colv_list
     !-----------------------------------------------------------------------------
     IF(topology%const_colv) THEN
-       DO i=1,SIZE(molecule_kind_set)
-          molecule_kind => molecule_kind_set(i)
+       DO i = 1, SIZE(cons_info%colvar_set)
+          ii = cons_info%const_colv_mol(i)
+          molecule_kind => molecule_kind_set(ii)
           CALL get_molecule_kind(molecule_kind=molecule_kind,&
                nmolecule=nmolecule,molecule_list=molecule_list)
-          CALL find_boundary(colv_mol_num,ncolv_tot,first,last,i)
-          ncolv_mol = last-first+1
+          ncolv_mol = COUNT(cons_info%const_colv_mol==ii)
           ALLOCATE(colv_list(ncolv_mol),STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          DO j=1,nmolecule
-             molecule => molecule_set(molecule_list(j))
-             CALL get_molecule ( molecule, first_atom = first_atom)
-             ALLOCATE(lcolv(ncolv_mol),STAT=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-             DO k=1,ncolv_mol
-                lcolv(k)%lambda    = 0.0_dp
-                lcolv(k)%sigma     = 0.0_dp
-                ! Set Up colvar variable
-                NULLIFY(lcolv(k)%colvar, lcolv(k)%colvar_old)
-                ! colvar
-                i_map_ind = colv_mol_map(first+k-1)
-                CALL colvar_clone(lcolv(k)%colvar, cons_info%colvar_set(i_map_ind)%colvar,&
-                     i_atom_offset=first_atom-1,error=error)
-                ! colvar_old
-                CALL colvar_clone(lcolv(k)%colvar_old,lcolv(k)%colvar,error=error)
-             END DO
-             CALL set_molecule(molecule=molecule,lcolv=lcolv)
-          END DO
           ncolv_mol = 0
-          DO j=first,last
-             ncolv_mol = ncolv_mol + 1
-             kk = colv_mol_map(j)
-             kdim = SIZE(cons_info%colvar_set(kk)%colvar%i_atom)
-             ALLOCATE(colv_list(ncolv_mol)%i_atoms(kdim),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-             colv_list(ncolv_mol)%type_id        = cons_info%colvar_set(kk)%colvar%type_id
-             colv_list(ncolv_mol)%i_atoms        = cons_info%colvar_set(kk)%colvar%i_atom
-             colv_list(ncolv_mol)%expected_value = cons_info%const_colv_target(kk)
+          DO j = 1, SIZE(cons_info%colvar_set)
+             IF (cons_info%const_colv_mol(j)==ii) THEN
+                ncolv_mol = ncolv_mol + 1
+                kdim = SIZE(cons_info%colvar_set(j)%colvar%i_atom)
+                ALLOCATE(colv_list(ncolv_mol)%i_atoms(kdim),stat=stat)
+                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                colv_list(ncolv_mol)%type_id        = cons_info%colvar_set(j)%colvar%type_id
+                colv_list(ncolv_mol)%i_atoms        = cons_info%colvar_set(j)%colvar%i_atom
+                IF (cons_info%const_colv_target(j)==-HUGE(0.0_dp)) THEN
+                   CALL colvar_eval_mol_f(cons_info%colvar_set(j)%colvar, topology%cell,&
+                        particle_set, error=error)
+                   colv_list(ncolv_mol)%expected_value = cons_info%colvar_set(j)%colvar%ss
+                ELSE
+                   colv_list(ncolv_mol)%expected_value = cons_info%const_colv_target(j)
+                END IF
+             END IF
           END DO
           CALL setup_colvar_counters(colv_list,ncolv)
           CALL set_molecule_kind(molecule_kind,colv_list=colv_list,ncolv=ncolv)
+          DO j=1,nmolecule
+             molecule => molecule_set(molecule_list(j))
+             CALL get_molecule ( molecule, first_atom = first_atom, last_atom= last_atom)
+             ALLOCATE(lcolv(ncolv_mol),STAT=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             ncolv_mol = 0
+             DO k=1,SIZE(cons_info%colvar_set)
+                IF (cons_info%const_colv_mol(k)==ii) THEN
+                   ncolv_mol = ncolv_mol + 1
+                   lcolv(ncolv_mol)%lambda    = 0.0_dp
+                   lcolv(ncolv_mol)%sigma     = 0.0_dp
+                   ! Set Up colvar variable
+                   NULLIFY(lcolv(ncolv_mol)%colvar, lcolv(ncolv_mol)%colvar_old)
+                   ! Colvar
+                   CALL colvar_clone(lcolv(ncolv_mol)%colvar, cons_info%colvar_set(k)%colvar,&
+                        i_atom_offset=first_atom-1,error=error)
+                   ! Colvar_old
+                   CALL colvar_clone(lcolv(ncolv_mol)%colvar_old,lcolv(ncolv_mol)%colvar,error=error)
+                   ! Check for consistency in the constraint definition
+                   IF  (ANY(lcolv(ncolv_mol)%colvar%i_atom > last_atom).OR.&
+                        ANY(lcolv(ncolv_mol)%colvar%i_atom < first_atom)) THEN
+                      WRITE(*,'(T5,"|",T8,A)')"Error in constraints setup!"
+                      WRITE(*,'(T5,"|",T8,A)')"A constrained has been defined for a molecule type",&
+                           " but the atoms specified in the constraint and the atoms defined for",&
+                           " the molecule DO NOT match!",&
+                           "This could be very probable due to a wrong connectivity, or an error",&
+                           " in the constraint specification in the input file.",&
+                           " Please check it carefully!"
+                      CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)                   
+                   END IF
+                END IF
+             END DO
+             CALL set_molecule(molecule=molecule,lcolv=lcolv)
+          END DO
        END DO
-       DEALLOCATE(colv_mol_num,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DEALLOCATE(colv_mol_map,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
-    ! 6. Set the group 3x3 constraint g3x3_list
+    ! 4. Set the group 3x3 constraint g3x3_list
     !-----------------------------------------------------------------------------
     IF(topology%const_33) THEN
        DO i=1,cons_info%nconst_g33
-          j = cons_info%const_g33_mol(i)
-          molecule_kind => molecule_kind_set(j)
+          ii = cons_info%const_g33_mol(i)
+          molecule_kind => molecule_kind_set(ii)
           CALL get_molecule_kind(molecule_kind=molecule_kind,&
                nmolecule=nmolecule,molecule_list=molecule_list)
-          CALL find_boundary(cons_info%const_g33_mol,cons_info%nconst_g33,&
-               first,last,i)
-          ng3x3 = last-first+1
+          ng3x3 = COUNT(cons_info%const_g33_mol==ii)
           ALLOCATE(g3x3_list(ng3x3),STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ng3x3 = 0
+          DO j=1,SIZE(cons_info%const_g33_mol)
+             IF (cons_info%const_g33_mol(j)==ii) THEN
+                ng3x3 = ng3x3 + 1
+                g3x3_list(ng3x3)%a   = cons_info%const_g33_a(j)
+                g3x3_list(ng3x3)%b   = cons_info%const_g33_b(j)
+                g3x3_list(ng3x3)%c   = cons_info%const_g33_c(j)
+                g3x3_list(ng3x3)%dab = cons_info%const_g33_dab(j)
+                g3x3_list(ng3x3)%dac = cons_info%const_g33_dac(j)
+                g3x3_list(ng3x3)%dbc = cons_info%const_g33_dbc(j)
+             END IF
+          END DO     
+          CALL set_molecule_kind(molecule_kind,ng3x3=ng3x3,g3x3_list=g3x3_list)
           DO j=1,nmolecule
              molecule => molecule_set(molecule_list(j))
+             CALL get_molecule ( molecule, first_atom = first_atom, last_atom= last_atom)
              ALLOCATE(lg3x3(ng3x3),STAT=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
              DO k=1,ng3x3
@@ -3312,40 +3294,60 @@ CONTAINS
                 lg3x3(k)%vb        = 0.0_dp
                 lg3x3(k)%vc        = 0.0_dp
                 lg3x3(k)%lambda    = 0.0_dp
+                IF  ((g3x3_list(k)%a+first_atom-1 < first_atom).OR.&
+                     (g3x3_list(k)%b+first_atom-1 < first_atom).OR.& 
+                     (g3x3_list(k)%c+first_atom-1 < first_atom).OR.& 
+                     (g3x3_list(k)%a+first_atom-1 > last_atom ).OR.&
+                     (g3x3_list(k)%b+first_atom-1 > last_atom ).OR.& 
+                     (g3x3_list(k)%c+first_atom-1 > last_atom )) THEN
+                   WRITE(*,'(T5,"|",T8,A)')"Error in constraints setup!"
+                   WRITE(*,'(T5,"|",T8,A)')"A constrained has been defined for a molecule type",&
+                        " but the atoms specified in the constraint and the atoms defined for",&
+                        " the molecule DO NOT match!",&
+                        "This could be very probable due to a wrong connectivity, or an error",&
+                        " in the constraint specification in the input file.",&
+                        " Please check it carefully!"
+                   CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)                   
+                END IF
              END DO
              CALL set_molecule(molecule=molecule,lg3x3=lg3x3)
           END DO
-          ng3x3 = 0
-          DO j=1,SIZE(cons_info%const_g33_a)
-             ng3x3 = ng3x3 + 1
-             g3x3_list(ng3x3)%a   = cons_info%const_g33_a(j)
-             g3x3_list(ng3x3)%b   = cons_info%const_g33_b(j)
-             g3x3_list(ng3x3)%c   = cons_info%const_g33_c(j)
-             g3x3_list(ng3x3)%dab = cons_info%const_g33_dab(j)
-             g3x3_list(ng3x3)%dac = cons_info%const_g33_dac(j)
-             g3x3_list(ng3x3)%dbc = cons_info%const_g33_dbc(j)
-          END DO
-          CALL set_molecule_kind(molecule_kind,ng3x3=ng3x3,g3x3_list=g3x3_list)
        END DO
     END IF
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
-    ! 7. Set the group 4x6 constraint g4x6_list
+    ! 5. Set the group 4x6 constraint g4x6_list
     !-----------------------------------------------------------------------------
     IF(topology%const_46) THEN
        DO i=1,cons_info%nconst_g46
-          j = cons_info%const_g46_mol(i)
-          molecule_kind => molecule_kind_set(j)
+          ii = cons_info%const_g46_mol(i)
+          molecule_kind => molecule_kind_set(ii)
           CALL get_molecule_kind(molecule_kind=molecule_kind,&
                nmolecule=nmolecule,molecule_list=molecule_list)
-          CALL find_boundary(cons_info%const_g46_mol,cons_info%nconst_g46,&
-               first,last,i)
-          ng4x6 = last-first+1
+          ng4x6 = COUNT(cons_info%const_g46_mol==ii)
           ALLOCATE(g4x6_list(ng4x6),STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ng4x6 = 0
+          DO j=1,SIZE(cons_info%const_g46_a)
+             IF (cons_info%const_g46_mol(j)==ii) THEN
+                ng4x6 = ng4x6 + 1
+                g4x6_list(ng4x6)%a   = cons_info%const_g46_a(j)
+                g4x6_list(ng4x6)%b   = cons_info%const_g46_b(j)
+                g4x6_list(ng4x6)%c   = cons_info%const_g46_c(j)
+                g4x6_list(ng4x6)%d   = cons_info%const_g46_d(j)
+                g4x6_list(ng4x6)%dab = cons_info%const_g46_dab(j)
+                g4x6_list(ng4x6)%dac = cons_info%const_g46_dac(j)
+                g4x6_list(ng4x6)%dbc = cons_info%const_g46_dbc(j)
+                g4x6_list(ng4x6)%dad = cons_info%const_g46_dad(j)
+                g4x6_list(ng4x6)%dbd = cons_info%const_g46_dbd(j)
+                g4x6_list(ng4x6)%dcd = cons_info%const_g46_dcd(j)
+             END IF
+          END DO
+          CALL set_molecule_kind(molecule_kind,ng4x6=ng4x6,g4x6_list=g4x6_list)
           DO j=1,nmolecule
              molecule => molecule_set(molecule_list(j))
+             CALL get_molecule ( molecule, first_atom = first_atom, last_atom= last_atom)
              ALLOCATE(lg4x6(ng4x6),STAT=stat)
              CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
              DO k=1,ng4x6
@@ -3370,31 +3372,32 @@ CONTAINS
                 lg4x6(k)%ve        = 0.0_dp
                 lg4x6(k)%vf        = 0.0_dp
                 lg4x6(k)%lambda    = 0.0_dp
+                IF  ((g4x6_list(k)%a+first_atom-1 < first_atom).OR.&
+                     (g4x6_list(k)%b+first_atom-1 < first_atom).OR.& 
+                     (g4x6_list(k)%c+first_atom-1 < first_atom).OR.& 
+                     (g4x6_list(k)%d+first_atom-1 < first_atom).OR.& 
+                     (g4x6_list(k)%a+first_atom-1 > last_atom ).OR.&
+                     (g4x6_list(k)%b+first_atom-1 > last_atom ).OR.& 
+                     (g4x6_list(k)%c+first_atom-1 > last_atom ).OR.& 
+                     (g4x6_list(k)%d+first_atom-1 > last_atom )) THEN
+                   WRITE(*,'(T5,"|",T8,A)')"Error in constraints setup!"
+                   WRITE(*,'(T5,"|",T8,A)')"A constrained has been defined for a molecule type",&
+                        " but the atoms specified in the constraint and the atoms defined for",&
+                        " the molecule DO NOT match!",&
+                        "This could be very probable due to a wrong connectivity, or an error",&
+                        " in the constraint specification in the input file.",&
+                        " Please check it carefully!"
+                   CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)                   
+                END IF
              END DO
              CALL set_molecule(molecule=molecule,lg4x6=lg4x6)
           END DO
-          ng4x6 = 0
-          DO j=1,SIZE(cons_info%const_g46_a)
-             ng4x6 = ng4x6 + 1
-             g4x6_list(ng4x6)%a   = cons_info%const_g46_a(j)
-             g4x6_list(ng4x6)%b   = cons_info%const_g46_b(j)
-             g4x6_list(ng4x6)%c   = cons_info%const_g46_c(j)
-             g4x6_list(ng4x6)%d   = cons_info%const_g46_d(j)
-             g4x6_list(ng4x6)%dab = cons_info%const_g46_dab(j)
-             g4x6_list(ng4x6)%dac = cons_info%const_g46_dac(j)
-             g4x6_list(ng4x6)%dbc = cons_info%const_g46_dbc(j)
-             g4x6_list(ng4x6)%dad = cons_info%const_g46_dad(j)
-             g4x6_list(ng4x6)%dbd = cons_info%const_g46_dbd(j)
-             g4x6_list(ng4x6)%dcd = cons_info%const_g46_dcd(j)
-          END DO
-          CALL set_molecule_kind(molecule_kind,ng4x6=ng4x6,g4x6_list=g4x6_list)
        END DO
     END IF
 
-
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
-    ! 8. Set the group fixed_atom constraint fixd_list
+    ! 6. Set the group fixed_atom constraint fixd_list
     !-----------------------------------------------------------------------------
     IF(topology%const_atom) THEN
        ALLOCATE(missed_molname(SIZE(cons_info%fixed_molnames,1)),STAT=stat)

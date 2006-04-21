@@ -100,4 +100,6 @@ water32_hbonds_2.inp
 water_hbonds_dist.inp
 nh3_dist.inp
 nh3_dist_npt.inp
-
+# after rewriting the setup for constraint
+water32_hbonds_2.inp
+water_hbonds_dist.inp

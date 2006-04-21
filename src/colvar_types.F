@@ -36,6 +36,7 @@ MODULE colvar_types
 
   PUBLIC :: colvar_type,&
             colvar_p_type,&
+            colvar_p_reallocate,&
             colvar_create,&
             colvar_clone,&
             colvar_setup,&
@@ -443,5 +444,84 @@ CONTAINS
     END SELECT    
     CALL colvar_setup(colvar_out, error) 
   END SUBROUTINE colvar_clone
+
+  !!****f* colvar_types/colvar_p_reallocate *
+  !!
+  !!   NAME
+  !!     colvar_p_reallocate
+  !!
+  !!   FUNCTION
+  !!     Change the dimension of a colvar_p_type
+  !!
+  !!   NOTES
+  !!     -
+  !!
+  !!   INPUTS
+  !!     - colvar: the colvar to deallocate
+  !!     - error: variable to control error logging, stopping,... 
+  !!       see module cp_error_handling 
+  !!
+  !!   AUTHOR
+  !!     Teodoro Laino [tlaino] 04.2006
+  !!
+  !!*** **********************************************************************
+
+  SUBROUTINE colvar_p_reallocate(colvar_set,lb1_new,ub1_new, error)
+    ! Arguments
+    TYPE(colvar_p_type), POINTER, DIMENSION(:) :: colvar_set
+    INTEGER, INTENT(IN)                        :: lb1_new, ub1_new
+    TYPE(cp_error_type), INTENT(inout), &
+         OPTIONAL                              :: error
+
+    CHARACTER(LEN=*), PARAMETER                :: routineN = 'colvar_p_reallocate'
+    INTEGER                                    :: istat, lb1, lb1_old, &
+                                                  ub1, ub1_old, j
+    TYPE(colvar_p_type), POINTER, DIMENSION(:) :: work
+
+    NULLIFY(work)
+    IF (ASSOCIATED(colvar_set)) THEN
+       lb1_old = LBOUND(colvar_set,1)
+       ub1_old = UBOUND(colvar_set,1)
+       lb1 = MAX(lb1_new,lb1_old)
+       ub1 = MIN(ub1_new,ub1_old)
+       ALLOCATE (work(lb1:ub1),STAT=istat)
+       IF (istat /= 0) THEN
+          CALL stop_memory(routineN,moduleN,__LINE__,"work")
+       END IF
+       DO j = lb1, ub1
+          NULLIFY(work(j)%colvar)
+          CALL colvar_clone(work(j)%colvar, colvar_set(j)%colvar, error=error)
+       END DO
+       DO j = lb1, ub1
+          CALL colvar_release(colvar_set(j)%colvar, error)
+          NULLIFY(colvar_set(j)%colvar)
+       END DO
+       DEALLOCATE(colvar_set, STAT=istat)
+       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"colvar_set")
+    END IF
+
+    ALLOCATE (colvar_set(lb1_new:ub1_new),STAT=istat)
+    IF (istat /= 0) THEN
+       CALL stop_memory(routineN,moduleN,__LINE__,"colvar_set")
+    END IF
+    DO j = lb1_new, ub1_new
+       NULLIFY(colvar_set(j)%colvar)
+    END DO
+    IF (ASSOCIATED(work)) THEN
+       lb1 = MAX(lb1_new,lb1_old)
+       ub1 = MIN(ub1_new,ub1_old)
+       DO j = lb1, ub1
+          CALL colvar_clone(colvar_set(j)%colvar, work(j)%colvar, error=error)
+       END DO
+       DO j = lb1, ub1
+          CALL colvar_release(work(j)%colvar, error)
+          NULLIFY(work(j)%colvar)
+       END DO
+       DEALLOCATE (work,STAT=istat)
+       IF (istat /= 0) THEN
+          CALL stop_memory(routineN,moduleN,__LINE__,"work")
+       END IF
+    END IF
+  END SUBROUTINE colvar_p_reallocate
 
 END MODULE colvar_types

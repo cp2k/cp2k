@@ -359,7 +359,13 @@ SUBROUTINE read_constraints_section(topology, globenv, colvar_p, constraint_sect
            CALL section_vals_val_get(collective_section,"MOLECULE",i_val=cons_info%const_colv_mol(ig),&
                 i_rep_section=ig,error=error)
            CALL section_vals_val_get(collective_section,"TARGET",&
-                r_val=cons_info%const_colv_target(ig),i_rep_section=ig, error=error)
+                n_rep_val=n_rep,i_rep_section=ig, error=error)
+           IF (n_rep /=0) THEN
+              CALL section_vals_val_get(collective_section,"TARGET",&
+                   r_val=cons_info%const_colv_target(ig),i_rep_section=ig, error=error)
+           ELSE
+              cons_info%const_colv_target(ig) = -HUGE(0.0_dp)
+           END IF
         END DO
      END IF
   END IF
