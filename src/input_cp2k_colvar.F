@@ -205,7 +205,7 @@ CONTAINS
     IF (.NOT.failure) THEN
        CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
        CALL section_create(section,name="coordination",&
-            description="Section to define the coordination as a collective variables.",&
+            description="Section to define the coordination number as a collective variable.",&
             n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
             error=error)
         

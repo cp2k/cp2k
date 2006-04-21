@@ -1005,27 +1005,27 @@ CONTAINS
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL section_create(section,name="COLLECTIVE",&
-            description="This section is used to constraint collective (general) degrees of freedom"//&
-            "using general routines, and writing langrangian multipliers to file",&
+            description="Used to constraint collective (general) degrees of freedom, "//&
+            "writing langrangian multipliers to file.",&
             n_subsections=0, repeats=.TRUE., required=.TRUE.,&
             error=error)
        NULLIFY(keyword)
 
        CALL keyword_create(keyword, name="COLVAR",&
-             description="Specifies which colvar to use ",&
+             description="Specifies the index (in input file order) of the type of colvar to constrain.",&
              usage="COLVAR {int}",&
              type_of_var=integer_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="MOLECULE",&
-            description="Specifies the index of the molecule kind on which constraint will be applied",&
+            description="Specifies the index of the molecule kind (in input file order) on which the constraint will be applied.",&
             usage="MOLECULE {integer}", required=.TRUE., n_var=1, type_of_var=integer_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="TARGET",&
-            description="Specifies the target value of the constrained collective variable (units depend on the colvar) ",&
+            description="Specifies the target value of the constrained collective variable (units depend on the colvar).",&
             usage="TARGET {real}",&
             type_of_var=real_t, error=error)
        CALL section_add_keyword(section,keyword,error=error)
