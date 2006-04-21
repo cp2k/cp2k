@@ -43,8 +43,7 @@ MODULE mc_types
   USE molecule_kind_types,             ONLY: get_molecule_kind,&
                                              molecule_kind_type
   USE pair_potential_types,            ONLY: pair_potential_pp_type
-  USE physcon,                         ONLY: angstrom,&
-                                             boltzmann,&
+  USE physcon,                         ONLY: boltzmann,&
                                              joule
   USE string_utilities,                ONLY: xstring
   USE timings,                         ONLY: timeset,&
@@ -75,7 +74,6 @@ MODULE mc_types
       INTEGER :: nunits
       INTEGER :: nunits_tot
       INTEGER :: nmoves
-      INTEGER :: nvolmoves
       INTEGER :: nswapmoves
       INTEGER :: rm
       INTEGER :: cl
@@ -183,7 +181,7 @@ CONTAINS
 !****************************************************************************
 
  SUBROUTINE get_mc_par ( mc_par, nstep, iuptrans, iupvolume, nchain,&
-       nunits,nunits_tot,nmoves,nvolmoves,nswapmoves,rm,cl,diff,nstart,&
+       nunits,nunits_tot,nmoves,nswapmoves,rm,cl,diff,nstart,&
        source,group,lbias,ionode,lrestart,lstop,rmvolume,rmbond,rmangle,&
        rmrot,rmtrans,temp,pressure,BETA,pmswap,pmvolume,pmtraion,pmtrans,&
        ensemble,PROGRAM,restart_file_name,molecules_file,moves_file,coords_file,&
@@ -214,7 +212,7 @@ CONTAINS
     TYPE(mc_simulation_parameters_type), &
       POINTER                                :: mc_par
     INTEGER, INTENT(OUT), OPTIONAL :: nstep, iuptrans, iupvolume, nchain, &
-      nunits, nunits_tot, nmoves, nvolmoves, nswapmoves, rm, cl, diff, &
+      nunits, nunits_tot, nmoves, nswapmoves, rm, cl, diff, &
       nstart, source, group
     LOGICAL, INTENT(OUT), OPTIONAL           :: lbias, ionode, lrestart, lstop
     REAL(KIND=dp), INTENT(OUT), OPTIONAL :: rmvolume, rmbond, rmangle, rmrot, &
@@ -250,7 +248,6 @@ CONTAINS
     IF ( PRESENT ( nunits ) ) nunits = mc_par % nunits
     IF ( PRESENT ( nunits_tot ) ) nunits_tot = mc_par % nunits_tot
     IF ( PRESENT ( nmoves ) ) nmoves = mc_par % nmoves
-    IF ( PRESENT ( nvolmoves ) ) nvolmoves = mc_par % nvolmoves
     IF ( PRESENT ( nswapmoves ) ) nswapmoves = mc_par % nswapmoves
     IF ( PRESENT ( rm ) ) rm = mc_par % rm
     IF ( PRESENT ( cl ) ) cl = mc_par % cl
@@ -527,7 +524,6 @@ SUBROUTINE read_mc_section ( mc_par, globenv, input_file_name, input_file,&
       mc_par % avbmc_rmin = 2.0_dp
       mc_par % avbmc_rmax = 4.0_dp
       mc_par % nstart = 0
-      mc_par % nvolmoves = 1
       mc_par % nswapmoves = 1
       mc_par % ldiscrete = .FALSE.
       mc_par % discrete_step = 0.05d0
@@ -582,7 +578,6 @@ SUBROUTINE read_mc_section ( mc_par, globenv, input_file_name, input_file,&
       CALL section_vals_val_get(mc_section,"NSTEP",i_val=mc_par%nstep,error=error)
       CALL section_vals_val_get(mc_section,"AVBMC_ATOM",i_val=mc_par%avbmc_atom,error=error)
       CALL section_vals_val_get(mc_section,"NMOVES",i_val=mc_par%nmoves,error=error)
-      CALL section_vals_val_get(mc_section,"NVOLMOVES",i_val=mc_par%nvolmoves,error=error)
       CALL section_vals_val_get(mc_section,"NSWAPMOVES",i_val=mc_par%nswapmoves,error=error)
       CALL section_vals_val_get(mc_section,"IUPVOLUME",i_val=mc_par%iupvolume,error=error)
       CALL section_vals_val_get(mc_section,"IUPTRANS",i_val=mc_par%iuptrans,error=error)
@@ -724,17 +719,11 @@ SUBROUTINE read_mc_section ( mc_par, globenv, input_file_name, input_file,&
             'before a Quickstep energy calculation'
             WRITE( iw, '(A)' ) ' MC|      takes place.'
          ENDIF
-         IF (mc_par%pmvolume .GT. 0.0e0_dp ) THEN
-            WRITE( iw, '(A,I4,A,A)') ' MC| ',mc_par%nvolmoves,&
-            ' volume moves will be attempted ',&
-            'before a Quickstep energy calculation'
-            WRITE( iw, '(A)' ) ' MC|      takes place.'
-         ENDIF
-         IF (mc_par%pmswap .GT. 0.0e0_dp ) THEN
-            WRITE( iw, '(A,I4,A,A)') ' MC| ',mc_par%nswapmoves,&
-            ' classical swap insertions will be attempted ',&
-            'per Quickstep swap move'
-         ENDIF
+         
+         WRITE( iw, '(A,I4,A,A)') ' MC| ',mc_par%nswapmoves,&
+              ' swap insertions will be attempted ',&
+              'per molecular swap move'
+
       END IF
 
 ! figure out what beta (1/kT) is in atomic units (1/Hartree)

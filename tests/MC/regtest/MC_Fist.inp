@@ -2,8 +2,6 @@
 &FORCE_EVAL
   &MM
     &FORCEFIELD
-#      parmfile water.pot
-#      parmtype CHM
       &CHARGE
         ATOM O
         CHARGE -0.8476
@@ -276,7 +274,6 @@
     LSTOP no
     NMOVES 4
     NSTEP 1
-    NVOLMOVES 1
     PMSWAP 0.0
     PMTRAION 0.00
     PMTRANS 0.50

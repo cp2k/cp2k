@@ -260,15 +260,8 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)       
 
-       CALL keyword_create(keyword, name="NVOLMOVES",&
-            description="How many classical volume moves to bias with.",&
-            usage="NVOLMOVES {integer}",&
-            default_i_val=1,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)       
-
        CALL keyword_create(keyword, name="NSWAPMOVES",&
-            description="How many classical swap moves to try per QS swap move.",&
+            description="How many insertions to try per swap move.",&
             usage="NSWAPMOVES {integer}",&
             default_i_val=16,error=error)
        CALL section_add_keyword(section,keyword,error=error)

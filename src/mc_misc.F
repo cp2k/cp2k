@@ -235,7 +235,7 @@ SUBROUTINE final_mc_write (mc_par,moves,iw,energy_check,initial_energy,&
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'final_mc_write'
 
-    INTEGER                                  :: handle, nvolmoves
+    INTEGER                                  :: handle
     LOGICAL                                  :: lbias
     REAL(KIND=dp)                            :: pmswap, rmangle, rmbond, &
                                                 rmdihedral, rmrot, rmtrans, &
@@ -248,7 +248,7 @@ SUBROUTINE final_mc_write (mc_par,moves,iw,energy_check,initial_energy,&
 
     CALL get_mc_par(mc_par,pmswap=pmswap,rmvolume=rmvolume,&
       lbias=lbias,rmbond=rmbond,rmangle=rmangle,rmdihedral=rmdihedral,&
-      rmtrans=rmtrans,rmrot=rmrot,nvolmoves=nvolmoves)
+      rmtrans=rmtrans,rmrot=rmrot)
 
 ! write out some data averaged over the whole simulation
     WRITE(iw,*)

@@ -68,7 +68,6 @@
     LSTOP yes
     NMOVES 8
     NSTEP 2
-    NVOLMOVES 1
     PMSWAP 0.0
     PMTRAION 0.00
     PMTRANS 0.00

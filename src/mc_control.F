@@ -48,7 +48,6 @@ MODULE mc_control
   USE input_parsing,                   ONLY: section_vals_parse
   USE input_section_types,             ONLY: section_type,&
                                              section_vals_create,&
-                                             section_vals_release,&
                                              section_vals_type,&
                                              section_release,&
                                              section_vals_val_get

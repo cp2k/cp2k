@@ -318,17 +318,17 @@ CONTAINS
 
 ! record the combined energies,coordinates, and cell lengths
          CALL open_file(file_name='mc_cell_length',&
-                 unit_number=cell_unit,&
-                 file_action='WRITE',file_status='REPLACE')
+                 unit_number=cell_unit,file_position='APPEND',&
+                 file_action='WRITE',file_status='UNKNOWN')
          CALL open_file(file_name='mc_energies',&
-                 unit_number=com_ene,&
-                 file_action='WRITE',file_status='REPLACE')
+                 unit_number=com_ene,file_position='APPEND',&
+                 file_action='WRITE',file_status='UNKNOWN')
          CALL open_file(file_name='mc_coordinates',&
-                 unit_number=com_crd,&
-                 file_action='WRITE',file_status='REPLACE')
+                 unit_number=com_crd,file_position='APPEND',&
+                 file_action='WRITE',file_status='UNKNOWN')
          CALL open_file(file_name='mc_molecules',&
-                 unit_number=com_mol,&
-                 file_action='WRITE',file_status='REPLACE')
+                 unit_number=com_mol,file_position='APPEND',&
+                 file_action='WRITE',file_status='UNKNOWN')
          WRITE(com_ene,*) 'Initial Energies:       ',&
             old_energy(1:nboxes)
          WRITE(com_mol,*) 'Initial Molecules:       ',&
@@ -339,8 +339,8 @@ CONTAINS
             WRITE(cbox,'(I4)') ibox
             CALL open_file(file_name='energy_differences_box' // &
                  TRIM(ADJUSTL(cbox)),&
-                 unit_number=diff(ibox),&
-                 file_action='WRITE',file_status='REPLACE')
+                 unit_number=diff(ibox),file_position='APPEND',&
+                 file_action='WRITE',file_status='UNKNOWN')
             IF(nchain(ibox) == 0) THEN
                WRITE(com_crd,*) ' 0'
                WRITE(com_crd,*) 'INITIAL BOX ' // TRIM(ADJUSTL(cbox))
@@ -350,17 +350,17 @@ CONTAINS
                   'INITIAL BOX ' // TRIM(ADJUSTL(cbox)))
             ENDIF
             CALL open_file(file_name=data_file(ibox),&
-               unit_number=data_unit(ibox),&
-               file_action='WRITE',file_status='REPLACE')
+               unit_number=data_unit(ibox),file_position='APPEND',&
+               file_action='WRITE',file_status='UNKNOWN')
             CALL open_file(file_name=moves_file(ibox),&
-               unit_number=move_unit(ibox),&
-               file_action='WRITE',file_status='REPLACE')
+               unit_number=move_unit(ibox),file_position='APPEND',&
+               file_action='WRITE',file_status='UNKNOWN')
             CALL open_file(file_name=displacement_file(ibox),&
-               unit_number=rm(ibox),&
-               file_action='WRITE',file_status='REPLACE')
+               unit_number=rm(ibox),file_position='APPEND',&
+               file_action='WRITE',file_status='UNKNOWN')
             CALL open_file(file_name=cell_file(ibox),&
-               unit_number=cl(ibox),&
-               file_action='WRITE',file_status='REPLACE')
+               unit_number=cl(ibox),file_position='APPEND',&
+               file_action='WRITE',file_status='UNKNOWN')
 
          ENDDO
 
