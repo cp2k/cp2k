@@ -3187,6 +3187,7 @@ CONTAINS
     IF(topology%const_colv) THEN
        DO i = 1, SIZE(cons_info%colvar_set)
           ii = cons_info%const_colv_mol(i)
+          IF (ii==0) CYCLE
           molecule_kind => molecule_kind_set(ii)
           CALL get_molecule_kind(molecule_kind=molecule_kind,&
                nmolecule=nmolecule,molecule_list=molecule_list)
@@ -3247,6 +3248,7 @@ CONTAINS
              END DO
              CALL set_molecule(molecule=molecule,lcolv=lcolv)
           END DO
+          WHERE (cons_info%const_colv_mol==ii) cons_info%const_colv_mol=0
        END DO
     END IF
 
@@ -3257,6 +3259,7 @@ CONTAINS
     IF(topology%const_33) THEN
        DO i=1,cons_info%nconst_g33
           ii = cons_info%const_g33_mol(i)
+          IF (ii==0) CYCLE
           molecule_kind => molecule_kind_set(ii)
           CALL get_molecule_kind(molecule_kind=molecule_kind,&
                nmolecule=nmolecule,molecule_list=molecule_list)
@@ -3312,6 +3315,7 @@ CONTAINS
              END DO
              CALL set_molecule(molecule=molecule,lg3x3=lg3x3)
           END DO
+          WHERE (cons_info%const_g33_mol==ii) cons_info%const_g33_mol=0
        END DO
     END IF
 
@@ -3322,6 +3326,7 @@ CONTAINS
     IF(topology%const_46) THEN
        DO i=1,cons_info%nconst_g46
           ii = cons_info%const_g46_mol(i)
+          IF (ii==0) CYCLE
           molecule_kind => molecule_kind_set(ii)
           CALL get_molecule_kind(molecule_kind=molecule_kind,&
                nmolecule=nmolecule,molecule_list=molecule_list)
@@ -3392,6 +3397,7 @@ CONTAINS
              END DO
              CALL set_molecule(molecule=molecule,lg4x6=lg4x6)
           END DO
+          WHERE (cons_info%const_g46_mol==ii) cons_info%const_g46_mol=0
        END DO
     END IF
 
