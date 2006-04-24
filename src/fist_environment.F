@@ -183,7 +183,7 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
        "FORCE_EVAL%SUBSYS%COLVAR",error=error)
   CALL cp_subsys_read_colvar( subsystem, colvar_section, globenv, error=error)
 
-  CALL read_cell( cell, cell_ref, globenv, use_ref_cell = use_ref_cell, error=error,&
+  CALL read_cell( cell, cell_ref, use_ref_cell = use_ref_cell, error=error,&
        cell_section=cell_section)
   CALL get_cell (cell, abc=abc)
 

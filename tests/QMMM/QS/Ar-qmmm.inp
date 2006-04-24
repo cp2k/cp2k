@@ -1,11 +1,7 @@
-WARNING ignoring unknown keyword print in section MD
-WARNING ignoring unknown keyword print in section MD
-WARNING dropping section QMMM unknown conversion
-
 &FORCE_EVAL
   &DFT
-    BASIS_SET_FILE_NAME GTH_BASIS_SETS
-    POTENTIAL_FILE_NAME POTENTIAL
+    BASIS_SET_FILE_NAME regtest-1/GTH_BASIS_SETS
+    POTENTIAL_FILE_NAME regtest-1/POTENTIAL
     &MGRID
       CUTOFF 200
     &END MGRID
@@ -158,6 +154,16 @@ WARNING dropping section QMMM unknown conversion
     &TOPOLOGY
     &END TOPOLOGY
   &END SUBSYS
+  &QMMM
+    &QM_CELL
+      ABC 8.0 8.0 8.0
+      UNIT ANGSTROM
+    &END QM_CELL
+    NOCOMPATIBILITY
+    &QM_KIND He
+      MM_INDEX 49 105
+    &END QM_KIND
+  &END QMMM
 &END FORCE_EVAL
 &GLOBAL
   FFTLIB FFTSG

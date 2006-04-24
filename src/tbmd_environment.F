@@ -193,7 +193,7 @@ CONTAINS
       CALL cp_blacs_env_create(blacs_env=tbmd_env%blacs_env, para_env=tbmd_env%para_env, &
                                error=error)
 
-      CALL read_cell(cell=cell, cell_ref=cell_ref, globenv=globenv, &
+      CALL read_cell(cell=cell, cell_ref=cell_ref, &
                      use_ref_cell=use_ref_cell, cell_section=cell_section, &
                      error=error)
       CALL get_cell(cell=cell, abc=abc)

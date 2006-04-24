@@ -168,7 +168,7 @@ CONTAINS
       CALL eip_env_set(eip_env=eip_env, eip_input=eip_section, &
                        force_env_input=force_env_section, error=error)
 
-      CALL read_cell(cell=cell, cell_ref=cell_ref, globenv=globenv, &
+      CALL read_cell(cell=cell, cell_ref=cell_ref,&
                      use_ref_cell=use_ref_cell, cell_section=cell_section, &
                      error=error)
       CALL get_cell(cell=cell, abc=abc)

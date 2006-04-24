@@ -163,7 +163,7 @@ CONTAINS
     !-----------------------------------------------------------------------------
     ! 2. Get the cell info
     !-----------------------------------------------------------------------------
-    CALL read_cell ( topology%cell, topology%cell_ref, globenv, error=error,&
+    CALL read_cell ( topology%cell, topology%cell_ref, error=error,&
          cell_section=cell_section)
 
     !-----------------------------------------------------------------------------

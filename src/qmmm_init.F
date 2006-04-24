@@ -30,6 +30,7 @@ MODULE qmmm_init
                                              set_atomic_kind
   USE cell_types,                      ONLY: cell_clone,&
                                              cell_release,&
+                                             read_cell,&
                                              cell_type,&
                                              get_cell,&
                                              init_cell,&
@@ -238,12 +239,6 @@ CONTAINS
        CALL force_env_get(sub_force_env(1)%force_env,subsys=subsys_mm,&
             cell=mm_cell,error=error) 
        CPPrecondition(SIZE(subsys_mm)==1,cp_failure_level,routineP,error,failure)
-
-       IF (.NOT.ASSOCIATED(qm_cell_small)) THEN
-          ALLOCATE (qm_cell_small,STAT=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       END IF
-       CALL cell_clone(mm_cell, qm_cell_small )
 
        ! Set up QM/MM Options       
        CALL setup_qmmm_vars_qm (qmmm_section,&
@@ -941,13 +936,19 @@ CONTAINS
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(elp_potential_type), POINTER        :: elp_potential
-    TYPE(section_vals_type), POINTER         :: mm_kinds
+    TYPE(section_vals_type), POINTER         :: mm_kinds, cell_section
 
-    NULLIFY(mm_link_atoms)
+    NULLIFY(mm_link_atoms, cell_section)
     qmmm_link = .FALSE.
     failure   = .FALSE.
     CALL section_vals_get(qmmm_section,explicit=explicit,error=error)
     IF (explicit) THEN
+       !
+       ! QM_CELL
+       !
+       cell_section => section_vals_get_subs_vals(qmmm_section,"QM_CELL",error=error)
+       CALL read_cell( qm_cell_small, qm_cell_small, error=error, cell_section=cell_section,&
+            check_for_ref=.FALSE.)
        CALL section_vals_val_get(qmmm_section,"E_COUPL",i_val=qmmm_coupl_type,error=error)
        CALL section_vals_val_get(qmmm_section,"EPS_MM_RSPACE",r_val=eps_mm_rspace,error=error)
        !
@@ -1024,42 +1025,12 @@ CONTAINS
              END DO Set_Radius_Pot_1
           END DO
        END IF
-       !
-       ! QM Cell Info
-       !
-       CALL section_vals_val_get(qmmm_section,"A_QM",n_rep_val=n_rep,error=error)
-       IF (n_rep /= 0) THEN
-           CALL section_vals_val_get(qmmm_section,"A_QM",r_vals=cell_par,error=error)
-          qm_cell_small%hmat(:,1) = cell_par(:)
-       END IF
-       CALL section_vals_val_get(qmmm_section,"B_QM",n_rep_val=n_rep,error=error)
-       IF (n_rep /= 0) THEN
-          CALL section_vals_val_get(qmmm_section,"B_QM",r_vals=cell_par,error=error)
-          qm_cell_small%hmat(:,2) = cell_par(:)
-       END IF
-       CALL section_vals_val_get(qmmm_section,"C_QM",n_rep_val=n_rep,error=error)
-       IF (n_rep /= 0) THEN
-          CALL section_vals_val_get(qmmm_section,"C_QM",r_vals=cell_par,error=error)
-          qm_cell_small%hmat(:,3) = cell_par(:)
-       END IF
-       CALL section_vals_val_get(qmmm_section,"ABC_QM",n_rep_val=n_rep,error=error)
-       IF (n_rep /= 0) THEN
-          CALL section_vals_val_get(qmmm_section,"ABC_QM",r_vals=cell_par,error=error)
-          qm_cell_small%hmat(1,1) = cell_par(1)
-          qm_cell_small%hmat(2,2) = cell_par(2)
-          qm_cell_small%hmat(3,3) = cell_par(3)
-       END IF
-       qm_cell_small%hmat=qm_cell_small%hmat(:,:)*qm_cell_small%unit_of_length
     ELSE
      CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
           "QMMM section not present in input file!"//&
           CPSourceFileRef,&
           error,failure)
     ENDIF
-    !
-    ! Initialize cell parameters..
-    !
-    CALL init_cell(qm_cell_small,periodic=(/0,0,0/))
     !
     ! Build MM atoms list
     !

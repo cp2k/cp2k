@@ -239,7 +239,7 @@ CONTAINS
        END IF
     ELSE
        !   *** Read the input section with the cell parameters ***
-       CALL read_cell(my_cell, my_cell_ref, globenv, use_ref_cell=use_ref_cell, &
+       CALL read_cell(my_cell, my_cell_ref, use_ref_cell=use_ref_cell, &
                       cell_section=cell_section, error=error)
     END IF
     CALL get_cell ( my_cell, abc=abc)

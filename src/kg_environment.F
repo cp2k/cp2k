@@ -242,7 +242,7 @@ CONTAINS
     CALL cp_subsys_read_colvar( kg_env%subsys, colvar_section, globenv, error=error)
 
 !   *** Read the input section with the cell parameters
-    CALL read_cell ( cell, cell_ref, globenv,  use_ref_cell=use_ref_cell,&
+    CALL read_cell ( cell, cell_ref, use_ref_cell=use_ref_cell,&
          cell_section=cell_section, error=error)
     CALL get_cell( cell, abc=abc)    
 

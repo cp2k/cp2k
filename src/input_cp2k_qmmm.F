@@ -133,14 +133,6 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="ABC_QM",&
-            description="Set the A,B,C vectors of  QM Cell to the Reals value."//&
-            "It changes the overall shape of the QM cell.",&
-            usage="ABC_QM real real real",&
-            n_var=3,type_of_var=real_t,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
        CALL keyword_create(keyword, name="eps_mm_rspace",&
             description="Set the threshold g(r) - threshold = 0. Where g(r) is a gaussian function."//&
             "Standard value set to 1.0E-10_dp",&
@@ -266,6 +258,10 @@ CONTAINS
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)    
 
+       CALL create_qm_cell_section(subsection, error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)       
+
        CALL create_qmmm_periodic_section(subsection, error)
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)       
@@ -289,6 +285,114 @@ CONTAINS
     END IF
 
   END SUBROUTINE create_qmmm_section
+
+!!****f* input_cp2k_qmmm/create_qm_cell_section *
+!!
+!!   NAME
+!!     create_qm_cell_section
+!!
+!!   FUNCTION
+!!     creates the QM cell section
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_qm_cell_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_qm_cell_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,"qm_cell",&
+            description="parameters needed to set up the QM cell",&
+            n_keywords=6, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+
+       NULLIFY(keyword, subsection)
+! Real
+       CALL keyword_create(keyword, name="A",&
+            description="Read the hmat(1,1); hmat(2,1); hmat(3,1)",&
+            usage="A real real real",&
+            n_var=-1,type_of_var=real_t,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="B",&
+            description="Read the hmat(1,2); hmat(2,2); hmat(3,2)",&
+            usage="B real real real",&
+            n_var=-1,type_of_var=real_t,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="C",&
+            description="Read the hmat(1,3); hmat(2,3); hmat(3,3)",&
+            usage="C real real real",&
+            n_var=-1,type_of_var=real_t,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="ABC",&
+            description="Read the hmat(1,1); hmat(2,2); hmat(3,3)",&
+            usage="ABC real real real",&
+            n_var=-1,type_of_var=real_t,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+
+! Character
+       CALL keyword_create(keyword, name="UNITS",&
+            variants=(/"UNIT"/),& 
+            description="Specify the global units used in the input.",&
+            usage="UNITS ANGSTROM",&
+            enum_c_vals=s2a( "ANGSTROM","BOHR","SCALED_ANGSTROM","SCALED_BOHR"),&
+            enum_i_vals=(/ use_unit_angstrom, use_unit_bohr,&
+            use_unit_scaled_angstrom, use_unit_scaled_bohr/),&
+            default_i_val=use_unit_bohr, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)     
+
+
+       CALL keyword_create(keyword, name="PERIODIC",&
+            description="Specify the directions on wich apply PBC ",&
+            usage="PERIODIC (x|y|z|xy|xz|yz|xyz|none)",&
+            enum_c_vals=s2a( "x","y","z","xy","xz","yz","xyz","none"),&
+            enum_i_vals=(/ use_perd_x,  use_perd_y,   use_perd_z,&
+                           use_perd_xy, use_perd_xz, use_perd_yz,&
+                           use_perd_xyz, use_perd_none /),&
+            default_i_val=use_perd_none, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)     
+
+!Integers
+
+       CALL keyword_create(keyword, name="SUBCELLS",&
+            description="Read the subcells numbers.",&
+            usage="SUBCELLS integer",&
+            n_var=1,type_of_var=real_t,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+    END IF
+  END SUBROUTINE create_qm_cell_section
+
 
 !!****f* input_cp2k_qmmm/create_qmmm_periodic_section *
 !!
