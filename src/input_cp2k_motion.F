@@ -108,6 +108,10 @@ CONTAINS
        CALL create_metadyn_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
+
+       CALL create_fp_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
        
        CALL create_mc_section(subsection, error)
        CALL section_add_subsection(section, subsection, error=error)
@@ -840,6 +844,127 @@ CONTAINS
     END IF
 
   END SUBROUTINE create_metadyn_section
+
+!!****f* input_cp2k/create_fp_section *
+!!
+!!   NAME
+!!     create_fp_section
+!!
+!!   FUNCTION
+!!     creates the flexible_partitioning section
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - section: the section to be created
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     Joost VandeVondele [04.2006]
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_fp_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_fp_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: print_key
+
+    failure=.FALSE.
+    
+    IF (.NOT.failure) THEN
+       CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+       CALL section_create(section,name="FLEXIBLE_PARTITIONING",&
+            description="This section sets up flexible_partitioning",&
+            n_keywords=1, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+        
+       NULLIFY(keyword,print_key)
+
+       CALL keyword_create(keyword, name="CENTRAL_ATOM",&
+            description="Specifies the central atom.",&
+            usage="CENTRAL_ATOM {integer}", required=.TRUE.,&
+            n_var=1, type_of_var=integer_t, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="INNER_ATOMS",&
+            description="Specifies the list of atoms that should remain close to the central atom.",&
+            usage="INNER_ATOMS {integer} {integer} .. {integer}", required=.TRUE.,&
+            n_var=-1, type_of_var=integer_t, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="OUTER_ATOMS",&
+            description="Specifies the list of atoms that should remain far from the central atom.",&
+            usage="OUTER_ATOMS {integer} {integer} .. {integer}", required=.TRUE.,&
+            n_var=-1, type_of_var=integer_t, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="INNER_RADIUS",&
+            description="radius of the inner wall",&
+            usage="INNER_RADIUS {real} ", required=.TRUE., type_of_var=real_t, &
+            n_var=1, unit_str="angstrom", error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="OUTER_RADIUS",&
+            description="radius of the inner wall",&
+            usage="OUTER_RADIUS {real} ", required=.TRUE., type_of_var=real_t, &
+            n_var=1, unit_str="angstrom", error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="STRENGTH",&
+            description="Sets the force constant of the repulsive harmonic potential",&
+            usage="STRENGTH 1.0", default_r_val=1.0_dp, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="BIAS",&
+            description="If a bias potential counter-acting the weight term should be applied (recommended).",&
+            usage="BIAS F", default_l_val=.TRUE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="TEMPERATURE",&
+            description="Sets the temperature parameter that is used in the baising potential."//&
+                        "It is recommended to use the actual simulation temperature",&
+            usage="TEMPERATURE 300", default_r_val=300.0_dp, unit_str='K', error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="SMOOTH_WIDTH",&
+            description="Sets the width of the smooth counting function.",&
+            usage="SMOOTH_WIDTH 0.2", default_r_val=0.02_dp, unit_str='angstrom', error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL cp_print_key_section_create(print_key,"WEIGHTS",&
+            description="Controls the printing of FP info during flexible partitioning simulations.", &
+            print_level=silent_print_level,each=(/1/),common_iter_levels=1,&
+            filename="FLEXIBLE_PARTIONING", error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+       CALL cp_print_key_section_create(print_key,"CONTROL",&
+            description="Controls the printing of FP info at startup", &
+            print_level=silent_print_level,each=(/1/),common_iter_levels=1, &
+            filename="__STD_OUT__", error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
+    END IF
+
+  END SUBROUTINE create_fp_section
 
 !***************************************************************************
 !!****f* input_cp2k_motion/create_metadyn_history [1.0] *

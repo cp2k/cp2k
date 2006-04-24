@@ -17,6 +17,7 @@ OBJECTS_GENERIC =\
  atoms_input.o\
  basis_set_types.o\
  bessel_lib.o\
+ beta_gamma_psi.o\
  bfgs_optimizer.o\
  bsse.o\
  cell_types.o\
@@ -134,6 +135,8 @@ OBJECTS_GENERIC =\
  force_env_types.o\
  force_field_types.o\
  force_fields.o\
+ fp_types.o\
+ fp_methods.o\
  gamma.o\
  gaussian_gridlevels.o\
  geo_opt.o\

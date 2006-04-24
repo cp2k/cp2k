@@ -49,6 +49,9 @@ MODULE force_env_types
   USE metadynamics_types,              ONLY: meta_env_release,&
                                              meta_env_retain,&
                                              meta_env_type
+  USE fp_types,                        ONLY: fp_type, &
+                                             fp_env_release, &
+                                             fp_env_retain
   USE qmmm_types,                      ONLY: qmmm_env_qm_release,&
                                              qmmm_env_qm_type
   USE qs_energy_types,                 ONLY: qs_energy_type
@@ -106,6 +109,7 @@ MODULE force_env_types
 !!       environment of the fragments
 !!     - meta_env: the metadynamics environment, allocated if there is
 !!       metadynamics
+!!     - fp_env: the flexible partitioning environment
 !!     read-only attributes (get them *only* through force_env_get):
 !!     - subsys: the fragments that build up the actual system.
 !!       The subsystems (and thus their para_envs) are supposed to be ordered in
@@ -129,6 +133,7 @@ MODULE force_env_types
      TYPE ( fist_environment_type ), POINTER :: fist_env 
      TYPE ( kg_environment_type ), POINTER :: kg_env
      TYPE ( meta_env_type ), POINTER :: meta_env
+     TYPE ( fp_type ), POINTER :: fp_env
      TYPE ( qs_environment_type ), POINTER :: qs_env
      TYPE ( tbmd_environment_type ), POINTER :: tbmd_env
      TYPE ( eip_environment_type ), POINTER  :: eip_env
@@ -293,6 +298,7 @@ RECURSIVE SUBROUTINE force_env_release(force_env, error)
         CPAssert(.NOT.ASSOCIATED(force_env%kg_env),cp_warning_level,routineP,error,failure)
         CPAssert(.NOT.ASSOCIATED(force_env%fist_env),cp_warning_level,routineP,error,failure)
         CALL meta_env_release(force_env%meta_env,error=error)
+        CALL fp_env_release(force_env%fp_env,error=error)
         CALL qmmm_env_qm_release(force_env%qmmm_env,error=error)
         CALL virial_release(force_env%virial,error=error)
         force_env%ref_count=0
@@ -329,7 +335,7 @@ END SUBROUTINE force_env_release
 !!
 !!*** **********************************************************************
 RECURSIVE SUBROUTINE force_env_get(force_env, in_use, &
-     fist_env, qs_env, kg_env, meta_env, dyn_coeff_set, subsys, para_env, &
+     fist_env, qs_env, kg_env, meta_env, fp_env, dyn_coeff_set, subsys, para_env, &
      potential_energy, kinetic_energy, cell, cell_ref, sub_force_env, qmmm_env,&
      tbmd_env, eip_env, virial, use_ref_cell, globenv, input, error)
     TYPE(force_env_type), POINTER            :: force_env
@@ -341,6 +347,7 @@ RECURSIVE SUBROUTINE force_env_get(force_env, in_use, &
     TYPE(kg_environment_type), OPTIONAL, &
       POINTER                                :: kg_env
     TYPE(meta_env_type), OPTIONAL, POINTER   :: meta_env
+    TYPE(fp_type), OPTIONAL, POINTER   :: fp_env
     TYPE(dyn_coeff_set_p_type), &
       DIMENSION(:), OPTIONAL, POINTER        :: dyn_coeff_set
     TYPE(cp_subsystem_p_type), &
@@ -532,6 +539,7 @@ RECURSIVE SUBROUTINE force_env_get(force_env, in_use, &
      IF (PRESENT(dyn_coeff_set)) dyn_coeff_set => force_env%dyn_coeff_set
      IF (PRESENT(subsys)) subsys => force_env%subsys
      IF (PRESENT(para_env)) para_env => force_env%para_env
+     ! adjust the total energy for the metadynamics
      IF (ASSOCIATED(force_env%meta_env)) THEN
        IF (PRESENT(potential_energy)) THEN
          potential_energy=potential_energy+force_env%meta_env%cv_energy
@@ -540,6 +548,13 @@ RECURSIVE SUBROUTINE force_env_get(force_env, in_use, &
          kinetic_energy=kinetic_energy+force_env%meta_env%ekin_s
        END IF
      END IF
+     ! adjust the total energy for the flexible partitioning
+     IF (ASSOCIATED(force_env%fp_env) .AND. PRESENT(potential_energy)) THEN
+        IF (force_env%fp_env%use_fp) THEN
+             potential_energy=potential_energy+force_env%fp_env%energy
+        ENDIF
+     ENDIF
+     IF (PRESENT(fp_env)) fp_env => force_env%fp_env
      IF (PRESENT(meta_env)) meta_env => force_env%meta_env
      IF (PRESENT(sub_force_env)) sub_force_env => force_env%sub_force_env
      IF (PRESENT(qmmm_env)) qmmm_env => force_env%qmmm_env
@@ -574,9 +589,10 @@ END SUBROUTINE force_env_get
 !!     09.2003 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE force_env_set(force_env, meta_env, virial, error)
+SUBROUTINE force_env_set(force_env, meta_env,fp_env, virial, error)
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(meta_env_type), OPTIONAL, POINTER   :: meta_env
+    TYPE(fp_type), OPTIONAL, POINTER   :: fp_env
     TYPE(virial_type), OPTIONAL, POINTER     :: virial
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -598,6 +614,11 @@ SUBROUTINE force_env_set(force_env, meta_env, virial, error)
         END IF
         CALL meta_env_release(force_env%meta_env,error=error)
         force_env%meta_env => meta_env
+     END IF
+     IF (PRESENT(fp_env)) THEN
+        CALL fp_env_retain(fp_env,error=error)
+        CALL fp_env_release(force_env%fp_env,error=error)
+        force_env%fp_env => fp_env
      END IF
      IF (PRESENT(virial)) THEN
         IF (ASSOCIATED(virial)) THEN

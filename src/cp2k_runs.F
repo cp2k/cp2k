@@ -77,6 +77,8 @@ MODULE cp2k_runs
   USE metadynamics,                    ONLY: metadyn_read
   USE metadynamics_types,              ONLY: meta_env_release,&
                                              meta_env_type
+  USE fp_types,                        ONLY: fp_env_create,fp_env_release, fp_type, &
+                                             fp_env_read,fp_env_write
   USE pint_methods,                    ONLY: do_pint_run
   USE qmmm_init,                       ONLY: qmmm_create_force_env
   USE qs_debug,                        ONLY: qs_debug_energy_and_forces
@@ -159,7 +161,8 @@ CONTAINS
     TYPE(meta_env_type), POINTER             :: meta_env
     TYPE(section_type), POINTER              :: input_structure
     TYPE(section_vals_type), POINTER         :: glob_section, hmc_section, &
-                                                input_file, metadyn_section
+                                                input_file, metadyn_section, fp_section
+    TYPE(fp_type), POINTER                   :: fp_env
 
     cp2k_run_OK = .FALSE.
     failure=.FALSE.
@@ -311,6 +314,13 @@ CONTAINS
              CALL metadyn_read(meta_env, globenv, metadyn_section, error=suberror)
              CALL force_env_set(force_env,meta_env=meta_env,error=suberror)
              CALL meta_env_release(meta_env,error=suberror)
+             NULLIFY(fp_env)
+             fp_section => section_vals_get_subs_vals(globenv%input_file,"MOTION%FLEXIBLE_PARTITIONING",error=suberror)
+             CALL fp_env_create(fp_env,error=suberror)
+             CALL fp_env_read(fp_env,fp_section,error=suberror)
+             CALL fp_env_write(fp_env,fp_section,error=suberror)
+             CALL force_env_set(force_env,fp_env=fp_env,error=suberror)
+             CALL fp_env_release(fp_env,error=suberror)
           END IF
 
           SELECT CASE (globenv%run_type_id)

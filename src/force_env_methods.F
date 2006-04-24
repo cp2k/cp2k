@@ -22,7 +22,8 @@
 !!   SOURCE
 !******************************************************************************
 
-MODULE force_env_methods
+MODULE force_env_methods 
+  USE fp_methods,                      ONLY: fp_eval
   USE cell_types,                      ONLY: cell_type
   USE constraint_clv,                  ONLY: fix_atom_control
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -157,6 +158,7 @@ RECURSIVE SUBROUTINE force_env_calc_energy_force ( force_env, &
     LOGICAL                                  :: energy_consistency, failure, &
                                                 need_f
     TYPE(virial_type), POINTER               :: virial
+    TYPE(cell_type), POINTER                 :: cell
 
 !------------------------------------------------------------------------------
 
@@ -229,6 +231,13 @@ RECURSIVE SUBROUTINE force_env_calc_energy_force ( force_env, &
      IF (ASSOCIATED(force_env%meta_env)) THEN
         CALL metadyn_add_forces(force_env%meta_env,force_env, error=error)
      END IF
+     IF (ASSOCIATED(force_env%fp_env)) THEN
+        IF (force_env%fp_env%use_fp) THEN
+           CALL force_env_get(force_env,cell=cell)
+           CALL fp_eval(force_env%fp_env,force_env%subsys, &
+                        cell,error=error)
+        ENDIF
+     ENDIF
      
      ! Constraint ONLY of Fixed Atom type
      CALL fix_atom_control(force_env, error=error)
@@ -303,7 +312,7 @@ SUBROUTINE force_env_create(force_env,globenv,fist_env,qs_env,kg_env,&
                force_env%para_env, force_env%globenv, &
                force_env%dyn_coeff_set,&
                force_env%meta_env, force_env%sub_force_env, &
-               force_env%qmmm_env )
+               force_env%qmmm_env, force_env%fp_env )
      last_force_env_id=last_force_env_id+1
      force_env%id_nr=last_force_env_id
      force_env%ref_count=1
@@ -384,6 +393,7 @@ SUBROUTINE force_env_create(force_env,globenv,fist_env,qs_env,kg_env,&
         force_env%meta_env => meta_env
         CALL meta_env_retain(meta_env,error=error)
      END IF
+
      SELECT CASE(force_env%in_use)
      CASE(use_fist_force)
         ALLOCATE ( force_env % subsys ( 1 ), stat = stat)

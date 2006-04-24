@@ -595,7 +595,7 @@ FUNCTION cp_iter_string(iter_info,print_key,for_file,error) RESULT(res)
     LOGICAL, INTENT(in), OPTIONAL            :: for_file
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-    CHARACTER(len=7*max_iter_r_level)        :: res
+    CHARACTER(len=9*max_iter_r_level)        :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_iter_string', &
       routineP = moduleN//':'//routineN
@@ -633,17 +633,17 @@ FUNCTION cp_iter_string(iter_info,print_key,for_file,error) RESULT(res)
         DO ilevel=s_level,n_rlevel
            IF (iter_info%last_iter(ilevel).and.ilevel>shift) THEN
               IF (add_last(ilevel-shift)==2) THEN
-                 WRITE(res(7*ilevel-6:7*ilevel),"('l_')")
+                 WRITE(res(9*ilevel-8:9*ilevel),"('l_')")
               ELSE
-                 WRITE(res(7*ilevel-6:7*ilevel),"(i6,'_')") iter_info%iteration(ilevel)
+                 WRITE(res(9*ilevel-8:9*ilevel),"(i8,'_')") iter_info%iteration(ilevel)
               END IF
            ELSE
-              WRITE(res(7*ilevel-6:7*ilevel),"(i6,'_')") iter_info%iteration(ilevel)
+              WRITE(res(9*ilevel-8:9*ilevel),"(i8,'_')") iter_info%iteration(ilevel)
            END IF
         END DO
      ELSE
         DO ilevel=s_level,iter_info%n_rlevel
-           WRITE(res(7*ilevel-6:7*ilevel),"(i6,'_')") &
+           WRITE(res(9*ilevel-8:9*ilevel),"(i8,'_')") &
              iter_info%iteration(ilevel)
         END DO
      END IF

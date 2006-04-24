@@ -84,3 +84,5 @@ ethene_colv1.inp          2
 ethene_colv1_npt.inp      2
 ethene_colv2.inp          2
 ethene_colv2_npt.inp      2
+# flexible partitioning
+H2O-32_SPME_fp.inp        2
