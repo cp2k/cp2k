@@ -68,7 +68,7 @@
     &END POISSON
   &END MM
   &QMMM
-    &QM_CELL
+    &CELL
       ABC 6.0 6.0 6.0
       UNIT ANGSTROM
     &END

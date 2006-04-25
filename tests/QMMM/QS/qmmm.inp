@@ -73,10 +73,10 @@ WARNING duplicate non firstlevel section MM_KIND
     &END POISSON
   &END MM
   &QMMM
-    &QM_CELL
+    &CELL
       ABC 8.0 8.0 8.0
       UNIT ANGSTROM
-    &END QM_CELL
+    &END CELL
     ECOUPL GAUSS
     &MM_KIND H
       RADIUS 0.44

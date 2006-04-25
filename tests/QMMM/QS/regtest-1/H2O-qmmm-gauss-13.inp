@@ -73,10 +73,10 @@
     &END POISSON
   &END MM
   &QMMM
-    &QM_CELL
+    &CELL
       ABC 13.0 13.0 13.0
       UNIT ANGSTROM
-    &END QM_CELL
+    &END CELL
     ECOUPL GAUSS
     &MM_KIND H
       RADIUS 0.44

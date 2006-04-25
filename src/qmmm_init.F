@@ -946,7 +946,7 @@ CONTAINS
        !
        ! QM_CELL
        !
-       cell_section => section_vals_get_subs_vals(qmmm_section,"QM_CELL",error=error)
+       cell_section => section_vals_get_subs_vals(qmmm_section,"CELL",error=error)
        CALL read_cell( qm_cell_small, qm_cell_small, error=error, cell_section=cell_section,&
             check_for_ref=.FALSE.)
        CALL section_vals_val_get(qmmm_section,"E_COUPL",i_val=qmmm_coupl_type,error=error)

@@ -38,10 +38,10 @@
     &END POISSON
   &END MM
   &QMMM
-    &QM_CELL
+    &CELL
       ABC 8.0 8.0 8.0
       UNIT ANGSTROM
-    &END QM_CELL
+    &END CELL
     NOCOMPATIBILITY
     &QM_KIND He
       MM_INDEX 49 105

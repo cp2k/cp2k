@@ -38,7 +38,8 @@ MODULE input_cp2k_subsys
                                              integer_t,&
                                              lchar_t,&
                                              real_t
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: dp,&
+                                             default_string_length
   USE physcon,                         ONLY: bohr
   USE string_utilities,                ONLY: s2a
   USE timings,                         ONLY: timeset,&
@@ -51,7 +52,8 @@ MODULE input_cp2k_subsys
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k_subsys'
 
-PUBLIC :: create_subsys_section
+PUBLIC :: create_subsys_section,&
+          create_cell_section
 !***
 !****************************************************************************
 CONTAINS
@@ -75,10 +77,11 @@ CONTAINS
 !!     teo
 !!
 !!*** **********************************************************************
-  SUBROUTINE create_cell_section(section,error)
+  SUBROUTINE create_cell_section(section,periodic,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
+    INTEGER, INTENT(IN), OPTIONAL            :: periodic
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_cell_section', &
       routineP = moduleN//':'//routineN
@@ -86,12 +89,15 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
+    INTEGER                                  :: my_periodic
 
     failure=.FALSE.
 
+    my_periodic = use_perd_xyz
+    IF (PRESENT(periodic)) my_periodic = periodic
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
-       CALL section_create(section,"cell",&
+       CALL section_create(section,"CELL",&
             description="parameters needed to set up the cell",&
             n_keywords=6, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
             error=error)
@@ -147,7 +153,7 @@ CONTAINS
             enum_i_vals=(/ use_perd_x,  use_perd_y,   use_perd_z,&
                            use_perd_xy, use_perd_xz, use_perd_yz,&
                            use_perd_xyz, use_perd_none /),&
-            default_i_val=use_perd_xyz, error=error)
+            default_i_val=my_periodic, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)     
 

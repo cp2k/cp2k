@@ -32,10 +32,10 @@
     &END POISSON
   &END MM
   &QMMM
-    &QM_CELL
+    &CELL
       ABC 7.0 7.0 7.0
       UNIT ANGSTROM
-    &END QM_CELL
+    &END CELL
     ECOUPL GRID
     NOCOMPATIBILITY
     &LINK
