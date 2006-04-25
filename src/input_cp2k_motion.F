@@ -917,7 +917,7 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="OUTER_RADIUS",&
-            description="radius of the inner wall",&
+            description="radius of the outer wall",&
             usage="OUTER_RADIUS {real} ", required=.TRUE., type_of_var=real_t, &
             n_var=1, unit_str="angstrom", error=error)
        CALL section_add_keyword(section,keyword,error=error)
