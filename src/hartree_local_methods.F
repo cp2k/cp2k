@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000-2004  CP2K developers group                            !
+!   Copyright (C) 2000 - 2006  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 !!****** cp2k/hartree_local_methods
 !!
@@ -64,21 +64,22 @@ MODULE  hartree_local_methods
 
   PRIVATE
 
-! *** Global parameters (only in this module)
+  ! Global parameters (only in this module)
 
   CHARACTER(LEN=*), PARAMETER :: moduleN = "hartree_local_methods"
 
-! *** Define multipole type ***
+  ! Define multipole type
 
-! Public Subroutine
- 
-  PUBLIC :: init_coulomb_local, Vh_1c_gg_integrals
+  ! Public subroutines
 
-!******************************************************************************
+  PUBLIC :: init_coulomb_local,&
+            vh_1c_gg_integrals
+
+! *****************************************************************************
  
-  CONTAINS
+CONTAINS
  
-!******************************************************************************
+! *****************************************************************************
  
   SUBROUTINE init_coulomb_local(qs_env,gapw_control,tddft,p_env)  
  
@@ -87,7 +88,7 @@ MODULE  hartree_local_methods
     LOGICAL, INTENT(IN), OPTIONAL            :: tddft
     TYPE(qs_p_env_type), POINTER, OPTIONAL   :: p_env
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = "init_rho0"
+    CHARACTER(LEN=*), PARAMETER :: routineN = "init_coulomb_local"
 
     TYPE(atomic_kind_type), DIMENSION(:), &
                                    POINTER   :: atomic_kind_set
@@ -102,15 +103,15 @@ MODULE  hartree_local_methods
                                                 max_iso_not0, maxso, nat,&
                                                 natom, nkind, nr, nset, nsotot 
 
-!   ---------------------------------------------------------------------------
+    ! -------------------------------------------------------------------------
 
-    CALL timeset("init_coulomb_local","I"," ",handle)
+    CALL timeset(routineN,"I","",handle)
 
-    NULLIFY(atomic_kind_set)
-    NULLIFY(atom_kind)
-    NULLIFY(orb_basis)
-    NULLIFY(atom_list)
-    NULLIFY(ecoul_1c)
+    NULLIFY (atomic_kind_set)
+    NULLIFY (atom_kind)
+    NULLIFY (orb_basis)
+    NULLIFY (atom_list)
+    NULLIFY (ecoul_1c)
 
     my_tddft = .FALSE.
     IF (PRESENT(tddft)) my_tddft = tddft
@@ -121,7 +122,8 @@ MODULE  hartree_local_methods
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                              natom=natom)
 
-!   Allocate and Initialize 1-center Potentials and Integrals
+    ! Allocate and Initialize 1-center Potentials and Integrals
+
     CALL allocate_ecoul_1center(ecoul_1c,natom)
 
     DO ikind = 1,nkind
@@ -156,10 +158,10 @@ MODULE  hartree_local_methods
 
   END SUBROUTINE init_coulomb_local
 
+  ! ***************************************************************************
 
-!******************************************************************************
-
-  SUBROUTINE calculate_Vh_1center(vrad_h,vrad_s,rrad_h,rrad_s,rrad_0,rrad_z,grid_atom)
+  SUBROUTINE calculate_Vh_1center(vrad_h,vrad_s,rrad_h,rrad_s,rrad_0,rrad_z,&
+                                  grid_atom)
 
     REAL(dp), DIMENSION(:,:), INTENT(OUT)      :: vrad_h, vrad_s
     REAL(dp), DIMENSION(:,:), INTENT(IN)       :: rrad_0
@@ -168,18 +170,21 @@ MODULE  hartree_local_methods
                                 INTENT(IN)     :: rrad_h, rrad_s
     TYPE (grid_atom_type), POINTER             :: grid_atom
 
+    CHARACTER(LEN=*), PARAMETER :: routineN = "calculate_Vh_1center"
+
     REAL(dp)                                   :: I1_up, I1_down,&
                                                   I2_up, I2_down, &
                                                   prefactor, sum
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)     :: rho_1, rho_2
     REAL(dp), DIMENSION(:), POINTER             :: wr
     REAL(dp), DIMENSION(:,:), POINTER          :: r2l, oor2l
-    INTEGER                                    :: handle, ir, iso, ispin, l_ang, &
-                                                  max_s_harm, nchannels, &
+    INTEGER                                    :: handle, ir, iso, ispin, istat, &
+                                                  l_ang, max_s_harm, nchannels, &
                                                   nr, nspins
-!   ---------------------------------------------------------------------------
 
-    CALL timeset("calculate_Vh_1center","I"," ",handle)
+    ! -------------------------------------------------------------------------
+
+    CALL timeset(routineN,"I","",handle)
 
     nr = grid_atom%nr
     max_s_harm = SIZE(vrad_h,2)
@@ -190,12 +195,17 @@ MODULE  hartree_local_methods
     oor2l => grid_atom%oorad2l
     wr => grid_atom%wr
 
-    ALLOCATE(rho_1(nr,max_s_harm),rho_2(nr,max_s_harm))
+    ALLOCATE (rho_1(nr,max_s_harm),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                     "rho_1",nr*max_s_harm*dp_size)
     rho_1 = 0.0_dp
+    ALLOCATE (rho_2(nr,max_s_harm),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                     "rho_2",nr*max_s_harm*dp_size)
     rho_2 = 0.0_dp
 
 !   Case lm = 0
-!    rho_1(:,1) = rrad_z(:)
+!   rho_1(:,1) = rrad_z(:)
     rho_2(:,1) = rrad_0(:,1)
 
     DO iso = 2,nchannels
@@ -247,13 +257,23 @@ MODULE  hartree_local_methods
 
     END DO
 
-    DEALLOCATE(rho_1,rho_2)
+    IF (ALLOCATED(rho_1)) THEN
+      DEALLOCATE (rho_1,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                       "rho_1")
+    END IF
 
-    CALL timestop(0.0_dp, handle)
+    IF (ALLOCATED(rho_2)) THEN
+      DEALLOCATE (rho_2,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                       "rho_2")
+    END IF
+
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE calculate_Vh_1center
 
-!******************************************************************************
+  ! ***************************************************************************
 
   SUBROUTINE Vh_1c_gg_integrals(qs_env,energy_hartree_1c,tddft,p_env)
 
@@ -262,8 +282,8 @@ MODULE  hartree_local_methods
     LOGICAL, INTENT(IN), OPTIONAL              :: tddft
     TYPE(qs_p_env_type), POINTER, OPTIONAL     :: p_env
 
-    CHARACTER(LEN=*), PARAMETER         :: routineN = "Vh_1c_gg_integrals",&
-                routineP = moduleN//':'//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = "Vh_1c_gg_integrals",&
+                                   routineP = moduleN//':'//routineN
 
     TYPE(atomic_kind_type), DIMENSION(:), &
                             POINTER            :: atomic_kind_set
@@ -322,16 +342,16 @@ MODULE  hartree_local_methods
     INTEGER, DIMENSION(:),        POINTER      :: atom_list, lmin, lmax, npgf
     LOGICAL                                    :: my_tddft, paw_atom
 
-!   -----------------------------------------------------------------------------
+    ! -------------------------------------------------------------------------
 
-    CALL timeset("Vh_1c_gg_integrals","I","",handle)
+    CALL timeset(routineN,"I","",handle)
 
-    NULLIFY(dft_control,para_env)
-    NULLIFY(atomic_kind_set,rho_atom_set,rho_atom,rho0_atom_set)
-    NULLIFY(rho0_mpole,rhoz_set,ecoul_1c)
-    NULLIFY(atom_kind,atom_list,grid_atom,harmonics)
-    NULLIFY(orb_basis,lmin,lmax,npgf,zet)
-    NULLIFY(gsph)
+    NULLIFY (dft_control,para_env)
+    NULLIFY (atomic_kind_set,rho_atom_set,rho_atom,rho0_atom_set)
+    NULLIFY (rho0_mpole,rhoz_set,ecoul_1c)
+    NULLIFY (atom_kind,atom_list,grid_atom,harmonics)
+    NULLIFY (orb_basis,lmin,lmax,npgf,zet)
+    NULLIFY (gsph)
 
     my_tddft = .FALSE.
     IF (PRESENT(tddft)) my_tddft = tddft
@@ -368,15 +388,23 @@ MODULE  hartree_local_methods
                              max_ngrid_rad=max_nr,maxg_iso_not0=max_iso)
     CALL get_rho0_mpole(rho0_mpole=rho0_mpole,lmax_0=lmax_0)
 
-    ALLOCATE(gexp(max_nr),STAT=istat)
-    ALLOCATE(sqrtwr(max_nr),g0_h_w(max_nr,0:lmax_0),STAT=istat)
+    ALLOCATE (gexp(max_nr),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-         "gexp,sqrtwr,g0_h_w",(2*max_nr+max_nr*(1+lmax_0))*dp_size)    
+                                     "gexp",max_nr*dp_size)
+    ALLOCATE (sqrtwr(max_nr),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                     "sqrtwr",max_nr*dp_size)
+    ALLOCATE (g0_h_w(max_nr,0:lmax_0),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                     "g0_h_w",&
+                                     max_nr*(lmax_0 + 1)*dp_size)
 
-!   Put to 0 the local hartree energy contribution from 1 center integrals
+    ! Put to 0 the local hartree energy contribution from 1 center integrals
+
     energy_hartree_1c = 0.0_dp
 
-!   Here starts the loop over all the atoms
+    ! Here starts the loop over all the atoms
+
     DO ikind = 1,nkind
 
       atom_kind => atomic_kind_set(ikind)
@@ -393,31 +421,37 @@ MODULE  hartree_local_methods
       nsotot = maxso*nset
       CALL reallocate(gsph,1,max_nr,1,nsotot)
 
-      ALLOCATE(aVh1b_hh(nsotot,nsotot),STAT=istat)
-      ALLOCATE(aVh1b_ss(nsotot,nsotot),STAT=istat)
-      ALLOCATE(aVh1b_00(nsotot,nsotot),STAT=istat)
+      ALLOCATE (aVh1b_hh(nsotot,nsotot),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-         "aVh1b_hh,aVh1b_ss,aVh1b_00",3*nsotot*nsotot)
+                                       "aVh1b_hh",nsotot*nsotot*dp_size)
+      ALLOCATE (aVh1b_ss(nsotot,nsotot),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                       "aVh1b_ss",nsotot*nsotot*dp_size)
+      ALLOCATE (aVh1b_00(nsotot,nsotot),STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                       "aVh1b_00",nsotot*nsotot*dp_size)
 
-      NULLIFY(Qlm_gg,g0_h)
+      NULLIFY (Qlm_gg,g0_h)
       CALL get_rho0_mpole(rho0_mpole=rho0_mpole, ikind=ikind, &
                            l0_ikind=lmax0, &
                            Qlm_gg=Qlm_gg, g0_h=g0_h)
 
-
       nchan_0 = nsoset(lmax0)
 
-      IF(nchan_0 > max_iso_not0) CALL stop_program(routineN,moduleN,__LINE__,&
-                        "channels for rho0 > # max of spherical harmonics")
+      IF (nchan_0 > max_iso_not0) THEN
+        CALL stop_program(routineN,moduleN,__LINE__,&
+                          "channels for rho0 > # max of spherical harmonics")
+      END IF
 
-      NULLIFY(rrad_z,my_CG)
+      NULLIFY (rrad_z,my_CG)
       my_CG  => harmonics%my_CG
 
-!     set to zero temporary arrays
-      sqrtwr=0.0_dp
-      g0_h_w=0.0_dp
-      gexp=0.0_dp
-      gsph=0.0_dp
+      ! Set to zero temporary arrays
+
+      sqrtwr = 0.0_dp
+      g0_h_w = 0.0_dp
+      gexp = 0.0_dp
+      gsph = 0.0_dp
 
       sqrtwr(1:nr) = SQRT(grid_atom%wr(1:nr))
       DO l_ang = 0,lmax0
@@ -438,14 +472,14 @@ MODULE  hartree_local_methods
         m1 = m1 + maxso
       END DO  ! iset1
 
-!     Initialize to zero the local ks integrals
+      ! Initialize to zero the local ks integrals
       DO iat = 1,nat
         iatom = atom_list(iat)
         ecoul_1c(iatom)%Vh1_h%r_coef = 0.0_dp
         ecoul_1c(iatom)%Vh1_s%r_coef = 0.0_dp
       END DO
 
-!     Distribute the atoms of this kind
+      ! Distribute the atoms of this kind
       num_pe = para_env%num_pe
       mepos  = para_env%mepos
       bo = get_limit( nat, num_pe, mepos )
@@ -486,9 +520,9 @@ MODULE  hartree_local_methods
           END DO
         END DO
 
-!        CALL calculate_Vh_1center(Vh1_h,Vh1_s,r_h,r_s,rrad_0,rrad_z,grid_atom)
+!       CALL calculate_Vh_1center(Vh1_h,Vh1_s,r_h,r_s,rrad_0,rrad_z,grid_atom)
 
-!       Calculate the contributions to Ecoul coming from Vh1_h*rhoz 
+        ! Calculate the contributions to Ecoul coming from Vh1_h*rhoz 
 
         ecoul_1_z = 0.0_dp
         IF(.NOT. my_tddft) THEN
@@ -498,7 +532,7 @@ MODULE  hartree_local_methods
            ecoul_1_z = 0.5_dp*ecoul_1_z
         END IF
 
-!       Calculate the contributions to Ecoul coming from  Vh1_s*rho0
+        ! Calculate the contributions to Ecoul coming from  Vh1_s*rho0
         ecoul_1_0 = 0.0_dp
         DO iso = 1,nchan_0
           ec_tmp = 0.0_dp
@@ -516,7 +550,7 @@ MODULE  hartree_local_methods
 
         IF(.NOT. paw_atom) CYCLE
 
-!       Calculate the integrals of the potential with 2 primitives
+        ! Calculate the integrals of the potential with 2 primitives
         aVh1b_hh = 0.0_dp
         aVh1b_ss = 0.0_dp
         aVh1b_00 = 0.0_dp
@@ -529,7 +563,7 @@ MODULE  hartree_local_methods
             DO iset2 = 1,nset !iset1,nset 
               n2 = nsoset(lmax(iset2))
               DO ipgf2  = 1,npgf(iset2)
-!               with contributions to  V1_s*rho0
+                ! with contributions to V1_s*rho0
                 DO iso = 1,nchan_0
                   l_ang = indso(1,iso)
                   DO icg = 1,harmonics%ncg(iso,iset1,iset2)
@@ -558,7 +592,7 @@ MODULE  hartree_local_methods
 
                   END DO  !icg
                 END DO  ! iso
-!               without contributions to  V1_s*rho0 
+                ! without contributions to  V1_s*rho0 
                 DO iso = nchan_0+1,max_iso_not0
                   DO icg = 1,harmonics%ncg(iso,iset1,iset2)
                     is1 = harmonics%ind_cg_a(icg,iso,iset1,iset2)
@@ -633,27 +667,56 @@ MODULE  hartree_local_methods
 
       END DO  ! iat
 
-      DEALLOCATE(aVh1b_hh,STAT=istat)
-      DEALLOCATE(aVh1b_ss,STAT=istat)
-      DEALLOCATE(aVh1b_00,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-            "aVh1b_hh,aVh1b_ss,aVh1b_00")
+      IF (ALLOCATED(aVh1b_hh)) THEN
+        DEALLOCATE (aVh1b_hh,STAT=istat)
+        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                         "aVh1b_hh")
+      END IF
+
+      IF (ALLOCATED(aVh1b_ss)) THEN
+        DEALLOCATE (aVh1b_ss,STAT=istat)
+        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                         "aVh1b_ss")
+      END IF
+
+      IF (ALLOCATED(aVh1b_00)) THEN
+        DEALLOCATE (aVh1b_00,STAT=istat)
+        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                         "aVh1b_00")
+      END IF
+
     END DO  ! ikind 
 
     CALL mp_sum(energy_hartree_1c,para_env%group)
 
-    DEALLOCATE(gexp,gsph,g0_h_w,sqrtwr,STAT=istat)
-    IF (istat /= 0) THEN
-       CALL stop_memory(routineN,moduleN,__LINE__,&
-            "gexp,gsph,g0_h_w,sqrtwr")
-    ENDIF
+    IF (ALLOCATED(gexp)) THEN
+      DEALLOCATE (gexp,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                       "gexp")
+    END IF
 
-   CALL timestop(0.0_dp,handle)
+    IF (ASSOCIATED(gsph)) THEN
+      DEALLOCATE (gsph,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                       "gsph")
+    END IF
+
+    IF (ALLOCATED(g0_h_w)) THEN
+      DEALLOCATE (g0_h_w,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                       "g0_h_w")
+    END IF
+
+    IF (ALLOCATED(sqrtwr)) THEN
+      DEALLOCATE (sqrtwr,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                       "sqrtwr")
+    END IF
+
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE Vh_1c_gg_integrals
 
-!******************************************************************************
+  ! ***************************************************************************
 
 END MODULE hartree_local_methods
-
-!******************************************************************************
