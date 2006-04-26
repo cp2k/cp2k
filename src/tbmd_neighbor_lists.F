@@ -1,8 +1,7 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000-2006  CP2K developers group                            !
+!   Copyright (C) 2000 - 2006  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-
 !!****h* cp2k/tbmd_neighbor_lists [1.0] *
 !!
 !!   NAME
@@ -657,7 +656,7 @@ CONTAINS
 !       *** Print subcell information for the current atomic kind pair ***
 
         IF (print_subcell_grid) THEN
-          s(:) = 1.0_dp/REAL(nsubcell(:),dp)
+          s(:) = 1.0_dp/REAL(nsubcell(:),KIND=dp)
           r(:) = s(:)*abc(:)
           WRITE(UNIT=output_unit,FMT="(T3,2I8,4X,3I5,6X,3F12.6)")&
             ikind, jkind, nsubcell(1:3), r(1:3)/unit_of_length
@@ -783,9 +782,12 @@ CONTAINS
             iatom = atom(ikind)%list_local_a_index(iatom_local)
             atom_a = atom(ikind)%list(iatom)
             s(:) = atom(ikind)%s_pbc(:,iatom) + 0.5_dp
-            i = MIN(INT(s(1)*REAL(nsubcell(1),dp) + 1.0_dp),nsubcell(1))
-            j = MIN(INT(s(2)*REAL(nsubcell(2),dp) + 1.0_dp),nsubcell(2))
-            k = MIN(INT(s(3)*REAL(nsubcell(3),dp) + 1.0_dp),nsubcell(3))
+            i = INT(s(1)*REAL(nsubcell(1),KIND=dp)) + 1
+            j = INT(s(2)*REAL(nsubcell(2),KIND=dp)) + 1
+            k = INT(s(3)*REAL(nsubcell(3),KIND=dp)) + 1
+            i = MIN(MAX(i,1),nsubcell(1))
+            j = MIN(MAX(j,1),nsubcell(2))
+            k = MIN(MAX(k,1),nsubcell(3))
             subcell(i,j,k)%natom  = subcell(i,j,k)%natom + 1
             subcell(i,j,k)%atom_list(subcell(i,j,k)%natom) = iatom_local
             CALL add_neighbor_list(neighbor_list_set=neighbor_list_set, &

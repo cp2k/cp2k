@@ -1188,9 +1188,7 @@ CONTAINS
     my_mic = .FALSE.
     IF (PRESENT(mic)) my_mic = mic
     my_symmetric = .TRUE.
-    IF(PRESENT(symmetric)) my_symmetric = symmetric
-
-
+    IF (PRESENT(symmetric)) my_symmetric = symmetric
 
     ALLOCATE (ab(nkind*nkind),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
@@ -1256,7 +1254,7 @@ CONTAINS
         ! Print subcell information for the current atomic kind pair
 
         IF (print_subcell_grid) THEN
-          s(:) = 1.0_dp/REAL(nsubcell(:),dp)
+          s(:) = 1.0_dp/REAL(nsubcell(:),KIND=dp)
           r(:) = scaled_to_real(s(:),cell)
           WRITE (UNIT=output_unit,FMT="(T3,2I8,4X,3I5,6X,3F12.6)")&
             ikind,jkind,nsubcell(1:3),r(1:3)/unit_of_length
@@ -1327,7 +1325,7 @@ CONTAINS
                   DO iatom_local=1,natom_local_a
                     iatom = atom(ikind)%list_local_a_index(iatom_local)
                     atom_a = atom(ikind)%list(iatom)
-                    IF(my_symmetric) THEN 
+                    IF (my_symmetric) THEN
                       IF (atom_a > atom_b) THEN
                         include_ab = (MODULO(atom_a + atom_b,2) /= 0)
                       ELSE
@@ -1372,9 +1370,9 @@ CONTAINS
             iatom = atom(ikind)%list_local_a_index(iatom_local)
             atom_a = atom(ikind)%list(iatom)
             s(:) = atom(ikind)%s_pbc(:,iatom) + 0.5_dp
-            i = INT(s(1)*REAL(nsubcell(1),dp) + 1.0_dp)
-            j = INT(s(2)*REAL(nsubcell(2),dp) + 1.0_dp)
-            k = INT(s(3)*REAL(nsubcell(3),dp) + 1.0_dp)
+            i = INT(s(1)*REAL(nsubcell(1),dp)) + 1
+            j = INT(s(2)*REAL(nsubcell(2),dp)) + 1
+            k = INT(s(3)*REAL(nsubcell(3),dp)) + 1
             i = MIN(MAX(i,1),nsubcell(1))
             j = MIN(MAX(j,1),nsubcell(2))
             k = MIN(MAX(k,1),nsubcell(3))
@@ -1452,7 +1450,7 @@ CONTAINS
                           iatom_local = subcell(i,j,k)%atom_list(iatom_subcell)
                           iatom = atom(ikind)%list_local_a_index(iatom_local)
                           atom_a = atom(ikind)%list(iatom)
-                           IF(my_symmetric) THEN 
+                           IF (my_symmetric) THEN
                              IF (atom_a > atom_b) THEN
                                include_ab = (MODULO(atom_a + atom_b,2) /= 0)
                              ELSE
@@ -1621,7 +1619,7 @@ CONTAINS
         ! Print subcell information for the current atomic kind pair
 
         IF (print_subcell_grid) THEN
-          s(:) = 1.0_dp/REAL(nsubcell(:),dp)
+          s(:) = 1.0_dp/REAL(nsubcell(:),KIND=dp)
           r(:) = scaled_to_real(s(:),cell)
           WRITE (UNIT=output_unit,FMT="(T3,2I8,4X,3I5,6X,3F12.6)")&
             ikind,jkind,nsubcell(1:3),r(1:3)/unit_of_length
@@ -1692,9 +1690,9 @@ CONTAINS
             iatom = atom(ikind)%list_local_a_index(iatom_local)
             atom_a = atom(ikind)%list(iatom)
             s(:) = atom(ikind)%s_pbc(:,iatom) + 0.5_dp
-            i = INT(s(1)*REAL(nsubcell(1),dp) + 1.0_dp)
-            j = INT(s(2)*REAL(nsubcell(2),dp) + 1.0_dp)
-            k = INT(s(3)*REAL(nsubcell(3),dp) + 1.0_dp)
+            i = INT(s(1)*REAL(nsubcell(1),KIND=dp)) + 1
+            j = INT(s(2)*REAL(nsubcell(2),KIND=dp)) + 1
+            k = INT(s(3)*REAL(nsubcell(3),KIND=dp)) + 1
             i = MIN(MAX(i,1),nsubcell(1))
             j = MIN(MAX(j,1),nsubcell(2))
             k = MIN(MAX(k,1),nsubcell(3))
@@ -1911,7 +1909,7 @@ CONTAINS
         ! Print subcell information for the current atomic kind pair
 
         IF (print_subcell_grid) THEN
-          s(:) = 1.0_dp/REAL(nsubcell(:),dp)
+          s(:) = 1.0_dp/REAL(nsubcell(:),KIND=dp)
           r(:) = scaled_to_real(s(:),cell)
           WRITE (UNIT=output_unit,FMT="(T3,2I8,4X,3I5,6X,3F12.6)")&
             ikind,kkind,nsubcell(1:3),r(1:3)/unit_of_length
@@ -2034,9 +2032,9 @@ CONTAINS
             iatom = atom(ikind)%list_local_a_index(iatom_local)
             atom_a = atom(ikind)%list(iatom)
             s(:) = atom(ikind)%s_pbc(:,iatom) + 0.5_dp
-            i = INT(s(1)*REAL(nsubcell(1),dp) + 1.0_dp)
-            j = INT(s(2)*REAL(nsubcell(2),dp) + 1.0_dp)
-            k = INT(s(3)*REAL(nsubcell(3),dp) + 1.0_dp)
+            i = INT(s(1)*REAL(nsubcell(1),KIND=dp)) + 1
+            j = INT(s(2)*REAL(nsubcell(2),KIND=dp)) + 1
+            k = INT(s(3)*REAL(nsubcell(3),KIND=dp)) + 1
             i = MIN(MAX(i,1),nsubcell(1))
             j = MIN(MAX(j,1),nsubcell(2))
             k = MIN(MAX(k,1),nsubcell(3))
@@ -2318,7 +2316,7 @@ CONTAINS
         ! Print subcell information for the current atomic kind pair
 
         IF (print_subcell_grid) THEN
-          s(:) = 1.0_dp/REAL(nsubcell(:),dp)
+          s(:) = 1.0_dp/REAL(nsubcell(:),KIND=dp)
           r(:) = scaled_to_real(s(:),cell)
           WRITE (UNIT=output_unit,FMT="(T3,2I8,4X,3I5,6X,3F12.6)")&
             ikind,kkind,nsubcell(1:3),r(1:3)/unit_of_length
@@ -2456,9 +2454,9 @@ CONTAINS
             iatom = atom(ikind)%list_local_a_index(iatom_local)
             atom_a = atom(ikind)%list(iatom)
             s(:) = atom(ikind)%s_pbc(:,iatom) + 0.5_dp
-            i = INT(s(1)*REAL(nsubcell(1),dp) + 1.0_dp)
-            j = INT(s(2)*REAL(nsubcell(2),dp) + 1.0_dp)
-            k = INT(s(3)*REAL(nsubcell(3),dp) + 1.0_dp)
+            i = INT(s(1)*REAL(nsubcell(1),KIND=dp)) + 1
+            j = INT(s(2)*REAL(nsubcell(2),KIND=dp)) + 1
+            k = INT(s(3)*REAL(nsubcell(3),KIND=dp)) + 1
             i = MIN(MAX(i,1),nsubcell(1))
             j = MIN(MAX(j,1),nsubcell(2))
             k = MIN(MAX(k,1),nsubcell(3))
@@ -2476,9 +2474,9 @@ CONTAINS
             iatom = atom(ikind)%list_local_b_index(iatom_local)
             atom_a = atom(ikind)%list(iatom)
             s(:) = atom(ikind)%s_pbc(:,iatom) + 0.5_dp
-            i = INT(s(1)*REAL(nsubcell(1),dp) + 1.0_dp)
-            j = INT(s(2)*REAL(nsubcell(2),dp) + 1.0_dp)
-            k = INT(s(3)*REAL(nsubcell(3),dp) + 1.0_dp)
+            i = INT(s(1)*REAL(nsubcell(1),KIND=dp)) + 1
+            j = INT(s(2)*REAL(nsubcell(2),KIND=dp)) + 1
+            k = INT(s(3)*REAL(nsubcell(3),KIND=dp)) + 1
             i = MIN(MAX(i,1),nsubcell(1))
             j = MIN(MAX(j,1),nsubcell(2))
             k = MIN(MAX(k,1),nsubcell(3))

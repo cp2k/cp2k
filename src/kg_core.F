@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2004  MPI fuer Festkoerperforschung, Stuttgart              !
+!   Copyright (C) 2000 - 2006  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 !!****** cp2k/kg_core [1.0] *
 !!
@@ -444,9 +444,9 @@ CONTAINS
             iatom = atom(ikind)%list_local_a_index(iatom_local)
             atom_a = atom(ikind)%list(iatom)
             s(:) = atom(ikind)%s_pbc(:,iatom) + 0.5_dp
-            i = INT(s(1)*REAL(nsubcell(1),dp) + 1.0_dp)
-            j = INT(s(2)*REAL(nsubcell(2),dp) + 1.0_dp)
-            k = INT(s(3)*REAL(nsubcell(3),dp) + 1.0_dp)
+            i = INT(s(1)*REAL(nsubcell(1),KIND=dp)) + 1
+            j = INT(s(2)*REAL(nsubcell(2),KIND=dp)) + 1
+            k = INT(s(3)*REAL(nsubcell(3),KIND=dp)) + 1
             i = MIN(MAX(i,1),nsubcell(1))
             j = MIN(MAX(j,1),nsubcell(2))
             k = MIN(MAX(k,1),nsubcell(3))
@@ -618,16 +618,16 @@ CONTAINS
     DEALLOCATE (atom,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "atom")
-                                     
-    DEALLOCATE (alpha,STAT=istat)    
+
+    DEALLOCATE (alpha,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "alpha")
-                                     
-    DEALLOCATE (radius,STAT=istat)   
+
+    DEALLOCATE (radius,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "radius")
-                                     
-    DEALLOCATE (zeff,STAT=istat)     
+
+    DEALLOCATE (zeff,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "zeff")
 
@@ -636,7 +636,7 @@ CONTAINS
     energy%core_overlap = ecore_overlap
 
     CALL cp_print_key_finished_output(output_unit,logger,kg_env%input,&
-                                      "SUBSYS%PRINT%SUBCELL",error=error)    
+                                      "SUBSYS%PRINT%SUBCELL",error=error)
 
     CALL timestop(0.0_dp,handle)
 
