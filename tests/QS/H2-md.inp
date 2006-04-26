@@ -23,6 +23,7 @@
   &SUBSYS
     &CELL
       ABC 4.0 4.0 4.0
+      UNIT ANGSTROM
     &END CELL
     &CONSTRAINT
       SHAKE 1.E-10
