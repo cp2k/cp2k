@@ -2425,7 +2425,10 @@ CONTAINS
           END IF
        END DO
     END DO
-
+    IF (ANY(kind_of==0)) THEN
+      WRITE(*,*)"Two molecules have been defined as identical molecules but atoms mismatch charges!!"
+      CPPostcondition(.false.,cp_failure_level,routineP,error,failure)
+    END IF 
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
@@ -2612,6 +2615,7 @@ CONTAINS
        IF(topology%exclude_vdw==do_skip_vdw_14) THEN
           DO j=1,ntorsion
              IF (iw>0) WRITE(iw,*)"tors_list ::",&
+                  offset,&
                   ex_torsion_list(j)%a,&
                   ex_torsion_list(j)%b,&
                   ex_torsion_list(j)%c,&
