@@ -459,6 +459,17 @@ CONTAINS
 
     CALL cp_fm_syevd(matrix,work,eigenvalues)
 
+    IF (matrix%matrix_struct%para_env%mepos.eq.0) THEN
+       WRITE(cp_logger_get_default_unit_nr(),'(T2,A,2E16.8)') &
+                   "cp_fm_power : smallest and largest evals",eigenvalues(1),eigenvalues(ncol_global)
+       IF (eigenvalues(1).LE.0.0_dp) THEN
+         WRITE(cp_logger_get_default_unit_nr(),'(T2,A)') &
+                     "cp_fm_power : warning : matrix has a negative eigenvalue, tighten EPS_DEFAULT"
+       ENDIF
+       WRITE(cp_logger_get_default_unit_nr(),'(T2,A,1E16.8)') &
+                     "cp_fm_power : condition number of matrix = ",eigenvalues(ncol_global)/eigenvalues(1)
+     ENDIF
+
 #if defined(__SCALAPACK)
     nrow_block = work%matrix_struct%nrow_block
     ncol_block = work%matrix_struct%ncol_block
