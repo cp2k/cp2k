@@ -21,7 +21,7 @@
 
 MODULE fist_neighbor_list_types
 
-  USE kinds,                           ONLY: dp, ik1
+  USE kinds,                           ONLY: dp
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
 
@@ -41,11 +41,10 @@ MODULE fist_neighbor_list_types
   ! uses the ik1 which is a limited range in (typically a byte), 
   ! but at least -99..99 
   TYPE neighbor_node_type
-    PRIVATE
+    ! PRIVATE but only in force_non_bonded we directly read r,neighbor,next_neighbor_node
     REAL(dp), DIMENSION(3)            :: r
     TYPE(neighbor_node_type), POINTER :: next_neighbor_node
     INTEGER                           :: neighbor
-    INTEGER(KIND=ik1), DIMENSION(3)   :: cell
   END TYPE neighbor_node_type
 
   TYPE neighbor_list_type
@@ -310,7 +309,6 @@ CONTAINS
 !     *** Store the data set of the new neighbor ***
 
       new_neighbor_node%neighbor = neighbor
-      new_neighbor_node%cell(:) = cell(:)
       new_neighbor_node%r(:) = r(:)
 
 !     *** Update the pointer to the last neighbor node of the neighbor list ***
@@ -793,7 +791,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE get_neighbor_node(neighbor_node,neighbor,cell,r)
+  SUBROUTINE get_neighbor_node(neighbor_node,neighbor,r)
 
 !   Purpose: Return the reqested data of a neighbor node.
 
@@ -802,28 +800,17 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(neighbor_node_type), POINTER        :: neighbor_node
-    INTEGER, INTENT(OUT), OPTIONAL           :: neighbor
-    INTEGER, DIMENSION(3), INTENT(OUT), &
-      OPTIONAL                               :: cell
-    REAL(dp), DIMENSION(3), INTENT(OUT), &
-      OPTIONAL                               :: r
+    INTEGER, INTENT(OUT) :: neighbor
+    REAL(dp), DIMENSION(3), INTENT(OUT) :: r
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'get_neighbor_node'
 
 !   ---------------------------------------------------------------------------
 
-    IF (ASSOCIATED(neighbor_node)) THEN
-
-      IF (PRESENT(neighbor)) neighbor = neighbor_node%neighbor
-      IF (PRESENT(r)) r(:) = neighbor_node%r(:)
-      IF (PRESENT(cell)) cell(:) = neighbor_node%cell(:)
-
-    ELSE
-
-      CALL stop_program(routineN,moduleN,__LINE__,&
-                        "The requested neighbor node is not associated")
-
-    END IF
+      ! IF (PRESENT(neighbor)) neighbor = neighbor_node%neighbor
+      ! IF (PRESENT(r)) r(:) = neighbor_node%r(:)
+      neighbor = neighbor_node%neighbor
+      r(:) = neighbor_node%r(:)
 
   END SUBROUTINE get_neighbor_node
 
@@ -1008,7 +995,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE set_neighbor_node(neighbor_node,neighbor,cell,r)
+  SUBROUTINE set_neighbor_node(neighbor_node,neighbor,r)
 
 !   Purpose: Set the reqested data of a neighbor node.
 
@@ -1018,8 +1005,6 @@ CONTAINS
 
     TYPE(neighbor_node_type), POINTER        :: neighbor_node
     INTEGER, INTENT(IN), OPTIONAL            :: neighbor
-    INTEGER, DIMENSION(3), INTENT(IN), &
-      OPTIONAL                               :: cell
     REAL(dp), DIMENSION(3), INTENT(IN), &
       OPTIONAL                               :: r
 
@@ -1031,7 +1016,6 @@ CONTAINS
 
       IF (PRESENT(neighbor)) neighbor_node%neighbor = neighbor
       IF (PRESENT(r)) neighbor_node%r(:) = r(:)
-      IF (PRESENT(cell)) neighbor_node%cell(:) = cell(:)
 
     ELSE
 

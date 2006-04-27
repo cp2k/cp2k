@@ -920,7 +920,6 @@ CONTAINS
 
             CALL get_neighbor_node(neighbor_node=neighbor_node,&
                                    neighbor=atom_b,&
-                                   cell=cell_b,&
                                    r=sab)
 
             rab(:) = scaled_to_real(sab(:),cell)
@@ -928,8 +927,8 @@ CONTAINS
             dab = SQRT(rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3))
 
             WRITE (UNIT=output_unit,&
-                   FMT="(T10,I6,3X,3I4,3F12.6,2X,F12.6)")&
-              atom_b,cell_b(1:3),rb(1:3)/unit_of_length,dab/unit_of_length
+                   FMT="(T10,I6,3X,3F12.6,2X,F12.6)")&
+              atom_b,rb(1:3)/unit_of_length,dab/unit_of_length
 
             neighbor_node => next(neighbor_node)
 

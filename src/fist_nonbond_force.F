@@ -96,6 +96,7 @@ SUBROUTINE force_nonbond ( fist_nonbond_env, particle_set, cell,  &
     TYPE(pair_potential_single_type), &
       POINTER                                :: pot
     TYPE(spline_data_type), POINTER          :: spline_data
+    LOGICAL                                  :: is_eam
 
 !------------------------------------------------------------------------------
 
@@ -116,6 +117,8 @@ SUBROUTINE force_nonbond ( fist_nonbond_env, particle_set, cell,  &
 
         spline_data => potparm % pot( ikind, jkind ) %pot % pair_spline_data
         IF ( .NOT. ASSOCIATED ( spline_data ) ) CYCLE
+ 
+        is_eam=(potparm %pot( ikind, jkind ) %pot % type == "EAM")
 
         ab = ikind + nkinds*(jkind - 1)
 
@@ -143,14 +146,21 @@ SUBROUTINE force_nonbond ( fist_nonbond_env, particle_set, cell,  &
 
           DO inode=1,nnode
 
-            CALL get_neighbor_node(neighbor_node=neighbor_node,&
-                                   neighbor=atom_b,&
-                                   r=rab)
-
-            drb(:) = particle_set(atom_b)%r(:) -&
-                     scaled_to_real(r_last_update(:,atom_b),cell)
-
-            rab(:) = scaled_to_real(rab(:),cell) - dra(:) + drb(:)
+        
+            IF (cell%orthorhombic) THEN
+               ! equivalent to the other branch only *much* faster
+               atom_b=neighbor_node%neighbor
+               rab(1)=-dra(1)+particle_set(atom_b)%r(1)+cell%hmat(1,1)*(neighbor_node%r(1)-r_last_update(1,atom_b))
+               rab(2)=-dra(2)+particle_set(atom_b)%r(2)+cell%hmat(2,2)*(neighbor_node%r(2)-r_last_update(2,atom_b))
+               rab(3)=-dra(3)+particle_set(atom_b)%r(3)+cell%hmat(3,3)*(neighbor_node%r(3)-r_last_update(3,atom_b))
+            ELSE
+               CALL get_neighbor_node(neighbor_node=neighbor_node,&
+                                      neighbor=atom_b,&
+                                      r=rab)
+               drb(:) = particle_set(atom_b)%r(:) -&
+                        scaled_to_real(r_last_update(:,atom_b),cell)
+               rab(:) = scaled_to_real(rab(:),cell) - dra(:) + drb(:)
+            ENDIF 
 
             rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
 
@@ -164,16 +174,14 @@ SUBROUTINE force_nonbond ( fist_nonbond_env, particle_set, cell,  &
               fr(2) = fscalar*rab(2)
               fr(3) = fscalar*rab(3)
 
-              SELECT CASE ( potparm %pot( ikind, jkind ) %pot % type )
-                CASE ( "EAM" )
-                  pot => potparm %pot( ikind, jkind )%pot
-                  CALL get_force_eam ( rab2, pot, particle_set, atom_a, atom_b, & 
+              IF (is_eam) THEN
+                pot => potparm %pot( ikind, jkind )%pot
+                CALL get_force_eam ( rab2, pot, particle_set, atom_a, atom_b, & 
                                        f_eam ) 
-                    fr(1) =  fr(1) - f_eam * rab ( 1 )
-                    fr(2) =  fr(2) - f_eam * rab ( 2 )
-                    fr(3) =  fr(3) - f_eam * rab ( 3 )
-                CASE DEFAULT
-              END SELECT
+                fr(1) =  fr(1) - f_eam * rab ( 1 )
+                fr(2) =  fr(2) - f_eam * rab ( 2 )
+                fr(3) =  fr(3) - f_eam * rab ( 3 )
+              ENDIF
 
               f_nonbond(1,atom_a) = f_nonbond(1,atom_a) - fr(1)
               f_nonbond(2,atom_a) = f_nonbond(2,atom_a) - fr(2)
@@ -192,11 +200,11 @@ SUBROUTINE force_nonbond ( fist_nonbond_env, particle_set, cell,  &
               ptens_nonbond(3,1) = ptens_nonbond(3,1) + rab(3)*fr(1)
               ptens_nonbond(3,2) = ptens_nonbond(3,2) + rab(3)*fr(2)
               ptens_nonbond(3,3) = ptens_nonbond(3,3) + rab(3)*fr(3)
-              
 
             END IF
 
-            neighbor_node => next(neighbor_node)
+            ! neighbor_node => next(neighbor_node)
+            neighbor_node => neighbor_node%next_neighbor_node
 
           END DO
 

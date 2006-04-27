@@ -37,12 +37,6 @@ MODULE kinds
   PUBLIC :: sp, dp, print_kind_info, dp_size, sp_size, int_size
   PUBLIC :: default_string_length, default_path_length
 
-  PUBLIC :: ik1
-  ! an integer with a range of at least -99 .. 99
-  ! typically just a byte in size 
-  INTEGER, PARAMETER :: ik1=SELECTED_INT_KIND(2)
-  INTEGER, PARAMETER :: ik1_size=BIT_SIZE(0_ik1)/8
-
 #if __SGL 
   INTEGER, PARAMETER :: sp = SELECTED_REAL_KIND ( 6, 30 )
   INTEGER, PARAMETER :: dp = SELECTED_REAL_KIND ( 6, 30 )
