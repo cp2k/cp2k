@@ -1496,19 +1496,7 @@ CONTAINS
                           do_nhcopt_massive, do_nhcopt_none/),&
             default_i_val=do_nhcopt_global,error=error)
        CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-       
-       CALL keyword_create(keyword, name="EXCLUDE_CHECK",&
-            variants=(/"EXCLUDE_CH"/),&
-            description="Used in conjunction with PARA_RES. Determines "//&
-                        "the number of molecules ahead and behind that "//&
-                        "needs to be checked in order to generate the "//&
-                        "proper exclusion list. 3 is safe for all "//&
-                        "molecules situations but 1 should work for "//&
-                        "all proteins.",&
-            usage="exclude_check {integer}", default_i_val=3,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
+       CALL keyword_release(keyword,error=error)       
 
        CALL keyword_create(keyword, name="BONDPARM_FACTOR",&
             description="Used in conjunction with BONDPARM to help "//&
@@ -1518,8 +1506,6 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
        NULLIFY(subsection)
        CALL section_create(subsection,name="MOL_SET",&
             description="Molecule section. Right now only works with PSF.",&

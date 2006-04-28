@@ -173,7 +173,7 @@ CONTAINS
          routineP = moduleN//':'//routineN
     INTEGER                                  :: first_atom, iconst, index_a, &
                                                 index_b
-    REAL(KIND=dp)                            :: del_lam, dtby2, dtsqby2, dtsqi,&
+    REAL(KIND=dp)                            :: del_lam, dtby2, dtsqby2,&
                                                 fdotf, fdotf_sum, imass1, &
                                                 imass2, mass
     REAL(KIND=dp), DIMENSION(3)              :: fc_t, r12
@@ -190,7 +190,6 @@ CONTAINS
     failure = .FALSE.
     ishake = 0       
     max_sigma = -1.0E+10_dp
-    dtsqi   = 1.0_dp/(simpar%dt*simpar%dt)
     dtsqby2 = simpar%dt*simpar%dt*.5_dp
     dtby2   = simpar%dt*.5_dp
     CONS: DO WHILE (ABS(max_sigma)>=simpar%shake_tol)

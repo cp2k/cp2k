@@ -132,7 +132,6 @@ MODULE topology_types
     LOGICAL                                   :: const_46
     LOGICAL                                   :: charge_occup
     LOGICAL                                   :: charge_beta
-    INTEGER                                   :: exclude_check
     LOGICAL                                   :: para_res
   END TYPE topology_parameters_type
 
@@ -218,10 +217,8 @@ SUBROUTINE init_topology (topology)
   topology%charge_beta=.FALSE.
   topology%exclude_vdw=do_skip_vdw_14
   topology%exclude_ei=do_skip_ei_14
-  topology%exclude_check=3
   topology%para_res=.FALSE.
   topology%molname_generated=.FALSE.
-
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
