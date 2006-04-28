@@ -46,7 +46,8 @@ MODULE molecule_kind_types
                                              coord_colvar_id,&
                                              dist_colvar_id,&
                                              plane_distance_colvar_id,&
-                                             torsion_colvar_id
+                                             torsion_colvar_id,&
+                                             rotation_colvar_id
   
 #include "cp_common_uses.h"
 
@@ -209,6 +210,7 @@ CONTAINS
     ncolv%ntorsion    = 0
     ncolv%ncoord      = 0
     ncolv%nplane_dist = 0
+    ncolv%nrot        = 0
     IF (ASSOCIATED(colv_list)) THEN
       DO k = 1, SIZE(colv_list)
          SELECT CASE(colv_list(k)%type_id)       
@@ -216,6 +218,8 @@ CONTAINS
             ncolv%nangle = ncolv%nangle + 1
          CASE(coord_colvar_id)
             ncolv%ncoord = ncolv%ncoord + 1
+         CASE(rotation_colvar_id)
+            ncolv%nrot = ncolv%nrot + 1
          CASE(dist_colvar_id)
             ncolv%ndist = ncolv%ndist + 1
          CASE(plane_distance_colvar_id)
@@ -229,7 +233,8 @@ CONTAINS
                  ncolv%nangle       +&
                  ncolv%ntorsion     +&
                  ncolv%ncoord       +&
-                 ncolv%nplane_dist 
+                 ncolv%nplane_dist  +&
+                 ncolv%nrot
 
   END SUBROUTINE setup_colvar_counters
 
@@ -582,7 +587,7 @@ CONTAINS
       IF (PRESENT(nub)) nub = molecule_kind%nub
       IF (PRESENT(nimpr)) nimpr = molecule_kind%nimpr
       IF (PRESENT(nonfo)) nonfo = molecule_kind%nonfo
-      IF (PRESENT(nconstraint)) nconstraint = molecule_kind%ncolv%ndist +&
+      IF (PRESENT(nconstraint)) nconstraint = molecule_kind%ncolv%ntot +&
                                               3*molecule_kind%ng3x3 +&
                                               6*molecule_kind%ng4x6 
       IF (PRESENT(ncolv)) ncolv = molecule_kind%ncolv

@@ -164,6 +164,10 @@ CONTAINS
 
        CALL create_colvar_d_pl_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL create_colvar_rot_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)      
 
     END IF
@@ -290,11 +294,10 @@ CONTAINS
 !!     teo
 !!
 !!*** **********************************************************************
-  SUBROUTINE create_colvar_torsion_section(section,error,description)
+  SUBROUTINE create_colvar_torsion_section(section,error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-    CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: description
 
     CHARACTER(len=*), PARAMETER :: &
       routineN = 'create_colvar_torsion_section', &
@@ -307,17 +310,10 @@ CONTAINS
 
     IF (.NOT.failure) THEN
        CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
-       IF (PRESENT(description)) THEN
-          CALL section_create(section,name="torsion",&
-               description=description,&
-               n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
-               error=error)
-       ELSE
-          CALL section_create(section,name="torsion",&
-               description="Section to define the torsion as a collective variables.",&
-               n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
-               error=error)
-       END IF
+       CALL section_create(section,name="torsion",&
+            description="Section to define the torsion as a collective variables.",&
+            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            error=error)
         
        NULLIFY(keyword)
 
@@ -331,6 +327,87 @@ CONTAINS
     END IF
 
   END SUBROUTINE create_colvar_torsion_section
+
+!!****f* input_cp2k/create_colvar_rot_section *
+!!
+!!   NAME
+!!     create_colvar_rot_section
+!!
+!!   FUNCTION
+!!     collective variables specifying torsion
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - section: the section to be created
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_colvar_rot_section(section,error,description)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: description
+
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'create_colvar_rot_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+    failure=.FALSE.
+
+    IF (.NOT.failure) THEN
+       CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+       CALL section_create(section,name="bond_rotation",&
+            description="Section to define the rotation of a bond/line with respect to"//&
+                 "another bond/line",&
+            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            error=error)
+        
+       NULLIFY(keyword)
+
+       CALL keyword_create(keyword, name="P1_BOND1",&
+            description="Specifies the atom indexes defining the first point"//&
+            "of the first bond/line.",&
+            usage="P1_BOND1 {integer} .. {integer}",required=.TRUE.,&
+            n_var=-1, type_of_var=integer_t, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="P2_BOND1",&
+            description="Specifies the atom indexes defining the second point"//&
+            "of the first bond/line.",&
+            usage="P2_BOND1 {integer} .. {integer}",required=.TRUE.,&
+            n_var=-1, type_of_var=integer_t, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="P1_BOND2",&
+            description="Specifies the atom indexes defining the first point"//&
+            "of the second bond/line.",&
+            usage="P1_BOND2 {integer} .. {integer}",required=.TRUE.,&
+            n_var=-1, type_of_var=integer_t, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="P2_BOND2",&
+            description="Specifies the atom indexes defining the second point"//&
+            "of the second bond/line.",&
+            usage="P2_BOND2 {integer} .. {integer}",required=.TRUE.,&
+            n_var=-1, type_of_var=integer_t, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+    END IF
+
+  END SUBROUTINE create_colvar_rot_section
 
 !!****f* input_cp2k/create_colvar_angle_section *
 !!

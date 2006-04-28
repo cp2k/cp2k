@@ -103,3 +103,9 @@ nh3_dist_npt.inp
 # after rewriting the setup for constraint
 water32_hbonds_2.inp
 water_hbonds_dist.inp
+# reset due a buf fix in constraint for DOF
+ethene_colv0.inp
+ethene_colv1.inp
+ethene_colv1_npt.inp
+ethene_colv2.inp
+ethene_colv2_npt.inp

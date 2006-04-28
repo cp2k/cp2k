@@ -1,0 +1,78 @@
+
+&FORCE_EVAL
+  &DFT
+    &MGRID
+      CUTOFF 50
+    &END MGRID
+    &QS
+    &END QS
+    &SCF
+      MAX_SCF 5
+      &OT ON
+      &END OT
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL PADE
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 6.0 6.0 8.0
+      UNIT ANGSTROM
+    &END CELL
+    &COORD
+    C         -0.2558206925       -0.0449868417        0.6850619693
+    C         -0.2214915625       -0.0386665897       -0.6514432536
+    H         -0.4100752923        0.8714166677        1.2581094627
+    H         -0.1401850725       -0.9650616559        1.2579495323
+    H         -0.0795226532       -0.9560364450       -1.2252531634
+    H         -0.3538336094        0.8817708920       -1.2228724740
+    &END COORD
+    &KIND H
+      BASIS_SET SZV-GTH-PADE
+      POTENTIAL GTH-PADE-q1
+    &END KIND
+    &KIND C
+      BASIS_SET SZV-GTH-PADE
+      POTENTIAL GTH-PADE-q4
+    &END KIND
+    &COLVAR
+       &BOND_ROTATION
+          P1_BOND1 3 4
+          P2_BOND1 5 6
+          P1_BOND2 1
+          P2_BOND2 2
+       &END BOND_ROTATION
+    &END COLVAR
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  FFTLIB FFTSG
+  PROGRAM Quickstep
+  PROJECT C2H4
+  RUN_TYPE MD
+  PRINT_LEVEL MEDIUM
+&END GLOBAL
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 3
+    TIMESTEP 0.1
+    TEMPERATURE 300.0
+  &END MD
+ &METADYN
+    DO_HILLS
+    #LAGRANGE
+    NT_HILLS 1
+    WW 1.0e-2
+    # Metavar ref0 e ref1
+    &METAVAR
+      LAMBDA 0.1
+      MASS 10.0
+      SCALE 0.1
+      COLVAR 1
+      SUBSYS 1
+    &END METAVAR
+  &END METADYN
+&END MOTION

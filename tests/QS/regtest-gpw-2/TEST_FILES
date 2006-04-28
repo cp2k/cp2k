@@ -39,3 +39,5 @@ Cu.inp             1
 H2O-debug-1.inp    1
 H2O-debug-2.inp    1
 H2O-debug-3.inp    1
+# new colvar
+C2H4-meta.inp      1
