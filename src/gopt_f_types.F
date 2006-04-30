@@ -55,7 +55,6 @@ MODULE gopt_f_types
   IMPLICIT NONE
   PRIVATE
 
-  REAL(KIND = dp), PARAMETER :: scale = 0.2_dp, scaleI = 1.0_dp/scale
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'gopt_f_types'
   INTEGER, PRIVATE, SAVE :: last_gopt_f_id=0, last_gopt_param_id=0
@@ -353,7 +352,7 @@ SUBROUTINE gopt_f_eval_all_at(gopt_env, x, f, gradient, master, para_env, force_
      DO ip=1,particles%n_els
         DO idir=1,3
            idg=idg+1
-           particles%els(ip)%r(idir)=x(idg)*scale
+           particles%els(ip)%r(idir)=x(idg)
         END DO
      END DO
      CALL write_qs_particle_coordinates(particles%els,cell,force_env_section,error)
@@ -381,7 +380,7 @@ SUBROUTINE gopt_f_eval_all_at(gopt_env, x, f, gradient, master, para_env, force_
               DO idir=1,3
                  idg=idg+1
                  CPInvariant(SIZE(gradient)>=idg,cp_failure_level,routineP,error,failure)
-                 gradient(idg)=-particles%els(ip)%f(idir)*scaleI
+                 gradient(idg)=-particles%els(ip)%f(idir)
               END DO
            END DO
         END DO
@@ -555,7 +554,7 @@ SUBROUTINE gopt_f_create_x0(gopt_env, x0, error)
         DO idir=1,3
            idg=idg+1
            CPInvariant(SIZE(x0)>=idg,cp_failure_level,routineP,error,failure)
-           x0(idg)=particles%els(ip)%r(idir)*scaleI
+           x0(idg)=particles%els(ip)%r(idir)
         END DO
      END DO
   END DO

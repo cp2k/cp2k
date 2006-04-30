@@ -94,3 +94,5 @@ Cu.inp
 H2O-debug-1.inp
 H2-geo-2.inp
 
+# no need to scale coordinates in the geometry optimizer
+H2-geo-2.inp
