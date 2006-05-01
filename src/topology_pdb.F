@@ -106,7 +106,7 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_coordinate_pdb', &
       routineP = moduleN//':'//routineN
-    INTEGER, PARAMETER                       :: nblock_atom = 1000
+    INTEGER, PARAMETER                       :: nblock_atom = 10000
 
     CHARACTER(LEN=default_string_length)     :: line, record, root_mol_name
     INTEGER                                  :: handle, i, inum_mol, istat, &
