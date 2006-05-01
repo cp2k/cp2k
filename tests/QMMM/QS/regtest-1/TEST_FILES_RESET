@@ -5,3 +5,5 @@ Ar-qmmm.inp
 H2O-qmmm-gauss-1.inp
 #  
 H2O-qmmm-gauss-10.inp
+# numerical diifferences after reorganizing BFGS
+H2O-qmmm-none-1.inp

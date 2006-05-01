@@ -40,7 +40,8 @@ MODULE bfgs_optimizer
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
   USE gopt_f_types,                    ONLY: gopt_param_type,&
-                                             gopt_f_type
+                                             gopt_f_type,&
+                                             cp_eval_at
   USE input_constants,                 ONLY: dump_xmol
   USE input_cp2k_restarts,             ONLY: write_restart
   USE input_section_types,             ONLY: section_vals_type
@@ -99,9 +100,11 @@ CONTAINS
                                                 should_stop
     REAL(KIND=dp)                            :: ediff, emin, eold, etot, &
                                                 pred, rad, rat, step
-    REAL(KIND=dp), ALLOCATABLE :: dg(:), dr(:), dx(:), eigval(:), &
-      eigvec(:,:), g(:), gold(:), hes(:), hes_mat(:,:), work(:), x(:), xold(:)
-    TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
+    REAL(KIND=dp), POINTER, DIMENSION(:)      :: g
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)  :: dg, dr, dx, eigval
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)  :: gold, hes, work, xold
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:,:):: eigvec, hes_mat 
+    TYPE(atomic_kind_list_type), POINTER      :: atomic_kinds
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -113,7 +116,7 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
 
-    NULLIFY(logger)
+    NULLIFY(logger, g)
     logger => cp_error_get_logger(error)
 
     CALL cp_add_iter_level(logger%iter_info,"GEO_OPT",ihandle,error)
@@ -144,13 +147,8 @@ CONTAINS
     natom = particles%n_els  
     particle_set => particles%els    
 
-    !   Atom fixing constraints for optimizer
-
-    nfixed = COUNT(particle_set(:)%is_fixed)
-    nfree = natom - nfixed
-    ndf = 3*nfree
-
-    ALLOCATE(x(ndf) )
+    ndf = SIZE(x0)
+    nfree = SIZE(particle_set)
     ALLOCATE(hes(ndf*(ndf+1)/2))
     ALLOCATE(xold(ndf))
     ALLOCATE(g(ndf))
@@ -162,30 +160,9 @@ CONTAINS
     ALLOCATE(eigvec(ndf,ndf))
     ALLOCATE(work(ndf))
     ALLOCATE(dr(ndf))
-
-    !   *** Store the coordinates ***
-
-    indf = 0
-
-    DO ikind=1,nkind
-       atomic_kind => atomic_kind_set(ikind)
-       CALL get_atomic_kind(atomic_kind=atomic_kind,&
-            atom_list=atom_list)
-       natom = SIZE(atom_list)
-       DO iatom=1,natom
-          atom = atom_list(iatom)
-          IF (.NOT.particle_set(atom)%is_fixed) THEN
-             DO j = 1, 3
-                indf = indf + 1
-                x(indf) = particle_set(atom)%r(j)
-                xold(indf) = x(indf)
-             END DO
-          END IF
-       END DO
-    END DO
+    xold = x0
 
     !  Initialize hessian (hes = unitary matrix ) 
-
     DO indf = 1, ndf
        DO j = 1, indf
           i = indf * (indf - 1)/2 + j
@@ -197,15 +174,11 @@ CONTAINS
 
 
     ! Geometry optimization starts now
-
     IF(output_unit>0)THEN
        WRITE(UNIT=output_unit,FMT="(/,T2,A)") REPEAT("*",79)
        WRITE(UNIT=output_unit,FMT="(T2,A,T28,A,T78,A)")&
             "***","STARTING GEOMETRY OPTIMIZATION","***"
        WRITE(UNIT=output_unit,FMT="(T2,A)") REPEAT("*",79)
-       WRITE(UNIT=output_unit,FMT="(/,(T2,A,I10))")&
-            "Number of free atoms         = ",nfree,&
-            "Number of degrees of freedom = ",ndf
        CALL m_flush(output_unit)
     END IF
 
@@ -222,36 +195,12 @@ CONTAINS
     END IF
 
     ! Calculate Energy & Gradients
-
-    CALL force_env_calc_energy_force(force_env,calc_force=.TRUE.,error=error)
-
-    ! Copy forces to g, the gradients
-
-    indf = 0
-    DO ikind=1,nkind
-       atomic_kind => atomic_kind_set(ikind)
-       CALL get_atomic_kind(atomic_kind=atomic_kind,&
-            atom_list=atom_list)
-       natom = SIZE(atom_list)
-       DO iatom=1,natom
-          atom = atom_list(iatom)
-          IF (.NOT.particle_set(atom)%is_fixed) THEN
-             DO j = 1, 3
-                indf = indf + 1
-                g(indf) = -particle_set(atom)%f(j)
-             END DO
-          END IF
-       END DO
-    END DO
-
-    CALL force_env_get(force_env=force_env,potential_energy=etot)
+    CALL cp_eval_at(gopt_env, x0, etot, g, gopt_env%force_env%para_env%mepos,&
+            gopt_env%force_env%para_env, force_env_section, error)
 
     emin = etot
-
     it = 0
-
-    DO 
-       
+    DO        
        it = it + 1
        CALL cp_iterate(logger%iter_info,iter_nr=it,error=error)
        IF(it > maxiter )THEN
@@ -278,7 +227,6 @@ CONTAINS
        END IF
 
        !    ** Hessian update/restarting **
-
        IF ((it == 1).AND.hesrest) THEN
           IF(ionode)THEN
              DO i=1,SIZE(hes)
@@ -298,8 +246,8 @@ CONTAINS
           CALL mp_bcast(hes,globenv%source,globenv%group)        
        ELSE IF( it > 1 ) THEN        
           DO indf = 1, ndf
-             dx(indf) = x(indf) - xold(indf)
-             dg(indf) = g(indf) - gold(indf)     
+             dx(indf) = x0(indf) - xold(indf)
+             dg(indf) =  g(indf) - gold(indf)     
           END DO
 
           CALL bfgs(ndf,dx,dg,hes,work)
@@ -314,12 +262,10 @@ CONTAINS
        END IF
 
        !    ** Setting the present positions & gradients as old **
-
-       CALL DCOPY(ndf,x,1,xold,1)
-       CALL DCOPY(ndf,g,1,gold,1)
+       xold = x0
+       gold = g
 
        !    ** Copying hessian hes to (ndf x ndf) matrix hes_mat for diagonalization **
-
        DO indf = 1, ndf
           DO j = 1, indf
              i = indf*(indf-1)/2 + j
@@ -329,102 +275,32 @@ CONTAINS
        END DO
 
        CALL diamat_all(eigvec,eigval,dac=.FALSE.)
-
        CALL set_hes_eig(ndf,eigval,work)
-
        CALL DCOPY(ndf,eigval,1,dx,1)
-
        CALL rat_fun_opt(ndf,dg,eigval,work,eigvec,g)
-
        CALL geoopt_get_step(ndf,eigval,eigvec,hes_mat,dr,g)
-
        CALL trust_radius(ndf,nfree,step,rad,rat,dr,output_unit,output_unit>0)
 
        !   ** Updating the present positions ** 
-
-       indf = 0
-       DO ikind=1,nkind
-          atomic_kind => atomic_kind_set(ikind)
-          CALL get_atomic_kind(atomic_kind=atomic_kind,&
-               atom_list=atom_list)
-          natom = SIZE(atom_list)
-          DO iatom=1,natom
-             atom = atom_list(iatom)
-             IF (.NOT.particle_set(atom)%is_fixed) THEN
-                DO j = 1, 3
-                   indf = indf + 1
-                   particle_set(atom)%r(j) = particle_set(atom)%r(j) + dr(indf)
-                   x(indf) = x(indf) + dr(indf)
-                END DO
-             END IF
-          END DO
-       END DO
-
-       !  Printing section
-
-       IF (ionode) THEN
-          dataunit = cp_print_key_unit_nr(logger,globenv%input_file,&
-               "MOTION%PRINT%TRAJECTORY",extension=".xyz",error=error)
-          IF (dataunit>0) THEN
-             WRITE (UNIT=title,FMT="(A,I8,A,F20.10)") " i =",it,", E =",etot
-             CALL write_particle_coordinates(particle_set,cell,dataunit,&
-                  dump_xmol,"POS",TRIM(title))
-             CALL m_flush(dataunit)
-          END IF
-          CALL cp_print_key_finished_output(dataunit,logger,globenv%input_file,&
-               "MOTION%PRINT%TRAJECTORY", error=error)     
-          CALL write_qs_particle_coordinates(particle_set,cell,force_env_section,error)
-       END IF
-
-       CALL write_particle_distances(particle_set,cell,force_env_section,error)
-       CALL write_structure_data(particle_set,cell,force_env_section,error)
-
+       x0 = x0 + dr
        CALL energy_predict(ndf,work,hes,dr,g,output_unit>0,output_unit,conv,pred)
-
        IF (conv) EXIT
-
        eold = etot
 
        !    ** Energy & Gradients at new step **
-
-       CALL force_env_calc_energy_force(force_env,calc_force=.TRUE.,error=error)
-
-       indf = 0
-       DO ikind=1,nkind
-          atomic_kind => atomic_kind_set(ikind)
-          CALL get_atomic_kind(atomic_kind=atomic_kind,&
-               atom_list=atom_list)
-          natom = SIZE(atom_list)
-          DO iatom=1,natom
-             atom = atom_list(iatom)
-             IF (.NOT.particle_set(atom)%is_fixed) THEN
-                DO j = 1, 3
-                   indf = indf + 1
-                   g(indf) = -particle_set(atom)%f(j)
-                END DO
-             END IF
-          END DO
-       END DO
-
-       CALL force_env_get(force_env=force_env,potential_energy=etot)
-
+       CALL cp_eval_at(gopt_env, x0, etot, g, gopt_env%force_env%para_env%mepos,&
+            gopt_env%force_env%para_env, force_env_section, error)
        ediff = etot - eold
 
        IF(output_unit>0) CALL write_cycle_infos &
             (output_unit,it,etot,ediff,pred,rat,step,rad,emin," BFGS")
 
        IF(etot < emin ) emin = etot 
-
        CALL update_trust_rad(rat,rad,step,ediff)
-
        CALL check_converg(ndf,dr,g,output_unit>0,output_unit,conv,gopt_param)
-
-
        IF(conv) EXIT
-
     END DO
 
-    DEALLOCATE(x)
     DEALLOCATE(hes)
     DEALLOCATE(xold)
     DEALLOCATE(g)
