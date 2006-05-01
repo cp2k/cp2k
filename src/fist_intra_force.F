@@ -147,8 +147,9 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
                                 bend_list = bend_list, torsion_list = torsion_list, &
                                 impr_list = impr_list, onfo_list = onef_list )
 
+     CALL get_molecule ( molecule, first_atom=first_atom )
+
      BOND: DO ibond = 1, nbonds
-        CALL get_molecule ( molecule, first_atom=first_atom )
         index_a = bond_list ( ibond ) % a + first_atom - 1
         index_b = bond_list ( ibond ) % b + first_atom - 1
         rij = particle_set ( index_a ) % r - particle_set ( index_b ) % r
@@ -178,7 +179,6 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
      END DO BOND
 
      UREY_BRADLEY: DO ibend = 1, nub
-        CALL get_molecule ( molecule, first_atom=first_atom )
         index_a = ub_list ( ibend ) % a + first_atom - 1
         index_b = ub_list ( ibend ) % c + first_atom - 1
         rij = particle_set ( index_a ) % r - particle_set ( index_b ) % r
@@ -207,7 +207,6 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
      END DO UREY_BRADLEY
 
      BEND: DO ibend = 1, nbends
-        CALL get_molecule ( molecule, first_atom=first_atom )
         index_a = bend_list ( ibend ) % a + first_atom - 1
         index_b = bend_list ( ibend ) % b + first_atom - 1
         index_c = bend_list ( ibend ) % c + first_atom - 1
@@ -254,7 +253,6 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
      END DO BEND
 
      TORSION: DO itorsion = 1, ntorsions
-        CALL get_molecule ( molecule, first_atom=first_atom )
         index_a = torsion_list ( itorsion ) % a + first_atom - 1
         index_b = torsion_list ( itorsion ) % b + first_atom - 1
         index_c = torsion_list ( itorsion ) % c + first_atom - 1
@@ -314,7 +312,6 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
      END DO TORSION
 
      IMP_TORSION: DO itorsion = 1, nimptors
-        CALL get_molecule ( molecule, first_atom=first_atom )
         index_a = impr_list ( itorsion ) % a + first_atom - 1
         index_b = impr_list ( itorsion ) % b + first_atom - 1
         index_c = impr_list ( itorsion ) % c + first_atom - 1
@@ -374,7 +371,6 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
      END DO IMP_TORSION
 
      ONEF: DO ionef = 1, nonefs
-        CALL get_molecule ( molecule, first_atom=first_atom )
         index_a = onef_list ( ionef ) % a + first_atom - 1
         index_b = onef_list ( ionef ) % b + first_atom - 1
         rij = particle_set ( index_b ) % r - particle_set ( index_a ) % r
