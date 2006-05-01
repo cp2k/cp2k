@@ -3174,7 +3174,7 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: molname, name
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: atom_typeh
-    INTEGER :: dum, first, first_atom, handle, i, iglob, iw, j, k, kk, last, &
+    INTEGER :: dum, first, first_atom, handle, i, offset, iw, j, k, kk, last, &
       m, nbond, nhdist, nfixed_atoms, ng3x3, ng4x6, nmolecule, nrep, search1, &
       search2, stat, n_start_colv, ncolv_tot, ncolv_mol, kdim, ii, natom, &
       last_atom
@@ -3266,7 +3266,8 @@ CONTAINS
              atomic_kind => atom_list(j)%atomic_kind
              CALL get_atomic_kind(atomic_kind=atomic_kind,&
                   name=name,element_symbol=element_symbol) 
-             IF((TRIM(name)=="H").OR.(TRIM(element_symbol)=="H")) THEN
+             !IF((TRIM(name)=="H").OR.(TRIM(element_symbol)=="H")) THEN
+             IF((TRIM(name(1:1))=='H').OR.(TRIM(name)=="H").OR.(TRIM(element_symbol)=="H")) THEN
                 DO k=1,nbond
                    IF ((bond_list(k)%a==j).OR.(bond_list(k)%b==j))  THEN
                       nhdist = nhdist + 1
@@ -3285,19 +3286,21 @@ CONTAINS
        DO i=1,SIZE(molecule_kind_set)
           molecule_kind => molecule_kind_set(i)
           CALL get_molecule_kind(molecule_kind=molecule_kind,&
-               bond_list=bond_list, atom_list=atom_list, molecule_list=molecule_list)
+               bond_list=bond_list, nbond=nbond, atom_list=atom_list,&
+               molecule_list=molecule_list)
           molecule => molecule_set(molecule_list(1))
           CALL get_molecule ( molecule, first_atom = first_atom, last_atom= last_atom)
           natom = last_atom  - first_atom + 1
-          iglob = first_atom - 1
+          offset = first_atom - 1
           DO j =  1, natom
              atomic_kind => atom_list(j)%atomic_kind
              CALL get_atomic_kind(atomic_kind=atomic_kind,&
                   name=name,element_symbol=element_symbol) 
-             IF((TRIM(name)=="H").OR.(TRIM(element_symbol)=="H")) THEN
+             !IF((TRIM(name)=="H").OR.(TRIM(element_symbol)=="H")) THEN
+             IF((TRIM(name(1:1))=='H').OR.(TRIM(name)=="H").OR.(TRIM(element_symbol)=="H")) THEN
                 DO k=1,nbond
                    IF ((bond_list(k)%a==j).OR.(bond_list(k)%b==j))  THEN
-                      rvec = particle_set(iglob+bond_list(k)%a)%r-particle_set(iglob+bond_list(k)%b)%r
+                      rvec = particle_set(offset+bond_list(k)%a)%r-particle_set(offset+bond_list(k)%b)%r
                       rmod = SQRT(DOT_PRODUCT(rvec,rvec))
                       IF (ASSOCIATED(hdist)) THEN
                          IF (SIZE(hdist)>0) THEN
