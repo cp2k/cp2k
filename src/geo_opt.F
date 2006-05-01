@@ -209,9 +209,6 @@ MODULE geo_opt
              wanted_projected_gradient=gopt_param%wanted_proj_gradient, m=gopt_param%max_h_rank,&
              max_f_per_iter=gopt_param%max_f_per_iter, globenv=globenv, error=error)
 
-        DEALLOCATE(x0,stat=stat)
-        CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
-
         DO i=1,gopt_param%max_iter
            IF (.NOT.cp_opt_gopt_next(optimizer,force_env_section=force_env_section,&
                 input=globenv%input_file,force_env=force_env,gopt_param=gopt_param,&
