@@ -5,13 +5,13 @@
       parmfile sample_pot/deca_ala.pot
       parmtype CHM
     &END FORCEFIELD
-    &POISSON_MM
+    &POISSON
       &EWALD
         EWALD_TYPE ewald
         ALPHA .36
         GMAX 29
       &END EWALD
-    &END POISSON_MM
+    &END POISSON
   &END MM
   &SUBSYS
     &CELL
@@ -22,7 +22,12 @@
       CHARGE_BETA
       COORD_FILE_NAME sample_pdb/deca_ala.pdb
       COORDINATE PDB
+    #  PARA_RES T
     &END TOPOLOGY
+    #&CONSTRAINT
+    #  &HBONDS
+    #  &END HBONDS
+    #&END CONSTRAINT
   &END SUBSYS
 &END FORCE_EVAL
 &GLOBAL
@@ -30,7 +35,7 @@
   PRINT_LEVEL LOW
   PROGRAM FIST
   PROJECT deca_ala
-  RUN_TYPE debug
+  RUN_TYPE md
 &END GLOBAL
 &MOTION
   &MD
