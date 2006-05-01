@@ -102,13 +102,14 @@ MODULE geo_opt
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_geo_opt', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle
+    INTEGER                                  :: handle, stat
     LOGICAL                                  :: failure
     TYPE(gopt_param_type), POINTER           :: gopt_param
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(gopt_f_type), POINTER               :: gopt_env
     REAL(KIND=dp), DIMENSION(:), POINTER     :: x0
 
+    failure = .FALSE.
     CALL timeset(routineN,handle)
     CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(globenv),cp_failure_level,routineP,error,failure)
@@ -134,6 +135,8 @@ MODULE geo_opt
        CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
     END SELECT
 
+    DEALLOCATE(x0, stat=stat)
+    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     CALL gopt_f_release(gopt_env, error=error)
     CALL gopt_param_release(gopt_param, error=error)
     CALL timestop(handle)
