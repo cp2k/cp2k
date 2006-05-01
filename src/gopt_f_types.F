@@ -67,10 +67,6 @@ MODULE gopt_f_types
   PUBLIC :: gopt_param_create, gopt_param_read, gopt_param_retain, &
             gopt_param_release
 
-  INTERFACE cp_eval_at
-     MODULE PROCEDURE gopt_f_eval_all_at, gopt_f_eval_rest_at
-  END INTERFACE
-
 !!***
 !****************************************************************************
   
@@ -97,8 +93,9 @@ MODULE gopt_f_types
   !***************************************************************************
   TYPE gopt_f_type
      INTEGER :: ref_count, id_nr
-     TYPE(force_env_type), POINTER :: force_env
-     TYPE(global_environment_type), POINTER :: globenv
+     TYPE(force_env_type), POINTER            :: force_env
+     TYPE(global_environment_type), POINTER   :: globenv
+     TYPE(section_vals_type), POINTER         :: force_env_section
   END TYPE gopt_f_type
 !!***
   !****************************************************************************
@@ -131,14 +128,14 @@ MODULE gopt_f_types
 !!   SOURCE
   !***************************************************************************
   TYPE gopt_param_type
-     INTEGER         :: id_nr, ref_count, method_id, max_h_rank
-     INTEGER         :: max_f_per_iter, max_iter
-     REAL(KIND = dp) :: wanted_proj_gradient, wanted_rel_f_error,&
-                        max_dr,max_force,rms_dr,rms_force
-     REAL(KIND = dp) :: brent_tol, brack_limit, restart_limit
-     INTEGER         :: brent_max_iter, max_steep_steps
      LOGICAL         :: hesrest, Fletcher_Reeves_ON
      LOGICAL         :: use_fit_line_search
+     INTEGER         :: id_nr, ref_count, method_id, max_h_rank
+     INTEGER         :: max_f_per_iter, max_iter
+     INTEGER         :: brent_max_iter, max_steep_steps
+     REAL(KIND = dp) :: wanted_proj_gradient, wanted_rel_f_error
+     REAL(KIND = dp) :: max_dr,max_force,rms_dr,rms_force
+     REAL(KIND = dp) :: brent_tol, brack_limit, restart_limit
   END TYPE gopt_param_type
 !!***
   !****************************************************************************
@@ -193,6 +190,8 @@ SUBROUTINE gopt_f_create(gopt_env, force_env, globenv, error)
      CALL force_env_retain(force_env, error=error)
      gopt_env%force_env => force_env
      gopt_env%globenv => globenv
+     gopt_env%force_env_section => section_vals_get_subs_vals(globenv%input_file,&
+          "FORCE_EVAL",error=error)
   END IF
 END SUBROUTINE gopt_f_create
 !***************************************************************************
@@ -288,10 +287,10 @@ SUBROUTINE gopt_f_release(gopt_env, error)
 END SUBROUTINE gopt_f_release
 !***************************************************************************
 
-!!****f* gopt_f_types/gopt_f_eval_at [1.0] *
+!!****f* gopt_f_types/cp_eval_at [1.0] *
 !!
 !!   NAME
-!!     gopt_f_eval_at
+!!     cp_eval_at
 !!
 !!   FUNCTION
 !!     evaluete the potential energy and its gradients using an array
@@ -316,7 +315,7 @@ END SUBROUTINE gopt_f_release
 !!     none
 !!
 !!*** **********************************************************************
-SUBROUTINE gopt_f_eval_all_at(gopt_env, x, f, gradient, master, para_env, force_env_section, error)
+SUBROUTINE cp_eval_at(gopt_env, x, f, gradient, master, para_env, force_env_section, error)
     TYPE(gopt_f_type), POINTER               :: gopt_env
     REAL(KIND=dp), DIMENSION(:), INTENT(in)  :: x
     REAL(KIND=dp), INTENT(out), OPTIONAL     :: f
@@ -328,7 +327,7 @@ SUBROUTINE gopt_f_eval_all_at(gopt_env, x, f, gradient, master, para_env, force_
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'gopt_f_eval_all_at', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_eval_at', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, idg, idir, ip, isubsys
@@ -367,6 +366,7 @@ SUBROUTINE gopt_f_eval_all_at(gopt_env, x, f, gradient, master, para_env, force_
      CALL force_env_get(gopt_env%force_env,potential_energy=f,&
           error=error)
   END IF
+
   IF (PRESENT(gradient)) THEN
      IF (master==para_env%mepos) THEN ! we are on the master
         CPPrecondition(ASSOCIATED(gradient),cp_failure_level,routineP,error,failure)
@@ -387,110 +387,7 @@ SUBROUTINE gopt_f_eval_all_at(gopt_env, x, f, gradient, master, para_env, force_
      END IF
   END IF
   CALL timestop(0.0_dp,handle)
-END SUBROUTINE gopt_f_eval_all_at
-!***************************************************************************
-
-!!****f* gopt_f_types/gopt_f_eval_rest_at [1.0] *
-!!
-!!   NAME
-!!     gopt_f_eval_rest_at
-!!
-!!   FUNCTION
-!!     Main driver to evaluate energy and derivatives using a smaller array
-!!     if fixed atoms are present
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!     10.2005 created [tlaino] 
-!!
-!!*** **********************************************************************
-  SUBROUTINE gopt_f_eval_rest_at(force_env,xvec,energy,grad,error)
-    TYPE(force_env_type), POINTER            :: force_env
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: xvec
-    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: energy
-    REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
-      POINTER                                :: grad
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-
-    INTEGER                                  :: atom, iatom, ikind, indf, j, &
-                                                natom, nkind
-    INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL                                  :: get_energy, get_gradients
-    TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_subsystem_p_type), &
-      DIMENSION(:), POINTER                  :: subsys
-    TYPE(particle_list_type), POINTER        :: particles
-    TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
-
-    get_gradients = PRESENT(grad)
-    get_energy    = PRESENT(energy)
-    CALL force_env_get(force_env,&
-                       cell=cell,&
-                       subsys=subsys)
-
-    CALL cp_subsys_get(subsys=subsys(1)%subsys,&
-                       atomic_kinds=atomic_kinds,&
-                       particles=particles)
-
-    nkind = atomic_kinds%n_els
-    atomic_kind_set => atomic_kinds%els
-    natom = particles%n_els  
-    particle_set => particles%els    
-    indf = 0
-    DO ikind=1,nkind
-       atomic_kind => atomic_kind_set(ikind)
-       CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                            atom_list=atom_list)
-       natom = SIZE(atom_list)
-       DO iatom=1,natom
-          atom = atom_list(iatom)
-          IF (.NOT.particle_set(atom)%is_fixed) THEN
-             DO j = 1, 3
-                indf = indf + 1
-                particle_set(atom)%r(j) = xvec(indf)
-             END DO
-          END IF
-       END DO
-    END DO
-
-    CALL force_env_calc_energy_force(force_env,calc_force=get_gradients,error=error)
-
-    IF (get_gradients)  THEN
-       indf = 0
-       DO ikind=1,nkind
-          atomic_kind => atomic_kind_set(ikind)
-          CALL get_atomic_kind(atomic_kind=atomic_kind,&
-               atom_list=atom_list)
-          natom = SIZE(atom_list)
-          DO iatom=1,natom
-             atom = atom_list(iatom)
-             IF (.NOT.particle_set(atom)%is_fixed) THEN
-                DO j = 1, 3
-                   indf = indf + 1
-                   grad(indf) = -particle_set(atom)%f(j)
-                END DO
-             END IF
-          END DO
-       END DO
-    END IF
-    IF (get_energy) CALL force_env_get(force_env=force_env,potential_energy=energy)    
-
-  END SUBROUTINE gopt_f_eval_rest_at
+END SUBROUTINE cp_eval_at
 
 !!****f* gopt_f_types/gopt_f_create_x0 [1.0] *
 !!

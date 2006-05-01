@@ -39,7 +39,8 @@ MODULE cg_optimizer
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
   USE gopt_f_types,                    ONLY: cp_eval_at,&
-                                             gopt_param_type
+                                             gopt_param_type,&
+                                             gopt_f_type
   USE input_constants,                 ONLY: dump_xmol
   USE input_cp2k_restarts,             ONLY: write_restart
   USE input_section_types,             ONLY: section_vals_type
@@ -88,10 +89,13 @@ CONTAINS
 !!     10.2005 created [tlaino] 
 !!
 !!*** ********************************************************************** 
-  SUBROUTINE geoopt_cg(force_env,gopt_param,globenv,force_env_section,error)
+  SUBROUTINE geoopt_cg(force_env,gopt_param,globenv,force_env_section,&
+       gopt_env, x0, error)
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(gopt_param_type), POINTER           :: gopt_param
     TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(gopt_f_type), POINTER               :: gopt_env
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: x0
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -104,8 +108,7 @@ CONTAINS
                                                 nfixed, nfree, nkind, &
                                                 output_unit, stat
     INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL                                  :: conv, failure, ionode
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: x
+    LOGICAL                                  :: failure, ionode
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -129,40 +132,12 @@ CONTAINS
          "MOTION%GEOOPT%PRINT%PROGRAM_RUN_INFO",&
          extension=".geoLog",error=error)
 
-       conv        = .FALSE.
        CALL force_env_get(force_env,&
                           cell=cell,&
                           subsys=subsys)
        CALL cp_subsys_get(subsys=subsys(1)%subsys,&
                           atomic_kinds=atomic_kinds,&
                           particles=particles)
-
-       nkind = atomic_kinds%n_els
-       atomic_kind_set => atomic_kinds%els
-       natom = particles%n_els  
-       particle_set => particles%els    
-       nfixed = COUNT(particle_set(:)%is_fixed)
-       nfree = natom - nfixed
-       ndf = 3*nfree
-       
-       ALLOCATE(x(ndf), stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-       indf = 0
-       DO ikind=1,nkind
-          atomic_kind => atomic_kind_set(ikind)
-          CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                               atom_list=atom_list)
-          natom = SIZE(atom_list)
-          DO iatom=1,natom
-             atom = atom_list(iatom)
-             IF (.NOT.particle_set(atom)%is_fixed) THEN
-                DO j = 1, 3
-                   indf = indf + 1
-                   x(indf) = particle_set(atom)%r(j)
-                END DO
-             END IF
-          END DO
-       END DO
        
        IF(output_unit>0)THEN
           WRITE(UNIT=output_unit,FMT="(/,T2,A)") REPEAT("*",79)
@@ -171,24 +146,19 @@ CONTAINS
           WRITE(UNIT=output_unit,FMT="(T2,A,T28,A,T78,A)")&
                "***","    CONJUGATE GRADIENTS","***"
           WRITE(UNIT=output_unit,FMT="(T2,A)") REPEAT("*",79)
-          WRITE(UNIT=output_unit,FMT="(/,(T2,A,I10))")&
-               "Number of free atoms         = ",nfree,&
-               "Number of degrees of freedom = ",ndf
-          CALL m_flush(output_unit)
-          
+          CALL m_flush(output_unit)          
        END IF
 
+       particle_set => particles%els 
        CALL write_qs_particle_coordinates(particle_set,cell,force_env_section,error) 
        CALL write_particle_distances(particle_set,cell,force_env_section,error)
        CALL write_structure_data(particle_set,cell,force_env_section,error)
 
-       CALL  cp_cg_main(force_env, x, gopt_param, output_unit>0, output_unit, &
-            globenv, force_env_section, error)
+       CALL  cp_cg_main(force_env, x0, gopt_param, output_unit>0, output_unit, &
+            globenv, force_env_section, gopt_env, error)
 
        CALL write_particle_distances(particle_set,cell,force_env_section,error)
    
-       DEALLOCATE(x, stat=stat)
-       CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        CALL cp_print_key_finished_output(output_unit,logger,globenv%input_file,&
             "MOTION%GEOOPT%PRINT%PROGRAM_RUN_INFO", error=error)
     END IF
@@ -219,14 +189,15 @@ CONTAINS
 !!     10.2005 created [tlaino] 
 !!
 !!*** **********************************************************************
-  SUBROUTINE cp_cg_main(force_env, xvec, gopt_param, ionode, output_unit,&
-       globenv, force_env_section, error)
+  SUBROUTINE cp_cg_main(force_env, x0, gopt_param, ionode, output_unit,&
+       globenv, force_env_section, gopt_env, error)
     TYPE(force_env_type), POINTER            :: force_env
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: xvec
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: x0
     TYPE(gopt_param_type), POINTER           :: gopt_param
     LOGICAL, INTENT(IN)                      :: ionode
     INTEGER, INTENT(IN)                      :: output_unit
     TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(gopt_f_type), POINTER               :: gopt_env
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -268,16 +239,18 @@ CONTAINS
        brack_limit        = gopt_param%brack_limit
        use_fit            = gopt_param%use_fit_line_search
        res_lim            = gopt_param%restart_limit
-       ALLOCATE(g (SIZE(xvec)), stat=stat)
+       ALLOCATE(g (SIZE(x0)), stat=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE(h (SIZE(xvec)), stat=stat)
+       ALLOCATE(h (SIZE(x0)), stat=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE(xi(SIZE(xvec)), stat=stat)
+       ALLOCATE(xi(SIZE(x0)), stat=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE(xold(SIZE(xvec)), stat=stat)
+       ALLOCATE(xold(SIZE(x0)), stat=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
 
-       CALL cp_eval_at(force_env, xvec, opt_energy, xi,error=error)
+       CALL cp_eval_at(gopt_env, x0, opt_energy, xi, gopt_env%force_env%para_env%mepos,&
+            gopt_env%force_env%para_env, force_env_section, error)
+       
        g  = -xi
        h  =   g
        xi =   h
@@ -286,16 +259,16 @@ CONTAINS
        wildcard = "   SD"
        DO its = 1, maxiter
           CALL cp_iterate(logger%iter_info,iter_nr=its,error=error)
-          xold = xvec
+          xold = x0
           eold = opt_energy
           emin = MIN(emin, opt_energy)
           step = 1.0_dp
           ! check for an external exit command 
           IF (use_fit) THEN
-             CALL linminE(force_env, xvec, xi, opt_energy, brent_tol, brent_max_iter, brack_limit, &
+             CALL linminE(gopt_env, x0, xi, opt_energy, brent_tol, brent_max_iter, brack_limit, &
                           step, output_unit, ionode, gopt_param, globenv, error)             
           ELSE
-             CALL linmin(force_env, xvec, xi, opt_energy, brent_tol, brent_max_iter, brack_limit, &
+             CALL linmin(gopt_env, x0, xi, opt_energy, brent_tol, brent_max_iter, brack_limit, &
                          step, output_unit, ionode, globenv, error)
           END IF
           CALL external_control(should_stop,"GEO",globenv,error)
@@ -307,7 +280,7 @@ CONTAINS
           IF (ionode) &
                CALL write_cycle_infos(output_unit,its,opt_energy,opt_energy-eold,emin=emin,&
                wildcard=wildcard)
-          CALL check_converg(SIZE(xvec),xvec-xold,xi,ionode,output_unit,conv,gopt_param)
+          CALL check_converg(SIZE(x0),x0-xold,xi,ionode,output_unit,conv,gopt_param)
           wildcard = "   CG"
           IF (globenv%ionode) THEN
              dataunit = cp_print_key_unit_nr(logger,globenv%input_file,&
@@ -330,7 +303,8 @@ CONTAINS
              CALL write_qs_particle_coordinates(particle_set,cell,force_env_section,error)
           END IF
           IF (conv.OR.(its==maxiter))  EXIT
-          CALL cp_eval_at(force_env, xvec, opt_energy, xi,error=error)          
+          CALL cp_eval_at(gopt_env, x0, opt_energy, xi, gopt_env%force_env%para_env%mepos,&
+               gopt_env%force_env%para_env, force_env_section, error)
           gg  = DOT_PRODUCT(g,g)
           IF (Fletcher_Reeves_ON) THEN 
              dgg = DOT_PRODUCT(xi,xi)
@@ -395,9 +369,9 @@ CONTAINS
 !!     10.2005 created [tlaino] 
 !!
 !!*** **********************************************************************
-  SUBROUTINE LinMinE(force_env, xvec, xi, opt_energy, brent_tol, brent_max_iter, &
+  SUBROUTINE LinMinE(gopt_env, xvec, xi, opt_energy, brent_tol, brent_max_iter, &
        brack_limit, step, output_unit, ionode, gopt_param, globenv, error)
-    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(gopt_f_type), POINTER               :: gopt_env
     REAL(KIND=dp), DIMENSION(:), POINTER     :: xvec, xi
     REAL(KIND=dp)                            :: opt_energy, brent_tol
     INTEGER                                  :: brent_max_iter
@@ -435,7 +409,7 @@ CONTAINS
        step = 0.05_dp
        ax = 0.0_dp
        xx = step
-       CALL cg_mnbrak(force_env, ax, xx, bx, pcom, xicom, brack_limit, output_unit, ionode, &
+       CALL cg_mnbrak(gopt_env, ax, xx, bx, pcom, xicom, brack_limit, output_unit, ionode, &
             histpoint=hist,globenv=globenv, error=error)
        !
        fprev      = 0.0_dp
@@ -452,7 +426,7 @@ CONTAINS
           xmin  = FindMin(hist(:,1),hist(:,2),hist(:,3),error)
           CALL reallocate(hist,1,odim+1,1,3)
           hist(odim+1,1) = xmin
-          hist(odim+1,3) = cg_deval1d(force_env,xmin,pcom,xicom,opt_energy,error)
+          hist(odim+1,3) = cg_deval1d(gopt_env,xmin,pcom,xicom,opt_energy,error)
           hist(odim+1,2) = opt_energy
           odim = SIZE(hist,1)
        END DO
@@ -498,9 +472,9 @@ CONTAINS
 !!     10.2005 created [tlaino] 
 !!
 !!*** **********************************************************************
-  SUBROUTINE LinMin(force_env, xvec, xi, opt_energy, brent_tol, brent_max_iter, &
+  SUBROUTINE LinMin(gopt_env, xvec, xi, opt_energy, brent_tol, brent_max_iter, &
        brack_limit, step, output_unit, ionode, globenv, error)
-    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(gopt_f_type), POINTER               :: gopt_env
     REAL(KIND=dp), DIMENSION(:), POINTER     :: xvec, xi
     REAL(KIND=dp)                            :: opt_energy, brent_tol
     INTEGER                                  :: brent_max_iter
@@ -533,9 +507,9 @@ CONTAINS
        step = 0.05_dp
        ax = 0.0_dp
        xx = step       
-       CALL cg_mnbrak(force_env, ax, xx, bx, pcom, xicom, brack_limit, output_unit, ionode,&
+       CALL cg_mnbrak(gopt_env, ax, xx, bx, pcom, xicom, brack_limit, output_unit, ionode,&
             globenv=globenv, error=error)
-       opt_energy = cg_dbrent(force_env, ax, xx, bx, brent_tol, brent_max_iter, &
+       opt_energy = cg_dbrent(gopt_env, ax, xx, bx, brent_tol, brent_max_iter, &
                               xmin, pcom, xicom, output_unit, ionode, globenv, error)
        xicom = xmin*xicom
        xvec  = xvec + xicom
@@ -571,9 +545,9 @@ CONTAINS
 !!     10.2005 created [tlaino] 
 !!
 !!*** **********************************************************************
-  SUBROUTINE cg_mnbrak(force_env, ax, bx, cx, pcom, xicom, brack_limit, output_unit, ionode,&
+  SUBROUTINE cg_mnbrak(gopt_env, ax, bx, cx, pcom, xicom, brack_limit, output_unit, ionode,&
        histpoint, globenv, error)
-    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(gopt_f_type), pointer               :: gopt_env
     REAL(KIND=dp)                            :: ax, bx, cx
     REAL(KIND=dp), DIMENSION(:), POINTER     :: pcom, xicom
     REAL(KIND=dp)                            :: brack_limit
@@ -604,14 +578,14 @@ CONTAINS
     IF (.NOT.failure) THEN
        IF (hist) THEN
           histpoint(1,1) = ax
-          histpoint(1,3) = cg_deval1d(force_env,ax,pcom,xicom,fa,error)
+          histpoint(1,3) = cg_deval1d(gopt_env,ax,pcom,xicom,fa,error)
           histpoint(1,2) = fa
           histpoint(2,1) = bx
-          histpoint(2,3) = cg_deval1d(force_env,bx,pcom,xicom,fb,error)
+          histpoint(2,3) = cg_deval1d(gopt_env,bx,pcom,xicom,fb,error)
           histpoint(2,2) = fb
        ELSE
-          fa=cg_eval1d(force_env,ax,pcom,xicom,error=error) 
-          fb=cg_eval1d(force_env,bx,pcom,xicom,error=error) 
+          fa=cg_eval1d(gopt_env,ax,pcom,xicom,error=error) 
+          fb=cg_eval1d(gopt_env,bx,pcom,xicom,error=error) 
        END IF
        IF(fb.GT.fa)THEN
           dum=ax
@@ -624,10 +598,10 @@ CONTAINS
        cx=bx+gold*(bx-ax)
        IF (hist) THEN
           histpoint(3,1) = cx
-          histpoint(3,3) = cg_deval1d(force_env,cx,pcom,xicom,fc,error)
+          histpoint(3,3) = cg_deval1d(gopt_env,cx,pcom,xicom,fc,error)
           histpoint(3,2) = fc          
        ELSE
-          fc=cg_eval1d(force_env,cx,pcom,xicom,error=error)
+          fc=cg_eval1d(gopt_env,cx,pcom,xicom,error=error)
        END IF
        loc_iter = 3
        DO WHILE (fb.GE.fc)
@@ -643,10 +617,10 @@ CONTAINS
                 odim = SIZE(histpoint,1)
                 CALL reallocate(histpoint,1,odim+1,1,3)
                 histpoint(odim+1,1) = u
-                histpoint(odim+1,3) = cg_deval1d(force_env,u,pcom,xicom,fu,error)
+                histpoint(odim+1,3) = cg_deval1d(gopt_env,u,pcom,xicom,fu,error)
                 histpoint(odim+1,2) = fu
              ELSE
-                fu=cg_eval1d(force_env,u,pcom,xicom,error=error)
+                fu=cg_eval1d(gopt_env,u,pcom,xicom,error=error)
              END IF
              loc_iter = loc_iter + 1
              IF(fu.LT.fc)THEN
@@ -665,10 +639,10 @@ CONTAINS
                 odim = SIZE(histpoint,1)
                 CALL reallocate(histpoint,1,odim+1,1,3)
                 histpoint(odim+1,1) = u
-                histpoint(odim+1,3) = cg_deval1d(force_env,u,pcom,xicom,fu,error)
+                histpoint(odim+1,3) = cg_deval1d(gopt_env,u,pcom,xicom,fu,error)
                 histpoint(odim+1,2) = fu
              ELSE
-                fu=cg_eval1d(force_env,u,pcom,xicom,error=error)
+                fu=cg_eval1d(gopt_env,u,pcom,xicom,error=error)
              END IF
              loc_iter = loc_iter + 1
           ELSE IF((cx-u)*(u-ulim).GT.0.)THEN
@@ -676,10 +650,10 @@ CONTAINS
                 odim = SIZE(histpoint,1)
                 CALL reallocate(histpoint,1,odim+1,1,3)
                 histpoint(odim+1,1) = u
-                histpoint(odim+1,3) = cg_deval1d(force_env,u,pcom,xicom,fu,error)
+                histpoint(odim+1,3) = cg_deval1d(gopt_env,u,pcom,xicom,fu,error)
                 histpoint(odim+1,2) = fu
              ELSE
-                fu=cg_eval1d(force_env,u,pcom,xicom,error=error)
+                fu=cg_eval1d(gopt_env,u,pcom,xicom,error=error)
              END IF
              loc_iter = loc_iter + 1
              IF(fu.LT.fc)THEN
@@ -692,10 +666,10 @@ CONTAINS
                    odim = SIZE(histpoint,1)
                    CALL reallocate(histpoint,1,odim+1,1,3)
                    histpoint(odim+1,1) = u
-                   histpoint(odim+1,3) = cg_deval1d(force_env,u,pcom,xicom,fu,error)
+                   histpoint(odim+1,3) = cg_deval1d(gopt_env,u,pcom,xicom,fu,error)
                    histpoint(odim+1,2) = fu
                 ELSE
-                   fu=cg_eval1d(force_env,u,pcom,xicom,error=error)
+                   fu=cg_eval1d(gopt_env,u,pcom,xicom,error=error)
                 END IF
                 loc_iter = loc_iter + 1
              ENDIF
@@ -705,10 +679,10 @@ CONTAINS
                 odim = SIZE(histpoint,1)
                 CALL reallocate(histpoint,1,odim+1,1,3)
                 histpoint(odim+1,1) = u
-                histpoint(odim+1,3) = cg_deval1d(force_env,u,pcom,xicom,fu,error)
+                histpoint(odim+1,3) = cg_deval1d(gopt_env,u,pcom,xicom,fu,error)
                 histpoint(odim+1,2) = fu
              ELSE
-                fu=cg_eval1d(force_env,u,pcom,xicom,error=error)
+                fu=cg_eval1d(gopt_env,u,pcom,xicom,error=error)
              END IF
              loc_iter = loc_iter + 1
           ELSE
@@ -717,10 +691,10 @@ CONTAINS
                 odim = SIZE(histpoint,1)
                 CALL reallocate(histpoint,1,odim+1,1,3)
                 histpoint(odim+1,1) = u
-                histpoint(odim+1,3) = cg_deval1d(force_env,u,pcom,xicom,fu,error)
+                histpoint(odim+1,3) = cg_deval1d(gopt_env,u,pcom,xicom,fu,error)
                 histpoint(odim+1,2) = fu
              ELSE
-                fu=cg_eval1d(force_env,u,pcom,xicom,error=error)
+                fu=cg_eval1d(gopt_env,u,pcom,xicom,error=error)
              END IF
              loc_iter = loc_iter + 1
           ENDIF
@@ -769,9 +743,9 @@ CONTAINS
 !!     10.2005 created [tlaino] 
 !!
 !!*** **********************************************************************
-  FUNCTION cg_dbrent(force_env,ax,bx,cx,tol,itmax,xmin,pcom,xicom,output_unit,&
+  FUNCTION cg_dbrent(gopt_env,ax,bx,cx,tol,itmax,xmin,pcom,xicom,output_unit,&
        ionode, globenv, error) RESULT(dbrent)
-    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(gopt_f_type), POINTER               :: gopt_env
     REAL(KIND=dp)                            :: ax, bx, cx, tol
     INTEGER                                  :: itmax
     REAL(KIND=dp)                            :: xmin
@@ -801,7 +775,7 @@ CONTAINS
        b  = MAX(ax,cx)
        v  = bx ; w  = v; x  = v
        e  = 0.0_dp
-       dx = cg_deval1d(force_env,x,pcom,xicom,fx,error)
+       dx = cg_deval1d(gopt_env,x,pcom,xicom,fx,error)
        fv = fx
        fw = fx
        dv = dx
@@ -860,11 +834,11 @@ CONTAINS
           END IF
           IF(ABS(d).GE.tol1) THEN
              u=x+d
-             du=cg_deval1d(force_env,u,pcom,xicom,fu,error)
+             du=cg_deval1d(gopt_env,u,pcom,xicom,fu,error)
              loc_iter = loc_iter + 1
           ELSE
              u=x+SIGN(tol1,d)
-             du=cg_deval1d(force_env,u,pcom,xicom,fu,error)
+             du=cg_deval1d(gopt_env,u,pcom,xicom,fu,error)
              loc_iter = loc_iter + 1
              IF(fu.GT.fx) EXIT
           ENDIF
@@ -930,8 +904,8 @@ CONTAINS
 !!     10.2005 created [tlaino] 
 !!
 !!*** **********************************************************************  
-  FUNCTION cg_eval1d(force_env,x,pcom,xicom,error) RESULT(my_val)
-    TYPE(force_env_type), POINTER            :: force_env
+  FUNCTION cg_eval1d(gopt_env,x,pcom,xicom,error) RESULT(my_val)
+    TYPE(gopt_f_type), POINTER               :: gopt_env
     REAL(KIND=dp)                            :: x
     REAL(KIND=dp), DIMENSION(:), POINTER     :: pcom, xicom
     TYPE(cp_error_type), INTENT(inout), &
@@ -950,7 +924,9 @@ CONTAINS
        ALLOCATE(xvec(SIZE(pcom)), stat=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        xvec = pcom + x*xicom
-       CALL cp_eval_at(force_env, xvec, my_val,error=error)
+       CALL cp_eval_at(gopt_env, xvec, my_val, master=gopt_env%force_env%para_env%mepos,&
+            para_env=gopt_env%force_env%para_env,&
+            force_env_section=gopt_env%force_env_section, error=error)
        DEALLOCATE(xvec, stat=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
@@ -979,8 +955,8 @@ CONTAINS
 !!     10.2005 created [tlaino] 
 !!
 !!*** **********************************************************************
-  FUNCTION cg_deval1d(force_env,x,pcom,xicom,fval,error) RESULT(my_val)
-    TYPE(force_env_type), POINTER            :: force_env
+  FUNCTION cg_deval1d(gopt_env,x,pcom,xicom,fval,error) RESULT(my_val)
+    TYPE(gopt_f_type), POINTER               :: gopt_env
     REAL(KIND=dp)                            :: x
     REAL(KIND=dp), DIMENSION(:), POINTER     :: pcom, xicom
     REAL(KIND=dp)                            :: fval
@@ -1003,7 +979,9 @@ CONTAINS
        ALLOCATE(grad(SIZE(pcom)), stat=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
        xvec = pcom + x * xicom
-       CALL cp_eval_at(force_env, xvec, energy, grad,error=error)
+       CALL cp_eval_at(gopt_env, xvec, energy, grad, master=gopt_env%force_env%para_env%mepos,&
+            para_env=gopt_env%force_env%para_env,&
+            force_env_section=gopt_env%force_env_section, error=error)
        my_val = DOT_PRODUCT(grad,xicom)
        fval   = energy
        DEALLOCATE(xvec, stat=stat)

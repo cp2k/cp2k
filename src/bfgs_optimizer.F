@@ -39,7 +39,8 @@ MODULE bfgs_optimizer
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
-  USE gopt_f_types,                    ONLY: gopt_param_type
+  USE gopt_f_types,                    ONLY: gopt_param_type,&
+                                             gopt_f_type
   USE input_constants,                 ONLY: dump_xmol
   USE input_cp2k_restarts,             ONLY: write_restart
   USE input_section_types,             ONLY: section_vals_type
@@ -74,12 +75,15 @@ CONTAINS
 
 !!*** **********************************************************************
 
-  SUBROUTINE geoopt_bfgs(force_env,globenv,gopt_param,force_env_section,error)
+  SUBROUTINE geoopt_bfgs(force_env,gopt_param,globenv,force_env_section,&
+       gopt_env, x0, error)
 
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(gopt_param_type), POINTER           :: gopt_param
     TYPE(section_vals_type), POINTER         :: force_env_section
+    TYPE(gopt_f_type), POINTER               :: gopt_env
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: x0
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
