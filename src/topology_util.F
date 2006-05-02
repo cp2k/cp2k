@@ -3266,8 +3266,7 @@ CONTAINS
              atomic_kind => atom_list(j)%atomic_kind
              CALL get_atomic_kind(atomic_kind=atomic_kind,&
                   name=name,element_symbol=element_symbol) 
-             !IF((TRIM(name)=="H").OR.(TRIM(element_symbol)=="H")) THEN
-             IF((TRIM(name(1:1))=='H').OR.(TRIM(name)=="H").OR.(TRIM(element_symbol)=="H")) THEN
+             IF((name(1:1)=="H").OR.(TRIM(element_symbol)=="H")) THEN
                 DO k=1,nbond
                    IF ((bond_list(k)%a==j).OR.(bond_list(k)%b==j))  THEN
                       nhdist = nhdist + 1
@@ -3296,8 +3295,7 @@ CONTAINS
              atomic_kind => atom_list(j)%atomic_kind
              CALL get_atomic_kind(atomic_kind=atomic_kind,&
                   name=name,element_symbol=element_symbol) 
-             !IF((TRIM(name)=="H").OR.(TRIM(element_symbol)=="H")) THEN
-             IF((TRIM(name(1:1))=='H').OR.(TRIM(name)=="H").OR.(TRIM(element_symbol)=="H")) THEN
+             IF((name(1:1)=="H").OR.(TRIM(element_symbol)=="H")) THEN
                 DO k=1,nbond
                    IF ((bond_list(k)%a==j).OR.(bond_list(k)%b==j))  THEN
                       rvec = particle_set(offset+bond_list(k)%a)%r-particle_set(offset+bond_list(k)%b)%r
