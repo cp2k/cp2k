@@ -265,26 +265,14 @@ CONTAINS
                                  smear=0.0_dp,&
                                  error=error)
        ELSE
-         IF (ASSOCIATED(scf_env%scf_work3)) THEN
-           CALL eigensolver(work1(ispin)%matrix,mo_array(ispin)%mo_set,ortho,work2,&
-                            .FALSE.,0.0_dp,&
-                            use_cholesky=scf_control%use_cholesky,&
-                            work_syevx=scf_control%work_syevx,&
-                            use_jacobi=.FALSE.,&
-                            jacobi_threshold=scf_control%jacobi_threshold,&
-                            smear=0.0_dp,&
-                            ao2mo=scf_env%scf_work3,&
-                            error=error)
-         ELSE
-           CALL eigensolver(work1(ispin)%matrix,mo_array(ispin)%mo_set,ortho,work2,&
-                            .FALSE.,0.0_dp,&
-                            use_cholesky=scf_control%use_cholesky,&
-                            work_syevx=scf_control%work_syevx,&
-                            use_jacobi=.FALSE.,&
-                            jacobi_threshold=scf_control%jacobi_threshold,&
-                            smear=0.0_dp,&
-                            error=error)
-         END IF
+         CALL eigensolver(work1(ispin)%matrix,mo_array(ispin)%mo_set,ortho,work2,&
+                          .FALSE.,0.0_dp,&
+                          use_cholesky=scf_control%use_cholesky,&
+                          work_syevx=scf_control%work_syevx,&
+                          use_jacobi=.FALSE.,&
+                          jacobi_threshold=scf_control%jacobi_threshold,&
+                          smear=0.0_dp,&
+                          error=error)
        END IF
 
        ! Open shell case: copy alpha MOs to beta MOs

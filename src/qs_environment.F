@@ -83,6 +83,7 @@ MODULE qs_environment
   USE header,                          ONLY: qs_header
   USE input_constants,                 ONLY: do_method_gapw,&
                                              do_method_gapw_xc,&
+                                             general_roks,&
                                              state_loc_all,&
                                              state_loc_none
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
@@ -724,9 +725,9 @@ CONTAINS
     n_mo(1) = n_mo(1) + scf_control%added_mos(1)
     IF (n_mo(2) /= 0) n_mo(2) = n_mo(2) + scf_control%added_mos(2)
 
-    IF(scf_control%smear /= 0.0_dp .AND. scf_control%added_mos(1) == 0) THEN
+    IF ((scf_control%smear /= 0.0_dp).AND.(scf_control%added_mos(1) == 0)) THEN
       CALL stop_program(routineN,moduleN,__LINE__,&
-                         "More states are needed to apply smeraing.")
+                        "More states are needed to apply smearing.")
     END IF
 
 !   *** Some options require that all MOs are computed ... ***
@@ -741,14 +742,38 @@ CONTAINS
 !MK    IF (n_mo(2) /= 0) n_mo(2) = n_ao
     END IF
 
-    ! Disable Cholesky decomposition, if ROKS is requested
+    ! Compatibility checks for ROKS
 
     IF (dft_control%roks) THEN
-      CALL print_message("WARNING: ROKS option is not fully tested",globenv%scr,2,1,1)
-      scf_control%use_cholesky = .FALSE.
+      IF (scf_control%roks_scheme == general_roks) THEN
+        IF (globenv%ionode) THEN
+          CALL print_message("WARNING: General ROKS scheme is not yet tested",&
+                             globenv%scr,2,1,1)
+        END IF
+      END IF
+      IF (scf_control%use_cholesky) THEN
+        IF (globenv%ionode) THEN
+          CALL print_message("NOTE: The use of Cholesky decomposition is disabled, "//&
+                             "since it is not implemented for ROKS",globenv%scr,1,1,1)
+        END IF
+        scf_control%use_cholesky = .FALSE.
+      END IF
       IF (scf_control%use_ot) THEN
         CALL stop_program(routineN,moduleN,__LINE__,&
                           "The options ROKS and OT are not compatible")
+      END IF
+      IF (scf_control%level_shift /= 0.0_dp) THEN
+        CALL stop_program(routineN,moduleN,__LINE__,&
+                          "Level shifting for ROKS is not yet implemented")
+      END IF
+      IF (scf_control%eps_jacobi /= 0.0_dp) THEN
+        CALL stop_program(routineN,moduleN,__LINE__,&
+                          "Pseudo-diagonalization for ROKS is not yet implemented")
+      END IF
+      IF (scf_control%smear /= 0.0_dp) THEN
+        CALL stop_program(routineN,moduleN,__LINE__,&
+                          "The options ROKS and SMEAR are not compatible. "//&
+                          "Try UKS instead of ROKS")
       END IF
     END IF
 

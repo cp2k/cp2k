@@ -27,6 +27,7 @@ MODULE qs_vxc_atom
                                              get_atomic_kind
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
+  USE cp_control_types,                ONLY: dft_control_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE input_constants,                 ONLY: tddfpt_excitations,&
                                              tddfpt_triplet
@@ -110,6 +111,7 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atom_kind
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(grid_atom_type), POINTER            :: grid_atom
     TYPE(harmonics_atom_type), POINTER       :: harmonics
     TYPE(qs_energy_type), POINTER            :: energy
@@ -145,13 +147,13 @@ CONTAINS
     NULLIFY (rho_set_s)
 
     CALL get_qs_env(qs_env=qs_env,&
+                    dft_control=dft_control,&
                     para_env=para_env,&
                     energy=energy,&
                     atomic_kind_set=atomic_kind_set,&
                     input=input,&
                     rho_atom_set=rho_atom_set)
 
-    CALL section_vals_val_get(input,"DFT%LSD",l_val=lsd,error=error)
     xc_section => section_vals_get_subs_vals(input,"DFT%XC",error=error)
     xc_fun_section => section_vals_get_subs_vals(xc_section,"XC_FUNCTIONAL",&
          error=error)
@@ -161,14 +163,15 @@ CONTAINS
          r_val=gradient_cut,error=error)
     CALL section_vals_val_get(xc_section,"TAU_CUTOFF",&
          r_val=tau_cut,error=error)
-    IF (lsd) THEN
-       nspins=2
-    ELSE
-       nspins=1
-    END IF
-    needs=xc_functionals_get_needs(xc_fun_section,lsd=lsd,&
-         add_basic_components=.TRUE., error=error)
-    gradient_f = needs%drho .OR. needs%drho_spin
+
+    lsd = dft_control%lsd
+    nspins = dft_control%nspins
+    needs = xc_functionals_get_needs(xc_fun_section,&
+                                     lsd=lsd,&
+                                     add_basic_components=.TRUE.,&
+                                     error=error)
+
+    gradient_f = (needs%drho.OR.needs%drho_spin)
 
     nkind = SIZE(atomic_kind_set)
 

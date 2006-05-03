@@ -476,4 +476,8 @@ MODULE input_constants
   ! s2 restraint forms
   INTEGER, PARAMETER, PUBLIC :: do_s2_restraint=872, do_s2_constraint=873
 
+  ! ROKS schemes
+  INTEGER, PARAMETER, PUBLIC :: general_roks   = 1,&
+                                high_spin_roks = 2
+
 END MODULE input_constants

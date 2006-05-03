@@ -88,7 +88,8 @@ MODULE qs_scf
        core_guess, densities_guess, ot_precond_full_all, &
        ot_precond_full_kinetic, ot_precond_full_single, &
        ot_precond_full_single_inverse, ot_precond_none, ot_precond_s_inverse, &
-       ot_precond_sparse_diag, ot_precond_sparse_firstorder, qs_debug_run
+       ot_precond_sparse_diag, ot_precond_sparse_firstorder, qs_debug_run, &
+       general_roks, high_spin_roks
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kahan_sum,                       ONLY: accurate_sum
@@ -166,7 +167,8 @@ MODULE qs_scf
   USE sparse_matrix_types,             ONLY: real_matrix_p_type,&
                                              real_matrix_type,&
                                              transfer_matrix
-  USE termination,                     ONLY: external_control
+  USE termination,                     ONLY: external_control,&
+                                             stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -1687,13 +1689,6 @@ END SUBROUTINE qs_scf_print_summary
                "WORK_MATRIX-2",&
                error=error)
        END IF
-       IF (dft_control%roks.AND.(.NOT.ASSOCIATED(scf_env%scf_work3))) THEN
-         CALL cp_fm_create(scf_env%scf_work3,&
-                           matrix_struct=ao_ao_fmstruct,&
-                           name="SCF"//TRIM(ADJUSTL(cp_to_string(scf_env%id_nr)))//&
-                                "WORK_MATRIX-3",&
-                           error=error)
-       END IF
        CALL cp_fm_struct_release(ao_ao_fmstruct,error=error)
 
     END IF
@@ -1908,7 +1903,6 @@ END SUBROUTINE qs_scf_print_summary
           DEALLOCATE(scf_env%scf_work1)
        ENDIF
        IF (ASSOCIATED(scf_env%scf_work2)) CALL cp_fm_release(scf_env%scf_work2)
-       IF (ASSOCIATED(scf_env%scf_work3)) CALL cp_fm_release(scf_env%scf_work3)
        IF (ASSOCIATED(scf_env%ortho)) CALL cp_fm_release(scf_env%ortho)
 
        IF (ASSOCIATED(scf_env%p_mix_new)) THEN
@@ -2010,7 +2004,9 @@ END SUBROUTINE qs_scf_print_summary
        END SELECT
 
     END IF
+
     CALL timestop(0.0_dp,handle)
+
   END SUBROUTINE cleanup_scf_loop
 
   ! ***************************************************************************
@@ -2028,6 +2024,7 @@ END SUBROUTINE qs_scf_print_summary
     !             - M. Filatov and S. Shaik, Chem. Phys. Lett. 288, 689 (1998)
 
     ! - Creation (05.04.06,MK)
+    ! - Revised (01.05.06,MK)
 
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(mo_set_p_type), DIMENSION(:), &
@@ -2044,7 +2041,7 @@ END SUBROUTINE qs_scf_print_summary
     CHARACTER(LEN=*), PARAMETER :: routineN = "qs_scf_loop_do_roks_diag",&
                                    routineP = moduleN//":"//routineN
 
-    TYPE(cp_fm_type), POINTER :: ao2mo,ksa,ksb,moa,mob,ortho,work
+    TYPE(cp_fm_type), POINTER :: mo2ao,ksa,ksb,moa,mob,ortho,work
 
     REAL(KIND=dp) :: diis_error,level_shift_loc
     INTEGER       :: handle,homoa,homob,imo,nalpha,nao,nbeta,nmo, iao
@@ -2057,7 +2054,6 @@ END SUBROUTINE qs_scf_print_summary
 
     ortho => scf_env%ortho
     work  => scf_env%scf_work2
-    ao2mo => scf_env%scf_work3
 
     ksa => scf_env%scf_work1(1)%matrix
     ksb => scf_env%scf_work1(2)%matrix
@@ -2083,7 +2079,7 @@ END SUBROUTINE qs_scf_print_summary
                     occupation_numbers=occb,&
                     mo_coeff=mob)
 
-    ! Define amount of level-shifting
+    ! Define the amount of level-shifting
 
     IF ((scf_control%level_shift /= 0.0_dp).AND.&
         ((scf_control%density_guess == core_guess).OR.&
@@ -2097,25 +2093,45 @@ END SUBROUTINE qs_scf_print_summary
         (scf_control%density_guess == core_guess)) THEN
 
       ! Transform the spin unrestricted alpha and beta Kohn-Sham matrices
-      ! from AO basis to MO basis
+      ! from AO basis to MO basis: K(MO) = C(T)*K(AO)*C
 
-      CALL cp_fm_symm("L","U",nao,nao,1.0_dp,ksa,ao2mo,0.0_dp,work)
-      CALL cp_fm_gemm("T","N",nao,nao,nao,1.0_dp,ao2mo,work,0.0_dp,ksa)
+      CALL cp_fm_symm("L","U",nao,nao,1.0_dp,ksa,moa,0.0_dp,work)
+      CALL cp_fm_gemm("T","N",nao,nao,nao,1.0_dp,moa,work,0.0_dp,ksa)
 
-      CALL cp_fm_symm("L","U",nao,nao,1.0_dp,ksb,ao2mo,0.0_dp,work)
-      CALL cp_fm_gemm("T","N",nao,nao,nao,1.0_dp,ao2mo,work,0.0_dp,ksb)
+      CALL cp_fm_symm("L","U",nao,nao,1.0_dp,ksb,moa,0.0_dp,work)
+      CALL cp_fm_gemm("T","N",nao,nao,nao,1.0_dp,moa,work,0.0_dp,ksb)
 
       ! Combine the spin unrestricted alpha and beta Kohn-Sham matrices
-      ! in the MO basis and perform level-shifting in turn if requested
+      ! in the MO basis
 
-      CALL combine_ks_matrices(ksa,ksb,occa,occb,scf_control%f_roks,&
-                               level_shift_loc,nalpha,nbeta,error=error)
+      IF (scf_control%roks_scheme == general_roks) THEN
+        CALL combine_ks_matrices(ksa,ksb,occa,occb,scf_control%roks_f,&
+                                 nalpha,nbeta,error=error)
+      ELSE IF (scf_control%roks_scheme == high_spin_roks) THEN
+        CALL combine_ks_matrices(ksa,ksb,occa,occb,scf_control%roks_parameter,&
+                                 error=error)
+      ELSE
+        CALL stop_program(routineN,moduleN,__LINE__,&
+                          "Unknown ROKS scheme requested")
+      END IF
 
       ! Back-transform the restricted open Kohn-Sham matrix from MO basis
       ! to AO basis
 
-      CALL cp_fm_gemm("N","T",nao,nao,nao,1.0_dp,ksa,ao2mo,0.0_dp,work)
-      CALL cp_fm_gemm("N","N",nao,nao,nao,1.0_dp,ao2mo,work,0.0_dp,ksa)
+      IF (orthogonal_basis) THEN
+        ! Q = C
+        mo2ao => moa
+      ELSE
+        ! Q = S*C
+        mo2ao => mob
+        CALL copy_sm_to_fm(matrix_s(1)%matrix,work)
+        CALL cp_fm_symm("L","U",nao,nao,1.0_dp,work,moa,0.0_dp,mo2ao)
+      END IF
+
+      ! K(AO) = Q*K(MO)*Q(T)
+
+      CALL cp_fm_gemm("N","T",nao,nao,nao,1.0_dp,ksa,mo2ao,0.0_dp,work)
+      CALL cp_fm_gemm("N","N",nao,nao,nao,1.0_dp,mo2ao,work,0.0_dp,ksa)
 
     ELSE
 
@@ -2127,21 +2143,35 @@ END SUBROUTINE qs_scf_print_summary
 
     END IF
 
-    ! Update DIIS buffer
+    ! Update DIIS buffer and possibly perform DIIS extrapolation step
 
     IF (scf_env%iter_count > 1) THEN
-      CALL qs_diis_b_step(diis_buffer=scf_env%scf_diis_buffer,&
-                          mo_array=mos,&
-                          kc=scf_env%scf_work1,&
-                          sc=work,&
-                          delta=scf_env%iter_delta,&
-                          error_max=diis_error,&
-                          diis_step=diis_step,&
-                          eps_diis=scf_control%eps_diis,&
-                          scf_section=scf_section,&
-                          s_matrix=matrix_s,&
-                          roks=.TRUE.,&
-                          error=error)
+      IF (orthogonal_basis) THEN
+        CALL qs_diis_b_step(diis_buffer=scf_env%scf_diis_buffer,&
+                            mo_array=mos,&
+                            kc=scf_env%scf_work1,&
+                            sc=work,&
+                            delta=scf_env%iter_delta,&
+                            error_max=diis_error,&
+                            diis_step=diis_step,&
+                            eps_diis=scf_control%eps_diis,&
+                            scf_section=scf_section,&
+                            roks=.TRUE.,&
+                            error=error)
+      ELSE
+        CALL qs_diis_b_step(diis_buffer=scf_env%scf_diis_buffer,&
+                            mo_array=mos,&
+                            kc=scf_env%scf_work1,&
+                            sc=work,&
+                            delta=scf_env%iter_delta,&
+                            error_max=diis_error,&
+                            diis_step=diis_step,&
+                            eps_diis=scf_control%eps_diis,&
+                            scf_section=scf_section,&
+                            s_matrix=matrix_s,&
+                            roks=.TRUE.,&
+                            error=error)
+      END IF
     END IF
 
     IF (diis_step) THEN
@@ -2154,25 +2184,32 @@ END SUBROUTINE qs_scf_print_summary
 
     scf_env%iter_delta = 0.0_dp
 
-    IF (.NOT.orthogonal_basis) THEN
+    IF ((level_shift_loc /= 0.0_dp).OR.(.NOT.orthogonal_basis)) THEN
       CALL cp_fm_symm("L","U",nao,nao,1.0_dp,ksa,ortho,0.0_dp,work)
       CALL cp_fm_gemm("N","N",nao,nao,nao,1.0_dp,ortho,work,0.0_dp,ksa)
+!MK to be done
+!MK      IF (level_shift_loc /= 0.0_dp) THEN
+!MK        DO imo=homo+1,nmo
+!MK          CALL cp_fm_get_element(matrix_ks,imo,imo,alpha)
+!MK          alpha = alpha + level_shift
+!MK          CALL cp_fm_set_element(matrix_ks,imo,imo,alpha)
+!MK        END DO
+!MK      END IF
     END IF
 
     ! Diagonalization of the ROKS operator matrix
 
     CALL cp_fm_syevd(ksa,work,eiga)
 
-    ! Store the current orthonormal MO set for the transformation from
-    ! AO basis to MO basis in the next SCF iteration step
-
-    CALL cp_fm_to_fm(work,ao2mo,error=error)
-
     ! Back-transformation of the orthonormal eigenvectors
 
-    IF (.NOT.orthogonal_basis) THEN
+    IF ((level_shift_loc /= 0.0_dp).OR.(.NOT.orthogonal_basis)) THEN
       CALL cp_fm_gemm("N","N",nao,nmo,nao,1.0_dp,ortho,work,0.0_dp,moa)
     END IF
+
+!MK    IF ((scf_control%level_shift /= 0.0_dp).AND.(scf_env%iter_count == 1)) THEN
+!MK      CALL cp_fm_to_fm(moa,ortho,error=error)
+!MK    END IF
 
     ! Correct MO eigenvalues, if level-shifting was applied
 

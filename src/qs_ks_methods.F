@@ -1,9 +1,7 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2002,2003,2004  CP2K developers group                       !
+!   Copyright (C) 2002 - 2006  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-
-
 !!****h* cp2k/qs_ks_methods [1.0] *
 !!
 !!   NAME
@@ -31,6 +29,7 @@
 !!   SOURCE
 !****************************************************************************
 MODULE qs_ks_methods
+
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE cell_types,                      ONLY: cell_type
@@ -42,7 +41,9 @@ MODULE qs_ks_methods
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
                                              cp_fm_gemm,&
                                              cp_fm_scale_and_add,&
-                                             cp_fm_transpose
+                                             cp_fm_symm,&
+                                             cp_fm_transpose,&
+                                             cp_fm_upper_to_full
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
@@ -55,8 +56,11 @@ MODULE qs_ks_methods
                                              cp_fm_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
-  USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply,&
+  USE cp_para_types,                   ONLY: cp_blacs_env_type,&
+                                             cp_para_env_type
+  USE cp_sm_fm_interactions,           ONLY: copy_fm_to_sm,&
+                                             copy_sm_to_fm,&
+                                             cp_sm_fm_multiply,&
                                              cp_sm_plus_fm_fm_t
   USE harris_env_types,                ONLY: harris_env_type
   USE hartree_local_2centers,          ONLY: integrate_vhg0_g0
@@ -132,7 +136,8 @@ MODULE qs_ks_methods
 
   INTERFACE calculate_w_matrix
     MODULE PROCEDURE calculate_w_matrix_1,&
-                     calculate_w_matrix_2
+                     calculate_w_matrix_2,&
+                     calculate_w_matrix_roks
   END INTERFACE
 
   LOGICAL, PARAMETER :: debug_this_module=.TRUE.
@@ -547,9 +552,10 @@ CONTAINS
              CALL integrate_v_core_rspace(ks_env%v_hartree_rspace, qs_env)
           END IF
 
+          ! Initialize the Kohn-Sham matrix with the core Hamiltonian matrix
+
           DO ispin=1,nspins
-             ! copy the core ham into the ks matrix
-             CALL transfer_matrix(matrix_h(1)%matrix,ks_matrix(ispin)%matrix)
+            CALL transfer_matrix(matrix_h(1)%matrix,ks_matrix(ispin)%matrix)
           END DO
 
           IF (ASSOCIATED(v_rspace_new)) THEN
@@ -1978,6 +1984,64 @@ END SUBROUTINE qs_vxc_create
 
   END SUBROUTINE calculate_w_matrix_2
 
-END MODULE qs_ks_methods
+  ! ***************************************************************************
 
-! *****************************************************************************
+  SUBROUTINE calculate_w_matrix_roks(mo_set,matrix_ks,matrix_p,matrix_w,error)
+
+    ! Calculate the energy-weighted density matrix W if ROKS is active.
+    ! The W matrix is returned in matrix_w.
+
+    ! - Creation (04.05.06,MK)
+
+    TYPE(mo_set_type), POINTER               :: mo_set
+    TYPE(real_matrix_type), POINTER          :: matrix_ks,matrix_p,matrix_w
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = "calculate_w_matrix_roks"
+
+    TYPE(cp_blacs_env_type), POINTER         :: context
+    TYPE(cp_fm_struct_type), POINTER         :: fm_struct
+    TYPE(cp_fm_type), POINTER                :: c,ks,p,work
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    INTEGER                                  :: handle,nao
+
+    ! -------------------------------------------------------------------------
+
+    CALL timeset(routineN,"I","",handle)
+
+    NULLIFY (c)
+    NULLIFY (context)
+    NULLIFY (fm_struct)
+    NULLIFY (ks)
+    NULLIFY (p)
+    NULLIFY (para_env)
+    NULLIFY (work)
+
+    CALL get_mo_set(mo_set=mo_set,mo_coeff=c)
+    CALL cp_fm_get_info(c,context=context,nrow_global=nao,para_env=para_env,&
+                        error=error)
+    CALL cp_fm_struct_create(fm_struct,context=context,nrow_global=nao,&
+                             ncol_global=nao,para_env=para_env,error=error)
+    CALL cp_fm_create(ks,fm_struct,name="Kohn-Sham matrix",error=error)
+    CALL cp_fm_create(p,fm_struct,name="Density matrix",error=error)
+    CALL cp_fm_create(work,fm_struct,name="Work matrix",error=error)
+    CALL cp_fm_struct_release(fm_struct,error=error)
+    CALL copy_sm_to_fm(matrix_ks,ks,error=error)
+    CALL copy_sm_to_fm(matrix_p,p,error=error)
+    CALL cp_fm_upper_to_full(p,work,error)
+    CALL cp_fm_symm("L","U",nao,nao,1.0_dp,ks,p,0.0_dp,work)
+    CALL cp_fm_gemm("T","N",nao,nao,nao,1.0_dp,p,work,0.0_dp,ks)
+    CALL set_matrix(matrix_w,0.0_dp)
+    CALL copy_fm_to_sm(ks,matrix_w)
+    CALL cp_fm_release(work)
+    CALL cp_fm_release(p)
+    CALL cp_fm_release(ks)
+
+    CALL timestop(0.0_dp,handle)
+
+  END SUBROUTINE calculate_w_matrix_roks
+
+  ! ***************************************************************************
+
+END MODULE qs_ks_methods

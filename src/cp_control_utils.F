@@ -108,16 +108,19 @@ CONTAINS
     xc_fun_section => section_vals_get_subs_vals(xc_section,"XC_FUNCTIONAL",&
          error=error)
 
+    CALL section_vals_val_get(dft_section,"UKS",l_val=dft_control%uks,error=error)
     CALL section_vals_val_get(dft_section,"ROKS",l_val=dft_control%roks,error=error)
-    CALL section_vals_val_get(dft_section,"LSD",l_val=l_param,error=error)
-    IF (l_param.OR.dft_control%roks) THEN
+    IF (dft_control%uks.OR.dft_control%roks) THEN
        dft_control%nspins = 2
     ELSE
        dft_control%nspins = 1
     END IF
-    needs=xc_functionals_get_needs(xc_fun_section,lsd=l_param,&
-         add_basic_components=.TRUE.,error=error)
-    dft_control%use_kinetic_energy_density=(needs%tau_spin.or.needs%tau)
+    dft_control%lsd = (dft_control%nspins > 1)
+    needs = xc_functionals_get_needs(xc_fun_section,&
+                                    lsd=dft_control%lsd,&
+                                    add_basic_components=.TRUE.,&
+                                    error=error)
+    dft_control%use_kinetic_energy_density = (needs%tau_spin.OR.needs%tau)
 
     CALL section_vals_val_get(dft_section,"RESTRICTED",l_val=l_param,error=error)
     dft_control % restricted = l_param
@@ -608,7 +611,7 @@ CONTAINS
     CHARACTER(len=160)                       :: reference
     CHARACTER(len=20)                        :: tmpStr
     INTEGER                                  :: ifun, output_unit
-    LOGICAL                                  :: failure, lsd, roks
+    LOGICAL                                  :: failure
     REAL(kind=dp)                            :: density_cut, &
                                                 density_smooth_cut_range, &
                                                 gradient_cut, tau_cut
@@ -626,15 +629,11 @@ CONTAINS
          "PRINT%DFT_CONTROL_PARAMETERS",extension=".Log",error=error)
     IF (output_unit>0) THEN
        xc_section => section_vals_get_subs_vals(dft_section,&
-            "XC",error=error)
-       CALL section_vals_val_get(dft_section,"LSD",&
-                                 l_val=lsd,error=error)
-       CALL section_vals_val_get(dft_section,"ROKS",&
-                                 l_val=roks,error=error)
-       IF (lsd) THEN
+                                                "XC",error=error)
+       IF (dft_control%uks) THEN
          WRITE (UNIT=output_unit,FMT="(/,T2,A,T78,A)")&
            "DFT| Spin unrestricted (spin-polarized) Kohn-Sham calculation","UKS"
-       ELSE IF (roks) THEN
+       ELSE IF ((dft_control%roks).OR.(dft_control%restricted)) THEN
          WRITE (UNIT=output_unit,FMT="(/,T2,A,T77,A)")&
            "DFT| Spin restricted open Kohn-Sham calculation","ROKS"
        ELSE
@@ -719,8 +718,10 @@ CONTAINS
              xc_fun => section_vals_get_subs_vals2(xc_fun_section,i_section=ifun,&
                   error=error)
              IF (.NOT.ASSOCIATED(xc_fun)) EXIT
-             CALL xc_functional_get_info(xc_fun,lsd=lsd,&
-                  reference=reference, error=error)
+             CALL xc_functional_get_info(xc_fun,&
+                                         lsd=dft_control%lsd,&
+                                         reference=reference,&
+                                         error=error)
              WRITE (output_unit, fmt="(' FUNCTIONAL| ',a,':')")&
                   TRIM(xc_fun%section%name)
              WRITE (output_unit, fmt="(' FUNCTIONAL| ',a)")&

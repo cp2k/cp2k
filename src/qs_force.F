@@ -141,23 +141,25 @@ CONTAINS
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(virial_type), POINTER               :: virial
 
+    ! -------------------------------------------------------------------------
+
     CALL timeset(routineN,"I","",handle)
     failure = .FALSE.
-    NULLIFY(logger)
+    NULLIFY (logger)
     logger => cp_error_get_logger(error)
 
     NULLIFY (atomic_kind_set)
-    NULLIFY (mos)
     NULLIFY (dft_control)
     NULLIFY (force)
-    NULLIFY (matrix_ks)
-    NULLIFY (ks_env)
-    NULLIFY (particle_set)
-    NULLIFY (matrix_s)
-    NULLIFY (scf_control)
-    NULLIFY (matrix_w)
-    NULLIFY (rho)
     NULLIFY (harris_env)
+    NULLIFY (ks_env)
+    NULLIFY (mos)
+    NULLIFY (matrix_ks)
+    NULLIFY (matrix_s)
+    NULLIFY (matrix_w)
+    NULLIFY (particle_set)
+    NULLIFY (rho)
+    NULLIFY (scf_control)
 
     harris_flag = qs_env%use_harris
     CALL get_qs_env(qs_env=qs_env,&
@@ -216,10 +218,13 @@ CONTAINS
 
     CALL qs_energies(qs_env,globenv,error=error)
 
-    CALL get_qs_env(qs_env=qs_env,mos=mos,mo_derivs=mo_derivs, &
-                    matrix_ks=matrix_ks, ks_env=ks_env, matrix_s=matrix_s, &
+    CALL get_qs_env(qs_env=qs_env,&
+                    ks_env=ks_env,&
+                    matrix_ks=matrix_ks,&
+                    matrix_s=matrix_s,&
+                    mo_derivs=mo_derivs,&
+                    mos=mos,&
                     rho=rho)
-
 
     IF ( .NOT. obasis ) THEN
       !   *** Build W matrix ***
@@ -230,19 +235,26 @@ CONTAINS
 
       DO ispin=1,nspin
         CALL replicate_matrix_structure(matrix_s(1)%matrix,&
-             matrix_w(ispin)%matrix,"W MATRIX")
-        IF (qs_env%dft_control%restricted .AND. ispin>1) THEN
+                                        matrix_w(ispin)%matrix,&
+                                        "W MATRIX")
+        IF (qs_env%dft_control%roks) THEN
+          CALL calculate_w_matrix(mo_set=mos(ispin)%mo_set,&
+                                  matrix_ks=matrix_ks(ispin)%matrix,&
+                                  matrix_p=rho%rho_ao(ispin)%matrix,&
+                                  matrix_w=matrix_w(ispin)%matrix,&
+                                  error=error)
+        ELSE IF (qs_env%dft_control%restricted.AND.(ispin > 1)) THEN
           ! not very elegant, indeed ...
           CALL set_matrix(matrix_w(ispin)%matrix,0.0_dp)
-        ELSE 
+        ELSE
           mo_set => mos(ispin)%mo_set
           IF (scf_control%use_ot) THEN
             CALL calculate_w_matrix(mo_set,mo_derivs(ispin)%matrix,&
-                 matrix_w(ispin)%matrix,matrix_s(1)%matrix)
+                                    matrix_w(ispin)%matrix,matrix_s(1)%matrix)
           ELSE
             CALL calculate_w_matrix(mo_set,matrix_w(ispin)%matrix)
           END IF
-        ENDIF
+        END IF
         IF (BTEST(cp_print_key_should_output(logger%iter_info,&
              qs_env%input,"DFT%PRINT%AO_MATRICES/W_MATRIX",error=error),cp_p_file)) THEN
            iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/W_MATRIX",&
@@ -469,6 +481,8 @@ CONTAINS
        ELSE
           my_ftype=ftype
        ENDIF
+!MK
+       my_ftype = ftype
 
        SELECT CASE (my_ftype)
        CASE DEFAULT

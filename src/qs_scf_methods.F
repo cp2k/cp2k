@@ -1,8 +1,7 @@
 !-----------------------------------------------------------------------------!
-!   CP2K: A general program to perform molecular dynamics simulations
-!   Copyright (C) 2006  CP2K developers group
+!   CP2K: A general program to perform molecular dynamics simulations         !
+!   Copyright (C) 2006  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
-
 !!****** cp2k/qs_scf_methods [1.0] *
 !!
 !!   NAME
@@ -17,6 +16,7 @@
 !!   MODIFICATION HISTORY
 !!     - Joost VandeVondele (03.2006)
 !!     - combine_ks_matrices added (05.04.06,MK)
+!!     - second ROKS scheme added (15.04.06,MK)
 !!
 !!   SOURCE
 !******************************************************************************
@@ -75,6 +75,13 @@ MODULE qs_scf_methods
             eigensolver,&
             scf_env_density_mixing,&
             simple_eigensolver
+
+  ! Interfaces
+
+  INTERFACE combine_ks_matrices
+    MODULE PROCEDURE combine_ks_matrices_1,&
+                     combine_ks_matrices_2
+  END INTERFACE combine_ks_matrices
 
 ! *****************************************************************************
 
@@ -170,12 +177,11 @@ CONTAINS
     CALL timestop(handle)
   END SUBROUTINE scf_env_density_mixing
 
-
 ! *****************************************************************************
 
-  SUBROUTINE eigensolver(matrix_ks,mo_set,ortho,work,do_level_shift,level_shift,&
-       use_cholesky, work_syevx, use_jacobi,jacobi_threshold,smear,ao2mo,&
-       error)
+  SUBROUTINE eigensolver(matrix_ks,mo_set,ortho,work,do_level_shift,&
+                         level_shift,use_cholesky,work_syevx,use_jacobi,&
+                         jacobi_threshold,smear,error)
 
 !   Purpose: Diagonalise the Kohn-Sham matrix to get a new set of MO eigen-
 !            vectors and MO eigenvalues.
@@ -194,7 +200,6 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: work_syevx
     LOGICAL, INTENT(IN)                      :: use_jacobi
     REAL(KIND=dp), INTENT(IN)                :: jacobi_threshold, smear
-    TYPE(cp_fm_type), POINTER, OPTIONAL      :: ao2mo
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -274,10 +279,6 @@ CONTAINS
          CALL cp_fm_syevx(matrix_ks,work,mo_eigenvalues,nmo,work_syevx,error)
        END IF
 
-       ! Optionally store orthonormal MO set for ROKS
-
-       IF (PRESENT(ao2mo)) CALL cp_fm_to_fm(work,ao2mo)
-
        CALL cp_fm_gemm("N","N",nao,nmo,nao,1.0_dp,ortho,work,0.0_dp,&
                        mo_coeff)
 
@@ -303,6 +304,7 @@ CONTAINS
   END SUBROUTINE eigensolver
 
 ! *****************************************************************************
+
   SUBROUTINE simple_eigensolver(matrix_ks,mo_set,work,&
              do_level_shift,level_shift,work_syevx,smear,error)
 
@@ -481,8 +483,7 @@ CONTAINS
 
   ! ***************************************************************************
 
-  SUBROUTINE combine_ks_matrices(ksa,ksb,occa,occb,f,level_shift,nalpha,nbeta,&
-                                 error)
+  SUBROUTINE combine_ks_matrices_1(ksa,ksb,occa,occb,roks_parameter,error)
 
     ! Combine the alpha and beta Kohn-Sham matrices during a restricted open
     ! Kohn-Sham (ROKS) calculation
@@ -492,15 +493,89 @@ CONTAINS
 
     ! Literature: - C. C. J. Roothaan, Rev. Mod. Phys. 32, 179 (1960)
     !             - M. F. Guest and V. R. Saunders, Mol. Phys. 28(3), 819 (1974)
+
+    TYPE(cp_fm_type), POINTER                         :: ksa,ksb
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)           :: occa,occb
+    REAL(KIND=dp), DIMENSION(0:2,0:2,1:2), INTENT(IN) :: roks_parameter
+    TYPE(cp_error_type), INTENT(INOUT), OPTIONAL      :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = "combine_ks_matrices_1",&
+                                   routineP = moduleN//":"//routineN
+
+    TYPE(cp_fm_struct_type), POINTER :: ksa_struct,ksb_struct
+
+    INTEGER :: i,icol_global,icol_local,irow_global,irow_local,j,handle,&
+               ncol_local,nrow_local
+    LOGICAL :: compatible_matrices,failure
+
+    INTEGER, DIMENSION(:), POINTER :: col_indices,row_indices
+
+    REAL(KIND=dp), DIMENSION(:,:), POINTER :: fa,fb
+
+    ! -------------------------------------------------------------------------
+
+    CALL timeset(routineN,"I","",handle)
+
+    failure = .FALSE.
+
+    CPPrecondition(ASSOCIATED(ksa),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(ksb),cp_failure_level,routineP,error,failure)
+
+    CALL cp_fm_get_info(matrix=ksa,&
+                        matrix_struct=ksa_struct,&
+                        nrow_local=nrow_local,&
+                        ncol_local=ncol_local,&
+                        row_indices=row_indices,&
+                        col_indices=col_indices,&
+                        local_data=fa,&
+                        error=error)
+
+    CALL cp_fm_get_info(matrix=ksb,&
+                        matrix_struct=ksb_struct,&
+                        local_data=fb,&
+                        error=error)
+
+    compatible_matrices = cp_fm_struct_equivalent(ksa_struct,ksb_struct,error=error)
+    CPPrecondition(compatible_matrices,cp_failure_level,routineP,error,failure)
+
+    IF (SUM(occb) == 0.0_dp) fb = 0.0_dp
+
+    DO icol_local=1,ncol_local
+      icol_global = col_indices(icol_local)
+      j = INT(occa(icol_global)) + INT(occb(icol_global))
+      DO irow_local=1,nrow_local
+        irow_global = row_indices(irow_local)
+        i = INT(occa(irow_global)) + INT(occb(irow_global))
+        fa(irow_local,icol_local) =&
+          roks_parameter(i,j,1)*fa(irow_local,icol_local) +&
+          roks_parameter(i,j,2)*fb(irow_local,icol_local)
+      END DO
+    END DO
+
+    CALL timestop(0.0_dp,handle)
+
+  END SUBROUTINE combine_ks_matrices_1
+
+  ! ***************************************************************************
+
+  SUBROUTINE combine_ks_matrices_2(ksa,ksb,occa,occb,f,nalpha,nbeta,error)
+
+    ! Combine the alpha and beta Kohn-Sham matrices during a restricted open
+    ! Kohn-Sham (ROKS) calculation
+    ! On input ksa and ksb contain the alpha and beta Kohn-Sham matrices,
+    ! respectively. occa and occb contain the corresponding MO occupation
+    ! numbers. On output the combined ROKS operator matrix is returned in ksa.
+
+    ! Literature: - C. C. J. Roothaan, Rev. Mod. Phys. 32, 179 (1960)
     !             - M. Filatov and S. Shaik, Chem. Phys. Lett. 288, 689 (1998)
 
     TYPE(cp_fm_type), POINTER                         :: ksa,ksb
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)           :: occa,occb
-    REAL(KIND=dp), INTENT(IN)                         :: f,level_shift
+    REAL(KIND=dp), INTENT(IN)                         :: f
     INTEGER, INTENT(IN)                               :: nalpha,nbeta
     TYPE(cp_error_type), INTENT(INOUT), OPTIONAL      :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "combine_ks_matrices",&
+    CHARACTER(LEN=*), PARAMETER :: routineN = "combine_ks_matrices_2",&
                                    routineP = moduleN//":"//routineN
 
     TYPE(cp_fm_struct_type), POINTER :: ksa_struct,ksb_struct
@@ -606,26 +681,12 @@ CONTAINS
           END IF
         END IF
 
-        ! Perform level-shift of the diagonal elements, if requested
-
-        IF (level_shift /= 0.0_dp) THEN
-          IF (irow_global == icol_global) THEN
-            IF (irow_global > nalpha) THEN
-              fa(irow_local,icol_local) =&
-                fa(irow_local,icol_local) + level_shift
-            ELSE IF (irow_global > nbeta) THEN
-              fa(irow_local,icol_local) =&
-                fa(irow_local,icol_local) + 0.5_dp*level_shift
-            END IF
-          END IF
-        END IF
-
       END DO
     END DO
 
     CALL timestop(0.0_dp,handle)
 
-  END SUBROUTINE combine_ks_matrices
+  END SUBROUTINE combine_ks_matrices_2
 
   ! ***************************************************************************
 

@@ -2297,15 +2297,47 @@ SUBROUTINE create_tddfpt_section(section,error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword=keyword,&
-                           name="ROKS_PARAMETER",&
-                           variants=(/"ROKS_PARAMETERS"/),&
-                           description="Allows to define all ROKS parameters explicitly.",&
+                           name="ROKS_SCHEME",&
+                           description="Selects the ROKS scheme when ROKS is applied.",&
+                           usage="ROKS_SCHEME HIGH-SPIN",&
+                           repeats=.FALSE.,&
+                           required=.FALSE.,&
+                           n_var=1,&
+                           enum_c_vals=s2a("GENERAL","HIGH-SPIN"),&
+                           enum_i_vals=(/general_roks,high_spin_roks/),&
+                           default_i_val=high_spin_roks,&
+                           error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword=keyword,&
+                           name="ROKS_F",&
+                           variants=(/"F_ROKS"/),&
+                           description="Allows to define the parameter f for the "//&
+                                       "general ROKS scheme.",&
                            usage="ROKS_PARAMETER 1/2",&
                            repeats=.FALSE.,&
                            required=.FALSE.,&
                            n_var=1,&
                            type_of_var=real_t,&
                            default_r_val=0.5_dp,&
+                           error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword=keyword,&
+                           name="ROKS_PARAMETERS",&
+                           variants=(/"ROKS_PARAMETER"/),&
+                           description="Allows to define all parameters for the high-spin "//&
+                                       "ROKS scheme explicitly. "//&
+                                       "The full set of 6 parameters has to be specified "//&
+                                       "in the order acc, bcc, aoo, boo, avv, bvv",&
+                           usage="ROKS_PARAMETERS 1/2 1/2 1/2 1/2 1/2 1/2",&
+                           repeats=.FALSE.,&
+                           required=.FALSE.,&
+                           n_var=6,&
+                           type_of_var=real_t,&
+                           default_r_vals=(/-0.5_dp,1.5_dp,0.5_dp,0.5_dp,1.5_dp,-0.5_dp/),&
                            error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

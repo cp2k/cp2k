@@ -423,20 +423,24 @@ CONTAINS
         CALL cp_fm_to_fm(c,sc)
         CALL cp_fm_column_scale(sc,occ(1:homo))
 
-        DEALLOCATE (occ,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"occ")
-
         ! KC <- K*C
         CALL cp_fm_symm("L","U",nao,homo,1.0_dp,parameters,sc,0.0_dp,kc(ispin)%matrix)
 
-        CALL copy_sm_to_fm(s_matrix(1)%matrix,new_errors)
-
-        ! SC <- S*C
-        CALL cp_fm_symm("L","U",nao,homo,1.0_dp,new_errors,c,0.0_dp,sc)
+        IF (PRESENT(s_matrix)) THEN
+          CALL copy_sm_to_fm(s_matrix(1)%matrix,new_errors)
+          ! SC <- S*C
+          CALL cp_fm_symm("L","U",nao,homo,1.0_dp,new_errors,c,0.0_dp,sc)
+          CALL cp_fm_column_scale(sc,occ(1:homo))
+        END IF
 
         ! new_errors <- KC*(SC)^T - (SC)*(KC)^T = K*P*S - S*P*K
+        ! or for an orthogonal basis
+        ! new_errors <- KC*C^T - C*(KC)^T = K*P - P*K with S = I
         CALL cp_fm_gemm("N","T",nao,nao,homo,1.0_dp,sc,kc(ispin)%matrix, 0.0_dp,new_errors)
         CALL cp_fm_gemm("N","T",nao,nao,homo,1.0_dp,kc(ispin)%matrix,sc,-1.0_dp,new_errors)
+
+        DEALLOCATE (occ,STAT=istat)
+        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"occ")
 
       ELSE
 

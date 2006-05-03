@@ -219,7 +219,7 @@ MODULE cp_control_types
                                         do_tddfpt_calculation, &
                                         do_xas_calculation, &
                                         use_kinetic_energy_density, & 
-                                        restricted,roks
+                                        restricted,roks,uks,lsd
      !FM add xc_section ?
   END TYPE dft_control_type
 
