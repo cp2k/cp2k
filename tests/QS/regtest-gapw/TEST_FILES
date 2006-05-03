@@ -25,3 +25,6 @@ CO_xastpfh.inp     1
 CO_xastpxhh.inp    1
 CO_xastpxfh.inp    1
 CO_xastpval.inp    1
+# High-spin restricted open Kohn-Sham
+Li-ROKS.inp        1
+NO2-ROKS.inp       1
