@@ -125,6 +125,7 @@ CONTAINS
     cell_out%perd =                cell_in%perd
     cell_out%hmat =                cell_in%hmat
     cell_out%h_inv =               cell_in%h_inv
+    cell_out%orthorhombic =        cell_in%orthorhombic
     cell_out%ref_count = 1
     last_cell_id = last_cell_id + 1
     cell_out%id_nr = last_cell_id
@@ -301,6 +302,13 @@ CONTAINS
         (cell%hmat(2,1) == 0.0_dp).AND.(cell%hmat(2,3) == 0.0_dp).AND.&
         (cell%hmat(3,1) == 0.0_dp).AND.(cell%hmat(3,2) == 0.0_dp)) cell%orthorhombic = .TRUE.
     IF ( PRESENT ( orthorhombic ) ) cell % orthorhombic = orthorhombic
+!deb
+    IF ( PRESENT ( orthorhombic ) ) THEN
+       write(*,*) "PRESENT orthorhombic  ",cell % orthorhombic
+    ELSE
+       write(*,*) "        orthorhombic  ",cell % orthorhombic
+    END IF
+!deb
     dim = COUNT(cell%perd == 1)
     IF ((dim/=3).AND.(.NOT.cell%orthorhombic)) THEN
        CALL stop_program(routine,"Not ortho and not periodic")
