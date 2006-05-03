@@ -31,6 +31,7 @@ H2O-ref-2.inp      1
 H2O-ata.inp        1
 # Lowdin charges
 CN-lowdin.inp      0
-# Restricted open Kohn-Sham
-#N-ROKS.inp         1
-#O2-ROKS.inp        1
+# High-spin restricted open Kohn-Sham
+H-ROKS.inp         1
+N-ROKS.inp         1
+O2-ROKS.inp        1

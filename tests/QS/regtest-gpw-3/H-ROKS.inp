@@ -1,14 +1,14 @@
 &GLOBAL
   FFTLIB FFTSG
   PROGRAM Quickstep
-  PROJECT N
+  PROJECT H
   PRINT_LEVEL LOW
 &END GLOBAL
 
 &FORCE_EVAL
   &DFT
     ROKS
-    MULTIPLICITY 4
+    MULTIPLICITY 2
     BASIS_SET_FILE_NAME ./BASIS_SET
     POTENTIAL_FILE_NAME ./POTENTIAL
     &MGRID
@@ -31,26 +31,13 @@
     &POISSON
       PERIODIC NONE
       POISSON_SOLVER MT
-#      &MT
-#        ALPHA 7.0
-#        REL_CUTOFF 1.4
-#      &END MT
     &END POISSON
     &QS
       EPS_DEFAULT 1.0E-8
     &END QS
     &SCF
-      # let's fool around a bit ...
-      EPS_SCF: 1.0E-6
-      MIXING = 0.4
-      SCF_GUESS=core
-      ROKS_SCHEME high-spin
-      ROKS_PARAMETERS 1/3,2/3; 1/3,1/3; 2/3,1/3 # McWeeny & Diercksen (default is Roothaan)
-      # ... the parser should digest it ;-)
-      &PRINT
-#        &DIIS_INFO
-#        &END DIIS_INFO
-      &END
+      CHOLESKY OFF
+      SCF_GUESS atomic
     &END SCF
     &XC
       &XC_FUNCTIONAL Pade
@@ -64,11 +51,11 @@
       PERIODIC NONE
     &END CELL
     &COORD
-      N   0.000000  0.000000  0.000000
+      H   0.000000  0.000000  0.000000
     &END COORD
-    &KIND N
+    &KIND H
       BASIS_SET DZVP-GTH-PADE
-      POTENTIAL GTH-PADE-q5
+      POTENTIAL GTH-PADE-q1
     &END KIND
     &PRINT
       &KINDS
