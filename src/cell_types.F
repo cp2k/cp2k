@@ -302,13 +302,6 @@ CONTAINS
         (cell%hmat(2,1) == 0.0_dp).AND.(cell%hmat(2,3) == 0.0_dp).AND.&
         (cell%hmat(3,1) == 0.0_dp).AND.(cell%hmat(3,2) == 0.0_dp)) cell%orthorhombic = .TRUE.
     IF ( PRESENT ( orthorhombic ) ) cell % orthorhombic = orthorhombic
-!deb
-    IF ( PRESENT ( orthorhombic ) ) THEN
-       write(*,*) "PRESENT orthorhombic  ",cell % orthorhombic
-    ELSE
-       write(*,*) "        orthorhombic  ",cell % orthorhombic
-    END IF
-!deb
     dim = COUNT(cell%perd == 1)
     IF ((dim/=3).AND.(.NOT.cell%orthorhombic)) THEN
        CALL stop_program(routine,"Not ortho and not periodic")
