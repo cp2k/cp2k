@@ -68,9 +68,11 @@ MODULE pw_grid_types
      INTEGER :: ngpts_cut_local                   ! # grid points within cutoff
      INTEGER, DIMENSION ( 2, 3 ) :: bounds_local  ! bounds on local process
      INTEGER, DIMENSION ( 3 ) :: npts_local       ! local version of npts
-     REAL (KIND=dp), DIMENSION ( 3 ) :: dr          ! grid spacing
-     REAL (KIND=dp) :: dvol, vol                    ! volume element, volume
-     REAL (KIND=dp) :: cutoff                       ! cutoff in a.u.
+     REAL (KIND=dp), DIMENSION ( 3 ) :: dr        ! grid spacing
+     REAL (KIND=dp), DIMENSION ( 3, 3 ) :: dh     ! incremental cell matrix
+     LOGICAL :: orthorhombic                      ! cell symmetry
+     REAL (KIND=dp) :: dvol, vol                  ! volume element, volume
+     REAL (KIND=dp) :: cutoff                     ! cutoff in a.u.
      TYPE ( map_pn ) :: mapl, mapm, mapn          ! mapping 1D => 3D
      TYPE ( pw_para_type ) :: para                ! information on parallelisation
      REAL (KIND=dp), DIMENSION ( :, : ), POINTER :: g   ! grid point vectors

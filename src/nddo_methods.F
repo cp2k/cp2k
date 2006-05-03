@@ -328,6 +328,16 @@ CONTAINS
        enuclear = 0._dp
        itype = get_se_type(dft_control%qs_control%method)
 
+!deb
+!      nullify(particle_set)
+!      CALL get_qs_env(qs_env=qs_env,&
+!                        particle_set=particle_set)
+!      do iatom=1,SIZE(particle_set)
+!        CALL get_atomic_kind ( atomic_kind=particle_set(iatom)%atomic_kind, qeff=rc)
+!        write(6,*) "ATOM   ",iatom,"  CHARGE=  ",rc
+!      enddo
+!deb
+
        DO ikind=1,nkind
           atomic_kind => atomic_kind_set(ikind)
           CALL get_atomic_kind(atomic_kind=atomic_kind,&

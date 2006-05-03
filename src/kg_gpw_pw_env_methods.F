@@ -508,6 +508,10 @@ CONTAINS
        END IF 
 
        pw_grid_g => pw_pool_g%pw_grid
+       ! we can only handle orthorhombic grids at this point
+       IF ( .NOT. pw_grid_g%orthorhombic ) THEN
+          CALL stop_program(routineP,"KG_GPW: only orthorhombic grids allowd")
+       END IF
 
        ! assign a unique tag to this grid
        grid_tag = grid_tag + 1
@@ -613,6 +617,12 @@ CONTAINS
        hmat(2,2) = side(2)
        hmat(3,3) = side(3)
        CALL init_cell(cell_mol,hmat)
+
+       pw_grid_mol%orthorhombic = .TRUE.
+       pw_grid_mol%dh(:,:) = 0.0_dp
+       pw_grid_mol%dh(1,1) = dr_g(1)
+       pw_grid_mol%dh(2,2) = dr_g(2)
+       pw_grid_mol%dh(3,3) = dr_g(3)
 
        npts_out( : ) = pw_grid_mol%npts( : )
 
@@ -853,6 +863,8 @@ CONTAINS
 
         CALL init_cube_info(pw_mol%cube_info(igrid_level),&
              pw_pools_mol(igrid_level)%pool%pw_grid%dr(:),&
+             pw_pools_mol(igrid_level)%pool%pw_grid%dh(:,:),&
+             pw_pools_mol(igrid_level)%pool%pw_grid%orthorhombic,&
              maxradius,cmaxl)
         cmax = MAX(cmax,cmaxl)
 

@@ -86,13 +86,15 @@ MODULE realspace_grid_types
      INTEGER, DIMENSION (3) :: lb                        ! lower bounds
      INTEGER, DIMENSION (3) :: ub                        ! upper bounds
      INTEGER, DIMENSION (:), POINTER :: px,py,pz         ! index translators
-     REAL(KIND=dp), DIMENSION ( :, :, : ),POINTER :: r    ! the grid
+     REAL(KIND=dp), DIMENSION ( :, :, : ),POINTER :: r   ! the grid
      INTEGER :: border                                   ! border points
      INTEGER :: ngpts_local                              ! local dimensions
      INTEGER, DIMENSION (3) :: npts_local
      INTEGER, DIMENSION (3) :: lb_local
      INTEGER, DIMENSION (3) :: ub_local
-     REAL(KIND=dp), DIMENSION(3) :: dr                      ! grid spacing
+     REAL(KIND=dp), DIMENSION(3) :: dr                   ! grid spacing
+     REAL(KIND=dp), DIMENSION(3,3) :: dh                 ! grid matrix 
+     LOGICAL :: orthorhombic                             ! grid symmetry
      LOGICAL :: parallel
      INTEGER :: group
      LOGICAL :: group_head
@@ -285,6 +287,8 @@ CONTAINS
     failure = .FALSE.
 
     rs % dr = pw_grid%dr
+    rs % dh = pw_grid%dh
+    rs % orthorhombic = pw_grid%orthorhombic
     rs % grid_id = pw_grid % id_nr
     last_rs_id = last_rs_id+1
     rs % id_nr = last_rs_id
@@ -987,6 +991,7 @@ SUBROUTINE rs_grid_to_cube ( rs, iunit, ionode, title, particles, stride, error 
    my_stride=1
    IF (PRESENT(stride)) my_stride=stride
    CPPrecondition(my_stride>0,cp_failure_level,routineP,error,failure) 
+   CPPrecondition(rs%orthorhombic,cp_failure_level,routineP,error,failure) 
    IF (rs%ngpts.ne.rs%ngpts_local) CALL stop_program("rs_grid_to_cube","NYI")
    IF (ionode) THEN
      ! this format seems to work for e.g. molekel and gOpenmol

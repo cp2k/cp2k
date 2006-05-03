@@ -1,10 +1,29 @@
-! for a given dr() this will provide the bounds to be used if 
-! one wants to go over a sphere-subregion of given radius
-
-! the computation of the exact sphere radius is sensitive to roundoff (e.g.
-! compiler optimization level) and hence this small roundoff can result in
-! energy difference of about EPS_DEFAULT in QS energies (one gridpoint more or
-! less in the density mapping)
+!-----------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations         !
+!   Copyright (C) 2006  CP2K developers group                                 !
+!-----------------------------------------------------------------------------!
+!!****h* cp2k/cube_utils *
+!!
+!!   NAME
+!!     cube_utils
+!!
+!!   FUNCTION
+!!     for a given dr()/dh(r) this will provide the bounds to be used if
+!!     one wants to go over a sphere-subregion of given radius
+!!
+!!   NOTES
+!!     the computation of the exact sphere radius is sensitive to roundoff (e.g.
+!!     compiler optimization level) and hence this small roundoff can result in
+!!     energy difference of about EPS_DEFAULT in QS energies (one gridpoint more or
+!!     less in the density mapping)
+!!
+!!   AUTHOR
+!!     Joost VandeVondele
+!!     
+!!
+!!   MODIFICATION HISTORY
+!!
+!*** ************************************************************************
 
 MODULE cube_utils
 
@@ -29,6 +48,8 @@ MODULE cube_utils
   TYPE :: cube_info_type
      INTEGER                      :: max_radius
      REAL(KIND = dp)              :: dr(3),drmin,drsafe
+     REAL(KIND = dp)              :: dh(3,3)
+     LOGICAL                      :: orthorhombic
      INTEGER, POINTER             :: lb_cube(:,:)
      INTEGER, POINTER             :: ub_cube(:,:)
      TYPE(cube_ptr), POINTER, DIMENSION(:)  :: sphere_bounds
@@ -36,7 +57,11 @@ MODULE cube_utils
      REAL(KIND = dp)              :: max_rad_ga
   END TYPE cube_info_type
 
+!------------------------------------------------------------------------------
+
 CONTAINS
+
+!------------------------------------------------------------------------------
   SUBROUTINE return_cube(info,radius,lb_cube,ub_cube,sphere_bounds)
     TYPE(cube_info_type)                     :: info
     REAL(KIND=dp)                            :: radius
@@ -56,6 +81,8 @@ CONTAINS
 
   RETURN
   END SUBROUTINE return_cube
+
+!------------------------------------------------------------------------------
 
   SUBROUTINE destroy_cube_info(info)
     TYPE(cube_info_type)                     :: info
@@ -79,9 +106,12 @@ CONTAINS
     IF (istat /= 0) CALL stop_memory(routine,"info%sphere_bounds")
   END SUBROUTINE
 
-  SUBROUTINE init_cube_info(info,dr,max_radius,cmax)
+!------------------------------------------------------------------------------
+
+  SUBROUTINE init_cube_info(info,dr,dh,ortho,max_radius,cmax)
     TYPE(cube_info_type)                     :: info
-    REAL(KIND=dp)                            :: dr(3), max_radius
+    REAL(KIND=dp)                            :: dr(3), dh(3,3),max_radius
+    LOGICAL                                  :: ortho
     INTEGER                                  :: cmax
 
     CHARACTER(LEN=*), PARAMETER :: &
@@ -95,6 +125,8 @@ CONTAINS
 
     CALL timeset("init_cube_info","I","",handle) 
     info%dr = dr
+    info%dh = dh
+    info%orthorhombic = ortho
     drmin = MINVAL(dr)
     info%drmin=drmin
     drsafe=0
@@ -106,6 +138,10 @@ CONTAINS
     dxi=1.0_dp/dr(1)
     dz2=(dr(3))**2
     dy2=(dr(2))**2
+
+    IF ( .NOT. info%orthorhombic ) THEN
+      CALL stop_program(routine,"Non orthorhombic grids not supported")
+    END IF
 
     NULLIFY(info%lb_cube,info%ub_cube,&
             info%sphere_bounds_count,info%sphere_bounds)
@@ -168,7 +204,8 @@ CONTAINS
     ENDDO
     cmax=MAXVAL(info%ub_cube)
     IF (check_1.NE.check_2) THEN 
-        CALL stop_program("init_cube_info"," :-/ irreproducable fp math caused memory corruption")
+        CALL stop_program("init_cube_info",&
+                          " :-/ irreproducible fp math caused memory corruption")
     ENDIF
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE
@@ -199,5 +236,8 @@ CONTAINS
     buf(2)=(i*buf(2))**2
     res = CEILING(-0.1E-7_dp-buf(1)*SQRT(MAX(buf(2)-kg2*buf(3)-jg2*buf(4),0.0_dp)))
   END FUNCTION do_and_hide_it_2
+! *****************************************************************************
+
 END MODULE
-! ***************************************************************
+
+! *****************************************************************************

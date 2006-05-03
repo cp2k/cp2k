@@ -1528,6 +1528,9 @@ CONTAINS
                                                 dpz(:,:), polx(:,:), &
                                                 poly(:,:), polz(:,:), pzyx(:)
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'collocate_pgf_product_rspace', &
+      routineP = moduleN//':'//routineN
+
 !   ---------------------------------------------------------------------------
 
     IF (PRESENT(ithread)) THEN
@@ -1674,6 +1677,11 @@ CONTAINS
     ENDIF
 
     coef_max=la_max_local+lb_max_local+1
+   
+    IF ( .NOT. rsgrid%orthorhombic ) THEN
+       call stop_program(routineN,"only orthorhombic grids allowd")
+    END IF
+
 !   *** properties of the grid ***
     dr(:) = rsgrid%dr(:)
     ng(:) = rsgrid%npts(:)

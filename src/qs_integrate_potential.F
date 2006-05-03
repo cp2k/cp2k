@@ -123,6 +123,8 @@ MODULE qs_integrate_potential
 
   INTEGER :: debug_count=0
 
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_integrate_potential'
+
 ! *** Public subroutines ***
 
   PUBLIC :: integrate_v_rspace,&
@@ -1114,6 +1116,9 @@ CONTAINS
                                                 dpz(:,:), polx(:,:), &
                                                 poly(:,:), polz(:,:), pzyx(:)
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'integrate_pgf_product_rspace', &
+      routineP = moduleN//':'//routineN
+
 !   ---------------------------------------------------------------------------
 
     IF (PRESENT(ithread)) THEN
@@ -1207,6 +1212,10 @@ CONTAINS
 
 !   *** properties of the grid ***
     !IF (ithread_l.eq.0) t_c_1=m_walltime()
+
+    IF ( .NOT. rsgrid%orthorhombic ) THEN
+      CALL stop_program(routineN,"only orthorhombic grids allowed")
+    END IF
 
     dr(:) = rsgrid%dr(:)
     ng(:) = rsgrid%npts(:)

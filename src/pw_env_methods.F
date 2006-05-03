@@ -558,6 +558,8 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
         pw_env%cube_info%max_rad_ga = maxradius
         CALL init_cube_info(pw_env%cube_info(igrid_level),&
              pw_pools(igrid_level)%pool%pw_grid%dr(:),&
+             pw_pools(igrid_level)%pool%pw_grid%dh(:,:),&
+             pw_pools(igrid_level)%pool%pw_grid%orthorhombic,&
              radius(igrid_level),cmaxl(igrid_level))
      END DO
 

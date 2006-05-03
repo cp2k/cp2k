@@ -900,6 +900,10 @@ SUBROUTINE pw_grid_setup1 ( cell, pw_grid, bounds, print_section, grid_span, &
        / REAL ( pw_grid % npts ( 2 ),KIND=dp)
   pw_grid % dr ( 3 ) = SQRT ( SUM ( cell % hmat ( :, 3 ) ** 2 ) ) &
        / REAL ( pw_grid % npts ( 3 ),KIND=dp)
+  pw_grid % dh ( :,1 ) = cell % hmat ( :, 1 ) / REAL ( pw_grid % npts ( 1 ),KIND=dp)
+  pw_grid % dh ( :,2 ) = cell % hmat ( :, 2 ) / REAL ( pw_grid % npts ( 2 ),KIND=dp)
+  pw_grid % dh ( :,3 ) = cell % hmat ( :, 3 ) / REAL ( pw_grid % npts ( 3 ),KIND=dp)
+  pw_grid % orthorhombic = cell % orthorhombic
 
 !
 ! Output: All the information of this grid type
@@ -2330,6 +2334,10 @@ SUBROUTINE pw_grid_change ( cell, pw_grid )
        / REAL ( pw_grid % npts ( 2 ),KIND=dp)
   pw_grid % dr ( 3 ) = SQRT ( SUM ( cell % hmat ( :, 3 ) ** 2 ) ) &
        / REAL ( pw_grid % npts ( 3 ),KIND=dp)
+  pw_grid % dh ( :,1 ) = cell % hmat ( :, 1 ) / REAL ( pw_grid % npts ( 1 ),KIND=dp)
+  pw_grid % dh ( :,2 ) = cell % hmat ( :, 2 ) / REAL ( pw_grid % npts ( 2 ),KIND=dp)
+  pw_grid % dh ( :,3 ) = cell % hmat ( :, 3 ) / REAL ( pw_grid % npts ( 3 ),KIND=dp)
+  pw_grid % orthorhombic = cell % orthorhombic
 
   DO gpt = 1, SIZE ( g ,2 )
 
@@ -2696,6 +2704,8 @@ END SUBROUTINE pw_grid_release
        pw_grid_out%ngpts_local=PRODUCT(pw_grid_out%npts_local)
        pw_grid_out%ngpts_cut_local=0
        pw_grid_out%dr              =  pw_grid_in%dr               
+       pw_grid_out%dh              =  pw_grid_in%dh               
+       pw_grid_out%orthorhombic    =  pw_grid_in%orthorhombic     
        pw_grid_out%dvol            =  pw_grid_in%dvol             
        pw_grid_out%vol             =  pw_grid_in%vol*REAL(pw_grid_out%ngpts,dp)&
             /REAL(pw_grid_in%ngpts,dp) !FM do not modify?

@@ -173,6 +173,8 @@ CONTAINS
           DO igrid=1,SIZE(pools)
              CALL init_cube_info(cube_info(igrid),&
                pools(igrid)%pool%pw_grid%dr(:),&
+               pools(igrid)%pool%pw_grid%dh(:,:),&
+               pools(igrid)%pool%pw_grid%orthorhombic,&
                qmmm_env%maxRadius(igrid),cmax)
           END DO
           ks_qmmm_env%cube_info => cube_info

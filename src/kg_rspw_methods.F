@@ -419,6 +419,8 @@ END SUBROUTINE kg_rspw_create
       DO igrid_level=1,ngrid_level 
          CALL init_cube_info(kg_rspw%cube_info(igrid_level),&
                pw_pools(igrid_level)%pool%pw_grid%dr(:),&
+               pw_pools(igrid_level)%pool%pw_grid%dh(:,:),&
+               pw_pools(igrid_level)%pool%pw_grid%orthorhombic,&
                maxradius,cmaxl)
          cmax = MAX(cmax,cmaxl)
       END DO
