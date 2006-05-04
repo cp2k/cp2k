@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2004  CP2K developers group                          !
+!   Copyright (C) 2000 - 2006  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 !!****** cp2k/basis_set_types [1.0] *
 !!
@@ -58,10 +58,12 @@ MODULE basis_set_types
 
   PRIVATE
 
-  ! *** Global parameters (only in this module) ***
-  CHARACTER(LEN=*), PARAMETER :: moduleN = "basis_set_types)"
+  ! Global parameters (only in this module)
 
-  ! *** Define the Gaussian-type orbital basis set type ***
+  CHARACTER(LEN=*), PARAMETER :: moduleN = "basis_set_types"
+
+  ! Define the Gaussian-type orbital basis set type
+
   TYPE gto_basis_set_type
     !MK PRIVATE
     CHARACTER(LEN=default_string_length)       :: name
@@ -84,7 +86,8 @@ MODULE basis_set_types
     TYPE(gto_basis_set_type), POINTER :: gto_basis_set
   END TYPE gto_basis_set_p_type
 
-  ! *** Define the Slater-type orbital basis set type ***
+  ! Define the Slater-type orbital basis set type
+
   TYPE sto_basis_set_type
     !MK PRIVATE
     CHARACTER(LEN=default_string_length)       :: name
@@ -94,7 +97,7 @@ MODULE basis_set_types
     REAL(KIND = dp), DIMENSION(:), POINTER     :: zet
   END TYPE sto_basis_set_type
 
-! *** Public subroutines ***
+  ! Public subroutines
 
   PUBLIC :: allocate_gto_basis_set,&
             deallocate_gto_basis_set,&
@@ -114,7 +117,7 @@ MODULE basis_set_types
             get_sto_basis_set,&
             set_sto_basis_set
 
-! *** Public data types ***
+  ! Public data types
 
   PUBLIC :: gto_basis_set_p_type,&
             gto_basis_set_type,&
@@ -128,19 +131,17 @@ CONTAINS
 
   SUBROUTINE allocate_gto_basis_set(gto_basis_set)
 
-!   Purpose: Allocate a Gaussian-type orbital (GTO) basis set data set.
+    ! Allocate a Gaussian-type orbital (GTO) basis set data set.
 
-!   History: - Creation (26.10.2000,MK)
-
-!   ***************************************************************************
+    ! - Creation (26.10.2000,MK)
 
     TYPE(gto_basis_set_type), POINTER        :: gto_basis_set
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_gto_basis_set'
+    CHARACTER(LEN=*), PARAMETER :: routineN = "allocate_gto_basis_set"
 
     INTEGER                                  :: istat
 
-!   ---------------------------------------------------------------------------
+    ! -------------------------------------------------------------------------
 
     IF (ASSOCIATED(gto_basis_set)) CALL deallocate_gto_basis_set(gto_basis_set)
 
@@ -177,23 +178,21 @@ CONTAINS
 
   END SUBROUTINE allocate_gto_basis_set
 
-! *****************************************************************************
+  ! ***************************************************************************
 
   SUBROUTINE deallocate_gto_basis_set(gto_basis_set)
 
-!   Purpose: Deallocate a Gaussian-type orbital (GTO) basis set data set.
+    ! Deallocate a Gaussian-type orbital (GTO) basis set data set.
 
-!   History: - Creation (03.11.2000,MK)
-
-!   ***************************************************************************
+    ! - Creation (03.11.2000,MK)
 
     TYPE(gto_basis_set_type), POINTER        :: gto_basis_set
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_gto_basis_set'
+    CHARACTER(LEN=*), PARAMETER :: routineN = "deallocate_gto_basis_set"
 
     INTEGER                                  :: istat
 
-!   ---------------------------------------------------------------------------
+    ! -------------------------------------------------------------------------
 
     DEALLOCATE (gto_basis_set%cgf_symbol,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
@@ -301,7 +300,7 @@ CONTAINS
 
   END SUBROUTINE deallocate_gto_basis_set
 
-! *****************************************************************************
+  ! ***************************************************************************
 
   SUBROUTINE get_gto_basis_set(gto_basis_set,name,norm_type,kind_radius,ncgf,&
                     nset,nsgf,cgf_symbol,sgf_symbol,norm_cgf,set_radius,lmax,&
@@ -311,11 +310,9 @@ CONTAINS
                     maxsgf_set,maxshell,maxso,nco_sum,npgf_sum,&
                     nshell_sum,maxder,short_kind_radius)
 
-!   Purpose: Get informations about a Gaussian-type orbital (GTO) basis set.
+    ! Get informations about a Gaussian-type orbital (GTO) basis set.
 
-!   History: - Creation (10.01.2002,MK)
-
-!   ***************************************************************************
+    ! - Creation (10.01.2002,MK)
 
     TYPE(gto_basis_set_type), POINTER        :: gto_basis_set
     CHARACTER(LEN=default_string_length), &
@@ -345,18 +342,19 @@ CONTAINS
                                                 nco_sum, npgf_sum, nshell_sum
     INTEGER, INTENT(IN), OPTIONAL            :: maxder
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'get_gto_basis_set'
+    CHARACTER(LEN=*), PARAMETER              :: routineN = "get_gto_basis_set"
 
     INTEGER                                  :: iset, nder
 
-!   ---------------------------------------------------------------------------
+    ! -------------------------------------------------------------------------
 
     IF (ASSOCIATED(gto_basis_set)) THEN
       IF (PRESENT(name)) name = gto_basis_set%name
       IF (PRESENT(norm_type)) norm_type = gto_basis_set%norm_type
       IF (PRESENT(kind_radius)) kind_radius = gto_basis_set%kind_radius
-      IF (PRESENT(short_kind_radius))&
-         short_kind_radius = gto_basis_set%short_kind_radius
+      IF (PRESENT(short_kind_radius)) THEN
+        short_kind_radius = gto_basis_set%short_kind_radius
+      END IF
       IF (PRESENT(ncgf)) ncgf = gto_basis_set%ncgf
       IF (PRESENT(nset)) nset = gto_basis_set%nset
       IF (PRESENT(nsgf)) nsgf = gto_basis_set%nsgf
@@ -445,54 +443,50 @@ CONTAINS
 
   END SUBROUTINE get_gto_basis_set
 
-! *****************************************************************************
+  ! ***************************************************************************
 
   SUBROUTINE init_aux_basis_set(gto_basis_set)
 
-!   Purpose: Initialise a Gaussian-type orbital (GTO) basis set data set.
+    ! Initialise a Gaussian-type orbital (GTO) basis set data set.
 
-!   History: - Creation (06.12.2000,MK)
-
-!   ***************************************************************************
+    ! - Creation (06.12.2000,MK)
 
     TYPE(gto_basis_set_type), POINTER        :: gto_basis_set
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'init_aux_basis_set'
+    CHARACTER(LEN=*), PARAMETER :: routineN = "init_aux_basis_set"
 
-!   ---------------------------------------------------------------------------
+    ! -------------------------------------------------------------------------
 
     IF (.NOT.ASSOCIATED(gto_basis_set)) RETURN
 
     SELECT CASE (gto_basis_set%norm_type)
     CASE ( 0 )
-      !   *** No normalisation requested ***
+      ! No normalisation requested
     CASE ( 1 )
       CALL init_norm_cgf_aux_2(gto_basis_set)
     CASE ( 2 )
-! WARNING this was never tested
+      ! WARNING this was never tested
       CALL init_norm_cgf_aux(gto_basis_set)
     CASE DEFAULT
       CALL stop_program(routineN,moduleN,__LINE__,&
                         "Normalization method not specified")
     END SELECT
 
-!   *** Initialise the transformation matrices "pgf" -> "cgf" ***
+    ! Initialise the transformation matrices "pgf" -> "cgf"
 
     CALL init_cphi_and_sphi(gto_basis_set)
 
   END SUBROUTINE init_aux_basis_set
 
-! *****************************************************************************
+  ! ***************************************************************************
 
   SUBROUTINE init_cphi_and_sphi(gto_basis_set)
 
-!   Purpose: Initialise the matrices for the transformation of primitive
-!            Cartesian Gaussian-type functions to contracted Cartesian
-!            (cphi) and spherical (sphi) Gaussian-type functions.
+    ! Initialise the matrices for the transformation of primitive Cartesian
+    ! Gaussian-type functions to contracted Cartesian (cphi) and spherical
+    ! (sphi) Gaussian-type functions.
 
-!   History: - Creation (20.09.2000,MK)
-
-!   ***************************************************************************
+    ! - Creation (20.09.2000,MK)
 
     TYPE(gto_basis_set_type), POINTER        :: gto_basis_set
 
@@ -500,8 +494,9 @@ CONTAINS
                                                 ico, ipgf, iset, ishell, l, &
                                                 n, ncgf, nsgf
 
-!   ---------------------------------------------------------------------------
-!   *** Build the Cartesian transformation matrix "cphi" ***
+    ! -------------------------------------------------------------------------
+
+    ! Build the Cartesian transformation matrix "cphi"
 
     DO iset=1,gto_basis_set%nset
       n = ncoset(gto_basis_set%lmax(iset))
@@ -520,7 +515,7 @@ CONTAINS
       END DO
     END DO
 
-!   *** Build the spherical transformation matrix "sphi" ***
+    ! Build the spherical transformation matrix "sphi"
 
     n = SIZE(gto_basis_set%cphi,1)
 
@@ -540,20 +535,18 @@ CONTAINS
 
   END SUBROUTINE init_cphi_and_sphi
 
-! *****************************************************************************
+  ! ***************************************************************************
 
   SUBROUTINE init_norm_cgf_aux(gto_basis_set)
 
-!   Purpose: Initialise the normalization factors of the contracted Cartesian
-!            Gaussian functions.
+    ! Initialise the normalization factors of the contracted Cartesian Gaussian
+    ! functions, if the Gaussian functions represent charge distributions.
 
-!   History: - Creation (07.12.2000,MK)
-
-!   ***************************************************************************
+    ! - Creation (07.12.2000,MK)
 
     TYPE(gto_basis_set_type), POINTER        :: gto_basis_set
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'init_norm_cgf_aux'
+    CHARACTER(LEN=*), PARAMETER              :: routineN = "init_norm_cgf_aux"
 
     INTEGER                                  :: icgf, ico, ipgf, iset, &
                                                 ishell, istat, jco, jpgf, ll, &
@@ -567,7 +560,7 @@ CONTAINS
       DIMENSION(:, :, :)                     :: vv
     REAL(KIND=dp), DIMENSION(:), POINTER     :: rpgfa, zeta
 
-!   ---------------------------------------------------------------------------
+    ! -------------------------------------------------------------------------
 
     n = 0
     ll = 0
@@ -624,24 +617,20 @@ CONTAINS
 
   END SUBROUTINE init_norm_cgf_aux
 
-! *****************************************************************************
+  ! ***************************************************************************
 
   SUBROUTINE init_norm_cgf_aux_2(gto_basis_set)
 
-!   Purpose: Initialise the normalization factors of the auxiliary Cartesian
-!            Gaussian functions (kim-gordon polarization basis) Norm=1.
+    ! Initialise the normalization factors of the auxiliary Cartesian Gaussian
+    ! functions (Kim-Gordon polarization basis) Norm = 1.
 
-!   History: - Creation (07.12.2000,GT)
-
-!   ***************************************************************************
+    ! - Creation (07.12.2000,GT)
 
     TYPE(gto_basis_set_type), POINTER        :: gto_basis_set
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'init_norm_cgf_aux_2'
-
     INTEGER                                  :: icgf, iset, ishell
 
-!   ---------------------------------------------------------------------------
+    ! -------------------------------------------------------------------------
 
     DO iset=1,gto_basis_set%nset
       DO ishell=1,gto_basis_set%nshell(iset)
@@ -654,16 +643,14 @@ CONTAINS
 
   END SUBROUTINE init_norm_cgf_aux_2
 
-! *****************************************************************************
+  ! ***************************************************************************
 
   SUBROUTINE init_norm_cgf_orb(gto_basis_set)
 
-!   Purpose: Initialise the normalization factors of the contracted Cartesian
-!            Gaussian functions.
+    ! Initialise the normalization factors of the contracted Cartesian Gaussian
+    ! functions.
 
-!   History: - Creation (14.04.2000,MK)
-
-!   ***************************************************************************
+    ! - Creation (14.04.2000,MK)
 
     TYPE(gto_basis_set_type), POINTER        :: gto_basis_set
 
@@ -672,7 +659,7 @@ CONTAINS
     REAL(KIND=dp)                            :: expzet, fnorm, gcca, gccb, &
                                                 prefac, zeta, zetb
 
-!   ---------------------------------------------------------------------------
+    ! -------------------------------------------------------------------------
 
     DO iset=1,gto_basis_set%nset
       DO ishell=1,gto_basis_set%nshell(iset)
@@ -709,25 +696,21 @@ CONTAINS
 
   END SUBROUTINE init_norm_cgf_orb
 
-! *****************************************************************************
+  ! ***************************************************************************
 
   SUBROUTINE init_norm_cgf_orb_den(gto_basis_set)
 
-!   Purpose: Initialise the normalization factors of the contracted Cartesian
-!            Gaussian functions used for frozen density representation
+    ! Initialise the normalization factors of the contracted Cartesian Gaussian
+    ! functions used for frozen density representation.
 
-!   History: - Creation (21.09.2002,GT)
-
-!   ***************************************************************************
+    ! - Creation (21.09.2002,GT)
 
     TYPE(gto_basis_set_type), POINTER        :: gto_basis_set
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'init_norm_cgf_orb_den'
 
     INTEGER                                  :: icgf, ipgf, iset, ishell, l
     REAL(KIND=dp)                            :: expzet, gcca, prefac, zeta
 
-!   ---------------------------------------------------------------------------
+    ! -------------------------------------------------------------------------
 
     DO iset=1,gto_basis_set%nset
       DO ishell=1,gto_basis_set%nshell(iset)
@@ -748,63 +731,59 @@ CONTAINS
 
   END SUBROUTINE init_norm_cgf_orb_den
 
-! *****************************************************************************
+  ! ***************************************************************************
 
   SUBROUTINE init_orb_basis_set(gto_basis_set)
 
-!   Purpose: Initialise a Gaussian-type orbital (GTO) basis set data set.
+    ! Initialise a Gaussian-type orbital (GTO) basis set data set.
 
-!   History: - Creation (26.10.2000,MK)
-
-!   ***************************************************************************
+    ! - Creation (26.10.2000,MK)
 
     TYPE(gto_basis_set_type), POINTER        :: gto_basis_set
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'init_orb_basis_set'
+    CHARACTER(LEN=*), PARAMETER :: routineN = "init_orb_basis_set"
 
-!   ---------------------------------------------------------------------------
+    ! -------------------------------------------------------------------------
 
     IF (.NOT.ASSOCIATED(gto_basis_set)) RETURN
 
     SELECT CASE (gto_basis_set%norm_type)
     CASE ( 0 )
-      !   *** No normalisation requested ***
+      ! No normalisation requested
     CASE ( 1 )
       CALL init_norm_cgf_orb_den(gto_basis_set)
     CASE ( 2 )
-      !   *** Normalise the primitive Gaussian functions ***
+      ! Normalise the primitive Gaussian functions
       CALL normalise_gcc_orb(gto_basis_set)
-      !   *** Compute the normalization factors of   ***
-      !   *** the contracted Gaussian-type functions ***
+      ! Compute the normalization factors of the contracted Gaussian-type
+      ! functions
       CALL init_norm_cgf_orb(gto_basis_set)
     CASE DEFAULT
       CALL stop_program(routineN,moduleN,__LINE__,&
                         "Normalization method not specified")
-    END SELECT 
+    END SELECT
 
-!   *** Initialise the transformation matrices "pgf" -> "cgf" ***
+    ! Initialise the transformation matrices "pgf" -> "cgf"
+
     CALL init_cphi_and_sphi(gto_basis_set)
 
   END SUBROUTINE init_orb_basis_set
 
-! *****************************************************************************
+  ! ***************************************************************************
 
   SUBROUTINE normalise_gcc_orb(gto_basis_set)
 
-!   Purpose: Normalise the primitive Cartesian Gaussian functions. The
-!            normalization factor is included in the Gaussian contraction
-!            coefficients.
+    ! Normalise the primitive Cartesian Gaussian functions. The normalization
+    ! factor is included in the Gaussian contraction coefficients.
 
-!   History: - Creation (20.08.1999,MK)
-
-!   ***************************************************************************
+    ! - Creation (20.08.1999,MK)
 
     TYPE(gto_basis_set_type), POINTER        :: gto_basis_set
 
     INTEGER                                  :: ipgf, iset, ishell, l
     REAL(KIND=dp)                            :: expzet, gcca, prefac, zeta
 
-!   ---------------------------------------------------------------------------
+    ! -------------------------------------------------------------------------
 
     DO iset=1,gto_basis_set%nset
       DO ishell=1,gto_basis_set%nshell(iset)
@@ -821,17 +800,14 @@ CONTAINS
 
   END SUBROUTINE normalise_gcc_orb
 
-! *****************************************************************************
+  ! ***************************************************************************
 
   SUBROUTINE read_gto_basis_set(element_symbol,basis_set_name,gto_basis_set,&
                                 globenv,error)
 
-!   Purpose: Read a Gaussian-type orbital (GTO) basis set from the database
-!            file.
+    ! Read a Gaussian-type orbital (GTO) basis set from the database file.
 
-!   History: - Creation (13.04.2000,MK)
-
-!   ***************************************************************************
+    ! - Creation (13.04.2000,MK)
 
     CHARACTER(LEN=*), INTENT(IN)             :: element_symbol, basis_set_name
     TYPE(gto_basis_set_type), POINTER        :: gto_basis_set
@@ -839,7 +815,7 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'read_gto_basis_set'
+    CHARACTER(LEN=*), PARAMETER :: routineN = "read_gto_basis_set"
 
     CHARACTER(LEN=240)                       :: line
     CHARACTER(LEN=242)                       :: line2
@@ -858,7 +834,7 @@ CONTAINS
       POINTER                                :: gcc
     TYPE(cp_parser_type), POINTER            :: parser
 
-!   ---------------------------------------------------------------------------
+    ! -------------------------------------------------------------------------
 
     line = ""
     line2 = ""
@@ -874,8 +850,8 @@ CONTAINS
     NULLIFY(parser)
     CALL parser_create(parser,basis_set_file_name,para_env=globenv%para_env)
 
-!   *** Search for the requested basis set in the basis set file   ***
-!   *** until the basis set is found or the end of file is reached ***
+    ! Search for the requested basis set in the basis set file
+    ! until the basis set is found or the end of file is reached
 
     bsname = basis_set_name
     symbol = element_symbol
@@ -890,7 +866,7 @@ CONTAINS
         CALL uppercase(symbol)
         CALL uppercase(bsname)
 
-!       *** Check both the element symbol and the basis set name ***
+        ! Check both the element symbol and the basis set name
 
         line2 = " "//line//" "
         symbol2 = " "//TRIM(symbol)//" "
@@ -903,7 +879,7 @@ CONTAINS
 
           NULLIFY (gcc,l,lmax,lmin,n,npgf,nshell,zet)
 
-!         *** Read the basis set information ***
+          ! Read the basis set information
 
           CALL parser_get_object(parser,nset,newline=.TRUE.)
 
@@ -952,11 +928,11 @@ CONTAINS
             END DO
           END DO
 
-!         *** Maximum angular momentum quantum number of the atomic kind ***
+          ! Maximum angular momentum quantum number of the atomic kind
 
           CALL init_orbital_pointers(maxl)
 
-!         *** Allocate the global variables ***
+          ! Allocate the global variables
 
           gto_basis_set%nset = nset
           CALL reallocate(gto_basis_set%lmax,1,nset)
@@ -968,7 +944,7 @@ CONTAINS
           CALL reallocate(gto_basis_set%zet,1,maxpgf,1,nset)
           CALL reallocate(gto_basis_set%gcc,1,maxpgf,1,maxshell,1,nset)
 
-!         *** Copy the basis set information into the data structure ***
+          ! Copy the basis set information into the data structure
 
           DO iset=1,nset
             gto_basis_set%lmax(iset) = lmax(iset)
@@ -987,7 +963,7 @@ CONTAINS
             END DO
           END DO
 
-!         *** Initialise the depending atomic kind information ***
+          ! Initialise the depending atomic kind information
 
           CALL reallocate(gto_basis_set%set_radius,1,nset)
           CALL reallocate(gto_basis_set%pgf_radius,1,maxpgf,1,nset)
@@ -1079,7 +1055,7 @@ CONTAINS
 
       ELSE
 
-!       *** Stop program, if the end of file is reached ***
+        ! Stop program, if the end of file is reached
 
         CALL stop_program(routineN,moduleN,__LINE__,&
                           "The requested basis set <"//TRIM(bsname)//&
@@ -1095,7 +1071,7 @@ CONTAINS
 
   END SUBROUTINE read_gto_basis_set
 
-! *****************************************************************************
+  ! ***************************************************************************
 
   SUBROUTINE set_gto_basis_set(gto_basis_set,name,norm_type,kind_radius,ncgf,&
                      nset,nsgf,cgf_symbol,sgf_symbol,norm_cgf,set_radius,lmax,&
@@ -1103,12 +1079,9 @@ CONTAINS
                      cphi,pgf_radius,sphi,zet,first_cgf,first_sgf,l,&
                      last_cgf,last_sgf,n,gcc,short_kind_radius)
 
-!   Purpose: Set the components of Gaussian-type orbital (GTO) basis set data
-!            set.
+    ! Set the components of Gaussian-type orbital (GTO) basis set data set.
 
-!   History: - Creation (10.01.2002,MK)
-
-!   ***************************************************************************
+    ! - Creation (10.01.2002,MK)
 
     TYPE(gto_basis_set_type), POINTER        :: gto_basis_set
     CHARACTER(LEN=default_string_length), &
@@ -1134,9 +1107,9 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :, :), &
       OPTIONAL, POINTER                      :: gcc
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'set_gto_basis_set'
+    CHARACTER(LEN=*), PARAMETER              :: routineN = "set_gto_basis_set"
 
-!   ---------------------------------------------------------------------------
+    ! -------------------------------------------------------------------------
 
     IF (ASSOCIATED(gto_basis_set)) THEN
       IF (PRESENT(name)) gto_basis_set%name = name
@@ -1178,16 +1151,15 @@ CONTAINS
 
   END SUBROUTINE set_gto_basis_set
 
-! *****************************************************************************
+  ! ***************************************************************************
 
-  SUBROUTINE write_aux_basis_set(aux_basis_set,force_env_section,output_unit,error)
+  SUBROUTINE write_aux_basis_set(aux_basis_set,force_env_section,output_unit,&
+                                 error)
 
-!   Purpose: Write an auxiliary Gaussian-type orbital (GTO) basis set data set
-!            to the output unit.
+    ! Write an auxiliary Gaussian-type orbital (GTO) basis set data set to the
+    ! output unit.
 
-!   History: - Creation (09.01.2002,MK)
-
-!   ***************************************************************************
+    ! - Creation (09.01.2002,MK)
 
     TYPE(gto_basis_set_type), POINTER        :: aux_basis_set
     TYPE(section_vals_type), POINTER         :: force_env_section
@@ -1198,66 +1170,72 @@ CONTAINS
     INTEGER                                  :: icgf, ico, ipgf, iset, ishell
     TYPE(cp_logger_type), POINTER            :: logger
 
-    NULLIFY(logger)
+    ! -------------------------------------------------------------------------
+
+    NULLIFY (logger)
+
     logger => cp_error_get_logger(error)
+
     IF (.NOT.BTEST(cp_print_key_should_output(logger%iter_info,&
-         force_env_section,"SUBSYS%PRINT%KINDS/BASIS_SET",error=error),cp_p_file)) RETURN
+                                              force_env_section,&
+                                              "SUBSYS%PRINT%KINDS/BASIS_SET",&
+                                              error=error),&
+                   cp_p_file)) RETURN
 
     IF (ASSOCIATED(aux_basis_set).AND.(output_unit>0)) THEN
-       WRITE (UNIT=output_unit,FMT="(/,T4,A,T31,A30)")&
-            "- Auxiliary basis set information",TRIM(aux_basis_set%name)
 
-       WRITE (UNIT=output_unit,FMT="((T6,A,I6))")&
-            "Number of orbital shell sets:            ",&
-            aux_basis_set%nset,&
-            "Number of orbital shells:                ",&
-            SUM(aux_basis_set%nshell(:)),&
-            "Number of primitive Cartesian functions: ",&
-            SUM(aux_basis_set%npgf(:)),&
-            "Number of Cartesian basis functions:     ",&
-            aux_basis_set%ncgf,&
-            "Number of spherical basis functions:     ",&
-            aux_basis_set%nsgf,&
-            "Norm type:                               ",&
-            aux_basis_set%norm_type
+       WRITE (UNIT=output_unit,FMT="(/,T8,A,T31,A30)")&
+         "Auxiliary basis set information for",TRIM(aux_basis_set%name)
 
-       WRITE (UNIT=output_unit,FMT="(/,T6,A,/,T6,A)")&
-            "Normalised Cartesian auxiliary functions",&
-            "Set   Shell   Function           Exponent    Coefficient"
+       WRITE (UNIT=output_unit,FMT="(T8,A,I6)")&
+         "Number of orbital shell sets:            ",&
+         aux_basis_set%nset,&
+         "Number of orbital shells:                ",&
+         SUM(aux_basis_set%nshell(:)),&
+         "Number of primitive Cartesian functions: ",&
+         SUM(aux_basis_set%npgf(:)),&
+         "Number of Cartesian basis functions:     ",&
+         aux_basis_set%ncgf,&
+         "Number of spherical basis functions:     ",&
+         aux_basis_set%nsgf,&
+         "Norm type:                               ",&
+         aux_basis_set%norm_type
+
+       WRITE (UNIT=output_unit,FMT="(/,T8,A,/,T25,A)")&
+         "Normalised Cartesian auxiliary functions:",&
+         "Set   Shell   Function           Exponent    Coefficient"
 
        icgf = 0
 
        DO iset=1,aux_basis_set%nset
-          DO ishell=1,aux_basis_set%nshell(iset)
-             WRITE (UNIT=output_unit,FMT="(A)") ""
-             DO ico=1,nco(aux_basis_set%l(ishell,iset))
-                icgf = icgf + 1
-                WRITE (UNIT=output_unit,&
-                     FMT="(T6,I3,4X,I4,3X,A12,(T32,2F15.6))")&
-                     iset,ishell,&
-                     aux_basis_set%cgf_symbol(icgf),&
-                     (aux_basis_set%zet(ipgf,iset),&
-                     aux_basis_set%norm_cgf(icgf)*&
-                     aux_basis_set%gcc(ipgf,ishell,iset),&
-                     ipgf=1,aux_basis_set%npgf(iset))
-             END DO
-          END DO
+         DO ishell=1,aux_basis_set%nshell(iset)
+           WRITE (UNIT=output_unit,FMT="(A)") ""
+           DO ico=1,nco(aux_basis_set%l(ishell,iset))
+             icgf = icgf + 1
+             WRITE (UNIT=output_unit,&
+                    FMT="(T25,I3,4X,I4,3X,A12,(T51,2F15.6))")&
+               iset,ishell,&
+               aux_basis_set%cgf_symbol(icgf),&
+               (aux_basis_set%zet(ipgf,iset),&
+                aux_basis_set%norm_cgf(icgf)*&
+                aux_basis_set%gcc(ipgf,ishell,iset),&
+                ipgf=1,aux_basis_set%npgf(iset))
+           END DO
+         END DO
        END DO
 
     END IF
 
   END SUBROUTINE write_aux_basis_set
 
-! *****************************************************************************
+  ! ***************************************************************************
 
   SUBROUTINE write_gto_basis_set(gto_basis_set,output_unit,error)
 
-!   Purpose: Write a Gaussian-type orbital (GTO) basis set data set to the
-!            output unit.
+    ! Write a Gaussian-type orbital (GTO) basis set data set to the output
+    ! unit.
 
-!   History: - Creation (09.01.2002,MK)
-
-!   ***************************************************************************
+    ! - Creation (09.01.2002,MK)
 
     TYPE(gto_basis_set_type), POINTER        :: gto_basis_set
     INTEGER, INTENT(in)                      :: output_unit
@@ -1266,38 +1244,40 @@ CONTAINS
 
     INTEGER                                  :: ipgf, iset, ishell
 
-    IF (ASSOCIATED(gto_basis_set).AND.(output_unit>0)) THEN
-       WRITE (UNIT=output_unit,FMT="(/,T4,A,T41,A40,/,/,T25,A))")&
-            "- GTO basis set information",TRIM(gto_basis_set%name),&
-            "Set   Shell     n   l            Exponent    Coefficient"
+    ! -------------------------------------------------------------------------
 
-       DO iset=1,gto_basis_set%nset
-          WRITE (UNIT=output_unit,FMT="(A)") ""
-          DO ishell=1,gto_basis_set%nshell(iset)
-             WRITE (UNIT=output_unit,&
-                  FMT="(T25,I3,4X,I4,4X,I2,2X,I2,(T51,2F15.6))")&
-                  iset,ishell,&
-                  gto_basis_set%n(ishell,iset),&
-                  gto_basis_set%l(ishell,iset),&
-                  (gto_basis_set%zet(ipgf,iset),gto_basis_set%gcc(ipgf,ishell,iset),&
-                  ipgf=1,gto_basis_set%npgf(iset))
-          END DO
-       END DO
+    IF (ASSOCIATED(gto_basis_set).AND.(output_unit>0)) THEN
+      WRITE (UNIT=output_unit,FMT="(/,T6,A,T41,A40,/,/,T25,A))")&
+        "GTO basis set information for",TRIM(gto_basis_set%name),&
+        "Set   Shell     n   l            Exponent    Coefficient"
+
+      DO iset=1,gto_basis_set%nset
+        WRITE (UNIT=output_unit,FMT="(A)") ""
+        DO ishell=1,gto_basis_set%nshell(iset)
+          WRITE (UNIT=output_unit,&
+                 FMT="(T25,I3,4X,I4,4X,I2,2X,I2,(T51,2F15.6))")&
+            iset,ishell,&
+            gto_basis_set%n(ishell,iset),&
+            gto_basis_set%l(ishell,iset),&
+            (gto_basis_set%zet(ipgf,iset),&
+             gto_basis_set%gcc(ipgf,ishell,iset),&
+             ipgf=1,gto_basis_set%npgf(iset))
+        END DO
+      END DO
 
     END IF
- 
+
   END SUBROUTINE write_gto_basis_set
 
-! *****************************************************************************
+  ! ***************************************************************************
 
-  SUBROUTINE write_orb_basis_set(orb_basis_set,force_env_section,output_unit,error)
+  SUBROUTINE write_orb_basis_set(orb_basis_set,force_env_section,output_unit,&
+                                 error)
 
-!   Purpose: Write a Gaussian-type orbital (GTO) basis set data set to the
-!            output unit.
+    ! Write a Gaussian-type orbital (GTO) basis set data set to the output
+    ! unit.
 
-!   History: - Creation (09.01.2002,MK)
-
-!   ***************************************************************************
+    ! - Creation (09.01.2002,MK)
 
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(section_vals_type), POINTER         :: force_env_section
@@ -1308,71 +1288,79 @@ CONTAINS
     INTEGER                                  :: icgf, ico, ipgf, iset, ishell
     TYPE(cp_logger_type), POINTER            :: logger
 
+    ! -------------------------------------------------------------------------
+
     NULLIFY(logger)
+
     logger => cp_error_get_logger(error)
+
     IF (.NOT.BTEST(cp_print_key_should_output(logger%iter_info,&
-         force_env_section,"SUBSYS%PRINT%KINDS/BASIS_SET",error=error),cp_p_file)) RETURN
+                                              force_env_section,&
+                                              "SUBSYS%PRINT%KINDS/BASIS_SET",&
+                                              error=error),&
+                   cp_p_file)) RETURN
 
     IF (ASSOCIATED(orb_basis_set).AND.(output_unit>0)) THEN
-       WRITE (UNIT=output_unit,FMT="(/,T4,A,T41,A40)")&
-            "- Orbital basis set information",TRIM(orb_basis_set%name)
+      WRITE (UNIT=output_unit,FMT="(/,T6,A,T41,A40)")&
+        "Orbital basis set information for",TRIM(orb_basis_set%name)
 
-       WRITE (UNIT=output_unit,FMT="(/,(T25,A,T71,I10))")&
-            "Number of orbital shell sets:            ",&
-            orb_basis_set%nset,&
-            "Number of orbital shells:                ",&
-            SUM(orb_basis_set%nshell(:)),&
-            "Number of primitive Cartesian functions: ",&
-            SUM(orb_basis_set%npgf(:)),&
-            "Number of Cartesian basis functions:     ",&
-            orb_basis_set%ncgf,&
-            "Number of spherical basis functions:     ",&
-            orb_basis_set%nsgf
+      WRITE (UNIT=output_unit,FMT="(/,(T8,A,T71,I10))")&
+        "Number of orbital shell sets:            ",&
+        orb_basis_set%nset,&
+        "Number of orbital shells:                ",&
+        SUM(orb_basis_set%nshell(:)),&
+        "Number of primitive Cartesian functions: ",&
+        SUM(orb_basis_set%npgf(:)),&
+        "Number of Cartesian basis functions:     ",&
+        orb_basis_set%ncgf,&
+        "Number of spherical basis functions:     ",&
+        orb_basis_set%nsgf
 
-       WRITE (UNIT=output_unit,FMT="(/,T6,A,/,/,T25,A)")&
-            "Normalised Cartesian orbitals",&
-            "Set   Shell   Orbital            Exponent    Coefficient"
+      WRITE (UNIT=output_unit,FMT="(/,T8,A,/,/,T25,A)")&
+        "Normalised Cartesian orbitals:",&
+        "Set   Shell   Orbital            Exponent    Coefficient"
 
        icgf = 0
 
        DO iset=1,orb_basis_set%nset
-          DO ishell=1,orb_basis_set%nshell(iset)
-             WRITE (UNIT=output_unit,FMT="(A)") ""
-             DO ico=1,nco(orb_basis_set%l(ishell,iset))
-                icgf = icgf + 1
-                WRITE (UNIT=output_unit,FMT="(T25,I3,4X,I4,3X,A12,(T51,2F15.6))")&
-                     iset,ishell,orb_basis_set%cgf_symbol(icgf),&
-                     (orb_basis_set%zet(ipgf,iset),&
-                     orb_basis_set%norm_cgf(icgf)*&
-                     orb_basis_set%gcc(ipgf,ishell,iset),&
-                     ipgf=1,orb_basis_set%npgf(iset))
-             END DO
-          END DO
+         DO ishell=1,orb_basis_set%nshell(iset)
+           WRITE (UNIT=output_unit,FMT="(A)") ""
+           DO ico=1,nco(orb_basis_set%l(ishell,iset))
+             icgf = icgf + 1
+             WRITE (UNIT=output_unit,&
+                    FMT="(T25,I3,4X,I4,3X,A12,(T51,2F15.6))")&
+               iset,ishell,orb_basis_set%cgf_symbol(icgf),&
+               (orb_basis_set%zet(ipgf,iset),&
+                orb_basis_set%norm_cgf(icgf)*&
+                orb_basis_set%gcc(ipgf,ishell,iset),&
+                ipgf=1,orb_basis_set%npgf(iset))
+           END DO
+         END DO
        END DO
 
     END IF
 
   END SUBROUTINE write_orb_basis_set
 
-! *****************************************************************************
+  ! ***************************************************************************
 
   SUBROUTINE allocate_sto_basis_set(sto_basis_set)
 
     TYPE(sto_basis_set_type), POINTER        :: sto_basis_set
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_sto_basis_set'
+    CHARACTER(LEN=*), PARAMETER :: routineN = "allocate_sto_basis_set"
 
     INTEGER                                  :: istat
 
-!   ---------------------------------------------------------------------------
+    ! -------------------------------------------------------------------------
 
     IF (ASSOCIATED(sto_basis_set)) CALL deallocate_sto_basis_set(sto_basis_set)
 
     ALLOCATE (sto_basis_set,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "sto_basis_set",0)
- 
-    sto_basis_set%name="NONAME" 
+
+    sto_basis_set%name="NONAME"
     NULLIFY (sto_basis_set%symbol)
     NULLIFY (sto_basis_set%nq)
     NULLIFY (sto_basis_set%lq)
@@ -1380,17 +1368,17 @@ CONTAINS
 
   END SUBROUTINE allocate_sto_basis_set
 
-! *****************************************************************************
+  ! ***************************************************************************
 
   SUBROUTINE deallocate_sto_basis_set(sto_basis_set)
 
     TYPE(sto_basis_set_type), POINTER        :: sto_basis_set
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_sto_basis_set'
+    CHARACTER(LEN=*), PARAMETER :: routineN = "deallocate_sto_basis_set"
 
     INTEGER                                  :: istat
 
-!   ---------------------------------------------------------------------------
+    ! -------------------------------------------------------------------------
 
     IF (ASSOCIATED(sto_basis_set)) THEN
        IF (ASSOCIATED(sto_basis_set%symbol)) THEN
@@ -1407,12 +1395,12 @@ CONTAINS
           DEALLOCATE (sto_basis_set%lq,STAT=istat)
           IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                "sto_basis_set%lq")
-       ENDIF
+       END IF
        IF (ASSOCIATED(sto_basis_set%zet)) THEN
           DEALLOCATE (sto_basis_set%zet,STAT=istat)
           IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                "sto_basis_set%zet")
-       ENDIF
+       END IF
 
        DEALLOCATE (sto_basis_set,STAT=istat)
        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
@@ -1420,7 +1408,7 @@ CONTAINS
     END IF
   END SUBROUTINE deallocate_sto_basis_set
 
-! *****************************************************************************
+  ! ***************************************************************************
 
   SUBROUTINE get_sto_basis_set(sto_basis_set,name,nshell,&
                     symbol,nq,lq,zet,maxlq,numsto)
@@ -1436,11 +1424,11 @@ CONTAINS
       POINTER                                :: zet
     INTEGER, INTENT(OUT), OPTIONAL           :: maxlq, numsto
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'get_sto_basis_set'
+    CHARACTER(LEN=*), PARAMETER              :: routineN = "get_sto_basis_set"
 
     INTEGER                                  :: iset
 
-!   ---------------------------------------------------------------------------
+    ! -------------------------------------------------------------------------
 
     IF (ASSOCIATED(sto_basis_set)) THEN
       IF (PRESENT(name)) name = sto_basis_set%name
@@ -1465,7 +1453,7 @@ CONTAINS
 
   END SUBROUTINE get_sto_basis_set
 
-! *****************************************************************************
+  ! ***************************************************************************
 
   SUBROUTINE set_sto_basis_set(sto_basis_set,name,nshell,symbol,nq,lq,zet)
 
@@ -1479,36 +1467,36 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: zet
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'set_sto_basis_set'
+    CHARACTER(LEN=*), PARAMETER              :: routineN = "set_sto_basis_set"
 
     INTEGER                                  :: ns
 
-!   ---------------------------------------------------------------------------
+    ! -------------------------------------------------------------------------
 
     IF (ASSOCIATED(sto_basis_set)) THEN
       IF (PRESENT(name)) sto_basis_set%name = name
       IF (PRESENT(nshell)) sto_basis_set%nshell = nshell
       IF (PRESENT(symbol)) THEN
-         ns = SIZE(symbol)
-         IF(ASSOCIATED(sto_basis_set%symbol)) DEALLOCATE(sto_basis_set%symbol)
-         ALLOCATE(sto_basis_set%symbol(1:ns))
-         sto_basis_set%symbol(:) = symbol(:)
-      ENDIF
+        ns = SIZE(symbol)
+        IF (ASSOCIATED(sto_basis_set%symbol)) DEALLOCATE (sto_basis_set%symbol)
+        ALLOCATE (sto_basis_set%symbol(1:ns))
+        sto_basis_set%symbol(:) = symbol(:)
+      END IF
       IF (PRESENT(nq)) THEN
-         ns = SIZE(nq)
-         CALL reallocate(sto_basis_set%nq,1,ns)
-         sto_basis_set%nq = nq(:)
-      ENDIF
+        ns = SIZE(nq)
+        CALL reallocate(sto_basis_set%nq,1,ns)
+        sto_basis_set%nq = nq(:)
+      END IF
       IF (PRESENT(lq)) THEN
-         ns = SIZE(lq)
-         CALL reallocate(sto_basis_set%lq,1,ns)
-         sto_basis_set%lq = lq(:)
-      ENDIF
+        ns = SIZE(lq)
+        CALL reallocate(sto_basis_set%lq,1,ns)
+        sto_basis_set%lq = lq(:)
+      END IF
       IF (PRESENT(zet)) THEN
-         ns = SIZE(zet)
-         CALL reallocate(sto_basis_set%zet,1,ns)
-         sto_basis_set%zet = zet(:)
-      ENDIF
+        ns = SIZE(zet)
+        CALL reallocate(sto_basis_set%zet,1,ns)
+        sto_basis_set%zet = zet(:)
+      END IF
     ELSE
       CALL stop_program(routineN,moduleN,__LINE__,&
                         "The pointer sto_basis_set is not associated")
@@ -1516,8 +1504,10 @@ CONTAINS
 
   END SUBROUTINE set_sto_basis_set
 
+  ! ***************************************************************************
 
-  SUBROUTINE create_gto_from_sto_basis(sto_basis_set,gto_basis_set,ngauss,error)
+  SUBROUTINE create_gto_from_sto_basis(sto_basis_set,gto_basis_set,ngauss,&
+                                       error)
 
     TYPE(sto_basis_set_type), POINTER        :: sto_basis_set
     TYPE(gto_basis_set_type), POINTER        :: gto_basis_set
@@ -1525,8 +1515,8 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'create_gto_from_sto_basis'
-    INTEGER, PARAMETER                       :: maxng = 6
+    CHARACTER(LEN=*), PARAMETER :: routineN = "create_gto_from_sto_basis"
+    INTEGER, PARAMETER          :: maxng = 6
 
     CHARACTER(LEN=default_string_length)     :: name, sng
     INTEGER                                  :: ico, ipgf, iset, istat, &
@@ -1538,16 +1528,16 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    IF ( PRESENT(ngauss) ) ng=ngauss
-    IF ( ng > maxng ) CALL stop_program(routineN,moduleN,__LINE__,&
-                        "Too many Gaussian primitives requested")
- 
+    IF (PRESENT(ngauss)) ng=ngauss
+    IF (ng > maxng) CALL stop_program(routineN,moduleN,__LINE__,&
+                                      "Too many Gaussian primitives requested")
+
     CALL allocate_gto_basis_set(gto_basis_set)
 
     CALL get_sto_basis_set(sto_basis_set,name=name,nshell=nshell,nq=nq,&
                            lq=lq,zet=zet)
 
-    maxl = MAXVAL ( lq )
+    maxl = MAXVAL(lq)
     CALL init_orbital_pointers(maxl)
 
     CALL integer_to_string(ng,sng)
@@ -1656,6 +1646,6 @@ CONTAINS
 
   END SUBROUTINE create_gto_from_sto_basis
 
-! *****************************************************************************
+  ! ***************************************************************************
 
 END MODULE basis_set_types

@@ -408,19 +408,6 @@ CONTAINS
     CALL read_qs_section(dft_control%qs_control,globenv,error=error)
     CALL read_mgrid_section(dft_control%qs_control,globenv,error=error)
 
-!   *** Print the DFT control parameters ***
-
-    CALL write_dft_control(dft_control,dft_section,error)
-
-!   *** Print the Quickstep control parameters ***
-
-    CALL write_qs_control(dft_control%qs_control,dft_section,error)
-
-!   *** Print XES/XAS   control parameters *** ***
-    IF (dft_control % do_xas_calculation) THEN
-      CALL write_xas_control(dft_control%xas_control,dft_section,error=error)
-    END IF
-
 !   *** Check basis and fill in missing parts ***
 
     CALL check_atomic_kind_set(atomic_kind_set,dft_control,globenv,&
@@ -460,10 +447,6 @@ CONTAINS
 
     CALL init_atomic_kind_set(atomic_kind_set,globenv)
 
-!   *** Print the unnormalized basis set information (input data) ***
-
-    CALL write_gto_basis_sets(atomic_kind_set,qs_env%input,error)
-
 !   *** Initialise GAPW soft basis and projectors
 
     IF(dft_control%qs_control%method == "GAPW" .OR. &
@@ -480,30 +463,6 @@ CONTAINS
                              maxlgto=maxlgto)
     maxl = 3*maxlgto + 1
     CALL init_md_ftable(maxl)
-
-!   *** Print the atomic kind set ***
-
-    CALL write_atomic_kind_set(atomic_kind_set,qs_env%input,error)
-
-!   *** Print the molecule kind set ***
-
-    CALL write_molecule_kind_set(molecule_kind_set,qs_env%input,error)
-
-!   *** Print the total number of kinds, atoms, basis functions etc. ***
-
-    CALL write_total_numbers(atomic_kind_set,particle_set,qs_env%input,error)
-
-!   *** Print the atomic coordinates ***
-
-    CALL write_qs_particle_coordinates(particle_set,cell,qs_env%input,error)
-
-!   *** Print the interatomic distances ***
-
-    CALL write_particle_distances(particle_set,cell,qs_env%input,error)
-
-!   *** Print the requested structure data ***
-
-    CALL write_structure_data(particle_set,cell,qs_env%input,error)
 
 !   *** Initialize the atomic interaction radii ***
 
@@ -525,7 +484,6 @@ CONTAINS
 
     CALL scf_c_create(scf_control)
     CALL scf_c_read_parameters(scf_control,globenv,qs_env%input,error=error)
-    CALL scf_c_write_parameters(scf_control,globenv,qs_env%input,error=error)
 
 !   *** Use the just read block sizes to set the optimal values in cp_fm_struct ***
 
@@ -839,6 +797,52 @@ CONTAINS
       CALL get_qs_env(qs_env=qs_env,rho0_mpole=rho0_mpole)
       CALL rho0_s_grid_create(qs_env, rho0_mpole, error=error)
     END IF
+
+    ! Print the DFT control parameters
+
+    CALL write_dft_control(dft_control,dft_section,error)
+
+    ! Print the Quickstep control parameters
+
+    CALL write_qs_control(dft_control%qs_control,dft_section,error)
+
+    ! Print XES/XAS control parameters
+
+    IF (dft_control%do_xas_calculation) THEN
+      CALL write_xas_control(dft_control%xas_control,dft_section,error=error)
+    END IF
+
+    ! Print the unnormalized basis set information (input data)
+
+    CALL write_gto_basis_sets(atomic_kind_set,qs_env%input,error)
+
+    ! Print the atomic kind set
+
+    CALL write_atomic_kind_set(atomic_kind_set,qs_env%input,error)
+
+    ! Print the molecule kind set
+
+    CALL write_molecule_kind_set(molecule_kind_set,qs_env%input,error)
+
+    ! Print the total number of kinds, atoms, basis functions etc.
+
+    CALL write_total_numbers(atomic_kind_set,particle_set,qs_env%input,error)
+
+    ! Print the atomic coordinates
+
+    CALL write_qs_particle_coordinates(particle_set,cell,qs_env%input,error)
+
+    ! Print the interatomic distances
+
+    CALL write_particle_distances(particle_set,cell,qs_env%input,error)
+
+    ! Print the requested structure data
+
+    CALL write_structure_data(particle_set,cell,qs_env%input,error)
+
+    ! Print the SCF parameters
+
+    CALL scf_c_write_parameters(scf_control,globenv,qs_env%input,error=error)
 
     IF (ionode) CALL m_flush(output_unit)
 

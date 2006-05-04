@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2003  CP2K developers group                          !
+!   Copyright (C) 2000 - 2006  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 !!****** cp2k/external_potential_types [1.0] *
 !!
@@ -56,17 +56,17 @@ MODULE external_potential_types
 
   PRIVATE
 
-! *** Global parameters ***
+  ! Global parameters
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'external_potential_types'
+  CHARACTER(LEN=*), PARAMETER :: moduleN = 'external_potential_types'
 
-! *** Define the all-electron potential type ***
+  ! Define the all-electron potential type
 
-! *** Literature: M. Krack and M. Parrinello,
-!                 Phys. Chem. Chem. Phys. 2, 2105 (2000)
+  ! Literature: M. Krack and M. Parrinello,
+  !             Phys. Chem. Chem. Phys. 2, 2105 (2000)
 
   TYPE all_potential_type
-!    PRIVATE
+    !MK PRIVATE
     CHARACTER(LEN=default_string_length)   :: name
     CHARACTER(LEN=default_string_length),&
       DIMENSION(2)                         :: description
@@ -80,18 +80,20 @@ MODULE external_potential_types
     REAL(KIND = dp),DIMENSION(:,:),POINTER :: set_radius_3c
   END TYPE all_potential_type
 
-! *** Define the GTH potential type ***
+  ! Define the GTH potential type
 
-! *** Literature: - S. Goedecker, M. Teter and J. Hutter,
-!                   Phys. Rev. B 54, 1703 (1996)
-!                 - C. Hartwigsen, S. Goedecker and J. Hutter,
-!                   Phys. Rev. B 58, 3641 (1998)
+  ! Literature: - S. Goedecker, M. Teter and J. Hutter,
+  !               Phys. Rev. B 54, 1703 (1996)
+  !             - C. Hartwigsen, S. Goedecker and J. Hutter,
+  !               Phys. Rev. B 58, 3641 (1998)
+  !             - M. Krack,
+  !               Theor. Chem. Acc. 114, 145 (2005)
 
   TYPE gth_potential_type
     PRIVATE
     CHARACTER(LEN=default_string_length)       :: name
     CHARACTER(LEN=default_string_length),&
-      DIMENSION(3)                             :: description
+      DIMENSION(4)                             :: description
     REAL(KIND = dp)                            :: alpha_core_charge,&
                                                   alpha_ppl,ccore_charge,&
                                                   cerf_ppl,zeff,&
@@ -107,7 +109,7 @@ MODULE external_potential_types
     REAL(KIND = dp), DIMENSION(:,:,:), POINTER :: hprj_ppnl
   END TYPE gth_potential_type
 
-! *** Define the effective point charge potential type ***
+  ! Define the effective point charge potential type
 
   TYPE elp_potential_type
     PRIVATE
@@ -119,14 +121,14 @@ MODULE external_potential_types
                                               cerf_ppl,&
                                               core_charge_radius,&
                                               ccore_charge_radius,&
-                                              ppl_radius,qeff 
+                                              ppl_radius,qeff
     INTEGER                                :: nalpha_ppl
-    INTEGER,DIMENSION (:), POINTER         :: nexp_ppl               
+    INTEGER,DIMENSION (:), POINTER         :: nexp_ppl
     REAL(KIND = dp),DIMENSION(:), POINTER  :: alpha_ppl
-    REAL(KIND = dp),DIMENSION(:,:),POINTER :: cexp_ppl   
+    REAL(KIND = dp),DIMENSION(:,:),POINTER :: cexp_ppl
   END TYPE elp_potential_type
 
-! *** Public subroutines ***
+  ! Public subroutines
 
   PUBLIC :: allocate_potential,&
             deallocate_potential,&
@@ -137,7 +139,7 @@ MODULE external_potential_types
             set_default_all_potential,&
             write_potential
 
-! *** Public data types ***
+  ! Public data types
 
   PUBLIC :: all_potential_type,&
             elp_potential_type,&
@@ -219,9 +221,8 @@ CONTAINS
     NULLIFY (potential%orb_radius_3c)
     NULLIFY (potential%set_radius_3c)
 
-    potential%description(1) = "All-Electron potential"
-    potential%description(2) =&
-      "- Krack, Parrinello, Phys. Chem. Chem. Phys. 2, 2105 (2000)"
+    potential%description(1) = "All-electron potential"
+    potential%description(2) = "Krack, Parrinello, PCCP 2, 2105 (2000)"
 
   END SUBROUTINE allocate_all_potential
 
@@ -249,7 +250,7 @@ CONTAINS
                                      "potential",0)
     NULLIFY (potential%alpha_ppl)
     NULLIFY (potential%cexp_ppl)
-    NULLIFY (potential%nexp_ppl)  
+    NULLIFY (potential%nexp_ppl)
 
     potential%description(1) = "Local pseudopotential for KG-MD"
 
@@ -289,10 +290,9 @@ CONTAINS
     NULLIFY (potential%hprj_ppnl)
 
     potential%description(1) = "Goedecker-Teter-Hutter pseudopotential"
-    potential%description(2) =&
-      "- Goedecker, Teter, Hutter, PRB 54, 1703 (1996)"
-    potential%description(3) =&
-      "- Hartwigsen, Goedecker, Hutter, PRB 58, 3641 (1998)"
+    potential%description(2) = "Goedecker et al., PRB 54, 1703 (1996)"
+    potential%description(3) = "Hartwigsen et al., PRB 58, 3641 (1998)"
+    potential%description(4) = "Krack, TCA 114, 145 (2005)"
 
   END SUBROUTINE allocate_gth_potential
 
@@ -521,7 +521,7 @@ CONTAINS
                                nexp_ppl,ppl_radius,ppl_present,qeff)
 
 !   Purpose: Get informations about effective pint charge potential.
-!   History: 22-09-2002 GT 
+!   History: 22-09-2002 GT
 !            28-11-2003 gt: supports a local gth-like analytical form
 
 !   ***************************************************************************
@@ -1048,7 +1048,7 @@ CONTAINS
     nalpha_ppl = 0
     nmax = 0
     NULLIFY(parser)
-    
+
     potential%name = potential_name
 
     CALL section_vals_val_get(globenv%input_file,"FORCE_EVAL%DFT%POTENTIAL_FILE_NAME",&
@@ -1120,7 +1120,7 @@ CONTAINS
             END DO
 
 !           *** Check if alpha_core_charge = alpha_ppl(1) ***
- 
+
             IF (potential%alpha_core_charge /= potential%alpha_ppl(1)) THEN
               CALL stop_program(routineN,moduleN,__LINE__,&
                                 "exponent of the core charge and "//&
@@ -1131,7 +1131,7 @@ CONTAINS
 
             IF (maxlppl > -1)  CALL init_orbital_pointers(maxlppl)
 
-          END IF 
+          END IF
 
           EXIT search_loop
 
@@ -1207,7 +1207,7 @@ CONTAINS
     NULLIFY(parser)
 
     potential%name = potential_name
-    
+
 
     CALL section_vals_val_get(globenv%input_file,"FORCE_EVAL%DFT%POTENTIAL_FILE_NAME",&
          c_val=potential_file_name,error=error)
@@ -1430,7 +1430,7 @@ CONTAINS
                            zeff=zeff,&
                            zeff_correction=zeff_correction,&
                            elec_conf=elec_conf)
-    
+
     DEALLOCATE ( elec_conf )
 
   END SUBROUTINE set_default_all_potential
@@ -1622,16 +1622,13 @@ CONTAINS
 
   END SUBROUTINE set_gth_potential
 
-! *****************************************************************************
+  ! ***************************************************************************
 
   SUBROUTINE write_all_potential(potential,force_env_section,output_unit,error)
 
-!   Purpose: Write an atomic all-electron potential data set to the output
-!            unit.
+    ! Write an atomic all-electron potential data set to the output unit.
 
-!   History: - Creation (09.02.2002,MK)
-
-!   ***************************************************************************
+    ! - Creation (09.02.2002,MK)
 
     TYPE(all_potential_type), POINTER        :: potential
     TYPE(section_vals_type), POINTER         :: force_env_section
@@ -1640,38 +1637,44 @@ CONTAINS
       OPTIONAL                               :: error
 
     TYPE(cp_logger_type), POINTER            :: logger
+    CHARACTER(LEN=20)                        :: string
+
+    ! -------------------------------------------------------------------------
 
     NULLIFY(logger)
+
     logger => cp_error_get_logger(error)
+
     IF (.NOT.BTEST(cp_print_key_should_output(logger%iter_info,&
-         force_env_section,"SUBSYS%PRINT%KINDS/POTENTIAL",error=error),cp_p_file)) RETURN
+                                              force_env_section,&
+                                              "SUBSYS%PRINT%KINDS/POTENTIAL",&
+                                              error=error),&
+                   cp_p_file)) RETURN
 
-    IF (output_unit>0.AND.ASSOCIATED(potential)) THEN
-      WRITE (UNIT=output_unit,FMT="(/,T4,A,T57,A24)")&
-        "- Potential information",TRIM(potential%name)
-
-      WRITE (UNIT=output_unit,FMT="(T12,A,T41,A40)")&
-          "Description: ",TRIM(potential%description(1)),&
-          "             ",TRIM(potential%description(2))
-      WRITE (UNIT=output_unit,FMT="(T12,A,T69,F12.6)")&
-          "Gaussian exponent of the core charge distribution: ",&
-          potential%alpha_core_charge
-      WRITE (UNIT=output_unit,FMT="(T12,A,T65,4I4)")&
-        "Electronic configuration (s p d ...):",potential%elec_conf
+    IF (output_unit > 0.AND.ASSOCIATED(potential)) THEN
+      WRITE (UNIT=output_unit,FMT="(/,T6,A,T41,A40,/)")&
+        "Potential information for",ADJUSTR(TRIM(potential%name))
+      WRITE (UNIT=output_unit,FMT="(T8,A,T41,A40)")&
+        "Description: ",TRIM(potential%description(1)),&
+        "             ",TRIM(potential%description(2))
+      WRITE (UNIT=output_unit,FMT="(/,T8,A,T69,F12.6)")&
+        "Gaussian exponent of the core charge distribution: ",&
+        potential%alpha_core_charge
+      WRITE (UNIT=string,FMT="(5I4)") potential%elec_conf
+      WRITE (UNIT=output_unit,FMT="(T8,A,T61,A20)")&
+        "Electronic configuration (s p d ...):",&
+        ADJUSTR(TRIM(string))
     END IF
 
   END SUBROUTINE write_all_potential
 
-! *****************************************************************************
+  ! ***************************************************************************
 
   SUBROUTINE write_elp_potential(potential,force_env_section,output_unit,error)
 
-!   Purpose: Write an effective-point-charge potential data set to the output
-!            unit.
+    ! Write an effective-point-charge potential data set to the output unit.
 
-!   History: - Creation (24.09.2002,GT)
-
-!   ***************************************************************************
+    ! - Creation (24.09.2002,GT)
 
     TYPE(elp_potential_type), POINTER        :: potential
     TYPE(section_vals_type), POINTER         :: force_env_section
@@ -1681,35 +1684,38 @@ CONTAINS
 
     TYPE(cp_logger_type), POINTER            :: logger
 
-    NULLIFY(logger)
-    logger => cp_error_get_logger(error)
-    IF (.NOT.BTEST(cp_print_key_should_output(logger%iter_info,&
-         force_env_section,"SUBSYS%PRINT%KINDS/POTENTIAL",error=error),cp_p_file)) RETURN
-    
-    IF (output_unit>0.AND.ASSOCIATED(potential)) THEN
-      WRITE (UNIT=output_unit,FMT="(/,/,T4,A,/,/,T6,A)")&
-        "- Potential information",&
-        "Potential name: "//TRIM(potential%name)
+    ! -------------------------------------------------------------------------
 
-      WRITE (UNIT=output_unit,FMT="(/,(T6,A))")&
-        "Description: "//TRIM(potential%description(1))
-      WRITE (UNIT=output_unit,FMT="(/,T6,A,F12.6)")&
-        "Atomic Effective Charge:",potential%qeff
-      WRITE (UNIT=output_unit,FMT="(/,T6,A,F12.6)")&
+    NULLIFY(logger)
+
+    logger => cp_error_get_logger(error)
+
+    IF (.NOT.BTEST(cp_print_key_should_output(logger%iter_info,&
+                                              force_env_section,&
+                                              "SUBSYS%PRINT%KINDS/POTENTIAL",&
+                                              error=error),&
+                   cp_p_file)) RETURN
+
+    IF (output_unit>0.AND.ASSOCIATED(potential)) THEN
+      WRITE (UNIT=output_unit,FMT="(/,T6,A,T41,A40,/)")&
+        "Potential information for",ADJUSTR(TRIM(potential%name))
+      WRITE (UNIT=output_unit,FMT="(T8,A,T41,A40)")&
+        "Description: ",TRIM(potential%description(1))
+      WRITE (UNIT=output_unit,FMT="(/,T8,A,T69,F12.6)")&
+        "Atomic Effective Charge:",potential%qeff,&
         "Gaussian exponent of the core charge distribution: ",&
         potential%alpha_core_charge
     END IF
+
   END SUBROUTINE write_elp_potential
 
-! *****************************************************************************
+  ! ***************************************************************************
 
   SUBROUTINE write_gth_potential(potential,force_env_section,output_unit,error)
 
-!   Purpose: Write an atomic GTH potential data set to the output unit.
+    ! Write an atomic GTH potential data set to the output unit.
 
-!   History: - Creation (09.02.2002,MK)
-
-!   ***************************************************************************
+    ! - Creation (09.02.2002,MK)
 
     TYPE(gth_potential_type), POINTER        :: potential
     TYPE(section_vals_type), POINTER         :: force_env_section
@@ -1717,46 +1723,56 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
+    CHARACTER(LEN=20)                        :: string
     INTEGER                                  :: i, j, l
     REAL(KIND=dp)                            :: r
     TYPE(cp_logger_type), POINTER            :: logger
 
+    ! -------------------------------------------------------------------------
+
     NULLIFY(logger)
+
     logger => cp_error_get_logger(error)
+
     IF (.NOT.BTEST(cp_print_key_should_output(logger%iter_info,&
-         force_env_section,"SUBSYS%PRINT%KINDS/POTENTIAL",error=error),cp_p_file)) RETURN
+                                              force_env_section,&
+                                              "SUBSYS%PRINT%KINDS/POTENTIAL",&
+                                              error=error),&
+                   cp_p_file)) RETURN
 
     IF (output_unit>0.AND.ASSOCIATED(potential)) THEN
-      WRITE (UNIT=output_unit,FMT="(/,/,T4,A,/,/,T6,A)")&
-        "- Potential information",&
-        "Potential name: "//TRIM(potential%name)
-
-      WRITE (UNIT=output_unit,FMT="(/,(T6,A))")&
-        "Description: "//TRIM(potential%description(1)),&
-        "             "//TRIM(potential%description(2)),&
-        "             "//TRIM(potential%description(3))
-      WRITE (UNIT=output_unit,FMT="(/,T6,A,F12.6)")&
+      WRITE (UNIT=output_unit,FMT="(/,T6,A,T41,A40,/)")&
+        "Potential information for",ADJUSTR(TRIM(potential%name))
+      WRITE (UNIT=output_unit,FMT="(T8,A,T41,A40)")&
+        "Description: ",ADJUSTR(TRIM(potential%description(1))),&
+        "             ",ADJUSTR(TRIM(potential%description(2))),&
+        "             ",ADJUSTR(TRIM(potential%description(3))),&
+        "             ",ADJUSTR(TRIM(potential%description(4)))
+      WRITE (UNIT=output_unit,FMT="(/,T8,A,T69,F12.6)")&
         "Gaussian exponent of the core charge distribution: ",&
         potential%alpha_core_charge
-      WRITE (UNIT=output_unit,FMT="(/,T6,A,10I3)")&
-        "Electronic configuration (s p d ...):",potential%elec_conf
-        r = 1.0_dp/SQRT(2.0_dp*potential%alpha_ppl)
+      WRITE (UNIT=string,FMT="(5I4)") potential%elec_conf
+      WRITE (UNIT=output_unit,FMT="(T8,A,T61,A20)")&
+        "Electronic configuration (s p d ...):",&
+        ADJUSTR(TRIM(string))
 
-      WRITE (UNIT=output_unit,FMT="(/,T6,A,/,/,T8,A,/,T8,4F12.6)")&
+      r = 1.0_dp/SQRT(2.0_dp*potential%alpha_ppl)
+
+      WRITE (UNIT=output_unit,FMT="(/,T8,A,/,/,T27,A,/,T21,5F12.6)")&
         "Parameters of the local part of the GTH pseudopotential:",&
-        "      rloc        C1          C2          C3          C4",&
+        "rloc        C1          C2          C3          C4",&
         r,(potential%cexp_ppl(i)*r**(2*(i-1)),i=1,potential%nexp_ppl)
 
       IF (potential%lppnl > -1) THEN
-        WRITE (UNIT=output_unit,FMT="(/,T6,A,/,/,T6,A,/)")&
+        WRITE (UNIT=output_unit,FMT="(/,T8,A,/,/,T20,A,/)")&
           "Parameters of the non-local part of the GTH pseudopotential:",&
-          " l      r(l)      h(i,j,l)"
+          "l      r(l)      h(i,j,l)"
         DO l=0,potential%lppnl
           r = SQRT(0.5_dp/potential%alpha_ppnl(l))
-          WRITE (UNIT=output_unit,FMT="(T6,I2,F12.6,4F12.6)")&
+          WRITE (UNIT=output_unit,FMT="(T19,I2,5F12.6)")&
             l,r,(potential%hprj_ppnl(1,j,l),j=1,potential%nprj_ppnl(l))
           DO i=2,potential%nprj_ppnl(l)
-            WRITE (UNIT=output_unit,FMT="(T20,4F12.6)")&
+            WRITE (UNIT=output_unit,FMT="(T33,4F12.6)")&
               (potential%hprj_ppnl(i,j,l),j=1,potential%nprj_ppnl(l))
           END DO
         END DO
@@ -1765,6 +1781,6 @@ CONTAINS
 
   END SUBROUTINE write_gth_potential
 
-! *****************************************************************************
+  ! ***************************************************************************
 
 END MODULE external_potential_types
