@@ -327,9 +327,10 @@ CONTAINS
 
     SELECT CASE ( method ) 
     CASE ( do_loc_jacobi )
-       CALL jacobi_rotations ( weights, zij_fm_set, vectors, sweeps ) 
+       CALL jacobi_rotations ( weights, zij_fm_set, vectors, max_iter=100000,eps_localization=1.0E-4_dp, sweeps=sweeps ) 
     CASE ( do_loc_crazy )
-       CALL crazy_rotations  ( weights, zij_fm_set, vectors, sweeps ) 
+       CALL crazy_rotations  ( weights, zij_fm_set, vectors, max_iter=200, &
+                  eps_localization=1.0E-4_dp, iterations= sweeps ) 
     CASE ( do_loc_direct )
        CALL direct_mini      ( weights, zij_fm_set, vectors, sweeps ) 
     CASE ( do_loc_none ) 

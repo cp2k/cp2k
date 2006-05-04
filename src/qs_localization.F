@@ -109,6 +109,9 @@ MODULE qs_localization
        INTEGER :: localization_method
        LOGICAL :: wannier
        LOGICAL :: molecular_states
+       LOGICAL :: jacobi_fallback
+       INTEGER :: max_iter
+       REAL(KIND=dp) :: eps_localization
        INTEGER :: is_initialized
        TYPE ( real_matrix_p_type ),POINTER :: OPERATOR(:,:)
        TYPE ( cp_para_env_type ), POINTER :: para_env
@@ -346,15 +349,25 @@ SUBROUTINE qs_loc_compute_properties(qs_loc_env, molecule_set, vectors, center, 
   IF ( qs_loc_env % wannier ) THEN
        SELECT CASE (qs_loc_env % localization_method) 
        CASE ( do_loc_jacobi )
-          CALL jacobi_rotations ( qs_loc_env % weights, zij, vectors, sweeps ) 
+          CALL jacobi_rotations ( qs_loc_env % weights, zij, vectors, &
+               max_iter=qs_loc_env%max_iter,eps_localization=qs_loc_env%eps_localization, &
+                                 sweeps=sweeps ) 
        CASE ( do_loc_crazy )
-          CALL crazy_rotations  ( qs_loc_env % weights, zij, vectors, sweeps, &
-               converged=converged, error=error )
-          IF (.NOT.converged) THEN
-             WRITE (cp_logger_get_default_unit_nr(logger,local=.FALSE.),"(A,I6,A)")&
+          CALL crazy_rotations  ( qs_loc_env % weights, zij, vectors, &
+               max_iter=qs_loc_env%max_iter,eps_localization=qs_loc_env%eps_localization, &
+               iterations=sweeps, converged=converged, error=error )
+          IF ( .NOT.converged ) THEN
+             IF (qs_loc_env % jacobi_fallback) THEN
+                WRITE (cp_logger_get_default_unit_nr(logger,local=.FALSE.),"(A,I6,A)")&
                   " Crazy Wannier localization not converged after ",sweeps,&
                   " iterations, switching to jacobi rotations"
-             CALL jacobi_rotations ( qs_loc_env % weights, zij, vectors, sweeps ) 
+                CALL jacobi_rotations ( qs_loc_env % weights, zij, vectors,&
+                     max_iter=qs_loc_env%max_iter,eps_localization=qs_loc_env%eps_localization, sweeps = sweeps ) 
+             ELSE
+                WRITE (cp_logger_get_default_unit_nr(logger,local=.FALSE.),"(A,I6,A)")&
+                  " Crazy Wannier localization not converged after ",sweeps,&
+                  " iterations, and jacobi_fallback switched off "
+             ENDIF
           END IF
        CASE ( do_loc_direct )
           CALL direct_mini      ( qs_loc_env % weights, zij, vectors, sweeps ) 
@@ -363,7 +376,7 @@ SUBROUTINE qs_loc_compute_properties(qs_loc_env, molecule_set, vectors, center, 
        END SELECT
        IF (ionode) THEN
            scr=cp_logger_get_default_unit_nr(logger,.FALSE.)
-           WRITE(scr,'(A,I6,A)') " Wannier localization converged in ",sweeps," iterations"
+           WRITE(scr,'(A,I6,A)') " Wannier localization finished in ",sweeps," iterations"
        ENDIF
   ELSE
        IF (ionode) THEN

@@ -326,13 +326,13 @@ CONTAINS
           "LOC|  Definition of the spread functional by "," Boys definition"
         IF(localized_wfn_control%operator_type==do_loc_jacobi)  &
            WRITE (UNIT=output_unit,FMT="(T2,A,T63,A)")&
-          "LOC|  Obtimal Rotation found by ",             "     Jacobi method"
+          "LOC|  Optimal Rotation found by ",             "     Jacobi method"
         IF(localized_wfn_control%operator_type==do_loc_crazy)  &
            WRITE (UNIT=output_unit,FMT="(T2,A,T63,A)")&
-          "LOC|  Obtimal Rotation found by ","Crazy angle method"
+          "LOC|  Optimal Rotation found by ","Crazy angle method"
         IF(localized_wfn_control%operator_type==do_loc_direct)  &
            WRITE (UNIT=output_unit,FMT="(T2,A,T63,A)")&
-          "LOC|  Obtimal Rotation found by ","  Direct SD method"
+          "LOC|  Optimal Rotation found by ","  Direct SD method"
         IF(localized_wfn_control%operator_type==do_loc_none)  &
            WRITE (UNIT=output_unit,FMT="(T2,A,T60,A)")&
           "LOC|   ","No stationary state is located"

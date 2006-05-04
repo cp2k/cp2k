@@ -423,6 +423,12 @@ CONTAINS
                i_val=qs_loc_env%localization_method,error=error)
           qs_loc_env%wannier = .NOT. (qs_loc_env % localization_method .EQ. do_loc_none)
           IF (p_molstates) qs_loc_env%molecular_states = .TRUE.
+          CALL section_vals_val_get(input,"DFT%PRINT%LOCALIZATION%MAX_ITER",&
+               i_val=qs_loc_env%max_iter,error=error)
+          CALL section_vals_val_get(input,"DFT%PRINT%LOCALIZATION%JACOBI_FALLBACK",&
+               l_val=qs_loc_env%jacobi_fallback,error=error)
+          CALL section_vals_val_get(input,"DFT%PRINT%LOCALIZATION%EPS_LOCALIZATION",&
+               r_val=qs_loc_env%eps_localization,error=error)
        ENDIF
 
 ! *** gets localization info for the occupied orbs

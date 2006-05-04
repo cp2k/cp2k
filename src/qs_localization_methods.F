@@ -70,10 +70,12 @@ CONTAINS
   END SUBROUTINE initialize_weights 
 
 ! *****************************************************************************
-  SUBROUTINE jacobi_rotations ( weights, zij, vectors, sweeps )
+  SUBROUTINE jacobi_rotations ( weights, zij, vectors, max_iter, eps_localization, sweeps )
     REAL(KIND=dp), INTENT(IN)                :: weights( : )
     TYPE(cp_fm_p_type), INTENT(INOUT)        :: ZIJ( :, : )
     TYPE(cp_fm_type), POINTER                :: vectors
+    INTEGER, INTENT(IN)                      :: max_iter
+    REAL(KIND=dp), INTENT(IN)                :: eps_localization
     INTEGER                                  :: sweeps
 
     COMPLEX(KIND=dp)                         :: mii( 3 ), mij( 3 ), mjj( 3 )
@@ -107,7 +109,7 @@ CONTAINS
     tolerance = 1.0e10_dp
     sweeps = 0
 ! do jacobi sweeps until converged
-    DO WHILE ( tolerance >= 1.0e-4_dp ) ! should be already machine precision minimization
+    DO WHILE ( tolerance >= eps_localization .AND. sweeps < max_iter ) 
       sweeps = sweeps + 1
       DO istate = 1, nstate
         DO jstate = istate + 1, nstate
@@ -124,6 +126,10 @@ CONTAINS
         END DO
       END DO
       CALL check_tolerance ( c_zij, weights, tolerance )
+      IF (rmat%matrix_struct%para_env%mepos .EQ. rmat%matrix_struct%para_env%source ) THEN
+          WRITE(cp_logger_get_default_unit_nr(),'(I6,1X,E12.4)') &
+                 sweeps,tolerance
+      ENDIF
     END DO
 
     DO idim=1,SIZE(c_zij)
@@ -398,15 +404,17 @@ CONTAINS
 
     DEALLOCATE(diag)
 
-  END SUBROUTINE
+  END SUBROUTINE check_tolerance_new
 ! *****************************************************************************
 ! yet another crazy try, computes the angles needed to rotate the orbitals first
 ! and rotates them all at the same time (hoping for the best of course)
 ! *****************************************************************************
-  SUBROUTINE crazy_rotations( weights, zij, vectors, iterations, converged, error )
+  SUBROUTINE crazy_rotations( weights, zij, vectors,max_iter,eps_localization, iterations, converged, error )
     REAL(KIND=dp), INTENT(IN)                :: weights( : )
     TYPE(cp_fm_p_type), INTENT(INOUT)        :: ZIJ( :, : )
     TYPE(cp_fm_type), POINTER                :: vectors
+    INTEGER, INTENT(IN)                      :: max_iter
+    REAL(KIND=dp), INTENT(IN)                :: eps_localization
     INTEGER                                  :: iterations
     LOGICAL, INTENT(out), OPTIONAL           :: converged
     TYPE(cp_error_type), INTENT(inout), &
@@ -521,13 +529,13 @@ CONTAINS
 
       CALL check_tolerance_new ( weights, zij, tolerance, value )
       IF (cmat_A%matrix_struct%para_env%mepos .EQ. cmat_A%matrix_struct%para_env%source ) THEN 
-          WRITE(cp_logger_get_default_unit_nr(),'(I4,1X,G20.15,E12.4,E12.4)') &
+          WRITE(cp_logger_get_default_unit_nr(),'(I6,1X,G20.15,E12.4,E12.4)') &
                  iterations,value,tolerance,maxeval
       ENDIF
-      IF (tolerance .LT. 1.0E-4_dp .OR. iterations.gt.200) EXIT
+      IF (tolerance .LT. eps_localization .OR. iterations.ge.max_iter) EXIT
     ENDDO
 
-    IF (PRESENT(converged)) converged=(tolerance .LT. 1.0E-4_dp)
+    IF (PRESENT(converged)) converged=(tolerance .LT. eps_localization)
 
     CALL cp_cfm_release(cmat_A)
     CALL cp_cfm_release(cmat_R)
