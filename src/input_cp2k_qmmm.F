@@ -110,30 +110,6 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
        
-       CALL keyword_create(keyword, name="A_QM",&
-            description="Set the A vector of the QM Cell to the Reals value. The other values will be"//&
-            "referred to the MM cell. It Changes the shape of the QM cell in one dimension.",&
-            usage="A_QM real real real",&
-            n_var=3,type_of_var=real_t,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="B_QM",&
-            description="Set the B vector of the QM Cell to the Reals value. The other values will be"//&
-            "referred to the MM cell. It Changes the shape of the QM cell in one dimension.",&
-            usage="B_QM real real real",&
-            n_var=3,type_of_var=real_t,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
-       CALL keyword_create(keyword, name="C_QM",&
-            description="Set the C vector of the QM Cell to the Reals value. The other values will be"//&
-            "referred to the MM cell. It Changes the shape of the QM cell in one dimension.",&
-            usage="C_QM real real real",&
-            n_var=3,type_of_var=real_t,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
        CALL keyword_create(keyword, name="eps_mm_rspace",&
             description="Set the threshold g(r) - threshold = 0. Where g(r) is a gaussian function."//&
             "Standard value set to 1.0E-10_dp",&
@@ -191,9 +167,9 @@ CONTAINS
             variants=(/"QMMM_COUPLING",&
             "ECOUPL       "/),& 
             description="Set the Coupling's type between QM and MM system. Possible Options:"//&
-            "(1) NONE: Just Mechanical Coupling. (2) GRID: Computing the electrostatic"//&
-            "potential analytically on the Grid. (3) GAUSS: Mapping the MM electrostatic"//&
-            "potential on the Grid with Gaussian.",&
+            " (1) NONE: Just Mechanical Coupling. (2) GRID: Computing the electrostatic"//&
+            " potential analytically on the Grid. (3) GAUSS: Mapping the MM electrostatic"//&
+            " potential on the Grid with Gaussian.",&
             usage="E_COUPL char",&
             enum_c_vals=s2a( "NONE","GRID","GAUSS"),&
             enum_i_vals=(/ do_qmmm_none, do_qmmm_grid, do_qmmm_gauss/),&
