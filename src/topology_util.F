@@ -2274,7 +2274,7 @@ CONTAINS
       POINTER                                :: work(:)
     INTEGER :: counter, first, first_atom, handle, i, iatom, ibend, ibond, &
       ikind, imol_now, imolecule, itorsion, iw, j, k, &
-      last, last_atom, natom, nbend, nbond, ntorsion, position, stat
+      last, last_atom, natom, nbend, nbond, ntorsion, position, stat, handle2
     INTEGER, DIMENSION(:), POINTER :: atomkind, iatomlist, first_mol, kind_of, &
       last_mol, list, list2, molecule_list, natom_of_kind
     LOGICAL                                  :: failure, found, mol_change, &
@@ -2310,6 +2310,7 @@ CONTAINS
     ! 1. Determine topology%[natom_type,atom_names] and save mass(natom_type) 
     !    and element(natom_type) 
     !-----------------------------------------------------------------------------
+    CALL timeset(routineN//'_1',handle2)
     counter=0
     NULLIFY(work,mass,element,charge)
     ALLOCATE(work(topology%natoms),mass(topology%natoms),element(topology%natoms),STAT=stat)
@@ -2373,28 +2374,34 @@ CONTAINS
     CALL reallocate(charge,1,counter)
     IF(iw>0) &
          WRITE(iw,'(5X,A,I3)') "Total Number of Atomic Kinds = ",topology%natom_type
+    CALL timestop(0.0_dp,handle2)
 
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 2. Allocate the data structure for the atomic kind information 
     !-----------------------------------------------------------------------------
+    CALL timeset(routineN//'_2',handle2)
     NULLIFY(atomic_kind_set)
     CALL allocate_atomic_kind_set(atomic_kind_set,topology%natom_type)
+    CALL timestop(0.0_dp,handle2)
 
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 3.  Allocate the data structure for the atomic information
     !-----------------------------------------------------------------------------
+    CALL timeset(routineN//'_3',handle2)
     NULLIFY(particle_set)
     CALL allocate_particle_set(particle_set,topology%natoms)
+    CALL timestop(0.0_dp,handle2)
 
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 4. Set the atomic_kind_set(ikind)%[name,kind_number,mass]
     !-----------------------------------------------------------------------------
+    CALL timeset(routineN//'_4',handle2)
     DO i=1,topology%natom_type
        atomic_kind => atomic_kind_set(i)
        mass(i) = mass(i) * massunit
@@ -2406,12 +2413,14 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(element,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CALL timestop(0.0_dp,handle2)
 
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 5. Determine number of atom of each kind (ie natom_of_kind and kind_of)
     !-----------------------------------------------------------------------------
+    CALL timeset(routineN//'_5',handle2)
     ALLOCATE(kind_of(topology%natoms),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(natom_of_kind(topology%natom_type),STAT=stat)
@@ -2431,11 +2440,13 @@ CONTAINS
       WRITE(*,*)"Two molecules have been defined as identical molecules but atoms mismatch charges!!"
       CPPostcondition(.false.,cp_failure_level,routineP,error,failure)
     END IF 
+    CALL timestop(0.0_dp,handle2)
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 6. Set the atom_kind_set(ikind)%[natom,atom_list]
     !-----------------------------------------------------------------------------
+    CALL timeset(routineN//'_6',handle2)
     DO i=1,topology%natom_type
        atomic_kind => atomic_kind_set(i)
        NULLIFY (iatomlist)
@@ -2466,12 +2477,14 @@ CONTAINS
     END DO
     DEALLOCATE(natom_of_kind,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CALL timestop(0.0_dp,handle2)
 
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 7. Fill in some more infor for particle_set and lpi (local part info)
     !-----------------------------------------------------------------------------
+    CALL timeset(routineN//'_7',handle2)
     DO i=1,topology%natoms
        ikind = kind_of(i)
        IF (iw>0) THEN
@@ -2486,6 +2499,7 @@ CONTAINS
     END DO
     DEALLOCATE(kind_of,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CALL timestop(0.0_dp,handle2)
 
 
     !-----------------------------------------------------------------------------
@@ -2493,6 +2507,7 @@ CONTAINS
     ! 8. Fill in the particle_set%lpi%exclusion%list_vdw
     ! 9. Fill in the particle_set%lpi%exclusion%list_ei (if required)
     !-----------------------------------------------------------------------------
+    CALL timeset(routineN//'_89',handle2)
     ALLOCATE(atomkind(SIZE(particle_set)),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(first_mol(SIZE(molecule_set)),STAT=stat)
@@ -2755,11 +2770,13 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(last_mol,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CALL timestop(0.0_dp,handle2)
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 10. Set the atomic_kind_set()%elp_potentail%[qeff] (PART 1)
     !-----------------------------------------------------------------------------
+    CALL timeset(routineN//'_10',handle2)
     IF(globenv%prog_name_id == do_fist) THEN
        DO i=1,SIZE(atomic_kind_set)
           atomic_kind => atomic_kind_set(i)
@@ -2782,11 +2799,13 @@ CONTAINS
     END IF
     DEALLOCATE(charge,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CALL timestop(0.0_dp,handle2)
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 11. Set the atom_list for molecule_kind in molecule_kind_set (PART 2)
     !-----------------------------------------------------------------------------
+    CALL timeset(routineN//'_11',handle2)
     DO i=1,SIZE(molecule_kind_set)
        molecule_kind => molecule_kind_set(i)
        CALL get_molecule_kind(molecule_kind=molecule_kind,&
@@ -2817,6 +2836,7 @@ CONTAINS
        END DO
        CALL set_molecule_kind(molecule_kind=molecule_kind,atom_list=atom_list)
     END DO
+    CALL timestop(0.0_dp,handle2)
 
     CALL timestop(0.0_dp,handle)
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
