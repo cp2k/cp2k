@@ -684,7 +684,7 @@ MODULE qs_rho0_methods
     TYPE(rho0_mpole_type), POINTER           :: rho0_mpole
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'radii_3c_orbxrho0'
-    REAL(dp), PARAMETER                      :: eps_radii_3c = 1.E-4_dp 
+    REAL(dp), PARAMETER                      :: eps_radii_3c = 1.E-8_dp 
 
     INTEGER                                  :: i, ico, ico0, icoa, ikind, &
                                                 ipgf, iset, istat, jkind, l0, &

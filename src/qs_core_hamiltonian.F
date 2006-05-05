@@ -1242,7 +1242,8 @@ CONTAINS
 !            *** Build reduced 3-center lists
               IF(.NOT. calculate_forces) &
                 CALL build_reduced_3c_lists(atomic_kind_set, iatom, jatom,&
-                     ikind, jkind, sbc_oce, oce%voce, reduced_3c_oce,.TRUE.,error)
+                     ikind, jkind, sbc_oce, oce%voce, reduced_3c_oce,&
+                     .TRUE.,qs_env%dft_control%qs_control%eps_rho_rspace,error)
 
 !            *** Calculate the coefficients of the one center expansions ***
                 CALL set_up_oce(atomic_kind_set,reduced_3c_oce,oce,&
@@ -1256,7 +1257,8 @@ CONTAINS
 !            *** Build reduced 3-center lists
               IF(.NOT. calculate_forces) &
                 CALL build_reduced_3c_lists(atomic_kind_set, iatom, jatom, &
-                    ikind, jkind, sbc_3c, VH_3c_list, reduced_3c_rho0,.FALSE.,error)
+                    ikind, jkind, sbc_3c, VH_3c_list, reduced_3c_rho0,&
+                    .FALSE.,qs_env%dft_control%qs_control%eps_rho_rspace,error)
             END IF
 
             IF (calculate_forces) atom_b = atom_of_kind(jatom)
@@ -2058,7 +2060,9 @@ CONTAINS
 
     END DO ! ikind
 
+!dbg
 !  stop 'pippo'
+!dbg
 
 !   *** Put the core Hamiltonian matrix in the QS environment ***
 
@@ -2066,8 +2070,7 @@ CONTAINS
                     matrix_s=matrix_s,&
                     kinetic=matrix_t,&
                     matrix_h=matrix_h,&
-                    oce=oce)!,&
-                    !VH_3c_list=VH_3c_list)
+                    oce=oce)
 !   *** Release work storage ***
 
     IF (ppl_present) THEN

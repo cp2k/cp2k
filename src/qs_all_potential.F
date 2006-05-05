@@ -287,14 +287,15 @@ MODULE qs_all_potential
 
 !******************************************************************************
 
- SUBROUTINE radii_3c_orbxall(atomic_kind_set,all_potential)
+ SUBROUTINE radii_3c_orbxall(atomic_kind_set,all_potential,eps_core)
 
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(all_potential_type), POINTER        :: all_potential
+    REAL(dp), INTENT(IN)                     :: eps_core
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'radii_3c_orbxall'
-    REAL(dp), PARAMETER                      :: EPS = 1.E-06_dp
+!    REAL(dp), PARAMETER                      :: EPS = 1.E-06_dp
 
     INTEGER                                  :: i, ico, icoa, ikind, ipgf, &
                                                 iset, istat, maxlgto, n, &
@@ -389,7 +390,7 @@ MODULE qs_all_potential
              END DO
           END DO
 
-          IF( intmax0 < eps ) THEN
+          IF( intmax0 < eps_core ) THEN
             r_cut_set(iset) = r(1,i)
             EXIT
           END IF

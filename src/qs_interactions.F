@@ -230,7 +230,7 @@ CONTAINS
         IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "orb_radius_3c,set_radius_3c")
 
-        CALL radii_3c_orbxall(atomic_kind_set,all_potential)
+        CALL radii_3c_orbxall(atomic_kind_set,all_potential,qs_control%eps_core_charge)
 
       ELSE IF (ASSOCIATED(gth_potential)) THEN
 

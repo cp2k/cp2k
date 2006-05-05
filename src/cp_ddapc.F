@@ -457,6 +457,10 @@ CONTAINS
           qmmm_periodic_section   => section_vals_get_subs_vals(force_env_section,"QMMM%PERIODIC", error=error)
           multipole_section       => section_vals_get_subs_vals(qmmm_periodic_section,"MULTIPOLE", error=error)
        END IF
+!dbg
+!      write(*,*) qmmm_periodic,apply_decpl, apply_restrain
+!     stop 'pp'
+!dbg
        ! Start the real calculation
        IF (apply_decpl.OR.apply_restrain) THEN
           iw=cp_print_key_unit_nr(logger,multipole_section,"PROGRAM_RUN_INFO",&

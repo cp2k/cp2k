@@ -151,7 +151,7 @@ MODULE qs_local_rho_types
     rhoz%one_atom=sum*harmonics%slm_int(1)
     rhoz_tot = rhoz_tot + natom*rhoz%one_atom
 
-! WRITE(10,*) zeff, alpha
+!  write(*,*) harmonics%slm_int(1), rhoz%one_atom
 ! DO ir =1,nr
 !    WRITE(10,'(I5,3(1E30.16))') ir,grid_atom%rad(ir),rhoz%vr_coef(ir),rhoz%r_coef(ir)
 ! END DO

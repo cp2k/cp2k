@@ -388,7 +388,7 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE build_reduced_3c_lists(atomic_kind_set,iatom,jatom,ikind,jkind, &
-                                    sbc_list, vlist,reduced_3c_list,pippo,error)
+                         sbc_list, vlist,reduced_3c_list,pippo,eps_rho,error)
 
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -400,6 +400,7 @@ CONTAINS
     TYPE(reduced_3c_list_type), &
       DIMENSION(:), POINTER                  :: reduced_3c_list
     LOGICAL                                  :: pippo
+    REAL(dp), INTENT(IN)                     :: eps_rho
     TYPE(cp_error_type), INTENT(inout), &
          OPTIONAL                            :: error
 !   *** Local parameters ***
@@ -412,7 +413,7 @@ CONTAINS
     INTEGER, DIMENSION(3)                    :: cell_c
     INTEGER, DIMENSION(:), POINTER           :: index_atom
     LOGICAL                                  :: add_node,paw_atom
-    REAL(KIND=dp)                            :: dac2, dbc2, maxab, maxabc
+    REAL(KIND=dp)                            :: dac2, dbc2, maxab
     REAL(KIND=dp), DIMENSION(3)              :: rac, rbc
     REAL(KIND=dp), DIMENSION(:), POINTER     :: rac2_tmp, rbc2_tmp
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rac_tmp, rbc_tmp
@@ -520,12 +521,20 @@ CONTAINS
 
 !  Check whether this node has to be really added to the list
            add_node = .TRUE.
-!           IF(pippo) THEN
-!              CALL check_oce_overlap(atomic_kind_set,ikind,rac,dac2,&
-!                   jkind,rbc,dbc2,kkind,maxab,maxabc)
-!            write(num,'(A,3I5,2f12.6,2(1E16.8))')' overlap ', iatom,jatom,katom,&
-!                sqrt(dac2),sqrt(dbc2),maxab,maxabc
-!           END IF
+           IF(pippo) THEN
+!       write(*,*) katom, iatom,jatom
+              CALL check_oce_overlap(atomic_kind_set,ikind,rac,dac2,&
+                   jkind,rbc,dbc2,kkind,maxab)
+!dbg
+            IF(maxab .LT. eps_rho) THEN
+              add_node = .FALSE.
+            END IF
+!            IF(maxab .GT. 10.E-12) THEN
+!              write(num,'(A,3I5,2f12.6,2(1E16.8))')' overlap ', iatom,jatom,katom,&
+!                sqrt(dac2),sqrt(dbc2),maxab
+!            END IF
+!dbg
+           END IF
            IF(.NOT. add_node) THEN
              sbc_list_neighbor_node => next(sbc_list_neighbor_node)
              CYCLE
@@ -587,22 +596,27 @@ CONTAINS
   END SUBROUTINE build_reduced_3c_lists
 
   SUBROUTINE check_oce_overlap(atomic_kind_set,ikind,rac,dac2,jkind,rbc,dbc2,&
-             kkind,maxab,maxabc)
+             kkind,maxab)
 
     TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
     INTEGER, INTENT(IN) :: ikind,jkind,kkind
     REAL(dp) :: dac2, dbc2
     REAL(dp), INTENT(IN) :: rac(3), rbc(3)
-    REAL(dp), INTENT(INOUT) :: maxab,maxabc
+    REAL(dp), INTENT(INOUT) :: maxab
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'build_reduced_3c_lists'
 
-    INTEGER :: iexp, ip, iset, jset, kset, lc_max, lshella, lshellb, nseta, nsetb
-    INTEGER , DIMENSION(:), POINTER :: la_max, la_min, lb_max, lb_min, npgfa, npgfb, nprjc
-    REAL(dp) :: gauss_value_a, gauss_value_b, gauss_value_c
+    INTEGER :: iexp, iexp_zmin, jexp_zmin, ip, iset, jset, kset, &
+               lc_max, ishell, jshell, lshella, lshellb, nseta, nsetb
+    INTEGER , DIMENSION(:), POINTER :: la_max, la_min, lb_max, lb_min, &
+                                       npgfa, npgfb, nprjc, nshella, nshellb
+    INTEGER , DIMENSION(:,:), POINTER :: lsha, lshb
+    REAL(dp) :: gcca_zmin, gccb_zmin, gauss_value_a, gauss_value_b, gauss_value_c
     REAL(dp) :: max_overlap_ab, max_overlap_abc, overlap_ab, overlap_abc
     REAL(dp) :: rcprj, zetamin, zetbmin, zetcmin
-    REAL(dp), DIMENSION(:,:), POINTER :: zeta, zetb, zetc
+    REAL(dp), DIMENSION(:,:), POINTER          :: zeta, zetb, zetc
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      POINTER                                  :: gcca, gccb
     TYPE(atomic_kind_type),  POINTER :: atomic_kind
     TYPE(gto_basis_set_type), POINTER          :: orb_basis_set
     TYPE(paw_proj_set_type),  POINTER          :: paw_proj_c
@@ -610,21 +624,23 @@ CONTAINS
 
 
     NULLIFY(atomic_kind,orb_basis_set,paw_proj_c)
-    NULLIFY(la_max,lb_max,npgfa,npgfb,nprjc,zeta,zetb,zetc)
+    NULLIFY(gcca,gccb,la_max,lb_max,npgfa,npgfb,nprjc,zeta,zetb,zetc)
 
 ! ikind
     atomic_kind => atomic_kind_set(ikind)
     CALL get_atomic_kind(atomic_kind=atomic_kind,&
          orb_basis_set=orb_basis_set)
     CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
-         lmax=la_max,lmin=la_min,npgf=npgfa,nset=nseta,zet=zeta)
+         lmax=la_max,lmin=la_min,l=lsha,npgf=npgfa,&
+         nshell=nshella,nset=nseta,gcc=gcca,zet=zeta)
 
 ! jkind
     atomic_kind => atomic_kind_set(jkind)
     CALL get_atomic_kind(atomic_kind=atomic_kind,&
          orb_basis_set=orb_basis_set)
     CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
-         lmax=lb_max,lmin=lb_min,npgf=npgfb,nset=nsetb,zet=zetb)
+         lmax=lb_max,lmin=lb_min,l=lshb,nshell=nshellb,&
+         npgf=npgfb,nset=nsetb,gcc=gccb,zet=zetb)
 
 ! kkind
     atomic_kind => atomic_kind_set(kkind)
@@ -634,46 +650,61 @@ CONTAINS
          maxl=lc_max, nprj=nprjc, zetprj=zetc,rcprj=rcprj)
 
     max_overlap_ab  = 0.0_dp
-    max_overlap_abc = 0.0_dp
     DO iset = 1,nseta
        zetamin = 10.0_dp
+       gcca_zmin = 1.0_dp
        DO iexp = 1,npgfa(iset)
-         zetamin = MIN(zetamin,zeta(iexp,iset))
+         IF(zeta(iexp,iset) .LT. zetamin) THEN
+           zetamin = MIN(zetamin,zeta(iexp,iset))
+           iexp_zmin = iexp
+         END IF
        END DO 
-       DO lshella = la_min(iset),la_max(iset)
+       DO ishell = 1,nshella(iset)
+         lshella = lsha(ishell,iset)
+         gcca_zmin = gcca(iexp_zmin,ishell,iset)
 !         gauss_value_a = (sqrt(dac2)- rcprj)**(lshella)*exp(-zetamin*(sqrt(dac2)- rcprj)**2)
-         IF(dac2<1.0E-8_dp .AND. lshella==0) THEN
+         IF(dac2<1.0E-8_dp ) THEN
            gauss_value_a = 1.0_dp
          ELSE
-           gauss_value_a = (sqrt(dac2))**(lshella)*exp(-zetamin*(sqrt(dac2))**2)
+           gauss_value_a = gcca_zmin*(sqrt(dac2))**(lshella)*exp(-zetamin*(sqrt(dac2))**2)
          END IF
+!      write(*,*) ' AC ',sqrt(dac2), iset,zetamin,lshella,gcca_zmin,gauss_value_a
          DO jset = 1,nsetb
            zetbmin = 10.0_dp
-           DO iexp = 1,npgfa(iset)
-             zetbmin = MIN(zetbmin,zetb(iexp,jset))
+           gccb_zmin = 1.0_dp
+           DO iexp = 1,npgfb(jset)
+             IF(zetb(iexp,jset) .LT. zetbmin) THEN
+               zetbmin = zetb(iexp,jset)
+               jexp_zmin = iexp
+             END IF
            END DO
-           DO lshellb=lb_min(jset), lb_max(jset)
+           DO jshell = 1,nshellb(jset)
+             lshellb = lshb(jshell,jset)
+             gccb_zmin = gccb(jexp_zmin,jshell,jset)
+
 !             gauss_value_b = (sqrt(dbc2)- rcprj)**(lshellb)*exp(-zetbmin*(sqrt(dbc2)- rcprj)**2)
-             IF(dbc2<1.0E-8_dp .AND. lshellb==0) THEN
+             IF(dbc2<1.0E-8_dp ) THEN
                gauss_value_b = 1.0_dp
              ELSE
-               gauss_value_b = (sqrt(dbc2))**(lshellb)*exp(-zetbmin*(sqrt(dbc2))**2)
+               gauss_value_b = gccb_zmin*(sqrt(dbc2))**(lshellb)*exp(-zetbmin*(sqrt(dbc2))**2)
              END IF
 
+!      write(*,*) ' BC ',sqrt(dbc2), jset,zetbmin,lshellb,gccb_zmin,gauss_value_b
 
              overlap_ab = gauss_value_b*gauss_value_a
              max_overlap_ab = MAX(overlap_ab,max_overlap_ab)
-             DO kset = 0,lc_max
-               zetcmin= 100.0_dp
-               DO ip = 1,nprjc(kset)
-                  zetcmin = MIN(zetcmin,zetc(ip,kset))
-               END DO
-               gauss_value_c = (rcprj**kset)*exp(-zetcmin*rcprj**2)
 
-               overlap_abc = overlap_ab*gauss_value_c
-               max_overlap_abc = MAX(overlap_abc,max_overlap_abc)
-
-             END DO ! kset
+!             DO kset = 0,lc_max
+!               zetcmin= 100.0_dp
+!               DO ip = 1,nprjc(kset)
+!                  zetcmin = MIN(zetcmin,zetc(ip,kset))
+!               END DO
+!               gauss_value_c = (rcprj**kset)*exp(-zetcmin*rcprj**2)
+!
+!               overlap_abc = overlap_ab*gauss_value_c
+!               max_overlap_abc = MAX(overlap_abc,max_overlap_abc)
+!
+!             END DO ! kset
 
            END DO  ! lshellb
          END DO  ! jset
@@ -681,7 +712,6 @@ CONTAINS
     END DO  ! iset
         
     maxab = max_overlap_ab
-    maxabc = max_overlap_abc
 
   END SUBROUTINE
 

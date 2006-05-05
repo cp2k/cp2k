@@ -30,6 +30,7 @@ MODULE qmmm_methods
                                              pbc
   USE coefficient_types,               ONLY: coeff_type,&
                                              coeff_zero
+  USE cp_control_types,                ONLY: dft_control_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -118,16 +119,16 @@ CONTAINS
 !!     06.2004 created [tlaino]
 !!
 !!*************************************************************************
-  SUBROUTINE qmmm_forces(qs_env,qmmm_env,mm_particles,calc_force,mm_cell,&
-       globenv, error)
+  SUBROUTINE qmmm_forces(qs_env,qmmm_env,mm_particles,calc_force,mm_cell,error)
+!       globenv, error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: mm_particles
     LOGICAL, INTENT(in), OPTIONAL            :: calc_force
     TYPE(cell_type), POINTER                 :: mm_cell
-    TYPE(global_environment_type), &
-      OPTIONAL, POINTER                      :: globenv
+!    TYPE(global_environment_type), &
+!      OPTIONAL, POINTER                      :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -136,11 +137,13 @@ CONTAINS
 
     INTEGER                                  :: handle, Imm, IndMM, ispin, &
                                                 iw, stat
-    LOGICAL                                  :: failure, need_f, periodic
+    LOGICAL                                  :: failure, gapw, need_f, periodic
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: Forces, Forces_added_charges
     TYPE(coeff_type), POINTER                :: rho_core
+    TYPE(coeff_type), POINTER                :: rho0_s_gs
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
@@ -157,8 +160,8 @@ CONTAINS
     need_f = .TRUE.
     periodic = qmmm_env%periodic
     IF (PRESENT(calc_force)) need_f = calc_force
-    NULLIFY(ks_qmmm_env_loc, rho, pw_env, rho_tot_r, energy, Forces, Forces_added_charges,&
-            input_section)
+    NULLIFY(dft_control, ks_qmmm_env_loc, rho, pw_env, rho_tot_r, energy, Forces,&
+            Forces_added_charges,input_section,rho0_s_gs)
     CALL get_qs_env(qs_env=qs_env,&
          rho=rho,&
          rho_core=rho_core,&
@@ -166,6 +169,8 @@ CONTAINS
          energy=energy,&
          para_env=para_env,&
          input=input_section,&
+         rho0_s_gs=rho0_s_gs,&
+         dft_control=dft_control,&
          error=error)
     logger => cp_error_get_logger(error)
     ks_qmmm_env_loc => qs_env%ks_qmmm_env
@@ -173,6 +178,7 @@ CONTAINS
     print_section => section_vals_get_subs_vals(input_section,"QMMM%PRINT",error=error)
     iw=cp_print_key_unit_nr(logger,print_section,"PROGRAM_RUN_INFO",&
          extension=".qmmmLog",error=error)
+    gapw = dft_control%qs_control%gapw
     !
     CALL pw_env_get(pw_env=pw_env,&
          pw_pools=pw_pools,& 
@@ -180,7 +186,13 @@ CONTAINS
          error=error)
     CALL pw_pool_create_pw(auxbas_pool,rho_tot_r,&
          in_space=REALSPACE,use_data=REALDATA3D, error=error)
-    CALL pw_transfer(rho_core%pw,rho_tot_r)
+
+    ! IF GAPW the core charge is replaced by the compensation charge
+    IF(gapw) THEN
+      CALL pw_transfer(rho0_s_gs%pw,rho_tot_r)
+    ELSE
+      CALL pw_transfer(rho_core%pw,rho_tot_r)
+    END IF
     !
     ! Computes the QM/MM Nuclear Electrostatic Potential
     !
@@ -273,7 +285,7 @@ CONTAINS
                Potentials=qmmm_env%Potentials,&
                interp_section=interp_section,&
                mm_cell=mm_cell,&
-               globenv=globenv,&
+!               globenv=globenv,&
                error=error)                              
        ENDIF
        !

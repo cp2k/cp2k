@@ -61,8 +61,7 @@ MODULE force_env_methods
                                              kg_environment_type
   USE kg_force,                        ONLY: kg_force_control
   USE kg_rho_methods,                  ONLY: kg_rho_create
-  USE kg_rho_types,                    ONLY: kg_rho_type, &
-                                             kg_rho_release
+  USE kg_rho_types,                    ONLY: kg_rho_type
   USE kg_rspw_methods,                 ONLY: kg_rspw_rebuild
   USE kg_rspw_types,                   ONLY: kg_rspw_type
   USE kinds,                           ONLY: dp
@@ -182,6 +181,7 @@ RECURSIVE SUBROUTINE force_env_calc_energy_force ( force_env, &
   END IF
   IF (.NOT.failure) THEN
      
+
      SELECT CASE ( force_env%in_use )
      CASE ( use_fist_force )
         CALL fist_force_control( force_env%fist_env,force_env%virial, &
@@ -201,6 +201,7 @@ RECURSIVE SUBROUTINE force_env_calc_energy_force ( force_env, &
              CALL qs_calc_numerical_pressure(force_env,error=error) 
            END IF
         END IF
+
      CASE ( use_pol_force )
         CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
      CASE ( use_kg_force )
@@ -226,7 +227,7 @@ RECURSIVE SUBROUTINE force_env_calc_energy_force ( force_env, &
      CASE default
         CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
      END SELECT
-     
+
      ! Metadynamics
      IF (ASSOCIATED(force_env%meta_env)) THEN
         CALL metadyn_add_forces(force_env%meta_env,force_env, error=error)
@@ -241,7 +242,7 @@ RECURSIVE SUBROUTINE force_env_calc_energy_force ( force_env, &
      
      ! Constraint ONLY of Fixed Atom type
      CALL fix_atom_control(force_env, error=error)
-     
+
   END IF
 END SUBROUTINE force_env_calc_energy_force
 !******************************************************************************
@@ -740,7 +741,7 @@ RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,calc_force,error)
   CALL qmmm_forces(force_env%sub_force_env(qs_subsys)%force_env%qs_env,&
        force_env%qmmm_env,particles_mm,&
        mm_cell=mm_cell,&
-       globenv=force_env%sub_force_env(qs_subsys)%force_env%globenv,&
+!       globenv=force_env%sub_force_env(qs_subsys)%force_env%globenv,&
        calc_force=need_f,error=error)
   !
   ! Print Out information on QS energy calculation...

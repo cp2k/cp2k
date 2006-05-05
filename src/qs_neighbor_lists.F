@@ -552,6 +552,7 @@ CONTAINS
         ! the all electron core term and the term related to the compensation
         ! charges
         orb_rad_3c(ikind) = rho0_mpole%orb_radius_3c(ikind)
+
       END IF
 
       ! Check the presence of an all electron potential

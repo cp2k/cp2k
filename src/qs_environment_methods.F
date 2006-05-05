@@ -292,6 +292,10 @@ SUBROUTINE qs_env_update_s_mstruct(qs_env,error)
   
     IF(dft_control%qs_control%gapw) THEN
       qs_env%qs_charges%total_rho_core_rspace=qs_env%local_rho_set%rhoz_tot
+      IF (ASSOCIATED(qs_env%rho_core)) THEN
+          CALL coeff_deallocate(qs_env%rho_core)
+          DEALLOCATE(qs_env%rho_core)
+      ENDIF
     ELSE IF(dft_control%qs_control%semi_empirical) THEN
       !??
     ELSE

@@ -72,6 +72,7 @@ MODULE qs_charges_types
      REAL(KIND = dp) :: total_rho_soft_gspace
      REAL(KIND = dp), DIMENSION(:), POINTER  :: total_rho1_hard,&
                                                 total_rho1_soft
+     REAL(KIND = dp) :: background
   END TYPE qs_charges_type
 !!***
   !****************************************************************************
@@ -140,6 +141,7 @@ SUBROUTINE qs_charges_create(qs_charges,nspins,total_rho_core_rspace, &
      qs_charges%total_rho_soft_gspace = 0.0_dp
      qs_charges%total_rho0_hard_lebedev = 0.0_dp
      qs_charges%total_rho_soft_gspace = 0.0_dp
+     qs_charges%background = 0.0_dp
      ALLOCATE(qs_charges%total_rho1_hard(nspins),stat=stat)
      qs_charges%total_rho1_hard(:) = 0.0_dp
      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)

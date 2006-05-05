@@ -339,6 +339,7 @@ CONTAINS
              CASE(energy_force_run)
                 CALL force_env_calc_energy_force(force_env,calc_force=.TRUE. ,error=suberror)
              END SELECT
+ 
           CASE (mol_dyn_run)
              CALL qs_mol_dyn ( force_env, globenv, error=suberror )
           CASE (geo_opt_run)
@@ -378,6 +379,7 @@ CONTAINS
                      CPSourceFileRef,suberror,failure)
              END IF
           END SELECT
+
           CALL force_env_release(force_env, error=suberror)
 
        END IF
@@ -431,7 +433,7 @@ CONTAINS
 
     CHARACTER(len=5)                         :: label
     CHARACTER(LEN=default_path_length)       :: output_file
-    CHARACTER(LEN=default_string_length)     :: keyword, str
+    CHARACTER(LEN=default_string_length)     :: str
     INTEGER :: handle, i, i_job_to_restart, ierr, ijob, ijob_end, ijob_start, &
       iunit, n_jobs_to_run, new_group, new_rank, new_size, ngroups, &
       output_unit, stat
