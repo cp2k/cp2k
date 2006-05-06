@@ -31,3 +31,22 @@ CO_xastpxhh.inp
 #
 CO_xastpxhh.inp
 CO_xastpxfh.inp
+# different cut off for the lists
+H2O-gapw-gth.inp
+H2O-gapw-all.inp
+H2S-gapw.inp
+HF_gapw_all_LB.inp
+He2-all.inp
+He2-all-md.inp
+CO.inp
+CO_xastpfh.inp
+CO_xastphh.inp
+CO_xastpval.inp
+CO_xastpxfh.inp
+CO_xastpxhh.inp
+H2O-gapwxc-gth.inp
+H-gapw-all.inp
+Li-ROKS.inp
+NO2-ROKS.inp
+OF_gapw_all_lsd_LB.inp
+
