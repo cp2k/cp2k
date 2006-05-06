@@ -23,6 +23,7 @@
 !!   SOURCE
 !****************************************************************************
 MODULE input_cp2k_mm
+  USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE cp_output_handling,              ONLY: cp_print_key_section_create
   USE input_constants
   USE input_keyword_types,             ONLY: keyword_create,&
@@ -146,6 +147,7 @@ CONTAINS
 
     LOGICAL                                  :: failure
     TYPE(section_type), POINTER              :: print_key
+    TYPE(keyword_type), POINTER              :: keyword
 
     failure=.FALSE.
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
@@ -155,7 +157,7 @@ CONTAINS
             n_keywords=0, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
             error=error)
 
-       NULLIFY(print_key)
+       NULLIFY(print_key, keyword)
 
        CALL cp_print_key_section_create(print_key,"DERIVATIVES",&
             description="Controls the printing of derivatives.", &
@@ -197,6 +199,21 @@ CONTAINS
          "controls the printing of information in the forcefield settings", &
          print_level=high_print_level,filename="__STD_OUT__",&
          error=error)
+
+    CALL keyword_create(keyword,"spline_info",&
+         description="if the printkey is active prints information regarding the splines"//&
+         " used in the nonbonded interactions",&
+         default_l_val=.TRUE.,lone_keyword_l_val=.TRUE.,error=error)
+    CALL section_add_keyword(print_key,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword,"spline_data",&
+         description="if the printkey is active prints on separated files the splined function"//&
+         " together with the reference one. Useful to check the spline behavior.",&
+         default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+    CALL section_add_keyword(print_key,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
     CALL section_add_subsection(section,print_key,error=error)
     CALL section_release(print_key,error=error)
 
@@ -261,13 +278,6 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="RCUT_NB",&
-            description="Cutoff radius for nonbonded interactions",&
-            usage="RCUT_NB {real}", type_of_var=real_t, default_r_val=-1.0_dp,&
-            unit_str="angstrom",error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)                     
-
        CALL keyword_create(keyword, name="VDW_SCALE14",&
             description="Scaling factor for the VDW 1-4 ",&
             usage="VDW_SCALE14 1.0", default_r_val=1.0_dp,error=error)
@@ -279,10 +289,13 @@ CONTAINS
             usage="EI_SCALE14 1.0", default_r_val=0.0_dp,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-
        !
        ! subsections
        !
+       CALL create_SPLINE_section(subsection, error=error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
        CALL create_NONBONDED_section(subsection, error=error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
@@ -310,6 +323,85 @@ CONTAINS
     END IF
 
   END SUBROUTINE create_forcefield_section
+
+!***************************************************************************
+!!****f* input_cp2k_mm/create_SPLINE_section [1.0] *
+!!
+!!   NAME
+!!     create_spline_section
+!!
+!!   FUNCTION
+!!     This section specifies the parameters for the splines
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - section: the section to create
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_SPLINE_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_SPLINE_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: print_key
+
+    failure=.FALSE.
+    
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="SPLINE",&
+            description="specifies parameters to set up the splines used in the"//&
+            " nonboned interactions (both pair body potential and many body potential)",&
+            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.FALSE.,&
+            error=error)
+
+       NULLIFY(keyword, print_key)
+              
+       CALL keyword_create(keyword, name="EMAX_SPLINE",&
+            description="Specify the maximum value of the potential up to which"//&
+            " splines will be constructed",&
+            usage="EMAX_SPLINE <REAL>",&
+            default_r_val=0.5_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="EMAX_ACCURACY",&
+            description="Specify the maximum value of energy used to check the accuracy"//&
+            " requested through EPS_SPLINE. Energy values larger than MAX_ENERGY"//&
+            " generally do not  satisfy the requested accuracy",&
+            usage="MAX_ENERGY <REAL>", default_r_val=0.02_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+    
+       CALL keyword_create(keyword, name="RCUT_NB",&
+            description="Cutoff radius for nonbonded interactions",&
+            usage="RCUT_NB {real}", type_of_var=real_t, default_r_val=-1.0_dp,&
+            unit_str="angstrom",error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)                     
+
+       CALL keyword_create(keyword, name="EPS_SPLINE",&
+            description="Specify the threshold for the choice of the number of"//&
+            " points used in the splines (comparing the splined value with the "//&
+            " analytically evaluated one)",&
+            usage="EPS_SPLINE <REAL>", default_r_val=1.0E-7_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+    END IF
+  END SUBROUTINE create_SPLINE_section
 
 !***************************************************************************
 !!****f* input_cp2k_mm/create_TORSION_section [1.0] *
@@ -886,8 +978,10 @@ CONTAINS
 
        CALL keyword_create(keyword, name="RCUT",&
             description="Defines the cutoff parameter of the LJ potential",&
-            usage="RCUT {real}", required=.TRUE., type_of_var=real_t,&
-            n_var=1, unit_str="angstrom", error=error)
+            usage="RCUT {real}", default_r_val=cp_unit_to_cp2k(value=10.0_dp,&
+                                           unit_str="angstrom",&
+                                           error=error),&
+            unit_str="angstrom", error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -968,8 +1062,10 @@ CONTAINS
 
        CALL keyword_create(keyword, name="RCUT",&
             description="Defines the cutoff parameter of the Williams potential",&
-            usage="RCUT {real}", required=.TRUE., type_of_var=real_t,&
-            n_var=1, unit_str="angstrom", error=error)
+            usage="RCUT {real}",default_r_val=cp_unit_to_cp2k(value=10.0_dp,&
+                                           unit_str="angstrom",&
+                                           error=error),&
+            unit_str="angstrom", error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -1063,8 +1159,10 @@ CONTAINS
 
        CALL keyword_create(keyword, name="RCUT",&
             description="Defines the cutoff parameter of the Goodwin potential",&
-            usage="RCUT {real}", required=.TRUE., type_of_var=real_t,&
-            n_var=1, unit_str="angstrom", error=error)
+            usage="RCUT {real}",default_r_val=cp_unit_to_cp2k(value=10.0_dp,&
+                                           unit_str="angstrom",&
+                                           error=error),&
+            unit_str="angstrom", error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -1124,8 +1222,10 @@ CONTAINS
 
        CALL keyword_create(keyword, name="RCUT",&
             description="Defines the cutoff parameter of the IPBV potential",&
-            usage="RCUT {real}", required=.TRUE., default_r_val=7.8_dp,&
-            unit_str="angstrom", n_var=1, error=error)
+            usage="RCUT {real}",default_r_val=cp_unit_to_cp2k(value=10.0_dp,&
+                                           unit_str="angstrom",&
+                                           error=error),&
+            unit_str="angstrom", error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -1186,7 +1286,7 @@ CONTAINS
        CALL keyword_create(keyword, name="RCUT",&
             description="Defines the cutoff parameter of the BMHFT potential",&
             usage="RCUT {real}", default_r_val=7.8_dp,&
-            unit_str="angstrom", n_var=1, error=error)
+            unit_str="angstrom",  error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

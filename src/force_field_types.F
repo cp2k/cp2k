@@ -165,6 +165,10 @@ MODULE force_field_types
     REAL(KIND=dp)                             :: rcut_nb
     REAL(KIND=dp)                             :: ei_scale14
     REAL(KIND=dp)                             :: vdw_scale14
+    REAL(KIND=dp)                             :: eps_spline,&
+                                                 max_energy,&
+                                                 emax_spline,&
+                                                 rlow_nb
   END TYPE force_field_type
 
 ! *** Public subroutines ***
@@ -503,13 +507,9 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
-    ! 2. Initialize and Nullify things in ff_type
+    ! 2. Initialize hardcoded ff_type variables
     !-----------------------------------------------------------------------------
-    ff_type%ff_file_name=''
-    ff_type%ff_type='OFF'
-    ff_type%rcut_nb=-1.0_dp
-    ff_type%ei_scale14=0.0_dp
-    ff_type%vdw_scale14=1.0_dp
+    ff_type%rlow_nb=0.9_dp
     
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------

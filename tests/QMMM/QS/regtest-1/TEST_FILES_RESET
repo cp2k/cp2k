@@ -7,3 +7,19 @@ H2O-qmmm-gauss-1.inp
 H2O-qmmm-gauss-10.inp
 # numerical diifferences after reorganizing BFGS
 H2O-qmmm-none-1.inp
+# New spline implementation
+Ar-qmmm.inp
+H2O-qmmm-gauss-10.inp
+H2O-qmmm-gauss-11.inp
+H2O-qmmm-gauss-12.inp
+H2O-qmmm-gauss-13.inp
+H2O-qmmm-gauss-2.inp
+H2O-qmmm-gauss-3.inp
+H2O-qmmm-gauss-4.inp
+H2O-qmmm-gauss-5.inp
+H2O-qmmm-gauss-6.inp
+H2O-qmmm-gauss-7.inp
+H2O-qmmm-gauss-8.inp
+H2O-qmmm-gauss-9.inp
+H2O-qmmm-grid-1.inp
+H2O-qmmm-none-1.inp

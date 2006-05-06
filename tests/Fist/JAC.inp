@@ -4,16 +4,18 @@
     &FORCEFIELD
       parmfile sample_pot/par_all27_prot_lipid.inp
       parmtype CHM
-      rcut_nb 9.0
+      &spline
+       rcut_nb 9.0
+      &end
     &END FORCEFIELD
-    &POISSON_MM
+    &POISSON
       &EWALD
         EWALD_TYPE spme
         ALPHA .4
         GMAX 27
         O_SPLINE 4
       &END EWALD
-    &END POISSON_MM
+    &END POISSON
   &END MM
   &SUBSYS
     &CELL

@@ -2,6 +2,9 @@
 &FORCE_EVAL
   &MM
     &FORCEFIELD
+      &SPLINE
+        EPS_SPLINE 1.E-6
+      &END
       &NONBONDED
         &EAM
           atoms Cu Cu

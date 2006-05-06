@@ -28,6 +28,11 @@
         O_SPLINE 6
       &END EWALD
     &END POISSON
+    &PRINT
+      &FF_INFO
+        SPLINE_DATA
+      &END
+    &END
   &END MM
   &SUBSYS
     &CELL

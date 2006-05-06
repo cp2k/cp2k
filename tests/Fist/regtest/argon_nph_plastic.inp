@@ -2,6 +2,11 @@
 &FORCE_EVAL
   &MM
     &FORCEFIELD
+      &SPLINE
+        EMAX_ACCURACY 500.0
+        EMAX_SPLINE    1000.0
+        EPS_SPLINE 1.0E-9
+      &END
       &NONBONDED
         &LENNARD-JONES
           atoms Ar Ar
@@ -20,6 +25,10 @@
         EWALD_TYPE none
       &END EWALD
     &END POISSON
+    &PRINT
+      &FF_INFO
+      &END
+    &END
   &END MM
   &SUBSYS
     &CELL

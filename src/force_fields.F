@@ -294,9 +294,12 @@ CONTAINS
     IF (.NOT.failure) THEN
        CALL section_vals_val_get(ff_section,"PARMTYPE",c_val=ff_type%ff_type,error=error)
        CALL section_vals_val_get(ff_section,"PARMFILE",c_val=ff_type%ff_file_name,error=error)
-       CALL section_vals_val_get(ff_section,"RCUT_NB",r_val=ff_type%rcut_nb,error=error)
        CALL section_vals_val_get(ff_section,"EI_SCALE14",r_val=ff_type%ei_scale14,error=error)
        CALL section_vals_val_get(ff_section,"VDW_SCALE14",r_val=ff_type%vdw_scale14,error=error)
+       CALL section_vals_val_get(ff_section,"SPLINE%RCUT_NB",r_val=ff_type%rcut_nb,error=error)
+       CALL section_vals_val_get(ff_section,"SPLINE%EPS_SPLINE",r_val=ff_type%eps_spline,error=error)
+       CALL section_vals_val_get(ff_section,"SPLINE%EMAX_SPLINE",r_val=ff_type%emax_spline,error=error)
+       CALL section_vals_val_get(ff_section,"SPLINE%EMAX_ACCURACY",r_val=ff_type%max_energy,error=error)
 
        tmp_section  => section_vals_get_subs_vals(ff_section,"NONBONDED",error=error)
        CALL section_vals_get(tmp_section,explicit=explicit,error=error)
@@ -457,9 +460,10 @@ CONTAINS
       POINTER                                :: nonbonded
 
     IF  ( ( at1(1:1) == 'O' ) .AND. ( at2 (1:1) == 'O' ) ) THEN
-       nonbonded%ipbv%rcore = 0.9_dp       ! a.u.
-       nonbonded%ipbv%m = 0.0_dp           ! Kelvin/a.u. 
-       nonbonded%ipbv%b = 1.0e23_dp        ! Hartree
+       nonbonded%ipbv%rcore = 0.9_dp                  ! a.u.
+       nonbonded%ipbv%m = -1.2226442563398141E+11_dp   ! Kelvin/a.u. 
+       nonbonded%ipbv%b =  1.1791292385486696E+11_dp  ! Hartree
+
        ! Hartree*a.u.^2
        nonbonded%ipbv% a ( 2 ) = 4.786380682394_dp 
        nonbonded%ipbv% a ( 3 ) = -1543.407053545_dp
@@ -478,8 +482,9 @@ CONTAINS
     ELSEIF(((at1(1:1) == 'O').AND.(at2 (1:1) == 'H')).OR.&
          ((at1(1:1) == 'H').AND.(at2 (1:1) == 'O')))  THEN
        nonbonded%ipbv%rcore = 2.95_dp       ! a.u.
-       nonbonded%ipbv%m =  -0.00437054E0_dp ! Hartree/a.u. 
-       nonbonded%ipbv%b =  0.0313652_dp     ! Hartree
+
+       nonbonded%ipbv%m = -0.004025691139759147_dp  ! Hartree/a.u. 
+       nonbonded%ipbv%b =  -2.193731138097428_dp    ! Hartree
        ! Hartree*a.u.^2
        nonbonded%ipbv% a ( 2 ) = -195.7716013277_dp
        nonbonded%ipbv% a ( 3 ) = 15343.78613395_dp
@@ -497,8 +502,8 @@ CONTAINS
        nonbonded%ipbv% a ( 15 ) = -157581228915.5_dp
     ELSEIF ( ( at1(1:1) == 'H' ) .AND. ( at2 (1:1) == 'H' ) ) THEN
        nonbonded%ipbv%rcore = 3.165_dp     ! a.u.
-       nonbonded%ipbv%m = 0.00377391E0_dp  ! Hartree/a.u. 
-       nonbonded%ipbv%b = -0.02062040_dp   ! Hartree
+       nonbonded%ipbv%m = 0.002639704108787555_dp  ! Hartree/a.u. 
+       nonbonded%ipbv%b = -0.2735482611857583_dp ! Hartree
        ! Hartree*a.u.^2
        nonbonded%ipbv% a ( 2 ) = -26.29456010782_dp
        nonbonded%ipbv% a ( 3 ) =  2373.352548248_dp
@@ -518,6 +523,7 @@ CONTAINS
        CALL stop_program ("input_nonbonded","IPBV only for WATER")
     ENDIF
   END SUBROUTINE set_IPBV_ff
+
 
 !******************************************************************************
 !!****** force_fields/set_BMHFT_ff [1.0] *
@@ -1622,13 +1628,13 @@ CONTAINS
       name_atm_b_local, name_atm_c, name_atm_c2, name_atm_d, name_atm_d2
     INTEGER :: atm_a, atm_b, atm_c, atm_d, counter, first, handle, handle2, i, ii, &
       ikind, ilink, imul, iw, j, jj, jkind, k, last, match_names, n, natom, &
-      nbend, nbond, nimpr, nkinds, nonfo, ntorsion, nub, stat
+      nbend, nbond, nimpr, nkinds, nonfo, ntorsion, nub, stat, iw2, iw3
     INTEGER, DIMENSION(:), POINTER           :: molecule_list, my_atom_list
     INTEGER, POINTER :: map_bend_kind(:), map_bond_kind(:), map_impr_kind(:), &
       map_onfo_kind(:), map_torsion_kind(:), map_ub_kind(:)
     LOGICAL :: allocate_spline_bond_env, failure, found, found_a, found_b, &
       is_link_atom, my_qmmm, only_qm, use_qmmm_ff
-    REAL(KIND=dp) :: default_rcutsq, epsilon, epsilon_a, epsilon_b, qi1, qi2, &
+    REAL(KIND=dp) :: epsilon, epsilon_a, epsilon_b, qi1, qi2, &
       qi3, qi4, rmin, rmin2_a, rmin2_b, scale_factor
     REAL(KIND=dp), DIMENSION(:), POINTER     :: charge
     TYPE(atom_type), DIMENSION(:), POINTER   :: atom_list
@@ -1670,7 +1676,10 @@ CONTAINS
     logger => cp_error_get_logger(error)
     iw = cp_print_key_unit_nr(logger,mm_section,"PRINT%FF_INFO",&
          extension=".mmLog",error=error)
-
+    iw2= cp_print_key_unit_nr(logger,mm_section,"PRINT%FF_INFO/SPLINE_INFO",&
+         extension=".mmLog",error=error)
+    iw3= cp_print_key_unit_nr(logger,mm_section,"PRINT%FF_INFO/SPLINE_DATA",&
+         extension=".mmLog",error=error)
     !------------------------------------------------------------------------------
     !------------------------------------------------------------------------------
     NULLIFY(atomic_kind,molecule_kind,atom_list,bond_list,bend_list,&
@@ -1685,7 +1694,6 @@ CONTAINS
     my_qmmm = .FALSE.
     use_qmmm_ff = qmmm_env%use_qmmm_ff
     allocate_spline_bond_env = .FALSE.
-    default_rcutsq = (10.0_dp*bohr)*(10.0_dp*bohr)
     IF (PRESENT(qmmm).AND.PRESENT(qmmm_env)) my_qmmm = qmmm
     inp_info => ff_type%inp_info
     chm_info => ff_type%chm_info
@@ -2828,12 +2836,7 @@ CONTAINS
              potparm_bond%pot(i,j)%pot%lj%epsilon = epsilon
              potparm_bond%pot(i,j)%pot%lj%sigma6  = 0.5_dp*rmin**6
              potparm_bond%pot(i,j)%pot%lj%sigma12 = 0.25_dp*rmin**12
-             IF(ff_type%rcut_nb>0.0_dp) THEN
-                potparm_bond%pot(i,j)%pot%rcutsq     = ff_type%rcut_nb*ff_type%rcut_nb
-             ELSE
-                !Corresponds to an cutoff of 10A
-                potparm_bond%pot(i,j)%pot%rcutsq     = default_rcutsq
-             END IF
+             potparm_bond%pot(i,j)%pot%rcutsq     = (10.0_dp*bohr)**2
              IF (found) CALL Pwarning("Multiple Lennard-Jones declarations: "//TRIM(name_atm_a)//&
                   " and "//TRIM(name_atm_b)//" overwriting!",globenv,error)
              found = .TRUE.
@@ -2898,36 +2901,36 @@ CONTAINS
              potparm_bond%pot(i,j)%pot%type       = 'UNSET'
              potparm_bond%pot(i,j)%pot%at1        = name_atm_a
              potparm_bond%pot(i,j)%pot%at2        = name_atm_b
-             potparm_bond%pot(i,j)%pot%rcutsq     = default_rcutsq
           ELSE
              allocate_spline_bond_env = .TRUE.
           END IF
-
+          ! If defined global RCUT let's use it
+          IF(ff_type%rcut_nb>0.0_dp) THEN
+             potparm_bond%pot(i,j)%pot%rcutsq     = ff_type%rcut_nb*ff_type%rcut_nb
+          END IF
           IF (only_qm) THEN
              CALL pair_potential_single_clean( potparm_bond%pot(i,j)%pot )
-             potparm_bond%pot(i,j)%pot%rcutsq     = default_rcutsq
           END IF
-
        END DO
     END DO
     NULLIFY(spline_bond_env)
-!   IF (allocate_spline_bond_env) THEN
-       nkinds = SIZE ( potparm_bond%pot, 1 )
-       CALL spline_env_create ( spline_bond_env, nkinds, error )
-       CALL spline_nonbond_control ( spline_bond_env, potparm_bond, &
-            atomic_kind_set , ewald_env, ff_type%ei_scale14,ff_type%vdw_scale14)
-       ! point potparm ( ikind, jkind ) % spline_data => spline_data_p ( n )
-       DO ikind = 1, SIZE ( potparm_bond%pot, 1 )
-          DO jkind = ikind, SIZE ( potparm_bond%pot, 2 )
-             n = spline_bond_env % spltab ( ikind, jkind )
-             spline_data => spline_bond_env % spline_data_p ( n ) % spline_data
-             !
-             CALL spline_data_retain ( spline_data, error )
-             CALL spline_data_release ( potparm_bond %pot( ikind, jkind )%pot % pair_spline_data, error )
-             potparm_bond %pot( ikind, jkind )%pot % pair_spline_data => spline_data
-          END DO
+    nkinds = SIZE ( potparm_bond%pot, 1 )
+    CALL spline_env_create ( spline_bond_env, nkinds, error )
+    CALL spline_nonbond_control ( spline_bond_env, potparm_bond, &
+         atomic_kind_set , ewald_env, ff_type%ei_scale14,ff_type%vdw_scale14,&
+         ff_type%eps_spline,max_energy=ff_type%max_energy, rlow_nb=ff_type%rlow_nb,&
+         emax_spline=ff_type%emax_spline, iw=iw2, iw2=iw3, error=error)
+    ! point potparm ( ikind, jkind ) % spline_data => spline_data_p ( n )
+    DO ikind = 1, SIZE ( potparm_bond%pot, 1 )
+       DO jkind = ikind, SIZE ( potparm_bond%pot, 2 )
+          n = spline_bond_env % spltab ( ikind, jkind )
+          spline_data => spline_bond_env % spline_data_p ( n ) % spline_data
+          !
+          CALL spline_data_retain ( spline_data, error )
+          CALL spline_data_release ( potparm_bond %pot( ikind, jkind )%pot % pair_spline_data, error )
+          potparm_bond %pot( ikind, jkind )%pot % pair_spline_data => spline_data
        END DO
-!   END IF
+    END DO
     CALL timestop(handle2)
 
 
@@ -2946,12 +2949,10 @@ CONTAINS
        CALL get_molecule(molecule=molecule,first_atom=first,last_atom=last)
        DO j=1,nonfo
           atm_a = onfo_list(j)%a
-          !atomic_kind => atom_list(atm_a)%atomic_kind
           atomic_kind => particle_set(atm_a+first-1)%atomic_kind
           CALL get_atomic_kind(atomic_kind=atomic_kind,&
                name=name_atm_a, kind_number = ikind )
           atm_b = onfo_list(j)%b
-          !atomic_kind => atom_list(atm_b)%atomic_kind
           atomic_kind => particle_set(atm_b+first-1)%atomic_kind
           CALL get_atomic_kind(atomic_kind=atomic_kind,&
                name=name_atm_b, kind_number = jkind )
@@ -3117,12 +3118,7 @@ CONTAINS
                 potparm_nonbond%pot(i,j)%pot%lj%epsilon = epsilon
                 potparm_nonbond%pot(i,j)%pot%lj%sigma6  = 0.5_dp*rmin**6
                 potparm_nonbond%pot(i,j)%pot%lj%sigma12 = 0.25_dp*rmin**12
-                IF(ff_type%rcut_nb>0.0_dp) THEN
-                   potparm_nonbond%pot(i,j)%pot%rcutsq     = ff_type%rcut_nb*ff_type%rcut_nb
-                ELSE
-                   !Corresponds to an cutoff of 10A
-                   potparm_nonbond%pot(i,j)%pot%rcutsq     = default_rcutsq
-                END IF
+                potparm_nonbond%pot(i,j)%pot%rcutsq     = (10.0_dp*bohr)**2
                 IF (found) CALL Pwarning("Multiple Lennard-Jones declarations: "//TRIM(name_atm_a)//&
                      " and "//TRIM(name_atm_b)//" overwriting!",&
                      globenv,error)
@@ -3187,12 +3183,14 @@ CONTAINS
              IF(iw>0) WRITE(iw,*) "    spline_nonbond_env ",j," : ",&
                   TRIM(name_atm_a)," ",&
                   TRIM(name_atm_b)
-             CALL stop_program("FF_pack","missing pair pot "//TRIM(name_atm_a)//" "//TRIM(name_atm_b))
+3239             CALL stop_program("FF_pack","missing pair pot "//TRIM(name_atm_a)//" "//TRIM(name_atm_b))
           END IF
-
+          ! If defined global RCUT let's use it
+          IF(ff_type%rcut_nb>0.0_dp) THEN
+             potparm_nonbond%pot(i,j)%pot%rcutsq     = ff_type%rcut_nb*ff_type%rcut_nb
+          END IF
           IF (only_qm) THEN
              CALL pair_potential_single_clean( potparm_nonbond%pot(i,j)%pot )
-             potparm_nonbond%pot(i,j)%pot%rcutsq     = default_rcutsq
           END IF
        END DO
     END DO
@@ -3202,12 +3200,17 @@ CONTAINS
     !---------------------------------------
     CALL spline_env_create(spline_nonbond_env, nkinds, error)
     CALL spline_nonbond_control(spline_nonbond_env, potparm_nonbond, &
-         atomic_kind_set,ewald_env)
+         atomic_kind_set,ewald_env,eps_spline=ff_type%eps_spline,&
+         max_energy=ff_type%max_energy, rlow_nb=ff_type%rlow_nb,&
+         emax_spline=ff_type%emax_spline, iw=iw2, iw2=iw3, error=error)
     !---------------------------------------
     ! create the manybody spline environment
     !---------------------------------------
     CALL spline_env_create(spline_manybody_env, nkinds, error)
-    CALL spline_manybody_control(spline_manybody_env, potparm_nonbond)
+    CALL spline_manybody_control(spline_manybody_env, potparm_nonbond,&
+         eps_spline=ff_type%eps_spline,max_energy=ff_type%max_energy,&
+         rlow_nb=ff_type%rlow_nb,&
+         emax_spline=ff_type%emax_spline, iw=iw2, iw2=iw3, error=error)
 
     DO ikind = 1, SIZE ( potparm_nonbond%pot, 1 )
        DO jkind = ikind, SIZE ( potparm_nonbond%pot, 2)
@@ -3226,14 +3229,16 @@ CONTAINS
           ! 2nd: The many-body contribution
           !---------------------------------------
           n = spline_manybody_env % spltab ( ikind, jkind )
-          spline_data => spline_manybody_env % spline_data_p ( n ) % spline_data
-          ! do i,j
-          IF ( ASSOCIATED ( spline_data ) ) THEN
-             CALL spline_data_retain ( spline_data, error )
-             CALL spline_data_release (  &
-                  potparm_nonbond%pot ( ikind, jkind )%pot % rho_spline_data, error )
-             potparm_nonbond%pot ( ikind, jkind )%pot % rho_spline_data => spline_data
-          ENDIF
+          IF (n>0) THEN
+             spline_data => spline_manybody_env % spline_data_p ( n ) % spline_data
+             ! do i,j
+             IF ( ASSOCIATED ( spline_data ) ) THEN
+                CALL spline_data_retain ( spline_data, error )
+                CALL spline_data_release (  &
+                     potparm_nonbond%pot ( ikind, jkind )%pot % rho_spline_data, error )
+                potparm_nonbond%pot ( ikind, jkind )%pot % rho_spline_data => spline_data
+             ENDIF
+          END IF
        END DO
     END DO
     CALL fist_nonbond_env_create (  fist_nonbond_env, potparm_nonbond, error )
@@ -3244,6 +3249,10 @@ CONTAINS
     CALL spline_env_release (spline_nonbond_env,error)
     CALL spline_env_release (spline_bond_env,error)
 
+    CALL cp_print_key_finished_output(iw3,logger,mm_section,&
+         "PRINT%FF_INFO/SPLINE_DATA",error=error)
+    CALL cp_print_key_finished_output(iw2,logger,mm_section,&
+         "PRINT%FF_INFO/SPLINE_INFO",error=error)
     CALL cp_print_key_finished_output(iw,logger,mm_section,&
          "PRINT%FF_INFO",error=error)
     CALL timestop(0.0_dp,handle)

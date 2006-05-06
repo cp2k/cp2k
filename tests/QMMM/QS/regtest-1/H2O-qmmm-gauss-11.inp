@@ -34,7 +34,9 @@
     &FORCEFIELD
       parmfile 2H2O.pot
       parmtype CHM
-      rcut_nb 5.2917720830
+      &spline
+       rcut_nb 5.2917720830
+      &end 
     &END FORCEFIELD
     &POISSON
       &EWALD

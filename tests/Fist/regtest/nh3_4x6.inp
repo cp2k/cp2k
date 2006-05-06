@@ -2,7 +2,9 @@
 &FORCE_EVAL
   &MM
     &FORCEFIELD
-      rcut_nb 6.9
+      &spline
+       rcut_nb 6.9
+      &end
       parmfile charmm.pot
       parmtype CHM
       &CHARGE

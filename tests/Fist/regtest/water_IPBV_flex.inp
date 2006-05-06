@@ -2,6 +2,9 @@
 &FORCE_EVAL
   &MM
     &FORCEFIELD
+      &SPLINE
+        EPS_SPLINE 1.E-5
+      &END
       &BOND
         ATOMS O H
         K 0.4015204 0.0 0.0

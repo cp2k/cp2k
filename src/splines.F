@@ -23,7 +23,7 @@ MODULE splines
 
   USE kinds,                           ONLY: dp
   USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+       stop_program
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -40,48 +40,41 @@ MODULE splines
   PUBLIC :: spline_data_type ! the data structure for spline table
   PUBLIC :: init_splinexy    ! allocates x and y vectors for splines
   PUBLIC :: init_spline      ! generate table for spline (allocates y2)
-  PUBLIC :: spline           ! return value of spline for given abscissa
-                             ! (optional:also y1)
-  PUBLIC :: spline_1         ! return value of 1. derivative of spline
-                             ! for given abscissa
-  PUBLIC :: spline_int       ! return value of integral on given interval
-                             ! of spline
-  PUBLIC :: kill_spline      ! destructor ( spl%x,y und/oder spl%y2)
   PUBLIC :: splineh          ! return value of spline and 1. derivative
                              ! without checks (fast routine for pair_potential)
 
-!******************************************************************************
-!!****
-!!****s* splines/spline_data [1.0] *
-!!
-!!   NAME
-!!     spline_data
-!!
-!!   FUNCTION
-!!     Data-structure that holds all needed information about
-!!     a specific spline interpolation.
-!!
-!!   AUTHOR
-!!     unknown
-!!
-!!   MODIFICATION HISTORY
-!!     2001-09-19-HAF added this doc entry and changed formatting
-!!
-!!   SOURCE
-!******************************************************************************
+  !******************************************************************************
+  !!****
+  !!****s* splines/spline_data [1.0] *
+  !!
+  !!   NAME
+  !!     spline_data
+  !!
+  !!   FUNCTION
+  !!     Data-structure that holds all needed information about
+  !!     a specific spline interpolation.
+  !!
+  !!   AUTHOR
+  !!     unknown
+  !!
+  !!   MODIFICATION HISTORY
+  !!     2001-09-19-HAF added this doc entry and changed formatting
+  !!
+  !!   SOURCE
+  !******************************************************************************
 
   TYPE spline_data_type
      INTEGER :: ref_count, id_nr
      REAL (KIND=dp), POINTER :: x  ( : )    ! the x values
      REAL (KIND=dp), POINTER :: y  ( : )    ! the function values y(x)
      REAL (KIND=dp), POINTER :: y2 ( : )    ! the 2nd derivative via interpolation
-     INTEGER               :: n           ! dimension of above arrays
-     INTEGER               :: pos         ! index for arrays for last access
-                                          ! not used if uniform increments
+     INTEGER               :: n             ! dimension of above arrays
+     INTEGER               :: pos           ! index for arrays for last access
+     ! not used if uniform increments
      REAL (KIND=dp)          :: h           ! uniform increment of x if applicable
      REAL (KIND=dp)          :: invh        ! inverse of h
      REAL (KIND=dp)          :: h26         ! 1/6 * h**2 if uniform increments
-                                          ! 1/6 otherwise
+     ! 1/6 otherwise
      REAL (KIND=dp)          :: x1          ! starting x value if uniform incr.
      REAL (KIND=dp)          :: xn          ! end x value if uniform incr.
   END TYPE spline_data_type
@@ -94,364 +87,376 @@ MODULE splines
      INTEGER :: ref_count, id_nr
      TYPE ( spline_data_p_type ), POINTER, DIMENSION ( : ) :: spline_data_p
      INTEGER, POINTER, DIMENSION ( :, : ) :: spltab
-     INTEGER  :: nspline_points
   END TYPE spline_environment_type
-!******************************************************************************
-!!*****
+  !******************************************************************************
+  !!*****
 
 CONTAINS
 
-!******************************************************************************
-!!****
-!!****s* splines/spline_env_release [1.0] *
-!!
-!!   NAME
-!!     spline_env_release
-!!
-!!   FUNCTION
-!!     releases spline_env
-!!   AUTHOR
-!!     unknown
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
-SUBROUTINE spline_env_release(spline_env,error)
+  !******************************************************************************
+  !!****
+  !!****s* splines/spline_env_release [1.0] *
+  !!
+  !!   NAME
+  !!     spline_env_release
+  !!
+  !!   FUNCTION
+  !!     releases spline_env
+  !!   AUTHOR
+  !!     unknown
+  !!
+  !!   MODIFICATION HISTORY
+  !!
+  !!   SOURCE
+  !******************************************************************************
+  SUBROUTINE spline_env_release(spline_env,error)
     TYPE(spline_environment_type), POINTER   :: spline_env
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+         OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'spline_env_release', &
-      routineP = moduleN//':'//routineN
+         routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, stat
     LOGICAL                                  :: failure
     TYPE(spline_data_type), POINTER          :: spline_data
 
-  failure=.FALSE.
+    failure=.FALSE.
 
-  IF (ASSOCIATED(spline_env)) THEN
-     CPPrecondition(spline_env%ref_count>0,cp_failure_level,routineP,error,failure)
-     spline_env%ref_count=spline_env%ref_count-1
-     IF (spline_env%ref_count<1) THEN
-        DEALLOCATE (  spline_env % spltab, stat = stat )
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-        DO i = 1, SIZE (  spline_env % spline_data_p )
-          spline_data => spline_env % spline_data_p ( i ) % spline_data
-          CALL spline_data_release ( spline_data, error )
-        END DO
-        DEALLOCATE (  spline_env % spline_data_p, stat = stat )
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-        NULLIFY ( spline_env % spltab )
-        NULLIFY ( spline_env % spline_data_p )
-        DEALLOCATE (  spline_env , stat = stat )
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)        
-     END IF
-  END IF
-  NULLIFY ( spline_env )
-END SUBROUTINE spline_env_release
-!***************************************************************************
+    IF (ASSOCIATED(spline_env)) THEN
+       CPPrecondition(spline_env%ref_count>0,cp_failure_level,routineP,error,failure)
+       spline_env%ref_count=spline_env%ref_count-1
+       IF (spline_env%ref_count<1) THEN
+          DEALLOCATE (  spline_env % spltab, stat = stat )
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          DO i = 1, SIZE (  spline_env % spline_data_p )
+             spline_data => spline_env % spline_data_p ( i ) % spline_data
+             CALL spline_data_release ( spline_data, error )
+          END DO
+          DEALLOCATE (  spline_env % spline_data_p, stat = stat )
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+          NULLIFY ( spline_env % spltab )
+          NULLIFY ( spline_env % spline_data_p )
+          DEALLOCATE (  spline_env , stat = stat )
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)        
+       END IF
+    END IF
+    NULLIFY ( spline_env )
+  END SUBROUTINE spline_env_release
+  !***************************************************************************
 
-!******************************************************************************
-!!****
-!!****s* splines/spline_data_release [1.0] *
-!!
-!!   NAME
-!!     spline_data_release
-!!
-!!   FUNCTION
-!!     releases spline_data
-!!    
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
-SUBROUTINE spline_data_release (spline_data,error)
+  !******************************************************************************
+  !!****
+  !!****s* splines/spline_data_release [1.0] *
+  !!
+  !!   NAME
+  !!     spline_data_release
+  !!
+  !!   FUNCTION
+  !!     releases spline_data
+  !!    
+  !!
+  !!   AUTHOR
+  !!     CJM
+  !!
+  !!   MODIFICATION HISTORY
+  !!
+  !!   SOURCE
+  !******************************************************************************
+  SUBROUTINE spline_data_release (spline_data,error)
     TYPE(spline_data_type), POINTER          :: spline_data
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+         OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'spline_data_release', &
-      routineP = moduleN//':'//routineN
+         routineP = moduleN//':'//routineN
 
     INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
+    failure=.FALSE.
 
-  IF (ASSOCIATED(spline_data)) THEN
-     CPPrecondition(spline_data%ref_count>0,cp_failure_level,routineP,error,failure)
-     spline_data%ref_count=spline_data%ref_count-1
-     IF (spline_data%ref_count<1) THEN
-      CALL kill_spline ( spline_data  )
-      DEALLOCATE (  spline_data, stat = stat )
-      CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-     END IF
-  END IF
-  NULLIFY ( spline_data )
-END SUBROUTINE spline_data_release
-!******************************************************************************
-!!****
-!!****s* splines/spline_data_retain [1.0] *
-!!
-!!   NAME
-!!     spline_env_retain
-!!
-!!   FUNCTION
-!!     retains spline_env
-!!    
-!!
-!!   AUTHOR
-!!     CJM
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
-SUBROUTINE spline_data_retain(spline_data,error)
+    IF (ASSOCIATED(spline_data)) THEN
+       CPPrecondition(spline_data%ref_count>0,cp_failure_level,routineP,error,failure)
+       spline_data%ref_count=spline_data%ref_count-1
+       IF (spline_data%ref_count<1) THEN
+          IF ( ASSOCIATED ( spline_data%x)) THEN
+             DEALLOCATE (spline_data%x,STAT=stat)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+             NULLIFY (spline_data%x)
+          END IF
+          IF ( ASSOCIATED ( spline_data%y)) THEN
+             DEALLOCATE (spline_data%y,STAT=stat)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+             NULLIFY (spline_data%y)
+          END IF
+          IF ( ASSOCIATED ( spline_data%y2)) THEN
+             DEALLOCATE (spline_data%y2,STAT=stat)
+             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+             NULLIFY (spline_data%y2)
+          END IF
+          DEALLOCATE (  spline_data, stat = stat )
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+       END IF
+    END IF
+    NULLIFY ( spline_data )
+  END SUBROUTINE spline_data_release
+  !******************************************************************************
+  !!****
+  !!****s* splines/spline_data_retain [1.0] *
+  !!
+  !!   NAME
+  !!     spline_env_retain
+  !!
+  !!   FUNCTION
+  !!     retains spline_env
+  !!    
+  !!
+  !!   AUTHOR
+  !!     CJM
+  !!
+  !!   MODIFICATION HISTORY
+  !!
+  !!   SOURCE
+  !******************************************************************************
+  SUBROUTINE spline_data_retain(spline_data,error)
     TYPE(spline_data_type), POINTER          :: spline_data
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+         OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'spline_data_retain', &
-      routineP = moduleN//':'//routineN
+         routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
-!!  
-  CPPrecondition(ASSOCIATED(spline_data),cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-     CPPrecondition(spline_data%ref_count>0,cp_failure_level,routineP,error,failure)
-     spline_data%ref_count=spline_data%ref_count+1
-  END IF
-END SUBROUTINE spline_data_retain
+    failure=.FALSE.
+    !!  
+    CPPrecondition(ASSOCIATED(spline_data),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CPPrecondition(spline_data%ref_count>0,cp_failure_level,routineP,error,failure)
+       spline_data%ref_count=spline_data%ref_count+1
+    END IF
+  END SUBROUTINE spline_data_retain
 
-!******************************************************************************
-!!****
-!!****s* splines/spline_env_retain [1.0] *
-!!
-!!   NAME
-!!     spline_env_retain
-!!
-!!   FUNCTION
-!!     retains spline_env
-!!    
-!!
-!!   AUTHOR
-!!     unknown
-!!
-!!   MODIFICATION HISTORY
-!!     2001-09-19-HAF added this doc entry and changed formatting
-!!
-!!   SOURCE
-!******************************************************************************
-SUBROUTINE spline_env_retain(spline_env,error)
+  !******************************************************************************
+  !!****
+  !!****s* splines/spline_env_retain [1.0] *
+  !!
+  !!   NAME
+  !!     spline_env_retain
+  !!
+  !!   FUNCTION
+  !!     retains spline_env
+  !!    
+  !!
+  !!   AUTHOR
+  !!     unknown
+  !!
+  !!   MODIFICATION HISTORY
+  !!     2001-09-19-HAF added this doc entry and changed formatting
+  !!
+  !!   SOURCE
+  !******************************************************************************
+  SUBROUTINE spline_env_retain(spline_env,error)
     TYPE(spline_environment_type), POINTER   :: spline_env
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+         OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'spline_env_retain', &
-      routineP = moduleN//':'//routineN
+         routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
-!!  
-  CPPrecondition(ASSOCIATED(spline_env),cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-     CPPrecondition(spline_env%ref_count>0,cp_failure_level,routineP,error,failure)
-     spline_env%ref_count=spline_env%ref_count+1
-  END IF
-END SUBROUTINE spline_env_retain
+    failure=.FALSE.
+    !!  
+    CPPrecondition(ASSOCIATED(spline_env),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CPPrecondition(spline_env%ref_count>0,cp_failure_level,routineP,error,failure)
+       spline_env%ref_count=spline_env%ref_count+1
+    END IF
+  END SUBROUTINE spline_env_retain
 
-!******************************************************************************
-!!****
-!!****s* splines/spline_env_create [1.0] *
-!!
-!!   NAME
-!!     spline_env_create
-!!
-!!   FUNCTION
-!!     Data-structure that holds all needed information about
-!!     a specific spline interpolation.
-!!
-!!   AUTHOR
-!!     unknown
-!!
-!!   MODIFICATION HISTORY
-!!     2001-09-19-HAF added this doc entry and changed formatting
-!!
-!!   SOURCE
-!******************************************************************************
-SUBROUTINE spline_env_create ( spline_env, ntype, error )
+  !******************************************************************************
+  !!****
+  !!****s* splines/spline_env_create [1.0] *
+  !!
+  !!   NAME
+  !!     spline_env_create
+  !!
+  !!   FUNCTION
+  !!     Data-structure that holds all needed information about
+  !!     a specific spline interpolation.
+  !!
+  !!   AUTHOR
+  !!     unknown
+  !!
+  !!   MODIFICATION HISTORY
+  !!     2001-09-19-HAF added this doc entry and changed formatting
+  !!
+  !!   SOURCE
+  !******************************************************************************
+  SUBROUTINE spline_env_create ( spline_env, ntype, error )
     TYPE(spline_environment_type), POINTER   :: spline_env
     INTEGER, INTENT(IN)                      :: ntype
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+         OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'spline_env_create', &
-      routineP = moduleN//':'//routineN
+         routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, isos, ntab, stat
+    INTEGER                                  :: i, ntab, stat
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
-  
-  ALLOCATE(spline_env, stat=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-    NULLIFY ( spline_env % spline_data_p )
-    NULLIFY ( spline_env % spltab )
-    spline_env%ref_count=1
-    last_spline_env_id_nr=last_spline_env_id_nr+1
-    spline_env%id_nr=last_spline_env_id_nr
-! Allocate the number of spline data tables (upper triangular)
-    ntab = ( ntype * ntype + ntype ) / 2
-    ALLOCATE ( spline_env % spline_data_p ( ntab ), STAT = isos )
-    IF ( isos /= 0 ) CALL stop_memory ( 'splines', &
-       'spline_data_p', ntab )
-    ALLOCATE ( spline_env % spltab ( ntype, ntype ), STAT = isos )
-    IF ( isos /= 0 ) CALL stop_memory ( 'splines', &
-       'spltab', ntype ** 2 )
-    DO i = 1, ntab
-      NULLIFY ( spline_env % spline_data_p ( i ) % spline_data )
-      CALL spline_data_create ( spline_env % spline_data_p ( i ) % spline_data )
-    END DO
-    spline_env % nspline_points = 2500
-  END IF
-END SUBROUTINE spline_env_create
-!******************************************************************************
-!!****
-!!****s* splines/spline_data_copy [1.0] *
-!!
-!!   NAME
-!!     spline_data_copy
-!!
-!!   FUNCTION
-!!     Copy Data-structure that constains spline table
-!!
-!!   AUTHOR
-!!     teo 11.2005
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
-SUBROUTINE spline_data_copy ( spline_data_source, spline_data_dest, error )
+    failure=.FALSE.
+
+    ALLOCATE(spline_env, stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       NULLIFY ( spline_env % spline_data_p )
+       NULLIFY ( spline_env % spltab )
+       spline_env%ref_count=1
+       last_spline_env_id_nr=last_spline_env_id_nr+1
+       spline_env%id_nr=last_spline_env_id_nr
+       ! Allocate the number of spline data tables (upper triangular)
+       ntab = ( ntype * ntype + ntype ) / 2
+       ALLOCATE ( spline_env % spline_data_p ( ntab ),  stat=stat )
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+       ALLOCATE ( spline_env % spltab ( ntype, ntype ), stat=stat )
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+       DO i = 1, ntab
+          NULLIFY ( spline_env % spline_data_p ( i ) % spline_data )
+          CALL spline_data_create ( spline_env % spline_data_p ( i ) % spline_data )
+       END DO
+    END IF
+  END SUBROUTINE spline_env_create
+  !******************************************************************************
+  !!****
+  !!****s* splines/spline_data_copy [1.0] *
+  !!
+  !!   NAME
+  !!     spline_data_copy
+  !!
+  !!   FUNCTION
+  !!     Copy Data-structure that constains spline table
+  !!
+  !!   AUTHOR
+  !!     teo 11.2005
+  !!
+  !!   MODIFICATION HISTORY
+  !!
+  !!   SOURCE
+  !******************************************************************************
+  SUBROUTINE spline_data_copy ( spline_data_source, spline_data_dest, error )
     TYPE(spline_data_type), POINTER          :: spline_data_source, &
-                                                spline_data_dest
+         spline_data_dest
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+         OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'spline_data_copy', &
-      routineP = moduleN//':'//routineN
+         routineP = moduleN//':'//routineN
 
     INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
-  CPPostcondition(ASSOCIATED(spline_data_source),cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-     IF (.NOT.ASSOCIATED(spline_data_dest)) CALL spline_data_create(spline_data_dest,error)
-     
-     spline_data_dest%ref_count = spline_data_source%ref_count
-     spline_data_dest%id_nr     = spline_data_source%id_nr
-     spline_data_dest%n         = spline_data_source%n
-     spline_data_dest%pos       = spline_data_source%pos
-     spline_data_dest%h         = spline_data_source%h   
-     spline_data_dest%invh      = spline_data_source%invh
-     spline_data_dest%h26       = spline_data_source%h26 
-     spline_data_dest%x1        = spline_data_source%x1  
-     spline_data_dest%xn        = spline_data_source%xn  
+    failure=.FALSE.
+    CPPostcondition(ASSOCIATED(spline_data_source),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       IF (.NOT.ASSOCIATED(spline_data_dest)) CALL spline_data_create(spline_data_dest,error)
 
-     IF (ASSOCIATED(spline_data_source%x)) THEN
-        ALLOCATE(spline_data_dest%x(SIZE(spline_data_source%x)), stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-        spline_data_dest%x = spline_data_source%x
-     END IF
-     IF (ASSOCIATED(spline_data_source%y)) THEN
-        ALLOCATE(spline_data_dest%y(SIZE(spline_data_source%y)), stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-        spline_data_dest%y = spline_data_source%y
-     END IF
-     IF (ASSOCIATED(spline_data_source%y2)) THEN
-        ALLOCATE(spline_data_dest%y2(SIZE(spline_data_source%y2)), stat=stat)
-        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-        spline_data_dest%y2 = spline_data_source%y2
-     END IF
-  END IF
-END SUBROUTINE spline_data_copy
-!******************************************************************************
-!!****
-!!****s* splines/spline_data_create [1.0] *
-!!
-!!   NAME
-!!     spline_data_create
-!!
-!!   FUNCTION
-!!     Data-structure that constains spline table
-!!
-!!   AUTHOR
-!!     unknown
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   SOURCE
-!******************************************************************************
-SUBROUTINE spline_data_create ( spline_data, error )
+       spline_data_dest%ref_count = spline_data_source%ref_count
+       spline_data_dest%id_nr     = spline_data_source%id_nr
+       spline_data_dest%n         = spline_data_source%n
+       spline_data_dest%pos       = spline_data_source%pos
+       spline_data_dest%h         = spline_data_source%h   
+       spline_data_dest%invh      = spline_data_source%invh
+       spline_data_dest%h26       = spline_data_source%h26 
+       spline_data_dest%x1        = spline_data_source%x1  
+       spline_data_dest%xn        = spline_data_source%xn  
+
+       IF (ASSOCIATED(spline_data_source%x)) THEN
+          ALLOCATE(spline_data_dest%x(SIZE(spline_data_source%x)), stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          spline_data_dest%x = spline_data_source%x
+       END IF
+       IF (ASSOCIATED(spline_data_source%y)) THEN
+          ALLOCATE(spline_data_dest%y(SIZE(spline_data_source%y)), stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          spline_data_dest%y = spline_data_source%y
+       END IF
+       IF (ASSOCIATED(spline_data_source%y2)) THEN
+          ALLOCATE(spline_data_dest%y2(SIZE(spline_data_source%y2)), stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          spline_data_dest%y2 = spline_data_source%y2
+       END IF
+    END IF
+  END SUBROUTINE spline_data_copy
+  !******************************************************************************
+  !!****
+  !!****s* splines/spline_data_create [1.0] *
+  !!
+  !!   NAME
+  !!     spline_data_create
+  !!
+  !!   FUNCTION
+  !!     Data-structure that constains spline table
+  !!
+  !!   AUTHOR
+  !!     unknown
+  !!
+  !!   MODIFICATION HISTORY
+  !!
+  !!   SOURCE
+  !******************************************************************************
+  SUBROUTINE spline_data_create ( spline_data, error )
     TYPE(spline_data_type), POINTER          :: spline_data
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+         OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'spline_data_create', &
-      routineP = moduleN//':'//routineN
+         routineP = moduleN//':'//routineN
 
     INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
-  failure=.FALSE.
-  
-  ALLOCATE(spline_data, stat=stat)
-  CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-    spline_data%ref_count=1
-    last_spline_data_id_nr=last_spline_data_id_nr+1
-    spline_data%id_nr=last_spline_data_id_nr
-    NULLIFY ( spline_data % x )
-    NULLIFY ( spline_data % y )
-    NULLIFY ( spline_data % y2 )
-  END IF
-END SUBROUTINE spline_data_create
+    failure=.FALSE.
 
-!******************************************************************************
-!!****m* splines/init_splinexy [1.0] *
-!!
-!!   NAME
-!!     init_splinexy
-!!
-!!   FUNCTION
-!!     allocates storage for function table to be interpolated
-!!     both x and y are allocated
-!!
-!!   AUTHOR
-!!     unknown
-!!
-!!   INPUTS
-!!     spl : spline_data structure to be initialized
-!!     nn  : integer number of datapoints, that the function table will hold
-!!
-!!   MODIFICATION HISTORY
-!!     2001-09-21-HAF added this doc entry and changed formatting
-!!
-!!   SOURCE
-!******************************************************************************
-SUBROUTINE init_splinexy ( spl, nn )
+    ALLOCATE(spline_data, stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       spline_data%ref_count=1
+       last_spline_data_id_nr=last_spline_data_id_nr+1
+       spline_data%id_nr=last_spline_data_id_nr
+       NULLIFY ( spline_data % x )
+       NULLIFY ( spline_data % y )
+       NULLIFY ( spline_data % y2 )
+    END IF
+  END SUBROUTINE spline_data_create
+
+  !******************************************************************************
+  !!****m* splines/init_splinexy [1.0] *
+  !!
+  !!   NAME
+  !!     init_splinexy
+  !!
+  !!   FUNCTION
+  !!     allocates storage for function table to be interpolated
+  !!     both x and y are allocated
+  !!
+  !!   AUTHOR
+  !!     unknown
+  !!
+  !!   INPUTS
+  !!     spl : spline_data structure to be initialized
+  !!     nn  : integer number of datapoints, that the function table will hold
+  !!
+  !!   MODIFICATION HISTORY
+  !!     2001-09-21-HAF added this doc entry and changed formatting
+  !!
+  !!   SOURCE
+  !******************************************************************************
+  SUBROUTINE init_splinexy ( spl, nn )
 
 
     TYPE(spline_data_type), POINTER          :: spl
@@ -459,774 +464,187 @@ SUBROUTINE init_splinexy ( spl, nn )
 
     INTEGER                                  :: err
 
-!------------------------------------------------------------------------------
+    spl % n = nn
+    IF ( ASSOCIATED ( spl % x ) ) THEN
+       DEALLOCATE ( spl % x, STAT = err )
+       IF ( err /= 0 ) CALL stop_memory ( 'init_splinexy', 'spl%x')
+       NULLIFY ( spl % x )
+    END IF
 
-  spl % n = nn
+    IF ( ASSOCIATED ( spl % y ) ) THEN
+       DEALLOCATE ( spl % y, STAT = err )
+       IF ( err /= 0 ) CALL stop_memory ( 'init_splinexy', 'spl%y')
+       NULLIFY ( spl % y )
+    END IF
 
-  IF ( ASSOCIATED ( spl % x ) ) THEN
-     DEALLOCATE ( spl % x, STAT = err )
-     IF ( err /= 0 ) CALL stop_memory ( 'init_splinexy', 'spl%x')
-     NULLIFY ( spl % x )
-  END IF
+    ALLOCATE ( spl % x ( 1:nn ), STAT = err )
+    IF ( err /= 0 ) CALL stop_memory ( 'init_splinexy', 'spl%x', nn )
 
-  IF ( ASSOCIATED ( spl % y ) ) THEN
-     DEALLOCATE ( spl % y, STAT = err )
-     IF ( err /= 0 ) CALL stop_memory ( 'init_splinexy', 'spl%y')
-     NULLIFY ( spl % y )
-  END IF
+    ALLOCATE ( spl % y ( 1:nn ), STAT = err )
+    IF ( err /= 0 ) CALL stop_memory ( 'init_splinexy', 'spl%y', nn)
 
-  ALLOCATE ( spl % x ( 1:nn ), STAT = err )
-  IF ( err /= 0 ) CALL stop_memory ( 'init_splinexy', 'spl%x', nn )
+  END SUBROUTINE init_splinexy
 
-  ALLOCATE ( spl % y ( 1:nn ), STAT = err )
-  IF ( err /= 0 ) CALL stop_memory ( 'init_splinexy', 'spl%y', nn)
+  !******************************************************************************
+  !!****
+  !!****m* splines/init_spline [1.0] *
+  !!
+  !!   NAME
+  !!     init_spline
+  !!
+  !!   FUNCTION
+  !!     allocates storage for y2 table 
+  !!     calculates y2 table and other spline parameters
+  !!
+  !!   AUTHOR
+  !!     unknown
+  !!
+  !!   INPUTS
+  !!     spl : spline_data structure to be initialized
+  !!                      spl%y() must hold the function values
+  !!                      spl%x() must hold the absissa values in increasing
+  !!                      order OR if dx (below) is given, spl%x(1) must hold
+  !!                      the starting (left-most) point.
+  !!     dx  :            x(i) are assumed to be x(1)+dx*(i-1)
+  !!                      (spline evaluations will also be faster)
+  !!     y1a : (OPTIONAL) if present, the 1-deriv of the left endpoint
+  !!                      if not present, natural spline condition at this end
+  !!                      (2-deriv == 0)
+  !!     y1b : (OPTIONAL) if present, the 1-deriv of the right endpoint
+  !!                      if not present, natural spline condition at this end
+  !!                      (2-deriv == 0)
+  !!
+  !!   EXAMPLES
+  !!     CALL init_spline(spline,dx=0.1_dp)
+  !!     CALL init_spline(spline,y1b=0.0_dp)
+  !!     CALL init_spline(spline,0.1_dp,0.0_dp,0.0_dp)
+  !!
+  !!   NOTES
+  !!     if dx is given, the x array will be used as y2 array instead of
+  !!     allocating a new array. (y2 will become x, and x will be nullified)
+  !!
+  !!   MODIFICATION HISTORY
+  !!     2001-09-21-HAF added this doc entry and changed formatting
+  !!     2001-09-24-HAF changed interface and re-written
+  !!
+  !!   SOURCE
+  !******************************************************************************
 
-END SUBROUTINE init_splinexy
-
-!******************************************************************************
-!!****
-!!****m* splines/init_spline [1.0] *
-!!
-!!   NAME
-!!     init_spline
-!!
-!!   FUNCTION
-!!     allocates storage for y2 table 
-!!     calculates y2 table and other spline parameters
-!!
-!!   AUTHOR
-!!     unknown
-!!
-!!   INPUTS
-!!     spl : spline_data structure to be initialized
-!!                      spl%y() must hold the function values
-!!                      spl%x() must hold the absissa values in increasing
-!!                      order OR if dx (below) is given, spl%x(1) must hold
-!!                      the starting (left-most) point.
-!!     dx  : (OPTIONAL) if present, only x(1) need to be valid, all other
-!!                      x(i) are assumed to be x(1)+dx*(i-1)
-!!                      (spline evaluations will also be faster)
-!!     y1a : (OPTIONAL) if present, the 1-deriv of the left endpoint
-!!                      if not present, natural spline condition at this end
-!!                      (2-deriv == 0)
-!!     y1b : (OPTIONAL) if present, the 1-deriv of the right endpoint
-!!                      if not present, natural spline condition at this end
-!!                      (2-deriv == 0)
-!!
-!!   EXAMPLES
-!!     CALL init_spline(spline,dx=0.1_dp)
-!!     CALL init_spline(spline,y1b=0.0_dp)
-!!     CALL init_spline(spline,0.1_dp,0.0_dp,0.0_dp)
-!!
-!!   NOTES
-!!     if dx is given, the x array will be used as y2 array instead of
-!!     allocating a new array. (y2 will become x, and x will be nullified)
-!!
-!!   MODIFICATION HISTORY
-!!     2001-09-21-HAF added this doc entry and changed formatting
-!!     2001-09-24-HAF changed interface and re-written
-!!
-!!   SOURCE
-!******************************************************************************
-
-SUBROUTINE init_spline ( spl, dx, y1a, y1b )
-
+  SUBROUTINE init_spline ( spl, dx, y1a, y1b )
 
     TYPE(spline_data_type), POINTER          :: spl
-    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: dx, y1a, y1b
+    REAL(KIND=dp), INTENT(IN)                :: dx 
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: y1a, y1b
 
     INTEGER                                  :: err, i, n
     REAL(KIND=dp)                            :: p, s
     REAL(KIND=dp), POINTER                   :: ww( : )
 
-!------------------------------------------------------------------------------
+    IF ( ASSOCIATED ( spl%y2)) THEN
+       DEALLOCATE (spl%y2,STAT=err)
+       IF (err /= 0 ) CALL stop_memory ( 'init_spline','spl%y2')
+       NULLIFY (spl%y2)
+    END IF
 
-  IF ( ASSOCIATED ( spl%y2)) THEN
-     DEALLOCATE (spl%y2,STAT=err)
-     IF (err /= 0 ) CALL stop_memory ( 'init_spline','spl%y2')
-     NULLIFY (spl%y2)
-  END IF
+    n          = spl%n
+    spl % x1   = spl%x(1)
+    spl % xn   = spl%x(1)+ (n-1)*dx
+    spl % pos  = 1
+    spl % h    = dx
+    spl % invh = 1.0_dp/dx
+    spl % h26  = dx**2 / 6.0_dp
+    spl % y2   => spl % x
+    NULLIFY (spl%x)
+    ALLOCATE (ww(1:n),STAT=err)
+    IF ( err /= 0 ) CALL stop_memory ( 'init_spline', 'ww', spl % n )
+    IF (PRESENT(y1a)) THEN
+       spl % y2(1) = -0.5_dp
+       ww(1) = 3.0_dp * ((spl%y(2)-spl%y(1))/dx - y1a)/dx
+    ELSE
+       spl % y2(1) = 0.0_dp
+       ww(1)       = 0.0_dp
+    END IF
+    DO i = 2, n - 1
+       s = 0.5_dp
+       p = 0.5_dp * spl%y2(i-1) + 2.0_dp
+       spl%y2(i) = - 0.5_dp / p
+       ww(i) = ( 3.0_dp*( spl%y(i+1)-2.0_dp*spl%y(i)+spl%y(i-1) )/(dx*dx) &
+            - 0.5_dp*ww(i-1) )/p
+    END DO
+    IF (PRESENT( y1b )) THEN
+       spl%y2(n) = ( 3.0_dp * (y1b - (spl%y(n)-spl%y(n-1)) / dx ) / dx - &
+            0.5_dp * ww(n-1) ) / ( 0.5_dp * spl%y2(n-1) + 1.0_dp )
+    ELSE
+       spl%y2(n) = 0.0_dp
+    END IF
+    DO i = n-1, 1, -1
+       spl%y2(i) = spl%y2(i) * spl%y2(i+1) + ww(i)
+    END DO
+    DEALLOCATE (ww,STAT=err)
+    IF (err /= 0 ) CALL stop_memory ( 'init_spline','ww')
 
-  n = spl%n
+  END SUBROUTINE init_spline
 
-  IF (PRESENT(dx)) THEN
-     spl % x1   = spl%x(1)
-     spl % xn   = spl%x(1)+ (n-1)*dx
-     spl % pos  = 1
-     spl % h    = dx
-     spl % invh = 1.0_dp/dx
-     spl % h26  = dx**2 / 6.0_dp
-     spl % y2  => spl % x
-     NULLIFY (spl%x)
-     ALLOCATE (ww(1:n),STAT=err)
-     IF ( err /= 0 ) CALL stop_memory ( 'init_spline', 'ww', spl % n )
-     IF (PRESENT(y1a)) THEN
-        spl % y2(1) = -0.5_dp
-        ww(1) = 3.0_dp * ((spl%y(2)-spl%y(1))/dx - y1a)/dx
-     ELSE
-        spl % y2(1) = 0.0_dp
-        ww(1)       = 0.0_dp
-     END IF
-     DO i = 2, n - 1
-        s = 0.5
-        p = 0.5_dp * spl%y2(i-1) + 2.0_dp
-        spl%y2(i) = - 0.5_dp / p
-        ww(i) = ( 3.0_dp*( spl%y(i+1)-2.0_dp*spl%y(i)+spl%y(i-1) )/(dx*dx) &
-                 - 0.5_dp*ww(i-1) )/p
-     END DO
-     IF (PRESENT( y1b )) THEN
-        spl%y2(n) = ( 3.0_dp * (y1b - (spl%y(n)-spl%y(n-1)) / dx ) / dx - &
-                      0.5_dp * ww(n-1) ) / ( 0.5_dp * spl%y2(n-1) + 1.0_dp )
-     ELSE
-        spl%y2(n) = 0.0_dp
-     END IF
-     DO i = n-1, 1, -1
-        spl%y2(i) = spl%y2(i) * spl%y2(i+1) + ww(i)
-     END DO
-     DEALLOCATE (ww,STAT=err)
-     IF (err /= 0 ) CALL stop_memory ( 'init_spline','ww')
-  ELSE
-     ALLOCATE (spl%y2(1:n),STAT=err)
-     IF ( err /= 0 ) CALL stop_memory ( 'init_spline', 'spl%y2', spl % n )
-     ALLOCATE (ww(1:n),STAT=err)
-     IF ( err /= 0 ) CALL stop_memory ( 'init_spline', 'ww', spl % n )
-     IF (PRESENT(y1a)) THEN
-        spl % y2(1) = -0.5_dp
-        ww(1) = 3.0_dp * ((spl%y(2)-spl%y(1))/(spl%x(2)-spl%x(1)) - y1a)/ &
-                (spl%x(2)-spl%x(1))
-     ELSE
-        spl % y2(1) = 0.0_dp
-        ww(1)       = 0.0_dp
-     END IF
-     DO i = 2, n - 1
-        s = ( spl%x(i) - spl%x(i-1) ) / ( spl%x(i+1) - spl%x(i-1) )
-        p = s * spl%y2(i-1) + 2.0_dp
-        spl%y2(i) = (s - 1.0_dp) / p
-        ww(i) = (6.0_dp*( (spl%y(i+1)-spl%y(i)) / (spl%x(i+1)-spl%x(i)) - &
-                           (spl%y(i)-spl%y(i-1)) / (spl%x(i)-spl%x(i-1)) ) / &
-                         (spl%x(i+1) - spl%x(i-1)) - s*ww(i-1) )/p
-     END DO
-     IF (PRESENT( y1b )) THEN
-        spl%y2(n) = ( 3.0_dp * (y1b - (spl%y(n)-spl%y(n-1)) / &
-                                       (spl%x(n)-spl%x(n-1)) ) / &
-                      (spl%x(n)-spl%x(n-1)) - 0.5_dp * ww(n-1) ) / &
-                    ( 0.5_dp * spl%y2(n-1) + 1.0_dp )
-     ELSE
-        spl%y2(n) = 0.0_dp
-     END IF
-     DO i = n-1, 1, -1
-        spl%y2(i) = spl%y2(i) * spl%y2(i+1) + ww(i)
-     END DO
-     DEALLOCATE (ww,STAT=err)
-     IF (err /= 0 ) CALL stop_memory ( 'init_spline','ww')
-     spl % pos = 1
-     spl % h    = 0.0_dp
-     spl % invh = 0.0_dp
-     spl % h26  = 1.0_dp / 6.0_dp
-     spl % x1   = spl % x(1)
-     spl % xn   = spl % x(n)
-  END IF
+  !******************************************************************************
+  !!****
+  !!****f* splines/splineh [1.0] *
+  !!
+  !!   NAME
+  !!     splineh
+  !!
+  !!   FUNCTION
+  !!     calculates the spline interpolated value at a given point
+  !!     and the first derivative WITHOUT checks
+  !!
+  !!   AUTHOR
+  !!     unknown
+  !!
+  !!   INPUTS
+  !!     spl : spline_data structure
+  !!     xx  : absissa value
+  !!
+  !!   OUTPUT
+  !!     spline interpolated value at xx
+  !!     y1 : 1. derivative at xx
+  !!
+  !!   NOTES
+  !!     the spline MUST have uniform x values and xx MUST be
+  !!     in the interpolation interval. No checks are done to ensure
+  !!     either condition.
+  !!
+  !!   MODIFICATION HISTORY
+  !!     2001-09-25-HAF added this doc entry and changed formatting
+  !!
+  !!   SOURCE
+  !******************************************************************************
 
-END SUBROUTINE init_spline
-
-!******************************************************************************
-!!****
-!!****i* splines/interv [1.2] *
-!!
-!!   NAME
-!!     interv
-!!
-!!   FUNCTION
-!!     calculates index to function table array for given absissa
-!!
-!!   AUTHOR
-!!     unknown
-!!
-!!   INPUTS
-!!     spl : spline_data structure
-!!     xx  : absissa value to find nearest index for
-!!
-!!   OUTPUT
-!!     nearest index for function tables
-!!
-!!   MODIFICATION HISTORY
-!!     2001-09-24-HAF added this doc entry and changed formatting
-!!     2001-09-24-HAF re-written to use mixed binary-interpolation search
-!!                    if all else fails
-!!     2002-11-18-HAF fixed return value in case of xx = x(n)
-!!
-!!   SOURCE
-!******************************************************************************
-
-FUNCTION interv ( spl, xx )
-
-
-    TYPE(spline_data_type), INTENT(IN)       :: spl
-    REAL(KIND=dp), INTENT(IN)                :: xx
-    INTEGER                                  :: interv
-
-    INTEGER                                  :: i, k, khi, klo, n, p
-    REAL(KIND=dp)                            :: xhi, xk, xlo
-
-! Return value
-!------------------------------------------------------------------------------
-
-  IF (spl%h /= 0 ) THEN
-     i = (xx-spl%x1)*spl%invh + 1
-     IF (i<1 .OR. i>spl%n-1) THEN
-        IF (xx > spl%xn) CALL stop_program ( 'interv', &
-             'illegal x-value passed to interv')
-        i = spl%n-1
-     END IF
-     interv = i
-     RETURN
-  END IF
-
-  p = spl%pos
-  IF ( (p >= spl%n) .OR. (p < 1) ) p = (spl%n+1)/2
-  i = 0
-  n = spl%n
-
-! check if interval is close to previous interval
-!
-! How efficient is this? I would think in an MD simulation the xx
-! are pretty random since it is not usually the same distance the next
-! time step, but a different particle pair distance, etc... - HAF
-!
-  IF ( xx < spl % x ( p + 1 ) ) THEN
-     IF ( xx >= spl % x ( p ) ) THEN
-        i = p
-     ELSE IF ( (p > 1) .AND. (xx >= spl % x ( p - 1 )) ) THEN
-        i = p - 1
-     ELSE
-        klo = 1
-        khi = p - 1
-     END IF
-  ELSE IF ( (p + 2 <= n) .AND. (xx < spl % x ( p + 2 )) ) THEN
-     i = p + 1
-  ELSE
-     klo = p + 2
-     khi = n
-  END IF
-
-  IF ( i == 0 ) THEN ! perform general search (binary + interpolation)
-                     ! lots of other possibilities here though
-
-     IF ( (xx < spl % x ( 1 )) .OR. (xx > spl % x ( n )) ) &
-          CALL stop_program ( 'interv', 'xx value out of spline-range' )
-
-     xlo = spl % x ( klo )
-     xhi = spl % x ( khi )
-     DO WHILE ( khi - klo > 1 )
-
-        ! linear interpolation prediction:
-        k = klo + (xx - xlo)*(khi-klo)/(xhi-xlo)
-        IF (spl % x(k) >= xx) THEN
-           khi = k
-           xhi = spl % x(k)
-        ELSE IF (spl % x(k+1) <= xx) THEN
-           klo = k+1
-           xlo = spl % x(k+1)
-        ELSE
-           klo = k
-           EXIT
-        END IF
-        IF ( khi - klo <= 1 ) EXIT
-
-        ! binary search:
-        k = ( khi + klo ) / 2
-        xk = spl % x ( k )
-        IF ( xk > xx ) THEN
-           khi = k
-           xhi = xk
-        ELSE
-           klo = k
-           xlo = xk
-        END IF
-     END DO
-     i = MIN(klo,n-1)
-
-  END IF
-
-  interv = i
-
-END FUNCTION interv
-
-!******************************************************************************
-!!****
-!!****f* splines/spline [1.0] *
-!!
-!!   NAME
-!!     spline
-!!
-!!   FUNCTION
-!!     calculates the spline interpolated value at a given point
-!!
-!!   AUTHOR
-!!     unknown
-!!
-!!   INPUTS
-!!     spl : spline_data structure
-!!     xx  : absissa value
-!!
-!!   OUTPUT
-!!     spline interpolated value at xx
-!!     OPTIONAL y1 : 1. derivative at xx
-!!     OPTIONAL y2 : 2. derivative at xx
-!!     OPTIONAL y3 : 3. derivative at xx
-!!
-!!   MODIFICATION HISTORY
-!!     2001-09-25-HAF added this doc entry and changed formatting
-!!
-!!   SOURCE
-!******************************************************************************
-
-FUNCTION spline ( spl, xx, y1, y2, y3 )
-
-
-! Return value
+  FUNCTION splineh ( spl, xxi, y1 )
+    ! Return value
     TYPE(spline_data_type), POINTER          :: spl
-    REAL(KIND=dp), INTENT(IN)                :: xx
-    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: y1, y2, y3
-    REAL(KIND=dp)                            :: spline
-
-    INTEGER                                  :: i
-    REAL(KIND=dp)                            :: a, b, h, h26, invh, y2hi, &
-                                                y2lo, yhi, ylo
-
-!------------------------------------------------------------------------------
-
-  IF (spl % h /= 0.0_dp) THEN
-     ! index calculation from interv for speed reasons duplicated in this
-     ! simple case:
-     i = (xx-spl%x1)*spl%invh + 1
-     IF (i<1 .OR. i>spl%n) THEN
-        IF (xx > spl%xn) CALL stop_program ( 'spline', &
-             'illegal x-value passed to spline')
-        i = spl % n - 1
-     END IF
-     h    = spl % h
-     invh = spl%invh
-     h26  = spl%h26
-     a = (spl%x1-xx)*invh+i
-  ELSE
-     ! general non-uniform case:
-     i = interv(spl,xx)
-     spl % pos = i
-     h = spl%x(i+1)-spl%x(i)
-     invh = 1.0_dp/h
-     h26  = h*h*spl%h26
-     a = (spl%x(i+1)-xx)*invh
-  END IF
-  b = 1.0_dp - a
-  ylo = spl%y(i)
-  yhi = spl%y(i+1)
-  y2lo = spl%y2(i)
-  y2hi = spl%y2(i+1)
-  spline = a*ylo + b*yhi - ((a+1)*y2lo+(b+1)*y2hi)*a*b*h26
-  IF ( PRESENT (y1) ) &
-    y1 = invh*( yhi - ylo + ( (1-3*a*a)*y2lo + (3*b*b-1)*y2hi ) * h26 )
-  IF ( PRESENT (y2) ) &
-    y2 = a*y2lo + b*y2hi
-  IF ( PRESENT (y3) ) &
-    y3 = invh * ( y2hi - y2lo )
-  RETURN
-
-END FUNCTION spline
-
-!******************************************************************************
-!!****
-!!****f* splines/splineh [1.0] *
-!!
-!!   NAME
-!!     splineh
-!!
-!!   FUNCTION
-!!     calculates the spline interpolated value at a given point
-!!     and the first derivative
-!!
-!!   AUTHOR
-!!     unknown
-!!
-!!   INPUTS
-!!     spl : spline_data structure
-!!     xx  : absissa value
-!!
-!!   OUTPUT
-!!     spline interpolated value at xx
-!!     y1 : 1. derivative at xx
-!!
-!!   NOTES
-!!     the spline MUST have uniform x values and xx MUST be
-!!     in the interpolation interval. No checks are done to ensure
-!!     either condition.
-!!
-!!   MODIFICATION HISTORY
-!!     2001-09-25-HAF added this doc entry and changed formatting
-!!
-!!   SOURCE
-!******************************************************************************
-
-FUNCTION splineh ( spl, xx, y1 )
-
-
-! Return value
-    TYPE(spline_data_type), INTENT(IN)       :: spl
-    REAL(KIND=dp), INTENT(IN)                :: xx
+    REAL(KIND=dp), INTENT(IN)                :: xxi
     REAL(KIND=dp), INTENT(OUT)               :: y1
     REAL(KIND=dp)                            :: splineh
 
     INTEGER                                  :: i
     REAL(KIND=dp)                            :: a, b, h26, invh, y2hi, y2lo, &
-                                                yhi, ylo
+         yhi, ylo, xx, x4
 
-!------------------------------------------------------------------------------
-! fast spline for pair potentials without checks
+    xx = 1.0_dp/xxi
+    h26 = spl%h26
+    invh = spl%invh
+    i = (xx-spl%x1)*invh + 1
 
-  h26 = spl%h26
-  invh = spl%invh
-  i = (xx-spl%x1)*invh + 1
-
-  a = (spl%x1-xx)*invh + i
-  b = 1 - a
-  ylo = spl%y(i)
-  yhi = spl%y(i+1)
-  y2lo = spl%y2(i)
-  y2hi = spl%y2(i+1)
-  splineh = a*ylo + b*yhi - ((a+1)*y2lo+(b+1)*y2hi)*a*b*h26
-  y1 = invh*((yhi-ylo) + ((1.-3*a*a)*y2lo+(3*b*b-1.)*y2hi)*h26)
-
-END FUNCTION splineh
-
-!******************************************************************************
-!!****
-!!****f* splines/spline_1 [1.0] *
-!!
-!!   NAME
-!!     spline_1
-!!
-!!   FUNCTION
-!!     calculates the 1. derivate of a spline at a given point
-!!
-!!   AUTHOR
-!!     unknown
-!!
-!!   INPUTS
-!!     spl : spline_data structure
-!!     xx  : absissa value to find nearest index for
-!!
-!!   OUTPUT
-!!     spline_1 first derivate of the spline interpolation at xx
-!!
-!!   MODIFICATION HISTORY
-!!     2001-09-25-HAF added this doc entry and changed formatting
-!!
-!!   SOURCE
-!******************************************************************************
-
-FUNCTION spline_1 ( spl, xx )
-
-
-! Return value
-    TYPE(spline_data_type), POINTER          :: spl
-    REAL(KIND=dp), INTENT(IN)                :: xx
-    REAL(KIND=dp)                            :: spline_1
-
-    INTEGER                                  :: i
-    REAL(KIND=dp)                            :: a, b, h, h26, invh
-
-!------------------------------------------------------------------------------
-
-  IF (spl % h /= 0.0_dp) THEN
-     ! index calculation from interv for speed reasons duplicated in this
-     ! simple case:
-     i = (xx-spl%x1)*spl%invh + 1
-     IF (i<1 .OR. i>spl%n) THEN
-        IF ( xx > spl%xn ) CALL stop_program ( 'spline', &
-             'illegal x-value passed to spline')
-        i = spl % n - 1
-     END IF
-     h    = spl % h
-     invh = spl%invh
-     h26  = spl%h26
-     a = (spl%x1-xx)*invh+i
-  ELSE
-     ! general non-uniform case:
-     i = interv(spl,xx)
-     spl % pos = i
-     h = spl%x(i+1)-spl%x(i)
-     invh = 1.0_dp/h
-     h26  = h*h*spl%h26
-     a = (spl%x(i+1)-xx)*invh
-  END IF
-  b = 1.0_dp - a
-  spline_1 = invh * ( spl%y(i+1)-spl%y(i) + &
-                      ( (1-3*a*a)*spl%y2(i) + (3*b*b-1)*spl%y2(i+1) ) * h26 )
-  RETURN
-
-END FUNCTION spline_1
-
-!******************************************************************************
-!!****
-!!****i* splines/stamm [1.0] *
-!!
-!!   NAME
-!!     stamm
-!!
-!!   FUNCTION
-!!     calculates the value of the undetermined integral of a spline at
-!!     a given point for a given interval
-!!
-!!   AUTHOR
-!!     unknown
-!!
-!!   INPUTS
-!!     spl : spline_data structure
-!!     p   : index of the spline interval to integrate
-!!     xx  : absissa value to find nearest index for
-!!
-!!   OUTPUT
-!!     value of the undetermined integral at xx for the interval p
-!!
-!!   MODIFICATION HISTORY
-!!     2001-09-25-HAF added this doc entry and changed formatting
-!!
-!!   SOURCE
-!******************************************************************************
-
-FUNCTION stamm ( spl, p, xx )
-
-
-! Return value
-    TYPE(spline_data_type), INTENT(IN)       :: spl
-    INTEGER, INTENT(IN)                      :: p
-    REAL(KIND=dp), INTENT(IN)                :: xx
-    REAL(KIND=dp)                            :: stamm
-
-    REAL(KIND=dp)                            :: a, aa, b, bb, h, h26
-
-!------------------------------------------------------------------------------
-
-  h = spl%h
-  IF (h == 0.0_dp) THEN
-     h = spl%x(p+1) - spl%x(p)
-     h26 = h*h*spl%h26
-     b = (xx-spl%x(p))/h
-  ELSE
-     h26 = spl%h26
-     b = (xx-spl%x1)*spl%invh - p + 1
-  END IF
-  a = 1 - b
-  aa = a**2
-  bb = b**2
-  stamm = 0.5*h*( bb*spl%y(p+1) - aa*spl%y(p) + &
-                  h26 * ( aa*(1-0.5*aa)*spl%y2(p) - &
-                          bb*(1-0.5*bb)*spl%y2(p+1) ) )
-
-END FUNCTION stamm
-
-!******************************************************************************
-!!****
-!!****f* splines/spline_int [1.0] *
-!!
-!!   NAME
-!!     spline_int
-!!
-!!   FUNCTION
-!!     calculates the integral of a spline for two given bounds
-!!
-!!   AUTHOR
-!!     unknown
-!!
-!!   INPUTS
-!!     spl : spline_data structure
-!!     x0  : lower bound
-!!     x1  : upper bound
-!!
-!!   OUTPUT
-!!     the integrarl of the spline between x0 and x1
-!!     /int_{x0}^{x1} spline(x) dx
-!!
-!!   MODIFICATION HISTORY
-!!     2001-09-25-HAF added this doc entry and changed formatting
-!!
-!!   SOURCE
-!******************************************************************************
-
-FUNCTION spline_int( spl, x0, x1 )
-
-
-! Return value
-    TYPE(spline_data_type), POINTER          :: spl
-    REAL(KIND=dp), INTENT(IN)                :: x0, x1
-    REAL(KIND=dp)                            :: spline_int
-
-    INTEGER                                  :: j, pa, pb
-    REAL(KIND=dp)                            :: h, i1, i2, vorz, xa, xb
-
-!------------------------------------------------------------------------------
-
-  vorz = 1.0_dp
-  xa = MIN ( x0, x1 )
-  xb = MAX ( x0, x1 )
-  IF ( x0 > x1 ) vorz = -1.0_dp
-
-  h = spl % h
-  IF (h /= 0.0_dp) THEN
-
-     IF ( (xa < spl % x1) .OR. (xb > spl % xn) ) &
-        CALL stop_program ( 'spline_int', 'illegal integration range' )
-
-     ! index calculation from interv for speed reasons duplicated in this
-     ! simple case:
-     pa = MIN(INT((xa-spl%x1)*spl%invh + 1), spl%n - 1)
-     pb = MIN(INT((xb-spl%x1)*spl%invh + 1), spl%n - 1)
-
-     IF ( pa == pb ) THEN
-        spline_int = vorz * ( stamm(spl,pa,xb) - stamm(spl,pa,xa) )
-        RETURN
-     END IF
-
-     i1 = 0
-     i2 = 0
-
-     DO j = pa + 1, pb
-        i1 = i1 + spl%y(j)
-        i2 = i2 + spl%y2(j)
-     END DO
-
-     spline_int = vorz*(h*(i1-0.5*spl%h26*i2)+stamm(spl,pb,xb)-stamm(spl,pa,xa))
-
-     RETURN
-
-  ELSE
-
-     ! general non-uniform case:
-
-     IF ( xa < spl % x ( 1 ) .OR. xb > spl % x ( spl % n ) ) &
-        CALL stop_program ( 'spline_int', 'illegal integration range' )
-
-     pa = interv ( spl, xa )
-     pb = interv ( spl, xb )
-
-     IF ( pa == pb ) THEN
-        spline_int = vorz * ( stamm(spl,pa,xb) - stamm(spl,pa,xa) )
-        RETURN
-     END IF
-
-     i1 = 0
-     i2 = 0
-
-     DO j = pa + 1, pb - 1
-        h = spl%x(j+1) - spl%x(j)
-        i1 = i1 + h    * ( spl%y(j)  + spl%y(j+1)  )
-        i2 = i2 + h**3 * ( spl%y2(j) + spl%y2(j+1) )
-     END DO
-
-     h = spl%x(pa+1) - spl%x(pa)
-     i1 = i1 + h*spl%y(pa+1)
-     i2 = i2 + h**3*spl%y2(pa+1)
-     h = spl%x(pb+1) - spl%x(pb)
-     i1 = i1 + h*spl%y(pb)
-     i2 = i2 + h**3*spl%y2(pb)
-
-     spline_int = vorz*(i1/2.-i2/24.+stamm(spl,pb,xb)-stamm(spl,pa,xa))
-
-     RETURN
-
-  END IF
-
-END FUNCTION spline_int
-
-!******************************************************************************
-!!****
-!!****m* splines/kill_spline [1.0] *
-!!
-!!   NAME
-!!     kill_spline
-!!
-!!   FUNCTION
-!!     deallocates (selected) storage of given spline data structure
-!!
-!!   AUTHOR
-!!     unknown
-!!
-!!   INPUTS
-!!     spl   : spline_data structure
-!!     what  : OPTIONAL what should be deallocated:
-!!                not present or 'a' : deallocate all (spl%x spl%y and spl%y2)
-!!                'd'                : deallocate only data (spl%x and spl%y)
-!!                '2'                : deallocate only 2. derivatives (spl%y2)
-!!
-!!   MODIFICATION HISTORY
-!!     2001-09-26-HAF added this doc entry and changed formatting
-!!
-!!   SOURCE
-!******************************************************************************
-
-SUBROUTINE kill_spline ( spl, what )
-
-
-    TYPE(spline_data_type), POINTER          :: spl
-    CHARACTER, INTENT(IN), OPTIONAL          :: what
-
-    CHARACTER                                :: w
-    INTEGER                                  :: err
-
-!------------------------------------------------------------------------------
-
-  IF ( PRESENT ( what ) ) THEN
-     w = what
-  ELSE
-     w = 'a'
-  END IF
-
-  SELECT CASE ( w )
-
-  CASE ( 'd', 'D' )
-     IF ( ASSOCIATED ( spl%x)) THEN
-        DEALLOCATE (spl%x,STAT=err)
-        IF (err /= 0 ) CALL stop_memory ( 'kill_spline', 'spl%x' )
-        NULLIFY (spl%x)
-     END IF
-     IF ( ASSOCIATED ( spl%y)) THEN
-        DEALLOCATE (spl%y,STAT=err)
-        IF (err /= 0 ) CALL stop_memory ( 'kill_spline', 'spl%y' )
-        NULLIFY (spl%y)
-     END IF
-
-  CASE ( '2')
-     IF ( ASSOCIATED ( spl%y2)) THEN
-        DEALLOCATE (spl%y2,STAT=err)
-        IF (err /= 0 ) CALL stop_memory ( 'kill_spline', 'spl%y2' )
-        NULLIFY (spl%y2)
-     END IF
-
-  CASE ( 'a', 'A' )
-     IF ( ASSOCIATED ( spl%x)) THEN
-        DEALLOCATE (spl%x,STAT=err)
-        IF (err /= 0 ) CALL stop_memory ( 'kill_spline', 'spl%x' )
-        NULLIFY (spl%x)
-     END IF
-     IF ( ASSOCIATED ( spl%y)) THEN
-        DEALLOCATE (spl%y,STAT=err)
-        IF (err /= 0 ) CALL stop_memory ( 'kill_spline', 'spl%y' )
-        NULLIFY (spl%y)
-     END IF
-     IF ( ASSOCIATED ( spl%y2)) THEN
-        DEALLOCATE (spl%y2,STAT=err)
-        IF (err /= 0 ) CALL stop_memory ( 'kill_spline', 'spl%y2' )
-        NULLIFY (spl%y2)
-     END IF
-
-  CASE DEFAULT
-     CALL stop_program ( 'kill_spline', 'illegal deallocation option' )
-
-  END SELECT
-
-END SUBROUTINE kill_spline
-
-!******************************************************************************
-!!****
+    a = (spl%x1-xx)*invh + REAL(i,kind=dp)
+    b = 1.0_dp - a
+    ylo = spl%y(i)
+    yhi = spl%y(i+1)
+    y2lo = spl%y2(i)
+    y2hi = spl%y2(i+1)
+    splineh = a*ylo + b*yhi - ((a+1)*y2lo+(b+1)*y2hi)*a*b*h26
+    y1 = invh*((yhi-ylo) + ((1.-3*a*a)*y2lo+(3*b*b-1.)*y2hi)*h26)
+    ! take into account the mapping w.r.t. 1/r^2
+    x4 = xx * xx
+    y1 = - y1 * x4
+  END FUNCTION splineh
 
 END MODULE splines
