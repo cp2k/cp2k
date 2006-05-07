@@ -91,7 +91,6 @@ MODULE atomic_kind_types
 ! *** Define the atomic kind types ***
 
   TYPE atomic_kind_type
-    PRIVATE
     TYPE(all_potential_type), POINTER      :: all_potential
     TYPE(elp_potential_type), POINTER      :: elp_potential
     TYPE(gth_potential_type), POINTER      :: gth_potential
