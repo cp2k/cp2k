@@ -628,6 +628,7 @@ CONTAINS
     INTEGER                                  :: i
     REAL(KIND=dp)                            :: a, b, h26, invh, y2hi, y2lo, &
          yhi, ylo, xx, x4
+    REAL(KIND=dp), PARAMETER :: f13=1.0_dp/3.0_dp
 
     xx = 1.0_dp/xxi
     h26 = spl%h26
@@ -640,8 +641,8 @@ CONTAINS
     yhi = spl%y(i+1)
     y2lo = spl%y2(i)
     y2hi = spl%y2(i+1)
-    splineh = a*ylo + b*yhi - ((a+1)*y2lo+(b+1)*y2hi)*a*b*h26
-    y1 = invh*((yhi-ylo) + ((1.-3*a*a)*y2lo+(3*b*b-1.)*y2hi)*h26)
+    splineh = a*ylo + b*yhi - ((a+1.0_dp)*y2lo+(b+1.0_dp)*y2hi)*a*b*h26
+    y1 = invh*((yhi-ylo) + ((f13-a*a)*y2lo-(f13-b*b)*y2hi)*3.0_dp*h26)
     ! take into account the mapping w.r.t. 1/r^2
     x4 = xx * xx
     y1 = - y1 * x4
