@@ -48,28 +48,34 @@ CONTAINS
       DEALLOCATE(farming_env%group_partition,stat=stat)
       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
    END IF
-   CALL section_vals_val_get(farming_section,"group_partition",&
+
+   ! The following input order is used
+   ! 1) GROUP_PARTITION
+   ! 2) NGROUP
+   ! 3) GROUP_SIZE (default 8)
+   CALL section_vals_val_get(farming_section,"GROUP_PARTITION",&
         n_rep_val=n_rep_val,error=error)
    IF (n_rep_val>0) THEN
-      CALL section_vals_val_get(farming_section,"group_partition",&
+      CALL section_vals_val_get(farming_section,"GROUP_PARTITION",&
            i_vals=i_vals,error=error)
       ALLOCATE(farming_env%group_partition(0:SIZE(i_vals)-1))
       farming_env%group_partition(:)=i_vals
       farming_env%ngroup_wish_set=.TRUE.
       farming_env%ngroup_wish=SIZE(i_vals)
    ELSE
-      CALL section_vals_val_get(farming_section,"GROUP_SIZE",&
+      CALL section_vals_val_get(farming_section,"NGROUP",&
            n_rep_val=n_rep_val,error=error)
       IF (n_rep_val>0) THEN
-         CALL section_vals_val_get(farming_section,"GROUP_SIZE",&
+         CALL section_vals_val_get(farming_section,"NGROUP",&
               i_val=farming_env%ngroup_wish,error=error)
          farming_env%ngroup_wish_set=.TRUE.
       ELSE
          CALL section_vals_val_get(farming_section,"GROUP_SIZE",&
               i_val=farming_env%group_size_wish,error=error)
-         farming_env%group_size_wish_set=.FALSE.
+         farming_env%group_size_wish_set=.TRUE.
       END IF
    END IF
+
    CALL section_vals_val_get(farming_section,"restart",&
         l_val=farming_env%restart,error=error)      
    CALL section_vals_val_get(farming_section,"max_steps",&

@@ -819,38 +819,38 @@ SUBROUTINE create_farming_section(section,error)
          repeats=.FALSE., required=.TRUE., error=error)
   NULLIFY(keyword)
 
-  CALL keyword_create(keyword, name="group_size",&
-         description="gives the wanted size of a working group.",&
+  CALL keyword_create(keyword, name="GROUP_SIZE",&
+         description="Gives the wanted size of a working group.",&
          usage="group_size 2", default_i_val=8, error=error)
   CALL section_add_keyword(section,keyword,error=error)
   CALL keyword_release(keyword,error=error)
 
-  CALL keyword_create(keyword, name="ngroups",variants=(/"ngroup"/),&
-         description="gives the wanted number of groups. Overrides GROUP_SIZE.",&
+  CALL keyword_create(keyword, name="NGROUPS",variants=(/"NGROUP"/),&
+         description="Gives the wanted number of groups.",&
          usage="ngroups 4", type_of_var=integer_t, error=error)
   CALL section_add_keyword(section,keyword,error=error)
   CALL keyword_release(keyword,error=error)
 
-  CALL keyword_create(keyword, name="group_partition",&
-         description="gives the exact number of processors for each group, ovverides both NGROUPS and GROUP_PARTITION",&
-         usage="ngroups 4", type_of_var=integer_t, n_var=-1, error=error)
+  CALL keyword_create(keyword, name="GROUP_PARTITION",&
+         description="gives the exact number of processors for each group.",& 
+         usage="group_partition  2 2 4 2 4 ", type_of_var=integer_t, n_var=-1, error=error)
   CALL section_add_keyword(section,keyword,error=error)
   CALL keyword_release(keyword,error=error)
 
-  CALL keyword_create(keyword, name="restart",&
+  CALL keyword_create(keyword, name="RESTART",&
          description="if you are restarting a farming job (and should pick up where the previous left off)",&
          usage="RESTART",default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,&
          error=error)
   CALL section_add_keyword(section,keyword,error=error)
   CALL keyword_release(keyword,error=error)
 
-  CALL keyword_create(keyword, name="max_step",variants=(/"max_steps"/),&
+  CALL keyword_create(keyword, name="MAX_STEP",variants=(/"max_steps"/),&
          description="maximum number of steps done by a processor",&
          usage="max_step 4", default_i_val=HUGE(0)/32768, error=error)
   CALL section_add_keyword(section,keyword,error=error)
   CALL keyword_release(keyword,error=error)
 
-  CALL keyword_create(keyword, name="cycle",&
+  CALL keyword_create(keyword, name="CYCLE",&
          description="If farming should cycle between the inputs" ,&
          usage="CYCLE",default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,&
          error=error)
