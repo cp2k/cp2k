@@ -51,7 +51,9 @@ MODULE qs_loc_methods
                                              op_loc_boys,&
                                              op_loc_pipek,&
                                              state_loc_list
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: dp,&
+                                             default_string_length,&
+                                             default_path_length
   USE mathconstants,                   ONLY: twopi
   USE particle_types,                  ONLY: get_particle_set,&
                                              particle_type
@@ -125,7 +127,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'centers_spreads_berry', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(len=50)                        :: filename1, filename2
+    CHARACTER(len=default_path_length)       :: filename1, filename2
     COMPLEX(KIND=dp)                         :: almost_determinant, z
     INTEGER                                  :: idir, istate, iter, nstates, &
                                                 out_c, out_s, scr
@@ -518,7 +520,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'centers_spreads_pipek', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(len=50)                        :: filename1, filename2
+    CHARACTER(len=default_path_length)       :: filename1, filename2
     INTEGER                                  :: iatom, istat, istate, iter, &
                                                 natom, nstate, out_c, out_s
     INTEGER, DIMENSION(:), POINTER           :: atom_of_state
@@ -830,7 +832,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_print_cubes', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=80)                        :: filename, title
+    CHARACTER(LEN=default_path_length)       :: filename
+    CHARACTER(LEN=default_string_length)     :: title
     INTEGER                                  :: ia, ie, istate, ivector, &
                                                 my_state0, my_stride
     LOGICAL                                  :: failure

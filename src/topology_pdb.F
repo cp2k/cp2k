@@ -323,6 +323,7 @@ CONTAINS
 
        WRITE(file_unit,"(A)")line
     END DO
+    WRITE(file_unit,"(A3)")"END"
     CALL close_file(unit_number=file_unit)
 
     IF(iw>0) WRITE(iw,*) "  Exiting write_coordinate_pdb"

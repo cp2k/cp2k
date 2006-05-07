@@ -65,7 +65,9 @@ MODULE xas_methods
        xes_tp_val
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
-  USE kinds,                           ONLY: default_string_length, dp
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp,&
+                                             default_path_length
   USE mathconstants,                   ONLY: twopi
   USE orbital_pointers,                ONLY: ncoset
   USE particle_types,                  ONLY: get_particle_set,&
@@ -1126,7 +1128,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'xas_write', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(len=50)                        :: filename
+    CHARACTER(len=default_path_length)       :: filename
     INTEGER                                  :: ia, ie, istate, istate0, &
                                                 out_sp
     LOGICAL                                  :: failure, file_exists

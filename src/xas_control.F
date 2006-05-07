@@ -33,7 +33,8 @@ MODULE xas_control
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: dp,&
+                                             default_path_length
   USE memory_utilities,                ONLY: reallocate
   USE qs_loc_control,                  ONLY: localized_wfn_control_create,&
                                              localized_wfn_control_release,&
@@ -63,7 +64,6 @@ MODULE xas_control
 
   TYPE xas_control_type
     INTEGER                             :: ref_count
-    CHARACTER(LEN=50)                   :: xas_rootfname
     INTEGER                             :: each_step
     INTEGER                             :: max_scf
     INTEGER                             :: scf_method
@@ -89,7 +89,8 @@ MODULE xas_control
     REAL(dp)                            :: eps_added
     REAL(dp)                            :: smear
     REAL(dp)                            :: xes_core_occupation
-    REAL(dp)                            :: occ_estate, occ_homo 
+    REAL(dp)                            :: occ_estate, occ_homo
+    CHARACTER(LEN=default_path_length)  :: xas_rootfname
     TYPE(localized_wfn_control_type), &
       POINTER                           :: localized_wfn_control
   END TYPE xas_control_type
@@ -430,7 +431,6 @@ CONTAINS
     xas_control%xas_method = xas_tp_hh
     xas_control%occ_estate = 0.5_dp
     xas_control%occ_homo = 1.0_dp
-    xas_control%xas_rootfname = ""
     xas_control%nexc_atoms = 1
     xas_control%nexc_search = -1
     xas_control%lb_atom = 1

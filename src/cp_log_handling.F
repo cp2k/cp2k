@@ -53,7 +53,8 @@ MODULE cp_log_handling
                                              open_file
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: default_string_length,&
-                                             dp
+                                             dp,&
+                                             default_path_length
   USE machine,                         ONLY: m_datum,&
                                              m_flush,&
                                              m_getpid,&
@@ -208,8 +209,8 @@ MODULE cp_log_handling
      INTEGER :: default_local_unit_nr
      INTEGER :: default_global_unit_nr
      LOGICAL :: close_local_unit_on_dealloc, close_global_unit_on_dealloc
-     CHARACTER(len=10) :: suffix
-     CHARACTER(len=50) :: local_filename, global_filename
+     CHARACTER(len=default_string_length) :: suffix
+     CHARACTER(len=default_path_length)   :: local_filename, global_filename
      TYPE(cp_para_env_type), POINTER :: para_env
      TYPE(cp_iteration_info_type), POINTER :: iter_info
   END TYPE cp_logger_type
@@ -958,7 +959,8 @@ CONTAINS
       routineN = 'cp_logger_get_default_unit_nr', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(len=80)                        :: filename, host_name
+    CHARACTER(len=default_string_length)     :: host_name
+    CHARACTER(len=default_path_length)       :: filename
     INTEGER                                  :: iostat, pid
     LOGICAL                                  :: loc
     TYPE(cp_logger_type), POINTER            :: lggr
@@ -981,10 +983,6 @@ CONTAINS
           IF (lggr%para_env%mepos==lggr%para_env%source) THEN
              CALL cp_logger_generate_filename(lggr,filename,lggr%global_filename,&
                   ".out",local=.FALSE.)
-             !INQUIRE (FILE=TRIM(filename),EXIST=exists)
-             !IF (exists) THEN
-             !   PRINT *," WARNING ", routineP, " overwriting file ",filename
-             !END IF
              CALL open_file(TRIM(filename),file_status="unknown",&
                   file_action="WRITE",file_position="APPEND",&
                   unit_number=lggr%default_global_unit_nr)
@@ -1013,10 +1011,6 @@ CONTAINS
        IF (lggr%default_local_unit_nr<=0) THEN
           CALL cp_logger_generate_filename(lggr,filename,lggr%local_filename,&
                ".out",local=.TRUE.)
-          !INQUIRE (FILE=TRIM(filename),EXIST=exists)
-          !IF (exists) THEN
-          !   PRINT *," WARNING ", routineP, " overwriting file ",filename
-          !END IF
           CALL open_file(TRIM(filename),file_status="unknown",&
                file_action="WRITE",&
                file_position="APPEND",& 

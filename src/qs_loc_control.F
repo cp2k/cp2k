@@ -30,6 +30,8 @@ MODULE qs_loc_control
                                              section_vals_val_get
   USE memory_utilities,                ONLY: reallocate
   USE string_utilities,                ONLY: xstring
+  USE kinds,                           ONLY: default_string_length,&
+                                             default_path_length
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -82,9 +84,9 @@ MODULE qs_loc_control
     LOGICAL                         :: print_spreads
     INTEGER, POINTER, DIMENSION(:)  :: loc_states
     TYPE(cp_2d_r_p_type), DIMENSION(2)  :: centers_set
-    CHARACTER ( LEN = 50 )          :: loc_rootfname
-    CHARACTER ( LEN = 50 ),DIMENSION(2):: centers_file_name
-    CHARACTER ( LEN = 50 ),DIMENSION(2):: spreads_file_name
+    CHARACTER ( LEN = default_path_length )               :: loc_rootfname
+    CHARACTER ( LEN = default_path_length ),DIMENSION(2):: centers_file_name
+    CHARACTER ( LEN = default_path_length ),DIMENSION(2):: spreads_file_name
   END TYPE localized_wfn_control_type
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_loc_control'
@@ -149,7 +151,6 @@ CONTAINS
    localized_wfn_control%set_of_states = state_loc_all
    localized_wfn_control%nloc_states=0
    localized_wfn_control%lu_bound_states=0
-   localized_wfn_control%loc_rootfname=""
    localized_wfn_control%print_cubes = .FALSE.
    localized_wfn_control%print_centers = .FALSE.
    localized_wfn_control%print_spreads = .FALSE.

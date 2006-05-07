@@ -32,7 +32,8 @@ MODULE qs_kpp1_env_types
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: dp,&
+                                             default_string_length
   USE pw_types,                        ONLY: pw_p_type
   USE realspace_grid_types,            ONLY: rs_pw_to_cube
   USE sparse_matrix_types,             ONLY: deallocate_matrix,&
@@ -318,8 +319,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'kpp1_write', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(len=30)                        :: base_filename
-    CHARACTER(len=60)                        :: filename
+    CHARACTER(len=default_string_length)     :: base_filename
+    CHARACTER(len=default_string_length)     :: filename
     INTEGER                                  :: file_unit, idir, ispin, &
                                                 my_unit_nr
     LOGICAL                                  :: failure, my_local, &

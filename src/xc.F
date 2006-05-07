@@ -41,7 +41,8 @@ MODULE xc
                                              section_vals_type,&
                                              section_vals_val_get
   USE kahan_sum,                       ONLY: accurate_sum
-  USE kinds,                           ONLY: dp
+  USE kinds,                           ONLY: dp,&
+                                             default_string_length
   USE message_passing,                 ONLY: mp_sum
   USE pw_grid_types,                   ONLY: PW_MODE_DISTRIBUTED,&
                                              pw_grid_type
@@ -227,7 +228,7 @@ SUBROUTINE xc_vxc_pw_create_test_lsd(vxc_rho,vxc_tau,rho_r,rho_g,tau,&
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_vxc_pw_create_test_lsd', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(len=80)                        :: filename
+    CHARACTER(len=default_string_length)     :: filename
     CHARACTER(len=MAX_LABEL_LENGTH), &
       DIMENSION(:), POINTER                  :: split_desc
     INTEGER                                  :: i, ii, ispin, j, k, stat
@@ -602,7 +603,7 @@ SUBROUTINE xc_vxc_pw_create_debug(vxc_rho,vxc_tau,rho_r,rho_g,tau,exc,&
     CHARACTER(len=*), PARAMETER :: routineN = 'xc_vxc_pw_create_debug', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(len=80)                        :: filename
+    CHARACTER(len=default_string_length)     :: filename
     CHARACTER(len=MAX_LABEL_LENGTH), &
       DIMENSION(:), POINTER                  :: split_desc
     INTEGER                                  :: i, ispin, j, k

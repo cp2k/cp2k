@@ -235,12 +235,11 @@ CONTAINS
     END TYPE
     TYPE (evals_p_type), DIMENSION(:), POINTER :: unoccupied_evals
     INTEGER ::  handle, ispin, istat, n, nmo, output_unit,i
-    CHARACTER(LEN=200) :: file_name
     INTEGER            :: file_unit,ivector,nao,nlumos, homo, unit_nr, idir
     LOGICAL            :: homoEQnmo
-    CHARACTER(LEN=80)  :: filename
-    CHARACTER(LEN=80) :: title
-    CHARACTER(LEN=default_string_length) :: mulliken_title
+    CHARACTER(LEN=default_string_length)  :: filename
+    CHARACTER(LEN=default_string_length)  :: title
+    CHARACTER(LEN=default_string_length)  :: mulliken_title
     REAL(KIND = dp)           :: volume, dipole(3),r_pbc(3),zeff
     REAL(kind=dp),SAVE,DIMENSION(3) :: old_dipole=0
     CHARACTER(LEN=default_string_length) :: lowdin_title
@@ -837,7 +836,7 @@ CONTAINS
     TYPE(cp_rs_pool_type), POINTER           :: auxbas_rs_pool
     TYPE(realspace_grid_type), POINTER       :: rs
     INTEGER            :: handle, iw
-    CHARACTER(LEN=80)  :: filename
+    CHARACTER(LEN=default_string_length)     :: filename
 
     CALL timeset(routineN,handle)
     failure=.FALSE.
