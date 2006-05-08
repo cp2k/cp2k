@@ -230,7 +230,6 @@ CONTAINS
 
     CALL get_qs_env(qs_env=qs_env,&
                     dft_control=dft_control,&
-                    rho0_s_rs=rho0_s_rs,&
                     error=error)
 
     qmmm_energy = 0.0_dp
@@ -238,6 +237,9 @@ CONTAINS
        qmmm_energy = qmmm_energy + pw_integral_ab ( rho(ispin)%pw, v_qmmm%pw )
     END DO
     IF(dft_control%qs_control%gapw) THEN
+      CALL get_qs_env(qs_env=qs_env,&
+                    rho0_s_rs=rho0_s_rs,&
+                    error=error)
        CPPrecondition(ASSOCIATED(rho0_s_rs),cp_failure_level,routineP,error,failure)
        qmmm_energy = qmmm_energy + pw_integral_ab (rho0_s_rs%pw, v_qmmm%pw )
     END IF
