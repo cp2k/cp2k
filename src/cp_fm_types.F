@@ -1379,7 +1379,7 @@ CONTAINS
 
 #else
 
-    a(irow_local,icol_local) = a(irow_local,icol_local) + alpha
+    a(irow_global,icol_global) = a(irow_global,icol_global) + alpha
 
 #endif
 
