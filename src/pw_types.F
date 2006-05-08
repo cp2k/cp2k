@@ -54,9 +54,9 @@ MODULE pw_types
   PRIVATE
   PUBLIC :: pw_type, pw_p_type
   PUBLIC :: pw_retain, pw_release, pw_create
-  PUBLIC :: pw_zero
+  PUBLIC :: pw_zero, pw_structure_factor
   PUBLIC :: pw_copy, pw_add, pw_sumup, pw_subtract, pw_reduce, pw_transfer, pw_scale
-  PUBLIC :: pw_derive, pw_derive_fd, pw_sumup_square, pw_fft_wrap, pw_write
+  PUBLIC :: pw_derive, pw_dr2, pw_derive_fd, pw_sumup_square, pw_fft_wrap, pw_write
   PUBLIC :: pw_prolongate_l, pw_restrict_l, pw_compare_debug
   PUBLIC :: pw_prolongate_l_NoPBC, pw_restrict_l_NoPBC
   PUBLIC :: REALDATA1D, COMPLEXDATA1D, REALDATA3D, COMPLEXDATA3D, NODATA
@@ -518,6 +518,82 @@ SUBROUTINE pw_derive ( pw, n )
   CALL timestop ( flop, handle )
 
 END SUBROUTINE pw_derive
+
+!******************************************************************************
+!!****** pw_types/pw_dr2 [1.0] *
+!!
+!!   NAME
+!!     pw_dr2
+!!
+!!   SYNOPSIS
+!!     Subroutine pw_dr2(pw, pwdr2)
+!!       Type(pw_type), Intent (IN)               :: pw
+!!       Type(pw_type), DIMENSION(:), Intent (OUT):: pwdr2
+!!     End Subroutine pw_dr2
+!!
+!!   FUNCTION
+!!     Calculate the tensorial 2nd derivative of a plane wave vector
+!!
+!!   AUTHOR
+!!     JGH (05-May-2006)
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   NOTES
+!!     PW has to be in RECIPROCALSPACE and data in use is COMPLEXDATA1D
+!!
+!!*****
+!******************************************************************************
+
+SUBROUTINE pw_dr2 ( pw, pwdr2, i, j )
+
+    TYPE(pw_type), INTENT(IN)                :: pw
+    TYPE(pw_type), INTENT(INOUT)             :: pwdr2
+    INTEGER, INTENT(IN)                      :: i,j
+
+    INTEGER                                  :: cnt, handle, ig
+    REAL(KIND=dp)                            :: gg, o3, flop
+
+!------------------------------------------------------------------------------
+
+  CALL timeset ( 'pw_dr2', 'I', 'Mflops', handle )
+
+  CPPreconditionNoErr(pw%ref_count>0,cp_failure_level,"pw_dr2")
+
+  flop = 0.0_dp
+  o3 = 1._dp/3._dp
+
+  IF ( pw % in_space == RECIPROCALSPACE .AND. &
+       pw % in_use == COMPLEXDATA1D ) THEN
+
+    cnt = SIZE ( pw % cc )
+
+    IF ( i == j ) THEN
+!$omp parallel do private (i)
+      DO ig = 1, cnt
+        gg = pw%pw_grid%g(i,ig)**2 - o3*pw%pw_grid%gsq(ig)
+        pwdr2%cc(ig) = gg * pw%cc(ig)
+      END DO
+      flop = flop + 5 * cnt
+    ELSE
+!$omp parallel do private (i)
+      DO ig = 1, cnt
+        pwdr2%cc(ig) = pw%cc(ig) * (pw%pw_grid%g(i,ig)*pw%pw_grid%g(j,ig))
+      END DO
+      flop = flop + 4 * cnt
+    END IF
+
+  ELSE
+
+    CALL stop_program ( "pw_dr2", "no suitable data field" )
+
+  END IF
+
+  flop = flop * 1.e-6_dp
+  CALL timestop ( flop, handle )
+
+END SUBROUTINE pw_dr2
 
 !******************************************************************************
 !!****** pw_types/pw_get_left_right [1.0] *
@@ -3573,6 +3649,66 @@ FUNCTION pw_integral_a2b ( pw1, pw2 ) RESULT ( integral_value )
        CALL mp_sum ( integral_value, pw1 % pw_grid % para % group )
 
 END FUNCTION pw_integral_a2b
+
+!******************************************************************************
+!!****** pw_types/pw_structure_factor [1.0] *
+!!
+!!   NAME
+!!     pw_structure_factor
+!!
+!!   FUNCTION
+!!     Calculate the structure factor for point r
+!!
+!!   AUTHOR
+!!     JGH (05-May-2006)
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   NOTES
+!!     PW has to be in RECIPROCALSPACE and data in use is COMPLEXDATA1D
+!!
+!****
+!******************************************************************************
+
+SUBROUTINE pw_structure_factor ( sf, r )
+
+    TYPE(pw_type), INTENT(INOUT)             :: sf
+    REAL(KIND=dp), DIMENSION(:), INTENT(in)  :: r
+
+    INTEGER                                  :: cnt, handle, ig
+    REAL(KIND=dp)                            :: flop, arg
+
+!------------------------------------------------------------------------------
+
+  CALL timeset ( 'pw_structure_factor', 'I', 'Mflops', handle )
+
+  CPPreconditionNoErr(sf%ref_count>0,cp_failure_level,"sf")
+
+  flop = 0.0_dp
+
+  IF ( sf % in_space == RECIPROCALSPACE .AND. &
+       sf % in_use == COMPLEXDATA1D ) THEN
+
+    cnt = SIZE ( sf % cc )
+
+!$omp parallel do private (i)
+    DO ig = 1, cnt
+      arg = DOT_PRODUCT(sf%pw_grid%g(:,ig),r)
+      sf%cc(ig)=CMPLX(COS(arg),SIN(arg),KIND=dp)
+    END DO
+    flop = flop + 7 * cnt
+  ELSE
+
+    CALL stop_program ( "pw_structure_factor", "no suitable data field" )
+
+  END IF
+
+  flop = flop * 1.e-6_dp
+  CALL timestop ( flop, handle )
+
+END SUBROUTINE pw_structure_factor
+
 !******************************************************************************
 
 END MODULE pw_types

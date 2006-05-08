@@ -100,6 +100,7 @@ MODULE qs_scf_post
                                              qs_environment_type
   USE qs_ks_methods,                   ONLY: qs_ks_did_change,&
                                              qs_ks_update_qs_env
+  USE qs_electric_field_gradient,      ONLY: qs_efg_calc
   USE qs_loc_control,                  ONLY: localized_wfn_control_release,&
                                              localized_wfn_control_retain,&
                                              localized_wfn_control_type
@@ -236,7 +237,7 @@ CONTAINS
     TYPE (evals_p_type), DIMENSION(:), POINTER :: unoccupied_evals
     INTEGER ::  handle, ispin, istat, n, nmo, output_unit,i
     INTEGER            :: file_unit,ivector,nao,nlumos, homo, unit_nr, idir
-    LOGICAL            :: homoEQnmo
+    LOGICAL            :: homoEQnmo, efg_interpolation
     CHARACTER(LEN=default_string_length)  :: filename
     CHARACTER(LEN=default_string_length)  :: title
     CHARACTER(LEN=default_string_length)  :: mulliken_title
@@ -795,6 +796,25 @@ CONTAINS
              basis_section=input,&
              print_key_path="DFT%PRINT%XRAY_DIFFRACTION_SPECTRUM",&
              error=error)
+    END IF
+
+    ! Calculation of Electric Field Gradients
+
+    print_key => section_vals_get_subs_vals(&
+                   section_vals=input,&
+                   subsection_name="DFT%PRINT%ELECTRIC_FIELD_GRADIENT",&
+                   error=error)
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),&
+              cp_p_file)) THEN
+      unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%ELECTRIC_FIELD_GRADIENT",&
+               extension=".efg",log_filename=.FALSE.,error=error)
+      efg_interpolation = section_get_lval(section_vals=dft_section,&
+                keyword_name="PRINT%ELECTRIC_FIELD_GRADIENT%INTERPOLATION",&
+                error=error)
+
+      CALL qs_efg_calc(qs_env=qs_env,unit_nr=unit_nr,&
+                       interpolation=efg_interpolation,error=error)
+
     END IF
 
     CALL timestop(0.0_dp,handle)

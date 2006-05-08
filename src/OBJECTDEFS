@@ -299,6 +299,7 @@ OBJECTS_GENERIC =\
  qs_debug.o\
  qs_diis.o\
  qs_diis_types.o\
+ qs_electric_field_gradient.o\
  qs_energy.o\
  qs_energy_types.o\
  qs_environment.o\

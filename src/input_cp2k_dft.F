@@ -800,6 +800,25 @@ CONTAINS
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
+       CALL cp_print_key_section_create(print_key_section=print_key,&
+             name="ELECTRIC_FIELD_GRADIENT",&
+             description="Calculate and print the electric field gradients"//&
+                         "at atomic positions",&
+             print_level=debug_print_level,each=(/1/),&
+             filename="__STD_OUT__",error=error)
+       CALL keyword_create(keyword=keyword,&
+             name="INTERPOLATION",&
+             description="Use interpolation method from real space grid",&
+             usage="INTERPOLATION {logical}",&
+             repeats=.FALSE.,&
+             required=.FALSE.,&
+             n_var=1,&
+             default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+
     END IF
 
   END SUBROUTINE create_print_dft_section
