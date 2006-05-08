@@ -166,13 +166,13 @@ CONTAINS
        CALL keyword_create(keyword, name="E_COUPL",&
             variants=(/"QMMM_COUPLING",&
             "ECOUPL       "/),& 
-            description="Set the Coupling's type between QM and MM system. Possible Options:"//&
-            " (1) NONE: Just Mechanical Coupling. (2) GRID: Computing the electrostatic"//&
-            " potential analytically on the Grid. (3) GAUSS: Mapping the MM electrostatic"//&
-            " potential on the Grid with Gaussian.",&
+            description="Set the Coupling's type between QM and MM system.",&
             usage="E_COUPL char",&
             enum_c_vals=s2a( "NONE","GRID","GAUSS"),&
             enum_i_vals=(/ do_qmmm_none, do_qmmm_grid, do_qmmm_gauss/),&
+            enum_desc=s2a("Mechanical coupling (i.e. classical point charge based)", &
+                          "Using analytical collocation on the grids (for debugging/reference only)",&
+                          "Using fast gaussian expansion of he electrostatic potential (recommended)"),&
             default_i_val=do_qmmm_none, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)    
