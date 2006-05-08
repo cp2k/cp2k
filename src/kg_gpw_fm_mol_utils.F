@@ -38,7 +38,7 @@ MODULE kg_gpw_fm_mol_utils
                                              mol_mo_set_type
   USE kinds,                           ONLY: dp,&
                                              dp_size,&
-                                             int_size
+                                             int_size, default_path_length
   USE memory_utilities,                ONLY: reallocate
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_sum
@@ -775,7 +775,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_mo_mol_restart', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=200)                       :: file_name
+    CHARACTER(LEN=default_path_length)                       :: file_name
     CHARACTER(LEN=6)                         :: method
     INTEGER :: group, handle, imo, imol_found, imol_global, imol_local, &
       imol_proc, imolecule_kind, ispin, istat, n_ao, n_mo(2), nao_max, &

@@ -44,10 +44,12 @@ MODULE qs_initial_guess
                                              random_guess,&
                                              restart_guess
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                             section_vals_type
+                                             section_vals_type, &
+                                             section_vals_val_get
   USE kinds,                           ONLY: dp,&
                                              dp_size,&
-                                             int_size
+                                             int_size, &
+                                             default_path_length
   USE message_passing,                 ONLY: mp_sum
   USE particle_types,                  ONLY: get_particle_set,&
                                              particle_type
@@ -121,11 +123,12 @@ CONTAINS
 
     INTEGER :: atom_a, group, handle, homo, iatom, ikind, iset, isgf, isgfa, &
       ishell, ispin, istat, la, maxl, maxll, nao, natom, ncount, nelectron, &
-      nmo, nset, nspin, qs_env_id
+      nmo, nset, nspin, qs_env_id, density_guess, id_nr
+    CHARACTER(LEN=default_path_length) :: file_name
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf
     INTEGER, DIMENSION(:), POINTER           :: atom_list, elec_conf, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, l, last_sgfa
-    LOGICAL                                  :: failure, id_equal, ortho_basis
+    LOGICAL                                  :: failure, id_equal, ortho_basis, exist
     REAL(KIND=dp)                            :: maxocc, nelec, paa, scale, &
                                                 total_rho, trps1, trps2
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: econf, pdiag, sdiag
@@ -190,11 +193,30 @@ CONTAINS
             "OT needs GUESS ATOMIC / RESTART : other options NYI")
     END IF
 
+    density_guess=scf_control%density_guess
+
+    ! if a restart was requested, check that the file exists,
+    ! if not we fall back to an atomic guess. No kidding, the file name should remain
+    ! in sync with read_mo_set_from_restart
+    id_nr=1
     IF (scf_control%density_guess == restart_guess) THEN
+        CALL section_vals_val_get(globenv%input_file,"FORCE_EVAL%DFT%RESTART_FILE_NAME",&
+           c_val=file_name,error=error)
+        IF (id_nr/=1) THEN
+            file_name(LEN_TRIM(file_name):LEN(file_name)) = "-"//&
+                         ADJUSTL(cp_to_string(id_nr))
+        END IF 
+        INQUIRE(FILE=file_name,exist=exist)
+        IF (.NOT. exist) THEn
+           density_guess = atomic_guess
+        ENDIF
+    ENDIF
+
+    IF (density_guess == restart_guess) THEN
 
        CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set)
        CALL read_mo_set(mo_array,atomic_kind_set,particle_set,globenv,&
-            id_nr=1,dft_section=dft_section,error=error)
+            id_nr=id_nr,dft_section=dft_section,error=error)
 
        DO ispin=1,nspin
           IF (scf_control%level_shift /= 0.0_dp) THEN
@@ -222,7 +244,7 @@ CONTAINS
                p_rmpv(ispin)%matrix,error=error)
        ENDDO
 
-    ELSE IF (scf_control%density_guess == random_guess) THEN
+    ELSE IF (density_guess == random_guess) THEN
 
        DO ispin=1,nspin
           CALL get_mo_set(mo_set=mo_array(ispin)%mo_set,&
@@ -242,7 +264,7 @@ CONTAINS
                p_rmpv(ispin)%matrix,error=error)
        ENDDO
 
-    ELSE IF (scf_control%density_guess == core_guess) THEN
+    ELSE IF (density_guess == core_guess) THEN
 
        IF (dft_control%restricted) THEN
          CALL stop_program(routineN,moduleN,__LINE__,&
@@ -292,7 +314,7 @@ CONTAINS
                                        error=error)
        END DO
 
-    ELSE IF (scf_control%density_guess == atomic_guess) THEN
+    ELSE IF (density_guess == atomic_guess) THEN
 
       IF (dft_control%restricted) THEN
         CALL stop_program(routineN,moduleN,__LINE__,&
@@ -468,7 +490,7 @@ CONTAINS
       DEALLOCATE (sdiag,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"sdiag")
 
-    ELSE IF (scf_control%density_guess == densities_guess) THEN
+    ELSE IF (density_guess == densities_guess) THEN
 
       ! Collocation of the density into the PW-grid
       CALL collocate_atomic_charge_density(total_rho=total_rho, qs_env=qs_env, error=error)

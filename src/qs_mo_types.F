@@ -54,7 +54,8 @@ MODULE qs_mo_types
                                              section_vals_val_get
   USE kinds,                           ONLY: dp,&
                                              dp_size,&
-                                             int_size
+                                             int_size,&
+                                             default_path_length
   USE message_passing,                 ONLY: mp_bcast
   USE orbital_pointers,                ONLY: nco,&
                                              nso
@@ -604,7 +605,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_mo_set_to_restart', &
       routine = "SUBROUTINE "//routineN//" (MODULE "//moduleN//")"
 
-    CHARACTER(LEN=200)                       :: file_name
+    CHARACTER(LEN=default_path_length)                       :: file_name
     INTEGER :: handle, i, i_block, iatom, iset, ishell, ispin, istat, j, &
       lshell, max_block, nao, natom, nmo, nset, nset_max, nsgf, nshell_max, &
       nspin, restart_unit
@@ -771,7 +772,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_mo_set_from_restart', &
       routine = "SUBROUTINE "//routineN//" (MODULE "//moduleN//")"
 
-    CHARACTER(LEN=200)                       :: file_name
+    CHARACTER(LEN=default_path_length)                       :: file_name
     INTEGER :: group, handle, i, iatom, irow, iset, iset_read, ishell, &
       ishell_read, iso, ispin, istat, lshell, nao, nao_read, natom, &
       natom_read, nmo, nmo_read, nset, nset_max, nsgf, nshell_max, nspin, &
