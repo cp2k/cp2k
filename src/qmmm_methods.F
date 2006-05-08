@@ -190,16 +190,20 @@ CONTAINS
     ! IF GAPW the core charge is replaced by the compensation charge
     IF(gapw) THEN
       CALL pw_transfer(rho0_s_gs%pw,rho_tot_r)
+      !
+      ! QM/MM Nuclear Electrostatic Potential already included through rho0
+      !
+      energy%qmmm_nu = 0.0_dp
     ELSE
       CALL pw_transfer(rho_core%pw,rho_tot_r)
+      !
+      ! Computes the QM/MM Nuclear Electrostatic Potential
+      !
+      energy%qmmm_nu = pw_integral_ab ( rho_tot_r, ks_qmmm_env_loc%v_qmmm_rspace%pw )
+      energy%total = energy%total +  energy%qmmm_nu
     END IF
-    !
-    ! Computes the QM/MM Nuclear Electrostatic Potential
-    !
-    energy%qmmm_nu = pw_integral_ab ( rho_tot_r, ks_qmmm_env_loc%v_qmmm_rspace%pw )
-    energy%total = energy%total +  energy%qmmm_nu
     IF (iw>0) THEN
-       WRITE(iw,'(T3,A,F15.9)')" QM/MM Nuclear Electrostatic Potential :",energy%qmmm_nu
+       IF(.NOT. gapw) WRITE(iw,'(T3,A,F15.9)')" QM/MM Nuclear Electrostatic Potential :",energy%qmmm_nu
        WRITE(iw,'(T3,A,F15.9)')" Total Energy after the QM/MM Calculation :",energy%total
     END IF
     IF (need_f) THEN

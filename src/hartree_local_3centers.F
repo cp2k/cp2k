@@ -143,6 +143,7 @@ MODULE  hartree_local_3centers
                                   POINTER      :: atomic_kind_set
     TYPE(atomic_kind_type),       POINTER      :: atom_kind
     TYPE(cell_type),              POINTER      :: cell
+    TYPE(cp_logger_type), POINTER              :: logger
     TYPE(gto_basis_set_type),     POINTER      :: orb_basis
     TYPE(neighbor_list_set_p_type), &
                          DIMENSION(:), POINTER :: sab_orb,sbc_3c
@@ -195,19 +196,23 @@ MODULE  hartree_local_3centers
                nchan0_sph, nco1, nco2, ncotota, ncotota_old, &
                ncototb, ncototb_old, nkind, nlist, nnode, nnode_c,&
                ns1, ns2, nsgfa, nsgfb, nseta, nsetb, nsetc, &
-               nsototc, nspins, num_pe, nz1, nz2
+               nsototc, nspins, num_pe, nz1, nz2, output_unit
     INTEGER, DIMENSION(:),        POINTER      :: atom_list,la_max,la_min,&
                                                   lb_max,lb_min,&
                                                   npgfa,npgfb,nsgfa_set,nsgfb_set
     INTEGER, DIMENSION(:),        ALLOCATABLE  :: atom_of_kind
     INTEGER, DIMENSION(:,:),      POINTER      :: first_sgfa,first_sgfb
-    LOGICAL                                    :: paw_atom, my_tddft
+    LOGICAL                                    :: ionode, paw_atom, my_tddft
     INTEGER  :: ic1, ic1_min_m1, ic1_max, ic2, ic2_min_m1, ic2_max, &
                 ip1,ip2, ldcpc1, ldcpc2, ldhab1, ldhab2, ldintab1, ldintab2, &
                 n1, n2, nn1, nn2,jc
     REAL(KIND=dp) :: zeff
 
 !   ---------------------------------------------------------------------------
+
+    logger => cp_error_get_logger(error)
+    ionode = logger%para_env%mepos==logger%para_env%source
+    IF (ionode) output_unit= cp_logger_get_default_unit_nr(logger)
 
     NULLIFY(atomic_kind_set,cell)
     NULLIFY( para_env,particle_set,rho0_mpole)
@@ -238,6 +243,14 @@ MODULE  hartree_local_3centers
                         norm_g0l_h=ng0_h,norm_g0l_s=ng0_s,lmax_0=lmax_0,&
                         set_radius_3c=set_radius_3c)
     IF(z0_h==z0_s) RETURN
+
+    IF(qs_env%qmmm) THEN
+      IF(output_unit>0) THEN
+         WRITE(UNIT=output_unit,FMT="(T3,A,A)")&
+           "WARNING: the 3 qm/mm 3 center correction is not implemented yet,",&
+           " set ALPHA0_H = ALPHA0_S, it is safer"
+      END IF
+    END IF
 
     IF (my_tddft) THEN
        rho0_mpole   => p_env%local_rho_set%rho0_mpole

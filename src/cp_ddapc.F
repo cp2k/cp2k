@@ -27,7 +27,8 @@ MODULE cp_ddapc
   USE atomic_charges,                  ONLY: print_atomic_charges
   USE cell_types,                      ONLY: cell_type
   USE coefficient_types,               ONLY: coeff_type
-  USE cp_control_types,                ONLY: ddapc_restraint_type
+  USE cp_control_types,                ONLY: ddapc_restraint_type,&
+                                             dft_control_type
   USE cp_ddapc_forces,                 ONLY: evaluate_restraint_functional,&
                                              ewald_ddapc_force,&
                                              reset_ch_pulay,&
@@ -131,8 +132,10 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: inp_radii, radii
     TYPE(cell_type), POINTER                 :: cell, super_cell
     TYPE(coeff_type), POINTER                :: rho_core
+    TYPE(coeff_type), POINTER                :: rho0_s_gs
     TYPE(cp_ddapc_type), POINTER             :: cp_ddapc_env
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
@@ -149,15 +152,17 @@ CONTAINS
     IF (PRESENT(just_charge)) only_charge = just_charge
     IF (PRESENT(calc_force))  need_f      = calc_force    
     logger => cp_error_get_logger(error)
-    NULLIFY(rho, rho_tot_g, rho_core, pw_env, radii, inp_radii, particle_set, &
-         qs_charges, cp_ddapc_env)
+    NULLIFY(dft_control, rho, rho_tot_g, rho_core, rho0_s_gs, pw_env, radii,&
+            inp_radii, particle_set, qs_charges, cp_ddapc_env)
     IF (.NOT.failure) THEN
        !
        ! Build the total QS density (electron+nuclei) in G-space
        !
        CALL get_qs_env(qs_env=qs_env,&
+                       dft_control=dft_control,&
                        rho=rho,&
                        rho_core=rho_core,&
+                       rho0_s_gs=rho0_s_gs,&
                        pw_env=pw_env,&
                        qs_charges=qs_charges,&
                        particle_set=particle_set,&
@@ -174,14 +179,19 @@ CONTAINS
                        error=error)
        CALL pw_pool_create_pw(auxbas_pool,rho_tot_g, in_space=RECIPROCALSPACE,&
             use_data=COMPLEXDATA1D, error=error)
-       CALL pw_transfer(rho_core%pw,rho_tot_g)       
+       IF(dft_control%qs_control%gapw) THEN
+         CALL pw_transfer(rho0_s_gs%pw,rho_tot_g)       
+       ELSE
+         CALL pw_transfer(rho_core%pw,rho_tot_g)       
+       END IF
        DO ispin=1,SIZE(rho%rho_g)
           CALL pw_sumup(rho%rho_g(ispin)%pw,rho_tot_g)
        END DO
        Vol = rho%rho_r(1)%pw%pw_grid%vol
        core_ch = qs_charges%total_rho_core_rspace
        elec_ch = accurate_sum(rho%tot_rho_r)
-       ch_dens = - (elec_ch + core_ch)/Vol
+!       ch_dens = - (elec_ch + core_ch)/Vol
+       ch_dens = - qs_charges%background
        !
        ! Get Input Parameters
        !
@@ -457,10 +467,7 @@ CONTAINS
           qmmm_periodic_section   => section_vals_get_subs_vals(force_env_section,"QMMM%PERIODIC", error=error)
           multipole_section       => section_vals_get_subs_vals(qmmm_periodic_section,"MULTIPOLE", error=error)
        END IF
-!dbg
-!      write(*,*) qmmm_periodic,apply_decpl, apply_restrain
-!     stop 'pp'
-!dbg
+
        ! Start the real calculation
        IF (apply_decpl.OR.apply_restrain) THEN
           iw=cp_print_key_unit_nr(logger,multipole_section,"PROGRAM_RUN_INFO",&

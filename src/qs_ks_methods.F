@@ -477,9 +477,9 @@ CONTAINS
 
        output_unit = cp_print_key_unit_nr(logger,scf_section,"PRINT%TOTAL_DENSITIES",&
             extension=".scfLog",error=error)       
-!       IF (output_unit>0) THEN
-        CALL print_densities(qs_env, rho_tot_gspace, rho, my_rho_xc, output_unit, error)
-!       END IF
+
+       CALL print_densities(qs_env, rho_tot_gspace, rho, my_rho_xc, output_unit, error)
+
        CALL cp_print_key_finished_output(output_unit,logger,scf_section,&
             "PRINT%TOTAL_DENSITIES", error=error)
        CALL pw_poisson_solve(poisson_env,rho_tot_gspace%pw,energy%hartree,&

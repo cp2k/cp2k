@@ -560,7 +560,9 @@ CONTAINS
          CALL get_hartree_local(qs_env%hartree_local,vtriple=VH_3c_list)
     IF (PRESENT(rho0_s_rs)) THEN
        CALL get_local_rho(qs_env%local_rho_set,  rho0_mpole=rho0_m)
-       rho0_s_rs => rho0_m%rho0_s_rs
+       IF(ASSOCIATED(rho0_m)) THEN
+         rho0_s_rs => rho0_m%rho0_s_rs
+       END IF
     END IF
     IF (PRESENT(rho0_s_gs)) THEN
        CALL get_local_rho(qs_env%local_rho_set,  rho0_mpole=rho0_m)
