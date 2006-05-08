@@ -1141,7 +1141,7 @@ SUBROUTINE calc_stupid_dipole(subsystem, rho_r, rho_core_g,aux_bas_pool,&
 !
 !  Small error in the evaluation of the function on the rs grid, if odd number of points
 !  shift=REAL(MODULO(np,2),dp)*dr
-  shift=-REAL(MODULO(ng,2),dp)*dr/2.0_dp
+  shift=-REAL(MODULO(np,2),dp)*dr/2.0_dp
 
   dipole_com=0._dp
   DO k=bo(1,3),bo(2,3)
