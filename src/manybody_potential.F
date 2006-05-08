@@ -28,7 +28,7 @@ MODULE manybody_potential
        spline_data_release,&
        spline_data_type,&
        spline_environment_type,&
-       splineh,&
+       potential_s,&
        spline_data_release,&
        spline_data_create
   USE termination,                     ONLY: stop_program
@@ -138,7 +138,7 @@ CONTAINS
                    x = x2
                    e = manybody_pot ( potparm%pot ( i, j )%pot, x ) 
                    IF (e<max_energy) THEN
-                      xdum1   = ABS(e-splineh(spline_env%spline_data_p(n)%spline_data,x*x,xdum))
+                      xdum1   = ABS(e-potential_s(spline_env%spline_data_p(n)%spline_data,x*x,xdum))
                       diffmax = MAX(diffmax,xdum1)
                       xsav = MIN(x,xsav)
                    END IF
@@ -201,7 +201,7 @@ CONTAINS
                    DO jx = 1, 5000
                       x = x2
                       e = manybody_pot ( potparm%pot ( i, j )%pot, x )
-                      WRITE(2000+n,*) x, e, splineh(spline_env%spline_data_p(n)%spline_data,x*x,xdum)
+                      WRITE(2000+n,*) x, e, potential_s(spline_env%spline_data_p(n)%spline_data,x*x,xdum)
                       x2 = x2 + dx2
                    END DO
                    WRITE(2000+n,*)
@@ -229,9 +229,6 @@ CONTAINS
 
   !******************************************************************************
 
-  !     calculates energy=V(r^2) and fscalar=-V^{prime}(r^2)/r
-  !      only kept to have same args as potential()
-
   SUBROUTINE rho_s ( spline_table, rijsq, energy, fscalar )
 
 
@@ -241,8 +238,7 @@ CONTAINS
 
     !------------------------------------------------------------------------------
 
-    energy = splineh ( spline_table, rijsq, fscalar )
-    fscalar = -2.0_dp * fscalar
+    energy = potential_s ( spline_table, rijsq, fscalar )
 
   END SUBROUTINE rho_s
 

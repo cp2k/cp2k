@@ -40,7 +40,7 @@ MODULE splines
   PUBLIC :: spline_data_type ! the data structure for spline table
   PUBLIC :: init_splinexy    ! allocates x and y vectors for splines
   PUBLIC :: init_spline      ! generate table for spline (allocates y2)
-  PUBLIC :: splineh          ! return value of spline and 1. derivative
+  PUBLIC :: potential_s      ! return value of spline and 1. derivative
                              ! without checks (fast routine for pair_potential)
 
   !******************************************************************************
@@ -587,13 +587,13 @@ CONTAINS
 
   !******************************************************************************
   !!****
-  !!****f* splines/splineh [1.0] *
+  !!****f* splines/potential_s [1.0] *
   !!
   !!   NAME
-  !!     splineh
+  !!     potential_s
   !!
   !!   FUNCTION
-  !!     calculates the spline interpolated value at a given point
+  !!     calculates the potential interpolated with splines value at a given point
   !!     and the first derivative WITHOUT checks
   !!
   !!   AUTHOR
@@ -618,12 +618,12 @@ CONTAINS
   !!   SOURCE
   !******************************************************************************
 
-  FUNCTION splineh ( spl, xxi, y1 )
+  FUNCTION potential_s ( spl, xxi, y1 )
     ! Return value
     TYPE(spline_data_type), POINTER          :: spl
     REAL(KIND=dp), INTENT(IN)                :: xxi
     REAL(KIND=dp), INTENT(OUT)               :: y1
-    REAL(KIND=dp)                            :: splineh
+    REAL(KIND=dp)                            :: potential_s
 
     INTEGER                                  :: i
     REAL(KIND=dp)                            :: a, b, h26, invh, y2hi, y2lo, &
@@ -641,11 +641,11 @@ CONTAINS
     yhi = spl%y(i+1)
     y2lo = spl%y2(i)
     y2hi = spl%y2(i+1)
-    splineh = a*ylo + b*yhi - ((a+1.0_dp)*y2lo+(b+1.0_dp)*y2hi)*a*b*h26
+    potential_s = a*ylo + b*yhi - ((a+1.0_dp)*y2lo+(b+1.0_dp)*y2hi)*a*b*h26
     y1 = invh*((yhi-ylo) + ((f13-a*a)*y2lo-(f13-b*b)*y2hi)*3.0_dp*h26)
     ! take into account the mapping w.r.t. 1/r^2
     x4 = xx * xx
-    y1 = - y1 * x4
-  END FUNCTION splineh
+    y1 = 2.0_dp * y1 * x4
+  END FUNCTION potential_s
 
 END MODULE splines

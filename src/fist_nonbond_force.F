@@ -41,7 +41,7 @@ MODULE fist_nonbond_force
                                              dp_size
   USE mathconstants,                   ONLY: pi
   USE message_passing,                 ONLY: mp_sum
-  USE pair_potential,                  ONLY: potential_s
+  USE splines,                         ONLY: potential_s
   USE pair_potential_types,            ONLY: pair_potential_pp_type,&
                                              pair_potential_single_type
   USE particle_types,                  ONLY: particle_type
@@ -166,7 +166,7 @@ SUBROUTINE force_nonbond ( fist_nonbond_env, particle_set, cell,  &
 
             IF (rab2 <= rab2_max) THEN
 
-              CALL potential_s (spline_data,rab2,energy,fscalar)
+              energy =  potential_s (spline_data,rab2,fscalar)
 
               pot_nonbond = pot_nonbond + energy
 

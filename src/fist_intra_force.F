@@ -40,7 +40,7 @@ MODULE fist_intra_force
                                              ub_type
   USE molecule_types_new,              ONLY: get_molecule,&
                                              molecule_type
-  USE pair_potential,                  ONLY: potential_s
+  USE splines,                         ONLY: potential_s
   USE particle_types,                  ONLY: particle_type
   USE splines,                         ONLY: spline_data_type
   USE timings,                         ONLY: timeset,&
@@ -376,7 +376,7 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
         rij = particle_set ( index_b ) % r - particle_set ( index_a ) % r
         rab2 = DOT_PRODUCT ( rij, rij )
         spline_data => onef_list ( ionef ) % onfo_kind % spline_data
-        CALL potential_s ( spline_data, rab2, energy, fscalar )
+        energy = potential_s ( spline_data, rab2, fscalar )
         pot_onef = pot_onef + energy
         particle_set ( index_a )% f = particle_set ( index_a ) % f &
                                       -rij * fscalar

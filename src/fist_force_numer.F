@@ -58,8 +58,8 @@ MODULE fist_force_numer
                                              ub_type
   USE molecule_types_new,              ONLY: get_molecule,&
                                              molecule_type
-  USE pair_potential,                  ONLY: potential_f,&
-                                             potential_s
+  USE pair_potential,                  ONLY: potential_f
+  USE splines,                         ONLY: potential_s
   USE pair_potential_types,            ONLY: pair_potential_pp_type
   USE particle_types,                  ONLY: particle_type
   USE pme,                             ONLY: pme_evaluate
@@ -248,16 +248,16 @@ SUBROUTINE force_onefour_numer ( molecule_set, molecule_kind_set, local_molecule
 ! get the energy
         rab2 = DOT_PRODUCT ( rij, rij )
         spline_data => onfo_list ( ibond ) % onfo_kind % spline_data
-        CALL potential_s ( spline_data, rab2, e0, fscalar )
+        e0 = potential_s ( spline_data, rab2, fscalar )
         pot = pot + e0
 
 ! get the forces
         DO idim = 1, 3
            delta(idim) = numerical_shift
            rab2_minus_delta = DOT_PRODUCT ( rij - delta, rij - delta )
-           CALL potential_s ( spline_data, rab2_minus_delta, em, fscalar )
+           em = potential_s ( spline_data, rab2_minus_delta, fscalar )
            rab2_plus_delta = DOT_PRODUCT ( rij + delta, rij + delta )
-           CALL potential_s ( spline_data, rab2_plus_delta, ep, fscalar )
+           ep =  potential_s ( spline_data, rab2_plus_delta, fscalar )
            f_numer(idim,index_a) = f_numer(idim,index_a) + (ep-em)
            f_numer(idim,index_b) = f_numer(idim,index_b) - (ep-em)
            delta = 0.0_dp
@@ -2376,7 +2376,7 @@ SUBROUTINE potential_onefour ( molecule_set, molecule_kind_set, local_molecules,
         rij = particle_set ( index_b ) % r - particle_set ( index_a ) % r
         rab2 = DOT_PRODUCT ( rij, rij )
         spline_data => onfo_list ( ibond ) % onfo_kind % spline_data
-        CALL potential_s ( spline_data, rab2, e0, fscalar )
+        e0 = potential_s ( spline_data, rab2, fscalar )
         energy = energy + e0
      END DO BOND
     END DO

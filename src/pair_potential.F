@@ -35,7 +35,7 @@ MODULE pair_potential
        init_splinexy,&
        spline_data_type,&
        spline_environment_type,&
-       splineh,&
+       potential_s,&
        spline_data_release,&
        spline_data_create
 #include "cp_common_uses.h"
@@ -262,7 +262,7 @@ CONTAINS
                 ENDIF
 
                 IF (e<max_energy) THEN
-                   xdum1   = ABS(e-splineh(spline_env%spline_data_p(n)%spline_data,x*x,xdum))
+                   xdum1   = ABS(e-potential_s(spline_env%spline_data_p(n)%spline_data,x*x,xdum))
                    diffmax = MAX(diffmax,xdum1)
                    xsav = MIN(x,xsav)
                 END IF
@@ -333,7 +333,7 @@ CONTAINS
                       e = ener_pot ( potparm%pot( i, j )%pot, qi, qj, x ) &
                            + ener_coul ( potparm%pot( i, j )%pot, qi, qj, x, ewald_env )
                    ENDIF
-                   WRITE(1000+n,*) x, e, splineh(spline_env%spline_data_p(n)%spline_data,x*x,xdum)
+                   WRITE(1000+n,*) x, e, potential_s(spline_env%spline_data_p(n)%spline_data,x*x,xdum)
                    x2 = x2 + dx2
                 END DO
                 WRITE(1000+n,*)
@@ -349,24 +349,6 @@ CONTAINS
     END IF
 
   END SUBROUTINE spline_nonbond_control
-
-  !******************************************************************************
-  !     calculates energy=V(r^2) and fscalar=-V^{prime}(r^2)/r
-  !     qi,qj are not used any more. only kept to have same args as potential()
-
-  SUBROUTINE potential_s ( spline_table, rijsq, energy, fscalar )
-
-
-    TYPE(spline_data_type), POINTER          :: spline_table
-    REAL(KIND=dp), INTENT(IN)                :: rijsq
-    REAL(KIND=dp), INTENT(OUT)               :: energy, fscalar
-
-    !------------------------------------------------------------------------------
-
-    energy = splineh ( spline_table, rijsq, fscalar )
-    fscalar = -2.0_dp * fscalar
-
-  END SUBROUTINE potential_s
 
   !******************************************************************************
 
