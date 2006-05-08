@@ -221,6 +221,7 @@ CONTAINS
     INTEGER                                  :: handle, ispin
     LOGICAL                                  :: failure
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(coeff_type), POINTER                :: rho0_s_rs
 
     CALL timeset(routineN,"I","",handle)    
     failure=.FALSE.
@@ -229,12 +230,17 @@ CONTAINS
 
     CALL get_qs_env(qs_env=qs_env,&
                     dft_control=dft_control,&
+                    rho0_s_rs=rho0_s_rs,&
                     error=error)
 
     qmmm_energy = 0.0_dp
     DO ispin=1, dft_control%nspins
        qmmm_energy = qmmm_energy + pw_integral_ab ( rho(ispin)%pw, v_qmmm%pw )
     END DO
+    IF(dft_control%qs_control%gapw) THEN
+       CPPrecondition(ASSOCIATED(rho0_s_rs),cp_failure_level,routineP,error,failure)
+       qmmm_energy = qmmm_energy + pw_integral_ab (rho0_s_rs%pw, v_qmmm%pw )
+    END IF
 
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE qmmm_calculate_energy

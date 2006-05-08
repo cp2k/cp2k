@@ -654,8 +654,8 @@ CONTAINS
                       calculate_forces=calculate_forces,compute_tau=.TRUE., &
                       gapw=gapw,error=error)
 
-              CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_tau_rspace(ispin),&
-                   error=error)                 
+                 CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_tau_rspace(ispin),&
+                      error=error)                 
 
               END DO
               DEALLOCATE(v_tau_rspace, stat=stat)
@@ -944,7 +944,7 @@ CONTAINS
                     qs_charges=qs_charges)
     
     IF(qs_env%dft_control%qs_control%gapw) THEN
-       CPPrecondition(ASSOCIATED(rho0_s_gs), cp_failure_level, routineP, error, failure)
+       CPPrecondition(ASSOCIATED(rho0_s_gs),cp_failure_level,routineP,error,failure)
        CALL coeff_add(rho0_s_gs, rho%rho_g(1), rho_tot_gspace)
     ELSE
        CALL coeff_add(rho_core, rho%rho_g(1), rho_tot_gspace)
