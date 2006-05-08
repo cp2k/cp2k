@@ -104,13 +104,13 @@ CONTAINS
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
     CALL keyword_create(keyword, name="POTENTIAL_FILE_NAME",&
-         description="Name of the pseudo potential files, may include a path",&
+         description="Name of the pseudo potential file, may include a path",&
          usage="POTENTIAL_FILE_NAME ../POTENTIAL",&
          default_lc_val="POTENTIAL",error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
     CALL keyword_create(keyword, name="RESTART_FILE_NAME",&
-         description="Name of the restart file, may include a path",&
+         description="Name of the wavefunction restart file, may include a path",&
          usage="RESTART_FILE_NAME ../RESTART",&
          default_lc_val="RESTART",error=error)
     CALL section_add_keyword(section,keyword,error=error)
@@ -122,7 +122,7 @@ CONTAINS
                                      "SPIN_POLARIZED"),&
                         description="Requests a spin-polarized calculation using alpha "//&
                                     "and beta orbitals, i.e. no spin restriction is applied",&
-                        usage="lsd",&
+                        usage="LSD",&
                         default_l_val=.FALSE.,&
                         lone_keyword_l_val=.TRUE.,&
                         error=error)
@@ -271,6 +271,10 @@ CONTAINS
            usage="METHOD (JACOBI|CRAZY|DIRECT|NONE)",&
            enum_c_vals=s2a("NONE","JACOBI","CRAZY","DIRECT"),&
            enum_i_vals=(/do_loc_jacobi, do_loc_crazy, do_loc_direct, do_loc_none/),&
+           enum_desc=s2a("No localization is applied",&
+                         "Using 2 x 2 rotations of the orbitals, slow but robust",&
+                         "A new fast method is applied, might be slightly less robust than jacobi, but usually much faster",&
+                         "Using a direct minimisation approach"),&
            default_i_val=do_loc_jacobi,error=error)
       CALL section_add_keyword(section,keyword,error=error)
       CALL keyword_release(keyword,error=error)
@@ -320,8 +324,8 @@ CONTAINS
       CALL keyword_release(keyword,error=error)
  
       CALL keyword_create(keyword,name="EACH_STEP",&
-           description="Evry how many steps the localization calculation"//&
-           " is performed  along an iterative procedure (e.g. MD)",&
+           description="Specifies how frequently the localization procedure"//&
+           " is performed during an iterative procedure (e.g. MD)",&
            usage="EACH_STEP integer",&
            default_i_val=1,error=error)
       CALL section_add_keyword(section,keyword,error=error)
@@ -678,6 +682,10 @@ CONTAINS
        CALL keyword_create(keyword, name="LOC_TYPE",&
             description="Specify the method to use for the localization.",&
             usage="LOC_TYPE (JACOBI|CRAZY|DIRECT|NONE)",&
+            enum_desc=s2a("No localization is applied",&
+                         "Using 2 x 2 rotations of the orbitals, slow but robust",&
+                         "A new fast method is applied, might be slightly less robust than jacobi, but usually much faster",&
+                         "Using a direct minimisation approach"),&
             enum_c_vals=s2a("JACOBI","CRAZY","DIRECT","NONE"),&
             enum_i_vals=(/ do_loc_jacobi, do_loc_crazy, do_loc_direct, do_loc_none/),&
             default_i_val=do_loc_crazy, error=error)
@@ -728,7 +736,7 @@ CONTAINS
        CALL section_release(print_key,error=error)
 
        CALL cp_print_key_section_create(print_key,"MOLECULAR_STATES",&
-            description="Controls the printing of the molecular states", &
+            description="Controls the printing of the molecular states (requires the LOCALIZATION keyword)", &
             print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
             error=error)
 
@@ -1092,10 +1100,21 @@ SUBROUTINE create_qs_section(section,error)
 
      CALL keyword_create(keyword, name="EXTRAPOLATION",&
           variants=s2a("INTERPOLATION","WF_INTERPOLATION"),&
-          description="Extrapolation strategy for e.g. MD",&
-          usage="EXTRAPOLATION PS",&     ! XXXXXXXXXXX how to add the order ? i.e. PS 3
+          description="Extrapolation strategy for the wavefunction during e.g. MD (OT requires PS).",&
+          usage="EXTRAPOLATION PS",&     
           enum_c_vals=s2a("USE_GUESS","USE_PREV_P","USE_PREV_RHO_R","LINEAR_WF",&
                           "LINEAR_P","LINEAR_PS","USE_PREV_WF","PS","FROZEN","ASPC"),&
+          enum_desc=s2a("Use the method specified with SCF_GUESS, i.e. no extrapolation",&
+                        "Use the previous density matrix",&
+                        "Use the previous density in real space",&
+                        "Linear extrapolation of the wavefunction",&
+                        "Linear extrapolation of the density matrix",&
+                        "Linear extrapolation of the density matrix times the overlap matrix",&
+                        "Use the previous wavefunction",&
+                        "Higher order extrapolation of the density matrix times the overlap matrix"//&
+                                             " (recommended for most systems and required for OT).",&
+                        "Frozen ...",&
+                        "Always stable predictor corrector"),&
           enum_i_vals=(/ do_extrpl_use_guess,& 
                          do_extrpl_use_prev_p,&
                          do_extrpl_use_prev_rho_r,&
@@ -1111,15 +1130,13 @@ SUBROUTINE create_qs_section(section,error)
      CALL keyword_release(keyword,error=error)
 
      CALL keyword_create(keyword, name="EXTRAPOLATION_ORDER",&
-          description="Order for the PS extrapolation",&
+          description="Order for the PS extrapolation (typically 2-4).",&
           usage="EXTRAPOLATION_ORDER {integer}",default_i_val=0, error=error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error)
 
-
-
      CALL keyword_create(keyword, name="METHOD",&
-          description="What method should be employed",&
+          description="Specifies the electronic structure method that should be employed",&
           usage="METHOD GAPW",&
           enum_c_vals=s2a("GAPW","GAPW_XC","GPW","KG_POL","KG_NOPOL","KG_GPW","EHT",&
                           "MNDO","AM1","PM3","PDG"),&
