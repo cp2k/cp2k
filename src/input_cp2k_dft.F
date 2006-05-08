@@ -2313,6 +2313,11 @@ SUBROUTINE create_tddfpt_section(section,error)
             description="Change the initial guess for the wavefunction.",&
             usage="SCF_GUESS RESTART", default_i_val=atomic_guess,&
             enum_c_vals=s2a("ATOMIC","RESTART","RANDOM","CORE","DENSITIES"),&
+            enum_desc=s2a("Generate a trial atomic density based on the SZV part of the basis", &
+                          "Use the RESTART file as an initial guess (and ATOMIC if not present).", &
+                          "Use random wavefunction coefficients.", &
+                          "Diagonalize the core hamiltonian for an initial guess.", &
+                          "Use the aux_basis_set for collocation (Harris only ?)."), &
             enum_i_vals=(/atomic_guess,restart_guess,random_guess,core_guess,&
             densities_guess/),&
             error=error)
