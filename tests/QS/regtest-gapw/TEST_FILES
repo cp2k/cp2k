@@ -30,3 +30,5 @@ Li-ROKS.inp        1
 NO2-ROKS.inp       1
 # Level-shifting for ROKS
 C-levelshift.inp   1
+# Cholesky for ROKS
+NO2-ROKS.inp       1
