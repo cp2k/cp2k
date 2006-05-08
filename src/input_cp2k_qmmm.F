@@ -154,20 +154,20 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="typ_center",&
-            description="This keyword specifies whether the centering is performes continuosly (NONE) "//&
-            "or by unit grid steps (GRID).",&
-            usage="typ_center (NONE|GRID)",&
+            description="This keyword specifies how the QM system is centered with respect to the QM box during MD.",&
+            usage="typ_center NONE",&
             enum_c_vals=s2a( "NONE","GRID"),&
+            enum_desc=s2a("centering is performes continuously",&
+                          "centering is performed in units of the grid spacing"),&
             enum_i_vals=(/ do_center_none, do_center_grid /),&
             default_i_val=do_center_none, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)     
 
        CALL keyword_create(keyword, name="E_COUPL",&
-            variants=(/"QMMM_COUPLING",&
-            "ECOUPL       "/),& 
-            description="Set the Coupling's type between QM and MM system.",&
-            usage="E_COUPL char",&
+            variants=s2a("QMMM_COUPLING","ECOUPL"),& 
+            description="Specifies the type of the QM - MM electrostatic coupling.",&
+            usage="E_COUPL GAUSS",&
             enum_c_vals=s2a( "NONE","GRID","GAUSS"),&
             enum_i_vals=(/ do_qmmm_none, do_qmmm_grid, do_qmmm_gauss/),&
             enum_desc=s2a("Mechanical coupling (i.e. classical point charge based)", &
