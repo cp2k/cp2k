@@ -56,8 +56,9 @@ MODULE cp_fm_types
   PUBLIC :: cp_fm_type, &
             cp_fm_p_type
 
-  PUBLIC :: cp_fm_create, &
-            cp_fm_retain, &
+  PUBLIC :: cp_fm_add_to_element,&
+            cp_fm_create,&
+            cp_fm_retain,&
             cp_fm_release,&
             cp_fm_get_info, &
             cp_fm_set_element, &
@@ -1322,6 +1323,67 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE cp_fm_to_fm_columns
+
+  ! ***************************************************************************
+
+  SUBROUTINE cp_fm_add_to_element(matrix,irow_global,icol_global,alpha,error)
+
+    ! Add alpha to the matrix element specified by the global indices
+    ! irow_global and icol_global
+
+    ! - Creation (05.05.06,MK)
+
+    TYPE(cp_fm_type), POINTER                :: matrix
+    INTEGER, INTENT(IN)                      :: irow_global, icol_global
+    REAL(KIND=dp), INTENT(IN)                :: alpha
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = "cp_fm_add_to_element", &
+                                   routineP = moduleN//":"//routineN
+
+    INTEGER                                  :: icol_local, ipcol, iprow, &
+                                                irow_local, mypcol, myprow, &
+                                                npcol, nprow
+    LOGICAL                                  :: failure
+    INTEGER, DIMENSION(9)                    :: desca
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a
+    TYPE(cp_blacs_env_type), POINTER         :: context
+
+    ! -------------------------------------------------------------------------
+
+    failure = .FALSE.
+
+    CPPrecondition(ASSOCIATED(matrix),cp_failure_level,routineP,error,failure)
+
+    context => matrix%matrix_struct%context
+
+    myprow = context%mepos(1)
+    mypcol = context%mepos(2)
+
+    nprow = context%num_pe(1)
+    npcol = context%num_pe(2)
+
+    a => matrix%local_data
+
+#if defined(__SCALAPACK)
+
+    desca(:) = matrix%matrix_struct%descriptor(:)
+
+    CALL infog2l(irow_global,icol_global,desca,nprow,npcol,myprow,mypcol,&
+                 irow_local,icol_local,iprow,ipcol)
+
+    IF ((iprow == myprow).AND.(ipcol == mypcol)) THEN
+      a(irow_local,icol_local) = a(irow_local,icol_local) + alpha
+    END IF
+
+#else
+
+    a(irow_local,icol_local) = a(irow_local,icol_local) + alpha
+
+#endif
+
+  END SUBROUTINE cp_fm_add_to_element
 
   ! ***************************************************************************
 

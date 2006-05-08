@@ -720,10 +720,6 @@ CONTAINS
         CALL stop_program(routineN,moduleN,__LINE__,&
                           "The options ROKS and OT are not compatible")
       END IF
-      IF (scf_control%level_shift /= 0.0_dp) THEN
-        CALL stop_program(routineN,moduleN,__LINE__,&
-                          "Level shifting for ROKS is not yet implemented")
-      END IF
       IF (scf_control%eps_jacobi /= 0.0_dp) THEN
         CALL stop_program(routineN,moduleN,__LINE__,&
                           "Pseudo-diagonalization for ROKS is not yet implemented")

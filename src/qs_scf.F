@@ -64,7 +64,8 @@ MODULE qs_scf
                                              cp_fm_struct_get,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
-  USE cp_fm_types,                     ONLY: cp_fm_to_fm,&
+  USE cp_fm_types,                     ONLY: cp_fm_add_to_element,&
+                                             cp_fm_to_fm,&
                                              cp_fm_create,&
                                              cp_fm_p_type,&
                                              cp_fm_release,&
@@ -2045,7 +2046,7 @@ END SUBROUTINE qs_scf_print_summary
     TYPE(cp_fm_type), POINTER :: mo2ao,ksa,ksb,moa,mob,ortho,work
 
     REAL(KIND=dp) :: diis_error,level_shift_loc
-    INTEGER       :: handle,homoa,homob,imo,nalpha,nao,nbeta,nmo, iao
+    INTEGER       :: handle,homoa,homob,imo,nalpha,nao,nbeta,nmo
 
     REAL(KIND=dp), DIMENSION(:), POINTER :: eiga,eigb,occa,occb
 
@@ -2187,27 +2188,40 @@ END SUBROUTINE qs_scf_print_summary
     scf_env%iter_delta = 0.0_dp
 
     IF (level_shift_loc /= 0.0_dp) THEN
+
       ! Transform the current Kohn-Sham matrix from AO to MO basis
-      ! for level-shifting
+      ! for level-shifting using the current MO set
+
       CALL cp_fm_symm("L","U",nao,nao,1.0_dp,ksa,moa,0.0_dp,work)
       CALL cp_fm_gemm("T","N",nao,nao,nao,1.0_dp,moa,work,0.0_dp,ksa)
-!MK to be done
-!MK   CALL apply_level_shifting(ksa,...)
+
+      ! Apply level-shifting using 50:50 split of the shift (could be relaxed)
+
+      DO imo=homob+1,homoa
+        CALL cp_fm_add_to_element(ksa,imo,imo,0.5_dp*level_shift_loc,error)
+      END DO
+      DO imo=homoa+1,nmo
+        CALL cp_fm_add_to_element(ksa,imo,imo,level_shift_loc,error)
+      END DO
+
     ELSE IF (.NOT.orthogonal_basis) THEN
+
       ! Transform the current Kohn-Sham matrix to an orthogonal basis
+
       CALL cp_fm_symm("L","U",nao,nao,1.0_dp,ksa,ortho,0.0_dp,work)
       CALL cp_fm_gemm("N","N",nao,nao,nao,1.0_dp,ortho,work,0.0_dp,ksa)
+
     END IF
 
     ! Diagonalization of the ROKS operator matrix
 
     CALL cp_fm_syevd(ksa,work,eiga)
 
-    IF (level_shift_loc /= 0.0_dp) THEN
-      CALL cp_sm_fm_multiply(matrix_s(1)%matrix,moa,ortho,nao)
-    END IF
+    ! Use old MO set for back-transformation if level-shifting was applied
 
-    ! Back-transformation of the orthonormal eigenvectors
+    IF (level_shift_loc /= 0.0_dp) CALL cp_fm_to_fm(moa,ortho)
+
+    ! Back-transformation of the orthonormal eigenvectors if needed
 
     IF ((level_shift_loc /= 0.0_dp).OR.(.NOT.orthogonal_basis)) THEN
       CALL cp_fm_gemm("N","N",nao,nmo,nao,1.0_dp,ortho,work,0.0_dp,moa)
@@ -2215,8 +2229,14 @@ END SUBROUTINE qs_scf_print_summary
 
     ! Correct MO eigenvalues, if level-shifting was applied
 
-!MK to be done
-!MK IF (level_shift_loc /= 0.0_dp) CALL correct_mo_eigenvalues(eiga,..)
+    IF (level_shift_loc /= 0.0_dp) THEN
+      DO imo=homob+1,homoa
+        eiga(imo) = eiga(imo) - 0.5_dp*level_shift_loc
+      END DO
+      DO imo=homoa+1,nmo
+        eiga(imo) = eiga(imo) - level_shift_loc
+      END DO
+    END IF
 
     ! Update also the beta MO set
 
