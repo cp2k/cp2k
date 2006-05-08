@@ -207,7 +207,7 @@ CONTAINS
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: unoccupied_orbs
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
-    TYPE(cp_fm_type), POINTER                :: mo_coeff, mo_localized
+    TYPE(cp_fm_type), POINTER                :: mo_coeff, mo_localized, mo_coeff_deriv
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(localized_wfn_control_type), &
@@ -367,10 +367,16 @@ CONTAINS
                     " and ",nmo-homo," added MO eigenvalues" 
              ENDIF
              IF (ionode) WRITE(output_unit,*) " ---------------------------------------------"
+             ! also rotate the OT derivs, since they are needed for force calculations
+             IF (ASSOCIATED(qs_env%mo_derivs)) THEN
+                 mo_coeff_deriv=>qs_env%mo_derivs(ispin)%matrix
+             ELSE
+                 mo_coeff_deriv=>NULL() 
+             ENDIF
              CALL calculate_subspace_eigenvalues(mo_coeff,&
                   ks_rmpv(ispin)%matrix,mo_eigenvalues, &
                   para_env=qs_env%para_env,scr=output_unit, &
-                  ionode=ionode, do_rotation=.TRUE.)
+                  ionode=ionode, do_rotation=.TRUE.,co_rotate=mo_coeff_deriv)
 
              IF (BTEST(cp_print_key_should_output(logger%iter_info,dft_section,"PRINT%MO_CUBES",&
                   error=error),cp_p_file) .AND. section_get_lval(dft_section,"PRINT%MO_CUBES%WRITE_CUBE")) THEN
@@ -468,6 +474,12 @@ CONTAINS
                        " and ",nmo-homo," added MO eigenvalues" 
                 ENDIF
                 IF (ionode) WRITE(output_unit,*) " ---------------------------------------------"
+                ! also rotate the OT derivs, since they are needed for force calculations
+                IF (ASSOCIATED(qs_env%mo_derivs)) THEN
+                    mo_coeff_deriv=>qs_env%mo_derivs(ispin)%matrix
+                ELSE
+                    mo_coeff_deriv=>NULL() 
+                ENDIF
                 CALL calculate_subspace_eigenvalues(mo_coeff,ks_rmpv(ispin)%matrix, &
                      evals_arg=mo_eigenvalues, para_env=qs_env%para_env,scr=output_unit, &
                      ionode=ionode, do_rotation=.TRUE.)
@@ -856,19 +868,17 @@ CONTAINS
             input=input,cell=cell,subsys=subsys,error=error)
        CALL cp_subsys_get(subsys,particles=particles,error=error)
 
-    dft_section => section_vals_get_subs_vals(input,"DFT",error=error)
-
-    ! Write last wavefunction to screen
-
-    IF (dft_control%nspins == 2) THEN
-      CALL write_mo_set(mos(1)%mo_set,atomic_kind_set,particle_set,4,6,&
-                        dft_section,spin="ALPHA",error=error)
-      CALL write_mo_set(mos(2)%mo_set,atomic_kind_set,particle_set,4,6,&
-                        dft_section,spin="BETA",error=error)
-    ELSE
-      CALL write_mo_set(mos(1)%mo_set,atomic_kind_set,particle_set,4,6,&
-                        dft_section,error=error)
-    END IF
+! *** if the dft_section tells you to do so, write last wavefunction to screen
+       dft_section => section_vals_get_subs_vals(input,"DFT",error=error)
+       IF (dft_control%nspins == 2) THEN
+         CALL write_mo_set(mos(1)%mo_set,atomic_kind_set,particle_set,4,6,&
+                           dft_section,spin="ALPHA",error=error)
+         CALL write_mo_set(mos(2)%mo_set,atomic_kind_set,particle_set,4,6,&
+                           dft_section,spin="BETA",error=error)
+       ELSE
+         CALL write_mo_set(mos(1)%mo_set,atomic_kind_set,particle_set,4,6,&
+                           dft_section,error=error)
+       END IF
 
 !   *** Integrated absolute spin density and spin contamination ***
        IF (dft_control%nspins.eq.2) THEN

@@ -417,6 +417,7 @@ CONTAINS
 !!    - evals_arg   : optional, filled with the evals
 !!    - ionode/scr  : if present write to unit scr where ionode
 !!    - do_rotation : optional rotate orbitals if .TRUE. (default)
+!!    - co_rotate   : an optional set of orbitals rotated by the same amout
 !!
 !!   MODIFICATION HISTORY
 !!     08.2004 documented and added do_rotation [Joost VandeVondele]
@@ -491,9 +492,11 @@ CONTAINS
                         orbitals,e_vectors,0.0_dp,weighted_vectors)
             CALL cp_fm_to_fm(weighted_vectors,orbitals)
             IF (PRESENT(co_rotate)) THEN
+              IF (ASSOCIATED(co_rotate)) THEN
                 CALL cp_fm_gemm('N','N',nrow_global,ncol_global,ncol_global,1.0_dp, &
                         co_rotate,e_vectors,0.0_dp,weighted_vectors)
                 CALL cp_fm_to_fm(weighted_vectors,co_rotate)
+              ENDIF
             ENDIF
         ENDIF
 
