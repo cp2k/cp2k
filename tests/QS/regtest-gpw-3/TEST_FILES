@@ -35,6 +35,3 @@ CN-lowdin.inp      0
 H-ROKS.inp         1
 N-ROKS.inp         1
 O2-ROKS.inp        1
-# Cholesky for ROKS
-N-ROKS.inp         1
-O2-ROKS.inp        1
