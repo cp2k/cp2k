@@ -38,7 +38,7 @@ MODULE input_enumeration_types
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_enumeration_types'
   INTEGER, SAVE, PRIVATE :: last_enumeration_id=0
 
-  INTEGER, PARAMETER, PUBLIC :: keyword_desc_length=default_string_length
+  INTEGER, PARAMETER, PRIVATE :: keyword_desc_length=5*default_string_length
   PUBLIC :: enumeration_type
   PUBLIC :: enum_create, enum_retain, enum_release, enum_i2c, enum_c2i
 !!***
