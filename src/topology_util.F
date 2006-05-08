@@ -2617,9 +2617,6 @@ CONTAINS
              DO j=1,nbond
                 IF(  (ex_bond_list(j)%a==iatom).OR. &
                      (ex_bond_list(j)%b==iatom) ) THEN
-                   IF (iw>0) WRITE(iw,*)"VDW - bond_list ::",&
-                        ex_bond_list(j)%a,&
-                        ex_bond_list(j)%b
                    atomlist(ex_bond_list(j)%a) = .FALSE.
                    atomlist(ex_bond_list(j)%b) = .FALSE.
                 END IF
@@ -2631,10 +2628,6 @@ CONTAINS
              DO j=1,nbend
                 IF(  (ex_bend_list(j)%a==iatom).OR. &
                      (ex_bend_list(j)%c==iatom) ) THEN
-                   IF (iw>0) WRITE(iw,*)"VDW - bend_list ::",&
-                        ex_bend_list(j)%a,&
-                        ex_bend_list(j)%b,&
-                        ex_bend_list(j)%c
                    atomlist(ex_bend_list(j)%a) = .FALSE.
                    atomlist(ex_bend_list(j)%c) = .FALSE.
                 END IF
@@ -2645,11 +2638,6 @@ CONTAINS
              DO j=1,ntorsion
                 IF(  (ex_torsion_list(j)%a==iatom).OR. &
                      (ex_torsion_list(j)%d==iatom) ) THEN
-                   IF (iw>0) WRITE(iw,*)"VDW - tors_list ::",&
-                        ex_torsion_list(j)%a,&
-                        ex_torsion_list(j)%b,&
-                        ex_torsion_list(j)%c,&
-                        ex_torsion_list(j)%d
                    atomlist(ex_torsion_list(j)%a) = .FALSE.
                    atomlist(ex_torsion_list(j)%d) = .FALSE.
                 END IF
@@ -2665,9 +2653,6 @@ CONTAINS
                 DO j=1,nbond
                    IF(  (ex_bond_list(j)%a==iatom).OR. &
                         (ex_bond_list(j)%b==iatom) ) THEN
-                      IF (iw>0) WRITE(iw,*)"EI - bond_list ::",&
-                           ex_bond_list(j)%a,&
-                           ex_bond_list(j)%b
                       atomlist_ei(ex_bond_list(j)%a) = .FALSE.
                       atomlist_ei(ex_bond_list(j)%b) = .FALSE.
                    END IF
@@ -2679,10 +2664,6 @@ CONTAINS
                 DO j=1,nbend
                    IF(  (ex_bend_list(j)%a==iatom).OR. &
                         (ex_bend_list(j)%c==iatom) ) THEN
-                      IF (iw>0) WRITE(iw,*)"EI - bend_list ::",&
-                           ex_bend_list(j)%a,&
-                           ex_bend_list(j)%b,&
-                           ex_bend_list(j)%c
                       atomlist_ei(ex_bend_list(j)%a) = .FALSE.
                       atomlist_ei(ex_bend_list(j)%c) = .FALSE.
                    END IF
@@ -2693,11 +2674,6 @@ CONTAINS
                 DO j=1,ntorsion
                    IF(  (ex_torsion_list(j)%a==iatom).OR. &
                         (ex_torsion_list(j)%d==iatom) ) THEN
-                      IF (iw>0) WRITE(iw,*)"EI - tors_list ::",&
-                           ex_torsion_list(j)%a,&
-                           ex_torsion_list(j)%b,&
-                           ex_torsion_list(j)%c,&
-                           ex_torsion_list(j)%d
                       atomlist_ei(ex_torsion_list(j)%a) = .FALSE.
                       atomlist_ei(ex_torsion_list(j)%d) = .FALSE.
                    END IF
@@ -2763,7 +2739,7 @@ CONTAINS
                 counter = 0
                 DO k=1,SIZE(atomic_kind_set(j)%atom_list)
                    kk = atomic_kind_set(j)%atom_list(k)
-                   IF(.NOT.atomlist(kk)) THEN
+                   IF(.NOT.atomlist_ei(kk)) THEN
                       counter = counter + 1
                    END IF
                 END DO
@@ -2773,7 +2749,7 @@ CONTAINS
                    counter = 0
                    DO k=1,SIZE(atomic_kind_set(j)%atom_list)
                       kk = atomic_kind_set(j)%atom_list(k)
-                      IF(.NOT.atomlist(kk)) THEN
+                      IF(.NOT.atomlist_ei(kk)) THEN
                          counter = counter + 1
                          list2(counter) = kk
                       END IF
