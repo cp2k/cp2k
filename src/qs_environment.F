@@ -709,13 +709,6 @@ CONTAINS
                              globenv%scr,2,1,1)
         END IF
       END IF
-      IF (scf_control%use_cholesky) THEN
-        IF (globenv%ionode) THEN
-          CALL print_message("NOTE: The use of Cholesky decomposition is disabled, "//&
-                             "since it is not implemented for ROKS",globenv%scr,1,1,1)
-        END IF
-        scf_control%use_cholesky = .FALSE.
-      END IF
       IF (scf_control%use_ot) THEN
         CALL stop_program(routineN,moduleN,__LINE__,&
                           "The options ROKS and OT are not compatible")

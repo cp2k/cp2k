@@ -53,7 +53,9 @@ MODULE qs_scf
                                              get_atomic_kind_set
   USE cp_control_types,                ONLY: dft_control_type
 
-  USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose
+  USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
+                                             cp_fm_cholesky_reduce,&
+                                             cp_fm_cholesky_restore
   USE cp_fm_diag,                      ONLY: cp_fm_power,&
                                              cp_fm_syevd
   USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
@@ -2208,8 +2210,12 @@ END SUBROUTINE qs_scf_print_summary
 
       ! Transform the current Kohn-Sham matrix to an orthogonal basis
 
-      CALL cp_fm_symm("L","U",nao,nao,1.0_dp,ksa,ortho,0.0_dp,work)
-      CALL cp_fm_gemm("N","N",nao,nao,nao,1.0_dp,ortho,work,0.0_dp,ksa)
+      IF (scf_control%use_cholesky) THEN
+        CALL cp_fm_cholesky_reduce(ksa,ortho)
+      ELSE
+        CALL cp_fm_symm("L","U",nao,nao,1.0_dp,ksa,ortho,0.0_dp,work)
+        CALL cp_fm_gemm("N","N",nao,nao,nao,1.0_dp,ortho,work,0.0_dp,ksa)
+      END IF
 
     END IF
 
@@ -2224,7 +2230,11 @@ END SUBROUTINE qs_scf_print_summary
     ! Back-transformation of the orthonormal eigenvectors if needed
 
     IF ((level_shift_loc /= 0.0_dp).OR.(.NOT.orthogonal_basis)) THEN
-      CALL cp_fm_gemm("N","N",nao,nmo,nao,1.0_dp,ortho,work,0.0_dp,moa)
+      IF (scf_control%use_cholesky) THEN
+        CALL cp_fm_cholesky_restore(work,nmo,ortho,moa,"SOLVE")
+      ELSE
+        CALL cp_fm_gemm("N","N",nao,nmo,nao,1.0_dp,ortho,work,0.0_dp,moa)
+      END IF
     END IF
 
     ! Correct MO eigenvalues, if level-shifting was applied
