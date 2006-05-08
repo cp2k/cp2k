@@ -759,7 +759,7 @@ CONTAINS
                         sab(:) = real_to_scaled(rab(:),cell)
                         CALL add_neighbor_node(&
                           neighbor_list=kind_a(iatom_local)%neighbor_list, &
-                          neighbor=atom_b, cell=cell_b, r=sab, &   ! r=rab
+                          neighbor=atom_b, r=sab, &   ! r=rab
                           exclusion_list = particle_set(atom_a)%lpi%&
                                            exclusion(jkind)%list_vdw)
                       END IF
@@ -886,7 +886,7 @@ CONTAINS
                               sab(:) = real_to_scaled(rab(:),cell)
                               CALL add_neighbor_node(&
                                 neighbor_list=kind_a(iatom_local)%neighbor_list, &
-                                neighbor=atom_b, cell=cell_b, r=sab, &   ! r=rab
+                                neighbor=atom_b, r=sab, &   ! r=rab
                                 exclusion_list=particle_set(atom_a)%lpi%&
                                                exclusion(jkind)%list_vdw)
                             END IF

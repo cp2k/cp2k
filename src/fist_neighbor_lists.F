@@ -324,7 +324,7 @@ CONTAINS
     INTEGER :: atom_a, atom_b, handle, i, iab, iatom, iatom_local, &
       iatom_subcell, icell, ikind, istat, j, jatom_local, jcell, jkind, k, &
       kcell, natom_local_a, natom_local_b, nkind
-    INTEGER, DIMENSION(3)                    :: cell_a, cell_b, ncell, &
+    INTEGER, DIMENSION(3)                    :: cell_a, ncell, &
                                                 nsubcell, periodic
     LOGICAL                                  :: cell000, include_ab
     REAL(dp)                                 :: rab2, rab2_max, rab_max, &
@@ -470,7 +470,6 @@ CONTAINS
                 IF (sb_min(3) >= 0.5_dp) EXIT loop1_kcell
                 IF (sb_max(3) < -0.5_dp) CYCLE loop1_kcell
               END IF
-              cell_b(3) = kcell
 
               loop1_jcell: DO jcell=-ncell(2),ncell(2)
 
@@ -481,7 +480,6 @@ CONTAINS
                   IF (sb_min(2) >= 0.5_dp) EXIT loop1_jcell
                   IF (sb_max(2) < -0.5_dp) CYCLE loop1_jcell
                 END IF
-                cell_b(2) = jcell
 
                 loop1_icell: DO icell=-ncell(1),ncell(1)
 
@@ -492,7 +490,6 @@ CONTAINS
                     IF (sb_min(1) >= 0.5_dp) EXIT loop1_icell
                     IF (sb_max(1) < -0.5_dp) CYCLE loop1_icell
                   END IF
-                  cell_b(1) = icell
 
                   cell000 = ((icell == 0).AND.&
                              (jcell == 0).AND.&
@@ -526,7 +523,6 @@ CONTAINS
                         CALL add_neighbor_node(&
                           neighbor_list=kind_a(iatom_local)%neighbor_list,&
                           neighbor=atom_b,&
-                          cell=cell_b,&
                           r=sab,&
                           exclusion_list = particle_set(atom_a)%lpi%&
                                            exclusion(jkind)%list_vdw)
@@ -578,7 +574,6 @@ CONTAINS
                 IF (sb_min(3) >= 0.5_dp) EXIT loop2_kcell
                 IF (sb_max(3) < -0.5_dp) CYCLE loop2_kcell
               END IF
-              cell_b(3) = kcell
 
               loop2_jcell: DO jcell=-ncell(2),ncell(2)
 
@@ -589,7 +584,6 @@ CONTAINS
                   IF (sb_min(2) >= 0.5_dp) EXIT loop2_jcell
                   IF (sb_max(2) < -0.5_dp) CYCLE loop2_jcell
                 END IF
-                cell_b(2) = jcell
 
                 loop2_icell: DO icell=-ncell(1),ncell(1)
 
@@ -600,7 +594,6 @@ CONTAINS
                     IF (sb_min(1) >= 0.5_dp) EXIT loop2_icell
                     IF (sb_max(1) < -0.5_dp) CYCLE loop2_icell
                   END IF
-                  cell_b(1) = icell
 
                   cell000 = ((icell == 0).AND.&
                              (jcell == 0).AND.&
@@ -656,7 +649,6 @@ CONTAINS
                               CALL add_neighbor_node(&
                                 neighbor_list=kind_a(iatom_local)%neighbor_list,&
                                 neighbor=atom_b,&
-                                cell=cell_b,&
                                 r=sab,&
                                 exclusion_list=particle_set(atom_a)%lpi%&
                                                exclusion(jkind)%list_vdw)
@@ -844,7 +836,7 @@ CONTAINS
     INTEGER                                  :: atom_a, atom_b, iab, ilist, &
                                                 inode, mype, nlist, &
                                                 nneighbor, nnode
-    INTEGER, DIMENSION(3)                    :: cell_a, cell_b
+    INTEGER, DIMENSION(3)                    :: cell_a
     LOGICAL                                  :: print_headline
     REAL(dp)                                 :: dab, unit_of_length
     REAL(dp), DIMENSION(3)                   :: ra, rab, rb, sab

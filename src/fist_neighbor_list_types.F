@@ -225,7 +225,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE add_neighbor_node(neighbor_list,neighbor,cell,r,exclusion_list)
+  SUBROUTINE add_neighbor_node(neighbor_list,neighbor,r,exclusion_list)
 
 !   Purpose: Add a new neighbor list node to a neighbor list.
 
@@ -236,9 +236,8 @@ CONTAINS
 
     TYPE(neighbor_list_type), POINTER        :: neighbor_list
     INTEGER, INTENT(IN)                      :: neighbor
-    INTEGER, DIMENSION(3), INTENT(IN)        :: cell
     REAL(dp), DIMENSION(3), INTENT(IN)       :: r
-    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: exclusion_list
+    INTEGER, DIMENSION(:),  POINTER          :: exclusion_list
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'add_neighbor_node'
 
@@ -247,17 +246,14 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    IF (ASSOCIATED(neighbor_list)) THEN
 
 !     *** Check for exclusions ***
 
-      IF (PRESENT(exclusion_list)) THEN
-        IF ( ASSOCIATED ( exclusion_list ) ) THEN
-          DO iatom=1,SIZE(exclusion_list)
+      IF ( ASSOCIATED ( exclusion_list ) ) THEN
+         DO iatom=1,SIZE(exclusion_list)
             IF (exclusion_list(iatom) == 0) EXIT
             IF (exclusion_list(iatom) == neighbor) RETURN
-          END DO
-        END IF
+         END DO
       END IF
 
       IF (ASSOCIATED(neighbor_list%last_neighbor_node)) THEN
@@ -318,13 +314,6 @@ CONTAINS
 !     *** Increment the neighbor node counter ***
 
       neighbor_list%nnode = neighbor_list%nnode + 1
-
-    ELSE
-
-      CALL stop_program(routineN,moduleN,__LINE__,&
-                        "The requested neighbor list is not associated")
-
-    END IF
 
   END SUBROUTINE add_neighbor_node
 
