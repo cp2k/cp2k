@@ -250,10 +250,7 @@ CONTAINS
 !     *** Check for exclusions ***
 
       IF ( ASSOCIATED ( exclusion_list ) ) THEN
-         DO iatom=1,SIZE(exclusion_list)
-            IF (exclusion_list(iatom) == 0) EXIT
-            IF (exclusion_list(iatom) == neighbor) RETURN
-         END DO
+         IF (ANY(exclusion_list==neighbor)) RETURN
       END IF
 
       IF (ASSOCIATED(neighbor_list%last_neighbor_node)) THEN
