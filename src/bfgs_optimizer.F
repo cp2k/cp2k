@@ -184,7 +184,6 @@ CONTAINS
 
     CALL write_qs_particle_coordinates(particle_set,cell,force_env_section,error) 
     CALL write_particle_distances(particle_set,cell,force_env_section,error)
-    CALL write_structure_data(particle_set,cell,force_env_section,error)
 
     IF(ionode)THEN
        CALL open_file(file_name="HESSIAN",&
