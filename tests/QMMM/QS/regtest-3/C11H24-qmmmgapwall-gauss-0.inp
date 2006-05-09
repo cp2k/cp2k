@@ -1,0 +1,138 @@
+
+&FORCE_EVAL
+  &DFT
+    BASIS_SET_FILE_NAME BASIS_SET
+    POTENTIAL_FILE_NAME POTENTIAL
+    &MGRID
+      COMMENSURATE
+      CUTOFF 50
+    &END MGRID
+    &QS
+      METHOD       GAPW
+      EPS_GVG      1.0E-6
+      EPS_PGF_ORB  1.0E-6
+      QUADRATURE   GC_LOG
+      EPSFIT       1.E-4
+      EPSISO       1.0E-12
+      EPSRHO0      1.E-8
+      LMAXN0       2
+      LMAXN1       6
+      ALPHA0_H     10
+      ALPHA0_S     10
+      EXTRAPOLATION USE_PREV_WF
+    &END QS
+    &SCF
+      SCF_GUESS atomic
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL pade
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &MM
+    &FORCEFIELD
+      parmfile butane.pot
+      parmtype CHM
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE spme
+        ALPHA .44
+        GMAX 24
+        O_SPLINE 6
+      &END EWALD
+    &END POISSON
+  &END MM
+  &QMMM
+    &CELL
+      ABC 10.0 10.0 10.0
+      UNIT ANGSTROM
+    &END CELL
+    ECOUPL GAUSS
+    NOCOMPATIBILITY
+    MM_POTENTIAL_FILE_NAME MM_POTENTIAL
+    &INTERPOLATOR
+      EPS_R 1.0e-14
+      EPS_X 1.0e-14
+      MAXITER 100
+    &END INTERPOLATOR
+    &LINK
+      ALPHA 1.50
+      FIST_SCALE_FACTOR 0.0
+      LINK_TYPE IMOMM
+      MM_INDEX 11
+      QM_INDEX 14
+      QMMM_SCALE_FACTOR 0.0
+      RADIUS 0.80
+    &END LINK
+    &LINK
+      ALPHA 1.50
+      FIST_SCALE_FACTOR 0.0
+      LINK_TYPE IMOMM
+      MM_INDEX 26
+      QM_INDEX 23
+      QMMM_SCALE_FACTOR 0.0
+      RADIUS 0.80
+    &END LINK
+    &MM_KIND CTL2
+      RADIUS 0.78
+    &END MM_KIND
+    &MM_KIND CTL3
+      RADIUS 0.78
+    &END MM_KIND
+    &MM_KIND HAL2
+      RADIUS 0.78
+    &END MM_KIND
+    &MM_KIND HAL3
+      RADIUS 0.78
+    &END MM_KIND
+    &QM_KIND C
+      MM_INDEX 14 17 20 23
+    &END QM_KIND
+    &QM_KIND H
+      MM_INDEX 15 16 18 19 21 22 24 25
+    &END QM_KIND
+  # 
+  # QM_KINDS
+  # 
+  # 
+  # MM_KINDS
+  # 
+  # 
+  # LINKS
+  # 
+  # 
+  &END QMMM
+  &SUBSYS
+    &CELL
+      ABC 15.0 15.0 15.0
+      UNIT ANGSTROM
+    &END CELL
+    &KIND H
+      BASIS_SET DZVP-ALL-PADE
+      POTENTIAL  ALL
+    &END KIND
+    &KIND C
+      BASIS_SET  TZVP-ALL-PADE
+      POTENTIAL ALL
+    &END KIND
+    &TOPOLOGY
+      CHARGE_BETA
+      COORD_FILE C11H24.pdb
+      COORDINATE pdb
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  FFTLIB FFTSG
+  PRINT_LEVEL MEDIUM
+  PROGRAM QMMM
+  PROJECT undecane_all
+  RUN_TYPE GEO_OPT
+&END GLOBAL
+&MOTION
+  &GEOOPT
+    MAX_ITER 0
+    OPTIMIZER BFGS
+  &END GEOOPT
+&END MOTION
