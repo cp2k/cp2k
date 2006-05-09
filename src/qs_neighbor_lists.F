@@ -2680,7 +2680,7 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'allocate_subcell'
 
-    INTEGER                                  :: i, istat, j, k, na, nb, nc
+    INTEGER                                  :: i, istat, j, k, na, nb, nc,handle
     REAL(dp)                                 :: a_max, a_min, b_max, b_min, &
                                                 c_max, c_min, delta_a, &
                                                 delta_b, delta_c
@@ -2720,7 +2720,6 @@ CONTAINS
           IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                            "subcell(i,j,k)%atom_list",&
                                            maxatom*int_size)
-          subcell(i,j,k)%atom_list(:) = 0
           a_min = a_max
         END DO
         b_min = b_max
