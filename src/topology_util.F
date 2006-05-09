@@ -407,14 +407,14 @@ CONTAINS
           END IF
        END IF
     END DO
-    
+    IF(iw>0) WRITE(iw,'(/,A)') "Start of molecule generation"
     DO itype=1,ntype
        !search for first atom in the type list and last to cut down time
        CALL find_boundary(atom_info%map_mol_typ,natom,first,last,itype)
-       IF(iw>0) WRITE(iw,*) "      itype ",itype,first,last
+       IF(iw>0) WRITE(iw,'(2(A,I6),A,2I6)') "molecule type: ",itype," out of : ",ntype,&
+            " boundary atoms: ",first,last
        
        inum = 0
-
        IF (first /= last) THEN
           DO iatom=first,last
              checkme(:) = 0             
@@ -445,7 +445,7 @@ CONTAINS
           atom_info%map_mol_num(first) = 1
        END IF
     END DO
-    
+    IF(iw>0) WRITE(iw,'(/,A)') "End of molecule generation"
     DEALLOCATE(checkme,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     
@@ -1456,6 +1456,9 @@ CONTAINS
             (atom_info%map_mol_res(i+1)/=atom_info%map_mol_res(i))) &
             topology%nmol_conn = topology%nmol_conn + 1
     END DO
+    IF (iw>0) WRITE(iw,*)"topology%nmol ::",topology%nmol
+    IF (iw>0) WRITE(iw,*)"topology%nmol_type ::",topology%nmol_type
+    IF (iw>0) WRITE(iw,*)"topology%nmol_conn ::",topology%nmol_conn
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
