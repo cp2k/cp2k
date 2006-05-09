@@ -1,0 +1,43 @@
+&GLOBAL
+  PROGRAM Quickstep
+  PROJECT O
+  RUN_TYPE ENERGY
+  PRINT_LEVEL LOW
+&END GLOBAL
+
+&FORCE_EVAL
+  &DFT
+    ROKS
+    MULTIP 3
+    &PRINT
+      &MO
+        EIGENVALUES
+        EIGENVECTORS
+        OCCUPATION_NUMBERS
+      &END MO
+    &END PRINT
+    &QS
+      METHOD AM1
+    &END QS
+    &SCF
+      EPS_SCF 1.0E-6
+      SCF_GUESS CORE
+    &END SCF
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 10.0 10.0 10.0
+      UNIT ANGSTROM
+      PERIODIC NONE
+    &END CELL
+    &COORD
+      O     0.000000     0.000000     0.000000
+    &END COORD
+    &PRINT
+      &KINDS
+        BASIS_SET
+        POTENTIAL
+      &END KINDS
+    &END PRINT
+  &END SUBSYS
+&END FORCE_EVAL

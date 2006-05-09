@@ -480,8 +480,14 @@ CONTAINS
                                                diis_step,use_jacobi,error)
             END IF
           CASE(special_diag_method_nr)
-             CALL qs_scf_loop_do_special_diag(scf_env,mos,rho,matrix_ks,scf_control,scf_section, &
-                                          diis_step,error)
+            IF (dft_control%roks) THEN
+              CALL qs_scf_loop_do_roks_diag(scf_env,mos,matrix_ks,matrix_s,&
+                                            scf_control,scf_section,diis_step,&
+                                            has_unit_metric,error)
+            ELSE
+              CALL qs_scf_loop_do_special_diag(scf_env,mos,rho,matrix_ks,scf_control,scf_section, &
+                                               diis_step,error)
+            END IF
           CASE(ot_method_nr) 
              CALL qs_scf_loop_do_ot(scf_env,mos,rho,qs_env%mo_derivs,energy%total, & 
                                     matrix_s, energy_only, has_unit_metric,error)
@@ -2223,17 +2229,21 @@ END SUBROUTINE qs_scf_print_summary
 
     CALL cp_fm_syevd(ksa,work,eiga)
 
-    ! Use old MO set for back-transformation if level-shifting was applied
-
-    IF (level_shift_loc /= 0.0_dp) CALL cp_fm_to_fm(moa,ortho)
-
     ! Back-transformation of the orthonormal eigenvectors if needed
 
-    IF ((level_shift_loc /= 0.0_dp).OR.(.NOT.orthogonal_basis)) THEN
-      IF (scf_control%use_cholesky) THEN
-        CALL cp_fm_cholesky_restore(work,nmo,ortho,moa,"SOLVE")
+    IF (level_shift_loc /= 0.0_dp) THEN
+      ! Use old MO set for back-transformation if level-shifting was applied
+      CALL cp_fm_to_fm(moa,ortho)
+      CALL cp_fm_gemm("N","N",nao,nmo,nao,1.0_dp,ortho,work,0.0_dp,moa)
+    ELSE
+      IF (orthogonal_basis) THEN
+        CALL cp_fm_to_fm(work,moa)
       ELSE
-        CALL cp_fm_gemm("N","N",nao,nmo,nao,1.0_dp,ortho,work,0.0_dp,moa)
+        IF (scf_control%use_cholesky) THEN
+          CALL cp_fm_cholesky_restore(work,nmo,ortho,moa,"SOLVE")
+        ELSE
+          CALL cp_fm_gemm("N","N",nao,nmo,nao,1.0_dp,ortho,work,0.0_dp,moa)
+        END IF
       END IF
     END IF
 

@@ -18,3 +18,7 @@ st.inp 3
 # test the initial adaptation to OT
 ch4-ot.inp 3
 h2o_lsd-ot.inp 3
+# tests for high-spin ROKS
+O-ROKS.inp 3
+O2-ROKS.inp 3
+NO2-ROKS.inp 3
