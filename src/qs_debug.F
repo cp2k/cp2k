@@ -175,8 +175,8 @@ CONTAINS
              ENDIF
              my_MaxErr = MaxErr
              IF (ABS(Analyt_Forces(Ip,1)) <= 0.0001_dp ) my_MaxErr(1)=my_MaxErr(1)*5.0_dp
-             IF (ABS(Analyt_Forces(Ip,2)) <= 0.0001_dp ) my_MaxErr(1)=my_MaxErr(2)*5.0_dp
-             IF (ABS(Analyt_Forces(Ip,3)) <= 0.0001_dp ) my_MaxErr(1)=my_MaxErr(3)*5.0_dp
+             IF (ABS(Analyt_Forces(Ip,2)) <= 0.0001_dp ) my_MaxErr(2)=my_MaxErr(2)*5.0_dp
+             IF (ABS(Analyt_Forces(Ip,3)) <= 0.0001_dp ) my_MaxErr(3)=my_MaxErr(3)*5.0_dp
              ! ? does the whole of this routine actually work in parallel 
              IF (globenv%ionode) THEN
                 WRITE(iw,*)my_MaxErr
