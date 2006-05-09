@@ -208,6 +208,7 @@ CONTAINS
         IF ( interpolation ) THEN
           CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
         ELSE
+          ra = particle_set(iatom)%r
           CALL pw_structure_factor(structure_factor%pw,ra)
           DO i=1,3
             DO j=1,i
