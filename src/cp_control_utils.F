@@ -441,8 +441,14 @@ CONTAINS
       CALL section_vals_val_get(mull_section,"STRENGTH",r_val=qs_control%mulliken_restraint_control%strength,error=error)
       CALL section_vals_val_get(mull_section,"TARGET",r_val=qs_control%mulliken_restraint_control%target,error=error)
       CALL section_vals_val_get(mull_section,"ATOMS",n_rep_val=n_rep,error=error)
-      qs_control%mulliken_restraint_control%natoms=n_rep
-      IF (n_rep<1) CALL stop_program(routine, "Need at least 1 atom to use mulliken contraints")
+      jj = 0
+      DO k = 1,n_rep
+         CALL section_vals_val_get(mull_section,"ATOMS",i_rep_val=k,i_vals=tmplist, error=error)
+         jj=jj+SIZE(tmplist)
+      END DO
+      qs_control%mulliken_restraint_control%natoms = jj
+      IF (qs_control%mulliken_restraint_control%natoms<1) &
+            CALL stop_program(routine, "Need at least 1 atom to use mulliken contraints")
       ALLOCATE(qs_control%mulliken_restraint_control%atoms(qs_control%mulliken_restraint_control%natoms))
       jj = 0
       DO k = 1,n_rep
