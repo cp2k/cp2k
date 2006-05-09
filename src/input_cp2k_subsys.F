@@ -132,6 +132,13 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="SUBCELLS",&
+            description="Read the subcells numbers.",&
+            usage="SUBCELLS <real>",&
+            n_var=1,default_r_val=2.0_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
 
 ! Character
        CALL keyword_create(keyword, name="UNITS",&
@@ -157,15 +164,6 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)     
 
-
-!Integers
-
-       CALL keyword_create(keyword, name="SUBCELLS",&
-            description="Read the subcells numbers.",&
-            usage="SUBCELLS integer",&
-            n_var=1,type_of_var=real_t,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
 
 !Subsections
 
@@ -297,6 +295,12 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="SUBCELLS",&
+            description="Read the subcells numbers.",&
+            usage="SUBCELLS <real>",&
+            n_var=1,default_r_val=2.0_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
 
 ! Character
        CALL keyword_create(keyword, name="UNITS",&
@@ -321,14 +325,6 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)     
 
-!Integers
-
-       CALL keyword_create(keyword, name="SUBCELLS",&
-            description="Read the subcells numbers.",&
-            usage="SUBCELLS integer",&
-            n_var=1,type_of_var=real_t,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
 
     END IF
   END SUBROUTINE create_cell_ref_section

@@ -559,7 +559,6 @@ CONTAINS
        cell%unit_of_length = 1.0_dp
        cell%orthorhombic = .TRUE.
        cell%scaled_coordinates = .FALSE.
-       cell%subcells = 2.0_dp
        cell%perd(:) = 1
        cell%hmat(:,:) = 0.0_dp
        cell%h_inv(:,:) = 0.0_dp
@@ -586,10 +585,7 @@ CONTAINS
           cell%hmat(2,2) = cell_par(2)
           cell%hmat(3,3) = cell_par(3)
        END IF
-       CALL section_vals_val_get(cell_section,"SUBCELLS",n_rep_val=n_rep,error=error)
-       IF (n_rep /= 0) THEN
-          CALL section_vals_val_get(cell_section,"SUBCELLS",r_val=cell%subcells,error=error)
-       END IF
+       CALL section_vals_val_get(cell_section,"SUBCELLS",r_val=cell%subcells,error=error)
        
        CALL section_vals_val_get(cell_section,"PERIODIC",i_val=my_per,error=error)
        SELECT CASE(my_per)
