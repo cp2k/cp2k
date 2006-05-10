@@ -316,8 +316,16 @@ CONTAINS
        WRITE(line(31:38),'(F8.3)')atom_info%r(1,i)
        WRITE(line(39:46),'(F8.3)')atom_info%r(2,i)
        WRITE(line(47:54),'(F8.3)')atom_info%r(3,i)
-       WRITE(line(55:60),'(F6.2)')atom_info%occup(i)
-       WRITE(line(61:66),'(F6.2)')atom_info%beta(i)
+       IF (ASSOCIATED(atom_info%occup)) THEN
+          WRITE(line(55:60),'(F6.2)') atom_info%occup(i)
+       ELSE
+          WRITE(line(55:60),'(F6.2)') 0.0_dp
+       ENDIF
+       IF (ASSOCIATED(atom_info%beta)) THEN
+           WRITE(line(61:66),'(F6.2)') atom_info%beta(i)
+       ELSE
+           WRITE(line(61:66),'(F6.2)') 0.0_dp
+       ENDIF
        WRITE(line(73:76),'(A4)')TRIM(my_tag3)
        WRITE(line(77:78),'(A2)')TRIM(my_tag4)
 
