@@ -55,6 +55,7 @@ MODULE topology_pdb
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE memory_utilities,                ONLY: reallocate
+  USE physcon,                         ONLY: angstrom
   USE qmmm_ff_fist,                    ONLY: qmmm_ff_precond_only_qm
   USE string_utilities,                ONLY: uppercase
   USE timings,                         ONLY: timeset,&
@@ -313,9 +314,9 @@ CONTAINS
        WRITE(line(13:16),'(A4)')TRIM(my_tag1)
        WRITE(line(18:20),'(A3)')TRIM(my_tag2)
        WRITE(line(23:26),'(I4)')idres
-       WRITE(line(31:38),'(F8.3)')atom_info%r(1,i)
-       WRITE(line(39:46),'(F8.3)')atom_info%r(2,i)
-       WRITE(line(47:54),'(F8.3)')atom_info%r(3,i)
+       WRITE(line(31:38),'(F8.3)')atom_info%r(1,i)*angstrom
+       WRITE(line(39:46),'(F8.3)')atom_info%r(2,i)*angstrom
+       WRITE(line(47:54),'(F8.3)')atom_info%r(3,i)*angstrom
        IF (ASSOCIATED(atom_info%occup)) THEN
           WRITE(line(55:60),'(F6.2)') atom_info%occup(i)
        ELSE
