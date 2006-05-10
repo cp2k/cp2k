@@ -30,10 +30,15 @@ MODULE fist_nonbond_force
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE ewald_environment_types,         ONLY: ewald_env_get,&
                                              ewald_environment_type
-  USE fist_neighbor_list_types,        ONLY: &
-       first_list, first_node, get_neighbor_list, get_neighbor_list_set, &
-       get_neighbor_node, neighbor_list_set_p_type, neighbor_list_set_type, &
-       neighbor_list_type, neighbor_node_type, next
+  USE fist_neighbor_list_types,        ONLY: first_list, first_node,&
+                                             get_neighbor_list,&
+                                             get_neighbor_list_set, &
+                                             get_neighbor_node,&
+                                             neighbor_list_set_p_type,&
+                                             neighbor_list_set_type, &
+                                             neighbor_list_type,&
+                                             neighbor_node_type,&
+                                             next
   USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_get,&
                                              fist_nonbond_env_type
   USE global_types,                    ONLY: global_environment_type
@@ -43,7 +48,14 @@ MODULE fist_nonbond_force
   USE message_passing,                 ONLY: mp_sum
   USE splines,                         ONLY: potential_s
   USE pair_potential_types,            ONLY: pair_potential_pp_type,&
-                                             pair_potential_single_type
+                                             pair_potential_single_type,&
+                                             nn_type,&
+                                             lj_type,&
+                                             ft_type,&
+                                             wl_type,&
+                                             gw_type,&
+                                             ip_type,&
+                                             ea_type       
   USE particle_types,                  ONLY: particle_type
   USE splines,                         ONLY: spline_data_type
   USE termination,                     ONLY: stop_memory
@@ -118,7 +130,7 @@ SUBROUTINE force_nonbond ( fist_nonbond_env, particle_set, cell,  &
         spline_data => potparm % pot( ikind, jkind ) %pot % pair_spline_data
         IF ( .NOT. ASSOCIATED ( spline_data ) ) CYCLE
  
-        is_eam=(potparm %pot( ikind, jkind ) %pot % type == "EAM")
+        is_eam=(potparm %pot( ikind, jkind ) %pot % type == ea_type)
 
         ab = ikind + nkinds*(jkind - 1)
 
@@ -323,7 +335,7 @@ SUBROUTINE density_nonbond ( fist_nonbond_env, particle_set, cell, globenv )
             IF (rab2 <= rab2_max) THEN
 
               SELECT CASE ( potparm%pot( ikind, jkind )%pot % type )
-              CASE ( "EAM" )
+              CASE ( ea_type)
                 pot => potparm %pot( ikind, jkind )%pot
                 CALL get_rho_eam ( pot, rab2, atom_a, atom_b, rho  )
               END SELECT
@@ -388,7 +400,7 @@ SUBROUTINE energy_manybody ( fist_nonbond_env, atomic_kind_set, &
     SELECT CASE ( pot % type )
     CASE DEFAULT
       CYCLE
-    CASE ( "EAM" )
+    CASE ( ea_type )
       
       nparticle = SIZE ( particle_set )
       ALLOCATE ( fembed ( nparticle ), STAT = istat )

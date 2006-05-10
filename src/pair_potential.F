@@ -30,7 +30,14 @@ MODULE pair_potential
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
   USE pair_potential_types,            ONLY: pair_potential_pp_type,&
-       pair_potential_single_type
+                                             pair_potential_single_type,&
+                                             nn_type,&
+                                             lj_type,&
+                                             ft_type,&
+                                             wl_type,&
+                                             gw_type,&
+                                             ip_type,&
+                                             ea_type
   USE splines,                         ONLY: init_spline,&
        init_splinexy,&
        spline_data_type,&
@@ -60,7 +67,7 @@ CONTAINS
     INTEGER                                  :: i, index
     REAL(KIND=dp)                            :: pp, qq, scale
 
-    IF (pot%type=='LENNARD-JONES') THEN
+    IF (pot%type==lj_type) THEN
        IF(PRESENT(vdw_scale14)) THEN
           ener_pot = vdw_scale14 * &
                4.0_dp*pot%lj%epsilon*(pot%lj%sigma12*r**(-12)-pot%lj% &
@@ -69,7 +76,7 @@ CONTAINS
           ener_pot = 4.0_dp*pot%lj%epsilon*(pot%lj%sigma12*r**(-12)-pot%lj% &
                sigma6*r**(-6)) - pot%energy_cutoff
        END IF
-    ELSE IF ( pot % type == 'IPBV' ) THEN
+    ELSE IF (pot%type==ip_type) THEN
        ener_pot = 0._dp
        IF ( r > pot % ipbv % rcore ) THEN
           DO i = 2, 15
@@ -80,17 +87,17 @@ CONTAINS
           ener_pot = pot % ipbv % m * r + pot % ipbv % b
        ENDIF
        ener_pot=ener_pot - pot % energy_cutoff
-    ELSE IF (pot%type=='WILLIAMS') THEN
+    ELSE IF (pot%type==wl_type) THEN
        ener_pot = pot%willis%a*EXP(-pot%willis%b*r) - pot%willis%c/r**6 &
             - pot%energy_cutoff
-    ELSE IF (pot%type=='GOODWIN') THEN
+    ELSE IF (pot%type==gw_type) THEN
        scale = EXP(pot%goodwin%m*(-(r/pot%goodwin%dc)**pot%goodwin%mc+(pot% &
             goodwin%d/pot%goodwin%dc)**pot%goodwin%mc))
        ener_pot = scale*pot%goodwin%vr0*(pot%goodwin%d/r)**pot%goodwin%m
-    ELSE IF (pot%type=='BMHFT') THEN
+    ELSE IF (pot%type==ft_type) THEN
        ener_pot = pot%ft%a*EXP(-pot%ft%b*r) - pot%ft%c/r**6 - pot%ft%d/r**8 &
             - pot%energy_cutoff
-    ELSE IF (pot%type=='EAM') THEN
+    ELSE IF (pot%type==ea_type) THEN
        index = INT ( r / pot % eam % drar ) + 1
        IF ( index > 5000 ) THEN
           index = 5000

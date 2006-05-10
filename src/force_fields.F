@@ -50,15 +50,28 @@ MODULE force_fields
                                              set_potential
   USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_create,&
                                              fist_nonbond_env_type
-  USE force_field_types,               ONLY: &
-       allocate_bend_kind_set, allocate_bond_kind_set, &
-       allocate_impr_kind_set, allocate_onfo_kind_set, &
-       allocate_torsion_kind_set, allocate_ub_kind_set, bend_kind_type, &
-       bond_kind_type, charmm_info_type, deallocate_bend_kind_set, &
-       deallocate_bond_kind_set, deallocate_ff_type, force_field_type, &
-       impr_kind_dealloc_ref, impr_kind_type, init_ff_type, input_info_type, &
-       onfo_kind_type, torsion_kind_dealloc_ref, torsion_kind_type, &
-       ub_kind_dealloc_ref, ub_kind_type
+  USE force_field_types,               ONLY: allocate_bend_kind_set,&
+                                             allocate_bond_kind_set, &
+                                             allocate_impr_kind_set,&
+                                             allocate_onfo_kind_set, &
+                                             allocate_torsion_kind_set,&
+                                             allocate_ub_kind_set,&
+                                             bend_kind_type, &
+                                             bond_kind_type,&
+                                             charmm_info_type,&
+                                             deallocate_bend_kind_set, &
+                                             deallocate_bond_kind_set,&
+                                             deallocate_ff_type,&
+                                             force_field_type, &
+                                             impr_kind_dealloc_ref,&
+                                             impr_kind_type,&
+                                             init_ff_type,&
+                                             input_info_type, &
+                                             onfo_kind_type,&
+                                             torsion_kind_dealloc_ref,&
+                                             torsion_kind_type, &
+                                             ub_kind_dealloc_ref,&
+                                             ub_kind_type
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: do_qmmm_none
   USE input_section_types,             ONLY: section_vals_get,&
@@ -70,20 +83,39 @@ MODULE force_fields
   USE manybody_potential,              ONLY: spline_manybody_control
   USE memory_utilities,                ONLY: reallocate
   USE message_passing,                 ONLY: mp_bcast
-  USE molecule_kind_types,             ONLY: &
-       atom_type, bend_type, bond_type, colvar_constraint_type, &
-       g3x3_constraint_type, g4x6_constraint_type, get_molecule_kind, &
-       impr_type, molecule_kind_type, onfo_type, set_molecule_kind, &
-       torsion_type, ub_type
+  USE molecule_kind_types,             ONLY: atom_type,&
+                                             bend_type,&
+                                             bond_type,&
+                                             colvar_constraint_type, &
+                                             g3x3_constraint_type,&
+                                             g4x6_constraint_type,&
+                                             get_molecule_kind, &
+                                             impr_type,&
+                                             molecule_kind_type,&
+                                             onfo_type,&
+                                             set_molecule_kind, &
+                                             torsion_type,&
+                                             ub_type
   USE molecule_types_new,              ONLY: get_molecule,&
                                              molecule_type
   USE pair_potential,                  ONLY: spline_nonbond_control
-  USE pair_potential_types,            ONLY: &
-       eam_pot_type, pair_potential_lj_create, pair_potential_p_type, &
-       pair_potential_pp_create, pair_potential_pp_release, &
-       pair_potential_pp_type, pair_potential_reallocate, &
-       pair_potential_single_clean, pair_potential_single_copy, &
-       pair_potential_single_type
+  USE pair_potential_types,            ONLY: eam_pot_type,&
+                                             pair_potential_lj_create,&
+                                             pair_potential_p_type, &
+                                             pair_potential_pp_create,&
+                                             pair_potential_pp_release, &
+                                             pair_potential_pp_type,&
+                                             pair_potential_reallocate, &
+                                             pair_potential_single_clean,&
+                                             pair_potential_single_copy, &
+                                             pair_potential_single_type,&
+                                             nn_type,&
+                                             lj_type,&
+                                             ft_type,&
+                                             wl_type,&
+                                             gw_type,&
+                                             ip_type,&
+                                             ea_type       
   USE particle_types,                  ONLY: particle_type
   USE physcon,                         ONLY: bohr
   USE qmmm_ff_fist,                    ONLY: qmmm_ff_precond_only_qm
@@ -620,9 +652,9 @@ CONTAINS
     DO isec = 1, n_items
        CALL section_vals_val_get(section,"ATOMS",i_rep_section=isec,c_vals=atm_names,error=error)
 
-       nonbonded%pot(start+isec)%pot %type = "EAM"
-       nonbonded%pot(start+isec)%pot %at1 = atm_names(1)
-       nonbonded%pot(start+isec)%pot %at2 = atm_names(2)
+       nonbonded%pot(start+isec)%pot %type = ea_type
+       nonbonded%pot(start+isec)%pot %at1  = atm_names(1)
+       nonbonded%pot(start+isec)%pot %at2  = atm_names(2)
        CALL uppercase(nonbonded%pot(start+isec)%pot %at1)
        CALL uppercase(nonbonded%pot(start+isec)%pot %at2)
        CALL section_vals_val_get(section,"PARMFILE",i_rep_section=isec,&
@@ -670,9 +702,9 @@ CONTAINS
        CALL section_vals_val_get(section,"SIGMA",i_rep_section=isec,r_val=sigma,error=error)
        CALL section_vals_val_get(section,"RCUT",i_rep_section=isec,r_val=rcut,error=error)
 
-       nonbonded%pot(start+isec)%pot %type = "LENNARD-JONES"
-       nonbonded%pot(start+isec)%pot %at1 = atm_names(1)
-       nonbonded%pot(start+isec)%pot %at2 = atm_names(2)
+       nonbonded%pot(start+isec)%pot %type = lj_type
+       nonbonded%pot(start+isec)%pot %at1  = atm_names(1)
+       nonbonded%pot(start+isec)%pot %at2  = atm_names(2)
        CALL uppercase(nonbonded%pot(start+isec)%pot %at1)
        CALL uppercase(nonbonded%pot(start+isec)%pot %at2)
        nonbonded%pot(start+isec)%pot %lj%epsilon = epsilon
@@ -721,9 +753,9 @@ CONTAINS
        CALL section_vals_val_get(section,"C",i_rep_section=isec,r_val=c,error=error)
        CALL section_vals_val_get(section,"RCUT",i_rep_section=isec,r_val=rcut,error=error)
 
-       nonbonded%pot(start+isec)%pot %type = "WILLIAMS"
-       nonbonded%pot(start+isec)%pot %at1 = atm_names(1)
-       nonbonded%pot(start+isec)%pot %at2 = atm_names(2)
+       nonbonded%pot(start+isec)%pot %type = wl_type
+       nonbonded%pot(start+isec)%pot %at1  = atm_names(1)
+       nonbonded%pot(start+isec)%pot %at2  = atm_names(2)
        CALL uppercase(nonbonded%pot(start+isec)%pot %at1)
        CALL uppercase(nonbonded%pot(start+isec)%pot %at2)
        nonbonded%pot(start+isec)%pot %willis%a = a
@@ -774,9 +806,9 @@ CONTAINS
        CALL section_vals_val_get(section,"MC",i_rep_section=isec,i_val=mc,error=error)
        CALL section_vals_val_get(section,"RCUT",i_rep_section=isec,r_val=rcut,error=error)
 
-       nonbonded%pot(start+isec)%pot %type = "GOODWIN"
-       nonbonded%pot(start+isec)%pot %at1 = atm_names(1)
-       nonbonded%pot(start+isec)%pot %at2 = atm_names(2)
+       nonbonded%pot(start+isec)%pot %type = gw_type
+       nonbonded%pot(start+isec)%pot %at1  = atm_names(1)
+       nonbonded%pot(start+isec)%pot %at2  = atm_names(2)
        CALL uppercase(nonbonded%pot(start+isec)%pot %at1)
        CALL uppercase(nonbonded%pot(start+isec)%pot %at2)
        nonbonded%pot(start+isec)%pot %goodwin%vr0 = vr0
@@ -822,7 +854,7 @@ CONTAINS
     CALL section_vals_get(section,n_repetition=n_items,error=error)
     DO isec = 1, n_items         
        CALL section_vals_val_get(section,"ATOMS",i_rep_section=isec,c_vals=atm_names,error=error)
-       nonbonded%pot(start+isec)%pot %type = "IPBV"
+       nonbonded%pot(start+isec)%pot %type = ip_type
        nonbonded%pot(start+isec)%pot %at1  = atm_names(1)
        nonbonded%pot(start+isec)%pot %at2  = atm_names(2)
        CALL uppercase(nonbonded%pot(start+isec)%pot %at1)
@@ -868,7 +900,7 @@ CONTAINS
     CALL section_vals_get(section,n_repetition=n_items,error=error)
     DO isec = 1, n_items         
        CALL section_vals_val_get(section,"ATOMS",i_rep_section=isec,c_vals=atm_names,error=error)
-       nonbonded%pot(start+isec)%pot %type = "BMHFT"
+       nonbonded%pot(start+isec)%pot %type = ft_type
        nonbonded%pot(start+isec)%pot %at1  = atm_names(1)
        nonbonded%pot(start+isec)%pot %at2  = atm_names(2)
        CALL uppercase(nonbonded%pot(start+isec)%pot %at1)
@@ -2831,7 +2863,7 @@ CONTAINS
              rmin = rmin2_a + rmin2_b
              epsilon = SQRT(epsilon_a*epsilon_b)
              CALL  pair_potential_lj_create(potparm_bond%pot(i,j)%pot, error)
-             potparm_bond%pot(i,j)%pot%type       = 'LENNARD-JONES'
+             potparm_bond%pot(i,j)%pot%type       = lj_type
              potparm_bond%pot(i,j)%pot%at1        = name_atm_a
              potparm_bond%pot(i,j)%pot%at2        = name_atm_b
              potparm_bond%pot(i,j)%pot%lj%epsilon = epsilon
@@ -2897,9 +2929,8 @@ CONTAINS
              IF(iw>0) WRITE(iw,*) "    spline_bond_env ",j," : ",&
                   TRIM(name_atm_a)," ",&
                   TRIM(name_atm_b)
-             !potparm_bond%pot(i,j)%pot%type       = 'UNSET'
              CALL pair_potential_single_clean( potparm_bond%pot(i,j)%pot )
-             potparm_bond%pot(i,j)%pot%type       = 'UNSET'
+             potparm_bond%pot(i,j)%pot%type       = nn_type
              potparm_bond%pot(i,j)%pot%at1        = name_atm_a
              potparm_bond%pot(i,j)%pot%at2        = name_atm_b
           ELSE
@@ -2960,8 +2991,6 @@ CONTAINS
           only_qm = qmmm_ff_precond_only_qm(id1=name_atm_a, id2=name_atm_b)
           CALL uppercase(name_atm_a)
           CALL uppercase(name_atm_b)
-          onfo_list(j)%onfo_kind%name   = "CHARMM"
-          onfo_list(j)%onfo_kind%name   = potparm_bond%pot(ikind,jkind)%pot%type
 
           CALL spline_data_retain (potparm_bond%pot(ikind, jkind )%pot % pair_spline_data,error=error)
           CALL spline_data_release(onfo_list(j)%onfo_kind%spline_data, error=error)
@@ -3033,7 +3062,7 @@ CONTAINS
                 IF (atmname==ff_type%inp_info%nonbonded%pot(j)%pot %at1.OR.&
                      atmname==ff_type%inp_info%nonbonded%pot(j)%pot %at2) THEN                
                    SELECT CASE(ff_type%inp_info%nonbonded%pot(j)%pot%type)
-                   CASE ("EAM")
+                   CASE (ea_type)
                       ! Nothing to complain.. we don't need charges
                    CASE default
                       IF(.NOT.found) THEN
@@ -3113,7 +3142,7 @@ CONTAINS
                 epsilon = SQRT(chm_info%nonbond_eps(ii)*&
                      chm_info%nonbond_eps(jj))
                 CALL  pair_potential_lj_create(potparm_nonbond%pot(i,j)%pot, error)
-                potparm_nonbond%pot(i,j)%pot%type       = 'LENNARD-JONES'
+                potparm_nonbond%pot(i,j)%pot%type       = lj_type
                 potparm_nonbond%pot(i,j)%pot%at1        = name_atm_a
                 potparm_nonbond%pot(i,j)%pot%at2        = name_atm_b
                 potparm_nonbond%pot(i,j)%pot%lj%epsilon = epsilon

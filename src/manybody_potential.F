@@ -22,15 +22,22 @@ MODULE manybody_potential
 
   USE kinds,                           ONLY: dp
   USE pair_potential_types,            ONLY: pair_potential_pp_type,&
-       pair_potential_single_type
+                                             pair_potential_single_type,&
+                                             nn_type,&
+                                             lj_type,&
+                                             ft_type,&
+                                             wl_type,&
+                                             gw_type,&
+                                             ip_type,&
+                                             ea_type                                                    
   USE splines,                         ONLY: init_spline,&
-       init_splinexy,&
-       spline_data_release,&
-       spline_data_type,&
-       spline_environment_type,&
-       potential_s,&
-       spline_data_release,&
-       spline_data_create
+                                             init_splinexy,&
+                                             spline_data_release,&
+                                             spline_data_type,&
+                                             spline_environment_type,&
+                                             potential_s,&
+                                             spline_data_release,&
+                                             spline_data_create
   USE termination,                     ONLY: stop_program
 
 #include "cp_common_uses.h"
@@ -51,13 +58,11 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: r
     REAL(KIND=dp)                            :: manybody_pot
 
-    IF (pot%type=='EAM') THEN
+    IF (pot%type==ea_type) THEN
        ! No splining necessary for EAM.  Zero splines
        manybody_pot = 0._dp
     ELSE
-       WRITE(*,*) "pot%type = ",pot%type
-       CALL stop_program("manybody_potential%ener_pot","Potential type unknown"//&
-            " pot%type = "//TRIM(pot%type))
+       CALL stop_program("manybody_potential%ener_pot","Potential type unknown")
     END IF
 
   END FUNCTION manybody_pot
@@ -95,7 +100,7 @@ CONTAINS
           n = n + 1
           nspline = n
           SELECT CASE ( potparm%pot ( i, j ) % pot%type )
-          CASE ( "EAM", "STILLINGER-WEBER", "REBO" )
+          CASE ( ea_type )
              spline_data => spline_env % spline_data_p ( n ) % spline_data
              locut = rlow_nb
              hicut = SQRT ( potparm%pot ( i, j )%pot % rcutsq )

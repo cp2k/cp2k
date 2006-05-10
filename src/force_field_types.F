@@ -75,8 +75,7 @@ MODULE force_field_types
   END TYPE impr_kind_type
 
   TYPE onfo_kind_type
-    CHARACTER(LEN=default_string_length)            :: name
-    TYPE ( spline_data_type ), POINTER             :: spline_data
+    TYPE ( spline_data_type ), POINTER              :: spline_data
     INTEGER                                         :: kind_number
   END TYPE onfo_kind_type
 
@@ -462,7 +461,6 @@ CONTAINS
     ALLOCATE (onfo_kind_set(nkind),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DO ikind=1,nkind
-      onfo_kind_set(ikind)%name = "UNSET"
       onfo_kind_set(ikind)%kind_number = ikind
       NULLIFY(onfo_kind_set(ikind)%spline_data)
     END DO

@@ -33,6 +33,14 @@ MODULE pair_potential_types
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pair_potential_types'
 
   PRIVATE
+  INTEGER, PUBLIC, PARAMETER :: nn_type= 0,&
+                                lj_type= 1,&
+                                ft_type= 2,&
+                                wl_type= 3,&
+                                gw_type= 4,&
+                                ip_type= 5,&
+                                ea_type= 6
+
   PUBLIC :: pair_potential_type,&           
             pair_potential_reallocate
 
@@ -101,7 +109,7 @@ MODULE pair_potential_types
      REAL (KIND=dp) :: rcutsq
      REAL (KIND=dp) :: energy_cutoff
      REAL (KIND=dp) :: e_cutoff_coul
-     CHARACTER ( LEN = default_string_length ) :: TYPE
+     INTEGER        :: type
      CHARACTER ( LEN = default_string_length ) :: at1
      CHARACTER ( LEN = default_string_length ) :: at2
      TYPE ( ipbv_pot_type ),     POINTER :: ipbv
@@ -200,7 +208,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'pair_potential_single_clean', &
       routineP = moduleN//':'//routineN
 
-    potparm % TYPE          = 'NULL'
+    potparm % type          = nn_type
     potparm % at1           = 'NULL'
     potparm % at2           = 'NULL'
     potparm % rcutsq        = 0.0_dp
@@ -655,32 +663,32 @@ CONTAINS
     lipbv     = .FALSE. ; IF (PRESENT(ipbv))      lipbv     = ipbv
 
     IF (llj) THEN 
-       ipot  = 1 ! LENNARD-JONES POTENTIAL
+       ipot  = lj_type
        check = .NOT.(lwilliams.OR.lgoodwin.OR.leam.OR.lbmhft.OR.lipbv)
        CPPostcondition(check,cp_failure_level,routineP,error,failure)
     END IF
     IF (lwilliams) THEN
-       ipot  = 2 ! WILLIAMS POTENTIAL 
+       ipot  = wl_type
        check = .NOT.(llj.OR.lgoodwin.OR.leam.OR.lbmhft.OR.lipbv)
        CPPostcondition(check,cp_failure_level,routineP,error,failure)
     END IF
     IF (lgoodwin) THEN
-       ipot  = 3 ! GOODWIN POTENTIAL
+       ipot  = gw_type
        check = .NOT.(llj.OR.lwilliams.OR.leam.OR.lbmhft.OR.lipbv)
        CPPostcondition(check,cp_failure_level,routineP,error,failure)
     END IF
     IF (leam) THEN
-       ipot  = 4 ! EAM POTENTIAL  
+       ipot  = ea_type
        check = .NOT.(llj.OR.lgoodwin.OR.lwilliams.OR.lbmhft.OR.lipbv)
        CPPostcondition(check,cp_failure_level,routineP,error,failure)
     END IF
     IF (lbmhft) THEN
-       ipot  = 5 ! TOSI-FUMI POTENTIAL
+       ipot  = ft_type
        check = .NOT.(llj.OR.lgoodwin.OR.leam.OR.lwilliams.OR.lipbv)
        CPPostcondition(check,cp_failure_level,routineP,error,failure)
     END IF
     IF (lipbv) THEN
-       ipot  = 6 ! IPBV POTENTIAL
+       ipot  = ip_type
        check = .NOT.(llj.OR.lgoodwin.OR.leam.OR.lwilliams.OR.lbmhft)
        CPPostcondition(check,cp_failure_level,routineP,error,failure)
     END IF
@@ -700,21 +708,21 @@ CONTAINS
           CALL pair_potential_p_copy(work, p, istart=lb1_old, iend=ub1_old, error=error)
        END IF
        DO i = ub1_old+1, ub1_new
-          p % pot ( i ) % pot % TYPE = 'NULL'
+          p % pot ( i ) % pot % type = nn_type
           p % pot ( i ) % pot % at1  = 'NULL'
           p % pot ( i ) % pot % at2  = 'NULL'
           SELECT CASE (ipot)
-          CASE (1)
+          CASE (lj_type)
              CALL pair_potential_lj_create(p%pot(i)%pot, error=error)
-          CASE (2)
+          CASE (wl_type)
              CALL pair_potential_williams_create(p%pot(i)%pot, error=error)
-          CASE (3)
+          CASE (gw_type)
              CALL pair_potential_goodwin_create(p%pot(i)%pot, error=error)
-          CASE (4)
+          CASE (ea_type)
              CALL pair_potential_eam_create(p%pot(i)%pot, error=error)
-          CASE (5)
+          CASE (ft_type)
              CALL pair_potential_bmhft_create(p%pot(i)%pot, error=error)
-          CASE (6)
+          CASE (ip_type)
              CALL pair_potential_ipbv_create(p%pot(i)%pot, error=error)
           END SELECT
           NULLIFY ( p%pot(i)%pot%pair_spline_data )

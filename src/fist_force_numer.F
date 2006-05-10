@@ -60,7 +60,14 @@ MODULE fist_force_numer
                                              molecule_type
   USE pair_potential,                  ONLY: potential_f
   USE splines,                         ONLY: potential_s
-  USE pair_potential_types,            ONLY: pair_potential_pp_type
+  USE pair_potential_types,            ONLY: pair_potential_pp_type,&
+                                             nn_type,&
+                                             lj_type,&
+                                             ft_type,&
+                                             wl_type,&
+                                             gw_type,&
+                                             ip_type,&
+                                             ea_type       
   USE particle_types,                  ONLY: particle_type
   USE pme,                             ONLY: pme_evaluate
   USE pw_grid_types,                   ONLY: pw_grid_type
@@ -3144,8 +3151,8 @@ END SUBROUTINE potential_nonbond
                             END DO
                           END IF
                           IF (.NOT.exclude_flag ) THEN
-                            SELECT CASE ( TRIM ( potparm %pot( ikind, jkind )%pot % type ) )
-                            CASE ( "EAM" )
+                            SELECT CASE ( potparm %pot( ikind, jkind )%pot % type )
+                            CASE ( ea_type )
                               CALL stop_program ( "force_nonbond_numer", &
                                 "DEBUG results for EAM are in regtest" )
                             CASE DEFAULT
