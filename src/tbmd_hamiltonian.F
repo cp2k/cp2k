@@ -183,7 +183,7 @@ CONTAINS
                                                 sym
     REAL(KIND=dp), DIMENSION(3)              :: dra, &
                                                 drb, &
-                                                rab
+                                                rab, s2r
     REAL(KIND=dp), DIMENSION(4)              :: r_calpha, &
                                                 n_calpha
     REAL(KIND=dp), DIMENSION(:,:), POINTER   :: r_last_update
@@ -354,9 +354,8 @@ CONTAINS
                                    atom=atom_a,&
                                    nnode=nnode)
 
-            dra(:) = particle_set(atom_a)%r(:) - &
-                     scaled_to_real(r_last_update(:,atom_a), cell)
-            !dra(:) = particle_set(atom_a)%r(:) - r_last_update(:,atom_a)
+            CALL scaled_to_real(s2r,r_last_update(:,atom_a), cell)
+            dra(:) = particle_set(atom_a)%r(:) - s2r
 
             neighbor_node => first_node(neighbor_list)
 
@@ -366,12 +365,11 @@ CONTAINS
                                      neighbor=atom_b,&
                                      r=rab)
 
-              drb(:) = particle_set(atom_b)%r(:) -&
-                       scaled_to_real(r_last_update(:,atom_b),cell)
-              !drb(:) = particle_set(atom_b)%r(:) - r_last_update(:,atom_b)
-
-              rab(:) = scaled_to_real(rab(:),cell) - dra(:) + drb(:)
-              !rab(:) = rab(:) - dra(:) + drb(:)
+              CALL scaled_to_real(s2r,r_last_update(:,atom_b),cell)
+              drb(:) = particle_set(atom_b)%r(:) - s2r
+  
+              CALL scaled_to_real(s2r,rab(:),cell)
+              rab(:) = s2r - dra(:) + drb(:)
 
               rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
 
