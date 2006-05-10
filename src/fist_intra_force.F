@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000  CP2K developers group                                 !
+!   Copyright (C) 2000-2006  CP2K developers group                            !
 !-----------------------------------------------------------------------------!
 !!****** cp2k/fist_intra_force [1.0] *
 !!
@@ -106,7 +106,8 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
       id32, is32, ism, isn, iw1, iw2, rab2, s32, sm, sn, theta, w1, w2
     REAL(KIND=dp), DIMENSION(3)              :: b12, b32, g1, g2, g3, gt1, &
                                                 gt2, gt3, gt4, rij, t12, t32, &
-                                                t34, t43, tm, tn, u1, u2
+                                                t34, t43, tm, tn, u1, u2, &
+                                                k1,k2,k3,k4
     TYPE(bend_type), POINTER                 :: bend_list( : )
     TYPE(bond_type), POINTER                 :: bond_list( : )
     TYPE(impr_type), POINTER                 :: impr_list( : )
@@ -157,23 +158,29 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
                          bond_list ( ibond ) % bond_kind % k, &
                          energy, fscalar)
         pot_bond = pot_bond + energy
-        particle_set ( index_a )% f = particle_set ( index_a ) % f &
-                                      -rij * fscalar
-        particle_set ( index_b )% f = particle_set ( index_b ) % f &
-                                      +rij * fscalar
+        particle_set ( index_a )% f(1) = particle_set ( index_a ) % f(1)  -rij(1) * fscalar
+        particle_set ( index_a )% f(2) = particle_set ( index_a ) % f(2)  -rij(2) * fscalar
+        particle_set ( index_a )% f(3) = particle_set ( index_a ) % f(3)  -rij(3) * fscalar
+        particle_set ( index_b )% f(1) = particle_set ( index_b ) % f(1)  +rij(1) * fscalar
+        particle_set ( index_b )% f(2) = particle_set ( index_b ) % f(2)  +rij(2) * fscalar
+        particle_set ( index_b )% f(3) = particle_set ( index_b ) % f(3)  +rij(3) * fscalar
 
 ! computing the pressure tensor
-        CALL get_pv_bond ( -rij * fscalar, rij * fscalar, &
+        k2 =  rij * fscalar
+        k1 = -k2
+        CALL get_pv_bond ( k1, k2, &
                            particle_set ( index_a ) % r,  &
                            particle_set ( index_b ) % r,  &
                            pv_bond )
 
 ! the contribution from the bonds. ONLY FOR DEBUG
        IF ( PRESENT ( f_bond ) ) THEN
-           f_bond(:,index_a) = f_bond(:,index_a) - &
-                rij*fscalar
-           f_bond(:,index_b) = f_bond(:,index_b) + &
-                rij*fscalar
+           f_bond(1,index_a) = f_bond(1,index_a) - rij(1)*fscalar
+           f_bond(2,index_a) = f_bond(2,index_a) - rij(2)*fscalar
+           f_bond(3,index_a) = f_bond(3,index_a) - rij(3)*fscalar
+           f_bond(1,index_b) = f_bond(1,index_b) + rij(1)*fscalar
+           f_bond(2,index_b) = f_bond(2,index_b) + rij(2)*fscalar
+           f_bond(3,index_b) = f_bond(3,index_b) + rij(3)*fscalar
         END IF
 
      END DO BOND
@@ -185,13 +192,17 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
         CALL force_bonds (rij,  ub_list ( ibend ) % ub_kind % r0, &
                           ub_list ( ibend ) % ub_kind % k, energy, fscalar)
         pot_urey_bradley = pot_urey_bradley + energy
-        particle_set ( index_a )% f = particle_set ( index_a ) % f &
-                                      - rij * fscalar
-        particle_set ( index_b )% f = particle_set ( index_b ) % f &
-                                      + rij * fscalar
+        particle_set ( index_a )% f(1) = particle_set ( index_a ) % f(1)  - rij(1) * fscalar
+        particle_set ( index_a )% f(2) = particle_set ( index_a ) % f(2)  - rij(2) * fscalar
+        particle_set ( index_a )% f(3) = particle_set ( index_a ) % f(3)  - rij(3) * fscalar
+        particle_set ( index_b )% f(1) = particle_set ( index_b ) % f(1)  + rij(1) * fscalar
+        particle_set ( index_b )% f(2) = particle_set ( index_b ) % f(2)  + rij(2) * fscalar
+        particle_set ( index_b )% f(3) = particle_set ( index_b ) % f(3)  + rij(3) * fscalar
 
 ! computing the pressure tensor
-        CALL get_pv_bond ( -rij * fscalar, rij * fscalar, &
+        k2 =  rij * fscalar
+        k1 = -k2
+        CALL get_pv_bond ( k1, k2, &
                            particle_set ( index_a ) % r,  &
                            particle_set ( index_b ) % r,  &
                            pv_urey_bradley )
@@ -226,15 +237,21 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
                          bend_list ( ibend ) % bend_kind % k, &
                          g1,g2,g3,energy,fscalar)
         pot_bend = pot_bend + energy
-        particle_set ( index_a )% f = particle_set ( index_a ) % f &
-                                      + g1 * fscalar
-        particle_set ( index_b )% f = particle_set ( index_b ) % f &
-                                      + g2 * fscalar
-        particle_set ( index_c )% f = particle_set ( index_c ) % f &
-                                      + g3 * fscalar
+        particle_set ( index_a )% f(1) = particle_set ( index_a ) % f(1) + g1(1) * fscalar
+        particle_set ( index_a )% f(2) = particle_set ( index_a ) % f(2) + g1(2) * fscalar
+        particle_set ( index_a )% f(3) = particle_set ( index_a ) % f(3) + g1(3) * fscalar
+        particle_set ( index_b )% f(1) = particle_set ( index_b ) % f(1) + g2(1) * fscalar
+        particle_set ( index_b )% f(2) = particle_set ( index_b ) % f(2) + g2(2) * fscalar
+        particle_set ( index_b )% f(3) = particle_set ( index_b ) % f(3) + g2(3) * fscalar
+        particle_set ( index_c )% f(1) = particle_set ( index_c ) % f(1) + g3(1) * fscalar
+        particle_set ( index_c )% f(2) = particle_set ( index_c ) % f(2) + g3(2) * fscalar
+        particle_set ( index_c )% f(3) = particle_set ( index_c ) % f(3) + g3(3) * fscalar
 
 ! computing the pressure tensor
-        CALL get_pv_bend(fscalar*g1,fscalar*g2,fscalar*g3, &
+        k1 = fscalar*g1
+        k2 = fscalar*g2
+        k3 = fscalar*g3
+        CALL get_pv_bend(k1,k2,k3, &
                          particle_set ( index_a ) % r,    & 
                          particle_set ( index_b ) % r,    & 
                          particle_set ( index_c ) % r,    & 
@@ -279,17 +296,25 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
                               torsion_list(itorsion)%torsion_kind%name, &
                               gt1,gt2,gt3,gt4,energy,fscalar)
             pot_torsion = pot_torsion + energy
-            particle_set ( index_a )% f = particle_set ( index_a ) % f &
-                                          + gt1 * fscalar
-            particle_set ( index_b )% f = particle_set ( index_b ) % f &
-                                          + gt2 * fscalar
-            particle_set ( index_c )% f = particle_set ( index_c ) % f &
-                                          + gt3 * fscalar
-            particle_set ( index_d )% f = particle_set ( index_d ) % f &
-                                          + gt4 * fscalar
+            particle_set ( index_a )% f(1) = particle_set ( index_a ) % f(1) + gt1(1) * fscalar
+            particle_set ( index_a )% f(2) = particle_set ( index_a ) % f(2) + gt1(2) * fscalar
+            particle_set ( index_a )% f(3) = particle_set ( index_a ) % f(3) + gt1(3) * fscalar
+            particle_set ( index_b )% f(1) = particle_set ( index_b ) % f(1) + gt2(1) * fscalar
+            particle_set ( index_b )% f(2) = particle_set ( index_b ) % f(2) + gt2(2) * fscalar
+            particle_set ( index_b )% f(3) = particle_set ( index_b ) % f(3) + gt2(3) * fscalar
+            particle_set ( index_c )% f(1) = particle_set ( index_c ) % f(1) + gt3(1) * fscalar
+            particle_set ( index_c )% f(2) = particle_set ( index_c ) % f(2) + gt3(2) * fscalar
+            particle_set ( index_c )% f(3) = particle_set ( index_c ) % f(3) + gt3(3) * fscalar
+            particle_set ( index_d )% f(1) = particle_set ( index_d ) % f(1) + gt4(1) * fscalar
+            particle_set ( index_d )% f(2) = particle_set ( index_d ) % f(2) + gt4(2) * fscalar
+            particle_set ( index_d )% f(3) = particle_set ( index_d ) % f(3) + gt4(3) * fscalar
 
 ! computing the pressure tensor
-          CALL get_pv_torsion(fscalar*gt1,fscalar*gt2,fscalar*gt3,fscalar*gt4, &
+          k1 = fscalar*gt1
+          k2 = fscalar*gt2
+          k3 = fscalar*gt3
+          k4 = fscalar*gt4
+          CALL get_pv_torsion(k1,k2,k3,k4,&
                            particle_set ( index_a ) % r,    & 
                            particle_set ( index_b ) % r,    & 
                            particle_set ( index_c ) % r,    & 
@@ -340,17 +365,25 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
                             impr_list ( itorsion ) % impr_kind % phi0, &
                             gt1,gt2,gt3,gt4,energy,fscalar)
         pot_imp_torsion = pot_imp_torsion + energy
-        particle_set ( index_a )% f = particle_set ( index_a ) % f &
-                                      + gt1 * fscalar
-        particle_set ( index_b )% f = particle_set ( index_b ) % f &
-                                      + gt2 * fscalar
-        particle_set ( index_c )% f = particle_set ( index_c ) % f &
-                                      + gt3 * fscalar
-        particle_set ( index_d )% f = particle_set ( index_d ) % f &
-                                      + gt4 * fscalar
+        particle_set ( index_a )% f(1) = particle_set ( index_a ) % f(1) + gt1(1) * fscalar
+        particle_set ( index_a )% f(2) = particle_set ( index_a ) % f(2) + gt1(2) * fscalar
+        particle_set ( index_a )% f(3) = particle_set ( index_a ) % f(3) + gt1(3) * fscalar
+        particle_set ( index_b )% f(1) = particle_set ( index_b ) % f(1) + gt2(1) * fscalar
+        particle_set ( index_b )% f(2) = particle_set ( index_b ) % f(2) + gt2(2) * fscalar
+        particle_set ( index_b )% f(3) = particle_set ( index_b ) % f(3) + gt2(3) * fscalar
+        particle_set ( index_c )% f(1) = particle_set ( index_c ) % f(1) + gt3(1) * fscalar
+        particle_set ( index_c )% f(2) = particle_set ( index_c ) % f(2) + gt3(2) * fscalar
+        particle_set ( index_c )% f(3) = particle_set ( index_c ) % f(3) + gt3(3) * fscalar
+        particle_set ( index_d )% f(1) = particle_set ( index_d ) % f(1) + gt4(1) * fscalar
+        particle_set ( index_d )% f(2) = particle_set ( index_d ) % f(2) + gt4(2) * fscalar
+        particle_set ( index_d )% f(3) = particle_set ( index_d ) % f(3) + gt4(3) * fscalar
 
 ! computing the pressure tensor
-        CALL get_pv_torsion(fscalar*gt1,fscalar*gt2,fscalar*gt3,fscalar*gt4, &
+        k1 = fscalar*gt1
+        k2 = fscalar*gt2
+        k3 = fscalar*gt3
+        k4 = fscalar*gt4
+        CALL get_pv_torsion(k1,k2,k3,k4,&
                          particle_set ( index_a ) % r,    & 
                          particle_set ( index_b ) % r,    & 
                          particle_set ( index_c ) % r,    & 
@@ -378,13 +411,17 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
         spline_data => onef_list ( ionef ) % onfo_kind % spline_data
         energy = potential_s ( spline_data, rab2, fscalar )
         pot_onef = pot_onef + energy
-        particle_set ( index_a )% f = particle_set ( index_a ) % f &
-                                      -rij * fscalar
-        particle_set ( index_b )% f = particle_set ( index_b ) % f &
-                                      +rij * fscalar
+        particle_set ( index_a )% f(1) = particle_set ( index_a ) % f(1) -rij(1) * fscalar
+        particle_set ( index_a )% f(2) = particle_set ( index_a ) % f(2) -rij(2) * fscalar
+        particle_set ( index_a )% f(3) = particle_set ( index_a ) % f(3) -rij(3) * fscalar
+        particle_set ( index_b )% f(1) = particle_set ( index_b ) % f(1) +rij(1) * fscalar
+        particle_set ( index_b )% f(2) = particle_set ( index_b ) % f(2) +rij(2) * fscalar
+        particle_set ( index_b )% f(3) = particle_set ( index_b ) % f(3) +rij(3) * fscalar
 
 ! computing the pressure tensor
-        CALL get_pv_bond ( -rij * fscalar, +rij * fscalar, &
+        k2=rij * fscalar
+        k1=-k2
+        CALL get_pv_bond ( k1,k2,&
                            particle_set ( index_a ) % r,  &
                            particle_set ( index_b ) % r,  &
                            pv_onef )
