@@ -23,7 +23,8 @@ MODULE spme
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
-  USE cell_types,                      ONLY: cell_type
+  USE cell_types,                      ONLY: cell_type, &
+                                             real_to_scaled
   USE dgs,                             ONLY: dg_sum_patch,&
                                              dg_sum_patch_force_3d
   USE ewald_environment_types,         ONLY: ewald_env_get,&
@@ -295,7 +296,7 @@ SUBROUTINE get_patch ( part, box, green, npts, p, rhos )
 
     TYPE(particle_type), DIMENSION(:), &
       INTENT(IN)                             :: part
-    TYPE(cell_type), INTENT(IN)              :: box
+    TYPE(cell_type), POINTER                 :: box
     TYPE(greens_fn_type), POINTER            :: green
     INTEGER, DIMENSION(3), INTENT(IN)        :: npts
     INTEGER, INTENT(IN)                      :: p
@@ -530,10 +531,10 @@ END SUBROUTINE get_center
 
 SUBROUTINE get_delta ( box, r, npts, delta, n )
 
-    TYPE(cell_type), INTENT(IN)              :: box
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: r
-    INTEGER, DIMENSION(:), INTENT(IN)        :: npts
-    REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: delta
+    TYPE(cell_type), POINTER                 :: box
+    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: r
+    INTEGER, DIMENSION(3), INTENT(IN)        :: npts
+    REAL(KIND=dp), DIMENSION(3), INTENT(OUT) :: delta
     INTEGER, INTENT(IN)                      :: n
 
     INTEGER                                  :: mp
@@ -546,7 +547,7 @@ SUBROUTINE get_delta ( box, r, npts, delta, n )
   mp = MAXVAL ( npts(:) )
   rmp = REAL ( mp,KIND=dp)
 ! compute the scaled coordinate of atomi
-  s = MATMUL ( box % h_inv, r )
+  CALL real_to_scaled(s,r,box)
   s = s - REAL ( NINT ( s ),KIND=dp)
 
 ! find the continuous ``grid'' point

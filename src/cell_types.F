@@ -157,8 +157,6 @@ CONTAINS
       INTENT(OUT), OPTIONAL                  :: h, h_inv
     INTEGER, INTENT(out), OPTIONAL           :: id_nr
 
-    REAL(KIND=dp)                            :: a, b, c
-
 !   ---------------------------------------------------------------------------
 
     IF (PRESENT(unit_of_length_name))&
@@ -176,16 +174,15 @@ CONTAINS
 !   *** Calculate the lengths of the cell vectors a, b, and c ***
 
     IF (PRESENT(abc)) THEN
-      a = SQRT(cell%hmat(1,1)*cell%hmat(1,1) +&
+      abc(1) = SQRT(cell%hmat(1,1)*cell%hmat(1,1) +&
                cell%hmat(2,1)*cell%hmat(2,1) +&
                cell%hmat(3,1)*cell%hmat(3,1))
-      b = SQRT(cell%hmat(1,2)*cell%hmat(1,2) +&
+      abc(2) = SQRT(cell%hmat(1,2)*cell%hmat(1,2) +&
                cell%hmat(2,2)*cell%hmat(2,2) +&
                cell%hmat(3,2)*cell%hmat(3,2))
-      c = SQRT(cell%hmat(1,3)*cell%hmat(1,3) +&
+      abc(3) = SQRT(cell%hmat(1,3)*cell%hmat(1,3) +&
                cell%hmat(2,3)*cell%hmat(2,3) +&
                cell%hmat(3,3)*cell%hmat(3,3))
-      abc(:) = (/a,b,c/)
     END IF
 
 !   *** Angles between the cell vectors a, b, and c   ***

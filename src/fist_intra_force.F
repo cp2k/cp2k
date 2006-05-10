@@ -49,6 +49,7 @@ MODULE fist_intra_force
   IMPLICIT NONE
 
  PRIVATE
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'fist_intra_force'
   PUBLIC :: force_intra_control
 
 !!*****
@@ -83,6 +84,7 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
 ! parses up intramolecular properties
 
 
+
     TYPE(molecule_type), POINTER             :: molecule_set( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
     TYPE(distribution_1d_type), POINTER      :: local_molecules
@@ -98,6 +100,10 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT), OPTIONAL                :: f_bond, f_bend, f_torsion, &
                                                 f_ub, f_imptor, f_onef
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'force_intra_control', &
+      routineP = moduleN//':'//routineN
+
 
     INTEGER :: first_atom, handle, i, ibend, ibond, ikind, imol, imul, &
       index_a, index_b, index_c, index_d, ionef, itorsion, nbends, nbonds, &
@@ -120,7 +126,7 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
 
 !------------------------------------------------------------------------------
 
-  CALL timeset ( 'FORCE_INTRA_CONTROL','I',' ',handle )
+  CALL timeset ( routineN,handle )
 
   IF ( PRESENT ( f_bond)) f_bond = 0.0_dp
   IF ( PRESENT ( f_bend)) f_bend = 0.0_dp

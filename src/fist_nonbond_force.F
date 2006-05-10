@@ -517,6 +517,8 @@ SUBROUTINE bonded_correct_gaussian ( atomic_kind_set, local_particles, &
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(OUT)                            :: pv_bc
 
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'bonded_correct_gaussian'
+
     REAL(KIND=dp), PARAMETER :: ac1 = 0.254829592_dp, ac2 = -0.284496736_dp, &
       ac3 = 1.421413741_dp, ac4 = -1.453152027_dp, ac5 = 1.061405429_dp, &
       pc = 0.3275911_dp
@@ -535,7 +537,7 @@ SUBROUTINE bonded_correct_gaussian ( atomic_kind_set, local_particles, &
 ! parameters for the numerical erf in Abramowitz and Stegun Eq. 7.1.26 pg 299
 !------------------------------------------------------------------------------
 
-  CALL timeset ( 'BOND_CORRECT_GAUSSIAN', 'E', 'Mflops', handle )
+  CALL timeset ( routineN, 'I', 'Mflops', handle )
   flops = 0.0_dp
 
 ! defining the constants
