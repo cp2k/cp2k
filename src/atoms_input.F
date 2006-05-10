@@ -234,7 +234,7 @@ CONTAINS
     !-----------------------------------------------------------------------------
     DO iatom=1,natom
        IF (scaled_coordinates) THEN
-          atom_info%r(:,iatom) = scaled_to_real(atom_info%r(:,iatom),cell)
+          CALL scaled_to_real(atom_info%r(:,iatom),atom_info%r(:,iatom),cell)
        ELSE
           atom_info%r(:,iatom) = atom_info%r(:,iatom)*unit_of_length
        END IF

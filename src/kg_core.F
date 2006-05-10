@@ -263,7 +263,7 @@ CONTAINS
           atom_a = atom(ikind)%list(iatom)
           r_pbc(:) = pbc(particle_set(atom_a)%r(:),cell)
           atom(ikind)%r_pbc(:,iatom) = r_pbc(:)
-          atom(ikind)%s_pbc(:,iatom) = real_to_scaled(r_pbc(:),cell)
+          CALL real_to_scaled(atom(ikind)%s_pbc(:,iatom),r_pbc(:),cell)
         END DO
 
       END IF
@@ -320,7 +320,7 @@ CONTAINS
 
         IF (output_unit>0) THEN
           s(:) = 1.0_dp/REAL(nsubcell(:),dp)
-          r(:) = scaled_to_real(s(:),cell)
+          CALL scaled_to_real(r,s,cell)
           WRITE (UNIT=output_unit,FMT="(T3,2I8,4X,3I5,6X,3F12.6)")&
             ikind,jkind,nsubcell(1:3),r(1:3)/unit_of_length
         END IF
@@ -370,7 +370,7 @@ CONTAINS
                   END IF
                   cell_b(1) = icell
 
-                  rb(:) = scaled_to_real(sb(:),cell)
+                  CALL scaled_to_real(rb,sb,cell)
 
                   cell000 = ((icell == 0).AND.&
                              (jcell == 0).AND.&
@@ -497,7 +497,7 @@ CONTAINS
                              (jcell == 0).AND.&
                              (kcell == 0))
 
-                  rb(:) = scaled_to_real(sb(:),cell)
+                  CALL scaled_to_real(rb,sb,cell)
 
                   loop_k: DO k=1,nsubcell(3)
                     loop_j: DO j=1,nsubcell(2)

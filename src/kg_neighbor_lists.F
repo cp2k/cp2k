@@ -314,7 +314,7 @@ CONTAINS
           atom_a = atom(ikind)%list(iatom)
           r_pbc(:) = pbc(particle_set(atom_a)%r(:),cell)
           atom(ikind)%r_pbc(:,iatom) = r_pbc(:)
-          atom(ikind)%s_pbc(:,iatom) = real_to_scaled(r_pbc(:),cell)
+          CALL real_to_scaled(atom(ikind)%s_pbc(:,iatom),r_pbc(:),cell)
         END DO
 
       END IF

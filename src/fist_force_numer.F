@@ -2744,7 +2744,7 @@ SUBROUTINE potential_nonbond ( fist_nonbond_env, particle_set, atomic_kind_set, 
                                                 ilist, inode, jkind, nkinds, &
                                                 nlist, nnode
     REAL(KIND=dp)                            :: energy, qi, qj, rab2, rab2_max
-    REAL(KIND=dp), DIMENSION(3)              :: dra, drb, rab
+    REAL(KIND=dp), DIMENSION(3)              :: dra, drb, rab,s2r,r2s
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: r_last_update
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(neighbor_list_set_p_type), &
@@ -2794,9 +2794,8 @@ SUBROUTINE potential_nonbond ( fist_nonbond_env, particle_set, atomic_kind_set, 
           CALL get_neighbor_list(neighbor_list=neighbor_list,&
                                  atom=atom_a,&
                                  nnode=nnode)
-
-          dra(:) = particle_set(atom_a)%r(:) -&
-                   scaled_to_real(r_last_update(:,atom_a),cell)
+          CALL scaled_to_real(s2r,r_last_update(:,atom_a),cell)
+          dra(:) = particle_set(atom_a)%r(:) - s2r
 
           neighbor_node => first_node(neighbor_list)
 
@@ -2806,11 +2805,10 @@ SUBROUTINE potential_nonbond ( fist_nonbond_env, particle_set, atomic_kind_set, 
                                    neighbor=atom_b,&
                                    r=rab)
 
-
-            drb(:) = particle_set(atom_b)%r(:) -&
-                     scaled_to_real(r_last_update(:,atom_b),cell)
-
-            rab(:) = scaled_to_real(rab(:),cell) - dra(:) + drb(:)
+            CALL scaled_to_real(s2r,r_last_update(:,atom_b),cell)
+            drb(:) = particle_set(atom_b)%r(:) - s2r
+            CALL scaled_to_real(s2r,rab(:),cell)
+            rab(:) = s2r - dra(:) + drb(:)
             rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
 
             IF (rab2 <= rab2_max) THEN
@@ -2952,7 +2950,7 @@ END SUBROUTINE potential_nonbond
           atom_a = atom(ikind)%list(iatom)
           r_pbc(:) = pbc(particle_set(atom_a)%r(:),cell )
           atom(ikind)%r_pbc(:,iatom) = r_pbc(:)
-          atom(ikind)%s_pbc(:,iatom) = real_to_scaled(r_pbc(:),cell )
+          CALL real_to_scaled(atom(ikind)%s_pbc(:,iatom),r_pbc(:),cell)
         END DO
 
         atom ( ikind ) % qeff = qeff
@@ -3119,7 +3117,7 @@ END SUBROUTINE potential_nonbond
                   END IF
                   cell_b(1) = icell
 
-                  rb(:) = scaled_to_real(sb(:),cell)
+                  CALL scaled_to_real(rb,sb(:),cell)
 
                   DO iatom_local=1,natom_local_a
                     iatom = atom(ikind)%list_local_a_index(iatom_local)
@@ -3134,7 +3132,7 @@ END SUBROUTINE potential_nonbond
                       rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
                       IF (rab2 < rab2_max ) THEN
                         IF (rab2 > 1.0E-6_dp) THEN
-                          sab(:) = real_to_scaled(rab(:),cell)
+                          CALL real_to_scaled(sab,rab(:),cell)
                           exclude_flag = .FALSE.
                           exclusion_list =>  &
                           particle_set ( atom_a ) % lpi % exclusion ( jkind ) % list_vdw

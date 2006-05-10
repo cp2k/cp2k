@@ -85,7 +85,7 @@ SUBROUTINE force_nonbond ( fist_nonbond_env, particle_set, cell,  &
                                                 nkinds, nlist, nnode
     REAL(KIND=dp)                            :: energy, f_eam, &
                                                 fscalar, rab2, rab2_max
-    REAL(KIND=dp), DIMENSION(3)              :: dra, drb, fr, rab
+    REAL(KIND=dp), DIMENSION(3)              :: dra, drb, fr, rab, s2r
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: r_last_update
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: nonbonded
@@ -139,8 +139,8 @@ SUBROUTINE force_nonbond ( fist_nonbond_env, particle_set, cell,  &
                                  atom=atom_a,&
                                  nnode=nnode)
 
-          dra(:) = particle_set(atom_a)%r(:) -&
-                   scaled_to_real(r_last_update(:,atom_a),cell)
+          CALL scaled_to_real(s2r,r_last_update(:,atom_a),cell)
+          dra(:) = particle_set(atom_a)%r(:) - s2r
 
           neighbor_node => first_node(neighbor_list)
 
@@ -157,9 +157,10 @@ SUBROUTINE force_nonbond ( fist_nonbond_env, particle_set, cell,  &
                CALL get_neighbor_node(neighbor_node=neighbor_node,&
                                       neighbor=atom_b,&
                                       r=rab)
-               drb(:) = particle_set(atom_b)%r(:) -&
-                        scaled_to_real(r_last_update(:,atom_b),cell)
-               rab(:) = scaled_to_real(rab(:),cell) - dra(:) + drb(:)
+               CALL scaled_to_real(s2r,r_last_update(:,atom_b),cell)
+               drb(:) = particle_set(atom_b)%r(:) - s2r
+               CALL scaled_to_real(s2r,rab(:),cell)
+               rab(:) = s2r - dra(:) + drb(:)
             ENDIF 
 
             rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
@@ -247,7 +248,7 @@ SUBROUTINE density_nonbond ( fist_nonbond_env, particle_set, cell, globenv )
     INTEGER :: ab, atom_a, atom_b, handle, ikind, ilist, inode, iparticle, &
       istat, jkind, nkinds, nlist, nnode, nparticle
     REAL(KIND=dp)                            :: flops, rab2, rab2_max
-    REAL(KIND=dp), DIMENSION(3)              :: dra, drb, rab
+    REAL(KIND=dp), DIMENSION(3)              :: dra, drb, rab, s2r
     REAL(KIND=dp), DIMENSION(:), POINTER     :: rho
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: r_last_update
     TYPE(neighbor_list_set_p_type), &
@@ -301,8 +302,8 @@ SUBROUTINE density_nonbond ( fist_nonbond_env, particle_set, cell, globenv )
                                  atom=atom_a,&
                                  nnode=nnode)
 
-          dra(:) = particle_set(atom_a)%r(:) -&
-                   scaled_to_real(r_last_update(:,atom_a),cell)
+          CALL scaled_to_real(s2r,r_last_update(:,atom_a),cell)
+          dra(:) = particle_set(atom_a)%r(:) - s2r
 
           neighbor_node => first_node(neighbor_list)
 
@@ -312,10 +313,10 @@ SUBROUTINE density_nonbond ( fist_nonbond_env, particle_set, cell, globenv )
                                    neighbor=atom_b,&
                                    r=rab)
 
-            drb(:) = particle_set(atom_b)%r(:) -&
-                     scaled_to_real(r_last_update(:,atom_b),cell)
-
-            rab(:) = scaled_to_real(rab(:),cell) - dra(:) + drb(:)
+            CALL scaled_to_real(s2r,r_last_update(:,atom_b),cell)
+            drb(:) = particle_set(atom_b)%r(:) - s2r
+            CALL scaled_to_real(s2r,rab(:),cell)
+            rab(:) = s2r - dra(:) + drb(:)
 
             rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
 

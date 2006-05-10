@@ -505,7 +505,7 @@ CONTAINS
           atom_a = atom(ikind)%list(iatom)
           r_pbc(:) = pbc(particle_set(atom_a)%r(:),cell)
           atom(ikind)%r_pbc(:,iatom) = r_pbc(:)
-          atom(ikind)%s_pbc(:,iatom) = real_to_scaled(r_pbc(:),cell)
+          CALL real_to_scaled(atom(ikind)%s_pbc(:,iatom),r_pbc(:),cell)
         END DO
 
       ELSE
@@ -1256,7 +1256,7 @@ CONTAINS
 
         IF (print_subcell_grid) THEN
           s(:) = 1.0_dp/REAL(nsubcell(:),KIND=dp)
-          r(:) = scaled_to_real(s(:),cell)
+          CALL scaled_to_real(r,s,cell)
           WRITE (UNIT=output_unit,FMT="(T3,2I8,4X,3I5,6X,3F12.6)")&
             ikind,jkind,nsubcell(1:3),r(1:3)/unit_of_length
         END IF
@@ -1321,7 +1321,7 @@ CONTAINS
                   END IF
                   cell_b(1) = icell
 
-                  rb(:) = scaled_to_real(sb(:),cell)
+                  CALL scaled_to_real(rb,sb(:),cell)
 
                   DO iatom_local=1,natom_local_a
                     iatom = atom(ikind)%list_local_a_index(iatom_local)
@@ -1424,7 +1424,7 @@ CONTAINS
                   END IF
                   cell_b(1) = icell
 
-                  rb(:) = scaled_to_real(sb(:),cell)
+                  CALL scaled_to_real(rb,sb,cell)
 
                   loop_k: DO k=1,nsubcell(3)
                     loop_j: DO j=1,nsubcell(2)
@@ -1621,7 +1621,7 @@ CONTAINS
 
         IF (print_subcell_grid) THEN
           s(:) = 1.0_dp/REAL(nsubcell(:),KIND=dp)
-          r(:) = scaled_to_real(s(:),cell)
+          CALL scaled_to_real(r,s,cell)
           WRITE (UNIT=output_unit,FMT="(T3,2I8,4X,3I5,6X,3F12.6)")&
             ikind,jkind,nsubcell(1:3),r(1:3)/unit_of_length
         END IF
@@ -1653,7 +1653,7 @@ CONTAINS
             atom_b = atom(jkind)%list(jatom)
             mol_b = atom(jkind)%list_b_mol(jatom_local)
             sb(:) = atom(jkind)%s_pbc(:,jatom)
-            rb(:) = scaled_to_real(sb(:),cell)
+            CALL scaled_to_real(rb,sb,cell)
             cell_b = 0
 
             DO iatom_local=1,natom_local_a
@@ -1711,7 +1711,7 @@ CONTAINS
             atom_b = atom(jkind)%list(jatom)
             mol_b = atom(jkind)%list_b_mol(jatom_local)
             sb(:) = atom(jkind)%s_pbc(:,jatom)
-            rb(:) = scaled_to_real(sb(:),cell)
+            CALL scaled_to_real(rb,sb,cell)
             cell_b(:) = 0
             sb_min(:) = sb(:) - sab_max(:)
             sb_max(:) = sb(:) + sab_max(:)
@@ -1911,7 +1911,7 @@ CONTAINS
 
         IF (print_subcell_grid) THEN
           s(:) = 1.0_dp/REAL(nsubcell(:),KIND=dp)
-          r(:) = scaled_to_real(s(:),cell)
+          CALL scaled_to_real(r,s,cell)
           WRITE (UNIT=output_unit,FMT="(T3,2I8,4X,3I5,6X,3F12.6)")&
             ikind,kkind,nsubcell(1:3),r(1:3)/unit_of_length
         END IF
@@ -1975,7 +1975,7 @@ CONTAINS
                   END IF
                   cell_c(1) = icell
 
-                  rc(:) = scaled_to_real(sc(:),cell)
+                  CALL scaled_to_real(rc,sc,cell)
 
                   cell000 = ((icell == 0).AND.&
                              (jcell == 0).AND.&
@@ -2085,7 +2085,7 @@ CONTAINS
                   END IF
                   cell_c(1) = icell
 
-                  rc(:) = scaled_to_real(sc(:),cell)
+                  CALL scaled_to_real(rc,sc,cell)
 
                   cell000 = ((icell == 0).AND.&
                              (jcell == 0).AND.&
@@ -2212,7 +2212,7 @@ CONTAINS
                                                 subcells, unit_of_length
     REAL(dp), DIMENSION(3)                   :: r, rac, rc, s, s_max, s_min, &
                                                 sac_max, sc, sc_max, sc_min, &
-                                                sc_pbc
+                                                sc_pbc, s2r
     TYPE(neighbor_list_p_type), &
       DIMENSION(maxatom_local)               :: kind_a, kind_b
     TYPE(neighbor_list_set_type), POINTER    :: ac_neighbor_list_set, &
@@ -2318,7 +2318,7 @@ CONTAINS
 
         IF (print_subcell_grid) THEN
           s(:) = 1.0_dp/REAL(nsubcell(:),KIND=dp)
-          r(:) = scaled_to_real(s(:),cell)
+          CALL scaled_to_real(r,s,cell)
           WRITE (UNIT=output_unit,FMT="(T3,2I8,4X,3I5,6X,3F12.6)")&
             ikind,kkind,nsubcell(1:3),r(1:3)/unit_of_length
         END IF
@@ -2395,7 +2395,7 @@ CONTAINS
                   END IF
                   cell_c(1) = icell
 
-                  rc(:) = scaled_to_real(sc(:),cell)
+                  CALL scaled_to_real(rc,sc,cell)
 
                   DO iatom_local=1,natom_local_a
                     iatom = atom(ikind)%list_local_a_index(iatom_local)
@@ -2422,7 +2422,8 @@ CONTAINS
 
                         s(3) = REAL(kcell_b,dp)
 
-                        r(:) = rc(:) - scaled_to_real(s(:),cell)
+                        CALL scaled_to_real(s2r,s,cell)
+                        r(:) = rc(:) - s2r
 
                         DO iatom_local=1,natom_local_b
                           iatom = atom(ikind)%list_local_b_index(iatom_local)
@@ -2527,7 +2528,7 @@ CONTAINS
                   END IF
                   cell_c(1) = icell
 
-                  rc(:) = scaled_to_real(sc(:),cell)
+                  CALL scaled_to_real(rc,sc,cell)
 
                   loop1_k: DO k=1,nsubcell(3)
                     loop1_j: DO j=1,nsubcell(2)
@@ -2598,7 +2599,8 @@ CONTAINS
                           IF (s_max(1) < -0.5_dp) EXIT loop_icell_b
                         END IF
 
-                        r(:) = rc(:) - scaled_to_real(s(:),cell)
+                        CALL scaled_to_real(s2r,s,cell)
+                        r(:) = rc(:) - s2r
 
                         loop2_k: DO k=1,nsubcell(3)
                           loop2_j: DO j=1,nsubcell(2)

@@ -471,7 +471,7 @@ CONTAINS
     INTEGER, DIMENSION(3)                    :: periodic
     REAL(KIND=dp)                            :: rab2, rab2_pbc
     REAL(KIND=dp), DIMENSION(3)              :: r, ra_pbc, rab, rb_image, &
-                                                rb_pbc
+                                                rb_pbc,s2r
 
 !   ---------------------------------------------------------------------------
 
@@ -486,7 +486,8 @@ CONTAINS
       DO jcell=-periodic(2),periodic(2)
         DO kcell=-periodic(3),periodic(3)
           r = REAL((/icell,jcell,kcell/),dp)
-          rb_image(:) = rb_pbc(:) + scaled_to_real(r,cell)
+          CALL scaled_to_real(s2r,r,cell)
+          rb_image(:) = rb_pbc(:) + s2r
           rab(:) = rb_image(:) - ra_pbc(:)
           rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
           IF (rab2 < rab2_pbc) THEN
@@ -648,9 +649,9 @@ CONTAINS
   END SUBROUTINE read_cell
 
 ! *****************************************************************************
-
-  FUNCTION real_to_scaled(r,cell) RESULT(s)
-
+   
+  SUBROUTINE real_to_scaled(s,r,cell) 
+!            s=h_inv*r 
 !   Purpose: Transform real to scaled cell coordinates.
 
 !   History: - Creation (16.01.2002, Matthias Krack)
@@ -659,7 +660,7 @@ CONTAINS
 
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: r
     TYPE(cell_type), POINTER                 :: cell
-    REAL(KIND=dp), DIMENSION(3)              :: s
+    REAL(KIND=dp), DIMENSION(3), INTENT(OUT) :: s
 
 !   ---------------------------------------------------------------------------
 
@@ -673,12 +674,12 @@ CONTAINS
       s(3) = cell%h_inv(3,1)*r(1) + cell%h_inv(3,2)*r(2) + cell%h_inv(3,3)*r(3)
     END IF
 
-  END FUNCTION real_to_scaled
+  END SUBROUTINE real_to_scaled
 
 ! *****************************************************************************
 
-  FUNCTION scaled_to_real(s,cell) RESULT(r)
-
+  SUBROUTINE scaled_to_real(r,s,cell) 
+!            r=h*s 
 !   Purpose: Transform scaled cell coordinates real coordinates.
 
 !   History: - Creation (16.01.2002, Matthias Krack)
@@ -687,7 +688,7 @@ CONTAINS
 
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: s
     TYPE(cell_type), POINTER                 :: cell
-    REAL(KIND=dp), DIMENSION(3)              :: r
+    REAL(KIND=dp), DIMENSION(3), INTENT(OUT) :: r
 
 !   ---------------------------------------------------------------------------
 
@@ -701,7 +702,7 @@ CONTAINS
       r(3) = cell%hmat(3,1)*s(1) + cell%hmat(3,2)*s(2) + cell%hmat(3,3)*s(3)
     END IF
 
-  END FUNCTION scaled_to_real
+  END SUBROUTINE scaled_to_real
 
 ! *****************************************************************************
 

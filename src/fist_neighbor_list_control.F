@@ -85,7 +85,7 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
                                                 update_neighbor_lists
     REAL(KIND=dp)                            :: aup, dr2, dr2_max, lup, &
                                                 verlet_skin
-    REAL(KIND=dp), DIMENSION(3)              :: dr
+    REAL(KIND=dp), DIMENSION(3)              :: dr,s2r
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: r_last_update, rlist_cutsq
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: nonbonded
@@ -123,8 +123,8 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
       nparticle_local = local_particles%n_el(iparticle_kind)
       DO iparticle_local=1,nparticle_local
         iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
-        dr(:) = scaled_to_real(r_last_update(:,iparticle),cell) -&
-                particle_set(iparticle)%r(:)
+        CALL scaled_to_real(s2r,r_last_update(:,iparticle),cell)
+        dr(:) = s2r - particle_set(iparticle)%r(:)
         dr2 = dr(1)*dr(1) + dr(2)*dr(2) + dr(3)*dr(3)
         dr2_max = MAX(dr2_max,dr2)
       END DO
@@ -137,7 +137,7 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
     IF (dr2_max > 0.25_dp*verlet_skin**2) THEN
 
       DO iparticle=1,nparticle
-        r_last_update(:,iparticle ) = real_to_scaled(particle_set(iparticle)%r(:),cell)
+        CALL real_to_scaled(r_last_update(:,iparticle ),particle_set(iparticle)%r(:),cell)
       END DO
 
       update_neighbor_lists = .TRUE.
@@ -153,7 +153,7 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
     END IF
 
     DO iparticle=1,nparticle
-      r_last_update(:,iparticle ) = real_to_scaled(particle_set(iparticle)%r(:),cell)
+      CALL real_to_scaled(r_last_update(:,iparticle ),particle_set(iparticle)%r(:),cell)
     END DO
 
     update_neighbor_lists = .TRUE.
