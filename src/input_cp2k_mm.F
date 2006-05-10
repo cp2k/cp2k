@@ -369,6 +369,14 @@ CONTAINS
 
        NULLIFY(keyword, print_key)
               
+       CALL keyword_create(keyword, name="R0_NB",&
+            description="Specify the minimum value of the distance interval "//&
+            " that brackets the value of emax_spline.",&
+            usage="R0_NB <REAL>",&
+            default_r_val=0.9_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="EMAX_SPLINE",&
             description="Specify the maximum value of the potential up to which"//&
             " splines will be constructed",&

@@ -418,6 +418,8 @@ CONTAINS
 
         ncell(:) = (INT(sab_max(:)) + 1)*periodic(:)
         nsubcell(:) = MIN(MAX(1,NINT(0.5_dp*subcells/sab_max(:))),20)
+!        nsubcell = MAX(1,CEILING((REAL(natom_local_a,KIND=dp)/&
+!             (10.0_dp*subcells))**(1._dp/3._dp)))
 
         ! Print subcell information for the current atomic kind pair
 
@@ -602,25 +604,22 @@ CONTAINS
                   rb(:) = scaled_to_real(sb(:),cell)
 
                   loop_k: DO k=1,nsubcell(3)
+                    IF (periodic(3) /= 0) THEN
+                      IF (sb_max(3) < subcell(1,1,k)%s_min(3)) EXIT loop_k
+                      IF (sb_min(3) >= subcell(1,1,k)%s_max(3)) CYCLE loop_k
+                    END IF
+
                     loop_j: DO j=1,nsubcell(2)
+                      IF (periodic(2) /= 0) THEN
+                        IF (sb_max(2) < subcell(1,j,1)%s_min(2)) EXIT loop_j
+                        IF (sb_min(2) >= subcell(1,j,1)%s_max(2)) CYCLE loop_j
+                      END IF
+
                       loop_i: DO i=1,nsubcell(1)
-
-                        IF (periodic(3) /= 0) THEN
-                          IF (sb_max(3) < subcell(i,j,k)%s_min(3)) EXIT loop_k
-                          IF (sb_min(3) >= subcell(i,j,k)%s_max(3)) CYCLE loop_k
-                        END IF
-
-                        IF (periodic(2) /= 0) THEN
-                          IF (sb_max(2) < subcell(i,j,k)%s_min(2)) EXIT loop_j
-                          IF (sb_min(2) >= subcell(i,j,k)%s_max(2)) CYCLE loop_j
-                        END IF
-
                         IF (periodic(1) /= 0) THEN
-                          IF (sb_max(1) < subcell(i,j,k)%s_min(1)) EXIT loop_i
-                          IF (sb_min(1) >= subcell(i,j,k)%s_max(1)) CYCLE loop_i
+                          IF (sb_max(1) < subcell(i,1,1)%s_min(1)) EXIT loop_i
+                          IF (sb_min(1) >= subcell(i,1,1)%s_max(1)) CYCLE loop_i
                         END IF
-
-                        IF (subcell(i,j,k)%natom == 0) CYCLE
 
                         DO iatom_subcell=1,subcell(i,j,k)%natom
                           iatom_local = subcell(i,j,k)%atom_list(iatom_subcell)

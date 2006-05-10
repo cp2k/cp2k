@@ -505,21 +505,16 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(ff_type%chm_info,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
-    ! 2. Initialize hardcoded ff_type variables
-    !-----------------------------------------------------------------------------
-    ff_type%rlow_nb=0.9_dp
-    
-    !-----------------------------------------------------------------------------
-    !-----------------------------------------------------------------------------
-    ! 6. Initialize and Nullify things in ff_type%inp_info
+    ! 2. Initialize and Nullify things in ff_type%inp_info
     !-----------------------------------------------------------------------------
     CALL init_inp_info(ff_type%inp_info)
     
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
-    ! 7. Initialize and Nullify things in ff_type%chm_info
+    ! 3. Initialize and Nullify things in ff_type%chm_info
     !-----------------------------------------------------------------------------
     CALL init_chm_info(ff_type%chm_info)
     
