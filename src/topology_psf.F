@@ -469,7 +469,7 @@ CONTAINS
        ldum = qmmm_ff_precond_only_qm(my_tag1)
        ldum = qmmm_ff_precond_only_qm(my_tag2)
        ldum = qmmm_ff_precond_only_qm(my_tag3)
-       WRITE(file_unit,'(I8,1X,A5,I4,1X,A5,A5,A5,F10.6,4X,F10.4,4X,I8)') &
+       WRITE(file_unit,'(I7,1X,A5,I7,1X,A5,A5,A5,F10.5,F10.5,I7)')&
             i,&
             TRIM(my_tag1),&
             atom_info%map_mol_num(i),&
