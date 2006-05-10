@@ -153,7 +153,7 @@ CONTAINS
                                                 update_neighbor_lists
     REAL(KIND=dp)                            :: aup, dr2, dr2_max, lup, &
                                                 verlet_skin
-    REAL(KIND=dp), DIMENSION(3)              :: dr
+    REAL(KIND=dp), DIMENSION(3)              :: dr,s2r
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: r_cutoff, r_last_update, r_max
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: tbmd_neighbor_list
@@ -193,8 +193,8 @@ CONTAINS
         nparticle_local = local_particles%n_el(iparticle_kind)
         DO iparticle_local = 1,nparticle_local
           iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
-          dr(:) = scaled_to_real(r_last_update(:,iparticle),cell) - &
-                  particle_set(iparticle)%r(:)
+          CALL scaled_to_real(s2r,r_last_update(:,iparticle),cell)
+          dr(:) = s2r - particle_set(iparticle)%r(:)
           dr2 = dr(1)*dr(1) + dr(2)*dr(2) + dr(3)*dr(3)
           dr2_max = MAX(dr2_max,dr2)
         END DO
@@ -204,7 +204,7 @@ CONTAINS
 
       IF (dr2_max > 0.25_dp*verlet_skin**2) THEN
         DO iparticle = 1,nparticle
-          r_last_update(:,iparticle ) = real_to_scaled(particle_set(iparticle)%r(:), &
+          CALL real_to_scaled(r_last_update(:,iparticle ),particle_set(iparticle)%r(:), &
                                                        cell)
         END DO
         update_neighbor_lists = .TRUE.
@@ -217,7 +217,7 @@ CONTAINS
       END IF
 
       DO iparticle = 1,nparticle
-        r_last_update(:,iparticle ) = real_to_scaled(particle_set(iparticle)%r(:), &
+        CALL real_to_scaled(r_last_update(:,iparticle ),particle_set(iparticle)%r(:), &
                                                      cell)
       END DO
 
@@ -433,7 +433,7 @@ CONTAINS
         atom_a = atom(ikind)%list(iatom)
         r_pbc(:) = pbc(particle_set(atom_a)%r(:), cell)
         atom(ikind)%r_pbc(:,iatom) = r_pbc(:)
-        atom(ikind)%s_pbc(:,iatom) = real_to_scaled(r_pbc(:), cell)
+        CALL real_to_scaled(atom(ikind)%s_pbc(:,iatom),r_pbc(:), cell)
       END DO
 
     END DO
@@ -732,7 +732,7 @@ CONTAINS
                              (jcell == 0).AND.&
                              (kcell == 0))
 
-                  rb(:) = scaled_to_real(sb(:),cell)
+                  CALL scaled_to_real(rb,sb,cell)
 
                   DO iatom_local = 1,natom_local_a
                     iatom = atom(ikind)%list_local_a_index(iatom_local)
@@ -756,7 +756,7 @@ CONTAINS
                       rab(:) = rb(:) - atom(ikind)%r_pbc(:,iatom)
                       rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
                       IF (rab2 < rab2_max) THEN
-                        sab(:) = real_to_scaled(rab(:),cell)
+                        CALL real_to_scaled(sab,rab(:),cell)
                         CALL add_neighbor_node(&
                           neighbor_list=kind_a(iatom_local)%neighbor_list, &
                           neighbor=atom_b, r=sab, &   ! r=rab
@@ -837,7 +837,7 @@ CONTAINS
                              (jcell == 0).AND.&
                              (kcell == 0))
 
-                  rb(:) = scaled_to_real(sb(:),cell)
+                  CALL scaled_to_real(rb,sb,cell)
 
                   loop_k: DO k = 1,nsubcell(3)
                     loop_j: DO j = 1,nsubcell(2)
@@ -883,7 +883,7 @@ CONTAINS
                             rab(:) = rb(:) - atom(ikind)%r_pbc(:,iatom)
                             rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
                             IF (rab2 < rab2_max) THEN
-                              sab(:) = real_to_scaled(rab(:),cell)
+                              CALL real_to_scaled(sab,rab,cell)
                               CALL add_neighbor_node(&
                                 neighbor_list=kind_a(iatom_local)%neighbor_list, &
                                 neighbor=atom_b, r=sab, &   ! r=rab
