@@ -86,6 +86,7 @@ MODULE particle_types
   END TYPE local_particle_type
 
   TYPE particle_type
+   !  INTEGER, POINTER, DIMENSION(:)        :: list_exclude
      TYPE(atomic_kind_type), POINTER       :: atomic_kind ! atomic kind information
      TYPE(local_particle_type), POINTER    :: lpi         ! local particle information
      REAL(KIND = dp), DIMENSION(3)         :: f,&         ! force
@@ -233,16 +234,27 @@ END SUBROUTINE clone_particle
         IF (ASSOCIATED(particle_set(iparticle)%lpi)) THEN
           IF (ASSOCIATED(particle_set(iparticle)%lpi%exclusion)) THEN
             DO i=1,SIZE(particle_set(iparticle)%lpi%exclusion)
-              IF (ASSOCIATED(particle_set(iparticle)%lpi%exclusion(i)%list_vdw)) THEN
-                DEALLOCATE (particle_set(iparticle)%lpi%exclusion(i)%list_vdw,STAT=istat)
-                IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                                 "particle_set(iparticle)%exclusion(i)%list_vdw")
-              END IF
-              IF (ASSOCIATED(particle_set(iparticle)%lpi%exclusion(i)%list_ei)) THEN
-                DEALLOCATE (particle_set(iparticle)%lpi%exclusion(i)%list_ei,STAT=istat)
-                IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                                 "particle_set(iparticle)%exclusion(i)%list_ei")
-              END IF
+               IF (ASSOCIATED(particle_set(iparticle)%lpi%exclusion(i)%list_vdw,&
+                              particle_set(iparticle)%lpi%exclusion(i)%list_ei)) THEN
+                  DEALLOCATE (particle_set(iparticle)%lpi%exclusion(i)%list_vdw,STAT=istat)
+                  IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                       "particle_set(iparticle)%exclusion(i)%list_vdw")
+                  NULLIFY(particle_set(iparticle)%lpi%exclusion(i)%list_vdw)
+                  NULLIFY(particle_set(iparticle)%lpi%exclusion(i)%list_ei)
+               ELSE
+                  IF (ASSOCIATED(particle_set(iparticle)%lpi%exclusion(i)%list_vdw)) THEN
+                     DEALLOCATE (particle_set(iparticle)%lpi%exclusion(i)%list_vdw,STAT=istat)
+                     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                          "particle_set(iparticle)%exclusion(i)%list_vdw")
+                     NULLIFY(particle_set(iparticle)%lpi%exclusion(i)%list_vdw)
+                  END IF
+                  IF (ASSOCIATED(particle_set(iparticle)%lpi%exclusion(i)%list_ei)) THEN
+                     DEALLOCATE (particle_set(iparticle)%lpi%exclusion(i)%list_ei,STAT=istat)
+                     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                          "particle_set(iparticle)%exclusion(i)%list_ei")
+                     NULLIFY(particle_set(iparticle)%lpi%exclusion(i)%list_ei)
+                  END IF
+               END IF
             END DO
             DEALLOCATE (particle_set(iparticle)%lpi%exclusion,STAT=istat)
             IF (istat /= 0) THEN
