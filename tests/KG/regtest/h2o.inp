@@ -29,7 +29,6 @@
   &SUBSYS
     &CELL
       ABC 7.0 7.0 7.0
-      SUBCELLS 0.
       UNIT ANGSTROM
     &END CELL
     &CONSTRAINT

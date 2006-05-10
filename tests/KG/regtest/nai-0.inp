@@ -34,7 +34,6 @@
   &SUBSYS
     &CELL
       ABC 7.940 7.940 7.940
-      SUBCELLS 0.
       UNIT ANGSTROM
     &END CELL
     &CONSTRAINT

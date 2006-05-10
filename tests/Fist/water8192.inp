@@ -37,23 +37,24 @@
           atoms H H
           EPSILON 0.0
           SIGMA 3.30523
-          RCUT 5.4
+          RCUT 8.4
         &END LENNARD-JONES
       &END NONBONDED
     &END FORCEFIELD
-    &POISSON_MM
+    &POISSON
       &EWALD
         EWALD_TYPE spme
         ALPHA .44
         GMAX 40
         O_SPLINE 4
       &END EWALD
-    &END POISSON_MM
+    &END POISSON
   &END MM
   &SUBSYS
     &CELL
       ABC 60.00 55.00 84.00
       UNIT ANGSTROM
+      #SUBCELL_PARAMETER 2.0
     &END CELL
     &CONSTRAINT
       &G3X3
@@ -24645,6 +24646,10 @@
       CONNECTIVITY PSF
       NHCOPT MOLECULE
     &END TOPOLOGY
+    &PRINT
+      &SUBCELL
+      &END
+    &END
   &END SUBSYS
 &END FORCE_EVAL
 &GLOBAL
@@ -24652,11 +24657,12 @@
   PROGRAM FIST
   PROJECT water512
   RUN_TYPE md
+  TRACE
 &END GLOBAL
 &MOTION
   &MD
     ENSEMBLE NVE
-    STEPS 100
+    STEPS 1
     TIMESTEP 2.5
     TEMPERATURE 298
     &NOSE
