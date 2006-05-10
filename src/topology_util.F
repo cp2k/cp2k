@@ -2556,9 +2556,8 @@ CONTAINS
        DO i=1,SIZE(excl_molecule_list)
           IF (excl_molecule_list(i))   THEN
              molecule => molecule_set(i)
-             CALL get_molecule(molecule=molecule,molecule_kind=molecule_kind)
-             CALL get_molecule_kind(molecule_kind=molecule_kind,&
-                  bond_list=bond_list)
+             molecule_kind => molecule%molecule_kind
+             bond_list => molecule_kind%bond_list
              ex_bond_list(ibond:ibond+SIZE(bond_list)-1)%a = &
                   bond_list(:)%a+first_mol(i)-1
              ex_bond_list(ibond:ibond+SIZE(bond_list)-1)%b = &
@@ -2575,9 +2574,8 @@ CONTAINS
        DO i=1,SIZE(excl_molecule_list)
           IF (excl_molecule_list(i))   THEN
              molecule => molecule_set(i)
-             CALL get_molecule(molecule=molecule,molecule_kind=molecule_kind)
-             CALL get_molecule_kind(molecule_kind=molecule_kind,&
-                  bend_list=bend_list)
+             molecule_kind => molecule%molecule_kind
+             bend_list => molecule_kind%bend_list
              ex_bend_list(ibend:ibend+SIZE(bend_list)-1)%a = &
                   bend_list(:)%a+first_mol(i)-1
              ex_bend_list(ibend:ibend+SIZE(bend_list)-1)%b = &
@@ -2596,9 +2594,8 @@ CONTAINS
        DO i=1,SIZE(excl_molecule_list)
           IF (excl_molecule_list(i))   THEN
              molecule => molecule_set(i)
-             CALL get_molecule(molecule=molecule,molecule_kind=molecule_kind)
-             CALL get_molecule_kind(molecule_kind=molecule_kind,&
-                  torsion_list=torsion_list)
+             molecule_kind => molecule%molecule_kind
+             torsion_list => molecule_kind%torsion_list
              ex_torsion_list(itorsion:itorsion+SIZE(torsion_list)-1)%a = &
                   torsion_list(:)%a+first_mol(i)-1
              ex_torsion_list(itorsion:itorsion+SIZE(torsion_list)-1)%b = &
@@ -2734,9 +2731,7 @@ CONTAINS
              NULLIFY(list2)
              IF(topology%exclude_vdw==topology%exclude_ei) THEN
                 IF(counter > 0) THEN
-                   ALLOCATE(list2(counter),stat=stat)
-                   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-                   list2(:) = list(:)
+                   list2 => list
                 END IF
              ELSE
                 counter = 0
@@ -2924,11 +2919,11 @@ CONTAINS
     last_atom0  = last_mol(imol)
     offset = first_atom0 - 1
     molecule => molecule_set(imol)
-    CALL get_molecule(molecule=molecule,molecule_kind=molecule_kind)
+    molecule_kind => molecule%molecule_kind
     SELECT CASE (stat)
     CASE(1)
-       CALL get_molecule_kind(molecule_kind=molecule_kind,&
-            bond_list=bond_list, nbond=nloc)
+       bond_list => molecule_kind%bond_list
+       nloc = molecule_kind%nbond
        ntarg = ntarg + nloc
        DO j = 1, SIZE(bond_list)
           a = offset+bond_list(j)%a
@@ -2943,9 +2938,8 @@ CONTAINS
              IF (.NOT. excl_molecule_list(i)) THEN
                 excl_molecule_list(i) = .TRUE.
                 molecule => molecule_set(i)
-                CALL get_molecule(molecule=molecule,molecule_kind=molecule_kind)
-                CALL get_molecule_kind(molecule_kind=molecule_kind,&
-                     nbond=nloc)
+                molecule_kind => molecule%molecule_kind
+                nloc = molecule_kind%nbond
                 ntarg = ntarg + nloc
              END IF
           END IF
@@ -2959,9 +2953,8 @@ CONTAINS
              IF (.NOT. excl_molecule_list(i)) THEN
                 excl_molecule_list(i) = .TRUE.
                 molecule => molecule_set(i)
-                CALL get_molecule(molecule=molecule,molecule_kind=molecule_kind)
-                CALL get_molecule_kind(molecule_kind=molecule_kind,&
-                     nbond=nloc)
+                molecule_kind => molecule%molecule_kind
+                nloc = molecule_kind%nbond
                 ntarg = ntarg + nloc
              END IF
           END IF
@@ -2969,9 +2962,8 @@ CONTAINS
        ! Let's look for external bonds
        DO i = 1, SIZE(molecule_set)
           molecule => molecule_set(i)
-          CALL get_molecule(molecule=molecule,molecule_kind=molecule_kind)
-          CALL get_molecule_kind(molecule_kind=molecule_kind,&
-               bond_list=bond_list)
+          molecule_kind => molecule%molecule_kind
+          bond_list => molecule_kind%bond_list
           il = last_mol(i)-first_mol(i)+1
           IF (ALL(bond_list(:)%a<=il).AND.ALL(bond_list(:)%b<=il)) CYCLE
           DO j = 1, SIZE(bond_list)
@@ -2982,9 +2974,8 @@ CONTAINS
                 IF (.NOT. excl_molecule_list(i)) THEN
                    excl_molecule_list(i) = .TRUE.
                    molecule => molecule_set(i)
-                   CALL get_molecule(molecule=molecule,molecule_kind=molecule_kind)
-                   CALL get_molecule_kind(molecule_kind=molecule_kind,&
-                        nbond=nloc)
+                   molecule_kind => molecule%molecule_kind
+                   nloc = molecule_kind%nbond
                    ntarg = ntarg + nloc
                    EXIT
                 END IF
@@ -2992,8 +2983,8 @@ CONTAINS
           END DO
        END DO
     CASE(2)
-       CALL get_molecule_kind(molecule_kind=molecule_kind,&
-            bend_list=bend_list, nbend=nloc)
+       bend_list => molecule_kind%bend_list
+       nloc = molecule_kind%nbend
        ntarg = ntarg + nloc
        DO j = 1, SIZE(bend_list)
           a = offset + bend_list(j)%a
@@ -3008,9 +2999,8 @@ CONTAINS
              IF (.NOT. excl_molecule_list(i)) THEN
                 excl_molecule_list(i) = .TRUE.
                 molecule => molecule_set(i)
-                CALL get_molecule(molecule=molecule,molecule_kind=molecule_kind)
-                CALL get_molecule_kind(molecule_kind=molecule_kind,&
-                     nbend=nloc)
+                molecule_kind => molecule%molecule_kind
+                nloc = molecule_kind%nbend
                 ntarg = ntarg + nloc
              END IF
           END IF
@@ -3024,9 +3014,8 @@ CONTAINS
              IF (.NOT. excl_molecule_list(i)) THEN
                 excl_molecule_list(i) = .TRUE.
                 molecule => molecule_set(i)
-                CALL get_molecule(molecule=molecule,molecule_kind=molecule_kind)
-                CALL get_molecule_kind(molecule_kind=molecule_kind,&
-                     nbend=nloc)
+                molecule_kind => molecule%molecule_kind
+                nloc = molecule_kind%nbend
                 ntarg = ntarg + nloc
              END IF
           END IF
@@ -3034,9 +3023,8 @@ CONTAINS
        ! Let's look for external bends
        DO i = 1, SIZE(molecule_set)
           molecule => molecule_set(i)
-          CALL get_molecule(molecule=molecule,molecule_kind=molecule_kind)
-          CALL get_molecule_kind(molecule_kind=molecule_kind,&
-               bend_list=bend_list)
+          molecule_kind => molecule%molecule_kind
+          bend_list => molecule_kind%bend_list
           il = last_mol(i)-first_mol(i)+1
           IF (ALL(bend_list(:)%a<=il).AND.ALL(bend_list(:)%c<=il)) CYCLE
           DO j = 1, SIZE(bend_list)
@@ -3047,9 +3035,8 @@ CONTAINS
                 IF (.NOT. excl_molecule_list(i)) THEN
                    excl_molecule_list(i) = .TRUE.
                    molecule => molecule_set(i)
-                   CALL get_molecule(molecule=molecule,molecule_kind=molecule_kind)
-                   CALL get_molecule_kind(molecule_kind=molecule_kind,&
-                        nbend=nloc)
+                   molecule_kind => molecule%molecule_kind
+                   nloc = molecule_kind%nbend
                    ntarg = ntarg + nloc
                    EXIT
                 END IF
@@ -3057,8 +3044,8 @@ CONTAINS
           END DO
        END DO
     CASE(3)
-       CALL get_molecule_kind(molecule_kind=molecule_kind,&
-            torsion_list=torsion_list, ntorsion=nloc)
+       torsion_list => molecule_kind%torsion_list
+       nloc = molecule_kind%ntorsion
        ntarg = ntarg + nloc
        DO j = 1, SIZE(torsion_list)
           a = offset + torsion_list(j)%a
@@ -3073,9 +3060,8 @@ CONTAINS
              IF (.NOT. excl_molecule_list(i)) THEN
                 excl_molecule_list(i) = .TRUE.
                 molecule => molecule_set(i)
-                CALL get_molecule(molecule=molecule,molecule_kind=molecule_kind)
-                CALL get_molecule_kind(molecule_kind=molecule_kind,&
-                     ntorsion=nloc)
+                molecule_kind => molecule%molecule_kind
+                nloc = molecule_kind%ntorsion
                 ntarg = ntarg + nloc
              END IF
           END IF
@@ -3089,9 +3075,8 @@ CONTAINS
              IF (.NOT. excl_molecule_list(i)) THEN
                 excl_molecule_list(i) = .TRUE.
                 molecule => molecule_set(i)
-                CALL get_molecule(molecule=molecule,molecule_kind=molecule_kind)
-                CALL get_molecule_kind(molecule_kind=molecule_kind,&
-                     ntorsion=nloc)
+                molecule_kind => molecule%molecule_kind
+                nloc = molecule_kind%ntorsion
                 ntarg = ntarg + nloc
              END IF
           END IF
@@ -3099,9 +3084,8 @@ CONTAINS
        ! Let's look for external torsions
        DO i = 1, SIZE(molecule_set)
           molecule => molecule_set(i)
-          CALL get_molecule(molecule=molecule,molecule_kind=molecule_kind)
-          CALL get_molecule_kind(molecule_kind=molecule_kind,&
-               torsion_list=torsion_list)
+          molecule_kind => molecule%molecule_kind
+          torsion_list => molecule_kind%torsion_list
           il = last_mol(i)-first_mol(i)+1
           IF (ALL(torsion_list(:)%a<=il).AND.ALL(torsion_list(:)%d<=il)) CYCLE
           DO j = 1, SIZE(torsion_list)
@@ -3112,9 +3096,8 @@ CONTAINS
                 IF (.NOT. excl_molecule_list(i)) THEN
                    excl_molecule_list(i) = .TRUE.
                    molecule => molecule_set(i)
-                   CALL get_molecule(molecule=molecule,molecule_kind=molecule_kind)
-                   CALL get_molecule_kind(molecule_kind=molecule_kind,&
-                        ntorsion=nloc)
+                   molecule_kind => molecule%molecule_kind
+                   nloc = molecule_kind%ntorsion
                    ntarg = ntarg + nloc
                    EXIT
                 END IF

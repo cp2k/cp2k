@@ -121,7 +121,6 @@ MODULE molecule_kind_types
   END TYPE fixd_constraint_type
 
   TYPE molecule_kind_type
-    PRIVATE
     TYPE(atom_type), DIMENSION(:), POINTER            :: atom_list
     TYPE(bond_kind_type), DIMENSION(:), POINTER       :: bond_kind_set
     TYPE(bond_type), DIMENSION(:), POINTER            :: bond_list
