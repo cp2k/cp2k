@@ -1,0 +1,50 @@
+
+&FORCE_EVAL
+  &MM
+    &FORCEFIELD
+      parmfile ../sample_pot/loop.pot
+      parmtype CHM
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE ewald
+        ALPHA .36
+        GMAX 29
+      &END EWALD
+    &END POISSON
+    &PRINT
+      &FF_INFO
+        SPLINE_INFO
+      &END
+    &END
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC 30.0 30.0 30.0
+      UNIT ANGSTROM
+    &END CELL
+    &TOPOLOGY
+      CHARGE_BETA
+      COORD_FILE_NAME ../sample_pdb/loop.pdb
+      COORDINATE PDB
+      CONNECTIVITY PSF
+      CONN_FILE  loop.psf
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  FFTLIB FFTSG
+  PRINT_LEVEL LOW
+  PROGRAM FIST
+  PROJECT LOOP
+  RUN_TYPE md
+&END GLOBAL
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 10
+    TIMESTEP 2.5
+    TEMPERATURE 298
+    TEMP_TOL 298
+  &END MD
+&END MOTION
