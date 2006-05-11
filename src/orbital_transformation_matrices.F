@@ -434,7 +434,7 @@ CONTAINS
           END IF
         END DO
       END DO
-      WRITE (UNIT=lunit,FMT="(/,T13,A))") TRIM(string)
+      WRITE (UNIT=lunit,FMT="(/,T13,A)") TRIM(string)
       symbol = ""
       DO m=-l,l
         is = l + m + 1
