@@ -1661,7 +1661,7 @@ CONTAINS
       name_atm_b_local, name_atm_c, name_atm_c2, name_atm_d, name_atm_d2
     INTEGER :: atm_a, atm_b, atm_c, atm_d, counter, first, handle, handle2, i, ii, &
       ikind, ilink, imul, iw, j, jj, jkind, k, last, match_names, n, natom, &
-      nbend, nbond, nimpr, nkinds, nonfo, ntorsion, nub, stat, iw2, iw3
+      nbend, nbond, nimpr, nkinds, nonfo, ntorsion, nub, stat, iw2, iw3, iw4
     INTEGER, DIMENSION(:), POINTER           :: molecule_list, my_atom_list
     INTEGER, POINTER :: map_bend_kind(:), map_bond_kind(:), map_impr_kind(:), &
       map_onfo_kind(:), map_torsion_kind(:), map_ub_kind(:)
@@ -1712,6 +1712,8 @@ CONTAINS
     iw2= cp_print_key_unit_nr(logger,mm_section,"PRINT%FF_INFO/SPLINE_INFO",&
          extension=".mmLog",error=error)
     iw3= cp_print_key_unit_nr(logger,mm_section,"PRINT%FF_INFO/SPLINE_DATA",&
+         extension=".mmLog",error=error)
+    iw4= cp_print_key_unit_nr(logger,mm_section,"PRINT%PROGRAM_RUN_INFO",&
          extension=".mmLog",error=error)
     !------------------------------------------------------------------------------
     !------------------------------------------------------------------------------
@@ -2951,7 +2953,7 @@ CONTAINS
     CALL spline_nonbond_control ( spline_bond_env, potparm_bond, &
          atomic_kind_set , ewald_env, ff_type%ei_scale14,ff_type%vdw_scale14,&
          ff_type%eps_spline,max_energy=ff_type%max_energy, rlow_nb=ff_type%rlow_nb,&
-         emax_spline=ff_type%emax_spline, iw=iw2, iw2=iw3, error=error)
+         emax_spline=ff_type%emax_spline, iw=iw2, iw2=iw3,iw3=iw4, error=error)
     ! point potparm ( ikind, jkind ) % spline_data => spline_data_p ( n )
     DO ikind = 1, SIZE ( potparm_bond%pot, 1 )
        DO jkind = ikind, SIZE ( potparm_bond%pot, 2 )
@@ -3232,7 +3234,7 @@ CONTAINS
     CALL spline_nonbond_control(spline_nonbond_env, potparm_nonbond, &
          atomic_kind_set,ewald_env,eps_spline=ff_type%eps_spline,&
          max_energy=ff_type%max_energy, rlow_nb=ff_type%rlow_nb,&
-         emax_spline=ff_type%emax_spline, iw=iw2, iw2=iw3, error=error)
+         emax_spline=ff_type%emax_spline, iw=iw2, iw2=iw3,iw3=iw4, error=error)
     !---------------------------------------
     ! create the manybody spline environment
     !---------------------------------------
@@ -3279,6 +3281,8 @@ CONTAINS
     CALL spline_env_release (spline_nonbond_env,error)
     CALL spline_env_release (spline_bond_env,error)
 
+    CALL cp_print_key_finished_output(iw4,logger,mm_section,&
+         "PRINT%PROGRAM_RUN_INFO",error=error)
     CALL cp_print_key_finished_output(iw3,logger,mm_section,&
          "PRINT%FF_INFO/SPLINE_DATA",error=error)
     CALL cp_print_key_finished_output(iw2,logger,mm_section,&
