@@ -570,8 +570,8 @@ SUBROUTINE bonded_correct_gaussian ( atomic_kind_set, local_particles, &
            rij(2) = ri(2) - rj(2)
            rij(3) = ri(3) - rj(3)
            rijsq = rij(1)*rij(1) + rij(2)*rij(2) + rij(3)*rij(3)
-           dij = SQRT ( rijsq )
-           idij = 1.0_dp / dij
+           idij = 1.0_dp / SQRT ( rijsq )
+           dij = rijsq * idij
            arg = alpha * dij
            e_arg_arg = EXP ( -arg ** 2 )
            tc = 1.0_dp / ( 1.0_dp + pc * arg )
@@ -585,7 +585,7 @@ SUBROUTINE bonded_correct_gaussian ( atomic_kind_set, local_particles, &
 
 ! subtracting the force from the total force
            fscalar = ifourpieps0 * qi * qj * idij ** 2 &
-                * ( idij * errf - const * EXP ( -alpha ** 2 * rijsq ) )
+                * ( idij * errf - const * e_arg_arg  )
 
            particle_set ( i ) % f(1) = particle_set ( i ) % f(1) - fscalar*rij(1)
            particle_set ( i ) % f(2) = particle_set ( i ) % f(2) - fscalar*rij(2)

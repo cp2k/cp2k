@@ -283,8 +283,12 @@ CONTAINS
         nparticle_local = local_particles%n_el(iparticle_kind)
         DO iparticle_local=1,nparticle_local
           iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
-          vel(:,iparticle) = vel(:,iparticle) + c3*particle_set(iparticle)%f(:)
-          vel(:,iparticle) = c4*vel(:,iparticle) + c2*w(:,iparticle)/mass
+          vel(1,iparticle) = vel(1,iparticle) + c3*particle_set(iparticle)%f(1)
+          vel(2,iparticle) = vel(2,iparticle) + c3*particle_set(iparticle)%f(2)
+          vel(3,iparticle) = vel(3,iparticle) + c3*particle_set(iparticle)%f(3)
+          vel(1,iparticle) = c4*vel(1,iparticle) + c2*w(1,iparticle)/mass
+          vel(2,iparticle) = c4*vel(2,iparticle) + c2*w(2,iparticle)/mass
+          vel(3,iparticle) = c4*vel(3,iparticle) + c2*w(3,iparticle)/mass
         END DO
       END DO
 
@@ -489,8 +493,9 @@ CONTAINS
         nparticle_local = local_particles%n_el(iparticle_kind)
         DO iparticle_local=1,nparticle_local
           iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
-          vel ( :, iparticle) = vel ( :, iparticle) +&
-                                dm*particle_set(iparticle)%f(:)
+          vel ( 1, iparticle) = vel ( 1, iparticle) + dm*particle_set(iparticle)%f(1)
+          vel ( 2, iparticle) = vel ( 2, iparticle) + dm*particle_set(iparticle)%f(2)
+          vel ( 3, iparticle) = vel ( 3, iparticle) + dm*particle_set(iparticle)%f(3)
         END DO
       END DO
 
@@ -928,8 +933,9 @@ CONTAINS
         nparticle_local = local_particles%n_el(iparticle_kind)
         DO iparticle_local=1,nparticle_local
           iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
-          vel ( :, iparticle ) = vel ( :, iparticle ) + &
-                                 dm*particle_set(iparticle)%f(:)
+          vel ( 1, iparticle ) = vel ( 1, iparticle ) + dm*particle_set(iparticle)%f(1)
+          vel ( 2, iparticle ) = vel ( 2, iparticle ) + dm*particle_set(iparticle)%f(2)
+          vel ( 3, iparticle ) = vel ( 3, iparticle ) + dm*particle_set(iparticle)%f(3)
         END DO
       END DO
 
