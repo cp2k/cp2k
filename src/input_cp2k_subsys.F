@@ -589,7 +589,7 @@ CONTAINS
        CALL keyword_create(keyword,&
                            name="DIHEDRAL_ANGLE",&
                            variants=s2a("DIHEDRAL","DIH"),&
-                           description="Print the dihedral angle between the "//&
+                           description="rint the dihedral angle between the "//&
                                        "planes defined by the atoms (a,b,c) and "//&
                                        "the atoms (b,c,d) specified by their indices",&
                            usage="DIHEDRAL_ANGLE {integer}  {integer} {integer} {integer}",&
@@ -923,7 +923,7 @@ CONTAINS
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-    TYPE(section_type), POINTER              :: subsection
+    TYPE(section_type), POINTER              :: subsection, print_key
 
     failure=.FALSE.
     
@@ -935,7 +935,7 @@ CONTAINS
             n_keywords=0, n_subsections=2, repeats=.FALSE., required=.TRUE.,&
             error=error)
 
-       NULLIFY(subsection, keyword)
+       NULLIFY(subsection, keyword, print_key)
        !
        ! subsections
        !
@@ -965,6 +965,12 @@ CONTAINS
        CALL create_collective_section(subsection, error=error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
+
+       CALL cp_print_key_section_create(print_key,"constraint_info",&
+            description="",&
+            print_level=medium_print_level, filename="__STD_OUT__",error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
 
     END IF
 
@@ -1521,20 +1527,8 @@ CONTAINS
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-!       CALL keyword_create(keyword, name="FORMAT",&
-!            description="Specifies the format.",&
-!            usage="FORMAT (PSF|PRMTOP)",&
-!            default_i_val=read_psf,&
-!            enum_c_vals=output_name_types,&
-!            enum_i_vals=output_name_index,&
-!            error=error)
-!       CALL section_add_keyword(print_key,keyword,error=error)
-!       CALL keyword_release(keyword,error=error)    
-
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
     END IF
 

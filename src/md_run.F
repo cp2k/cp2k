@@ -26,7 +26,10 @@ MODULE md_run
   USE cell_types,                      ONLY: cell_type
   USE cp_output_handling,              ONLY: cp_add_iter_level,&
                                              cp_iterate,&
-                                             cp_rm_iter_level
+                                             cp_rm_iter_level,&
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
+                                             cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsystem_p_type
@@ -202,7 +205,10 @@ CONTAINS
          error=error)
     CALL cp_iterate(logger%iter_info,last=.FALSE.,iter_nr=0,error=error)    
     CALL read_md_section ( simpar, globenv, error )
-    
+    simpar%info_constraint = cp_print_key_unit_nr(logger,subsys_section,&
+         "CONSTRAINT%CONSTRAINT_INFO",&
+         extension=".shakeLog",log_filename=.FALSE.,error=error)
+
     CALL extended_type_init(extended_type)
     ALLOCATE (extended_type%nhc_part(nbeads),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -375,6 +381,8 @@ CONTAINS
     CALL lnhc_dealloc(extended_type%nhc_baro)
     CALL lnhc_dealloc(extended_type%nhc_coef)
     CALL npt_dealloc(extended_type%npt_info)
+    CALL cp_print_key_finished_output(simpar%info_constraint, logger,&
+         subsys_section,"CONSTRAINT%CONSTRAINT_INFO",error=error)
     DEALLOCATE(simpar,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 

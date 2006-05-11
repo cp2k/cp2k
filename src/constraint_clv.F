@@ -240,6 +240,9 @@ CONTAINS
                colv_list ( iconst ) % expected_value
           max_sigma = MAX(ABS(lcolv ( iconst ) % sigma),max_sigma)
        END DO
+       IF (simpar%info_constraint>0) &
+            WRITE(simpar%info_constraint,'(T2,"SHAKE : ",I5,2F15.9)')ishake,ABS(max_sigma),&
+            simpar%shake_tol
     END DO CONS
 
   END SUBROUTINE shake_colv
@@ -325,6 +328,9 @@ CONTAINS
           lcolv ( iconst ) % sigma = rattle_con_eval(lcolv ( iconst ) % colvar_old, vel)
           max_sigma = MAX(ABS(lcolv ( iconst ) % sigma),max_sigma)
        END DO
+       IF (simpar%info_constraint>0) &
+            WRITE(simpar%info_constraint,'(T2,"RATTLE: ",I5,2F15.9)')irattle,ABS(max_sigma),&
+            simpar%shake_tol
     END DO CONS
 
   END SUBROUTINE rattle_colv
@@ -428,6 +434,9 @@ CONTAINS
                colv_list ( iconst ) % expected_value
           max_sigma = MAX(ABS(lcolv ( iconst ) % sigma),max_sigma)
        END DO
+       IF (simpar%info_constraint>0) &
+            WRITE(simpar%info_constraint,'(T2,"SHAKE : ",I5,2F15.9)')ishake,ABS(max_sigma),&
+            simpar%shake_tol
     END DO CONS
 
   END SUBROUTINE shake_roll_colv
@@ -521,6 +530,9 @@ CONTAINS
                error=error)
           max_sigma = MAX(ABS(lcolv ( iconst ) % sigma),max_sigma)
        END DO
+       IF (simpar%info_constraint>0) &
+            WRITE(simpar%info_constraint,'(T2,"RATTLE: ",I5,2F15.9)')irattle,ABS(max_sigma),&
+            simpar%shake_tol
     END DO CONS
   END SUBROUTINE rattle_roll_colv
 

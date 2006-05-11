@@ -224,92 +224,96 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE add_neighbor_node(neighbor_list,neighbor,r,exclusion_list)
+  SUBROUTINE add_neighbor_node(neighbor_list,neighbor,r,exclusion_list,added)
 
-!   Purpose: Add a new neighbor list node to a neighbor list.
+    !   Purpose: Add a new neighbor list node to a neighbor list.
 
-!   History: - Creation (23.06.2000,MK)
-!            - Exclusion list added for classic code (MK)
+    !   History: - Creation (23.06.2000,MK)
+    !            - Exclusion list added for classic code (MK)
 
-!   ***************************************************************************
+    !   ***************************************************************************
 
     TYPE(neighbor_list_type), POINTER        :: neighbor_list
     INTEGER, INTENT(IN)                      :: neighbor
     REAL(dp), DIMENSION(3), INTENT(IN)       :: r
     INTEGER, DIMENSION(:),  POINTER          :: exclusion_list
+    LOGICAL, INTENT(out)                     :: added
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'add_neighbor_node'
 
     INTEGER                                  :: iatom, istat
     TYPE(neighbor_node_type), POINTER        :: new_neighbor_node
 
-!   ---------------------------------------------------------------------------
+    !   ---------------------------------------------------------------------------
 
 
-!     *** Check for exclusions ***
+    !     *** Check for exclusions ***
 
-      IF ( ASSOCIATED ( exclusion_list ) ) THEN
-         IF (ANY(exclusion_list==neighbor)) RETURN
-      END IF
+    IF ( ASSOCIATED ( exclusion_list ) ) THEN
+       IF (ANY(exclusion_list==neighbor)) THEN 
+          added = .FALSE.
+          RETURN
+       END IF
+    END IF
+    added = .TRUE.
+    IF (ASSOCIATED(neighbor_list%last_neighbor_node)) THEN
 
-      IF (ASSOCIATED(neighbor_list%last_neighbor_node)) THEN
+       new_neighbor_node => neighbor_list%last_neighbor_node%next_neighbor_node
 
-        new_neighbor_node => neighbor_list%last_neighbor_node%next_neighbor_node
+       IF (.NOT.ASSOCIATED(new_neighbor_node)) THEN
 
-        IF (.NOT.ASSOCIATED(new_neighbor_node)) THEN
-
-!         *** Allocate a new neighbor node ***
+          !         *** Allocate a new neighbor node ***
 
           ALLOCATE (new_neighbor_node,STAT=istat)
           IF (istat /= 0) THEN
-            CALL stop_memory(routineN,moduleN,__LINE__,&
-                             "new_neighbor_node",0)
+             CALL stop_memory(routineN,moduleN,__LINE__,&
+                  "new_neighbor_node",0)
           END IF
 
           NULLIFY (new_neighbor_node%next_neighbor_node)
 
-!         *** Link the new neighbor node to the neighbor list ***
+          !         *** Link the new neighbor node to the neighbor list ***
 
           neighbor_list%last_neighbor_node%next_neighbor_node => new_neighbor_node
 
-        END IF
+       END IF
 
-      ELSE
+    ELSE
 
-        new_neighbor_node => neighbor_list%first_neighbor_node
+       new_neighbor_node => neighbor_list%first_neighbor_node
 
-        IF (.NOT.ASSOCIATED(new_neighbor_node)) THEN
+       IF (.NOT.ASSOCIATED(new_neighbor_node)) THEN
 
-!         *** Allocate a new first neighbor node ***
+          !         *** Allocate a new first neighbor node ***
 
           ALLOCATE (new_neighbor_node,STAT=istat)
           IF (istat /= 0) THEN
-            CALL stop_memory(routineN,moduleN,__LINE__,&
-                             "new_neighbor_node",0)
+             CALL stop_memory(routineN,moduleN,__LINE__,&
+                  "new_neighbor_node",0)
           END IF
 
           NULLIFY (new_neighbor_node%next_neighbor_node)
 
-!         *** Link the new first neighbor node to the neighbor list ***
+          !         *** Link the new first neighbor node to the neighbor list ***
 
           neighbor_list%first_neighbor_node => new_neighbor_node
 
-        END IF
+       END IF
 
-      END IF
+    END IF
 
-!     *** Store the data set of the new neighbor ***
+    !     *** Store the data set of the new neighbor ***
 
-      new_neighbor_node%neighbor = neighbor
-      new_neighbor_node%r(:) = r(:)
+    new_neighbor_node%neighbor = neighbor
+    new_neighbor_node%r(:) = r(:)
 
-!     *** Update the pointer to the last neighbor node of the neighbor list ***
+    !     *** Update the pointer to the last neighbor node of the neighbor list ***
 
-      neighbor_list%last_neighbor_node => new_neighbor_node
+    neighbor_list%last_neighbor_node => new_neighbor_node
 
-!     *** Increment the neighbor node counter ***
+    !     *** Increment the neighbor node counter ***
 
-      neighbor_list%nnode = neighbor_list%nnode + 1
+    neighbor_list%nnode = neighbor_list%nnode + 1
 
   END SUBROUTINE add_neighbor_node
 

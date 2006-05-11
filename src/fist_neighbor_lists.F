@@ -86,7 +86,7 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE build_fist_neighbor_lists(atomic_kind_set,particle_set,&
-                                       local_particles,cell,r_max,nonbonded,&
+                                       local_particles,cell,r_max, r_minsq, nonbonded,&
                                        globenv,build_from_scratch,&
                                        force_env_section,error)
 
@@ -102,7 +102,7 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(cell_type), POINTER                 :: cell
-    REAL(dp), DIMENSION(:, :), INTENT(IN)    :: r_max
+    REAL(dp), DIMENSION(:, :), INTENT(IN)    :: r_max, r_minsq
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: nonbonded
     TYPE(global_environment_type), POINTER   :: globenv
@@ -210,7 +210,7 @@ CONTAINS
     ! Build the nonbonded neighbor lists
 
     CALL build_neighbor_lists(nonbonded,particle_set,atom,cell,maxatom_local,&
-                              print_subcell_grid,output_unit,r_max,&
+                              print_subcell_grid,output_unit,r_max,r_minsq,&
                               build_from_scratch,"NONBONDED")
 
     print_key_path = "MM%PRINT%NEIGHBOR_LISTS"
@@ -295,8 +295,8 @@ CONTAINS
   ! ***************************************************************************
 
   SUBROUTINE build_neighbor_lists(ab,particle_set,atom,cell,maxatom_local,&
-                                  print_subcell_grid,output_unit,r_max,&
-                                  build_from_scratch,name)
+       print_subcell_grid,output_unit,r_max,r_minsq,&
+       build_from_scratch,name)
 
     ! Purpose: Build simple pair neighbor lists.
 
@@ -305,16 +305,16 @@ CONTAINS
     ! *************************************************************************
 
     TYPE(neighbor_list_set_p_type), &
-      DIMENSION(:), POINTER                  :: ab
+         DIMENSION(:), POINTER                  :: ab
     TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
+         POINTER                                :: particle_set
     TYPE(local_atoms_type), DIMENSION(:), &
-      INTENT(IN)                             :: atom
+         INTENT(IN)                             :: atom
     TYPE(cell_type), POINTER                 :: cell
     INTEGER, INTENT(IN)                      :: maxatom_local
     LOGICAL, INTENT(IN)                      :: print_subcell_grid
     INTEGER, INTENT(IN)                      :: output_unit
-    REAL(dp), DIMENSION(:, :), INTENT(IN)    :: r_max
+    REAL(dp), DIMENSION(:, :), INTENT(IN)    :: r_max,r_minsq
     LOGICAL, INTENT(IN)                      :: build_from_scratch
     CHARACTER(LEN=*), INTENT(IN)             :: name
 
@@ -322,22 +322,22 @@ CONTAINS
 
     CHARACTER(LEN=8)                         :: unit_of_length_name
     INTEGER :: atom_a, atom_b, handle, i, iab, iatom, iatom_local, &
-      iatom_subcell, icell, ikind, istat, j, jatom_local, jcell, jkind, k, &
-      kcell, natom_local_a, natom_local_b, nkind
+         iatom_subcell, icell, ikind, istat, j, jatom_local, jcell, jkind, k, &
+         kcell, natom_local_a, natom_local_b, nkind, iw
     INTEGER, DIMENSION(3)                    :: cell_a, ncell, &
-                                                nsubcell, periodic
+         nsubcell, periodic
     LOGICAL                                  :: cell000, include_ab
-    REAL(dp)                                 :: rab2, rab2_max, rab_max, &
-                                                subcells, unit_of_length
+    REAL(dp)                                 :: rab2, rab2_max, rab_max, rab2_min,&
+         subcells, unit_of_length
     REAL(dp), DIMENSION(3)                   :: abc, r, rab, rb, s, sab, &
-                                                sab_max, sb, sb_max, sb_min, &
-                                                sb_pbc
+         sab_max, sb, sb_max, sb_min, &
+         sb_pbc
     TYPE(neighbor_list_p_type), &
-      DIMENSION(maxatom_local)               :: kind_a
+         DIMENSION(maxatom_local)               :: kind_a
     TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set
     TYPE(subcell_type), DIMENSION(:, :, :), &
-      POINTER                                :: subcell
-
+         POINTER                                :: subcell
+    LOGICAL :: added
     ! -------------------------------------------------------------------------
 
     CALL timeset(routineN,"I","",handle)
@@ -346,330 +346,361 @@ CONTAINS
 
     IF (build_from_scratch) THEN
 
-      ! Deallocate the old neighbor list structure
+       ! Deallocate the old neighbor list structure
 
-      IF (ASSOCIATED(ab)) THEN
-        DO iab=1,SIZE(ab)
-          CALL deallocate_neighbor_list_set(ab(iab)%neighbor_list_set)
-        END DO
-        DEALLOCATE (ab,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"ab")
-      END IF
+       IF (ASSOCIATED(ab)) THEN
+          DO iab=1,SIZE(ab)
+             CALL deallocate_neighbor_list_set(ab(iab)%neighbor_list_set)
+          END DO
+          DEALLOCATE (ab,STAT=istat)
+          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"ab")
+       END IF
 
-      ! Allocate and initialize the new neighbor list structure
+       ! Allocate and initialize the new neighbor list structure
 
-      ALLOCATE (ab(nkind*nkind),STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                       "ab",nkind*nkind*int_size)
+       ALLOCATE (ab(nkind*nkind),STAT=istat)
+       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+            "ab",nkind*nkind*int_size)
 
-      DO iab=1,SIZE(ab)
-        NULLIFY (ab(iab)%neighbor_list_set)
-      END DO
+       DO iab=1,SIZE(ab)
+          NULLIFY (ab(iab)%neighbor_list_set)
+       END DO
 
     ELSE
 
-      IF (.NOT.ASSOCIATED(ab)) THEN
-        CALL stop_program(routineN,moduleN,__LINE__,&
-                          "ab is not associated and cannot be updated")
-      END IF
+       IF (.NOT.ASSOCIATED(ab)) THEN
+          CALL stop_program(routineN,moduleN,__LINE__,&
+               "ab is not associated and cannot be updated")
+       END IF
 
     END IF
 
     ! Load informations about the simulation cell
 
     CALL get_cell(cell=cell,&
-                  abc=abc,&
-                  periodic=periodic,&
-                  subcells=subcells,&
-                  unit_of_length=unit_of_length,&
-                  unit_of_length_name=unit_of_length_name)
+         abc=abc,&
+         periodic=periodic,&
+         subcells=subcells,&
+         unit_of_length=unit_of_length,&
+         unit_of_length_name=unit_of_length_name)
 
     ! Print headline
 
     IF (print_subcell_grid) THEN
-      WRITE (UNIT=output_unit,FMT="(/,/,T2,A,/,/,T3,A,T29,A,T54,A)")&
-        "SUBCELL GRID FOR THE "//TRIM(name)//" NEIGHBOR LISTS",&
-        "Atomic kind pair","Grid size",&
-        "Subcell size in "//unit_of_length_name
+       WRITE (UNIT=output_unit,FMT="(/,/,T2,A,/,/,T3,A,T29,A,T54,A)")&
+            "SUBCELL GRID FOR THE "//TRIM(name)//" NEIGHBOR LISTS",&
+            "Atomic kind pair","Grid size",&
+            "Subcell size in "//unit_of_length_name
     END IF
 
     ! Loop over all atomic kind pairs
 
     DO ikind=1,nkind
 
-      IF (.NOT.ASSOCIATED(atom(ikind)%list_local_a_index)) CYCLE
+       IF (.NOT.ASSOCIATED(atom(ikind)%list_local_a_index)) CYCLE
 
-      natom_local_a = SIZE(atom(ikind)%list_local_a_index)
+       natom_local_a = SIZE(atom(ikind)%list_local_a_index)
 
-      DO jkind=1,nkind
+       DO jkind=1,nkind
 
-        iab = ikind + nkind*(jkind - 1)
+          iab = ikind + nkind*(jkind - 1)
 
-        natom_local_b = SIZE(atom(jkind)%list)
+          natom_local_b = SIZE(atom(jkind)%list)
 
-        ! Calculate the square of the maximum interaction distance
+          ! Calculate the square of the maximum interaction distance
 
-        rab_max = r_max(ikind,jkind)
-        rab2_max = rab_max*rab_max
+          rab_max = r_max(ikind,jkind)
+          rab2_max = rab_max*rab_max
+          rab2_min = r_minsq(ikind,jkind)
 
-        sab_max(1) = rab_max/plane_distance(1,0,0,cell)
-        sab_max(2) = rab_max/plane_distance(0,1,0,cell)
-        sab_max(3) = rab_max/plane_distance(0,0,1,cell)
+          sab_max(1) = rab_max/plane_distance(1,0,0,cell)
+          sab_max(2) = rab_max/plane_distance(0,1,0,cell)
+          sab_max(3) = rab_max/plane_distance(0,0,1,cell)
 
-        ncell(:) = (INT(sab_max(:)) + 1)*periodic(:)
-        nsubcell(:) = MIN(MAX(1,NINT(0.5_dp*subcells/sab_max(:))),20)
-!        nsubcell = MAX(1,CEILING((REAL(natom_local_a,KIND=dp)/&
-!             (10.0_dp*subcells))**(1._dp/3._dp)))
+          ncell(:) = (INT(sab_max(:)) + 1)*periodic(:)
+          nsubcell(:) = MIN(MAX(1,NINT(0.5_dp*subcells/sab_max(:))),20)
+          !        nsubcell = MAX(1,CEILING((REAL(natom_local_a,KIND=dp)/&
+          !             (10.0_dp*subcells))**(1._dp/3._dp)))
 
-        ! Print subcell information for the current atomic kind pair
+          ! Print subcell information for the current atomic kind pair
 
-        IF (print_subcell_grid) THEN
-          s(:) = 1.0_dp/REAL(nsubcell(:),KIND=dp)
-          r(:) = s(:)*abc(:)
-          WRITE (UNIT=output_unit,FMT="(T3,2I8,4X,3I5,6X,3F12.6)")&
-            ikind,jkind,nsubcell(1:3),r(1:3)/unit_of_length
-        END IF
+          IF (print_subcell_grid) THEN
+             s(:) = 1.0_dp/REAL(nsubcell(:),KIND=dp)
+             r(:) = s(:)*abc(:)
+             WRITE (UNIT=output_unit,FMT="(T3,2I8,4X,3I5,6X,3F12.6)")&
+                  ikind,jkind,nsubcell(1:3),r(1:3)/unit_of_length
+          END IF
 
-        IF (build_from_scratch) THEN
-          CALL allocate_neighbor_list_set(neighbor_list_set=ab(iab)%neighbor_list_set,&
-                                          r_max=rab_max)
-          neighbor_list_set => ab(iab)%neighbor_list_set
-        ELSE
-          neighbor_list_set => ab(iab)%neighbor_list_set
-          IF (.NOT.ASSOCIATED(neighbor_list_set)) CYCLE
-          CALL init_neighbor_list_set(neighbor_list_set=neighbor_list_set,&
-                                      r_max=rab_max)
-        END IF
+          IF (build_from_scratch) THEN
+             CALL allocate_neighbor_list_set(neighbor_list_set=ab(iab)%neighbor_list_set,&
+                  r_max=rab_max)
+             neighbor_list_set => ab(iab)%neighbor_list_set
+          ELSE
+             neighbor_list_set => ab(iab)%neighbor_list_set
+             IF (.NOT.ASSOCIATED(neighbor_list_set)) CYCLE
+             CALL init_neighbor_list_set(neighbor_list_set=neighbor_list_set,&
+                  r_max=rab_max)
+          END IF
 
-        cell_a = (/0,0,0/)
+          cell_a = (/0,0,0/)
 
-        ! Check, if we have to consider a subcell grid
+          ! Check, if we have to consider a subcell grid
 
-        IF (SUM(nsubcell) == 3) THEN
+          IF (SUM(nsubcell) == 3) THEN
 
-          ! Case 1: No subcell grid is needed
+             ! Case 1: No subcell grid is needed
 
-          DO iatom_local=1,natom_local_a
-            iatom = atom(ikind)%list_local_a_index(iatom_local)
-            atom_a = atom(ikind)%list(iatom)
-            CALL add_neighbor_list(neighbor_list_set=neighbor_list_set,&
-                                   atom=atom_a,&
-                                   cell=cell_a,&
-                                   neighbor_list=kind_a(iatom_local)%neighbor_list)
-          END DO
+             DO iatom_local=1,natom_local_a
+                iatom = atom(ikind)%list_local_a_index(iatom_local)
+                atom_a = atom(ikind)%list(iatom)
+                CALL add_neighbor_list(neighbor_list_set=neighbor_list_set,&
+                     atom=atom_a,&
+                     cell=cell_a,&
+                     neighbor_list=kind_a(iatom_local)%neighbor_list)
+             END DO
 
-          DO jatom_local=1,natom_local_b
+             DO jatom_local=1,natom_local_b
 
-            atom_b = atom(jkind)%list(jatom_local)
-            sb_pbc(:) = atom(jkind)%s_pbc(:,jatom_local)
+                atom_b = atom(jkind)%list(jatom_local)
+                sb_pbc(:) = atom(jkind)%s_pbc(:,jatom_local)
 
-            loop1_kcell: DO kcell=-ncell(3),ncell(3)
+                loop1_kcell: DO kcell=-ncell(3),ncell(3)
 
-              sb(3) = sb_pbc(3) + REAL(kcell,dp)
-              sb_min(3) = sb(3) - sab_max(3)
-              sb_max(3) = sb(3) + sab_max(3)
-              IF (periodic(3) /= 0) THEN
-                IF (sb_min(3) >= 0.5_dp) EXIT loop1_kcell
-                IF (sb_max(3) < -0.5_dp) CYCLE loop1_kcell
-              END IF
+                   sb(3) = sb_pbc(3) + REAL(kcell,dp)
+                   sb_min(3) = sb(3) - sab_max(3)
+                   sb_max(3) = sb(3) + sab_max(3)
+                   IF (periodic(3) /= 0) THEN
+                      IF (sb_min(3) >= 0.5_dp) EXIT loop1_kcell
+                      IF (sb_max(3) < -0.5_dp) CYCLE loop1_kcell
+                   END IF
 
-              loop1_jcell: DO jcell=-ncell(2),ncell(2)
+                   loop1_jcell: DO jcell=-ncell(2),ncell(2)
 
-                sb(2) = sb_pbc(2) + REAL(jcell,dp)
-                sb_min(2) = sb(2) - sab_max(2)
-                sb_max(2) = sb(2) + sab_max(2)
-                IF (periodic(2) /= 0) THEN
-                  IF (sb_min(2) >= 0.5_dp) EXIT loop1_jcell
-                  IF (sb_max(2) < -0.5_dp) CYCLE loop1_jcell
-                END IF
-
-                loop1_icell: DO icell=-ncell(1),ncell(1)
-
-                  sb(1) = sb_pbc(1) + REAL(icell,dp)
-                  sb_min(1) = sb(1) - sab_max(1)
-                  sb_max(1) = sb(1) + sab_max(1)
-                  IF (periodic(1) /= 0) THEN
-                    IF (sb_min(1) >= 0.5_dp) EXIT loop1_icell
-                    IF (sb_max(1) < -0.5_dp) CYCLE loop1_icell
-                  END IF
-
-                  cell000 = ((icell == 0).AND.&
-                             (jcell == 0).AND.&
-                             (kcell == 0))
-
-                  CALL scaled_to_real(rb,sb,cell)
-
-                  DO iatom_local=1,natom_local_a
-                    iatom = atom(ikind)%list_local_a_index(iatom_local)
-                    atom_a = atom(ikind)%list(iatom)
-                    IF (cell000) THEN
-                      IF (atom_a > atom_b) THEN
-                        include_ab = (MODULO(atom_a + atom_b,2) == 0)
-                      ELSE
-                        include_ab = (MODULO(atom_a + atom_b,2) /= 0)
-                      END IF
-                    ELSE
-                      IF (atom_a == atom_b) THEN
-                        include_ab = .TRUE.
-                      ELSE IF (atom_a > atom_b) THEN
-                        include_ab = (MODULO(atom_a + atom_b,2) == 0)
-                      ELSE
-                        include_ab = (MODULO(atom_a + atom_b,2) /= 0)
-                      END IF
-                    END IF
-                    IF (include_ab) THEN
-                      rab(:) = rb(:) - atom(ikind)%r_pbc(:,iatom)
-                      rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
-                      IF (rab2 < rab2_max) THEN
-                        CALL real_to_scaled(sab,rab,cell)
-                        CALL add_neighbor_node(&
-                          neighbor_list=kind_a(iatom_local)%neighbor_list,&
-                          neighbor=atom_b,&
-                          r=sab,&
-                          exclusion_list = particle_set(atom_a)%lpi%&
-                                           exclusion(jkind)%list_vdw)
-                      END IF
-                    END IF
-                  END DO
-
-                END DO loop1_icell
-              END DO loop1_jcell
-            END DO loop1_kcell
-
-          END DO
-
-        ELSE
-
-          ! Case 2: A subcell grid is needed
-
-          CALL allocate_subcell(subcell,nsubcell,maxatom_local)
-
-          DO iatom_local=1,natom_local_a
-            iatom = atom(ikind)%list_local_a_index(iatom_local)
-            atom_a = atom(ikind)%list(iatom)
-            s(:) = atom(ikind)%s_pbc(:,iatom) + 0.5_dp
-            i = INT(s(1)*REAL(nsubcell(1),KIND=dp)) + 1
-            j = INT(s(2)*REAL(nsubcell(2),KIND=dp)) + 1
-            k = INT(s(3)*REAL(nsubcell(3),KIND=dp)) + 1
-            i = MIN(MAX(i,1),nsubcell(1))
-            j = MIN(MAX(j,1),nsubcell(2))
-            k = MIN(MAX(k,1),nsubcell(3))
-            subcell(i,j,k)%natom  = subcell(i,j,k)%natom + 1
-            subcell(i,j,k)%atom_list(subcell(i,j,k)%natom) = iatom_local
-            CALL add_neighbor_list(neighbor_list_set=neighbor_list_set,&
-                                   atom=atom_a,&
-                                   cell=cell_a,&
-                                   neighbor_list=kind_a(iatom_local)%neighbor_list)
-          END DO
-
-          DO jatom_local=1,natom_local_b
-
-            atom_b = atom(jkind)%list(jatom_local)
-            sb_pbc(:) = atom(jkind)%s_pbc(:,jatom_local)
-
-            loop2_kcell: DO kcell=-ncell(3),ncell(3)
-
-              sb(3) = sb_pbc(3) + REAL(kcell,dp)
-              sb_min(3) = sb(3) - sab_max(3)
-              sb_max(3) = sb(3) + sab_max(3)
-              IF (periodic(3) /= 0) THEN
-                IF (sb_min(3) >= 0.5_dp) EXIT loop2_kcell
-                IF (sb_max(3) < -0.5_dp) CYCLE loop2_kcell
-              END IF
-
-              loop2_jcell: DO jcell=-ncell(2),ncell(2)
-
-                sb(2) = sb_pbc(2) + REAL(jcell,dp)
-                sb_min(2) = sb(2) - sab_max(2)
-                sb_max(2) = sb(2) + sab_max(2)
-                IF (periodic(2) /= 0) THEN
-                  IF (sb_min(2) >= 0.5_dp) EXIT loop2_jcell
-                  IF (sb_max(2) < -0.5_dp) CYCLE loop2_jcell
-                END IF
-
-                loop2_icell: DO icell=-ncell(1),ncell(1)
-
-                  sb(1) = sb_pbc(1) + REAL(icell,dp)
-                  sb_min(1) = sb(1) - sab_max(1)
-                  sb_max(1) = sb(1) + sab_max(1)
-                  IF (periodic(1) /= 0) THEN
-                    IF (sb_min(1) >= 0.5_dp) EXIT loop2_icell
-                    IF (sb_max(1) < -0.5_dp) CYCLE loop2_icell
-                  END IF
-
-                  cell000 = ((icell == 0).AND.&
-                             (jcell == 0).AND.&
-                             (kcell == 0))
-
-                  CALL scaled_to_real(rb,sb,cell)
-
-                  loop_k: DO k=1,nsubcell(3)
-                    IF (periodic(3) /= 0) THEN
-                      IF (sb_max(3) < subcell(1,1,k)%s_min(3)) EXIT loop_k
-                      IF (sb_min(3) >= subcell(1,1,k)%s_max(3)) CYCLE loop_k
-                    END IF
-
-                    loop_j: DO j=1,nsubcell(2)
+                      sb(2) = sb_pbc(2) + REAL(jcell,dp)
+                      sb_min(2) = sb(2) - sab_max(2)
+                      sb_max(2) = sb(2) + sab_max(2)
                       IF (periodic(2) /= 0) THEN
-                        IF (sb_max(2) < subcell(1,j,1)%s_min(2)) EXIT loop_j
-                        IF (sb_min(2) >= subcell(1,j,1)%s_max(2)) CYCLE loop_j
+                         IF (sb_min(2) >= 0.5_dp) EXIT loop1_jcell
+                         IF (sb_max(2) < -0.5_dp) CYCLE loop1_jcell
                       END IF
 
-                      loop_i: DO i=1,nsubcell(1)
-                        IF (periodic(1) /= 0) THEN
-                          IF (sb_max(1) < subcell(i,1,1)%s_min(1)) EXIT loop_i
-                          IF (sb_min(1) >= subcell(i,1,1)%s_max(1)) CYCLE loop_i
-                        END IF
+                      loop1_icell: DO icell=-ncell(1),ncell(1)
 
-                        DO iatom_subcell=1,subcell(i,j,k)%natom
-                          iatom_local = subcell(i,j,k)%atom_list(iatom_subcell)
-                          iatom = atom(ikind)%list_local_a_index(iatom_local)
-                          atom_a = atom(ikind)%list(iatom)
-                          IF (cell000) THEN
-                            IF (atom_a > atom_b) THEN
-                              include_ab = (MODULO(atom_a + atom_b,2) == 0)
+                         sb(1) = sb_pbc(1) + REAL(icell,dp)
+                         sb_min(1) = sb(1) - sab_max(1)
+                         sb_max(1) = sb(1) + sab_max(1)
+                         IF (periodic(1) /= 0) THEN
+                            IF (sb_min(1) >= 0.5_dp) EXIT loop1_icell
+                            IF (sb_max(1) < -0.5_dp) CYCLE loop1_icell
+                         END IF
+
+                         cell000 = ((icell == 0).AND.&
+                              (jcell == 0).AND.&
+                              (kcell == 0))
+
+                         CALL scaled_to_real(rb,sb,cell)
+
+                         DO iatom_local=1,natom_local_a
+                            iatom = atom(ikind)%list_local_a_index(iatom_local)
+                            atom_a = atom(ikind)%list(iatom)
+                            IF (cell000) THEN
+                               IF (atom_a > atom_b) THEN
+                                  include_ab = (MODULO(atom_a + atom_b,2) == 0)
+                               ELSE
+                                  include_ab = (MODULO(atom_a + atom_b,2) /= 0)
+                               END IF
                             ELSE
-                              include_ab = (MODULO(atom_a + atom_b,2) /= 0)
+                               IF (atom_a == atom_b) THEN
+                                  include_ab = .TRUE.
+                               ELSE IF (atom_a > atom_b) THEN
+                                  include_ab = (MODULO(atom_a + atom_b,2) == 0)
+                               ELSE
+                                  include_ab = (MODULO(atom_a + atom_b,2) /= 0)
+                               END IF
                             END IF
-                          ELSE
-                            IF (atom_a == atom_b) THEN
-                              include_ab = .TRUE.
-                            ELSE IF (atom_a > atom_b) THEN
-                              include_ab = (MODULO(atom_a + atom_b,2) == 0)
-                            ELSE
-                              include_ab = (MODULO(atom_a + atom_b,2) /= 0)
+                            IF (include_ab) THEN
+                               rab(:) = rb(:) - atom(ikind)%r_pbc(:,iatom)
+                               rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
+                               IF (rab2 < rab2_max) THEN
+                                  CALL real_to_scaled(sab,rab,cell)
+                                  CALL add_neighbor_node(&
+                                       neighbor_list=kind_a(iatom_local)%neighbor_list,&
+                                       neighbor=atom_b,&
+                                       r=sab,&
+                                       exclusion_list = particle_set(atom_a)%lpi%&
+                                       exclusion(jkind)%list_vdw,&
+                                       added=added)
+                                  IF (added) THEN
+                                     IF (rab2 < rab2_min) THEN
+                                        iw=cp_logger_get_default_unit_nr()
+                                        WRITE(iw,'(T2,A,2I6,2(A,F15.9),A)')"WARNING| Particles: ",&
+                                             atom_a,atom_b,&
+                                             " at distance [au]:",SQRT(rab2)," less than: ",&
+                                             SQRT(rab2_min),&
+                                             "; increase EMAX_SPLINE."
+                                        IF (rab2 < rab2_min/(1.06_dp)**2) THEN
+                                           CALL stop_program(routineN, &
+                                                "GEOMETRY wrong or EMAX_SPLINE too small!")
+                                        END IF
+                                     END IF
+                                  END IF
+                               END IF
                             END IF
-                          END IF
-                          IF (include_ab) THEN
-                            rab(:) = rb(:) - atom(ikind)%r_pbc(:,iatom)
-                            rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
-                            IF (rab2 < rab2_max) THEN
-                              CALL real_to_scaled(sab,rab,cell)
-                              CALL add_neighbor_node(&
-                                neighbor_list=kind_a(iatom_local)%neighbor_list,&
-                                neighbor=atom_b,&
-                                r=sab,&
-                                exclusion_list=particle_set(atom_a)%lpi%&
-                                               exclusion(jkind)%list_vdw)
+                         END DO
+
+                      END DO loop1_icell
+                   END DO loop1_jcell
+                END DO loop1_kcell
+
+             END DO
+
+          ELSE
+
+             ! Case 2: A subcell grid is needed
+
+             CALL allocate_subcell(subcell,nsubcell,maxatom_local)
+
+             DO iatom_local=1,natom_local_a
+                iatom = atom(ikind)%list_local_a_index(iatom_local)
+                atom_a = atom(ikind)%list(iatom)
+                s(:) = atom(ikind)%s_pbc(:,iatom) + 0.5_dp
+                i = INT(s(1)*REAL(nsubcell(1),KIND=dp)) + 1
+                j = INT(s(2)*REAL(nsubcell(2),KIND=dp)) + 1
+                k = INT(s(3)*REAL(nsubcell(3),KIND=dp)) + 1
+                i = MIN(MAX(i,1),nsubcell(1))
+                j = MIN(MAX(j,1),nsubcell(2))
+                k = MIN(MAX(k,1),nsubcell(3))
+                subcell(i,j,k)%natom  = subcell(i,j,k)%natom + 1
+                subcell(i,j,k)%atom_list(subcell(i,j,k)%natom) = iatom_local
+                CALL add_neighbor_list(neighbor_list_set=neighbor_list_set,&
+                     atom=atom_a,&
+                     cell=cell_a,&
+                     neighbor_list=kind_a(iatom_local)%neighbor_list)
+             END DO
+
+             DO jatom_local=1,natom_local_b
+
+                atom_b = atom(jkind)%list(jatom_local)
+                sb_pbc(:) = atom(jkind)%s_pbc(:,jatom_local)
+
+                loop2_kcell: DO kcell=-ncell(3),ncell(3)
+
+                   sb(3) = sb_pbc(3) + REAL(kcell,dp)
+                   sb_min(3) = sb(3) - sab_max(3)
+                   sb_max(3) = sb(3) + sab_max(3)
+                   IF (periodic(3) /= 0) THEN
+                      IF (sb_min(3) >= 0.5_dp) EXIT loop2_kcell
+                      IF (sb_max(3) < -0.5_dp) CYCLE loop2_kcell
+                   END IF
+
+                   loop2_jcell: DO jcell=-ncell(2),ncell(2)
+
+                      sb(2) = sb_pbc(2) + REAL(jcell,dp)
+                      sb_min(2) = sb(2) - sab_max(2)
+                      sb_max(2) = sb(2) + sab_max(2)
+                      IF (periodic(2) /= 0) THEN
+                         IF (sb_min(2) >= 0.5_dp) EXIT loop2_jcell
+                         IF (sb_max(2) < -0.5_dp) CYCLE loop2_jcell
+                      END IF
+
+                      loop2_icell: DO icell=-ncell(1),ncell(1)
+
+                         sb(1) = sb_pbc(1) + REAL(icell,dp)
+                         sb_min(1) = sb(1) - sab_max(1)
+                         sb_max(1) = sb(1) + sab_max(1)
+                         IF (periodic(1) /= 0) THEN
+                            IF (sb_min(1) >= 0.5_dp) EXIT loop2_icell
+                            IF (sb_max(1) < -0.5_dp) CYCLE loop2_icell
+                         END IF
+
+                         cell000 = ((icell == 0).AND.&
+                              (jcell == 0).AND.&
+                              (kcell == 0))
+
+                         CALL scaled_to_real(rb,sb,cell)
+
+                         loop_k: DO k=1,nsubcell(3)
+                            IF (periodic(3) /= 0) THEN
+                               IF (sb_max(3) < subcell(1,1,k)%s_min(3)) EXIT loop_k
+                               IF (sb_min(3) >= subcell(1,1,k)%s_max(3)) CYCLE loop_k
                             END IF
-                          END IF
-                        END DO
 
-                      END DO loop_i
-                    END DO loop_j
-                  END DO loop_k
+                            loop_j: DO j=1,nsubcell(2)
+                               IF (periodic(2) /= 0) THEN
+                                  IF (sb_max(2) < subcell(1,j,1)%s_min(2)) EXIT loop_j
+                                  IF (sb_min(2) >= subcell(1,j,1)%s_max(2)) CYCLE loop_j
+                               END IF
 
-                END DO loop2_icell
-              END DO loop2_jcell
-            END DO loop2_kcell
+                               loop_i: DO i=1,nsubcell(1)
+                                  IF (periodic(1) /= 0) THEN
+                                     IF (sb_max(1) < subcell(i,1,1)%s_min(1)) EXIT loop_i
+                                     IF (sb_min(1) >= subcell(i,1,1)%s_max(1)) CYCLE loop_i
+                                  END IF
 
-          END DO
+                                  DO iatom_subcell=1,subcell(i,j,k)%natom
+                                     iatom_local = subcell(i,j,k)%atom_list(iatom_subcell)
+                                     iatom = atom(ikind)%list_local_a_index(iatom_local)
+                                     atom_a = atom(ikind)%list(iatom)
+                                     IF (cell000) THEN
+                                        IF (atom_a > atom_b) THEN
+                                           include_ab = (MODULO(atom_a + atom_b,2) == 0)
+                                        ELSE
+                                           include_ab = (MODULO(atom_a + atom_b,2) /= 0)
+                                        END IF
+                                     ELSE
+                                        IF (atom_a == atom_b) THEN
+                                           include_ab = .TRUE.
+                                        ELSE IF (atom_a > atom_b) THEN
+                                           include_ab = (MODULO(atom_a + atom_b,2) == 0)
+                                        ELSE
+                                           include_ab = (MODULO(atom_a + atom_b,2) /= 0)
+                                        END IF
+                                     END IF
+                                     IF (include_ab) THEN
+                                        rab(:) = rb(:) - atom(ikind)%r_pbc(:,iatom)
+                                        rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
+                                        IF (rab2 < rab2_max) THEN
+                                           CALL real_to_scaled(sab,rab,cell)
+                                           CALL add_neighbor_node(&
+                                                neighbor_list=kind_a(iatom_local)%neighbor_list,&
+                                                neighbor=atom_b,&
+                                                r=sab,&
+                                                exclusion_list=particle_set(atom_a)%lpi%&
+                                                exclusion(jkind)%list_vdw,&
+                                                added=added)
+                                           IF (added) THEN
+                                              IF (rab2 < rab2_min) THEN
+                                                 iw=cp_logger_get_default_unit_nr()
+                                                 WRITE(iw,'(T2,A,2I6,2(A,F15.9),A)')"WARNING| Particles: ",&
+                                                      atom_a,atom_b,&
+                                                      " at distance [au]:",SQRT(rab2)," less than: ",&
+                                                      SQRT(rab2_min),&
+                                                      "; increase EMAX_SPLINE."
+                                                 IF (rab2 < rab2_min/(1.06_dp)**2) THEN
+                                                    CALL stop_program(routineN,&
+                                                         "GEOMETRY wrong or EMAX_SPLINE too small!")
+                                                 END IF
+                                              END IF
+                                           END IF
+                                        END IF
+                                     END IF
+                                  END DO
 
-          CALL deallocate_subcell(subcell)
+                               END DO loop_i
+                            END DO loop_j
+                         END DO loop_k
 
-        END IF
+                      END DO loop2_icell
+                   END DO loop2_jcell
+                END DO loop2_kcell
 
-      END DO
+             END DO
+
+             CALL deallocate_subcell(subcell)
+
+          END IF
+
+       END DO
     END DO
 
     CALL timestop(0.0_dp,handle)

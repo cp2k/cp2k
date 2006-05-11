@@ -111,12 +111,13 @@ MODULE md
      INTEGER :: nc
      INTEGER :: nyosh
      INTEGER :: nhclen
+     INTEGER :: info_constraint
      REAL (KIND=dp) :: tau_nhc
      REAL (KIND=dp) :: tau_cell
      REAL (KIND=dp), POINTER, DIMENSION ( : ) :: dt_yosh
      REAL (KIND=dp) :: shake_tol
      TYPE ( qs_md_parameters_type ) :: qs_md_param
-     TYPE ( simpar_units_type ) :: units
+     TYPE ( simpar_units_type )     :: units
      !MK Langevin
      REAL (KIND=dp) :: gamma
      REAL (KIND=dp) :: var_w

@@ -333,7 +333,6 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(local_atoms_type), ALLOCATABLE, &
       DIMENSION(:)                           :: atom
-
 !   ------------------------------------------------------------------------
 
     CALL timeset(routineN, "I", "", handle)
@@ -577,7 +576,7 @@ CONTAINS
     TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set
     TYPE(subcell_type), DIMENSION(:, :, :), &
       POINTER                                :: subcell
-
+    logical :: dum
 !   ---------------------------------------------------------------------------
 
     CALL timeset(routineN, "I", "", handle)
@@ -761,7 +760,8 @@ CONTAINS
                           neighbor_list=kind_a(iatom_local)%neighbor_list, &
                           neighbor=atom_b, r=sab, &   ! r=rab
                           exclusion_list = particle_set(atom_a)%lpi%&
-                                           exclusion(jkind)%list_vdw)
+                                           exclusion(jkind)%list_vdw,&
+                          added=dum)
                       END IF
                     END IF
                   END DO
@@ -888,7 +888,8 @@ CONTAINS
                                 neighbor_list=kind_a(iatom_local)%neighbor_list, &
                                 neighbor=atom_b, r=sab, &   ! r=rab
                                 exclusion_list=particle_set(atom_a)%lpi%&
-                                               exclusion(jkind)%list_vdw)
+                                               exclusion(jkind)%list_vdw,&
+                                added=dum)
                             END IF
                           END IF
                         END DO

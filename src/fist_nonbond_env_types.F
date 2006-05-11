@@ -47,7 +47,7 @@ MODULE fist_nonbond_env_types
     TYPE ( neighbor_list_set_p_type ), DIMENSION ( : ), POINTER :: nonbonded
     TYPE ( pair_potential_pp_type ), POINTER :: potparm
     INTEGER :: counter, last_update, num_update
-    REAL (KIND=dp), DIMENSION ( :, : ), POINTER :: rlist_cutsq
+    REAL (KIND=dp), DIMENSION ( :, : ), POINTER :: rlist_cutsq, rlist_lowsq
     REAL (KIND=dp) :: verlet_skin
     REAL (KIND=dp) :: lup, aup
     TYPE(pos_type), DIMENSION(:), POINTER :: r_last_update
@@ -88,7 +88,7 @@ MODULE fist_nonbond_env_types
 !
 !*** **********************************************************************
 SUBROUTINE fist_nonbond_env_get (fist_nonbond_env, potparm, &
-                                 nonbonded, rlist_cutsq, verlet_skin,  &
+                                 nonbonded, rlist_cutsq, rlist_lowsq, verlet_skin,  &
                                  aup, lup, r_last_update, num_update,  &
                                  last_update, counter, natom_types,    &
                                  long_range_correction, error )
@@ -98,7 +98,7 @@ SUBROUTINE fist_nonbond_env_get (fist_nonbond_env, potparm, &
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), OPTIONAL, POINTER        :: nonbonded
     REAL(KIND=dp), DIMENSION(:, :), &
-      OPTIONAL, POINTER                      :: rlist_cutsq
+      OPTIONAL, POINTER                      :: rlist_cutsq, rlist_lowsq
     REAL(KIND=dp), OPTIONAL                  :: verlet_skin, aup, lup
     TYPE(pos_type), DIMENSION(:), OPTIONAL, POINTER :: r_last_update
     INTEGER, OPTIONAL                        :: num_update, last_update, &
@@ -109,6 +109,7 @@ SUBROUTINE fist_nonbond_env_get (fist_nonbond_env, potparm, &
 
   IF ( PRESENT ( potparm ) ) potparm => fist_nonbond_env % potparm
   IF ( PRESENT ( rlist_cutsq ) ) rlist_cutsq => fist_nonbond_env % rlist_cutsq
+  IF ( PRESENT ( rlist_lowsq ) ) rlist_lowsq => fist_nonbond_env % rlist_lowsq
   IF ( PRESENT ( verlet_skin ) ) verlet_skin = fist_nonbond_env % verlet_skin
   IF ( PRESENT ( nonbonded ) ) nonbonded => fist_nonbond_env % nonbonded
   IF ( PRESENT ( r_last_update ) ) &
@@ -151,7 +152,7 @@ END SUBROUTINE fist_nonbond_env_get
 !
 !*** **********************************************************************
 SUBROUTINE fist_nonbond_env_set ( fist_nonbond_env,  potparm, &
-                                  rlist_cutsq, verlet_skin, nonbonded, &
+                                  rlist_cutsq, rlist_lowsq, verlet_skin, nonbonded, &
                                   aup, lup, r_last_update, num_update, &
                                   last_update, counter, natom_types, &
                                   long_range_correction, error )
@@ -159,7 +160,7 @@ SUBROUTINE fist_nonbond_env_set ( fist_nonbond_env,  potparm, &
     TYPE(pair_potential_pp_type), OPTIONAL, &
       POINTER                                :: potparm
     REAL(KIND=dp), DIMENSION(:, :), &
-      OPTIONAL, POINTER                      :: rlist_cutsq
+      OPTIONAL, POINTER                      :: rlist_cutsq, rlist_lowsq
     REAL(KIND=dp), OPTIONAL                  :: verlet_skin
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), OPTIONAL, POINTER        :: nonbonded
@@ -175,6 +176,7 @@ SUBROUTINE fist_nonbond_env_set ( fist_nonbond_env,  potparm, &
     fist_nonbond_env % potparm => potparm
   ENDIF
   IF ( PRESENT ( rlist_cutsq ) ) fist_nonbond_env % rlist_cutsq => rlist_cutsq
+  IF ( PRESENT ( rlist_lowsq ) ) fist_nonbond_env % rlist_lowsq => rlist_lowsq
   IF ( PRESENT ( verlet_skin ) ) fist_nonbond_env % verlet_skin = verlet_skin
   IF ( PRESENT ( nonbonded ) ) fist_nonbond_env % nonbonded => nonbonded
   IF ( PRESENT ( r_last_update ) ) &
@@ -261,6 +263,7 @@ END SUBROUTINE fist_nonbond_env_create
     NULLIFY (fist_nonbond_env%nonbonded)
     NULLIFY (fist_nonbond_env%r_last_update)
     NULLIFY (fist_nonbond_env% rlist_cutsq )
+    NULLIFY (fist_nonbond_env% rlist_lowsq )
     fist_nonbond_env % unit_type = "ANGSTROM"
     fist_nonbond_env % verlet_skin = 1.0_dp
     CALL convert_to_cp2k_units ( "ANGSTROM",  &
@@ -278,11 +281,15 @@ END SUBROUTINE fist_nonbond_env_create
     natom_types = SIZE ( potparm%pot, 1 )
     ALLOCATE ( fist_nonbond_env % rlist_cutsq ( natom_types, natom_types ), stat = stat )
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE ( fist_nonbond_env % rlist_lowsq ( natom_types, natom_types ), stat = stat )
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DO idim = 1, natom_types
       DO jdim = 1, natom_types
          rcut = SQRT ( potparm%pot ( idim, jdim )%pot % rcutsq ) + &
                 fist_nonbond_env % verlet_skin
          fist_nonbond_env % rlist_cutsq ( idim, jdim ) = rcut 
+         rcut = 1.0_dp / potparm%pot ( idim, jdim )%pot%pair_spline_data%xn
+         fist_nonbond_env % rlist_lowsq ( idim, jdim ) = rcut*(1.06_dp)**2 ! 1.06_dp in order to have 1/2 Emax_spline
       END DO
     END DO
     fist_nonbond_env % potparm => potparm
@@ -405,6 +412,11 @@ SUBROUTINE fist_nonbond_env_release(fist_nonbond_env,error)
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
         ENDIF
         NULLIFY (fist_nonbond_env% rlist_cutsq )
+        IF (ASSOCIATED(fist_nonbond_env % rlist_lowsq)) THEN
+          DEALLOCATE (fist_nonbond_env % rlist_lowsq,STAT=stat)
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        ENDIF
+        NULLIFY (fist_nonbond_env% rlist_lowsq )
         DEALLOCATE(fist_nonbond_env, STAT=stat)
         CPPrecondition(stat==0,cp_warning_level,routineP,error,failure)
      END IF

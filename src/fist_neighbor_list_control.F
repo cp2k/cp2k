@@ -87,7 +87,7 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
                                                 verlet_skin
     REAL(KIND=dp), DIMENSION(3)              :: dr,s2r
     TYPE(pos_type), DIMENSION(:), POINTER :: r_last_update
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rlist_cutsq
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rlist_cutsq, rlist_lowsq
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: nonbonded
 
@@ -100,6 +100,7 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
   CALL fist_nonbond_env_get(fist_nonbond_env,&
                             nonbonded=nonbonded,&
                             rlist_cutsq=rlist_cutsq,&
+                            rlist_lowsq=rlist_lowsq,&
                             aup=aup,&
                             lup=lup, &
                             counter=counter,&
@@ -165,7 +166,7 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
   IF (update_neighbor_lists) THEN
 
     CALL build_fist_neighbor_lists(atomic_kind_set,particle_set,&
-                                   local_particles,cell,rlist_cutsq,&
+                                   local_particles,cell,rlist_cutsq,rlist_lowsq,&
                                    nonbonded,globenv,&
                                    build_from_scratch=build_from_scratch,&
                                    force_env_section=force_env_section,error=error)
