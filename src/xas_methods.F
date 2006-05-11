@@ -1631,6 +1631,7 @@ CONTAINS
 
     INTEGER :: homo, i, iat, iatom, ikind, isgf, istat, istate, j, my_kind,&
                nao, natom, nexc_atoms, nexc_search, output_unit
+    INTEGER, DIMENSION(3)                    :: perd0
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf
     INTEGER, DIMENSION(:), POINTER           :: atom_of_state, &
                                                 mykind_of_kind, &
@@ -1672,6 +1673,12 @@ CONTAINS
 
     CALL get_qs_env(qs_env=qs_env, cell=cell, mos=mos, particle_set=particle_set)
 
+    ! The Berry operator can be used only for periodic systems
+    ! If an isolated system is used the periodicity is overimposed
+    perd0(1:3) = cell%perd(1:3)
+    cell%perd(1:3) = 1
+
+
     CALL get_mo_set(mos(1)%mo_set, mo_coeff=mo_coeff, maxocc=maxocc, nao=nao, homo=homo)
     nexc_search = xas_control%nexc_search
     nexc_atoms  = xas_control%nexc_atoms
@@ -1686,6 +1693,7 @@ CONTAINS
     ALLOCATE(vecbuffer(1,nao),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     natom = SIZE(particle_set)
+
     ALLOCATE (first_sgf(natom),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     CALL get_particle_set(particle_set=particle_set, first_sgf=first_sgf)
@@ -1767,6 +1775,9 @@ CONTAINS
         "A wrong state has been selected for excitation, check the Wannier centers")
       END IF
     END DO 
+
+    ! Set back the correct periodicity
+    cell%perd(1:3) =  perd0(1:3)
 
     DEALLOCATE(vecbuffer,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)

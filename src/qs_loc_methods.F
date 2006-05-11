@@ -26,7 +26,7 @@ MODULE qs_loc_methods
 ! *****************************************************************************
 
   USE atomic_kind_types,               ONLY: atomic_kind_type
-  USE cell_types,                      ONLY: cell_type
+  USE cell_types,                      ONLY: cell_type,pbc
   USE coefficient_types,               ONLY: coeff_type
   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_lu_decompose
   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
@@ -132,7 +132,7 @@ CONTAINS
     INTEGER                                  :: idir, istate, iter, nstates, &
                                                 out_c, out_s, scr
     LOGICAL                                  :: failure, file_exists
-    REAL(dp), DIMENSION(3)                   :: spreadtot
+    REAL(dp), DIMENSION(3)                   :: c, cpbc,spreadtot
     REAL(dp), DIMENSION(:, :), POINTER       :: centers
     REAL(KIND=dp)                            :: imagpart, realpart
     TYPE(cp_cfm_type), POINTER               :: complexresult
@@ -203,9 +203,12 @@ CONTAINS
          CALL cp_fm_get_element(zij(1,idir)%matrix,istate,istate,realpart)
          CALL cp_fm_get_element(zij(2,idir)%matrix,istate,istate,imagpart)
          z=CMPLX(realpart,imagpart,dp)
-         centers (idir, istate )=( cell % hmat ( idir, idir ) / twopi ) * AIMAG ( LOG ( z ) )
+!         centers (idir, istate )=( cell % hmat ( idir, idir ) / twopi ) * AIMAG ( LOG ( z ) )
          centers (idir+3, istate )=SQRT( -weights ( idir ) * 2.0_dp * LOG ( ABS ( Z ) ) ) / twopi
+          c(idir) = ( cell % hmat ( idir, idir ) / twopi ) * AIMAG ( LOG ( z ) )
       ENDDO
+      cpbc = pbc(c,cell)
+      centers (1:3, istate ) = cpbc(1:3)
       IF (ionode) THEN
           WRITE(out_c,'(A,3F16.8)') "He ", angstrom*centers(1:3, istate)
           WRITE(out_s,'(I6,3F16.8)') istate, angstrom*centers(4:6,istate)

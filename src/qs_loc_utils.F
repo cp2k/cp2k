@@ -582,6 +582,7 @@ END SUBROUTINE qs_loc_env_init
       istat, ithread, j, jatom, jkind, jset, last_jatom, ldab, ldsa, ldsb, &
       ldwork, maxl, ncoa, ncob, nkind, nlist, nnode, nrow, nseta, nsetb, &
       nthread, sgfa, sgfb
+    INTEGER, DIMENSION(3)                    :: perd0
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb
@@ -656,7 +657,7 @@ END SUBROUTINE qs_loc_env_init
         NULLIFY (op_sint(i,j)%block)
       END DO
     END DO 
- 
+
     CALL get_qs_loc_env(qs_loc_env=qs_loc_env,op_sm_set=op_sm_set, cell=cell)
     ooLx = 1.0_dp/SQRT ( SUM ( cell % hmat ( :, 1 ) ** 2 ) ) 
     ooLy = 1.0_dp/SQRT ( SUM ( cell % hmat ( :, 2 ) ** 2 ) )
@@ -666,6 +667,11 @@ END SUBROUTINE qs_loc_env_init
     twopoLz = twopi*ooLz
     ortho = cell%orthorhombic
 
+    ! This operator can be used only for periodic systems
+    ! If an isolated system is used the periodicity is overimposed
+    perd0(1:3) = cell%perd(1:3)
+    cell%perd(1:3) = 1
+ 
     DO ikind=1,nkind
 
       atomic_kind => atomic_kind_set(ikind)
@@ -767,7 +773,6 @@ END SUBROUTINE qs_loc_env_init
             CALL get_neighbor_node(neighbor_node=sab_orb_neighbor_node,&
                                    neighbor=jatom, r=rab)
 
-!            rb = ra - rab
             rb = rab + ra
 
             IF (jatom /= last_jatom) THEN
@@ -890,6 +895,9 @@ END SUBROUTINE qs_loc_env_init
       END DO ! jkind
 
     END DO ! ikind
+
+    ! Set back the correct periodicity
+    cell%perd(1:3) =  perd0(1:3)
 
     DO i = 1,3
       DO j = 0,nthread-1
