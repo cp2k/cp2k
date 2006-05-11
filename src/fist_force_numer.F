@@ -37,7 +37,7 @@ MODULE fist_force_numer
        get_neighbor_node, neighbor_list_set_p_type, neighbor_list_set_type, &
        neighbor_list_type, neighbor_node_type, next
   USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_get,&
-                                             fist_nonbond_env_type
+                                             fist_nonbond_env_type, pos_type
   USE global_types,                    ONLY: global_environment_type
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp,&
@@ -2752,7 +2752,7 @@ SUBROUTINE potential_nonbond ( fist_nonbond_env, particle_set, atomic_kind_set, 
                                                 nlist, nnode
     REAL(KIND=dp)                            :: energy, qi, qj, rab2, rab2_max
     REAL(KIND=dp), DIMENSION(3)              :: dra, drb, rab,s2r,r2s
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: r_last_update
+    TYPE(pos_type), DIMENSION(:), POINTER :: r_last_update
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: nonbonded
@@ -2801,7 +2801,7 @@ SUBROUTINE potential_nonbond ( fist_nonbond_env, particle_set, atomic_kind_set, 
           CALL get_neighbor_list(neighbor_list=neighbor_list,&
                                  atom=atom_a,&
                                  nnode=nnode)
-          CALL scaled_to_real(s2r,r_last_update(:,atom_a),cell)
+          CALL scaled_to_real(s2r,r_last_update(atom_a)%r,cell)
           dra(:) = particle_set(atom_a)%r(:) - s2r
 
           neighbor_node => first_node(neighbor_list)
@@ -2812,7 +2812,7 @@ SUBROUTINE potential_nonbond ( fist_nonbond_env, particle_set, atomic_kind_set, 
                                    neighbor=atom_b,&
                                    r=rab)
 
-            CALL scaled_to_real(s2r,r_last_update(:,atom_b),cell)
+            CALL scaled_to_real(s2r,r_last_update(atom_b)%r,cell)
             drb(:) = particle_set(atom_b)%r(:) - s2r
             CALL scaled_to_real(s2r,rab(:),cell)
             rab(:) = s2r - dra(:) + drb(:)

@@ -35,8 +35,11 @@ MODULE fist_nonbond_env_types
   INTEGER, PRIVATE, SAVE :: last_fist_nonbond_env_id_nr=0
   PUBLIC :: fist_nonbond_env_type, fist_nonbond_env_set, &
             fist_nonbond_env_get, fist_nonbond_env_create, &
-            fist_nonbond_env_retain, fist_nonbond_env_release
+            fist_nonbond_env_retain, fist_nonbond_env_release, pos_type
 
+  TYPE pos_type
+    REAL (KIND=dp) :: r(3)
+  END TYPE
 
   TYPE fist_nonbond_env_type
     INTEGER :: ref_count, id_nr, natom_types
@@ -47,7 +50,7 @@ MODULE fist_nonbond_env_types
     REAL (KIND=dp), DIMENSION ( :, : ), POINTER :: rlist_cutsq
     REAL (KIND=dp) :: verlet_skin
     REAL (KIND=dp) :: lup, aup
-    REAL (KIND=dp), DIMENSION ( :, : ), POINTER :: r_last_update
+    TYPE(pos_type), DIMENSION(:), POINTER :: r_last_update
     REAL (KIND=dp) :: long_range_correction
   END TYPE fist_nonbond_env_type
 
@@ -97,7 +100,7 @@ SUBROUTINE fist_nonbond_env_get (fist_nonbond_env, potparm, &
     REAL(KIND=dp), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: rlist_cutsq
     REAL(KIND=dp), OPTIONAL                  :: verlet_skin, aup, lup
-    REAL(KIND=dp), OPTIONAL, POINTER         :: r_last_update( :, : )
+    TYPE(pos_type), DIMENSION(:), OPTIONAL, POINTER :: r_last_update
     INTEGER, OPTIONAL                        :: num_update, last_update, &
                                                 counter, natom_types
     REAL(KIND=dp), OPTIONAL                  :: long_range_correction
@@ -161,8 +164,7 @@ SUBROUTINE fist_nonbond_env_set ( fist_nonbond_env,  potparm, &
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), OPTIONAL, POINTER        :: nonbonded
     REAL(KIND=dp), OPTIONAL                  :: aup, lup
-    REAL(KIND=dp), DIMENSION(:, :), &
-      OPTIONAL, POINTER                      :: r_last_update
+    TYPE(pos_type), DIMENSION(:), OPTIONAL, POINTER :: r_last_update
     INTEGER, OPTIONAL                        :: num_update, last_update, &
                                                 counter, natom_types
     REAL(KIND=dp), OPTIONAL                  :: long_range_correction

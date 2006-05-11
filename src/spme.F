@@ -95,7 +95,7 @@ SUBROUTINE spme_evaluate ( ewald_env, ewald_pw, box, particle_set, &
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
     TYPE(cell_type), POINTER                 :: box
     TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
+      INTENT(IN)                             :: particle_set
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(OUT)                            :: fg_coulomb
     REAL(KIND=dp), INTENT(OUT)               :: vg_coulomb

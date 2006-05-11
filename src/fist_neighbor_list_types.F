@@ -48,7 +48,6 @@ MODULE fist_neighbor_list_types
   END TYPE neighbor_node_type
 
   TYPE neighbor_list_type
-    PRIVATE
     TYPE(neighbor_list_type), POINTER :: next_neighbor_list
     TYPE(neighbor_node_type), POINTER :: first_neighbor_node,&
                                          last_neighbor_node
@@ -719,27 +718,17 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(neighbor_list_type), POINTER        :: neighbor_list
-    INTEGER, INTENT(OUT), OPTIONAL           :: atom
-    INTEGER, DIMENSION(3), INTENT(OUT), &
-      OPTIONAL                               :: cell
-    INTEGER, INTENT(OUT), OPTIONAL           :: nnode
+    INTEGER, INTENT(OUT), OPTIONAL :: atom
+    INTEGER, DIMENSION(3), INTENT(OUT), OPTIONAL :: cell
+    INTEGER, INTENT(OUT), OPTIONAL :: nnode
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'get_neighbor_list'
 
 !   ---------------------------------------------------------------------------
 
-    IF (ASSOCIATED(neighbor_list)) THEN
-
       IF (PRESENT(atom)) atom = neighbor_list%atom
       IF (PRESENT(nnode)) nnode = neighbor_list%nnode
       IF (PRESENT(cell)) cell(:) = neighbor_list%cell(:)
-
-    ELSE
-
-      CALL stop_program(routineN,moduleN,__LINE__,&
-                        "The requested neighbor list is not associated")
-
-    END IF
 
   END SUBROUTINE get_neighbor_list
 
