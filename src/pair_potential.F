@@ -330,7 +330,7 @@ CONTAINS
              WRITE(iw,*)
           ELSE
             IF (iw3>0) THEN
-               IF (MOD(i*(i-1)/2+j,(ntype*(ntype+1))/(2*10))==0) write(iw3,'(T2,A3,I0)') '...',i*(i-1)/2+j
+               IF (MOD(i*(i-1)/2+j,MAX(1,(ntype*(ntype+1))/(2*10)))==0) write(iw3,'(T2,A3,I0)') '...',i*(i-1)/2+j
             ENDIF
           END IF
           ! print spline data on file
