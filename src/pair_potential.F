@@ -155,7 +155,7 @@ CONTAINS
 
   SUBROUTINE spline_nonbond_control ( spline_env, potparm, atomic_kind_set, &
        ewald_env, ei_scale14, vdw_scale14, eps_spline, max_energy, rlow_nb,&
-       emax_spline, iw, iw2, error)
+       emax_spline, iw, iw2,iw3, error)
 
     TYPE(spline_environment_type), POINTER   :: spline_env
     TYPE(pair_potential_pp_type), POINTER    :: potparm
@@ -166,7 +166,7 @@ CONTAINS
     REAL(KIND=dp), OPTIONAL                  :: ei_scale14, vdw_scale14
     REAL(KIND=dp), INTENT(IN)                :: eps_spline, max_energy, rlow_nb,&
          emax_spline
-    INTEGER, INTENT(IN)                      :: iw, iw2
+    INTEGER, INTENT(IN)                      :: iw, iw2, iw3
     TYPE(cp_error_type), INTENT(inout), &
          OPTIONAL                               :: error
 
@@ -183,6 +183,9 @@ CONTAINS
     failure = .FALSE.
     n = 0  
     ntype = SIZE ( atomic_kind_set )
+    IF (iw3>0) THEN
+       write(iw3,'(T2,A,I0,A)') 'SPLINE_INFO| Generating: ',(ntype*(ntype+1))/2,' splines'
+    ENDIF
     DO i = 1, ntype ! i:  first atom type
 
        atomic_kind=> atomic_kind_set(i)
@@ -325,6 +328,10 @@ CONTAINS
              WRITE(iw,'("SPLINE_INFO|",5X,A,2F12.6)')"RMIN and RMAX used to achieve spline accuracy (bohr):",&
                   xsav,hicut
              WRITE(iw,*)
+          ELSE
+            IF (iw3>0) THEN
+               IF (MOD(i*(i-1)/2+j,(ntype*(ntype+1))/(2*10))==0) write(iw3,'(T2,A3,I0)') '...',i*(i-1)/2+j
+            ENDIF
           END IF
           ! print spline data on file
           IF (nspline==n) THEN
@@ -350,10 +357,18 @@ CONTAINS
        END DO ! j:  second atom type
     END DO ! i:  first atom type
 
+    IF (iw3>0) THEN
+       write(iw3,'()') 
+    ENDIF
+
     IF (iw>0) THEN
        WRITE(iw,'("SPLINE_INFO|",5X,A,I7)')"Number of pair potential Splines allocated:",&
             n
     END IF
+
+    IF (iw3>0) THEN
+       write(iw3,'(T2,A,I0)') 'SPLINE_INFO| Done'
+    ENDIF
 
   END SUBROUTINE spline_nonbond_control
 
