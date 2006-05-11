@@ -162,3 +162,6 @@ water_3_dist.inp
 water_3_g3x3.inp
 water_IPBV_flex.inp
 water_IPBV.inp
+# tiny changes in numerics due to small change in fist_nonbond_force
+water_3_g3x3.inp
+water_3_dist.inp
