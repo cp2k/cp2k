@@ -1247,7 +1247,7 @@ CONTAINS
     ! -------------------------------------------------------------------------
 
     IF (ASSOCIATED(gto_basis_set).AND.(output_unit>0)) THEN
-      WRITE (UNIT=output_unit,FMT="(/,T6,A,T41,A40,/,/,T25,A))")&
+      WRITE (UNIT=output_unit,FMT="(/,T6,A,T41,A40,/,/,T25,A)")&
         "GTO basis set information for",TRIM(gto_basis_set%name),&
         "Set   Shell     n   l            Exponent    Coefficient"
 

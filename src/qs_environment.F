@@ -903,7 +903,7 @@ CONTAINS
                "- Local part of the GTH pseudopotential:     ",maxlppl,&
                "- Non-local part of the GTH pseudopotential: ",maxlppnl
        ELSE
-          WRITE (UNIT=output_unit,FMT="(/,T3,A,T75,I6))")&
+          WRITE (UNIT=output_unit,FMT="(/,T3,A,T75,I6)")&
                "Maximum angular momentum of the orbital basis functions: ",maxlgto
        END IF
 
