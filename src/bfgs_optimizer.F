@@ -94,7 +94,7 @@ CONTAINS
     CHARACTER(LEN=80)                        :: title
     INTEGER :: atom, dataunit, handle, hesunit, i, iatom, ihandle, ikind, &
       indf, istat, it, j, maxiter, natom, ndf, nfixed, nfree, nkind, &
-      output_unit
+      output_unit, traj_unit
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: conv, hesrest, ionode, &
                                                 should_stop
@@ -216,6 +216,28 @@ CONTAINS
        CALL external_control(should_stop,"GEO",globenv,error)
        IF(should_stop) EXIT
        CALL write_restart(force_env=force_env,globenv=globenv,force_env_section=force_env_section)
+
+       IF (ionode) THEN
+         traj_unit = cp_print_key_unit_nr(logger,globenv%input_file,&
+                                          "MOTION%PRINT%TRAJECTORY",&
+                                          extension=".xyz",&
+                                          error=error)
+         IF (traj_unit > 0) THEN
+           CALL force_env_get(force_env,&
+                              cell=cell,&
+                              subsys=subsys)
+           CALL cp_subsys_get(subsys=subsys(1)%subsys,&
+                              particles=particles)
+           particle_set => particles%els
+           WRITE (UNIT=title,FMT="(A,I8,A,F20.10)") " i =",it,", E =",etot
+           CALL write_particle_coordinates(particle_set,cell,traj_unit,&
+                                           dump_xmol,"POS",TRIM(title))
+           CALL m_flush(traj_unit)
+         END IF
+         CALL cp_print_key_finished_output(traj_unit,logger,globenv%input_file,&
+                                           "MOTION%PRINT%TRAJECTORY",error=error)
+         CALL write_qs_particle_coordinates(particle_set,cell,force_env_section,error)
+       END IF
 
        IF (output_unit>0)THEN
           WRITE(UNIT=output_unit,FMT="(/,T2,26('-'))")
