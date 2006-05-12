@@ -3035,7 +3035,6 @@ END SUBROUTINE potential_nonbond
     REAL(KIND=dp)                            :: qi, qj, rab2, rab2_max
     REAL(KIND=dp), DIMENSION(3)              :: r, rab, rb, sab, sab_max, sb, &
                                                 sb_max, sb_min, sb_pbc
-    INTEGER :: i01, i02
 
     CALL timeset(routineN,"I","",handle)
    
@@ -3140,9 +3139,7 @@ END SUBROUTINE potential_nonbond
                         IF (rab2 > 1.0E-6_dp) THEN
                           CALL real_to_scaled(sab,rab(:),cell)
                           exclude_flag = .FALSE.
-                          i01 = particle_set(atom_a)%list_exclude_vdw_index(jkind-1)+1
-                          i02 = particle_set(atom_a)%list_exclude_vdw_index(jkind)
-                          IF (ANY(particle_set(atom_a)%list_exclude_vdw(i01:i02)== atom_b))&
+                          IF (ANY(particle_set(atom_a)%list_exclude_vdw== atom_b))&
                                exclude_flag = .TRUE.
                           IF (.NOT.exclude_flag ) THEN
                             SELECT CASE ( potparm %pot( ikind, jkind )%pot % type )

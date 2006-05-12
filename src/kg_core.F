@@ -112,7 +112,6 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(subcell_type), DIMENSION(:, :, :), &
       POINTER                                :: subcell
-    INTEGER :: i01, i02
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
@@ -397,15 +396,10 @@ CONTAINS
                     ! Check for exclusion
 
                     IF(atom_a /= atom_b) THEN
-                      loop_out: DO kkind=1,nkind
-                         i01  = particle_set(atom_b)%list_exclude_ei_index(kkind-1)+1
-                         i02  = particle_set(atom_b)%list_exclude_ei_index(kkind)
-                         IF (ANY(particle_set(atom_b)%list_exclude_ei(i01:i02)==atom_a)&
-                              .AND.cell000) THEN
-                            include_ab = .FALSE.
-                            EXIT loop_out
-                         END IF
-                      END DO loop_out
+                       IF (ANY(particle_set(atom_b)%list_exclude_ei==atom_a)&
+                            .AND.cell000) THEN
+                          include_ab = .FALSE.
+                       END IF
                     END IF
                     IF (include_ab) THEN
                       rab(:) = rb(:) - atom(ikind)%r_pbc(:,iatom)
@@ -538,15 +532,10 @@ CONTAINS
                           ! Check for exclusion
 
                           IF(atom_a /= atom_b) THEN
-                             loop_out2: DO kkind=1,nkind
-                                i01  = particle_set(atom_b)%list_exclude_ei_index(kkind-1)+1
-                                i02  = particle_set(atom_b)%list_exclude_ei_index(kkind)
-                                IF (ANY(particle_set(atom_b)%list_exclude_ei(i01:i02)==atom_a)&
-                                     .AND.cell000) THEN
-                                   include_ab = .FALSE.
-                                   EXIT loop_out2
-                                END IF
-                             END DO loop_out2
+                             IF (ANY(particle_set(atom_b)%list_exclude_ei==atom_a)&
+                                  .AND.cell000) THEN
+                                include_ab = .FALSE.
+                             END IF
                           END IF
                           IF (include_ab) THEN
                             rab(:) = rb(:) - atom(ikind)%r_pbc(:,iatom)

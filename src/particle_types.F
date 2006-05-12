@@ -77,9 +77,7 @@ MODULE particle_types
   ! Data types
   TYPE particle_type
      INTEGER, POINTER, DIMENSION(:)        :: list_exclude_vdw
-     INTEGER, POINTER, DIMENSION(:)        :: list_exclude_vdw_index
      INTEGER, POINTER, DIMENSION(:)        :: list_exclude_ei
-     INTEGER, POINTER, DIMENSION(:)        :: list_exclude_ei_index
      TYPE(atomic_kind_type), POINTER       :: atomic_kind ! atomic kind information
      REAL(KIND = dp), DIMENSION(3)         :: f,&         ! force
                                               r,&         ! position
@@ -150,15 +148,11 @@ SUBROUTINE clone_particle(p_in,p_out,nullify_non_owned_pointers,error)
 
   NULLIFY(p_out%atomic_kind)
   NULLIFY(p_out%list_exclude_vdw)
-  NULLIFY(p_out%list_exclude_vdw_index)
   NULLIFY(p_out%list_exclude_ei)
-  NULLIFY(p_out%list_exclude_ei_index)
   IF (.NOT.nullify_non_owned_pointers) THEN
      p_out%atomic_kind => p_in%atomic_kind
      p_out%list_exclude_vdw => p_in%list_exclude_vdw
-     p_out%list_exclude_vdw_index => p_in%list_exclude_vdw_index
      p_out%list_exclude_ei => p_in%list_exclude_ei
-     p_out%list_exclude_ei_index => p_in%list_exclude_ei_index
   END IF
   p_out%r=p_in%r
   p_out%f=p_in%f
@@ -196,9 +190,7 @@ END SUBROUTINE clone_particle
     DO iparticle=1,nparticle
       NULLIFY (particle_set(iparticle)%atomic_kind)
       NULLIFY (particle_set(iparticle)%list_exclude_vdw)
-      NULLIFY (particle_set(iparticle)%list_exclude_vdw_index)
       NULLIFY (particle_set(iparticle)%list_exclude_ei)
-      NULLIFY (particle_set(iparticle)%list_exclude_ei_index)
       particle_set(iparticle)%f(:) = 0.0_dp
       particle_set(iparticle)%r(:) = 0.0_dp
       particle_set(iparticle)%v(:) = 0.0_dp
@@ -250,37 +242,14 @@ END SUBROUTINE clone_particle
                NULLIFY(particle_set(iparticle)%list_exclude_ei)
             END IF
          END IF
-         IF (ASSOCIATED(particle_set(iparticle)%list_exclude_vdw_index,&
-                        particle_set(iparticle)%list_exclude_ei_index)) THEN
-            DEALLOCATE(particle_set(iparticle)%list_exclude_vdw_index,STAT=istat)
-            IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                 "particle_set(iparticle)%list_exclude_vdw_index")
-            NULLIFY(particle_set(iparticle)%list_exclude_vdw_index,&
-                    particle_set(iparticle)%list_exclude_ei_index)
-         ELSE
-            IF (ASSOCIATED(particle_set(iparticle)%list_exclude_vdw_index)) THEN
-               DEALLOCATE(particle_set(iparticle)%list_exclude_vdw_index,STAT=istat)
-               IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                    "particle_set(iparticle)%list_exclude_vdw_index")
-               NULLIFY(particle_set(iparticle)%list_exclude_vdw_index)
-            END IF
-            IF (ASSOCIATED(particle_set(iparticle)%list_exclude_ei_index)) THEN
-               DEALLOCATE(particle_set(iparticle)%list_exclude_ei_index,STAT=istat)
-               IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                    "particle_set(iparticle)%list_exclude_ei_index")
-               NULLIFY(particle_set(iparticle)%list_exclude_ei_index)
-            END IF
-         END IF
       END DO
       DEALLOCATE (particle_set,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                        "particle_set")
     ELSE
-
       CALL stop_program(routineN,moduleN,__LINE__,&
                         "The pointer particle_set is not associated and "//&
                         "cannot be deallocated")
-
     END IF
 
   END SUBROUTINE deallocate_particle_set

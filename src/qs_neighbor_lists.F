@@ -1830,7 +1830,6 @@ CONTAINS
     TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set
     TYPE(subcell_type), DIMENSION(:, :, :), &
       POINTER                                :: subcell
-    INTEGER :: i01, i02
 
     CALL timeset(routineN,"I"," ",handle)
 
@@ -1989,18 +1988,13 @@ CONTAINS
                     !MK: That is not needed for QS, but most likely for KG
 
                     IF (PRESENT(particle_set)) THEN
-                       loop_out1: DO jkind = 1,nkind
-                          i01  = particle_set(atom_a)%list_exclude_ei_index(jkind-1)+1
-                          i02  = particle_set(atom_a)%list_exclude_ei_index(jkind)
-                          IF (ANY(particle_set(atom_a)%list_exclude_ei(i01:i02)==atom_c)&
-                               .AND.cell000) THEN
-                             exclude = .TRUE.
-                             EXIT loop_out1
-                          ELSE
-                             exclude = .FALSE.
-                          END IF
-                       END DO loop_out1
-                      IF(exclude) CYCLE
+                       IF (ANY(particle_set(atom_a)%list_exclude_ei==atom_c)&
+                            .AND.cell000) THEN
+                          exclude = .TRUE.
+                       ELSE
+                          exclude = .FALSE.
+                       END IF
+                       IF(exclude) CYCLE
                     END IF
 
                     rac(:) = rc(:) - atom(ikind)%r_pbc(:,iatom)
@@ -2118,18 +2112,13 @@ CONTAINS
                           !MK: That is not needed for QS, but most likely for KG
 
                           IF (PRESENT(particle_set)) THEN
-                             loop_out2: DO jkind = 1,nkind
-                                i01  = particle_set(atom_a)%list_exclude_ei_index(jkind-1)+1
-                                i02  = particle_set(atom_a)%list_exclude_ei_index(jkind)
-                                IF (ANY(particle_set(atom_a)%list_exclude_ei(i01:i02)==atom_c)&
-                                     .AND.cell000) THEN
-                                   exclude = .TRUE.
-                                   EXIT loop_out2
-                                ELSE
-                                   exclude = .FALSE.
-                                END IF
-                             END DO loop_out2
-                            IF (exclude) CYCLE
+                             IF (ANY(particle_set(atom_a)%list_exclude_ei==atom_c)&
+                                  .AND.cell000) THEN
+                                exclude = .TRUE.
+                             ELSE
+                                exclude = .FALSE.
+                             END IF
+                             IF (exclude) CYCLE
                           END IF
 
                           rac(:) = rc(:) - atom(ikind)%r_pbc(:,iatom)

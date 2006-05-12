@@ -503,47 +503,46 @@ END SUBROUTINE get_force_eam
 !******************************************************************************
 
 SUBROUTINE bonded_correct_gaussian ( atomic_kind_set, local_particles, &
-                                     particle_set, ewald_env, &
-                                     v_bonded_corr, pv_bc )
+     particle_set, ewald_env, &
+     v_bonded_corr, pv_bc )
 
 
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
-    TYPE(distribution_1d_type), POINTER      :: local_particles
-    TYPE(particle_type), POINTER             :: particle_set( : )
-    TYPE(ewald_environment_type), POINTER    :: ewald_env
-    REAL(KIND=dp), INTENT(OUT)               :: v_bonded_corr
-    REAL(KIND=dp), DIMENSION(:, :), &
-      INTENT(OUT)                            :: pv_bc
+  TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
+  TYPE(distribution_1d_type), POINTER      :: local_particles
+  TYPE(particle_type), POINTER             :: particle_set( : )
+  TYPE(ewald_environment_type), POINTER    :: ewald_env
+  REAL(KIND=dp), INTENT(OUT)               :: v_bonded_corr
+  REAL(KIND=dp), DIMENSION(:, :), &
+       INTENT(OUT)                            :: pv_bc
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'bonded_correct_gaussian'
+  CHARACTER(LEN=*), PARAMETER              :: routineN = 'bonded_correct_gaussian'
 
-    REAL(KIND=dp), PARAMETER :: ac1 = 0.254829592_dp, ac2 = -0.284496736_dp, &
-      ac3 = 1.421413741_dp, ac4 = -1.453152027_dp, ac5 = 1.061405429_dp, &
-      pc = 0.3275911_dp
+  REAL(KIND=dp), PARAMETER :: ac1 = 0.254829592_dp, ac2 = -0.284496736_dp, &
+       ac3 = 1.421413741_dp, ac4 = -1.453152027_dp, ac5 = 1.061405429_dp, &
+       pc = 0.3275911_dp
 
-    INTEGER                                  :: group, handle, i, iatom, &
-                                                iexl, ikind, j, jkind, &
-                                                natoms_per_kind, nexl, nkind
-    REAL(KIND=dp)                            :: alpha, arg, const, dij, &
-                                                e_arg_arg, eps0, errf, flops, &
-                                                fscalar, idij, ifourpieps0, &
-                                                qi, qj, rijsq, tc
-    REAL(KIND=dp), DIMENSION(3)              :: ri, rij, rj
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    INTEGER :: i01, i02
+  INTEGER                                  :: group, handle, i, iatom, &
+       iexl, ikind, j, jkind, &
+       natoms_per_kind, nexl, nkind
+  REAL(KIND=dp)                            :: alpha, arg, const, dij, &
+       e_arg_arg, eps0, errf, flops, &
+       fscalar, idij, ifourpieps0, &
+       qi, qj, rijsq, tc
+  REAL(KIND=dp), DIMENSION(3)              :: ri, rij, rj
+  TYPE(atomic_kind_type), POINTER          :: atomic_kind
 
-! parameters for the numerical erf in Abramowitz and Stegun Eq. 7.1.26 pg 299
-!------------------------------------------------------------------------------
+  ! parameters for the numerical erf in Abramowitz and Stegun Eq. 7.1.26 pg 299
+  !------------------------------------------------------------------------------
 
   CALL timeset ( routineN, 'I', 'Mflops', handle )
   flops = 0.0_dp
 
-! defining the constants
+  ! defining the constants
   pv_bc = 0.0_dp
   v_bonded_corr = 0.0_dp
 
-!
-!
+  !
+  !
   CALL ewald_env_get ( ewald_env, eps0 = eps0, alpha = alpha, group = group )
   const = 2.0_dp * alpha / SQRT( pi )
   ifourpieps0 = 1.0_dp / ( 4.0_dp * pi * eps0 )
@@ -552,16 +551,12 @@ SUBROUTINE bonded_correct_gaussian ( atomic_kind_set, local_particles, &
   DO ikind = 1, nkind
      natoms_per_kind = local_particles % n_el ( ikind )
      DO iatom = 1, natoms_per_kind
-       i = local_particles % list ( ikind ) % array ( iatom )
-       atomic_kind => particle_set ( i ) % atomic_kind
-       ri ( : ) = particle_set ( i ) % r ( : )
-       CALL get_atomic_kind ( atomic_kind,qeff = qi )
-       DO jkind = 1, nkind
-          i01 = particle_set(i)%list_exclude_ei_index(jkind-1)
-          i02 = particle_set(i)%list_exclude_ei_index(jkind)
-          nexl = i02-i01
-          DO iexl = 1, nexl
-           j = particle_set(i)%list_exclude_ei(i01+iexl)
+        i = local_particles % list ( ikind ) % array ( iatom )
+        atomic_kind => particle_set ( i ) % atomic_kind
+        ri ( : ) = particle_set ( i ) % r ( : )
+        CALL get_atomic_kind ( atomic_kind,qeff = qi )
+        DO iexl = 1, SIZE(particle_set(i)%list_exclude_ei)
+           j = particle_set(i)%list_exclude_ei(iexl)
            IF ( j==i ) CYCLE
            atomic_kind => particle_set ( j ) % atomic_kind
            rj ( : ) = particle_set ( j ) % r ( : )
@@ -576,14 +571,14 @@ SUBROUTINE bonded_correct_gaussian ( atomic_kind_set, local_particles, &
            e_arg_arg = EXP ( -arg ** 2 )
            tc = 1.0_dp / ( 1.0_dp + pc * arg )
 
-! defining errf=1-erfc
+           ! defining errf=1-erfc
            errf = 1.0_dp &
                 - ((((ac5*tc+ac4)*tc+ac3)*tc+ac2)*tc+ac1) * tc * e_arg_arg
 
-! getting the potential
+           ! getting the potential
            v_bonded_corr = v_bonded_corr - qi*qj*idij*errf
 
-! subtracting the force from the total force
+           ! subtracting the force from the total force
            fscalar = ifourpieps0 * qi * qj * idij ** 2 &
                 * ( idij * errf - const * e_arg_arg  )
 
@@ -602,12 +597,11 @@ SUBROUTINE bonded_correct_gaussian ( atomic_kind_set, local_particles, &
            pv_bc(3,3) = pv_bc(3,3) - fscalar * rij(3) * particle_set ( i ) % r(3)
 
            flops = flops + 62.0_dp
-         ENDDO
-       ENDDO
+        ENDDO
      ENDDO
-   ENDDO
+  ENDDO
 
-! the factor of 1/2 comes from double counting in the exclusion list
+  ! the factor of 1/2 comes from double counting in the exclusion list
   v_bonded_corr = v_bonded_corr * ifourpieps0 * 0.5_dp
   CALL mp_sum ( v_bonded_corr, group )
 

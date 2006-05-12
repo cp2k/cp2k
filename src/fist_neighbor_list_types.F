@@ -236,7 +236,7 @@ CONTAINS
     TYPE(neighbor_list_type), POINTER        :: neighbor_list
     INTEGER, INTENT(IN)                      :: neighbor
     REAL(dp), DIMENSION(3), INTENT(IN)       :: r
-    INTEGER, DIMENSION(:), INTENT(IN)        :: exclusion_list
+    INTEGER, DIMENSION(:), POINTER           :: exclusion_list
     LOGICAL, INTENT(out)                     :: added
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'add_neighbor_node'

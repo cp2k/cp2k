@@ -77,7 +77,7 @@ CONTAINS
 
     INTEGER :: atom_a, atom_b, group, handle, i, iatom, iexl, ikind, ipgf, &
       iset, ishell, istat, j, jkind, jpgf, jset, jshell, nexl, nkind, npart, &
-      nparticle_local, nseta, nsetb, output_unit, i01, i02
+      nparticle_local, nseta, nsetb, output_unit
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
     INTEGER, DIMENSION(:), POINTER           :: list, npgfa, npgfb, nshella, &
                                                 nshellb
@@ -151,16 +151,13 @@ CONTAINS
         i = local_particles % list ( ikind ) % array ( iatom )
         atom_a=atom_of_kind(i)
         ri ( : ) = particle_set ( i ) % r ( : )
-        DO jkind = 1, nkind
-          i01 = particle_set(i)%list_exclude_ei_index(jkind-1)
-          i02 = particle_set(i)%list_exclude_ei_index(jkind)
-          nexl = i02-i01
-          DO iexl = 1, nexl
-            j =  particle_set(i)%list_exclude_ei(i01+iexl)
+          DO iexl = 1, size(particle_set(i)%list_exclude_ei)
+            j =  particle_set(i)%list_exclude_ei(iexl)
             IF ( j==i ) CYCLE
             rj ( : ) = particle_set ( j ) % r ( : )
             atom_b=atom_of_kind(j)
-            atomic_kind => atomic_kind_set(jkind)
+            atomic_kind => particle_set ( j ) % atomic_kind
+            jkind = atomic_kind%kind_number
             rij(1) = ri(1) - rj(1)
             rij(2) = ri(2) - rj(2)
             rij(3) = ri(3) - rj(3)
@@ -239,7 +236,6 @@ CONTAINS
               END DO
             END DO
           END DO
-        END DO
       END DO
     END DO
 

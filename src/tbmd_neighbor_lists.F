@@ -562,7 +562,7 @@ CONTAINS
     CHARACTER(LEN=8)                         :: unit_of_length_name
     INTEGER :: atom_a, atom_b, handle, i, iab, iatom, iatom_local, &
       iatom_subcell, icell, ikind, istat, j, jatom_local, jcell, jkind, k, &
-      kcell, natom_local_a, natom_local_b, nkind, i01, i02
+      kcell, natom_local_a, natom_local_b, nkind
     INTEGER, DIMENSION(3)                    :: cell_a, cell_b, ncell, &
                                                 nsubcell, periodic
     LOGICAL                                  :: cell000, include_ab
@@ -755,13 +755,11 @@ CONTAINS
                       rab(:) = rb(:) - atom(ikind)%r_pbc(:,iatom)
                       rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
                       IF (rab2 < rab2_max) THEN
-                         i01 = particle_set(atom_a)%list_exclude_vdw_index(jkind-1)+1
-                         i02 = particle_set(atom_a)%list_exclude_vdw_index(jkind)
                          CALL real_to_scaled(sab,rab(:),cell)
                          CALL add_neighbor_node(&
                               neighbor_list=kind_a(iatom_local)%neighbor_list, &
                               neighbor=atom_b, r=sab, &   ! r=rab
-                              exclusion_list = particle_set(atom_a)%list_exclude_vdw(i01:i02),&
+                              exclusion_list = particle_set(atom_a)%list_exclude_vdw,&
                               added=dum)
                       END IF
                     END IF
@@ -884,13 +882,11 @@ CONTAINS
                             rab(:) = rb(:) - atom(ikind)%r_pbc(:,iatom)
                             rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
                             IF (rab2 < rab2_max) THEN
-                               i01 = particle_set(atom_a)%list_exclude_vdw_index(jkind-1)+1
-                               i02 = particle_set(atom_a)%list_exclude_vdw_index(jkind)
                                CALL real_to_scaled(sab,rab,cell)
                                CALL add_neighbor_node(&
                                     neighbor_list=kind_a(iatom_local)%neighbor_list, &
                                     neighbor=atom_b, r=sab, &   ! r=rab
-                                    exclusion_list=particle_set(atom_a)%list_exclude_vdw(i01:i02),&
+                                    exclusion_list=particle_set(atom_a)%list_exclude_vdw,&
                                     added=dum)
                             END IF
                           END IF
