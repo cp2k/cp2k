@@ -89,6 +89,9 @@ MODULE topology_util
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'topology_util'
 
+  TYPE atom_bond_list_type
+     INTEGER, POINTER, DIMENSION(:) :: bonds => NULL()
+  END TYPE atom_bond_list_type
 
   PRIVATE
   PUBLIC :: topology_set_atm_mass,&
@@ -105,7 +108,7 @@ MODULE topology_util
             topology_generate_ub,&
             topology_molecules_check,&
             check_subsys_element
-
+  
 !!*****
 !******************************************************************************
 
@@ -335,12 +338,16 @@ CONTAINS
 
     INTEGER :: atom_in_kind, atom_in_mol, first, handle, i, iatm, iatom, &
       ifirst, iiatom, iii, ilast, inum, itype, iw, j, jtype, jump1, jump2, &
-      last, max_mol_num, myind, natom, nbond, nmol, nnum, ntype, stat
-    INTEGER, DIMENSION(:), POINTER           :: checkme, qm_atom_index
+      last, max_mol_num, myind, natom, nbond, nmol, ntype, stat
+    INTEGER :: mol_typ, mol_num, mol_res
+    INTEGER, DIMENSION(:), POINTER           :: qm_atom_index
     LOGICAL                                  :: do_again, failure, my_qmmm
     TYPE(atom_info_type), POINTER            :: atom_info
     TYPE(connectivity_info_type), POINTER    :: conn_info
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(atom_bond_list_type), DIMENSION(:), ALLOCATABLE  :: atom_bond_list
+    INTEGER, POINTER, DIMENSION(:)           :: current_bonds
+    INTEGER :: N,atom_a,atom_b
 
     failure = .FALSE.
     NULLIFY(logger)
@@ -348,28 +355,18 @@ CONTAINS
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/UTIL_INFO",&
          extension=".subsysLog",error=error)    
     CALL timeset(routineN,'I','',handle)
-    NULLIFY(checkme, qm_atom_index)
+    NULLIFY(qm_atom_index)
 
     atom_info => topology%atom_info
     conn_info => topology%conn_info
-    
-    ntype = 1
-    itype = 0
-    nnum = 1
-    inum = 0
-    !
+        !
     ! QM/MM coordinate_control
     ! 
     my_qmmm = .FALSE.
     IF (PRESENT(qmmm).AND.PRESENT(qmmm_env)) my_qmmm = qmmm
     
     natom = topology%natoms
-    nbond = 0
-    IF(ASSOCIATED(conn_info%bond_a)) nbond = SIZE(conn_info%bond_a)
-    
-    ALLOCATE(checkme(natom),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    
+    stat  = 0
     IF (ASSOCIATED(atom_info%map_mol_typ)) DEALLOCATE(atom_info%map_mol_typ,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE (atom_info%map_mol_typ(natom),STAT=stat)
@@ -386,10 +383,9 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     !Zero the arrays
-    checkme(:) = 0
-    atom_info%map_mol_typ(:) = 0
-    atom_info%map_mol_num(:) = 0
-    atom_info%map_mol_res(:) = 1
+    atom_info%map_mol_typ(:) =  0
+    atom_info%map_mol_num(:) = -1
+    atom_info%map_mol_res(:) =  1
     
     !Parse the atoms list to see how many different molecule types there are
     ntype = 1
@@ -408,74 +404,94 @@ CONTAINS
        END IF
     END DO
     IF(iw>0) WRITE(iw,'(/,A)') "Start of molecule generation"
-    DO itype=1,ntype
-       !search for first atom in the type list and last to cut down time
-       CALL find_boundary(atom_info%map_mol_typ,natom,first,last,itype)
-       IF(iw>0) WRITE(iw,'(2(A,I6),A,2I6)') "molecule type: ",itype," out of : ",ntype,&
-            " boundary atoms: ",first,last
-       
-       inum = 0
-       IF (first /= last) THEN
-          DO iatom=first,last
-             checkme(:) = 0             
-             IF(atom_info%map_mol_num(iatom)==0) THEN
-                inum=inum+1
-                checkme(iatom)=1
-                DO WHILE (SUM(checkme)>0)
-                   DO iiatom=first,last
-                      IF((checkme(iiatom)==1)) THEN
-                         checkme(iiatom)=0
-                         atom_info%map_mol_num(iiatom) = inum
-                         DO iii=1,nbond
-                            IF((conn_info%bond_a(iii)==iiatom).AND.&
-                                 (atom_info%map_mol_num(conn_info%bond_b(iii))==0)) THEN 
-                               checkme(conn_info%bond_b(iii))=1
-                            END IF
-                            IF((conn_info%bond_b(iii)==iiatom).AND.&
-                                 (atom_info%map_mol_num(conn_info%bond_a(iii))==0)) THEN
-                               checkme(conn_info%bond_a(iii))=1
-                            END IF
-                         END DO
-                      END IF
-                   END DO
-                END DO
-             END IF             
-          END DO
-       ELSE          
-          atom_info%map_mol_num(first) = 1
-       END IF
-    END DO
-    IF(iw>0) WRITE(iw,'(/,A)') "End of molecule generation"
-    DEALLOCATE(checkme,STAT=stat)
+
+    ! convert a simple list of bonds to a list of bonds per atom
+    ! (each bond is present in the forward and backward direction
+    ALLOCATE(atom_bond_list(natom),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    
+    DO I=1,natom
+       ALLOCATE(atom_bond_list(I)%bonds(0),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ENDDO
+    N = 0
+    IF(ASSOCIATED(conn_info%bond_a)) N = SIZE(conn_info%bond_a)
+    DO I=1,N
+       atom_a=conn_info%bond_a(I)
+       atom_b=conn_info%bond_b(I)
+
+       current_bonds => atom_bond_list(atom_a)%bonds
+       Nbond=SIZE(current_bonds)
+       ALLOCATE(atom_bond_list(atom_a)%bonds(Nbond+1),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       atom_bond_list(atom_a)%bonds(1:Nbond) = current_bonds
+       atom_bond_list(atom_a)%bonds(Nbond+1) = atom_b
+       DEALLOCATE(current_bonds,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       
+       current_bonds => atom_bond_list(atom_b)%bonds
+       Nbond=SIZE(current_bonds)
+       ALLOCATE(atom_bond_list(atom_b)%bonds(Nbond+1),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       atom_bond_list(atom_b)%bonds(1:Nbond) = current_bonds
+       atom_bond_list(atom_b)%bonds(Nbond+1) = atom_a
+       DEALLOCATE(current_bonds,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ENDDO    
+    CALL find_molecule(atom_bond_list,atom_info%map_mol_num)   
+    DO I=1,natom
+       DEALLOCATE(atom_bond_list(I)%bonds,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ENDDO
+    DEALLOCATE(atom_bond_list,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    !
+    ! Modify according map_mol_typ the array map_mol_num
+    !
+    IF(iw>0) WRITE(iw,'(/,A)') "End of molecule generation"
+    IF(iw>0) WRITE(iw,'(/,A)') "Start of renumbering molecules"
+    mol_typ = atom_info%map_mol_typ(1)
+    mol_num = atom_info%map_mol_num(1)
+    DO i = 2, natom
+       IF (atom_info%map_mol_typ(i)/=mol_typ) THEN
+          myind   = atom_info%map_mol_num(i) - mol_num + 1
+          CPPostcondition(myind/=atom_info%map_mol_num(i-1),cp_failure_level,routineP,error,failure)
+          mol_typ = atom_info%map_mol_typ(i)
+          mol_num = atom_info%map_mol_num(i)
+       END IF
+       atom_info%map_mol_num(i) = atom_info%map_mol_num(i) - mol_num + 1
+    END DO
+    IF(iw>0) WRITE(iw,'(/,A)') "End of renumbering molecules"
+    !
+    ! Residues
+    !
+    IF(iw>0) WRITE(iw,'(/,A,L2)') "Starting PARA_RES: ",topology%para_res
     IF(topology%para_res) THEN
-       DO itype=1,ntype
-          CALL find_boundary(atom_info%map_mol_typ,natom,first,last,itype)
-          nmol = atom_info%map_mol_num(last)
-          DO jtype = 1,nmol
-             CALL find_boundary(atom_info%map_mol_typ,atom_info%map_mol_num,&
-                  natom,first,last,itype,jtype)
-             inum = 1
-             atom_info%map_mol_res(first) = inum
-             DO iatom=first+1,last
-                IF((atom_info%label_resid(iatom-1)/=atom_info%label_resid(iatom)).OR.&
-                     (atom_info%label_resname(iatom-1)/=atom_info%label_resname(iatom)))THEN
-                   inum = inum + 1
-                END IF
-                atom_info%map_mol_res(iatom) = inum
-             END DO
-          END DO
+       mol_res = 1
+       mol_typ = atom_info%map_mol_typ(1)
+       mol_num = atom_info%map_mol_num(1)
+       atom_info%map_mol_res(1) = mol_res
+       DO i = 2, natom
+          IF((atom_info%label_resid(i-1)/=atom_info%label_resid(i)).OR.&
+             (TRIM(atom_info%label_resname(i-1))/=TRIM(atom_info%label_resname(i))))THEN
+             mol_res = mol_res + 1
+          END IF
+          IF (atom_info%map_mol_typ(i)/=mol_typ.OR.atom_info%map_mol_num(i)/=mol_num) THEN
+             mol_typ = atom_info%map_mol_typ(i)
+             mol_num = atom_info%map_mol_num(i)
+             mol_res = 1
+          END IF
+          atom_info%map_mol_res(i) = mol_res
        END DO
     END IF
-    
+    IF(iw>0) WRITE(iw,'(/,A)') "End of PARA_RES"
     IF(iw>0) THEN
        DO iatom=1,natom
-          WRITE(iw,*) "      iatom,map_mol_typ,map_mol_num ",iatom,&
-               atom_info%map_mol_typ(iatom),atom_info%map_mol_num(iatom)
+          WRITE(iw,'(4(A," : ",I7))') "iatom",iatom,&
+                                      "map_mol_typ",atom_info%map_mol_typ(iatom),&
+                                      "map_mol_num",atom_info%map_mol_num(iatom),&
+                                      "map_mol_res",atom_info%map_mol_res(iatom)
        END DO
     END IF
-
     IF (my_qmmm) THEN
        do_again = .FALSE.
        IF (iw>0) WRITE(iw,*)"MAP_MOL_NUM ",atom_info%map_mol_num
@@ -595,7 +611,78 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE topology_generate_molecule
 
-!
+!******************************************************************************
+!!****** topology_util [1.0] *
+!!
+!!   NAME
+!!     find_molecule
+!!
+!!   SYNOPSIS
+!!
+!!   FUNCTION
+!!     each atom will be assigned a molecule number based on bonded fragments
+!!
+!!   AUTHOR
+!!     Joost 05.2006
+!!
+!!   MODIFICATION HISTORY
+!!
+!!
+!!   SOURCE
+!******************************************************************************
+  SUBROUTINE find_molecule(atom_bond_list,mol_info)
+    IMPLICIT NONE
+    TYPE(atom_bond_list_type), DIMENSION(:), INTENT(IN) :: atom_bond_list
+    INTEGER, DIMENSION(:), POINTER                      :: mol_info
+    
+    INTEGER :: I,N,nmol
+    
+    N=SIZE(atom_bond_list)
+    nmol=0
+    DO I=1,N
+       IF (mol_info(I)==-1) THEN
+          nmol=nmol+1
+          CALL spread_mol(atom_bond_list,mol_info,i,nmol)
+       ENDIF
+    ENDDO
+  END SUBROUTINE find_molecule
+
+!******************************************************************************
+!!****** topology_util [1.0] *
+!!
+!!   NAME
+!!     spread_mol
+!!
+!!   SYNOPSIS
+!!
+!!   FUNCTION
+!!     spreads the molnumber over the bonded list
+!!
+!!   AUTHOR
+!!     Joost 05.2006
+!!
+!!   MODIFICATION HISTORY
+!!
+!!
+!!   SOURCE
+!******************************************************************************
+  RECURSIVE SUBROUTINE spread_mol(atom_bond_list,mol_info,iatom,imol)
+    IMPLICIT NONE
+    TYPE(atom_bond_list_type), DIMENSION(:), INTENT(IN) :: atom_bond_list
+    INTEGER, DIMENSION(:), POINTER         :: mol_info
+    INTEGER, INTENT(IN) :: iatom,imol
+    
+    INTEGER :: i,atom_b
+    
+    mol_info(iatom)=imol
+    DO I=1,SIZE(atom_bond_list(iatom)%bonds)
+       atom_b=atom_bond_list(iatom)%bonds(I)
+       IF (mol_info(atom_b)==-1) &
+            CALL spread_mol(atom_bond_list,mol_info,atom_b,imol)
+       IF (mol_info(atom_b)/=imol) STOP "internal error"
+    ENDDO
+  END SUBROUTINE spread_mol
+ 
 !******************************************************************************
 !!****** topology_util [1.0] *
 !!
