@@ -499,7 +499,7 @@ SUBROUTINE get_center ( part, box, centre, npts, n )
 
     TYPE(particle_type), DIMENSION(:), &
       INTENT(IN)                             :: part
-    TYPE(cell_type), INTENT(IN)              :: box
+    TYPE(cell_type), POINTER                 :: box
     INTEGER, DIMENSION(:, :), INTENT(OUT)    :: centre
     INTEGER, DIMENSION(:), INTENT(IN)        :: npts
     INTEGER, INTENT(IN)                      :: n
@@ -514,7 +514,7 @@ SUBROUTINE get_center ( part, box, centre, npts, n )
   rmp = REAL ( mp,KIND=dp)
   DO ipart = 1, SIZE ( part )
     ! compute the scaled coordinate of atomi
-    s = MATMUL ( box % h_inv, part ( ipart ) % r )
+    CALL real_to_scaled(s,part(ipart)%r,box)
     s = s - NINT ( s )
     gp = REAL ( npts,KIND=dp) * s
     ! find the closest grid point (on big grid)
