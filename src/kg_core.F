@@ -1,3 +1,4 @@
+
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2000 - 2006  CP2K developers group                          !
@@ -111,8 +112,7 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(subcell_type), DIMENSION(:, :, :), &
       POINTER                                :: subcell
-
-! -------------------------------------------------------------------------
+    INTEGER :: i01, i02
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
@@ -398,18 +398,15 @@ CONTAINS
 
                     IF(atom_a /= atom_b) THEN
                       loop_out: DO kkind=1,nkind
-                        list => particle_set(atom_b)%lpi%exclusion(kkind)%list_ei
-                        IF (.NOT.ASSOCIATED(list)) CYCLE
-                        nexl = SIZE(list)
-                        loop_in: DO iexl=1,nexl
-                          IF ((list(iexl)==atom_a).AND.cell000) THEN
+                         i01  = particle_set(atom_b)%list_exclude_ei_index(kkind-1)+1
+                         i02  = particle_set(atom_b)%list_exclude_ei_index(kkind)
+                         IF (ANY(particle_set(atom_b)%list_exclude_ei(i01:i02)==atom_a)&
+                              .AND.cell000) THEN
                             include_ab = .FALSE.
                             EXIT loop_out
-                          END IF
-                        END DO loop_in
+                         END IF
                       END DO loop_out
                     END IF
-
                     IF (include_ab) THEN
                       rab(:) = rb(:) - atom(ikind)%r_pbc(:,iatom)
                       rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
@@ -431,7 +428,6 @@ CONTAINS
                 END DO loop1_icell
               END DO loop1_jcell
             END DO loop1_kcell
-
           END DO
 
         ELSE
@@ -542,17 +538,15 @@ CONTAINS
                           ! Check for exclusion
 
                           IF(atom_a /= atom_b) THEN
-                            loop_out2: DO kkind=1,nkind
-                              list => particle_set(atom_b)%lpi%exclusion(kkind)%list_ei
-                              IF (.NOT.ASSOCIATED(list)) CYCLE
-                              nexl = SIZE(list)
-                              loop_in2: DO iexl=1,nexl
-                                IF ((list(iexl)==atom_a).AND.cell000) THEN
-                                  include_ab = .FALSE.
-                                  EXIT loop_out2
+                             loop_out2: DO kkind=1,nkind
+                                i01  = particle_set(atom_b)%list_exclude_ei_index(kkind-1)+1
+                                i02  = particle_set(atom_b)%list_exclude_ei_index(kkind)
+                                IF (ANY(particle_set(atom_b)%list_exclude_ei(i01:i02)==atom_a)&
+                                     .AND.cell000) THEN
+                                   include_ab = .FALSE.
+                                   EXIT loop_out2
                                 END IF
-                              END DO loop_in2
-                            END DO loop_out2
+                             END DO loop_out2
                           END IF
                           IF (include_ab) THEN
                             rab(:) = rb(:) - atom(ikind)%r_pbc(:,iatom)

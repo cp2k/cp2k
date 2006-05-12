@@ -236,7 +236,7 @@ CONTAINS
     TYPE(neighbor_list_type), POINTER        :: neighbor_list
     INTEGER, INTENT(IN)                      :: neighbor
     REAL(dp), DIMENSION(3), INTENT(IN)       :: r
-    INTEGER, DIMENSION(:),  POINTER          :: exclusion_list
+    INTEGER, DIMENSION(:), INTENT(IN)        :: exclusion_list
     LOGICAL, INTENT(out)                     :: added
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'add_neighbor_node'
@@ -249,7 +249,7 @@ CONTAINS
 
     !     *** Check for exclusions ***
 
-    IF ( ASSOCIATED ( exclusion_list ) ) THEN
+    IF ( SIZE(exclusion_list) > 0 ) THEN
        IF (ANY(exclusion_list==neighbor)) THEN 
           added = .FALSE.
           RETURN

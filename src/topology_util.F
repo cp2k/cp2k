@@ -2499,14 +2499,16 @@ CONTAINS
        END IF
        particle_set(i)%atomic_kind => atomic_kind_set(ikind)
        particle_set(i)%r(:) = atom_info%r(:,i)
-       NULLIFY(particle_set(i)%lpi)
-       ALLOCATE(particle_set(i)%lpi)
-       NULLIFY(particle_set(i)%lpi%exclusion)
-       ALLOCATE(particle_set(i)%lpi%exclusion(SIZE(atomic_kind_set)))
-       DO k=1,SIZE(atomic_kind_set)
-          NULLIFY(particle_set(i)%lpi%exclusion(k)%list_vdw)
-          NULLIFY(particle_set(i)%lpi%exclusion(k)%list_ei)
-       END DO
+       NULLIFY(particle_set(i)%list_exclude_vdw)
+       NULLIFY(particle_set(i)%list_exclude_ei)
+       NULLIFY(particle_set(i)%list_exclude_vdw_index)
+       NULLIFY(particle_set(i)%list_exclude_ei_index)
+       ALLOCATE(particle_set(i)%list_exclude_vdw_index(0:SIZE(atomic_kind_set)),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       IF(topology%exclude_vdw/=topology%exclude_ei) THEN
+          ALLOCATE(particle_set(i)%list_exclude_ei_index(0:SIZE(atomic_kind_set)),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)          
+       END IF
     END DO
     DEALLOCATE(kind_of,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -2515,8 +2517,8 @@ CONTAINS
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
-    ! 8. Fill in the particle_set%lpi%exclusion%list_vdw
-    ! 9. Fill in the particle_set%lpi%exclusion%list_ei (if required)
+    ! 8. Fill in the particle_set%list_exclude_vdw and their index arrays
+    ! 9. Fill in the particle_set%list_exclude_ei and their index arrays
     !-----------------------------------------------------------------------------
     CALL timeset(routineN//'_89',handle2)
     ALLOCATE(atomkind(SIZE(particle_set)),STAT=stat)
@@ -2705,20 +2707,24 @@ CONTAINS
                 END DO
              END IF
           END IF
-
+          
+          ! VDW exclude_list
+          counter = 0
+          particle_set(iatom)%list_exclude_vdw_index(0)=0
           DO j=1,SIZE(atomic_kind_set)
-             counter = 0
-             NULLIFY(list)
              DO k=1,SIZE(atomic_kind_set(j)%atom_list)
                 kk = atomic_kind_set(j)%atom_list(k)
                 IF(.NOT.atomlist(kk)) THEN
                    counter = counter + 1
                 END IF
              END DO
-             IF (counter>0) THEN
-                ALLOCATE(list(counter),stat=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-                counter = 0
+             particle_set(iatom)%list_exclude_vdw_index(j)=counter
+          END DO
+          IF (counter>0) THEN
+             ALLOCATE(list(counter),stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)          
+             counter = 0
+             DO j=1,SIZE(atomic_kind_set)
                 DO k=1,SIZE(atomic_kind_set(j)%atom_list)
                    kk = atomic_kind_set(j)%atom_list(k)
                    IF(.NOT.atomlist(kk)) THEN
@@ -2726,25 +2732,34 @@ CONTAINS
                       list(counter) = kk
                    END IF
                 END DO
-                particle_set(iatom)%lpi%exclusion(j)%list_vdw => list
+             END DO
+             particle_set(iatom)%list_exclude_vdw => list
+          END IF
+          NULLIFY(list2)
+          IF(topology%exclude_vdw==topology%exclude_ei) THEN
+             IF(counter > 0) THEN
+                list2 => list
+                particle_set(iatom)%list_exclude_ei_index => &
+                     particle_set(iatom)%list_exclude_vdw_index
              END IF
-             NULLIFY(list2)
-             IF(topology%exclude_vdw==topology%exclude_ei) THEN
-                IF(counter > 0) THEN
-                   list2 => list
-                END IF
-             ELSE
-                counter = 0
+          ELSE
+             ! EI
+             counter = 0
+             particle_set(iatom)%list_exclude_ei_index(0)=0
+             DO j=1,SIZE(atomic_kind_set)
                 DO k=1,SIZE(atomic_kind_set(j)%atom_list)
                    kk = atomic_kind_set(j)%atom_list(k)
                    IF(.NOT.atomlist_ei(kk)) THEN
                       counter = counter + 1
                    END IF
                 END DO
-                IF (counter>0) THEN
-                   ALLOCATE(list2(counter),stat=stat)
-                   CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-                   counter = 0
+                particle_set(iatom)%list_exclude_ei_index(j)=counter
+             END DO
+             IF (counter>0) THEN
+                ALLOCATE(list2(counter),stat=stat)
+                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)          
+                counter = 0
+                DO j=1,SIZE(atomic_kind_set)
                    DO k=1,SIZE(atomic_kind_set(j)%atom_list)
                       kk = atomic_kind_set(j)%atom_list(k)
                       IF(.NOT.atomlist_ei(kk)) THEN
@@ -2752,24 +2767,24 @@ CONTAINS
                          list2(counter) = kk
                       END IF
                    END DO
-                END IF
+                END DO
              END IF
-             IF (counter>0) THEN
-                particle_set(iatom)%lpi%exclusion(j)%list_ei => list2
+          END IF
+          IF (counter>0) THEN
+             particle_set(iatom)%list_exclude_ei => list2
+          END IF
+          IF (iw>0) THEN 
+             IF (ASSOCIATED(list)) &
+                  WRITE(iw,*)"exclusion list_vdw :: ",&
+                  "atom num :",iatom,"exclusion list ::",&
+                  list," index list",particle_set(iatom)%list_exclude_vdw_index
+             IF(topology%exclude_vdw/=topology%exclude_ei) THEN
+                IF (ASSOCIATED(list2)) &
+                     WRITE(iw,*)"exclusion list_ei :: ",&
+                     "atom num :",iatom,"exclusion list ::",&
+                     list2," index list",particle_set(iatom)%list_exclude_ei_index
              END IF
-             IF (iw>0) THEN 
-                IF (ASSOCIATED(list)) &
-                     WRITE(iw,*)"exclusion list_vdw :: ",&
-                     "atom num :",iatom,"kind num. :",j,"exclusion list ::",&
-                     list
-                IF(topology%exclude_vdw/=topology%exclude_ei) THEN
-                   IF (ASSOCIATED(list2)) &
-                        WRITE(iw,*)"exclusion list_ei :: ",&
-                        "atom num :",iatom,"kind num. :",j,"exclusion list ::",&
-                        list2
-                END IF
-             END IF
-          END DO
+          END IF
        END DO
        DEALLOCATE(ex_bond_list,STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)

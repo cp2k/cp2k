@@ -1830,8 +1830,7 @@ CONTAINS
     TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set
     TYPE(subcell_type), DIMENSION(:, :, :), &
       POINTER                                :: subcell
-
-! -------------------------------------------------------------------------
+    INTEGER :: i01, i02
 
     CALL timeset(routineN,"I"," ",handle)
 
@@ -1990,19 +1989,17 @@ CONTAINS
                     !MK: That is not needed for QS, but most likely for KG
 
                     IF (PRESENT(particle_set)) THEN
-                      loop_out1: DO jkind = 1,nkind
-                        list => particle_set(atom_a)%lpi%exclusion(jkind)%list_ei
-                        IF (.NOT.ASSOCIATED(list)) CYCLE
-                        nexl = SIZE(list)
-                        loop_in1: DO iexl=1,nexl
-                          IF ((list(iexl)==atom_c).AND.cell000) THEN
-                            exclude = .TRUE.
-                            EXIT loop_out1
+                       loop_out1: DO jkind = 1,nkind
+                          i01  = particle_set(atom_a)%list_exclude_ei_index(jkind-1)+1
+                          i02  = particle_set(atom_a)%list_exclude_ei_index(jkind)
+                          IF (ANY(particle_set(atom_a)%list_exclude_ei(i01:i02)==atom_c)&
+                               .AND.cell000) THEN
+                             exclude = .TRUE.
+                             EXIT loop_out1
                           ELSE
-                            exclude = .FALSE.
+                             exclude = .FALSE.
                           END IF
-                        END DO loop_in1
-                      END DO loop_out1
+                       END DO loop_out1
                       IF(exclude) CYCLE
                     END IF
 
@@ -2121,19 +2118,17 @@ CONTAINS
                           !MK: That is not needed for QS, but most likely for KG
 
                           IF (PRESENT(particle_set)) THEN
-                            loop_out2: DO jkind=1,nkind
-                              list => particle_set(atom_a)%lpi%exclusion(jkind)%list_ei
-                              IF (.NOT.ASSOCIATED(list)) CYCLE
-                              nexl = SIZE(list)
-                              loop_in2: DO iexl=1,nexl
-                                IF ((list(iexl)==atom_c).AND.cell000) THEN
-                                  exclude = .TRUE.
-                                  EXIT loop_out2
+                             loop_out2: DO jkind = 1,nkind
+                                i01  = particle_set(atom_a)%list_exclude_ei_index(jkind-1)+1
+                                i02  = particle_set(atom_a)%list_exclude_ei_index(jkind)
+                                IF (ANY(particle_set(atom_a)%list_exclude_ei(i01:i02)==atom_c)&
+                                     .AND.cell000) THEN
+                                   exclude = .TRUE.
+                                   EXIT loop_out2
                                 ELSE
-                                  exclude = .FALSE.
+                                   exclude = .FALSE.
                                 END IF
-                              END DO loop_in2
-                            END DO loop_out2
+                             END DO loop_out2
                             IF (exclude) CYCLE
                           END IF
 

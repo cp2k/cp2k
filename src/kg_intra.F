@@ -77,7 +77,7 @@ CONTAINS
 
     INTEGER :: atom_a, atom_b, group, handle, i, iatom, iexl, ikind, ipgf, &
       iset, ishell, istat, j, jkind, jpgf, jset, jshell, nexl, nkind, npart, &
-      nparticle_local, nseta, nsetb, output_unit
+      nparticle_local, nseta, nsetb, output_unit, i01, i02
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
     INTEGER, DIMENSION(:), POINTER           :: list, npgfa, npgfb, nshella, &
                                                 nshellb
@@ -152,11 +152,11 @@ CONTAINS
         atom_a=atom_of_kind(i)
         ri ( : ) = particle_set ( i ) % r ( : )
         DO jkind = 1, nkind
-          list => particle_set ( i ) % lpi % exclusion ( jkind ) % list_ei
-          IF (.NOT.ASSOCIATED(list)) CYCLE
-          nexl = SIZE ( list )
+          i01 = particle_set(i)%list_exclude_ei_index(jkind-1)
+          i02 = particle_set(i)%list_exclude_ei_index(jkind)
+          nexl = i02-i01
           DO iexl = 1, nexl
-            j =  list ( iexl )
+            j =  particle_set(i)%list_exclude_ei(i01+iexl)
             IF ( j==i ) CYCLE
             rj ( : ) = particle_set ( j ) % r ( : )
             atom_b=atom_of_kind(j)

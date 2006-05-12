@@ -524,13 +524,13 @@ SUBROUTINE bonded_correct_gaussian ( atomic_kind_set, local_particles, &
     INTEGER                                  :: group, handle, i, iatom, &
                                                 iexl, ikind, j, jkind, &
                                                 natoms_per_kind, nexl, nkind
-    INTEGER, DIMENSION(:), POINTER           :: list
     REAL(KIND=dp)                            :: alpha, arg, const, dij, &
                                                 e_arg_arg, eps0, errf, flops, &
                                                 fscalar, idij, ifourpieps0, &
                                                 qi, qj, rijsq, tc
     REAL(KIND=dp), DIMENSION(3)              :: ri, rij, rj
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    INTEGER :: i01, i02
 
 ! parameters for the numerical erf in Abramowitz and Stegun Eq. 7.1.26 pg 299
 !------------------------------------------------------------------------------
@@ -556,12 +556,12 @@ SUBROUTINE bonded_correct_gaussian ( atomic_kind_set, local_particles, &
        atomic_kind => particle_set ( i ) % atomic_kind
        ri ( : ) = particle_set ( i ) % r ( : )
        CALL get_atomic_kind ( atomic_kind,qeff = qi )
-       DO jkind = 1, nkind 
-         list => particle_set ( i ) % lpi % exclusion ( jkind ) % list_ei
-         IF(.NOT.ASSOCIATED(list)) CYCLE
-         nexl = SIZE ( list )
-         DO iexl = 1, nexl
-           j =  list ( iexl )
+       DO jkind = 1, nkind
+          i01 = particle_set(i)%list_exclude_ei_index(jkind-1)
+          i02 = particle_set(i)%list_exclude_ei_index(jkind)
+          nexl = i02-i01
+          DO iexl = 1, nexl
+           j = particle_set(i)%list_exclude_ei(i01+iexl)
            IF ( j==i ) CYCLE
            atomic_kind => particle_set ( j ) % atomic_kind
            rj ( : ) = particle_set ( j ) % r ( : )
