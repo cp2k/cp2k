@@ -155,7 +155,7 @@ CONTAINS
 
   SUBROUTINE spline_nonbond_control ( spline_env, potparm, atomic_kind_set, &
        ewald_env, ei_scale14, vdw_scale14, eps_spline, max_energy, rlow_nb,&
-       emax_spline, iw, iw2,iw3, error)
+       emax_spline, iw, iw2,iw3, low_storage, error)
 
     TYPE(spline_environment_type), POINTER   :: spline_env
     TYPE(pair_potential_pp_type), POINTER    :: potparm
@@ -167,6 +167,7 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: eps_spline, max_energy, rlow_nb,&
          emax_spline
     INTEGER, INTENT(IN)                      :: iw, iw2, iw3
+    LOGICAL, INTENT(IN)                      :: low_storage
     TYPE(cp_error_type), INTENT(inout), &
          OPTIONAL                               :: error
 
@@ -295,30 +296,32 @@ CONTAINS
         
           !check spline existence
           nspline = n
-          nsize = SIZE(spline_env%spline_data_p(n)%spline_data%y)
-          DO kx = 1, n-1
-             nkx = SIZE(spline_env%spline_data_p(kx)%spline_data%y)
-             check_bounds = (spline_env%spline_data_p(kx)%spline_data%x1 == &
-                             spline_env%spline_data_p(n )%spline_data%x1).AND.&
-                            (spline_env%spline_data_p(kx)%spline_data%xn == &
-                             spline_env%spline_data_p(n )%spline_data%xn)
-             IF (nsize==nkx.AND.check_bounds) THEN
-                ediff = MAXVAL(ABS(spline_env%spline_data_p(n)%spline_data%y-&
-                     spline_env%spline_data_p(kx)%spline_data%y))
-                IF (ediff <= eps_spline) THEN
-                   CALL spline_data_release(spline_env%spline_data_p(n)%spline_data,error)
-                   CALL spline_data_create ( spline_env%spline_data_p(n)%spline_data)
-                   n = n - 1
-                   nspline = kx
-                   EXIT
+          IF (low_storage) THEN
+             nsize = SIZE(spline_env%spline_data_p(n)%spline_data%y)
+             DO kx = 1, n-1
+                nkx = SIZE(spline_env%spline_data_p(kx)%spline_data%y)
+                check_bounds = (spline_env%spline_data_p(kx)%spline_data%x1 == &
+                                spline_env%spline_data_p(n )%spline_data%x1).AND.&
+                               (spline_env%spline_data_p(kx)%spline_data%xn == &
+                                spline_env%spline_data_p(n )%spline_data%xn)
+                IF (nsize==nkx.AND.check_bounds) THEN
+                   ediff = MAXVAL(ABS(spline_env%spline_data_p(n)%spline_data%y-&
+                        spline_env%spline_data_p(kx)%spline_data%y))
+                   IF (ediff <= eps_spline) THEN
+                      CALL spline_data_release(spline_env%spline_data_p(n)%spline_data,error)
+                      CALL spline_data_create ( spline_env%spline_data_p(n)%spline_data)
+                      n = n - 1
+                      nspline = kx
+                      EXIT
+                   END IF
                 END IF
-             END IF
-          END DO
+             END DO
+          END IF
           spline_env % spltab ( i, j ) = nspline
           spline_env % spltab ( j, i ) = nspline
           IF (iw>0) THEN
              WRITE(iw,*)
-             WRITE(iw,'("SPLINE_INFO|",5X,A,I7)')"Spline number:",i*(i-1)/2+j
+             WRITE(iw,'("SPLINE_INFO|",5X,A,I7,A,L2)')"Spline number:",i*(i-1)/2+j," LOW STORAGE REQUIRED:",low_storage
              WRITE(iw,'("SPLINE_INFO|",5X,A,I7,A,2I7)')"Unique Spline number",nspline," Kinds involved:",i,j
              WRITE(iw,'("SPLINE_INFO|",5X,A,I7)')"Number of points used in the Splines:",npoints
              WRITE(iw,'("SPLINE_INFO|",5X,A,F18.12)')"Accuracy requested:",eps_spline
@@ -334,24 +337,22 @@ CONTAINS
             ENDIF
           END IF
           ! print spline data on file
-          IF (nspline==n) THEN
-             IF (iw2>0) THEN
-                dx2 = (hicut - locut)/REAL(5000+1,KIND=dp)
-                x2  = locut + dx2
-                DO jx = 1, 5000
-                   x = x2
-                   IF ( PRESENT ( ei_scale14 ) .AND. PRESENT ( vdw_scale14 ) ) THEN
-                      e = ener_pot ( potparm%pot( i, j )%pot, qi, qj, x ,vdw_scale14 ) &
-                           + ener_coul ( potparm%pot( i, j )%pot, qi, qj, x, ewald_env, ei_scale14 )
-                   ELSE
-                      e = ener_pot ( potparm%pot( i, j )%pot, qi, qj, x ) &
-                           + ener_coul ( potparm%pot( i, j )%pot, qi, qj, x, ewald_env )
-                   ENDIF
-                   WRITE(1000+n,*) x, e, potential_s(spline_env%spline_data_p(n)%spline_data,x*x,xdum)
-                   x2 = x2 + dx2
-                END DO
-                WRITE(1000+n,*)
-             END IF
+          IF (nspline==n.AND.iw2>0) THEN
+             dx2 = (hicut - locut)/REAL(5000+1,KIND=dp)
+             x2  = locut + dx2
+             DO jx = 1, 5000
+                x = x2
+                IF ( PRESENT ( ei_scale14 ) .AND. PRESENT ( vdw_scale14 ) ) THEN
+                   e = ener_pot ( potparm%pot( i, j )%pot, qi, qj, x ,vdw_scale14 ) &
+                        + ener_coul ( potparm%pot( i, j )%pot, qi, qj, x, ewald_env, ei_scale14 )
+                ELSE
+                   e = ener_pot ( potparm%pot( i, j )%pot, qi, qj, x ) &
+                        + ener_coul ( potparm%pot( i, j )%pot, qi, qj, x, ewald_env )
+                ENDIF
+                WRITE(1000+n,*) x, e, potential_s(spline_env%spline_data_p(n)%spline_data,x*x,xdum)
+                x2 = x2 + dx2
+             END DO
+             WRITE(1000+n,*)
           END IF
           !
        END DO ! j:  second atom type

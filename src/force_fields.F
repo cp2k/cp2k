@@ -333,6 +333,7 @@ CONTAINS
        CALL section_vals_val_get(ff_section,"SPLINE%EPS_SPLINE",r_val=ff_type%eps_spline,error=error)
        CALL section_vals_val_get(ff_section,"SPLINE%EMAX_SPLINE",r_val=ff_type%emax_spline,error=error)
        CALL section_vals_val_get(ff_section,"SPLINE%EMAX_ACCURACY",r_val=ff_type%max_energy,error=error)
+       CALL section_vals_val_get(ff_section,"SPLINE%LOW_STORAGE",l_val=ff_type%spline_low_storage,error=error)
 
        tmp_section  => section_vals_get_subs_vals(ff_section,"NONBONDED",error=error)
        CALL section_vals_get(tmp_section,explicit=explicit,error=error)
@@ -2953,7 +2954,8 @@ CONTAINS
     CALL spline_nonbond_control ( spline_bond_env, potparm_bond, &
          atomic_kind_set , ewald_env, ff_type%ei_scale14,ff_type%vdw_scale14,&
          ff_type%eps_spline,max_energy=ff_type%max_energy, rlow_nb=ff_type%rlow_nb,&
-         emax_spline=ff_type%emax_spline, iw=iw2, iw2=iw3,iw3=iw4, error=error)
+         emax_spline=ff_type%emax_spline, iw=iw2, iw2=iw3,iw3=iw4,&
+         low_storage=ff_type%spline_low_storage, error=error)
     ! point potparm ( ikind, jkind ) % spline_data => spline_data_p ( n )
     DO ikind = 1, SIZE ( potparm_bond%pot, 1 )
        DO jkind = ikind, SIZE ( potparm_bond%pot, 2 )
@@ -3234,7 +3236,8 @@ CONTAINS
     CALL spline_nonbond_control(spline_nonbond_env, potparm_nonbond, &
          atomic_kind_set,ewald_env,eps_spline=ff_type%eps_spline,&
          max_energy=ff_type%max_energy, rlow_nb=ff_type%rlow_nb,&
-         emax_spline=ff_type%emax_spline, iw=iw2, iw2=iw3,iw3=iw4, error=error)
+         emax_spline=ff_type%emax_spline, iw=iw2, iw2=iw3,iw3=iw4,&
+         low_storage=ff_type%spline_low_storage, error=error)
     !---------------------------------------
     ! create the manybody spline environment
     !---------------------------------------
@@ -3242,7 +3245,8 @@ CONTAINS
     CALL spline_manybody_control(spline_manybody_env, potparm_nonbond,&
          eps_spline=ff_type%eps_spline,max_energy=ff_type%max_energy,&
          rlow_nb=ff_type%rlow_nb,&
-         emax_spline=ff_type%emax_spline, iw=iw2, iw2=iw3, error=error)
+         emax_spline=ff_type%emax_spline, iw=iw2, iw2=iw3,&
+         low_storage=ff_type%spline_low_storage, error=error)
 
     DO ikind = 1, SIZE ( potparm_nonbond%pot, 1 )
        DO jkind = ikind, SIZE ( potparm_nonbond%pot, 2)
