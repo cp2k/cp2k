@@ -1055,6 +1055,13 @@ CONTAINS
     WRITE(unit,1002)
     my_count = &
          NUMBER_UNIQUE_RES_ANGLES(my_atom_index, my_i, my_j, my_k, my_ka, my_theta)
+    IF (verbose) THEN
+       DO my_bond = 1, my_count
+          WRITE(*,'(3A10,2F12.6)')ISYMBL(my_i(my_bond)), ISYMBL(my_j(my_bond)),&
+                                  ISYMBL(my_k(my_bond)),&
+                                  my_ka(my_bond), my_theta(my_bond)
+       END DO
+    END IF
     my_count = &
          GIVE_BACK_UNIQUE_TYPES(my_i=my_i, my_j=my_j, my_k=my_k, A=my_ka, B=my_theta)
     DO my_angle = 1, my_count
@@ -1071,6 +1078,13 @@ CONTAINS
     my_count = &
          NUMBER_UNIQUE_RES_DIHEDRALS(my_atom_index, my_i, my_j, my_k, my_l, my_a, my_delta,&
                                      my_m, dihedral_type)
+    IF (verbose) THEN
+       DO my_bond = 1, my_count
+          WRITE(*,'(4A10,3F12.6)')ISYMBL(my_i(my_bond)), ISYMBL(my_j(my_bond)),&
+                                  ISYMBL(my_k(my_bond)), ISYMBL(my_l(my_bond)),&
+                                  my_a(my_bond), my_delta(my_bond), my_m(my_bond)
+       END DO
+    END IF
     my_count = &
          GIVE_BACK_UNIQUE_TYPES(my_i=my_i, my_j=my_j, my_k=my_k, my_l=my_l,&
                                 A=my_a, B=my_m, C=my_delta, D=dihedral_type)
@@ -1531,6 +1545,8 @@ CONTAINS
     number_of_dihedrals = 0
     CALL loop_on_dihedrals(number_of_dihedrals, NPHIH, IPH, JPH, KPH, LPH, my_atom_index)
     CALL loop_on_dihedrals(number_of_dihedrals, MPHIA, IP,  JP,  KP,   LP, my_atom_index)
+    IF (verbose) WRITE(*,*)"Total number of dihedrals (1st):: ",number_of_dihedrals,&
+         NPHIH+MPHIA
     ALLOCATE(my_i(number_of_dihedrals),&
              my_j(number_of_dihedrals),&
              my_k(number_of_dihedrals),&
@@ -1577,10 +1593,10 @@ CONTAINS
     REAL(KIND=dp),    DIMENSION (:), POINTER, OPTIONAL :: my_a, my_delta, my_m
     REAL(KIND=dp),    DIMENSION (:), POINTER, OPTIONAL :: my_scale_el, my_scale_LJ
     INTEGER :: i
-
+    
     dihedrals: DO i = 1, ndim
        IF  (ANY(my_atom_index==it_l(i)).AND.ANY(my_atom_index==jt_l(i)).AND.&
-            ANY(my_atom_index==kt_l(i)).AND.ANY(my_atom_index==lt_l(i))) THEN
+            ANY(my_atom_index==ABS(kt_l(i))).AND.ANY(my_atom_index==ABS(lt_l(i)))) THEN
           number_of_dihedrals = number_of_dihedrals + 1
           IF (PRESENT(my_delta)) THEN
              my_i(number_of_dihedrals)          = (it_l(i)-my_atom_index(1))/3+1
