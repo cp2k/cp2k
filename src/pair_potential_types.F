@@ -33,13 +33,23 @@ MODULE pair_potential_types
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pair_potential_types'
 
   PRIVATE
+  ! when adding a new nonbonedd potential please update also the list_pot
+  ! used for the linear scaling screening of potential calculation
   INTEGER, PUBLIC, PARAMETER :: nn_type= 0,&
                                 lj_type= 1,&
                                 ft_type= 2,&
                                 wl_type= 3,&
                                 gw_type= 4,&
                                 ip_type= 5,&
-                                ea_type= 6
+                                ea_type= 6  
+
+  INTEGER, PUBLIC, PARAMETER, DIMENSION(7) :: list_pot = (/nn_type,&
+                                                           lj_type,&
+                                                           ft_type,&
+                                                           wl_type,&
+                                                           gw_type,&
+                                                           ip_type,&
+                                                           ea_type /)
 
   PUBLIC :: pair_potential_type,&           
             pair_potential_reallocate
@@ -65,6 +75,7 @@ MODULE pair_potential_types
             eam_pot_type
 
   PUBLIC :: pair_potential_lj_create
+  PUBLIC :: compare_pot
 
   TYPE ipbv_pot_type
      REAL (KIND=dp), DIMENSION (2:15) :: a
@@ -100,7 +111,7 @@ MODULE pair_potential_types
 
   TYPE eam_pot_type
      CHARACTER ( len = default_string_length ) :: eam_file_name
-     REAL ( KIND = dp ) drar, drhoar, acutal
+     REAL ( KIND = dp )                     :: drar, drhoar, acutal
      REAL ( KIND = dp ), DIMENSION ( 5000 ) :: rho, phi, frho, rhoval, rval
      REAL ( KIND = dp ), DIMENSION ( 5000 ) :: rhop, phip, frhop
   END TYPE eam_pot_type
@@ -109,6 +120,7 @@ MODULE pair_potential_types
      REAL (KIND=dp) :: rcutsq
      REAL (KIND=dp) :: energy_cutoff
      REAL (KIND=dp) :: e_cutoff_coul
+     LOGICAL        :: undef
      INTEGER        :: type
      CHARACTER ( LEN = default_string_length ) :: at1
      CHARACTER ( LEN = default_string_length ) :: at2
@@ -135,7 +147,76 @@ MODULE pair_potential_types
   END TYPE pair_potential_pp_type
 
 CONTAINS
+  !******************************************************************************
+  !!****
+  !!****s* pair_potential_types/compare_pot [1.0] *
+  !!
+  !!   NAME
+  !!     compare_pot
+  !!
+  !!   FUNCTION
+  !!     compare two different potentials
+  !!
+  !!   AUTHOR
+  !!     Teodoro Laino [teo] 05.2006
+  !!
+  !!   MODIFICATION HISTORY
+  !!
+  !!   SOURCE
+  !******************************************************************************
+  SUBROUTINE compare_pot(pot1, pot2, compare, error)
+    IMPLICIT NONE
+    TYPE(pair_potential_single_type) , POINTER :: pot1, pot2
+    LOGICAL, INTENT(OUT)                       :: compare
+    TYPE(cp_error_type), INTENT(inout), &
+         OPTIONAL                              :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'compare_pot', &
+      routineP = moduleN//':'//routineN    
+    
+    compare=.FALSE.
+    IF (pot1%type/=pot2%type) RETURN
+
+    SELECT CASE(pot1%type)
+    CASE (lj_type)
+       IF  ((pot1%lj%epsilon==pot2%lj%epsilon).AND.&
+            (pot1%lj%sigma6 ==pot2%lj%sigma6 ).AND.&
+            (pot1%lj%sigma12==pot2%lj%sigma12)) compare=.TRUE.
+    CASE (wl_type)
+       IF  ((pot1%willis%a==pot2%willis%a).AND.&
+            (pot1%willis%b==pot2%willis%b).AND.&
+            (pot1%willis%c==pot2%willis%c)) compare=.TRUE.
+    CASE (gw_type)
+       IF  ((pot1%goodwin%vr0==pot2%goodwin%vr0).AND.&
+            (pot1%goodwin%m  ==pot2%goodwin%m  ).AND.&
+            (pot1%goodwin%mc ==pot2%goodwin%mc ).AND.&
+            (pot1%goodwin%d  ==pot2%goodwin%d  ).AND.&
+            (pot1%goodwin%dc ==pot2%goodwin%dc )) compare=.TRUE.
+    CASE (ea_type)
+       IF  ((pot1%eam%drar  ==pot2%eam%drar  ).AND.&
+            (pot1%eam%drhoar==pot2%eam%drhoar).AND.&
+            (pot1%eam%acutal==pot2%eam%acutal).AND.&
+            (SUM(ABS(pot1%eam%rho   -pot2%eam%rho   ))==0.0_dp).AND.&
+            (SUM(ABS(pot1%eam%phi   -pot2%eam%phi   ))==0.0_dp).AND.&
+            (SUM(ABS(pot1%eam%frho  -pot2%eam%frho  ))==0.0_dp).AND.&
+            (SUM(ABS(pot1%eam%rhoval-pot2%eam%rhoval))==0.0_dp).AND.&
+            (SUM(ABS(pot1%eam%rval  -pot2%eam%rval  ))==0.0_dp).AND.&
+            (SUM(ABS(pot1%eam%rhop  -pot2%eam%rhop  ))==0.0_dp).AND.&
+            (SUM(ABS(pot1%eam%phip  -pot2%eam%phip  ))==0.0_dp).AND.&
+            (SUM(ABS(pot1%eam%frhop -pot2%eam%frhop ))==0.0_dp)) compare=.TRUE.
+    CASE (ft_type)
+       IF  ((pot1%ft%A==pot2%ft%A).AND.&
+            (pot1%ft%B==pot2%ft%B).AND.&
+            (pot1%ft%C==pot2%ft%C).AND.&
+            (pot1%ft%D==pot2%ft%D)) compare=.TRUE.
+    CASE (ip_type)
+       IF  ((SUM(ABS(pot1%ipbv%a-pot2%ipbv%a))==0.0_dp).AND.&
+            (pot1%ipbv%rcore==pot2%ipbv%rcore).AND.&
+            (pot1%ipbv%m    ==pot2%ipbv%m    ).AND.&
+            (pot1%ipbv%b    ==pot2%ipbv%b    )) compare=.TRUE.
+    END SELECT
+
+  END SUBROUTINE compare_pot
   !******************************************************************************
   !!****
   !!****s* pair_potential_types/pair_potential_single_create [1.0] *
@@ -209,6 +290,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     potparm % type          = nn_type
+    potparm % undef         = .TRUE.
     potparm % at1           = 'NULL'
     potparm % at2           = 'NULL'
     potparm % rcutsq        = 0.0_dp
@@ -263,6 +345,7 @@ CONTAINS
           CALL pair_potential_single_create(potparm_dest,error)
        END IF
        potparm_dest % TYPE          = potparm_source % TYPE
+       potparm_dest % undef         = potparm_source % undef
        potparm_dest % at1           = potparm_source % at1
        potparm_dest % at2           = potparm_source % at2
        potparm_dest % rcutsq        = potparm_source % rcutsq       
@@ -708,9 +791,10 @@ CONTAINS
           CALL pair_potential_p_copy(work, p, istart=lb1_old, iend=ub1_old, error=error)
        END IF
        DO i = ub1_old+1, ub1_new
-          p % pot ( i ) % pot % type = nn_type
-          p % pot ( i ) % pot % at1  = 'NULL'
-          p % pot ( i ) % pot % at2  = 'NULL'
+          p % pot ( i ) % pot % type  = nn_type
+          p % pot ( i ) % pot % undef = .TRUE.
+          p % pot ( i ) % pot % at1   = 'NULL'
+          p % pot ( i ) % pot % at2   = 'NULL'
           SELECT CASE (ipot)
           CASE (lj_type)
              CALL pair_potential_lj_create(p%pot(i)%pot, error=error)

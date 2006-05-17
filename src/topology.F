@@ -410,26 +410,22 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'coordinate_control', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(len=default_string_length)     :: my_element
-    INTEGER                                  :: handle, i, id, iw
+    CHARACTER(len=default_string_length)     :: my_element, element0
+    INTEGER                                  :: handle, handle2, i, j, id, iw, stat
     LOGICAL                                  :: failure, found
     TYPE(cp_logger_type), POINTER            :: logger
-
+    CHARACTER(len=default_string_length), ALLOCATABLE, DIMENSION(:)     :: elements
     failure = .FALSE.
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO",&
          extension=".mmLog",error=error)
     CALL timeset(routineN,'I','',handle)
-
-
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 1. If reading in from external file, make sure its there first
     !-----------------------------------------------------------------------------
     IF(topology%coordinate) THEN
-       !------------------------------------------------------
-       !Make sure the file really do exist before proceding
        IF(globenv%ionode) THEN
           INQUIRE(FILE=topology%coord_file_name,EXIST=found)
           IF(found) THEN
@@ -438,12 +434,11 @@ CONTAINS
           END IF
        END IF
     END IF
-
-
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 2. Read in the coordinates from the corresponding locations
     !-----------------------------------------------------------------------------
+    CALL timeset(routineN//"_READ_COORDINATE",'I','',handle2)
     SELECT CASE (topology%coord_type)
     CASE (do_coord_pdb)
        CALL read_coordinate_pdb (topology,globenv,subsys_section,error)
@@ -454,21 +449,33 @@ CONTAINS
     CASE DEFAULT
        CALL read_atoms_input ( topology, globenv,  subsys_section=subsys_section, error=error)
     END SELECT
-
+    CALL timestop(0.0_dp,handle2)
     ! if the e.g. the &COORD block is empty, we don't proceed
     IF (topology%natoms.LE.0) THEN
        CALL stop_program ("coordinate_control","No atomic coordinates have been found")
     ENDIF
-
+    CALL timeset(routineN//"_CHECK_ELEMENT_NAME",'I','',handle2)
     ! Fix element name
+    ALLOCATE(elements(SIZE(topology%atom_info%element)),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    elements = topology%atom_info%element
     DO i = 1, topology%natoms
-       id = INDEX(topology%atom_info%element(i),"_")-1
-       IF ( id == -1 ) id = LEN_TRIM(topology%atom_info%element(i))
-       CALL check_subsys_element(topology%atom_info%element(i)(1:id),my_element,globenv,subsys_section,error)     
-       topology%atom_info%element(i)=my_element 
+       IF (elements(i)=="[]") CYCLE
+       id = INDEX(elements(i),"_")-1
+       IF (id==-1) id = LEN_TRIM(elements(i))
+       element0 = elements(i)(1:id)
+       CALL check_subsys_element(element0,my_element,globenv,subsys_section,error)
+       ! Earn time fixing same element labels for same atoms
+       DO j = 1, topology%natoms
+          IF (TRIM(element0)==TRIM(topology%atom_info%element(j))) THEN
+             topology%atom_info%element(i)=my_element
+             elements(j)="[]"
+          END IF
+       END DO
     END DO
-
-
+    DEALLOCATE(elements,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CALL timestop(0.0_dp,handle2)
     CALL timestop(0.0_dp,handle)
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
          "PRINT%TOPOLOGY_INFO",error=error)

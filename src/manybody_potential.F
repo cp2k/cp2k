@@ -72,14 +72,13 @@ CONTAINS
   ! creates the splines for the manybody contribution
 
   SUBROUTINE spline_manybody_control ( spline_env, potparm, eps_spline, max_energy, rlow_nb,&
-       emax_spline, iw, iw2, low_storage, error)
+       emax_spline, iw, iw2, error)
 
     TYPE(spline_environment_type), POINTER   :: spline_env
     TYPE(pair_potential_pp_type), POINTER    :: potparm
     REAL(KIND=dp), INTENT(IN)                :: eps_spline, max_energy, rlow_nb,&
          emax_spline
     INTEGER, INTENT(IN)                      :: iw, iw2
-    LOGICAL, INTENT(IN)                      :: low_storage
     TYPE(cp_error_type), INTENT(inout), &
          OPTIONAL                               :: error
 
@@ -166,31 +165,29 @@ CONTAINS
              END DO
 
              !check spline existence
-             IF (low_storage) THEN
-                nsize = SIZE(spline_env%spline_data_p(n)%spline_data%y)
-                DO kx = 1, n-1
-                   nkx = SIZE(spline_env%spline_data_p(kx)%spline_data%y)
-                   check_bounds = (spline_env%spline_data_p(kx)%spline_data%x1 == &
-                                   spline_env%spline_data_p(n )%spline_data%x1).AND.&
-                                  (spline_env%spline_data_p(kx)%spline_data%xn == &
-                                   spline_env%spline_data_p(n )%spline_data%xn)                
-                   IF (nsize==nkx) THEN
-                      ediff = MAXVAL(ABS(spline_env%spline_data_p(n)%spline_data%y-&
-                           spline_env%spline_data_p(kx)%spline_data%y))
-                      IF (ediff <= eps_spline) THEN
-                         CALL spline_data_release(spline_env%spline_data_p(n)%spline_data,&
-                              error)
-                         CALL spline_data_create ( spline_env%spline_data_p(n)%spline_data)
-                         n = n - 1
-                         nspline = kx
-                         EXIT
-                      END IF
+             nsize = SIZE(spline_env%spline_data_p(n)%spline_data%y)
+             DO kx = 1, n-1
+                nkx = SIZE(spline_env%spline_data_p(kx)%spline_data%y)
+                check_bounds = (spline_env%spline_data_p(kx)%spline_data%x1 == &
+                     spline_env%spline_data_p(n )%spline_data%x1).AND.&
+                     (spline_env%spline_data_p(kx)%spline_data%xn == &
+                     spline_env%spline_data_p(n )%spline_data%xn)                
+                IF (nsize==nkx) THEN
+                   ediff = MAXVAL(ABS(spline_env%spline_data_p(n)%spline_data%y-&
+                        spline_env%spline_data_p(kx)%spline_data%y))
+                   IF (ediff <= eps_spline) THEN
+                      CALL spline_data_release(spline_env%spline_data_p(n)%spline_data,&
+                           error)
+                      CALL spline_data_create ( spline_env%spline_data_p(n)%spline_data)
+                      n = n - 1
+                      nspline = kx
+                      EXIT
                    END IF
-                END DO
-             END IF
+                END IF
+             END DO
              IF (iw>0) THEN
                 WRITE(iw,*)
-                WRITE(iw,'("SPLINE_INFO|",5X,A,I7,A,L2)')"Spline number:",i*(i-1)/2+j," LOW STORAGE REQUIRED:",low_storage
+                WRITE(iw,'("SPLINE_INFO|",5X,A,I7)')"Spline number:",i*(i-1)/2+j
                 WRITE(iw,'("SPLINE_INFO|",5X,A,I7,A,2I7)')"Unique Spline number",nspline," Kinds involved:",i,j
                 WRITE(iw,'("SPLINE_INFO|",5X,A,I7)')"Number of points used in the Splines:",npoints
                 WRITE(iw,'("SPLINE_INFO|",5X,A,F18.12)')"Accuracy requested:",eps_spline

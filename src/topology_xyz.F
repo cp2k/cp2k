@@ -65,11 +65,7 @@ CONTAINS
   !!
   !!   INPUTS
   !!*** *************************************************************************
-  ! (1) The first line contains the number of atoms in the molecule.
-  ! (2) The second line contains the name or title of the molecule. It can be blank if desired.
-  ! (3) The rest of the file is composed of one line for each atom in the molecule. 
-  !     Each atom is designated by the atomic number and then the x, y, and z coordinate value.
-  !     Separate each value by at least 1 space; there is no strict format for these lines.
+
   SUBROUTINE read_coordinate_xyz (topology,globenv,subsys_section,error)
     TYPE(topology_parameters_type)           :: topology
     TYPE(global_environment_type), &
@@ -129,19 +125,19 @@ CONTAINS
        topology%molname_generated = .TRUE.
        DO j = 1, natom
           ! Atom coordinates
-          CALL parser_get_object  (parser,atom_info%label_atmname(j))
+          READ(parser%input_line,*)atom_info%label_atmname(j),&
+                                   atom_info%r(1,j),&
+                                   atom_info%r(2,j),&
+                                   atom_info%r(3,j)
           CALL uppercase(atom_info%label_atmname(j))
           ! For default, set atom name to residue name to molecule name
-          atom_info%label_molname(j)   = TRIM(atom_info%label_atmname(j))
-          atom_info%label_resname(j)   = atom_info%label_molname(j)
-          atom_info%label_resid(j)     = 1
-          CALL parser_get_object  (parser,atom_info%r(1,j))
-          CALL parser_get_object  (parser,atom_info%r(2,j))
-          CALL parser_get_object  (parser,atom_info%r(3,j))
-          atom_info%element(j)         = atom_info%label_atmname(j)
-          atom_info%atm_mass(j)        = 0.0_dp
-          atom_info%atm_charge(j)      = -10000.0_dp
-          IF(iw>0) WRITE(iw,'(5X,A4,3F8.3,A4,I4)') &
+          atom_info%label_molname(j)   =  TRIM(atom_info%label_atmname(j))
+          atom_info%label_resname(j)   =  atom_info%label_molname(j)
+          atom_info%label_resid(j)     =  1
+          atom_info%element(j)         =  atom_info%label_atmname(j)
+          atom_info%atm_mass(j)        =  HUGE(0.0_dp)
+          atom_info%atm_charge(j)      = -HUGE(0.0_dp)
+          IF(iw>0) WRITE(iw,'(T2,"XYZ_INFO| ",A4,3F8.3,A4,I4)') &
                TRIM(atom_info%label_atmname(j)),&
                atom_info%r(1,j),&
                atom_info%r(2,j),&

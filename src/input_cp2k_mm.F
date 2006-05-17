@@ -408,14 +408,6 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword,"low_storage",&
-         description="This keyword enables the storage of the only unique splines. "//&
-         " For systems with large number of atomic kinds set to .false. for a faster "//&
-         " setup.",&
-         default_l_val=.TRUE.,lone_keyword_l_val=.TRUE.,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
-
     END IF
   END SUBROUTINE create_SPLINE_section
 

@@ -338,7 +338,7 @@ CONTAINS
 
     INTEGER :: atom_in_kind, atom_in_mol, first, handle, i, iatm, iatom, &
       ifirst, iiatom, iii, ilast, inum, itype, iw, j, jtype, jump1, jump2, &
-      last, max_mol_num, myind, natom, nbond, nmol, ntype, stat
+      last, max_mol_num, myind, natom, nbond, nmol, ntype, stat, handle2
     INTEGER :: mol_typ, mol_num, mol_res
     INTEGER, DIMENSION(:), POINTER           :: qm_atom_index
     LOGICAL                                  :: do_again, failure, my_qmmm
@@ -346,8 +346,7 @@ CONTAINS
     TYPE(connectivity_info_type), POINTER    :: conn_info
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(atom_bond_list_type), DIMENSION(:), ALLOCATABLE  :: atom_bond_list
-    INTEGER, POINTER, DIMENSION(:)           :: current_bonds
-    INTEGER :: N,atom_a,atom_b
+    INTEGER :: N
 
     failure = .FALSE.
     NULLIFY(logger)
@@ -359,7 +358,7 @@ CONTAINS
 
     atom_info => topology%atom_info
     conn_info => topology%conn_info
-        !
+    !
     ! QM/MM coordinate_control
     ! 
     my_qmmm = .FALSE.
@@ -415,28 +414,7 @@ CONTAINS
     ENDDO
     N = 0
     IF(ASSOCIATED(conn_info%bond_a)) N = SIZE(conn_info%bond_a)
-    DO I=1,N
-       atom_a=conn_info%bond_a(I)
-       atom_b=conn_info%bond_b(I)
-
-       current_bonds => atom_bond_list(atom_a)%bonds
-       Nbond=SIZE(current_bonds)
-       ALLOCATE(atom_bond_list(atom_a)%bonds(Nbond+1),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       atom_bond_list(atom_a)%bonds(1:Nbond) = current_bonds
-       atom_bond_list(atom_a)%bonds(Nbond+1) = atom_b
-       DEALLOCATE(current_bonds,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       
-       current_bonds => atom_bond_list(atom_b)%bonds
-       Nbond=SIZE(current_bonds)
-       ALLOCATE(atom_bond_list(atom_b)%bonds(Nbond+1),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       atom_bond_list(atom_b)%bonds(1:Nbond) = current_bonds
-       atom_bond_list(atom_b)%bonds(Nbond+1) = atom_a
-       DEALLOCATE(current_bonds,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ENDDO    
+    CALL reorder_structure(atom_bond_list, conn_info%bond_a, conn_info%bond_b, N, error)
     CALL find_molecule(atom_bond_list,atom_info%map_mol_num)   
     DO I=1,natom
        DEALLOCATE(atom_bond_list(I)%bonds,stat=stat)
@@ -464,6 +442,7 @@ CONTAINS
     !
     ! Residues
     !
+    CALL timeset(routineN//"_PARA_RES",'I','',handle2)
     IF(iw>0) WRITE(iw,'(/,A,L2)') "Starting PARA_RES: ",topology%para_res
     IF(topology%para_res) THEN
        mol_res = 1
@@ -484,6 +463,7 @@ CONTAINS
        END DO
     END IF
     IF(iw>0) WRITE(iw,'(/,A)') "End of PARA_RES"
+    CALL timestop(0.0_dp,handle2)
     IF(iw>0) THEN
        DO iatom=1,natom
           WRITE(iw,'(4(A," : ",I7))') "iatom",iatom,&
@@ -578,39 +558,97 @@ CONTAINS
     !
     ! Further check : see if the number of atoms belonging to same molecule kinds
     !                 are equal
-    ntype = MAXVAL(atom_info%map_mol_typ)
-    IF (iw>0) WRITE(*,*)"SUMMARY:: Number of molecules type found:",ntype
-    DO i = 1, ntype
-       atom_in_kind   = COUNT(atom_info%map_mol_typ == i)
-       IF (iw>0) WRITE(*,*)"Molecule type: ",i,"contains ",atom_in_kind,' atoms'
-       IF (atom_in_kind <= 1) CYCLE
-       CALL find_boundary(atom_info%map_mol_typ,natom,first,last,i)
-       IF (iw>0) WRITE(*,*)"Boundary atoms: ",first, last
-       CPPostcondition(last-first+1==atom_in_kind,cp_failure_level,routineP,error,failure)
-       max_mol_num    = MAXVAL(atom_info%map_mol_num(first:last))
-       IF (iw>0) WRITE(*,*)"Number of molecules of type ",i," is ::",max_mol_num       
-       atom_in_mol    = atom_in_kind / max_mol_num
-       IF (iw>0) WRITE(*,*)"Number of atoms per each molecule: ",atom_in_mol
-       IF (iw>0) WRITE(*,*)"MAP_MOL_TYP:: ",atom_info%map_mol_typ(first:last)
-       IF (iw>0) WRITE(*,*)"MAP_MOL_NUM:: ",atom_info%map_mol_num(first:last)
-       !
-       DO j = 1, max_mol_num
-          IF (COUNT(atom_info%map_mol_num(first:last)==j) /= atom_in_mol) THEN
-             IF(iw>0) THEN
+    IF (iw>0) THEN 
+       WRITE(iw,*)"SUMMARY:: Number of molecules type found:",ntype
+       ntype = MAXVAL(atom_info%map_mol_typ)
+       DO i = 1, ntype
+          atom_in_kind   = COUNT(atom_info%map_mol_typ == i)
+          WRITE(iw,*)"Molecule type: ",i,"contains ",atom_in_kind,' atoms'
+          IF (atom_in_kind <= 1) CYCLE
+          CALL find_boundary(atom_info%map_mol_typ,natom,first,last,i)
+          WRITE(iw,*)"Boundary atoms: ",first, last
+          CPPostcondition(last-first+1==atom_in_kind,cp_failure_level,routineP,error,failure)
+          max_mol_num    = MAXVAL(atom_info%map_mol_num(first:last))
+          WRITE(iw,*)"Number of molecules of type ",i," is ::",max_mol_num       
+          atom_in_mol    = atom_in_kind / max_mol_num
+          WRITE(iw,*)"Number of atoms per each molecule: ",atom_in_mol
+          WRITE(iw,*)"MAP_MOL_TYP:: ",atom_info%map_mol_typ(first:last)
+          WRITE(iw,*)"MAP_MOL_NUM:: ",atom_info%map_mol_num(first:last)
+          !
+          DO j = 1, max_mol_num
+             IF (COUNT(atom_info%map_mol_num(first:last)==j) /= atom_in_mol) THEN
                 WRITE(iw,*)"molecule type:",i,"molecule num:",j," has ",COUNT(atom_info%map_mol_num(first:last)==j),&
                      " atoms instead of ",atom_in_mol," ."
+                CALL stop_program ("topology_generate_molecule","Two molecules of the same kind"//&
+                     " have been created with different numbers of atoms!")
              END IF
-             CALL stop_program ("topology_generate_molecule","Two molecules of the same kind"//&
-                  " have been created with different numbers of atoms!")
-          END IF
+          END DO
        END DO
-    END DO
-    
+    END IF
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
          "PRINT%TOPOLOGY_INFO/UTIL_INFO",error=error)
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE topology_generate_molecule
+  
+!******************************************************************************
+!!****** topology_util [1.0] *
+!!
+!!   NAME
+!!    reorder_structure 
+!!
+!!   SYNOPSIS
+!!
+!!   FUNCTION
+!!     each atom will be assigned a molecule number based on bonded fragments
+!!
+!!   AUTHOR
+!!     Joost 05.2006
+!!
+!!   MODIFICATION HISTORY
+!!
+!!
+!!   SOURCE
+!******************************************************************************
+  SUBROUTINE reorder_structure(work, list1, list2, N, error)
+    IMPLICIT NONE
+    TYPE(atom_bond_list_type), DIMENSION(:), INTENT(INOUT)  :: work
+    INTEGER, DIMENSION(:), INTENT(IN)                       :: list1, list2
+    INTEGER, INTENT(IN)                                     :: N
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
+    CHARACTER(len=*), PARAMETER :: routineN = 'reorder_structure', &
+      routineP = moduleN//':'//routineN
+    INTEGER, POINTER, DIMENSION(:)           :: wrk_tmp
+    LOGICAL :: failure 
+    INTEGER :: I, atom_a, atom_b, stat, Nbond
+
+    failure = .FALSE.
+    DO I=1,N
+       atom_a=list1(I)
+       atom_b=list2(I)
+
+       wrk_tmp => work(atom_a)%bonds
+       Nbond=SIZE(wrk_tmp)
+       ALLOCATE(work(atom_a)%bonds(Nbond+1),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       work(atom_a)%bonds(1:Nbond) = wrk_tmp
+       work(atom_a)%bonds(Nbond+1) = atom_b
+       DEALLOCATE(wrk_tmp,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       
+       wrk_tmp => work(atom_b)%bonds
+       Nbond=SIZE(wrk_tmp)
+       ALLOCATE(work(atom_b)%bonds(Nbond+1),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       work(atom_b)%bonds(1:Nbond) = wrk_tmp
+       work(atom_b)%bonds(Nbond+1) = atom_a
+       DEALLOCATE(wrk_tmp,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ENDDO    
+
+  END SUBROUTINE reorder_structure
+    
 !******************************************************************************
 !!****** topology_util [1.0] *
 !!
@@ -1294,8 +1332,7 @@ CONTAINS
          "PRINT%TOPOLOGY_INFO/UTIL_INFO",error=error)
     
   END SUBROUTINE topology_generate_dihe
- 
-!
+
 !******************************************************************************
 !!****** topology_util [1.0] *
 !!
@@ -1440,8 +1477,7 @@ CONTAINS
     nphi = SIZE(conn_info%phi_a)
     CALL reallocate(conn_info%onfo_a,1,nphi)
     CALL reallocate(conn_info%onfo_b,1,nphi)
-    !------------------------------------------------------------------------------
-    !------------------------------------------------------------------------------
+
     DO iphi=1,nphi
        conn_info%onfo_a(iphi) = conn_info%phi_a(iphi)
        conn_info%onfo_b(iphi) = conn_info%phi_d(iphi)
@@ -1452,7 +1488,6 @@ CONTAINS
     
   END SUBROUTINE topology_generate_onfo
 
-!!*****
 !******************************************************************************
 !!****** topology/topology_connectivity_pack [1.0] *
 !!
@@ -1472,7 +1507,6 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-
   SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
        topology,globenv,subsys_section,error)
     TYPE(molecule_kind_type), DIMENSION(:), &
@@ -1494,6 +1528,7 @@ CONTAINS
     INTEGER :: atm_a, atm_b, atm_c, atm_d, c_intra, counter, first, handle, &
       i, ibond, ikind, imol, inum, ires, ityp, iw, j, k, last, natom, nbond, &
       nelectron, nhcopt, nimpr, nmol, nonfo, nphi, nsgf, ntheta, nub, stat
+    INTEGER :: handle2
     INTEGER, DIMENSION(:), POINTER           :: checkme, first_list, &
                                                 last_list, molecule_list
     LOGICAL                                  :: failure, found
@@ -1526,6 +1561,7 @@ CONTAINS
     !-----------------------------------------------------------------------------
     ! 1. Set the topology%[nmol_type,nmol,nmol_conn]
     !-----------------------------------------------------------------------------
+    CALL timeset(routineN//"_1",'I','',handle2)
     natom  = topology%natoms
     topology%nmol      = 1
     topology%nmol_type = 1
@@ -1546,11 +1582,12 @@ CONTAINS
     IF (iw>0) WRITE(iw,*)"topology%nmol ::",topology%nmol
     IF (iw>0) WRITE(iw,*)"topology%nmol_type ::",topology%nmol_type
     IF (iw>0) WRITE(iw,*)"topology%nmol_conn ::",topology%nmol_conn
-
+    CALL timestop(0.0_dp,handle2)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 2. Allocate the molecule_kind_set
     !-----------------------------------------------------------------------------
+    CALL timeset(routineN//"_2",'I','',handle2)
     IF(topology%nmol_type <= 0) THEN
        CALL stop_program("topology_connectivity_pack","no molecule kind defined")
     ELSE
@@ -1560,11 +1597,12 @@ CONTAINS
        IF(iw>0) WRITE(iw,*) "    Allocated molecule_kind_set, Dimenstion of ",&
             SIZE(molecule_kind_set)
     END IF
-        
+    CALL timestop(0.0_dp,handle2)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 3. Allocate the molecule_set
     !-----------------------------------------------------------------------------
+    CALL timeset(routineN//"_3",'I','',handle2)
     IF(topology%nmol <= 0) THEN
        CALL stop_program("topology_connectivity_pack","no molecule defined")
     ELSE
@@ -1574,11 +1612,12 @@ CONTAINS
        IF(iw>0) WRITE(iw,*) "    Allocated molecule_set, dimenstion of ",&
             topology%nmol
     END IF
-    
+    CALL timestop(0.0_dp,handle2)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 4. Set the molecule_kind_set%[kind_number,name,nhcopt,nsgf,nelectron]
     !-----------------------------------------------------------------------------
+    CALL timeset(routineN//"_4",'I','',handle2)
     counter=0
     nhcopt = topology % nhcopt
     natom = topology%natoms
@@ -1607,13 +1646,12 @@ CONTAINS
             nsgf=nsgf,&
             nelectron=nelectron)
     END DO
-
-
-
+    CALL timestop(0.0_dp,handle2)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 5. Set the molecule_list for molecule_kind in molecule_kind_set
     !-----------------------------------------------------------------------------
+    CALL timeset(routineN//"_5",'I','',handle2)
     counter=1
     natom = topology%natoms
     DO ikind=1,SIZE(molecule_kind_set)
@@ -1671,13 +1709,12 @@ CONTAINS
             molecule_list=molecule_list)
        IF(iw>0) WRITE(iw,*) "      molecule_list",ikind+topology%nmol_type,molecule_list(:)
     END DO
-
-
-
+    CALL timestop(0.0_dp,handle2)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 6. Set the molecule_set(imol)%molecule_kind via set_molecule
     !-----------------------------------------------------------------------------
+    CALL timeset(routineN//"_6",'I','',handle2)
     DO ikind=1,SIZE(molecule_kind_set)
        molecule_kind => molecule_kind_set(ikind)
        CALL get_molecule_kind(molecule_kind=molecule_kind,&
@@ -1687,45 +1724,35 @@ CONTAINS
           CALL set_molecule(molecule,molecule_kind=molecule_kind)
        END DO
     END DO
-
-
+    CALL timestop(0.0_dp,handle2)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 7. Set the molecule_set(imol)%[first_atom,last_atom] via set_molecule_set
     !-----------------------------------------------------------------------------
+    CALL timeset(routineN//"_7",'I','',handle2)
     ALLOCATE(first_list(SIZE(molecule_set)),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(last_list(SIZE(molecule_set)),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     first_list(:) = 0
-    last_list(:) = 0
-    DO ikind=1,topology%nmol
-       i=0
-       imol=0
-       ityp=0
-       inum=0
-       ires=0
-       found = .FALSE.
-       counter=0
-       DO j=1,natom
-          IF((atom_info%map_mol_typ(j) /= ityp) .OR. &
-               (atom_info%map_mol_num(j) /= inum) .OR. &
-               (atom_info%map_mol_res(j) /= ires)) THEN
-             ityp = atom_info%map_mol_typ(j)
-             inum = atom_info%map_mol_num(j)
-             ires = atom_info%map_mol_res(j)
-             i = i + 1
-             imol = imol + 1
-             IF(ikind==i) THEN
-                counter=imol
-                found = .TRUE.
-                EXIT
-             END IF
-          END IF
-       END DO
-       IF(ikind==topology%nmol_type) imol=topology%nmol
-       first_list(ikind)=j
+    last_list (:) = 0
+    ityp=atom_info%map_mol_typ(1)
+    inum=atom_info%map_mol_num(1)
+    ires=atom_info%map_mol_res(1)    
+    imol          = 1
+    first_list(1) = 1
+    DO j = 2, natom
+       IF  ((atom_info%map_mol_typ(j) /= ityp) .OR. &
+            (atom_info%map_mol_num(j) /= inum) .OR. &
+            (atom_info%map_mol_res(j) /= ires)) THEN
+          ityp = atom_info%map_mol_typ(j)
+          inum = atom_info%map_mol_num(j)
+          ires = atom_info%map_mol_res(j)
+          imol = imol + 1
+          first_list(imol)=j
+       END IF
     END DO
+    CPPostcondition(imol==topology%nmol,cp_failure_level,routineP,error,failure)
     DO ikind=1,topology%nmol-1
        last_list(ikind)=first_list(ikind+1)-1
     END DO
@@ -1735,11 +1762,12 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(last_list,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
+    CALL timestop(0.0_dp,handle2)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 8. Set and NULLIFY the molecule_set(imol)%lmi via set_molecule_set
     !-----------------------------------------------------------------------------
+    CALL timeset(routineN//"_8",'I','',handle2)
     DO i=1,SIZE(molecule_set)
        molecule => molecule_set(i)
        NULLIFY(lmi)
@@ -1749,12 +1777,12 @@ CONTAINS
        NULLIFY(lmi%states)
        CALL set_molecule(molecule,lmi=lmi)
     END DO
-
-
+    CALL timestop(0.0_dp,handle2)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 9. Set the atom_list for molecule_kind in molecule_kind_set (PART 1)
     !-----------------------------------------------------------------------------
+    CALL timeset(routineN//"_9",'I','',handle2)
     counter = 0
     DO ikind=1,SIZE(molecule_set)
        molecule => molecule_set(ikind)
@@ -1778,12 +1806,12 @@ CONTAINS
           CALL set_molecule_kind(molecule_kind=molecule_kind,atom_list=atom_list)
        END IF
     END DO
-
-
+    CALL timestop(0.0_dp,handle2)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 10. Set the molecule_kind%[nbond,bond_list] via set_molecule_kind
     !-----------------------------------------------------------------------------
+    CALL timeset(routineN//"_10",'I','',handle2)
     counter = 0
     DO ikind=1,topology%nmol
        molecule => molecule_set(ikind)
@@ -1814,7 +1842,7 @@ CONTAINS
           END IF
           IF(iw>0) THEN 
              WRITE(iw,*) "    Total number bonds for molecule type ",SUM(checkme)+c_intra
-             WRITE(iw,*) "    checkme (bonds inside  molecules) :: ",checkme
+             WRITE(iw,*) "    checkme (bonds inside  molecules) :: ",SUM(checkme)
              WRITE(iw,*) "    c_intra (bonds between molecules) :: ",c_intra
           END IF
           ibond = SUM(checkme) + c_intra
@@ -1870,12 +1898,12 @@ CONTAINS
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
     END DO
-
-
+    CALL timestop(0.0_dp,handle2)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 11. Set the molecule_kind%[nbend,bend_list] via set_molecule_kind
     !-----------------------------------------------------------------------------
+    CALL timeset(routineN//"_11",'I','',handle2)
     counter = 0
     DO ikind=1,topology%nmol
        molecule => molecule_set(ikind)
@@ -1953,12 +1981,12 @@ CONTAINS
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
     END DO
-
-
+    CALL timestop(0.0_dp,handle2)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 12. Set the molecule_kind%[nub,ub_list] via set_molecule_kind
     !-----------------------------------------------------------------------------
+    CALL timeset(routineN//"_12",'I','',handle2)
     counter = 0
     DO ikind=1,topology%nmol
        molecule => molecule_set(ikind)
@@ -2036,12 +2064,12 @@ CONTAINS
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
     END DO
-
-
+    CALL timestop(0.0_dp,handle2)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 13. Set the molecule_kind%[ntorsion,torsion_list] via set_molecule_kind
     !-----------------------------------------------------------------------------
+    CALL timeset(routineN//"_13",'I','',handle2)
     counter = 0
     DO ikind=1,topology%nmol
        molecule => molecule_set(ikind)
@@ -2128,12 +2156,12 @@ CONTAINS
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
     END DO
-
-
+    CALL timestop(0.0_dp,handle2)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 14. Set the molecule_kind%[nimpr,impr_list] via set_molecule_kind
     !-----------------------------------------------------------------------------
+    CALL timeset(routineN//"_14",'I','',handle2)
     counter = 0
     DO ikind=1,topology%nmol
        molecule => molecule_set(ikind)
@@ -2220,12 +2248,12 @@ CONTAINS
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
     END DO
-
-
+    CALL timestop(0.0_dp,handle2)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 15. Set the molecule_kind%[nonfo,onfo_list] via set_molecule_kind
     !-----------------------------------------------------------------------------
+    CALL timeset(routineN//"_15",'I','',handle2)
     counter = 0
     DO ikind=1,topology%nmol
        molecule => molecule_set(ikind)
@@ -2301,7 +2329,7 @@ CONTAINS
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END IF
     END DO
-
+    CALL timestop(0.0_dp,handle2)
     CALL timestop(0.0_dp,handle)
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
          "PRINT%TOPOLOGY_INFO/UTIL_INFO",error=error)
@@ -2363,25 +2391,27 @@ CONTAINS
     CHARACTER(LEN=default_string_length), &
       POINTER                                :: work(:)
     INTEGER :: counter, first, first_atom, handle, i, iatom, ibend, ibond, &
-      ikind, imol_now, imolecule, itorsion, iw, j, k, handle3, kk,&
+      ikind, imol_now, imolecule, itorsion, iw, j, k, handle3, kk, n,&
       last, last_atom, natom, nbend, nbond, ntorsion, position, stat, handle2
+    INTEGER :: dim1, dim2, dim3
     INTEGER, DIMENSION(:), POINTER :: atomkind, iatomlist, first_mol, kind_of, &
-      last_mol, list, list2, molecule_list, natom_of_kind
+      last_mol, list, list2, wlist, molecule_list, natom_of_kind
     LOGICAL                                  :: failure, found, my_qmmm
-    LOGICAL, POINTER, DIMENSION(:)           :: atomlist, atomlist_ei, excl_molecule_list
+    LOGICAL, POINTER, DIMENSION(:)           :: atomlist, atomlist_ei
     REAL(KIND=dp)                            :: alpha_core_charge, qeff
     REAL(KIND=dp), DIMENSION(:), POINTER     :: charge, mass
     TYPE(atom_info_type), POINTER            :: atom_info
     TYPE(atom_type), DIMENSION(:), POINTER   :: atom_list
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(bend_type), DIMENSION(:), POINTER   :: bend_list, ex_bend_list
-    TYPE(bond_type), DIMENSION(:), POINTER   :: bond_list, ex_bond_list
+    TYPE(connectivity_info_type), POINTER    :: conn_info
+    TYPE(atom_bond_list_type), DIMENSION(:), POINTER   :: ex_bond_list,&
+                                                          ex_bend_list,&
+                                                          ex_torsion_list
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(elp_potential_type), POINTER        :: elp_potential
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
-    TYPE(torsion_type), DIMENSION(:), &
-      POINTER                                :: ex_torsion_list, torsion_list
+
 
     failure = .FALSE.
     NULLIFY(logger)
@@ -2393,7 +2423,7 @@ CONTAINS
     my_qmmm = .FALSE.
     IF (PRESENT(qmmm).AND.PRESENT(qmmm_env)) my_qmmm=qmmm
     atom_info => topology%atom_info
-
+    conn_info => topology%conn_info
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 1. Determine topology%[natom_type,atom_names] and save mass(natom_type) 
@@ -2593,292 +2623,158 @@ CONTAINS
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     CALL timestop(0.0_dp,handle2)
 
-
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
-    ! 8. Fill in the particle_set%list_exclude_vdw and their index arrays
-    ! 9. Fill in the particle_set%list_exclude_ei and their index arrays
+    ! 8. Fill in the particle_set%list_exclude_vdw 
+    ! 9. Fill in the particle_set%list_exclude_ei
     !-----------------------------------------------------------------------------
     CALL timeset(routineN//'_89',handle2)
-    ALLOCATE(atomkind(SIZE(particle_set)),STAT=stat)
+    natom=topology%natoms
+    ! Reorder bonds
+    ALLOCATE(ex_bond_list(natom),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(first_mol(SIZE(molecule_set)),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(last_mol(SIZE(molecule_set)),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    DO i=1,SIZE(particle_set)
-       atomic_kind => particle_set(i)%atomic_kind
-       CALL get_atomic_kind(atomic_kind,kind_number=j)
-       atomkind(i) = j
-    END DO
-    DO i=1,SIZE(molecule_set)
-       molecule => molecule_set(i)
-       CALL get_molecule(molecule=molecule,&
-            molecule_kind=molecule_kind,&
-            first_atom=first_mol(i),&
-            last_atom=last_mol(i))
-    END DO
-    ALLOCATE(atomlist(SIZE(particle_set)),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    IF(topology%exclude_vdw/=topology%exclude_ei) THEN
-       ALLOCATE(atomlist_ei(SIZE(particle_set)),STAT=stat)
+    DO I=1,natom
+       ALLOCATE(ex_bond_list(I)%bonds(0),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    END IF
-    ALLOCATE(excl_molecule_list(SIZE(molecule_set)),STAT=stat)
+    ENDDO
+    N = 0
+    IF(ASSOCIATED(conn_info%bond_a)) N = SIZE(conn_info%bond_a)
+    CALL reorder_structure(ex_bond_list, conn_info%bond_a, conn_info%bond_b, N, error)
+    ! Reorder bends
+    ALLOCATE(ex_bend_list(natom),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
-    DO imol_now = 1, SIZE(molecule_set)
-       stat = 1
-       CALL get_excluded_molecule(imol_now,excl_molecule_list,nbond,&
-            stat,first_mol,last_mol,molecule_set,error)
-       ALLOCATE(ex_bond_list(nbond),STAT=stat)
+    DO I=1,natom
+       ALLOCATE(ex_bend_list(I)%bonds(0),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ibond = 1
-       DO i=1,SIZE(excl_molecule_list)
-          IF (excl_molecule_list(i))   THEN
-             molecule => molecule_set(i)
-             molecule_kind => molecule%molecule_kind
-             bond_list => molecule_kind%bond_list
-             ex_bond_list(ibond:ibond+SIZE(bond_list)-1)%a = &
-                  bond_list(:)%a+first_mol(i)-1
-             ex_bond_list(ibond:ibond+SIZE(bond_list)-1)%b = &
-                  bond_list(:)%b+first_mol(i)-1
-             ibond = ibond + SIZE(bond_list)
-          END IF
-       END DO
-       stat = 2
-       CALL get_excluded_molecule(imol_now,excl_molecule_list,nbend,&
-            stat,first_mol,last_mol,molecule_set,error)
-       ALLOCATE(ex_bend_list(nbend),STAT=stat)
+    ENDDO
+    N = 0
+    IF(ASSOCIATED(conn_info%theta_a)) N = SIZE(conn_info%theta_a)
+    CALL reorder_structure(ex_bend_list, conn_info%theta_a, conn_info%theta_c, N, error)
+    ! Reorder torsions
+    ALLOCATE(ex_torsion_list(natom),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DO I=1,natom
+       ALLOCATE(ex_torsion_list(I)%bonds(0),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ibend = 1
-       DO i=1,SIZE(excl_molecule_list)
-          IF (excl_molecule_list(i))   THEN
-             molecule => molecule_set(i)
-             molecule_kind => molecule%molecule_kind
-             bend_list => molecule_kind%bend_list
-             ex_bend_list(ibend:ibend+SIZE(bend_list)-1)%a = &
-                  bend_list(:)%a+first_mol(i)-1
-             ex_bend_list(ibend:ibend+SIZE(bend_list)-1)%b = &
-                  bend_list(:)%b+first_mol(i)-1
-             ex_bend_list(ibend:ibend+SIZE(bend_list)-1)%c = &
-                  bend_list(:)%c+first_mol(i)-1
-             ibend = ibend + SIZE(bend_list)
-          END IF
-       END DO
-       stat = 3
-       CALL get_excluded_molecule(imol_now,excl_molecule_list,ntorsion,&
-            stat,first_mol,last_mol,molecule_set,error)
-       ALLOCATE(ex_torsion_list(ntorsion),STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       itorsion = 1
-       DO i=1,SIZE(excl_molecule_list)
-          IF (excl_molecule_list(i))   THEN
-             molecule => molecule_set(i)
-             molecule_kind => molecule%molecule_kind
-             torsion_list => molecule_kind%torsion_list
-             ex_torsion_list(itorsion:itorsion+SIZE(torsion_list)-1)%a = &
-                  torsion_list(:)%a+first_mol(i)-1
-             ex_torsion_list(itorsion:itorsion+SIZE(torsion_list)-1)%b = &
-                  torsion_list(:)%b+first_mol(i)-1
-             ex_torsion_list(itorsion:itorsion+SIZE(torsion_list)-1)%c = &
-                  torsion_list(:)%c+first_mol(i)-1
-             ex_torsion_list(itorsion:itorsion+SIZE(torsion_list)-1)%d = &
-                  torsion_list(:)%d+first_mol(i)-1
-             itorsion = itorsion + SIZE(torsion_list)
-          END IF
-       END DO
-       DO iatom = first_mol(imol_now), last_mol(imol_now)
-          atomlist        = .TRUE. 
-          atomlist(iatom) = .FALSE.
-       
-          IF  (topology%exclude_vdw==do_skip_vdw_12 .OR. &
-               topology%exclude_vdw==do_skip_vdw_13 .OR. &
-               topology%exclude_vdw==do_skip_vdw_14) THEN
-             DO j=1,nbond
-                IF(  (ex_bond_list(j)%a==iatom).OR. &
-                     (ex_bond_list(j)%b==iatom) ) THEN
-                   atomlist(ex_bond_list(j)%a) = .FALSE.
-                   atomlist(ex_bond_list(j)%b) = .FALSE.
-                END IF
-             END DO
-          END IF
-       
-          IF  (topology%exclude_vdw==do_skip_vdw_13 .OR. &
-               topology%exclude_vdw==do_skip_vdw_14) THEN
-             DO j=1,nbend
-                IF(  (ex_bend_list(j)%a==iatom).OR. &
-                     (ex_bend_list(j)%c==iatom) ) THEN
-                   atomlist(ex_bend_list(j)%a) = .FALSE.
-                   atomlist(ex_bend_list(j)%c) = .FALSE.
-                END IF
-             END DO
-          END IF
-          
-          IF  (topology%exclude_vdw==do_skip_vdw_14) THEN
-             DO j=1,ntorsion
-                IF(  (ex_torsion_list(j)%a==iatom).OR. &
-                     (ex_torsion_list(j)%d==iatom) ) THEN
-                   atomlist(ex_torsion_list(j)%a) = .FALSE.
-                   atomlist(ex_torsion_list(j)%d) = .FALSE.
-                END IF
-             END DO
-          END IF
-          
-          IF(topology%exclude_vdw/=topology%exclude_ei) THEN
-             atomlist_ei        = .TRUE. 
-             atomlist_ei(iatom) = .FALSE.
-             IF  (topology%exclude_ei==do_skip_ei_12 .OR. &
-                  topology%exclude_ei==do_skip_ei_13 .OR. &
-                  topology%exclude_ei==do_skip_ei_14) THEN
-                DO j=1,nbond
-                   IF(  (ex_bond_list(j)%a==iatom).OR. &
-                        (ex_bond_list(j)%b==iatom) ) THEN
-                      atomlist_ei(ex_bond_list(j)%a) = .FALSE.
-                      atomlist_ei(ex_bond_list(j)%b) = .FALSE.
-                   END IF
-                END DO
-             END IF
-             
-             IF  (topology%exclude_ei==do_skip_ei_13 .OR. &
-                  topology%exclude_ei==do_skip_ei_14) THEN
-                DO j=1,nbend
-                   IF(  (ex_bend_list(j)%a==iatom).OR. &
-                        (ex_bend_list(j)%c==iatom) ) THEN
-                      atomlist_ei(ex_bend_list(j)%a) = .FALSE.
-                      atomlist_ei(ex_bend_list(j)%c) = .FALSE.
-                   END IF
-                END DO
-             END IF
-             
-             IF  (topology%exclude_ei==do_skip_ei_14) THEN
-                DO j=1,ntorsion
-                   IF(  (ex_torsion_list(j)%a==iatom).OR. &
-                        (ex_torsion_list(j)%d==iatom) ) THEN
-                      atomlist_ei(ex_torsion_list(j)%a) = .FALSE.
-                      atomlist_ei(ex_torsion_list(j)%d) = .FALSE.
-                   END IF
-                END DO
-             END IF
-          END IF
-          
-          IF (my_qmmm) THEN 
-             DO j=1,SIZE(molecule_set)
-                molecule => molecule_set(j)
-                CALL get_molecule(molecule=molecule,&
-                     first_atom=first_atom,last_atom=last_atom)
-                IF ((iatom >= first_atom).AND.(iatom <= last_atom)) EXIT
-             END DO
-             imolecule=j
-             !
-             ! exclude all intramolecular interactions between QM atoms 
-             !
-             IF ((qmmm_env%qmmm_coupl_type == do_qmmm_none).AND.&
-                  ANY(qmmm_env%qm_molecule_index == imolecule)) THEN
-                DO j = 1, SIZE(qmmm_env%qm_atom_index)
-                   counter = qmmm_env%qm_atom_index(j)
-                   IF ((counter >= first_atom).AND.(counter <= last_atom)) THEN
-                      atomlist(counter) = .FALSE.
-                      IF(topology%exclude_vdw/=topology%exclude_ei) THEN
-                         atomlist_ei(counter) = .FALSE.
-                      END IF
-                   END IF
-                END DO
-             END IF
-          END IF
-          
-          ! VDW exclude_list
-          counter = 0
-          DO j=1,SIZE(atomic_kind_set)
-             DO k=1,SIZE(atomic_kind_set(j)%atom_list)
-                kk = atomic_kind_set(j)%atom_list(k)
-                IF(.NOT.atomlist(kk)) THEN
-                   counter = counter + 1
-                END IF
+    ENDDO
+    N = 0
+    IF(ASSOCIATED(conn_info%phi_a)) N = SIZE(conn_info%phi_a)
+    CALL reorder_structure(ex_torsion_list, conn_info%phi_a, conn_info%phi_d, N, error)
+    !
+    DO iatom = 1, SIZE(particle_set)
+       dim1 = 1 ! always exclude itself..
+       dim2 = 0
+       dim3 = 0
+       IF  (topology%exclude_vdw==do_skip_vdw_12 .OR. &
+            topology%exclude_vdw==do_skip_vdw_13 .OR. &
+            topology%exclude_vdw==do_skip_vdw_14) dim1 = dim1 + SIZE(ex_bond_list(iatom)%bonds)
+       IF  (topology%exclude_vdw==do_skip_vdw_13 .OR. &
+            topology%exclude_vdw==do_skip_vdw_14) dim2 = dim1 + SIZE(ex_bend_list(iatom)%bonds)
+       IF  (topology%exclude_vdw==do_skip_vdw_14) dim3 = dim2 + SIZE(ex_torsion_list(iatom)%bonds)
+       IF (dim3 /= 0) THEN
+          NULLIFY(list, wlist)
+          ALLOCATE(wlist(dim3),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          wlist(     1:   1) = iatom
+          wlist(     2:dim1) = ex_bond_list(iatom)%bonds
+          wlist(dim1+1:dim2) = ex_bend_list(iatom)%bonds
+          wlist(dim2+1:dim3) = ex_torsion_list(iatom)%bonds
+          ! Get a unique list
+          DO i = 1, SIZE(wlist)-1
+             IF (wlist(i)==0)CYCLE
+             DO j = i+1, SIZE(wlist)
+                IF(wlist(j)==wlist(i)) wlist(j) = 0
              END DO
           END DO
-          IF (counter>0) THEN
-             ALLOCATE(list(counter),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)          
-             counter = 0
-             DO j=1,SIZE(atomic_kind_set)
-                DO k=1,SIZE(atomic_kind_set(j)%atom_list)
-                   kk = atomic_kind_set(j)%atom_list(k)
-                   IF(.NOT.atomlist(kk)) THEN
-                      counter = counter + 1
-                      list(counter) = kk
-                   END IF
-                END DO
-             END DO
-             particle_set(iatom)%list_exclude_vdw => list
-          END IF
+          dim3 = SIZE(wlist)-COUNT(wlist==0)
+          ALLOCATE(list(dim3),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          j = 0
+          DO i = 1, SIZE(wlist)
+             IF (wlist(i)==0)CYCLE
+             j = j + 1
+             list(j)=wlist(i)
+          END DO
+          DEALLOCATE(wlist,stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ! Unique list completed
           NULLIFY(list2)
           IF(topology%exclude_vdw==topology%exclude_ei) THEN
-             IF(counter > 0) THEN
-                list2 => list
-             END IF
+             list2 => list
           ELSE
-             ! EI
-             counter = 0
-             DO j=1,SIZE(atomic_kind_set)
-                DO k=1,SIZE(atomic_kind_set(j)%atom_list)
-                   kk = atomic_kind_set(j)%atom_list(k)
-                   IF(.NOT.atomlist_ei(kk)) THEN
-                      counter = counter + 1
-                   END IF
-                END DO
-             END DO
-             IF (counter>0) THEN
-                ALLOCATE(list2(counter),stat=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)          
-                counter = 0
-                DO j=1,SIZE(atomic_kind_set)
-                   DO k=1,SIZE(atomic_kind_set(j)%atom_list)
-                      kk = atomic_kind_set(j)%atom_list(k)
-                      IF(.NOT.atomlist_ei(kk)) THEN
-                         counter = counter + 1
-                         list2(counter) = kk
-                      END IF
+             dim1 = 1 ! always exclude itself..
+             dim2 = 0
+             dim3 = 0
+             IF  (topology%exclude_ei==do_skip_ei_12 .OR. &
+                  topology%exclude_ei==do_skip_ei_13 .OR. &
+                  topology%exclude_ei==do_skip_ei_14) dim1 = dim1 + SIZE(ex_bond_list(iatom)%bonds)
+             IF  (topology%exclude_ei==do_skip_ei_13 .OR. &
+                  topology%exclude_ei==do_skip_ei_14) dim2 = dim1 + SIZE(ex_bend_list(iatom)%bonds)
+             IF  (topology%exclude_ei==do_skip_ei_14) dim3 = dim2 + SIZE(ex_torsion_list(iatom)%bonds)
+             IF (dim3 /= 0) THEN
+                ALLOCATE(wlist(dim3),stat=stat)
+                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                wlist(     1:   1) = iatom
+                wlist(     2:dim1) = ex_bond_list(iatom)%bonds
+                wlist(dim1+1:dim2) = ex_bend_list(iatom)%bonds
+                wlist(dim2+1:dim3) = ex_torsion_list(iatom)%bonds
+                ! Get a unique list
+                DO i = 1, SIZE(wlist)-1
+                   IF (wlist(i)==0)CYCLE
+                   DO j = i+1, SIZE(wlist)
+                      IF(wlist(j)==wlist(i)) wlist(j) = 0
                    END DO
                 END DO
+                dim3 = SIZE(wlist)-COUNT(wlist==0)
+                ALLOCATE(list2(dim3),stat=stat)
+                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                j = 0
+                DO i = 1, SIZE(wlist)
+                   IF (wlist(i)==0)CYCLE
+                   j = j + 1
+                   list2(j)=wlist(i)
+                END DO
+                DEALLOCATE(wlist,stat=stat)
+                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+                ! Unique list completed
              END IF
           END IF
-          IF (counter>0) THEN
-             particle_set(iatom)%list_exclude_ei => list2
-          END IF
-          IF (iw>0) THEN 
-             IF (ASSOCIATED(list)) &
-                  WRITE(iw,*)"exclusion list_vdw :: ",&
+       END IF
+       particle_set(iatom)%list_exclude_vdw => list
+       particle_set(iatom)%list_exclude_ei  => list2
+       IF (iw>0) THEN 
+          IF (ASSOCIATED(list)) &
+               WRITE(iw,*)"exclusion list_vdw :: ",&
+               "atom num :",iatom,"exclusion list ::",&
+               list
+          IF(topology%exclude_vdw/=topology%exclude_ei) THEN
+             IF (ASSOCIATED(list2)) &
+                  WRITE(iw,*)"exclusion list_ei :: ",&
                   "atom num :",iatom,"exclusion list ::",&
-                  list
-             IF(topology%exclude_vdw/=topology%exclude_ei) THEN
-                IF (ASSOCIATED(list2)) &
-                     WRITE(iw,*)"exclusion list_ei :: ",&
-                     "atom num :",iatom,"exclusion list ::",&
-                     list2
-             END IF
+                  list2
           END IF
-       END DO
-       DEALLOCATE(ex_bond_list,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DEALLOCATE(ex_bend_list,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DEALLOCATE(ex_torsion_list,STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
     END DO
-    DEALLOCATE(atomlist,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    IF(topology%exclude_vdw/=topology%exclude_ei) THEN
-       DEALLOCATE(atomlist_ei,STAT=stat)
+    ! deallocate torsions
+    DO I=1,natom
+       DEALLOCATE(ex_torsion_list(I)%bonds,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    END IF
-    DEALLOCATE(excl_molecule_list,STAT=stat)
+    ENDDO
+    DEALLOCATE(ex_torsion_list,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE(atomkind,STAT=stat)
+    ! deallocate bends
+    DO I=1,natom
+       DEALLOCATE(ex_bend_list(I)%bonds,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ENDDO
+    DEALLOCATE(ex_bend_list,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE(first_mol,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    DEALLOCATE(last_mol,STAT=stat)
+    ! deallocate bonds
+    DO I=1,natom
+       DEALLOCATE(ex_bond_list(I)%bonds,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ENDDO
+    DEALLOCATE(ex_bond_list,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     CALL timestop(0.0_dp,handle2)
 
@@ -2952,251 +2848,6 @@ CONTAINS
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
          "PRINT%TOPOLOGY_INFO/UTIL_INFO",error=error)
   END SUBROUTINE topology_coordinate_pack
- 
-!******************************************************************************
-!!****** topology_util/get_excluded_molecule [1.0] *
-!!
-!!   NAME
-!!     get_excluded_molecule
-!!
-!!   SYNOPSIS
-!!
-!!   FUNCTION
-!!     Gives back a list of molecules used to build up the exclusion lists
-!!
-!!   AUTHOR
-!!     Teodoro Laino
-!!
-!!   MODIFICATION HISTORY
-!!
-!!   OPTIONS
-!!
-!!*** *************************************************************************
-  SUBROUTINE get_excluded_molecule(imol,excl_molecule_list,ntarg,&
-       stat,first_mol,last_mol,molecule_set,error)
-    IMPLICIT NONE
-    ! Arguments
-    INTEGER, INTENT(IN)            :: imol
-    LOGICAL, POINTER, DIMENSION(:) :: excl_molecule_list
-    INTEGER, POINTER, DIMENSION(:) :: first_mol, last_mol
-    INTEGER, INTENT(OUT)           :: ntarg
-    INTEGER, INTENT(INOUT)         :: stat
-    TYPE(molecule_type), DIMENSION(:), &
-      POINTER                                :: molecule_set
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-    ! Local Variables
-    CHARACTER(len=*), PARAMETER :: routineN = 'get_excluded_molecule', &
-         routineP = moduleN//':'//routineN    
-    TYPE(bend_type), DIMENSION(:), POINTER   :: bend_list
-    TYPE(bond_type), DIMENSION(:), POINTER   :: bond_list
-    TYPE(molecule_kind_type), POINTER        :: molecule_kind
-    TYPE(molecule_type), POINTER             :: molecule
-    TYPE(torsion_type), DIMENSION(:), &
-      POINTER                                :: torsion_list
-    INTEGER :: i, j, my_mol, il
-    INTEGER :: first_atom0, last_atom0
-    INTEGER :: jatom, a, b, c, d, nloc, offset
-    LOGICAL :: failure
-
-    failure = .FALSE.
-    excl_molecule_list = .FALSE.
-    ntarg = 0
-    excl_molecule_list(imol) = .TRUE.
-    first_atom0 = first_mol(imol)
-    last_atom0  = last_mol(imol)
-    offset = first_atom0 - 1
-    molecule => molecule_set(imol)
-    molecule_kind => molecule%molecule_kind
-    SELECT CASE (stat)
-    CASE(1)
-       bond_list => molecule_kind%bond_list
-       nloc = molecule_kind%nbond
-       ntarg = ntarg + nloc
-       DO j = 1, SIZE(bond_list)
-          a = offset+bond_list(j)%a
-          b = offset+bond_list(j)%b
-          ! check boundaries for a
-          IF ((a<first_atom0).OR.(a>last_atom0)) THEN
-             jatom = a
-             DO i = 1, SIZE(first_mol)
-                IF ((first_mol(i) <= jatom).AND.(last_mol(i) >= jatom)) EXIT
-             END DO
-             CPPostcondition(i<=SIZE(first_mol),cp_failure_level,routineP,error,failure)
-             IF (.NOT. excl_molecule_list(i)) THEN
-                excl_molecule_list(i) = .TRUE.
-                molecule => molecule_set(i)
-                molecule_kind => molecule%molecule_kind
-                nloc = molecule_kind%nbond
-                ntarg = ntarg + nloc
-             END IF
-          END IF
-          ! check boundaries for b
-          IF ((b<first_atom0).OR.(b>last_atom0)) THEN
-             jatom = b
-             DO i = 1, SIZE(first_mol)
-                IF ((first_mol(i) <= jatom).AND.(last_mol(i) >= jatom)) EXIT
-             END DO
-             CPPostcondition(i<=SIZE(first_mol),cp_failure_level,routineP,error,failure)
-             IF (.NOT. excl_molecule_list(i)) THEN
-                excl_molecule_list(i) = .TRUE.
-                molecule => molecule_set(i)
-                molecule_kind => molecule%molecule_kind
-                nloc = molecule_kind%nbond
-                ntarg = ntarg + nloc
-             END IF
-          END IF
-       END DO
-       ! Let's look for external bonds
-       DO i = 1, SIZE(molecule_set)
-          molecule => molecule_set(i)
-          molecule_kind => molecule%molecule_kind
-          bond_list => molecule_kind%bond_list
-          il = last_mol(i)-first_mol(i)+1
-          IF (ALL(bond_list(:)%a<=il).AND.ALL(bond_list(:)%b<=il)) CYCLE
-          DO j = 1, SIZE(bond_list)
-             a = first_mol(i)-1+bond_list(j)%a
-             b = first_mol(i)-1+bond_list(j)%b
-             IF ((a>=first_atom0.AND.a<=last_atom0).OR.&
-                 (b>=first_atom0.AND.b<=last_atom0)) THEN
-                IF (.NOT. excl_molecule_list(i)) THEN
-                   excl_molecule_list(i) = .TRUE.
-                   molecule => molecule_set(i)
-                   molecule_kind => molecule%molecule_kind
-                   nloc = molecule_kind%nbond
-                   ntarg = ntarg + nloc
-                   EXIT
-                END IF
-             END IF
-          END DO
-       END DO
-    CASE(2)
-       bend_list => molecule_kind%bend_list
-       nloc = molecule_kind%nbend
-       ntarg = ntarg + nloc
-       DO j = 1, SIZE(bend_list)
-          a = offset + bend_list(j)%a
-          c = offset + bend_list(j)%c
-          ! check boundaries for a
-          IF ((a<first_atom0).OR.(a>last_atom0)) THEN
-             jatom = a
-             DO i = 1, SIZE(first_mol)
-                IF ((first_mol(i) <= jatom).AND.(last_mol(i) >= jatom)) EXIT
-             END DO
-             CPPostcondition(i<=SIZE(first_mol),cp_failure_level,routineP,error,failure)
-             IF (.NOT. excl_molecule_list(i)) THEN
-                excl_molecule_list(i) = .TRUE.
-                molecule => molecule_set(i)
-                molecule_kind => molecule%molecule_kind
-                nloc = molecule_kind%nbend
-                ntarg = ntarg + nloc
-             END IF
-          END IF
-          ! check boundaries for c
-          IF ((c<first_atom0).OR.(c>last_atom0)) THEN
-             jatom = c
-             DO i = 1, SIZE(first_mol)
-                IF ((first_mol(i) <= jatom).AND.(last_mol(i) >= jatom)) EXIT
-             END DO
-             CPPostcondition(i<=SIZE(first_mol),cp_failure_level,routineP,error,failure)
-             IF (.NOT. excl_molecule_list(i)) THEN
-                excl_molecule_list(i) = .TRUE.
-                molecule => molecule_set(i)
-                molecule_kind => molecule%molecule_kind
-                nloc = molecule_kind%nbend
-                ntarg = ntarg + nloc
-             END IF
-          END IF
-       END DO
-       ! Let's look for external bends
-       DO i = 1, SIZE(molecule_set)
-          molecule => molecule_set(i)
-          molecule_kind => molecule%molecule_kind
-          bend_list => molecule_kind%bend_list
-          il = last_mol(i)-first_mol(i)+1
-          IF (ALL(bend_list(:)%a<=il).AND.ALL(bend_list(:)%c<=il)) CYCLE
-          DO j = 1, SIZE(bend_list)
-             a = first_mol(i)-1+bend_list(j)%a
-             c = first_mol(i)-1+bend_list(j)%c
-             IF ((a>=first_atom0.AND.a<=last_atom0).OR.&
-                 (c>=first_atom0.AND.c<=last_atom0)) THEN
-                IF (.NOT. excl_molecule_list(i)) THEN
-                   excl_molecule_list(i) = .TRUE.
-                   molecule => molecule_set(i)
-                   molecule_kind => molecule%molecule_kind
-                   nloc = molecule_kind%nbend
-                   ntarg = ntarg + nloc
-                   EXIT
-                END IF
-             END IF
-          END DO
-       END DO
-    CASE(3)
-       torsion_list => molecule_kind%torsion_list
-       nloc = molecule_kind%ntorsion
-       ntarg = ntarg + nloc
-       DO j = 1, SIZE(torsion_list)
-          a = offset + torsion_list(j)%a
-          d = offset + torsion_list(j)%d
-          ! check boundaries for a
-          IF ((a<first_atom0).OR.(a>last_atom0)) THEN
-             jatom = a
-             DO i = 1, SIZE(first_mol)
-                IF ((first_mol(i) <= jatom).AND.(last_mol(i) >= jatom)) EXIT
-             END DO
-             CPPostcondition(i<=SIZE(first_mol),cp_failure_level,routineP,error,failure)
-             IF (.NOT. excl_molecule_list(i)) THEN
-                excl_molecule_list(i) = .TRUE.
-                molecule => molecule_set(i)
-                molecule_kind => molecule%molecule_kind
-                nloc = molecule_kind%ntorsion
-                ntarg = ntarg + nloc
-             END IF
-          END IF
-          ! check boundaries for d
-          IF ((d<first_atom0).OR.(d>last_atom0)) THEN
-             jatom = d
-             DO i = 1, SIZE(first_mol)
-                IF ((first_mol(i) <= jatom).AND.(last_mol(i) >= jatom)) EXIT
-             END DO
-             CPPostcondition(i<=SIZE(first_mol),cp_failure_level,routineP,error,failure)
-             IF (.NOT. excl_molecule_list(i)) THEN
-                excl_molecule_list(i) = .TRUE.
-                molecule => molecule_set(i)
-                molecule_kind => molecule%molecule_kind
-                nloc = molecule_kind%ntorsion
-                ntarg = ntarg + nloc
-             END IF
-          END IF
-       END DO
-       ! Let's look for external torsions
-       DO i = 1, SIZE(molecule_set)
-          molecule => molecule_set(i)
-          molecule_kind => molecule%molecule_kind
-          torsion_list => molecule_kind%torsion_list
-          il = last_mol(i)-first_mol(i)+1
-          IF (ALL(torsion_list(:)%a<=il).AND.ALL(torsion_list(:)%d<=il)) CYCLE
-          DO j = 1, SIZE(torsion_list)
-             a = first_mol(i)-1+torsion_list(j)%a
-             d = first_mol(i)-1+torsion_list(j)%d
-             IF ((a>=first_atom0.AND.a<=last_atom0).OR.&
-                 (d>=first_atom0.AND.d<=last_atom0)) THEN
-                IF (.NOT. excl_molecule_list(i)) THEN
-                   excl_molecule_list(i) = .TRUE.
-                   molecule => molecule_set(i)
-                   molecule_kind => molecule%molecule_kind
-                   nloc = molecule_kind%ntorsion
-                   ntarg = ntarg + nloc
-                   EXIT
-                END IF
-             END IF
-          END DO
-       END DO
-    CASE DEFAULT
-       CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)       
-    END SELECT
-
-  END SUBROUTINE get_excluded_molecule
  
 !******************************************************************************
 !!****** topology_util/topology_constraint_pack [1.0] *
@@ -3723,13 +3374,14 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'topology_molecules_check', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: counter, first, first2, &
-                                                handle, iatom, imol, &
-                                                imol_typ, iw, last, last2, &
-                                                natom, nmol, nmol_typ
-    LOGICAL                                  :: failure
+    INTEGER                                  :: first, handle, iatom, &
+                                                iw, natom, first_loc, stat, n, i, k
+    INTEGER                                  :: mol_typ, mol_num, counter, loc_counter
+    LOGICAL                                  :: failure, icheck_num, icheck_typ
     TYPE(atom_info_type), POINTER            :: atom_info
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(connectivity_info_type), POINTER    :: conn_info
+    TYPE(atom_bond_list_type), DIMENSION(:), ALLOCATABLE  :: atom_bond_list
 
     failure = .FALSE.
     NULLIFY(logger)
@@ -3739,83 +3391,101 @@ CONTAINS
     CALL timeset(routineN,'I','',handle)
 
     atom_info => topology%atom_info
-    
-    !-----------------------------------------------------------------------------
-    !-----------------------------------------------------------------------------
-    ! 1.
-    !-----------------------------------------------------------------------------
+    conn_info => topology%conn_info
     natom = topology%natoms
-    nmol_typ = atom_info%map_mol_typ(natom)
 
-    !-----------------------------------------------------------------------------
-    !-----------------------------------------------------------------------------
-    ! 2. Check each molecule have the same number of atoms
-    !-----------------------------------------------------------------------------
-    DO imol_typ=1,nmol_typ
-       CALL find_boundary(atom_info%map_mol_typ,natom,first,last,imol_typ)
-       !get back the first and last atom for this molecule type
-       nmol = atom_info%map_mol_num(last)
-       IF(nmol > 1) THEN
-          CALL find_boundary(atom_info%map_mol_typ,atom_info%map_mol_num,&
-               natom,first,last,imol_typ,1)
-          counter = last - first + 1
-          DO imol=2,nmol
-             CALL find_boundary(atom_info%map_mol_typ,atom_info%map_mol_num,&
-                  natom,first,last,imol_typ,imol)
-             !get back the first and last atom of this molecule
-             iatom = last - first + 1
-             IF(iatom /= counter) THEN
-                CALL stop_program ("topology_molecules_check",&
-                     "different number of atoms for same molecule kind"//&
-                     " imol_typ= "//cp_to_string(imol_typ)//&
-                     " imol= "//cp_to_string(imol))
-             END IF
-          END DO
+    IF (iw>0) WRITE(iw,'(A)')"Start of Molecule_Check",&
+         "  Checking consistency between the generated molecules"
+
+    ALLOCATE(atom_bond_list(natom),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DO I=1,natom
+       ALLOCATE(atom_bond_list(I)%bonds(0),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ENDDO
+    N = 0
+    IF(ASSOCIATED(conn_info%bond_a)) N = SIZE(conn_info%bond_a)
+    CALL reorder_structure(atom_bond_list, conn_info%bond_a, conn_info%bond_b, N, error)
+
+    mol_typ = atom_info%map_mol_typ(1)
+    mol_num = atom_info%map_mol_num(1)
+    counter     = 1
+    loc_counter = 1
+    first       = 1
+    first_loc   = 1
+    DO iatom = 2, natom
+       icheck_num = (atom_info%map_mol_num(iatom) == mol_num)
+       icheck_typ = (atom_info%map_mol_typ(iatom) == mol_typ)
+       IF ((icheck_typ.AND.(.NOT.icheck_num)).OR.(.NOT.icheck_typ)) THEN
+          !-----------------------------------------------------------------------------
+          !-----------------------------------------------------------------------------
+          ! 1. Check each molecule have the same number of atoms
+          !-----------------------------------------------------------------------------
+          IF (counter /= loc_counter) THEN
+             CALL stop_program ("topology_molecules_check",&
+                  "different number of atoms for same molecule kind"//&
+                  " molecule type  = "//cp_to_string(mol_typ)//&
+                  " molecule number= "//cp_to_string(mol_num)//&
+                  " expected number of atoms="//cp_to_string(counter)//" found="//&
+                  cp_to_string(loc_counter))            
+          END IF
        END IF
-    END DO
-
-
-    !-----------------------------------------------------------------------------
-    !-----------------------------------------------------------------------------
-    ! 3. Check that each molecule has the same atom sequences
-    !-----------------------------------------------------------------------------
-    DO imol_typ=1,nmol_typ
-       CALL find_boundary(atom_info%map_mol_typ,natom,first,last,imol_typ)
-       !get back the first and last atom for this molecule type
-       nmol = atom_info%map_mol_num(last)
-       IF(nmol > 1) THEN
-          CALL find_boundary(atom_info%map_mol_typ,atom_info%map_mol_num,&
-               natom,first,last,imol_typ,1)
-          counter = last - first + 1
-          DO imol=2,nmol
-             CALL find_boundary(atom_info%map_mol_typ,atom_info%map_mol_num,&
-                  natom,first2,last2,imol_typ,imol)
-             DO iatom=1,counter
-                IF( atom_info%label_atmname(first+iatom-1) /= &
-                     atom_info%label_atmname(first2+iatom-1) ) THEN
+       IF (.NOT.icheck_typ) THEN
+          first       = iatom
+          first_loc   = iatom
+          counter     = 1
+          loc_counter = 1
+          mol_typ     = atom_info%map_mol_typ(iatom)
+       END IF
+       IF (icheck_num) THEN 
+          IF (icheck_typ) loc_counter = loc_counter + 1
+          !-----------------------------------------------------------------------------
+          !-----------------------------------------------------------------------------
+          ! 2. Check that each molecule has the same atom sequences
+          !-----------------------------------------------------------------------------
+          IF( TRIM(atom_info%label_atmname(iatom)) /= &
+              TRIM(atom_info%label_atmname(first+loc_counter-1)) ) THEN
+             CALL stop_program ("topology_molecules_check",&
+                  "different atom name for same molecule kind"//&
+                  " molecule type  = "//cp_to_string(mol_typ)//&
+                  " molecule number= "//cp_to_string(mol_num)//&
+                  " expected atom name="//TRIM(atom_info%label_atmname(first+loc_counter-1))//&
+                  " found="//TRIM(atom_info%label_atmname(iatom)))
+          END IF
+          !-----------------------------------------------------------------------------
+          !-----------------------------------------------------------------------------
+          ! 3. Check that each molecule have the same bond sequences
+          !-----------------------------------------------------------------------------
+          IF (SIZE(atom_bond_list(iatom)%bonds)/=SIZE(atom_bond_list(iatom)%bonds)) failure = .TRUE.
+          IF (.NOT.failure) THEN
+             DO k = 1,SIZE(atom_bond_list(iatom)%bonds)
+                IF (ALL(atom_bond_list(first+loc_counter-1)%bonds-first/=&
+                     atom_bond_list(iatom)%bonds(k)-first_loc)) THEN
                    CALL stop_program ("topology_molecules_check",&
-                        "different atom name for same molecule kind"&
-                        //" imol_typ= "//TRIM(cp_to_string(imol_typ))&
-                        //" imol= "//TRIM(cp_to_string(imol))&
-                        //" "//TRIM(atom_info%label_atmname(first+iatom-1))&
-                       //" "//TRIM(atom_info%label_atmname(first2+iatom-1)))
+                        "different bonds for same molecule kind"//&
+                        " molecule type  = "//cp_to_string(mol_typ)//&
+                        " molecule number= "//cp_to_string(mol_num)//&
+                        " expected bonds="//cp_to_string(iatom-first_loc+1)//" - "//&
+                        cp_to_string(atom_bond_list(iatom)%bonds(k)-first_loc)//&
+                        " NOT FOUND! Check the connectivity of your system.")
                 END IF
              END DO
-          END DO
+          END IF
+       ELSE
+          mol_num = atom_info%map_mol_num(iatom)
+          loc_counter = 1
+          first_loc   = iatom
        END IF
+       IF (mol_num==1.AND.icheck_typ) counter = counter + 1
     END DO
+    IF (iw>0) WRITE(iw,'(A)')"End of Molecule_Check"
 
-
-    !-----------------------------------------------------------------------------
-    !-----------------------------------------------------------------------------
-    ! 4. Check that each molecule have the same bond sequences
-    !-----------------------------------------------------------------------------
-    ! Need to put in later, this is not necesary for simple molecules as the two 
-    ! above check will catch all the problems. This will be needed in the 
-    ! instance where you have a bunch of ring per se and one of the bond is 
-    ! streatched.
-
-
+    DO I=1,natom
+       DEALLOCATE(atom_bond_list(I)%bonds,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ENDDO
+    DEALLOCATE(atom_bond_list,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     CALL timestop(0.0_dp,handle)
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
          "PRINT%TOPOLOGY_INFO/UTIL_INFO",error=error)

@@ -111,6 +111,8 @@ SUBROUTINE sort2 ( arr, n, index )
   DO i = 1, n
      INDEX(i) = i
   END DO
+  !
+  IF (ALL(arr==arr(1))) RETURN ! Nothing to order..
   jstack = 0
   l = 1
   ir = n
@@ -222,6 +224,7 @@ SUBROUTINE sort2i ( iarr, n, index )
   DO i = 1, n
      INDEX(i) = i
   END DO
+  IF (ALL(iarr==iarr(1))) RETURN ! Nothing to order..
   jstack = 0
   l = 1
   ir = n

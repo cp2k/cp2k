@@ -98,7 +98,8 @@ MODULE force_fields
                                              ub_type
   USE molecule_types_new,              ONLY: get_molecule,&
                                              molecule_type
-  USE pair_potential,                  ONLY: spline_nonbond_control
+  USE pair_potential,                  ONLY: spline_nonbond_control,&
+                                             get_nonbond_storage
   USE pair_potential_types,            ONLY: eam_pot_type,&
                                              pair_potential_lj_create,&
                                              pair_potential_p_type, &
@@ -333,7 +334,6 @@ CONTAINS
        CALL section_vals_val_get(ff_section,"SPLINE%EPS_SPLINE",r_val=ff_type%eps_spline,error=error)
        CALL section_vals_val_get(ff_section,"SPLINE%EMAX_SPLINE",r_val=ff_type%emax_spline,error=error)
        CALL section_vals_val_get(ff_section,"SPLINE%EMAX_ACCURACY",r_val=ff_type%max_energy,error=error)
-       CALL section_vals_val_get(ff_section,"SPLINE%LOW_STORAGE",l_val=ff_type%spline_low_storage,error=error)
 
        tmp_section  => section_vals_get_subs_vals(ff_section,"NONBONDED",error=error)
        CALL section_vals_get(tmp_section,explicit=explicit,error=error)
@@ -1671,7 +1671,6 @@ CONTAINS
     REAL(KIND=dp) :: epsilon, epsilon_a, epsilon_b, qi1, qi2, &
       qi3, qi4, rmin, rmin2_a, rmin2_b, scale_factor
     REAL(KIND=dp), DIMENSION(:), POINTER     :: charge
-    TYPE(atom_type), DIMENSION(:), POINTER   :: atom_list
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(bend_kind_type), DIMENSION(:), &
       POINTER                                :: bend_kind_set
@@ -1716,16 +1715,11 @@ CONTAINS
          extension=".mmLog",error=error)
     iw4= cp_print_key_unit_nr(logger,mm_section,"PRINT%PROGRAM_RUN_INFO",&
          extension=".mmLog",error=error)
-    !------------------------------------------------------------------------------
-    !------------------------------------------------------------------------------
-    NULLIFY(atomic_kind,molecule_kind,atom_list,bond_list,bend_list,&
+    NULLIFY(atomic_kind,molecule_kind,bond_list,bend_list,&
          torsion_list,onfo_list,map_bond_kind,map_bend_kind,map_ub_kind,&
          map_torsion_kind,bond_kind_set,bend_kind_set,ub_kind_set,&
          onfo_kind_set,impr_kind_set,torsion_kind_set,my_atom_list,&
          potparm_bond, potparm_nonbond)
-
-    !------------------------------------------------------------------------------
-    !------------------------------------------------------------------------------
     only_qm = .FALSE.
     my_qmmm = .FALSE.
     use_qmmm_ff = qmmm_env%use_qmmm_ff
@@ -1733,7 +1727,6 @@ CONTAINS
     IF (PRESENT(qmmm).AND.PRESENT(qmmm_env)) my_qmmm = qmmm
     inp_info => ff_type%inp_info
     chm_info => ff_type%chm_info
-
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 1. Determine the number of unique bond kind and allocate bond_kind_set
@@ -1743,7 +1736,7 @@ CONTAINS
        molecule_kind => molecule_kind_set(i)
        CALL get_molecule_kind(molecule_kind=molecule_kind,&
             molecule_list=molecule_list,&
-            natom=natom,atom_list=atom_list,&
+            natom=natom,&
             nbond=nbond,bond_list=bond_list)
        molecule=>molecule_set(molecule_list(1))
        CALL get_molecule(molecule=molecule,first_atom=first,last_atom=last)
@@ -1753,24 +1746,20 @@ CONTAINS
           counter=0
           DO j=1,nbond
              atm_a = bond_list(j)%a
-             !atomic_kind => atom_list(atm_a)%atomic_kind
              atomic_kind => particle_set(atm_a+first-1)%atomic_kind
              CALL get_atomic_kind(atomic_kind=atomic_kind,&
                   name=name_atm_a)
              atm_b = bond_list(j)%b
-             !atomic_kind => atom_list(atm_b)%atomic_kind
              atomic_kind => particle_set(atm_b+first-1)%atomic_kind
              CALL get_atomic_kind(atomic_kind=atomic_kind,&
                   name=name_atm_b)
              found = .FALSE.
              DO k=1,j-1
                 atm_a = bond_list(k)%a
-                !atomic_kind => atom_list(atm_a)%atomic_kind
                 atomic_kind => particle_set(atm_a+first-1)%atomic_kind
                 CALL get_atomic_kind(atomic_kind=atomic_kind,&
                      name=name_atm_a2)
                 atm_b = bond_list(k)%b
-                !atomic_kind => atom_list(atm_b)%atomic_kind
                 atomic_kind => particle_set(atm_b+first-1)%atomic_kind
                 CALL get_atomic_kind(atomic_kind=atomic_kind,&
                      name=name_atm_b2)
@@ -1800,8 +1789,6 @@ CONTAINS
        END IF
     END DO
     CALL timestop(handle2)
-
-
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 2. Determine the number of unique bend kind and allocate bend_kind_set
@@ -1811,7 +1798,7 @@ CONTAINS
        molecule_kind => molecule_kind_set(i)
        CALL get_molecule_kind(molecule_kind=molecule_kind,&
             molecule_list=molecule_list,&
-            natom=natom,atom_list=atom_list,&
+            natom=natom,&
             nbend=nbend,bend_list=bend_list)
        molecule=>molecule_set(molecule_list(1))
        CALL get_molecule(molecule=molecule,first_atom=first,last_atom=last)
@@ -1821,34 +1808,28 @@ CONTAINS
           counter=0
           DO j=1,nbend
              atm_a = bend_list(j)%a
-             !atomic_kind => atom_list(atm_a)%atomic_kind
              atomic_kind => particle_set(atm_a+first-1)%atomic_kind
              CALL get_atomic_kind(atomic_kind=atomic_kind,&
                   name=name_atm_a)
              atm_b = bend_list(j)%b
-             !atomic_kind => atom_list(atm_b)%atomic_kind
              atomic_kind => particle_set(atm_b+first-1)%atomic_kind
              CALL get_atomic_kind(atomic_kind=atomic_kind,&
                   name=name_atm_b)
              atm_c = bend_list(j)%c
-             !atomic_kind => atom_list(atm_c)%atomic_kind
              atomic_kind => particle_set(atm_c+first-1)%atomic_kind
              CALL get_atomic_kind(atomic_kind=atomic_kind,&
                   name=name_atm_c)
              found = .FALSE.
              DO k=1,j-1
                 atm_a = bend_list(k)%a
-                !atomic_kind => atom_list(atm_a)%atomic_kind
                 atomic_kind => particle_set(atm_a+first-1)%atomic_kind
                 CALL get_atomic_kind(atomic_kind=atomic_kind,&
                      name=name_atm_a2)
                 atm_b = bend_list(k)%b
-                !atomic_kind => atom_list(atm_b)%atomic_kind
                 atomic_kind => particle_set(atm_b+first-1)%atomic_kind
                 CALL get_atomic_kind(atomic_kind=atomic_kind,&
                      name=name_atm_b2)
                 atm_c = bend_list(k)%c
-                !atomic_kind => atom_list(atm_c)%atomic_kind
                 atomic_kind => particle_set(atm_c+first-1)%atomic_kind
                 CALL get_atomic_kind(atomic_kind=atomic_kind,&
                      name=name_atm_c2)
@@ -1879,8 +1860,6 @@ CONTAINS
        END IF
     END DO
     CALL timestop(handle2)
-
-
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 3. Determine the number of unique Urey-Bradley kind and allocate ub_kind_set
@@ -1890,7 +1869,7 @@ CONTAINS
        molecule_kind => molecule_kind_set(i)
        CALL get_molecule_kind(molecule_kind=molecule_kind,&
             molecule_list=molecule_list,&
-            natom=natom,atom_list=atom_list,&
+            natom=natom,&
             nub=nub,ub_list=ub_list)
        molecule=>molecule_set(molecule_list(1))
        CALL get_molecule(molecule=molecule,first_atom=first,last_atom=last)
@@ -1900,34 +1879,28 @@ CONTAINS
           counter=0
           DO j=1,nub
              atm_a = ub_list(j)%a
-             !atomic_kind => atom_list(atm_a)%atomic_kind
              atomic_kind => particle_set(atm_a+first-1)%atomic_kind
              CALL get_atomic_kind(atomic_kind=atomic_kind,&
                   name=name_atm_a)
              atm_b = ub_list(j)%b
-             !atomic_kind => atom_list(atm_b)%atomic_kind
              atomic_kind => particle_set(atm_b+first-1)%atomic_kind
              CALL get_atomic_kind(atomic_kind=atomic_kind,&
                   name=name_atm_b)
              atm_c = ub_list(j)%c
-             !atomic_kind => atom_list(atm_c)%atomic_kind
              atomic_kind => particle_set(atm_c+first-1)%atomic_kind
              CALL get_atomic_kind(atomic_kind=atomic_kind,&
                   name=name_atm_c)
              found = .FALSE.
              DO k=1,j-1
                 atm_a = ub_list(k)%a
-                !atomic_kind => atom_list(atm_a)%atomic_kind
                 atomic_kind => particle_set(atm_a+first-1)%atomic_kind
                 CALL get_atomic_kind(atomic_kind=atomic_kind,&
                      name=name_atm_a2)
                 atm_b = ub_list(k)%b
-                !atomic_kind => atom_list(atm_b)%atomic_kind
                 atomic_kind => particle_set(atm_b+first-1)%atomic_kind
                 CALL get_atomic_kind(atomic_kind=atomic_kind,&
                      name=name_atm_b2)
                 atm_c = ub_list(k)%c
-                !atomic_kind => atom_list(atm_c)%atomic_kind
                 atomic_kind => particle_set(atm_c+first-1)%atomic_kind
                 CALL get_atomic_kind(atomic_kind=atomic_kind,&
                      name=name_atm_c2)
@@ -1958,8 +1931,6 @@ CONTAINS
        END IF
     END DO
     CALL timestop(handle2)
-
-
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 4. Determine the number of unique torsion kind and allocate torsion_kind_set
@@ -1969,7 +1940,7 @@ CONTAINS
        molecule_kind => molecule_kind_set(i)
        CALL get_molecule_kind(molecule_kind=molecule_kind,&
             molecule_list=molecule_list,&
-            natom=natom,atom_list=atom_list,&
+            natom=natom,&
             ntorsion=ntorsion,torsion_list=torsion_list)
        molecule=>molecule_set(molecule_list(1))
        CALL get_molecule(molecule=molecule,first_atom=first,last_atom=last)
@@ -1987,44 +1958,36 @@ CONTAINS
              name_atm_c2 = ''
              name_atm_d2 = ''
              atm_a = torsion_list(j)%a
-             !atomic_kind => atom_list(atm_a)%atomic_kind
              atomic_kind => particle_set(atm_a+first-1)%atomic_kind
              CALL get_atomic_kind(atomic_kind=atomic_kind,&
                   name=name_atm_a)
              atm_b = torsion_list(j)%b
-             !atomic_kind => atom_list(atm_b)%atomic_kind
              atomic_kind => particle_set(atm_b+first-1)%atomic_kind
              CALL get_atomic_kind(atomic_kind=atomic_kind,&
                   name=name_atm_b)
              atm_c = torsion_list(j)%c
-             !atomic_kind => atom_list(atm_c)%atomic_kind
              atomic_kind => particle_set(atm_c+first-1)%atomic_kind
              CALL get_atomic_kind(atomic_kind=atomic_kind,&
                   name=name_atm_c)
              atm_d = torsion_list(j)%d
-             !atomic_kind => atom_list(atm_d)%atomic_kind
              atomic_kind => particle_set(atm_d+first-1)%atomic_kind
              CALL get_atomic_kind(atomic_kind=atomic_kind,&
                   name=name_atm_d)
              found = .FALSE.
              DO k=1,j-1
                 atm_a = torsion_list(k)%a
-                !atomic_kind => atom_list(atm_a)%atomic_kind
                 atomic_kind => particle_set(atm_a+first-1)%atomic_kind
                 CALL get_atomic_kind(atomic_kind=atomic_kind,&
                      name=name_atm_a2)
                 atm_b = torsion_list(k)%b
-                !atomic_kind => atom_list(atm_b)%atomic_kind
                 atomic_kind => particle_set(atm_b+first-1)%atomic_kind
                 CALL get_atomic_kind(atomic_kind=atomic_kind,&
                      name=name_atm_b2)
                 atm_c = torsion_list(k)%c
-                !atomic_kind => atom_list(atm_c)%atomic_kind
                 atomic_kind => particle_set(atm_c+first-1)%atomic_kind
                 CALL get_atomic_kind(atomic_kind=atomic_kind,&
                      name=name_atm_c2)
                 atm_d = torsion_list(k)%d
-                !atomic_kind => atom_list(atm_d)%atomic_kind
                 atomic_kind => particle_set(atm_d+first-1)%atomic_kind
                 CALL get_atomic_kind(atomic_kind=atomic_kind,&
                      name=name_atm_d2)
@@ -2057,8 +2020,6 @@ CONTAINS
        END IF
     END DO
     CALL timestop(handle2)
-
-
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 5. Determine the number of unique impr kind and allocate impr_kind_set
@@ -2068,7 +2029,7 @@ CONTAINS
        molecule_kind => molecule_kind_set(i)
        CALL get_molecule_kind(molecule_kind=molecule_kind,&
             molecule_list=molecule_list,&
-            natom=natom,atom_list=atom_list,&
+            natom=natom,&
             nimpr=nimpr,impr_list=impr_list)
        molecule=>molecule_set(molecule_list(1))
        CALL get_molecule(molecule=molecule,first_atom=first,last_atom=last)
@@ -2086,44 +2047,36 @@ CONTAINS
              name_atm_c2 = ''
              name_atm_d2 = ''
              atm_a = impr_list(j)%a
-             !atomic_kind => atom_list(atm_a)%atomic_kind
              atomic_kind => particle_set(atm_a+first-1)%atomic_kind
              CALL get_atomic_kind(atomic_kind=atomic_kind,&
                   name=name_atm_a)
              atm_b = impr_list(j)%b
-             !atomic_kind => atom_list(atm_b)%atomic_kind
              atomic_kind => particle_set(atm_b+first-1)%atomic_kind
              CALL get_atomic_kind(atomic_kind=atomic_kind,&
                   name=name_atm_b)
              atm_c = impr_list(j)%c
-             !atomic_kind => atom_list(atm_c)%atomic_kind
              atomic_kind => particle_set(atm_c+first-1)%atomic_kind
              CALL get_atomic_kind(atomic_kind=atomic_kind,&
                   name=name_atm_c)
              atm_d = impr_list(j)%d
-             !atomic_kind => atom_list(atm_d)%atomic_kind
              atomic_kind => particle_set(atm_d+first-1)%atomic_kind
              CALL get_atomic_kind(atomic_kind=atomic_kind,&
                   name=name_atm_d)
              found = .FALSE.
              DO k=1,j-1
                 atm_a = impr_list(k)%a
-                !atomic_kind => atom_list(atm_a)%atomic_kind
                 atomic_kind => particle_set(atm_a+first-1)%atomic_kind
                 CALL get_atomic_kind(atomic_kind=atomic_kind,&
                      name=name_atm_a2)
                 atm_b = impr_list(k)%b
-                !atomic_kind => atom_list(atm_b)%atomic_kind
                 atomic_kind => particle_set(atm_b+first-1)%atomic_kind
                 CALL get_atomic_kind(atomic_kind=atomic_kind,&
                      name=name_atm_b2)
                 atm_c = impr_list(k)%c
-                !atomic_kind => atom_list(atm_c)%atomic_kind
                 atomic_kind => particle_set(atm_c+first-1)%atomic_kind
                 CALL get_atomic_kind(atomic_kind=atomic_kind,&
                      name=name_atm_c2)
                 atm_d = impr_list(k)%d
-                !atomic_kind => atom_list(atm_d)%atomic_kind
                 atomic_kind => particle_set(atm_d+first-1)%atomic_kind
                 CALL get_atomic_kind(atomic_kind=atomic_kind,&
                      name=name_atm_d2)
@@ -2156,8 +2109,6 @@ CONTAINS
        END IF
     END DO
     CALL timestop(handle2)
-
-
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 6. Determine the number of unique onfo kind and allocate onfo_kind_set
@@ -2167,7 +2118,7 @@ CONTAINS
        molecule_kind => molecule_kind_set(i)
        CALL get_molecule_kind(molecule_kind=molecule_kind,&
             molecule_list=molecule_list,&
-            natom=natom,atom_list=atom_list,&
+            natom=natom,&
             nonfo=nonfo,onfo_list=onfo_list)
        molecule=>molecule_set(molecule_list(1))
        CALL get_molecule(molecule=molecule,first_atom=first,last_atom=last)
@@ -2181,24 +2132,20 @@ CONTAINS
              name_atm_a2 = ''
              name_atm_b2 = ''
              atm_a = onfo_list(j)%a
-             !atomic_kind => atom_list(atm_a)%atomic_kind
              atomic_kind => particle_set(atm_a+first-1)%atomic_kind
              CALL get_atomic_kind(atomic_kind=atomic_kind,&
                   name=name_atm_a,qeff=qi1)
              atm_b = onfo_list(j)%b
-             !atomic_kind => atom_list(atm_b)%atomic_kind
              atomic_kind => particle_set(atm_b+first-1)%atomic_kind
              CALL get_atomic_kind(atomic_kind=atomic_kind,&
                   name=name_atm_b,qeff=qi2)
              found = .FALSE.
              DO k=1,j-1
                 atm_a = onfo_list(k)%a
-                !atomic_kind => atom_list(atm_a)%atomic_kind
                 atomic_kind => particle_set(atm_a+first-1)%atomic_kind
                 CALL get_atomic_kind(atomic_kind=atomic_kind,&
                      name=name_atm_a2,qeff=qi3)
                 atm_b = onfo_list(k)%b
-                !atomic_kind => atom_list(atm_b)%atomic_kind
                 atomic_kind => particle_set(atm_b+first-1)%atomic_kind
                 CALL get_atomic_kind(atomic_kind=atomic_kind,&
                      name=name_atm_b2,qeff=qi4)
@@ -2229,8 +2176,6 @@ CONTAINS
        END IF
     END DO
     CALL timestop(handle2)
-
-
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 7. BONDS
@@ -2240,18 +2185,16 @@ CONTAINS
        molecule_kind => molecule_kind_set(i)
        CALL get_molecule_kind(molecule_kind=molecule_kind,&
             molecule_list=molecule_list,&
-            natom=natom,atom_list=atom_list,&
+            natom=natom,&
             nbond=nbond,bond_list=bond_list)
        molecule=>molecule_set(molecule_list(1))
        CALL get_molecule(molecule=molecule,first_atom=first,last_atom=last)
        DO j=1,nbond
           atm_a = bond_list(j)%a
-          !atomic_kind => atom_list(atm_a)%atomic_kind
           atomic_kind => particle_set(atm_a+first-1)%atomic_kind
           CALL get_atomic_kind(atomic_kind=atomic_kind,&
                name=name_atm_a)
           atm_b = bond_list(j)%b
-          !atomic_kind => atom_list(atm_b)%atomic_kind
           atomic_kind => particle_set(atm_b+first-1)%atomic_kind
           CALL get_atomic_kind(atomic_kind=atomic_kind,&
                name=name_atm_b)
@@ -2297,11 +2240,8 @@ CONTAINS
           END IF
 
           IF(.NOT.found) THEN
-             IF(iw>0) WRITE(iw,*) "    Bond ",j," : ",&
-                  TRIM(name_atm_a)," ",&
-                  TRIM(name_atm_b)
              CALL stop_program("FF_pack","missing bond parm"//&
-                                         TRIM(name_atm_a)//" "//TRIM(name_atm_b))
+                  TRIM(name_atm_a)//" "//TRIM(name_atm_b))
           END IF
           !
           ! QM/MM modifications
@@ -2315,8 +2255,6 @@ CONTAINS
             bond_list=bond_list)
     END DO
     CALL timestop(handle2)
-
-
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 8. BENDS
@@ -2326,23 +2264,20 @@ CONTAINS
        molecule_kind => molecule_kind_set(i)
        CALL get_molecule_kind(molecule_kind=molecule_kind,&
             molecule_list=molecule_list,&
-            natom=natom,atom_list=atom_list,&
+            natom=natom,&
             nbend=nbend,bend_list=bend_list)
        molecule=>molecule_set(molecule_list(1))
        CALL get_molecule(molecule=molecule,first_atom=first,last_atom=last)
        DO j=1,nbend
           atm_a = bend_list(j)%a
-          !atomic_kind => atom_list(atm_a)%atomic_kind
           atomic_kind => particle_set(atm_a+first-1)%atomic_kind
           CALL get_atomic_kind(atomic_kind=atomic_kind,&
                name=name_atm_a)
           atm_b = bend_list(j)%b
-          !atomic_kind => atom_list(atm_b)%atomic_kind
           atomic_kind => particle_set(atm_b+first-1)%atomic_kind
           CALL get_atomic_kind(atomic_kind=atomic_kind,&
                name=name_atm_b)
           atm_c = bend_list(j)%c
-          !atomic_kind => atom_list(atm_c)%atomic_kind
           atomic_kind => particle_set(atm_c+first-1)%atomic_kind
           CALL get_atomic_kind(atomic_kind=atomic_kind,&
                name=name_atm_c)
@@ -2392,10 +2327,6 @@ CONTAINS
           END IF
 
           IF(.NOT.found) THEN
-             IF(iw>0) WRITE(iw,*) "    Bend ",j," : ",&
-                  TRIM(name_atm_a)," ",&
-                  TRIM(name_atm_b)," ",&
-                  TRIM(name_atm_c)
              CALL stop_program("FF_pack","missing bend parm "//TRIM(name_atm_a)//&
                                                           " "//TRIM(name_atm_b)//&
                                                           " "//TRIM(name_atm_c))
@@ -2412,8 +2343,6 @@ CONTAINS
             bend_list=bend_list)
     END DO
     CALL timestop(handle2)
-
-
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 9. Urey-Bradley
@@ -2423,23 +2352,20 @@ CONTAINS
        molecule_kind => molecule_kind_set(i)
        CALL get_molecule_kind(molecule_kind=molecule_kind,&
             molecule_list=molecule_list,&
-            natom=natom,atom_list=atom_list,&
+            natom=natom,&
             nub=nub,ub_list=ub_list)
        molecule=>molecule_set(molecule_list(1))
        CALL get_molecule(molecule=molecule,first_atom=first,last_atom=last)
        DO j=1,nub
           atm_a = ub_list(j)%a
-          !atomic_kind => atom_list(atm_a)%atomic_kind
           atomic_kind => particle_set(atm_a+first-1)%atomic_kind
           CALL get_atomic_kind(atomic_kind=atomic_kind,&
                name=name_atm_a)
           atm_b = ub_list(j)%b
-          !atomic_kind => atom_list(atm_b)%atomic_kind
           atomic_kind => particle_set(atm_b+first-1)%atomic_kind
           CALL get_atomic_kind(atomic_kind=atomic_kind,&
                name=name_atm_b)
           atm_c = ub_list(j)%c
-          !atomic_kind => atom_list(atm_c)%atomic_kind
           atomic_kind => particle_set(atm_c+first-1)%atomic_kind
           CALL get_atomic_kind(atomic_kind=atomic_kind,&
                name=name_atm_c)
@@ -2476,7 +2402,7 @@ CONTAINS
                 IF( ((TRIM(inp_info%ub_a(k))==TRIM(name_atm_a)) .AND. &
                      (TRIM(inp_info%ub_b(k))==TRIM(name_atm_b)) .AND. &
                      (TRIM(inp_info%ub_c(k))==TRIM(name_atm_c))) .OR. &
-                     ((TRIM(inp_info%ub_a(k))==TRIM(name_atm_c)) .AND. &
+                    ((TRIM(inp_info%ub_a(k))==TRIM(name_atm_c)) .AND. &
                      (TRIM(inp_info%ub_b(k))==TRIM(name_atm_b)) .AND. &
                      (TRIM(inp_info%ub_c(k))==TRIM(name_atm_a))) ) THEN
                    ub_list(j)%ub_kind%name   = inp_info%ub_kind(k)
@@ -2493,6 +2419,8 @@ CONTAINS
           IF(.NOT.found) THEN
              IF(iw>0) WRITE(iw,*) "    Not Found UB ",TRIM(name_atm_a)," ",&
                   TRIM(name_atm_b)," ",TRIM(name_atm_c)
+             ub_list(j)%name           = "UNSET"
+             ub_list(j)%ub_kind%name   = "UNSET"
              ub_list(j)%ub_kind%k      = 0.0_dp
              ub_list(j)%ub_kind%r0     = 0.0_dp
           END IF
@@ -2508,8 +2436,6 @@ CONTAINS
             ub_list=ub_list)
     END DO
     CALL timestop(handle2)
-
-
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 10. TORSION
@@ -2519,29 +2445,25 @@ CONTAINS
        molecule_kind => molecule_kind_set(i)
        CALL get_molecule_kind(molecule_kind=molecule_kind,&
             molecule_list=molecule_list,&
-            natom=natom,atom_list=atom_list,&
+            natom=natom,&
             ntorsion=ntorsion,torsion_list=torsion_list)
        molecule=>molecule_set(molecule_list(1))
        CALL get_molecule(molecule=molecule,first_atom=first,last_atom=last)
        DO j=1,ntorsion
-          IF(torsion_list(j)%torsion_kind%name == "UNSET") THEN
+          IF(torsion_list(j)%torsion_kind%name == "UNDEF") THEN
              atm_a = torsion_list(j)%a
-             !atomic_kind => atom_list(atm_a)%atomic_kind
              atomic_kind => particle_set(atm_a+first-1)%atomic_kind
              CALL get_atomic_kind(atomic_kind=atomic_kind,&
                   name=name_atm_a)
              atm_b = torsion_list(j)%b
-             !atomic_kind => atom_list(atm_b)%atomic_kind
              atomic_kind => particle_set(atm_b+first-1)%atomic_kind
              CALL get_atomic_kind(atomic_kind=atomic_kind,&
                   name=name_atm_b)
              atm_c = torsion_list(j)%c
-             !atomic_kind => atom_list(atm_c)%atomic_kind
              atomic_kind => particle_set(atm_c+first-1)%atomic_kind
              CALL get_atomic_kind(atomic_kind=atomic_kind,&
                   name=name_atm_c)
              atm_d = torsion_list(j)%d
-             !atomic_kind => atom_list(atm_d)%atomic_kind
              atomic_kind => particle_set(atm_d+first-1)%atomic_kind
              CALL get_atomic_kind(atomic_kind=atomic_kind,&
                   name=name_atm_d)
@@ -2558,7 +2480,7 @@ CONTAINS
                         (TRIM(chm_info%torsion_b(k))==TRIM(name_atm_b)) .AND. &
                         (TRIM(chm_info%torsion_c(k))==TRIM(name_atm_c)) .AND. &
                         (TRIM(chm_info%torsion_d(k))==TRIM(name_atm_d))) .OR. &
-                        ((TRIM(chm_info%torsion_a(k))==TRIM(name_atm_d)) .AND. &
+                       ((TRIM(chm_info%torsion_a(k))==TRIM(name_atm_d)) .AND. &
                         (TRIM(chm_info%torsion_b(k))==TRIM(name_atm_c)) .AND. &
                         (TRIM(chm_info%torsion_c(k))==TRIM(name_atm_b)) .AND. &
                         (TRIM(chm_info%torsion_d(k))==TRIM(name_atm_a))) ) THEN
@@ -2604,7 +2526,6 @@ CONTAINS
                    END DO
                 END IF
              END IF
-
              ! always have the input param last to overwrite all the other ones
              IF(ASSOCIATED(inp_info%torsion_a)) THEN
                 DO k=1,SIZE(inp_info%torsion_a)
@@ -2639,6 +2560,8 @@ CONTAINS
                      TRIM(name_atm_b)," ",&
                      TRIM(name_atm_c)," ",&
                      TRIM(name_atm_d)
+                torsion_list(j)%torsion_kind%name = "UNSET"
+                torsion_list(j)%name              = "UNSET"
              END IF
              !
              ! QM/MM modifications
@@ -2653,19 +2576,15 @@ CONTAINS
                      torsion_list(j)%b,&
                      torsion_list(j)%c,&
                      torsion_list(j)%d
-
                 torsion_list(j)%torsion_kind%name = "UNSET"
                 torsion_list(j)%name              = "UNSET"
              END IF
           END IF
-
        END DO
        CALL set_molecule_kind(molecule_kind=molecule_kind,&
             torsion_list=torsion_list)
     END DO
     CALL timestop(handle2)
-
-
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 11. IMPROPERS
@@ -2675,28 +2594,24 @@ CONTAINS
        molecule_kind => molecule_kind_set(i)
        CALL get_molecule_kind(molecule_kind=molecule_kind,&
             molecule_list=molecule_list,&
-            natom=natom,atom_list=atom_list,&
+            natom=natom,&
             nimpr=nimpr,impr_list=impr_list)
        molecule=>molecule_set(molecule_list(1))
        CALL get_molecule(molecule=molecule,first_atom=first,last_atom=last)
        DO j=1,nimpr
           atm_a = impr_list(j)%a
-          !atomic_kind => atom_list(atm_a)%atomic_kind
           atomic_kind => particle_set(atm_a+first-1)%atomic_kind
           CALL get_atomic_kind(atomic_kind=atomic_kind,&
                name=name_atm_a)
           atm_b = impr_list(j)%b
-          !atomic_kind => atom_list(atm_b)%atomic_kind
           atomic_kind => particle_set(atm_b+first-1)%atomic_kind
           CALL get_atomic_kind(atomic_kind=atomic_kind,&
                name=name_atm_b)
           atm_c = impr_list(j)%c
-          !atomic_kind => atom_list(atm_c)%atomic_kind
           atomic_kind => particle_set(atm_c+first-1)%atomic_kind
           CALL get_atomic_kind(atomic_kind=atomic_kind,&
                name=name_atm_c)
           atm_d = impr_list(j)%d
-          !atomic_kind => atom_list(atm_d)%atomic_kind
           atomic_kind => particle_set(atm_d+first-1)%atomic_kind
           CALL get_atomic_kind(atomic_kind=atomic_kind,&
                name=name_atm_d)
@@ -2781,13 +2696,15 @@ CONTAINS
                   TRIM(name_atm_d)
              impr_list(j)%impr_kind%k      = 0.0_dp
              impr_list(j)%impr_kind%phi0   = 0.0_dp
+             impr_list(j)%impr_kind%name   = "UNSET"
+             impr_list(j)%name             = "UNSET"
           END IF
           !
           ! QM/MM modifications
           !
           IF (only_qm) THEN
-             impr_list(j)%impr_kind%name = "UNSET"           
-             impr_list(j)%name           = "UNSET"           
+             impr_list(j)%impr_kind%name = "UNSET"
+             impr_list(j)%name           = "UNSET"
           END IF
 
        END DO
@@ -2795,8 +2712,6 @@ CONTAINS
             impr_list=impr_list)
     END DO
     CALL timestop(handle2)
-
-
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 12. Set spline_bond_env, use for ONFO interaction
@@ -2949,13 +2864,13 @@ CONTAINS
        END DO
     END DO
     NULLIFY(spline_bond_env)
-    nkinds = SIZE ( potparm_bond%pot, 1 )
-    CALL spline_env_create ( spline_bond_env, nkinds, error )
+    CALL get_nonbond_storage(spline_bond_env, potparm_bond, atomic_kind_set, &
+          ff_type%ei_scale14,ff_type%vdw_scale14, error=error)
     CALL spline_nonbond_control ( spline_bond_env, potparm_bond, &
          atomic_kind_set , ewald_env, ff_type%ei_scale14,ff_type%vdw_scale14,&
          ff_type%eps_spline,max_energy=ff_type%max_energy, rlow_nb=ff_type%rlow_nb,&
          emax_spline=ff_type%emax_spline, iw=iw2, iw2=iw3,iw3=iw4,&
-         low_storage=ff_type%spline_low_storage, error=error)
+         error=error)
     ! point potparm ( ikind, jkind ) % spline_data => spline_data_p ( n )
     DO ikind = 1, SIZE ( potparm_bond%pot, 1 )
        DO jkind = ikind, SIZE ( potparm_bond%pot, 2 )
@@ -2968,8 +2883,6 @@ CONTAINS
        END DO
     END DO
     CALL timestop(handle2)
-
-
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 13. ONFO
@@ -2979,7 +2892,7 @@ CONTAINS
        molecule_kind => molecule_kind_set(i)
        CALL get_molecule_kind(molecule_kind=molecule_kind,&
             molecule_list=molecule_list,&
-            natom=natom,atom_list=atom_list,&
+            natom=natom,&
             nonfo=nonfo,onfo_list=onfo_list)
        molecule=>molecule_set(molecule_list(1))
        CALL get_molecule(molecule=molecule,first_atom=first,last_atom=last)
@@ -3010,8 +2923,6 @@ CONTAINS
     END DO
     CALL pair_potential_pp_release ( potparm_bond, error )
     CALL timestop(handle2)
-
-
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 14. Set up atomic_kind_set()%elp_potentail%qeff (PART 2)
@@ -3032,7 +2943,6 @@ CONTAINS
        only_qm = qmmm_ff_precond_only_qm(id1=atmname,is_link=is_link_atom)
        CALL uppercase(atmname)
        IF(charge(i)/=-HUGE(0.0_dp)) found = .TRUE.
-
        ! loop over params from charmm  
        IF(ASSOCIATED(ff_type%chm_info%charge_atm)) THEN
           DO j=1,SIZE(ff_type%chm_info%charge_atm)
@@ -3044,7 +2954,6 @@ CONTAINS
              END IF
           END DO
        END IF
-
        ! always have the input param last to overwrite all the other ones
        IF(ASSOCIATED(ff_type%inp_info%charge_atm)) THEN
           DO j=1,SIZE(ff_type%inp_info%charge_atm)
@@ -3056,9 +2965,7 @@ CONTAINS
                 found = .TRUE.
              END IF
           END DO
-       END IF
-
-       
+       END IF       
        IF (ASSOCIATED(ff_type%inp_info%nonbonded)) THEN
           IF (ASSOCIATED(ff_type%inp_info%nonbonded%pot)) THEN
              ! Let's find the nonbonded potential where this atom is involved
@@ -3105,7 +3012,6 @@ CONTAINS
     DEALLOCATE (charge,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     CALL timestop(handle2)
-
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 15. Set spline_nonbond_env
@@ -3159,7 +3065,6 @@ CONTAINS
                 found = .TRUE.
              END IF
           END IF
-
           ! always have the input param last to overwrite all the other ones
           IF(ASSOCIATED(inp_info%nonbonded)) THEN
              DO k=1,SIZE(inp_info%nonbonded%pot)
@@ -3181,7 +3086,6 @@ CONTAINS
                 END IF
              END DO
           END IF
-
           ! at the very end we offer the possibility to overwrite the parameters for QM/MM
           ! nonbonded interactions
           IF (use_qmmm_ff) THEN
@@ -3212,12 +3116,11 @@ CONTAINS
                 END IF
              END IF
           END IF
-
           IF(.NOT.found) THEN
              IF(iw>0) WRITE(iw,*) "    spline_nonbond_env ",j," : ",&
                   TRIM(name_atm_a)," ",&
                   TRIM(name_atm_b)
-3239             CALL stop_program("FF_pack","missing pair pot "//TRIM(name_atm_a)//" "//TRIM(name_atm_b))
+             CALL stop_program("FF_pack","missing pair pot "//TRIM(name_atm_a)//" "//TRIM(name_atm_b))
           END IF
           ! If defined global RCUT let's use it
           IF(ff_type%rcut_nb>0.0_dp) THEN
@@ -3228,25 +3131,26 @@ CONTAINS
           END IF
        END DO
     END DO
-    nkinds = SIZE ( potparm_nonbond%pot, 1 )
     !---------------------------------------
     ! create the pair potential spline environment
     !---------------------------------------
-    CALL spline_env_create(spline_nonbond_env, nkinds, error)
+    NULLIFY(spline_nonbond_env)
+    CALL get_nonbond_storage(spline_nonbond_env, potparm_nonbond, atomic_kind_set, &
+         error=error)
     CALL spline_nonbond_control(spline_nonbond_env, potparm_nonbond, &
          atomic_kind_set,ewald_env,eps_spline=ff_type%eps_spline,&
          max_energy=ff_type%max_energy, rlow_nb=ff_type%rlow_nb,&
          emax_spline=ff_type%emax_spline, iw=iw2, iw2=iw3,iw3=iw4,&
-         low_storage=ff_type%spline_low_storage, error=error)
+         error=error)
     !---------------------------------------
     ! create the manybody spline environment
     !---------------------------------------
-    CALL spline_env_create(spline_manybody_env, nkinds, error)
+    nkinds = SIZE(atomic_kind_set)
+    CALL spline_env_create(spline_manybody_env, nkinds, error=error)
     CALL spline_manybody_control(spline_manybody_env, potparm_nonbond,&
          eps_spline=ff_type%eps_spline,max_energy=ff_type%max_energy,&
          rlow_nb=ff_type%rlow_nb,&
-         emax_spline=ff_type%emax_spline, iw=iw2, iw2=iw3,&
-         low_storage=ff_type%spline_low_storage, error=error)
+         emax_spline=ff_type%emax_spline, iw=iw2, iw2=iw3, error=error)
 
     DO ikind = 1, SIZE ( potparm_nonbond%pot, 1 )
        DO jkind = ikind, SIZE ( potparm_nonbond%pot, 2)
@@ -3255,12 +3159,10 @@ CONTAINS
           !---------------------------------------
           n = spline_nonbond_env % spltab ( ikind, jkind )
           spline_data => spline_nonbond_env % spline_data_p ( n ) % spline_data
-          ! do i,j
           CALL spline_data_retain ( spline_data, error )
           CALL spline_data_release (  &
                potparm_nonbond %pot( ikind, jkind )%pot % pair_spline_data, error )
           potparm_nonbond%pot ( ikind, jkind )%pot % pair_spline_data => spline_data
-
           !---------------------------------------
           ! 2nd: The many-body contribution
           !---------------------------------------

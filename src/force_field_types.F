@@ -168,7 +168,6 @@ MODULE force_field_types
                                                  max_energy,&
                                                  emax_spline,&
                                                  rlow_nb
-    LOGICAL                                   :: spline_low_storage
   END TYPE force_field_type
 
 ! *** Public subroutines ***
@@ -243,7 +242,7 @@ CONTAINS
        ALLOCATE (bend_kind_set(nkind),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DO ikind=1,nkind
-          bend_kind_set(ikind)%name = "UNSET"
+          bend_kind_set(ikind)%name = "UNDEF"
           bend_kind_set(ikind)%k = 0.0_dp
           bend_kind_set(ikind)%theta0 = 0.0_dp
           bend_kind_set(ikind)%kind_number = ikind
@@ -288,7 +287,7 @@ CONTAINS
        ALLOCATE (bond_kind_set(nkind),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DO ikind=1,nkind
-          bond_kind_set(ikind)%name = "UNSET"
+          bond_kind_set(ikind)%name = "UNDEF"
           bond_kind_set(ikind)%k(:) = 0.0_dp
           bond_kind_set(ikind)%r0 = 0.0_dp
           bond_kind_set(ikind)%kind_number = ikind
@@ -334,7 +333,7 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
        DO ikind=1,nkind
-          torsion_kind_set(ikind)%name = "UNSET"
+          torsion_kind_set(ikind)%name = "UNDEF"
           torsion_kind_set(ikind)%nmul = 0
           torsion_kind_set(ikind)%a(:) = 0.0_dp
           NULLIFY(torsion_kind_set(ikind)%k)
@@ -381,7 +380,7 @@ CONTAINS
     ALLOCATE (ub_kind_set(nkind),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DO ikind=1,nkind
-      ub_kind_set(ikind)%name = "UNSET"
+      ub_kind_set(ikind)%name = "UNDEF"
       ub_kind_set(ikind)%k = 0.0_dp
       ub_kind_set(ikind)%r0 = 0.0_dp
       ub_kind_set(ikind)%kind_number = ikind
@@ -422,7 +421,7 @@ CONTAINS
     ALLOCATE (impr_kind_set(nkind),STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     DO ikind=1,nkind
-      impr_kind_set(ikind)%name = "UNSET"
+      impr_kind_set(ikind)%name = "UNDEF"
       impr_kind_set(ikind)%k = 0.0_dp
       impr_kind_set(ikind)%phi0 = 0.0_dp
       impr_kind_set(ikind)%kind_number = ikind

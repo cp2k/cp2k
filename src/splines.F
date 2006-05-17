@@ -295,9 +295,10 @@ CONTAINS
   !!
   !!   SOURCE
   !******************************************************************************
-  SUBROUTINE spline_env_create ( spline_env, ntype, error )
+  SUBROUTINE spline_env_create ( spline_env, ntype, ntab_in, error )
     TYPE(spline_environment_type), POINTER   :: spline_env
     INTEGER, INTENT(IN)                      :: ntype
+    INTEGER, INTENT(IN), OPTIONAL            :: ntab_in
     TYPE(cp_error_type), INTENT(inout), &
          OPTIONAL                               :: error
 
@@ -318,7 +319,11 @@ CONTAINS
        last_spline_env_id_nr=last_spline_env_id_nr+1
        spline_env%id_nr=last_spline_env_id_nr
        ! Allocate the number of spline data tables (upper triangular)
-       ntab = ( ntype * ntype + ntype ) / 2
+       IF (PRESENT(ntab_in)) THEN 
+          ntab = ntab_in
+       ELSE
+          ntab = ( ntype * ntype + ntype ) / 2
+       END IF
        ALLOCATE ( spline_env % spline_data_p ( ntab ),  stat=stat )
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
