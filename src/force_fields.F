@@ -1659,7 +1659,7 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length) :: atmname, name_atm_a, &
       name_atm_a2, name_atm_a_local, name_atm_b, name_atm_b2, &
-      name_atm_b_local, name_atm_c, name_atm_c2, name_atm_d, name_atm_d2
+      name_atm_b_local, name_atm_c, name_atm_c2, name_atm_d, name_atm_d2,ldum
     INTEGER :: atm_a, atm_b, atm_c, atm_d, counter, first, handle, handle2, i, ii, &
       ikind, ilink, imul, iw, j, jj, jkind, k, last, match_names, n, natom, &
       nbend, nbond, nimpr, nkinds, nonfo, ntorsion, nub, stat, iw2, iw3, iw4
@@ -2554,11 +2554,12 @@ CONTAINS
                 torsion_list(j)%torsion_kind%name = "UNSET"
                 torsion_list(j)%name              = "UNSET"
              ELSE
+                ldum = cp_to_string(imul)
                 IF ((imul /= 1).AND.(iw>0))&
                      WRITE(iw,'(/,2("UTIL_INFO| ",A,/))')&
                      "Multiple Torsion declarations: "//TRIM(name_atm_a)//&
                      ","//TRIM(name_atm_b)//","//TRIM(name_atm_c)//" and "//TRIM(name_atm_d),&
-                     "Present torsion multiplicity "//cp_to_string(imul)//" ."
+                     "Present torsion multiplicity "//TRIM(ldum)//" ."
              END IF
              !
              ! QM/MM modifications
