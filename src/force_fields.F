@@ -2493,9 +2493,6 @@ CONTAINS
                       torsion_list(j)%torsion_kind%m(imul) = chm_info%torsion_m(k)
                       torsion_list(j)%torsion_kind%cosphi0(imul) = chm_info%torsion_cosphi0(k)
                       torsion_list(j)%torsion_kind%nmul = imul
-                      IF (found) CALL Pwarning("Multiple Torsion declarations: "//TRIM(name_atm_a)//&
-                        ","//TRIM(name_atm_b)//","//TRIM(name_atm_c)//" and "//TRIM(name_atm_d)//&
-                        " overwriting!",globenv,error)                      
                       found = .TRUE.
                    END IF
                 END DO
@@ -2518,9 +2515,6 @@ CONTAINS
                          torsion_list(j)%torsion_kind%m(imul) = chm_info%torsion_m(k)
                          torsion_list(j)%torsion_kind%cosphi0(imul) = chm_info%torsion_cosphi0(k)
                          torsion_list(j)%torsion_kind%nmul = imul
-                         IF (found) CALL Pwarning("Multiple Torsion declarations: "//TRIM(name_atm_a)//&
-                              ","//TRIM(name_atm_b)//","//TRIM(name_atm_c)//" and "//TRIM(name_atm_d)//&
-                              " overwriting!",globenv,error)
                          found = .TRUE.
                       END IF
                    END DO
@@ -2546,9 +2540,6 @@ CONTAINS
                       torsion_list(j)%torsion_kind%m(imul) = inp_info%torsion_m(k)
                       torsion_list(j)%torsion_kind%cosphi0(imul) = COS(inp_info%torsion_cosphi0(k))
                       torsion_list(j)%torsion_kind%nmul    = imul
-                      IF (found) CALL Pwarning("Multiple Torsion declarations: "//TRIM(name_atm_a)//&
-                        ","//TRIM(name_atm_b)//","//TRIM(name_atm_c)//" and "//TRIM(name_atm_d)//&
-                        " overwriting!",globenv,error)
                       found = .TRUE.
                    END IF
                 END DO
@@ -2562,6 +2553,12 @@ CONTAINS
                      TRIM(name_atm_d)
                 torsion_list(j)%torsion_kind%name = "UNSET"
                 torsion_list(j)%name              = "UNSET"
+             ELSE
+                IF ((imul /= 1).AND.(iw>0))&
+                     WRITE(iw,'(/,2("UTIL_INFO| ",A,/))')&
+                     "Multiple Torsion declarations: "//TRIM(name_atm_a)//&
+                     ","//TRIM(name_atm_b)//","//TRIM(name_atm_c)//" and "//TRIM(name_atm_d),&
+                     "Present torsion multiplicity "//cp_to_string(imul)//" ."
              END IF
              !
              ! QM/MM modifications
