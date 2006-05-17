@@ -400,10 +400,9 @@ CONTAINS
 
     INTEGER, DIMENSION(:), ALLOCATABLE         :: my_index, Iwork1, Iwork2
     REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE :: pot_par
-    REAL(KIND=dp), DIMENSION(:),   ALLOCATABLE :: Rwork, Cwork
+    REAL(KIND=dp), DIMENSION(:),   ALLOCATABLE :: Rwork, Cwork, wtmp
     INTEGER                                    :: pot_target, nvar, istart, iend, i, j, k, nunique
     INTEGER                                    :: ndim, idim, tmpij(2), tmpij0(2), min_val, locij
-    REAL(KIND=dp)                              :: wtmp
     LOGICAL                                    :: at_least_one, first_val
 
     failure     = .FALSE.
@@ -529,6 +528,8 @@ CONTAINS
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           ALLOCATE(Iwork2(ndim),stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ALLOCATE(wtmp(nvar),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           CALL sort(pot_par(:,1),ndim,Iwork1)
           ! Sort all the other components of the potential
           DO k = 2, nvar
@@ -541,15 +542,16 @@ CONTAINS
           DO i = 1, ndim
              my_index(i) = Iwork2(Iwork1(i))
           END DO
+          ! Iterative sorting
           DO k = 2, nvar
-             wtmp     = pot_par(1,k-1)
+             wtmp(1:k-1) = pot_par(1,1:k-1)
              istart   = 1
              at_least_one = .FALSE.
              DO j = 1, ndim
                 Rwork(j)  = pot_par(j,k)
-                IF (pot_par(j,k-1)==wtmp) CYCLE
+                IF (ALL(pot_par(j,1:k-1)==wtmp(1:k-1))) CYCLE
                 iend   = j - 1
-                wtmp   = pot_par(j,k-1)
+                wtmp(1:k-1) = pot_par(j,1:k-1)
                 ! If the ordered array has no two same consecutive elements
                 ! does not make any sense to proceed ordering the others 
                 ! related parameters..
@@ -578,6 +580,8 @@ CONTAINS
                 my_index(i) = Iwork2(Iwork1(i))
              END DO
           END DO
+          DEALLOCATE(wtmp,stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           DEALLOCATE(Iwork1,stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           DEALLOCATE(Iwork2,stat=stat)
