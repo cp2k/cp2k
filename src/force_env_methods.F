@@ -51,7 +51,8 @@ MODULE force_env_methods
   USE global_types,                    ONLY: global_environment_type,&
                                              globenv_retain
   USE input_constants,                 ONLY: use_bazant_eip,&
-                                             use_lenosky_eip
+                                             use_lenosky_eip,&
+                                             qs_debug_run               
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kg_energy,                       ONLY: kg_energies
@@ -371,7 +372,11 @@ SUBROUTINE force_env_create(force_env,globenv,fist_env,qs_env,kg_env,&
            force_env%in_use=use_qs_force
            force_env%qs_env => qs_env
            CALL qs_env_retain(qs_env,error=error)
-           CALL virial_create ( force_env%virial, virial_in_use = .TRUE. )
+           IF (force_env%globenv%run_type_id == qs_debug_run) THEN
+             CALL virial_create(force_env%virial, virial_in_use = .TRUE.)
+           ELSE
+             CALL virial_create(force_env%virial, virial_in_use = .FALSE.)
+           END IF
            qs_env%virial => force_env%virial
            CALL virial_retain(qs_env%virial)
         END IF

@@ -88,6 +88,7 @@ MODULE cp2k_runs
   USE tbmd_main,                       ONLY: tbmd_create_force_env
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE qs_numerical_pressure,           ONLY: qs_calc_numerical_pressure
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -370,6 +371,9 @@ CONTAINS
           CASE (qs_debug_run)
              IF( (globenv%prog_name_id == do_qs) .OR. &
                   (globenv%prog_name_id == do_qmmm) ) THEN
+                IF(.NOT. globenv%prog_name_id == do_qmmm) THEN
+                  CALL qs_calc_numerical_pressure(force_env,error=error)           
+                END IF
                 CALL qs_debug_energy_and_forces(force_env, globenv, error=suberror)
              ELSE IF(globenv%prog_name_id == do_fist) THEN
                 CALL fist_debug_control(force_env, globenv, error=suberror)

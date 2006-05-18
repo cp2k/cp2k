@@ -78,11 +78,9 @@ MODULE md_run
                                              timestop
   USE velocity_verlet_control,         ONLY: velocity_verlet
   USE virial_methods,                  ONLY: virial_evaluate
-!JCS
   USE virial_types,                    ONLY: virial_set,&
                                              virial_type
   USE wiener_process,                  ONLY: create_wiener_process
-!JCS 
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

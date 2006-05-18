@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2004  CP2K developers group                                 !
+!   Copyright (C) 2005-2006  CP2K developers group                            !
 !-----------------------------------------------------------------------------!
 
 
@@ -110,7 +110,7 @@ MODULE qs_numerical_pressure
        ! First change box.
        !
 
-       DO ip = 1, 1
+       DO ip = 1, 3
          DO k = 1, 2
            cell%hmat(ip,ip) = cell_local%hmat(ip,ip)  - (-1.0_dp)**k * Dx
            CALL get_hinv( cell )

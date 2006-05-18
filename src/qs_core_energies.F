@@ -61,6 +61,7 @@ MODULE qs_core_energies
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE virial_types,                    ONLY: virial_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -222,7 +223,9 @@ CONTAINS
       POINTER                                :: force
     TYPE(subcell_type), DIMENSION(:, :, :), &
       POINTER                                :: subcell
-
+    TYPE(virial_type), POINTER               :: virial
+    INTEGER                                  :: dir
+    LOGICAL                                  :: use_virial
 ! -------------------------------------------------------------------------
 
     NULLIFY(logger)
@@ -255,7 +258,8 @@ CONTAINS
                     distribution_2d=distribution_2d,&
                     particle_set=particle_set,&
                     energy=energy,&
-                    force=force)
+                    force=force,&
+                    virial = virial)
 
     CALL get_cell(cell=cell,&
                   periodic=periodic,&
@@ -266,6 +270,8 @@ CONTAINS
     ! Allocate work storage
 
     nkind = SIZE(atomic_kind_set)
+
+    use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
 
     ALLOCATE (atom(nkind),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
@@ -536,6 +542,13 @@ CONTAINS
                             force(ikind)%core_overlap(:,iatom) + deab(:)
                           force(jkind)%core_overlap(:,jatom) =&
                             force(jkind)%core_overlap(:,jatom) - deab(:)
+                          IF (use_virial) THEN
+                            DO dir=1,3
+                              virial%pv_virial(dir,dir) = &
+                                  virial%pv_virial(dir,dir) + deab(dir) * &
+                                                                   rab(dir)
+                            END DO
+                          END IF
                         END IF
                       END IF
                     END IF
@@ -672,6 +685,13 @@ CONTAINS
                                   force(ikind)%core_overlap(:,iatom) + deab(:)
                                 force(jkind)%core_overlap(:,jatom) =&
                                   force(jkind)%core_overlap(:,jatom) - deab(:)
+                                IF (use_virial) THEN
+                                  DO dir=1,3
+                                    virial%pv_virial(dir,dir) = &
+                                       virial%pv_virial(dir,dir) + deab(dir) *&
+                                                                        rab(dir)
+                                  END DO
+                                END IF
                               END IF
                             END IF
                           END IF

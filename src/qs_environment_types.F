@@ -541,7 +541,6 @@ CONTAINS
     IF (PRESENT(mo_derivs)) mo_derivs => qs_env%mo_derivs
     IF (PRESENT(tddfpt_control)) tddfpt_control => qs_env%dft_control%tddfpt_control
     IF (PRESENT(linres_control)) linres_control => qs_env%linres_control
-!JCS
     IF (PRESENT(virial)) virial => qs_env%virial
     
     IF (PRESENT(rho_atom_set)) &
@@ -1260,11 +1259,9 @@ SUBROUTINE qs_env_release(qs_env,error)
         IF(ASSOCIATED(qs_env%xas_env)) THEN
           CALL xas_env_release(qs_env%xas_env,error=error)
         END IF
-!JCS        
         IF(ASSOCIATED(qs_env%virial)) THEN
           CALL virial_release(qs_env%virial,error=error)
         END IF
-!JCS
         CALL pw_env_release(qs_env%pw_env, error=error)
         CALL cp_para_env_release(qs_env%para_env,error=error)
         CALL cp_blacs_env_release(qs_env%blacs_env, error=error)

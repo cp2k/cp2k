@@ -42,11 +42,10 @@ MODULE qs_force
   USE particle_types,                  ONLY: particle_type
   USE qs_core_energies,                ONLY: calculate_ecore_overlap,&
                                              calculate_ecore_self
-!JCS
+  USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_core_hamiltonian,             ONLY: build_core_hamiltonian_matrix
   USE qs_energy,                       ONLY: qs_energies
   USE qs_environment_methods,          ONLY: qs_env_rebuild_pw_env
-!JCS
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
                                              set_qs_env
@@ -114,7 +113,7 @@ CONTAINS
 
     INTEGER                                  :: handle, i, iatom, ikind, &
                                                 ispin, istat, iw, natom, &
-                                                nkind, nspin, output_unit
+                                                nkind, nspin, output_unit, dir
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, kind_of, &
                                                 natom_of_kind
     LOGICAL                                  :: failure, gapw, harris_flag, &
@@ -134,6 +133,7 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
+    TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_ks_env_type), POINTER            :: ks_env, new_ks_env
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(real_matrix_p_type), DIMENSION(:), &
@@ -168,7 +168,9 @@ CONTAINS
                     force=force,harris_env=harris_env,&
                     particle_set=particle_set,&
                     scf_control=scf_control,&
-                    virial=virial)
+                    virial=virial,&
+                    energy=energy)
+
 
     natom = SIZE(particle_set)
 
@@ -338,12 +340,21 @@ CONTAINS
         particle_set(iatom)%f = -force(ikind)%total(1:3,i)
       END DO
 
-      !JCS
       !   *** distribute virial ***
       IF (virial%pv_availability) THEN
         CALL mp_sum(virial%pv_virial,globenv%group)
+      !  *** add the volume terms of the virial ***
+        IF (.NOT.virial%pv_numer) THEN
+          DO dir=1, 3
+            virial%pv_virial(dir,dir) = virial%pv_virial(dir,dir) - energy%exc  &
+                                                                  - 2.0_dp*energy%hartree
+            ! The factor 2 is a hack. It compensates the plus sign in h_stress/pw_poisson_solve.
+            ! The sign in pw_poisson_solve is correct for FIST, but not for QS. 
+            ! There should be a more elegant solution to that...
+          END DO
+        END IF 
       END IF
-      !JCS
+      
       output_unit = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%DERIVATIVES",&
            extension=".Log",error=error)
       IF(dft_control%qs_control%semi_empirical .AND. obasis) THEN
@@ -414,10 +425,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3)              :: grand_total
     REAL(kind=dp), DIMENSION(3, 3)           :: pv_virial
 
-!JCS
-!JCS
-!JCS
-!JCS
 !   ---------------------------------------------------------------------------
 
     IF (output_unit>0) THEN
@@ -437,7 +444,6 @@ CONTAINS
             atom_of_kind=atom_of_kind,&
             kind_of=kind_of)
        
-       !JCS
        IF (PRESENT(virial)) THEN
           CALL virial_get(virial, pv_virial=pv_virial,&
                pv_availability=virial_present)
@@ -445,7 +451,6 @@ CONTAINS
           virial_present=.FALSE.
        END IF
        
-       !JCS
        
        !   *** Variable precision output of the forces ***
        
@@ -462,14 +467,12 @@ CONTAINS
        WRITE (UNIT=fmtstr3(18:19),FMT="(I2)") ndigits
        WRITE (UNIT=fmtstr3(15:16),FMT="(I2)") ndigits + 6
        
-       !JCS
        fmtstr4 = "((T34,3F  .  ))"
        WRITE (UNIT=fmtstr4(12:13),FMT="(I2)") ndigits
        WRITE (UNIT=fmtstr4(9:10),FMT="(I2)") ndigits + 6
        
        fmtstr5 = "(/T2,A//T3,A)"
        
-       !JCS    
        
        WRITE (UNIT=output_unit,FMT=fmtstr1)&
             "FORCES","Atom","Kind","Component","X","Y","Z"
@@ -561,12 +564,10 @@ CONTAINS
        
        WRITE (UNIT=output_unit,FMT=fmtstr3) "Sum of total",grand_total(1:3)
        
-       !JCS
        IF (virial_present) THEN
           WRITE (UNIT=output_unit,FMT=fmtstr5) "STRESS","pv_virial"
           WRITE (UNIT=output_unit,FMT=fmtstr4) (pv_virial(i,1:3), i=1,3)
        END IF
-       !JCS
        
        DEALLOCATE (atom_of_kind,STAT=istat)
        IF (istat /= 0) CALL stop_memory(routine,"atom_of_kind")

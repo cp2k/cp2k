@@ -98,7 +98,8 @@ MODULE qs_ks_methods
                                              pw_p_type,&
                                              pw_release,&
                                              pw_transfer,&
-                                             pw_type
+                                             pw_type,&
+                                             pw_zero  
   USE qs_charges_types,                ONLY: qs_charges_type
   USE qs_collocate_density,            ONLY: calculate_total_rho
   USE qs_core_energies,                ONLY: calculate_ecore
@@ -126,6 +127,7 @@ MODULE qs_ks_methods
                                              transfer_matrix
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE virial_types,                    ONLY: virial_type
   USE xc,                              ONLY: xc_exc_calc,&
                                              xc_vxc_pw_create1
 #include "cp_common_uses.h"
@@ -303,13 +305,14 @@ CONTAINS
                                    routineP = moduleN//":"//routineN
 
     INTEGER                                  :: handle, ispin, k, k2, n, &
-                                                nspins, output_unit, stat
+                                                nspins, output_unit, stat, dir
     LOGICAL                                  :: failure, gapw, gapw_xc, &
                                                 ionode, my_kg_gpw
     REAL(KIND=dp)                            :: ddapc_order_p, &
                                                 mulliken_order_p, s2_order_p
     REAL(KIND=dp), DIMENSION(:), POINTER     :: occupation_numbers, &
                                                 scaling_factor
+    REAL(KIND=dp), DIMENSION(3, 3)           :: h_stress
     TYPE(cell_type), POINTER                 :: cell
     TYPE(coeff_type)                         :: rho_tot_gspace, &
                                                 v_hartree_gspace, v_sic_rspace
@@ -331,6 +334,8 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_h, matrix_s
     TYPE(section_vals_type), POINTER         :: input, scf_section
+    TYPE(virial_type), POINTER               :: virial
+    LOGICAL                                  :: use_virial
 
     TYPE(qs_rho_type), POINTER              :: rho_buffer
     INTEGER                                 :: ig
@@ -376,9 +381,12 @@ CONTAINS
          cell=cell,&
          para_env=para_env,&
          input=input,&
+         virial=virial,&
          rho_buffer=rho_buffer,&
          error=error)
-    
+
+    use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)    
+
     scf_section => section_vals_get_subs_vals(input,"DFT%SCF",error=error)
     nspins=dft_control%nspins
     CPPrecondition(ASSOCIATED(matrix_h),cp_failure_level,routineP,error,failure)
@@ -403,6 +411,7 @@ CONTAINS
     ELSE
       NULLIFY(my_rho_xc)
     END IF
+
 
     ! gets the tmp grids
     IF (.NOT. failure) THEN
@@ -482,8 +491,20 @@ CONTAINS
 
        CALL cp_print_key_finished_output(output_unit,logger,scf_section,&
             "PRINT%TOTAL_DENSITIES", error=error)
-       CALL pw_poisson_solve(poisson_env,rho_tot_gspace%pw,energy%hartree,&
-            v_hartree_gspace%pw)
+
+       IF (use_virial .AND. calculate_forces) THEN
+         h_stress(:,:) = 0.0_dp
+         CALL pw_poisson_solve(poisson_env,rho_tot_gspace%pw,energy%hartree,&
+                             v_hartree_gspace%pw,h_stress=h_stress)
+         DO dir=1,3
+           h_stress(dir,dir) = h_stress(dir,dir)/REAL(para_env%num_pe,dp)
+           virial%pv_virial(dir,dir) = virial%pv_virial(dir,dir) + h_stress(dir,dir)
+         END DO 
+       ELSE
+         CALL pw_poisson_solve(poisson_env,rho_tot_gspace%pw,energy%hartree,&
+                             v_hartree_gspace%pw)
+       END IF
+       
       
        ! In case decouple periodic images and/or apply restraints to charges
        CALL cp_ddapc_apply(qs_env,&
@@ -538,6 +559,7 @@ CONTAINS
        ! *** calculate the xc potential on the pw density ***       
        ! *** associates v_rspace_new if the xc potential needs to be computed.
 
+!
        CALL qs_vxc_create(qs_env=qs_env,&
             vxc_rho=v_rspace_new, vxc_tau=v_tau_rspace, exc=energy%exc, &
             just_energy=just_energy, gapw_xc=gapw_xc, error=error)
@@ -640,7 +662,7 @@ CONTAINS
                      calculate_forces=calculate_forces,&
                      gapw=gapw,error=error)
              END DO
-          END IF
+          END IF ! ASSOCIATED(v_rspace_new)
 
           IF (ASSOCIATED(v_tau_rspace)) THEN
              DO ispin=1,nspins

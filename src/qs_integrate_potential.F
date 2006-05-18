@@ -115,6 +115,7 @@ MODULE qs_integrate_potential
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: get_limit
+  USE virial_types,                    ONLY: virial_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -149,13 +150,14 @@ CONTAINS
 
     INTEGER                                  :: atom_a, dir, handle, iatom, &
                                                 ierr, ikind, j, &
-                                                natom_of_kind, npme
+                                                natom_of_kind, npme, idir
     INTEGER, DIMENSION(2)                    :: bo
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     INTEGER, DIMENSION(:, :), POINTER        :: tasks
     REAL(KIND=dp)                            :: alpha_core_charge, &
                                                 ccore_charge, eps_rho_rspace
-    REAL(KIND=dp), DIMENSION(3)              :: force_a, force_b, ra
+    REAL(KIND=dp), DIMENSION(3)              :: force_a, force_b, ra,&
+                                                my_virial_a,my_virial_b
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: hab, pab
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -170,6 +172,8 @@ CONTAINS
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
     TYPE(realspace_grid_type), POINTER       :: rs_v
+    TYPE(virial_type), POINTER               :: virial
+    LOGICAL                                  :: use_virial
 
 !   --------------------------------------------------------------------
 
@@ -191,7 +195,9 @@ CONTAINS
                     dft_control=dft_control,&
                     particle_set=particle_set,&
                     para_env=para_env,pw_env=pw_env,&
-                    force=force)
+                    force=force,virial=virial)
+
+    use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
 
     eps_rho_rspace = dft_control%qs_control%eps_rho_rspace
 
@@ -238,17 +244,28 @@ CONTAINS
         hab(1,1) = 0.0_dp
         force_a(:) = 0.0_dp
         force_b(:) = 0.0_dp
+        IF (use_virial) THEN
+          my_virial_a(:) = 0.0_dp
+          my_virial_b(:) = 0.0_dp
+        END IF
 
         CALL integrate_pgf_product_rspace(0,alpha_core_charge,0,&
              0,0.0_dp,0,ra,(/0.0_dp,0.0_dp,0.0_dp/),0.0_dp,&
              rs_v,pw_env%cube_info(1),pw_env%l_info,hab,pab=pab,o1=0,o2=0,&
              eps_gvg_rspace=eps_rho_rspace,&
              calculate_forces=.TRUE.,force_a=force_a,&
-             force_b=force_b)
+             force_b=force_b,use_virial=use_virial,my_virial_a=my_virial_a,&
+             my_virial_b=my_virial_b)
 
         force(ikind)%rho_core(:,iatom) =&
           force(ikind)%rho_core(:,iatom) + force_a(:)
 
+        IF (use_virial) THEN
+          DO idir=1,3
+                virial%pv_virial(idir,idir) = virial%pv_virial(idir,idir) +&
+                                                       my_virial_a(idir)
+          END DO
+        END IF
       END DO
 
     END DO
@@ -299,7 +316,7 @@ CONTAINS
       interp_kind, ipgf, iset, istat, itask, ithread, jatom, jkind, jpgf, &
       jset, maxco, maxsgf_set, n, na1, na2, nalimit(2), natom, natom_pairs, &
       nb1, nb2, ncoa, ncob, nkind, nlist, nnode, npme, nseta, nsetb, nthread, &
-      omp_get_max_threads, omp_get_thread_num, sgfa, sgfb, stat, tp
+      omp_get_max_threads, omp_get_thread_num, sgfa, sgfb, stat, tp, idir
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
                                                 lb_min, npgfa, npgfb, nsgfa, &
@@ -316,7 +333,7 @@ CONTAINS
                                                 kind_radius_b, rab2, scale, &
                                                 zetp
     REAL(KIND=dp), DIMENSION(3)              :: force_a, force_b, ra, rab, &
-                                                rb, rp
+                                                rb, rp, my_virial_a,my_virial_b
     REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a, set_radius_b
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: dab_local, dp_block, h_block, &
                                                 hab, p_block, pab, rpgfa, &
@@ -354,6 +371,9 @@ CONTAINS
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: rs_v
     TYPE(section_vals_type), POINTER         :: input, interp_section
+    TYPE(virial_type), POINTER               :: virial
+    LOGICAL                                  :: use_virial
+     
 
 !   ---------------------------------------------------------------------------
 
@@ -392,7 +412,10 @@ CONTAINS
                     sab_orb=sab_orb,&
                     para_env=para_env,&
                     input=input,&
-                    force=force,pw_env=pw_env)
+                    force=force,pw_env=pw_env,&
+                    virial=virial)
+
+    use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
 
     interp_section => section_vals_get_subs_vals(input,"DFT%MGRID%INTERPOLATOR",&
          error=error)
@@ -880,6 +903,10 @@ CONTAINS
                force_a(:) = 0.0_dp
                force_b(:) = 0.0_dp
             END IF
+            IF (use_virial) THEN
+               my_virial_a(:) = 0.0_dp
+               my_virial_b(:) = 0.0_dp
+            END IF
             DO ijsets = asets(1,ijatoms), asets(2,ijatoms)
               itask = atasks(1,ijsets)
               iset   = ival (3,itask)
@@ -937,7 +964,9 @@ CONTAINS
                           eps_gvg_rspace=eps_gvg_rspace,&
                           calculate_forces=calculate_forces,&
                           force_a=force_a,force_b=force_b,ithread=ithread,&
-                          compute_tau=my_compute_tau,map_consistent=map_consistent)
+                          compute_tau=my_compute_tau,map_consistent=map_consistent,&
+                          use_virial=use_virial,my_virial_a=my_virial_a,&
+                          my_virial_b=my_virial_b)
                    ELSE
                      CALL integrate_pgf_product_rspace(&
                           lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
@@ -948,7 +977,9 @@ CONTAINS
                           eps_gvg_rspace=eps_gvg_rspace,&
                           calculate_forces=calculate_forces,&
                           force_a=force_b,force_b=force_a,ithread=ithread,&
-                          compute_tau=my_compute_tau,map_consistent=map_consistent)
+                          compute_tau=my_compute_tau,map_consistent=map_consistent,&
+                          use_virial=use_virial,my_virial_a=my_virial_b,&
+                          my_virial_b=my_virial_a)
                    END IF
                 ELSE
                    IF (iatom <= jatom) THEN
@@ -1010,6 +1041,19 @@ CONTAINS
                END IF
 !$OMP end critical (qs_integrate_force)
             END IF
+  
+            IF (use_virial .AND. calculate_forces) THEN
+              DO idir=1,3
+                virial%pv_virial(idir,idir) = virial%pv_virial(idir,idir) +&
+                                                  2.0_dp*my_virial_a(idir)
+              END DO
+              IF (iatom /= jatom) THEN
+                DO idir=1,3
+                  virial%pv_virial(idir,idir) = virial%pv_virial(idir,idir) +&
+                                                  2.0_dp*my_virial_b(idir)
+                END DO
+              END IF 
+            END IF          
 
           END DO
 !$OMP end parallel
@@ -1066,7 +1110,8 @@ CONTAINS
                                             eps_gvg_rspace,&
                                             calculate_forces,hdab,hadb,force_a,force_b,&
                                             ithread,mytimings,compute_tau,map_consistent,&
-                                            collocate_rho0,rpgf0_s)
+                                            collocate_rho0,rpgf0_s,use_virial,my_virial_a,&
+                                            my_virial_b)
 
     INTEGER, INTENT(IN)                      :: la_max
     REAL(KIND=dp), INTENT(IN)                :: zeta
@@ -1088,10 +1133,12 @@ CONTAINS
       OPTIONAL, POINTER                      :: hdab, hadb
     REAL(KIND=dp), DIMENSION(3), &
       INTENT(INOUT), OPTIONAL                :: force_a, force_b
+    REAL(KIND=dp), DIMENSION(3), &
+                   OPTIONAL                  :: my_virial_a,my_virial_b
     INTEGER, OPTIONAL                        :: ithread
     REAL(KIND=dp), DIMENSION(10), OPTIONAL   :: mytimings
     LOGICAL, INTENT(IN), OPTIONAL            :: compute_tau, map_consistent, &
-                                                collocate_rho0
+                                                collocate_rho0, use_virial
     REAL(dp), INTENT(IN), OPTIONAL           :: rpgf0_s
 
     INTEGER :: ax, ay, az, bx, by, bz, cmax, coef_max, gridbounds(2,3), i, &
@@ -1105,7 +1152,8 @@ CONTAINS
     INTEGER, POINTER                         :: ipzyx(:,:,:,:,:,:)
     LOGICAL                                  :: my_collocate_rho0, &
                                                 my_compute_tau, &
-                                                my_map_consistent
+                                                my_map_consistent, &
+                                                my_use_virial
     REAL(KIND=dp) :: a, axpm0, b, binomial_k_lxa, binomial_l_lxb, cutoff, &
       der_a(3), der_b(3), exp_x0, exp_x1, exp_x2, f, ftza, ftzb, pabval, pg, &
       prefactor, radius, rpg, ya, yap, yb, ybp, za, zap, zb, zbp, zetp
@@ -1125,6 +1173,12 @@ CONTAINS
        ithread_l=ithread
     ELSE
        ithread_l=0
+    ENDIF
+   
+    IF (PRESENT(use_virial)) THEN
+       my_use_virial=use_virial
+    ELSE
+       my_use_virial=.FALSE.
     ENDIF
 
     ! my_compute_tau defaults to .FALSE.
@@ -1154,6 +1208,10 @@ CONTAINS
       la_min_l=MAX(la_min-1,0) ! just in case the la_min,lb_min is not zero
       lb_min_l=MAX(lb_min-1,0)
       lb_max_l=lb_max
+      IF (my_use_virial) THEN
+         la_max_l=la_max_l+1
+         lb_max_l=lb_max_l+1
+      ENDIF
     ELSE
       la_max_l=la_max
       la_min_l=la_min
@@ -1458,6 +1516,9 @@ CONTAINS
                   ELSE
                      pabval=pab(o1+ico,o2+jco)
                      CALL force_update(force_a,force_b,rab,pabval,ftza,ftzb,ax,ay,az,bx,by,bz,pzyx,ipzyx)
+                     IF (my_use_virial) THEN
+                       CALL virial_update(my_virial_a,my_virial_b,rab,pabval,ftza,ftzb,ax,ay,az,bx,by,bz,pzyx,ipzyx)
+                     ENDIF
                   ENDIF
                 END IF
                 IF (calculate_forces .AND. PRESENT(hdab)) THEN
@@ -1480,6 +1541,56 @@ CONTAINS
     !IF (ithread_l.EQ.0) mytimings(3)=mytimings(3)+(t_c_2-t_c_1)
 
   END SUBROUTINE integrate_pgf_product_rspace
+
+! *****************************************************************************
+  SUBROUTINE virial_update(my_virial_a,my_virial_b,rab,pab,ftza,ftzb,ax,ay,az,bx,by,bz,pzyx,ipzyx) 
+    REAL(KIND=dp), DIMENSION(3), &
+      INTENT(INOUT)                          :: my_virial_a,my_virial_b
+    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rab
+    REAL(KIND=dp), INTENT(IN)                :: pab, ftza, ftzb
+    INTEGER, INTENT(IN)                      :: ax, ay, az, bx, by, bz
+    REAL(KIND=dp), POINTER                   :: pzyx(:)
+    INTEGER, POINTER                         :: ipzyx(:,:,:,:,:,:)
+
+    REAL(kind=dp)                            :: axpm0, axp1, axp2, axm1p1, aym1p1, &
+                                                ayp1, ayp2, azm1p1, azp1, azp2, bxm1p1,&
+                                                bym1p1, bzm1p1 !, bxp2,byp2,bzp2
+
+    axpm0 = pzyx(ipzyx(ax,ay,az,bx,by,bz))
+    axp1=pzyx(ipzyx(ax+1,ay,az,bx,by,bz))
+    axp2=pzyx(ipzyx(ax+2,ay,az,bx,by,bz))
+    axm1p1=pzyx(ipzyx(MAX(0,ax-1)+1,ay,az,bx,by,bz))
+    ayp1=pzyx(ipzyx(ax,ay+1,az,bx,by,bz))
+    ayp2=pzyx(ipzyx(ax,ay+2,az,bx,by,bz))
+    aym1p1=pzyx(ipzyx(ax,MAX(0,ay-1)+1,az,bx,by,bz))
+    azp1=pzyx(ipzyx(ax,ay,az+1,bx,by,bz))
+    azp2=pzyx(ipzyx(ax,ay,az+2,bx,by,bz))
+    azm1p1=pzyx(ipzyx(ax,ay,MAX(0,az-1)+1,bx,by,bz))
+
+
+    bxm1p1=pzyx(ipzyx(ax,ay,az,MAX(0,bx-1)+1,by,bz))
+    bym1p1=pzyx(ipzyx(ax,ay,az,bx,MAX(0,by-1)+1,bz))
+    bzm1p1=pzyx(ipzyx(ax,ay,az,bx,by,MAX(0,bz-1)+1))
+!   bxp2=pzyx(ipzyx(ax,ay,az,bx+2,by,bz))
+!   byp2=pzyx(ipzyx(ax,ay,az,bx,by+2,bz))
+!   bzp2=pzyx(ipzyx(ax,ay,az,bx,by,bz+2))
+
+    my_virial_a(1) = my_virial_a(1) + pab*(ftza*axp2 - REAL(ax,dp)* axm1p1)
+    my_virial_a(2) = my_virial_a(2) + pab*(ftza*ayp2 - REAL(ay,dp)* aym1p1)
+    my_virial_a(3) = my_virial_a(3) + pab*(ftza*azp2 - REAL(az,dp)* azm1p1)
+
+    my_virial_b(1) = my_virial_b(1) + pab*(ftzb*(axp2 - 2.0_dp*rab(1)*axp1 + &
+                                                 (rab(1)**2)*axpm0 ) - REAL(bx,dp)* bxm1p1)
+    my_virial_b(2) = my_virial_b(2) + pab*(ftzb*(ayp2 - 2.0_dp*rab(2)*ayp1 + &
+                                                 (rab(2)**2)*axpm0 ) - REAL(by,dp)* bym1p1)
+    my_virial_b(3) = my_virial_b(3) + pab*(ftzb*(azp2 - 2.0_dp*rab(3)*azp1 + &
+                                                 (rab(3)**2)*axpm0 ) - REAL(bz,dp)* bzm1p1)
+
+!   my_virial_b(1) = my_virial_b(1) + pab*(ftzb*bxp2 - REAL(bx,dp)* bxm1p1)
+!   my_virial_b(2) = my_virial_b(2) + pab*(ftzb*byp2 - REAL(by,dp)* bym1p1)
+!   my_virial_b(3) = my_virial_b(3) + pab*(ftzb*bzp2 - REAL(bz,dp)* bzm1p1)
+
+  END SUBROUTINE virial_update
 
 ! *****************************************************************************
   SUBROUTINE force_update(force_a,force_b,rab,pab,ftza,ftzb,ax,ay,az,bx,by,bz,pzyx,ipzyx) 

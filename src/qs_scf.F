@@ -175,6 +175,7 @@ MODULE qs_scf
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE virial_types,                    ONLY: virial_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -372,6 +373,9 @@ CONTAINS
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: dft_section, input, &
                                                 scf_section
+    TYPE(virial_type), POINTER               :: virial
+    INTEGER                                  :: dir
+    LOGICAL                                  :: use_virial
 
     CALL timeset(routineN,"I"," ",handle)
 
@@ -400,7 +404,9 @@ CONTAINS
                     atomic_kind_set=atomic_kind_set,&
                     matrix_ks=matrix_ks,rho=rho,rho_xc=rho_xc,mos=mos, &
                     input=input, dft_control=dft_control, scf_control=scf_control, &
-                    error=error)
+                    virial=virial, error=error)
+
+    use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
 
     dft_section => section_vals_get_subs_vals(input,"DFT",error=error)
     scf_section => section_vals_get_subs_vals(dft_section,"SCF",error=error)

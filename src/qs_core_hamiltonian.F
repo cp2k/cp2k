@@ -92,7 +92,6 @@ MODULE qs_core_hamiltonian
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
-!!JCS
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE external_potential_types,        ONLY: all_potential_type,&
                                              get_potential,&
@@ -316,11 +315,9 @@ CONTAINS
 
     TYPE(virial_type), POINTER                  :: virial
 
-!!! JCS !!
     INTEGER :: dir
     REAL(kind = dp), DIMENSION(3,3) :: pv_virial
     LOGICAL         :: use_virial
-!!! JCS !!
 
 #if defined(__AIX) && defined(__INIT_WITH_NANS)
     REAL(dp) :: nans_dp
@@ -403,9 +400,7 @@ CONTAINS
     nkind = SIZE(atomic_kind_set)
     natom = SIZE(particle_set)
 
-!JCS
     use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)
-!JCS
 
     IF (calculate_forces) THEN
 
@@ -1381,14 +1376,13 @@ CONTAINS
                       force(ikind)%overlap(:,atom_a) - 2.0_dp*force_a(:)
                     force(jkind)%overlap(:,atom_b) =&
                       force(jkind)%overlap(:,atom_b) + 2.0_dp*force_a(:)
-!JCS
+
                     IF (use_virial) THEN
                       DO dir=1, 3
-                        virial%pv_virial(dir,dir) = virial%pv_virial(dir,dir)+&
+                        virial%pv_virial(dir,dir) = virial%pv_virial(dir,dir)-&
                                                   f0*force_a(dir) * rab(dir)
                       END DO
                     END IF
-!JCS
 
 !$OMP end critical (qs_core_force_overlap)
 
@@ -1482,15 +1476,13 @@ CONTAINS
                     force(jkind)%kinetic(:,atom_b) =&
                       force(jkind)%kinetic(:,atom_b) - 2.0_dp*force_a(:)
 
-!!! JCS !!
                       IF (use_virial) THEN
                         DO dir=1, 3
                           virial%pv_virial(dir,dir) = &
-                                                virial%pv_virial(dir,dir) -&
+                                                virial%pv_virial(dir,dir) +&
                                                 f0*force_a(dir) * rab(dir)
                         END DO
                       END IF
-!! JCS !!
 
 
 !$OMP end critical (qs_core_force_kinetic)
@@ -1600,16 +1592,15 @@ CONTAINS
                             force(jkind)%gth_ppl(:,atom_b) + f0*force_b(:)
                           force(kkind)%gth_ppl(:,atom_c) =&
                             force(kkind)%gth_ppl(:,atom_c) - f0*force_b(:)
-!!! JCS !!
+
                           IF (use_virial) THEN
                             DO dir=1, 3
                               virial%pv_virial(dir,dir) = &
-                                                   virial%pv_virial(dir,dir) -&
-                                                   f0*force_a(dir) * rac(dir) -&
+                                                   virial%pv_virial(dir,dir) +&
+                                                   f0*force_a(dir) * rac(dir) +&
                                                    f0*force_b(dir) * rbc(dir)
                             END DO
                           END IF
-!!! JCS !!
 !$OMP end critical (qs_core_force_gth_ppl)
 
                         ELSE
@@ -1826,12 +1817,10 @@ CONTAINS
 
 
 
-!!! JCS !!
                           IF (use_virial) THEN
-                            virial%pv_virial(i,i) = virial%pv_virial(i,i) -&
+                            virial%pv_virial(i,i) = virial%pv_virial(i,i) +&
                                                     f0*f * rac(i)
                           END IF
-!!! JCS !!
 
 
 !$OMP end critical (qs_core_force_gth_ppnl)
@@ -1857,12 +1846,11 @@ CONTAINS
 
                           force(kkind)%gth_ppnl(i,atom_c) =&
                             force(kkind)%gth_ppnl(i,atom_c) - f0*f
-!!! JCS !!
+
                           IF (use_virial) THEN
-                            virial%pv_virial(i,i) = virial%pv_virial(i,i) -&
+                            virial%pv_virial(i,i) = virial%pv_virial(i,i) +&
                                                     f0*f * rbc(i)
                           END IF
-!!! JCS !!
 !$OMP end critical (qs_core_force_gth_ppnl)
 
                         END DO
