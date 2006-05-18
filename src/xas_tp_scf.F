@@ -48,6 +48,7 @@ MODULE xas_tp_scf
                                              ot_precond_full_kinetic,&
                                              xas_dscf,&
                                              xas_scf_general,&
+                                             xas_scf_ot,&
                                              xas_tp_xfh,&
                                              xas_tp_xhh
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
@@ -86,6 +87,7 @@ MODULE xas_tp_scf
   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE qs_scf,                          ONLY: init_scf_run,&
+                                             qs_scf_loop_do_ot,&
                                              scf_env_cleanup,&
                                              scf_env_do_scf
   USE qs_scf_methods,                  ONLY: eigensolver,&
@@ -437,6 +439,10 @@ CONTAINS
                     scf_env%p_mix_new(ispin)%matrix,error=error)
 
             ENDDO
+
+         CASE(xas_scf_ot)
+             CALL qs_scf_loop_do_ot(scf_env,mos,rho,qs_env%mo_derivs,energy%total, & 
+                  matrix_s, energy_only, has_unit_metric=.FALSE.,error=error)
 
        END SELECT
 
@@ -903,11 +909,12 @@ CONTAINS
            all_evals=all_evals,nvirtual1=nvirtual1)
       CALL get_mo_set(mos(1)%mo_set, eigenvalues=eigenvalues,mo_coeff=mo_coeff,&
            nao=nao,nmo=nmo,homo=homo)
+ write(*,*) 'size ',nmo,homo,nvirtual1,nvirtual2
 
       IF(xas_control%emission) THEN
         CALL cp_fm_to_fm(mo_coeff,all_vectors,ncol=nvirtual1,&
              source_start=1,target_start=1)
-      ELSE
+      ELSEIF(nvirtual1.GT.0)THEN
         CALL cp_fm_to_fm(mo_coeff,all_vectors,ncol=nvirtual1,&
              source_start=homo+1,target_start=1)
       END IF

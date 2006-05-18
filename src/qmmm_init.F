@@ -1038,9 +1038,12 @@ CONTAINS
     IF (qmmm_link.AND.ASSOCIATED(mm_link_atoms)) size_mm_system = size_mm_system + SIZE(mm_link_atoms)
     ALLOCATE(mm_atom_index(size_mm_system))
     icount = 0
+
     DO i = 1, SIZE(subsys_mm(1)%subsys%particles%els)
        is_mm = .TRUE.
-       IF ( ANY(qm_atom_index == i)) is_mm =.FALSE.
+       IF ( ANY(qm_atom_index == i)) THEN
+         is_mm =.FALSE.
+       END IF
        IF (ASSOCIATED(mm_link_atoms)) THEN 
           IF (ANY( mm_link_atoms == i ).AND.qmmm_link) is_mm =.TRUE.
        END IF

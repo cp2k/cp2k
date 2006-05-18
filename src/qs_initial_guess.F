@@ -216,7 +216,7 @@ CONTAINS
 
        CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set)
        CALL read_mo_set(mo_array,atomic_kind_set,particle_set,globenv,&
-            id_nr=id_nr,dft_section=dft_section,error=error)
+            id_nr=id_nr,multiplicity=dft_control%multiplicity,dft_section=dft_section,error=error)
 
        DO ispin=1,nspin
           IF (scf_control%level_shift /= 0.0_dp) THEN

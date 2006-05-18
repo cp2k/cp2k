@@ -1326,7 +1326,7 @@ CONTAINS
                (dft_control%qs_control%wf_interpolation_method_nr == wfi_use_guess_method_nr)) THEN
              dft_section =>  section_vals_get_subs_vals(input,"DFT",error=error)
              CALL read_mo_set(qs_env%mos, atomic_kind_set, particle_set, globenv,&
-                  id_nr=1,dft_section=dft_section)
+                  id_nr=1,multiplicity=dft_control%multiplicity,dft_section=dft_section)
           END IF
 
           ! If not accepted, set back velocities and positions

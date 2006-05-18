@@ -101,7 +101,10 @@ MODULE xas_methods
   USE qs_scf,                          ONLY: init_scf_loop,&
                                              init_scf_run,&
                                              scf_env_cleanup
-  USE qs_scf_types,                    ONLY: qs_scf_env_type
+  USE qs_scf_types,                    ONLY: ao_mixing_nr,&
+                                             general_diag_method_nr,&
+                                             ot_method_nr,&
+                                             qs_scf_env_type
   USE scf_control_types,               ONLY: scf_control_type
   USE semi_empirical_parameters,       ONLY: srules
   USE sparse_matrix_types,             ONLY: allocate_matrix_set,&
@@ -182,11 +185,12 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'xas', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, homo, i, iat, iatom, ispin, istat, iter, j, my_homo(2),&
-      nao, nelectron, nexc_search, nmo, nspins, output_unit, &
+    INTEGER :: handle, homo, i, iat, iatom, ispin, istat, iter, j, &
+      method0,mixing0, my_homo(2),nao, nelectron, nexc_search, nmo, nspins, output_unit, &
       state_to_be_excited, xas_iter_count
     INTEGER, DIMENSION(:), POINTER           :: state_of_atom
-    LOGICAL                                  :: converged, failure, ionode, &
+    LOGICAL                                  :: ch_method_flags, &
+                                                converged, failure, ionode, &
                                                 my_uocc(2), should_stop, &
                                                 skip_scf, & 
                                                 transition_potential, uocc
@@ -463,6 +467,17 @@ CONTAINS
          ! DO SCF if required
           NULLIFY(scf_env)
           CALL get_qs_env(qs_env,scf_env=scf_env,error=error)
+          ! OT cannot be used with different occupation number in the core
+          ! Therefore in case of XAS the general_diag_method_nr is imposed
+          ch_method_flags = .FALSE.
+          IF( xas_control%occ_estate .LT. 1.0_dp .AND. scf_env%method == ot_method_nr) THEN
+        CPPostcondition( xas_env%scf_method==xas_scf_general,cp_failure_level,routineP,error,failure)
+            method0 = scf_env%method 
+            scf_env%method = general_diag_method_nr
+            mixing0 = scf_env%mixing_method
+            scf_env%mixing_method = ao_mixing_nr
+            ch_method_flags = .TRUE.
+          END IF
 
           CALL init_scf_run(scf_env=scf_env,qs_env=qs_env,&
                   globenv=globenv, scf_section=scf_section, error=error)
@@ -481,6 +496,12 @@ CONTAINS
           IF(iat == xas_control%nexc_atoms) THEN 
              CALL scf_env_cleanup(scf_env,qs_env=qs_env,error=error)
           END IF
+          ! Set back the original method for the optimize
+          IF(ch_method_flags) THEN
+            scf_env%method = method0
+            scf_env%mixing_method = mixing0
+          END IF
+          
         END IF
        ! SCF DONE
 

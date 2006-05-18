@@ -755,7 +755,7 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE read_mo_set_from_restart(mo_array,atomic_kind_set,particle_set,&
-                                      globenv,id_nr,dft_section,error)
+                                      globenv,id_nr,multiplicity,dft_section,error)
 
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
@@ -764,7 +764,7 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(global_environment_type), POINTER   :: globenv
-    INTEGER, INTENT(in)                      :: id_nr
+    INTEGER, INTENT(in)                      :: id_nr,multiplicity
     TYPE(section_vals_type), POINTER         :: dft_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -775,7 +775,7 @@ CONTAINS
     CHARACTER(LEN=default_path_length)                       :: file_name
     INTEGER :: group, handle, i, iatom, irow, iset, iset_read, ishell, &
       ishell_read, iso, ispin, istat, lshell, nao, nao_read, natom, &
-      natom_read, nmo, nmo_read, nset, nset_max, nsgf, nshell_max, nspin, &
+      natom_read, nelectron, nmo, nmo_read, nset, nset_max, nsgf, nshell_max, nspin, &
       nspin_read, offset_read, restart_unit, source
     INTEGER, DIMENSION(:), POINTER           :: nset_info, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: l, nshell_info
@@ -991,7 +991,18 @@ CONTAINS
 
         mo_array(ispin+1)%mo_set%homo = mo_array(ispin)%mo_set%homo
         mo_array(ispin+1)%mo_set%lfomo = mo_array(ispin)%mo_set%lfomo
-        mo_array(ispin+1)%mo_set%nelectron = mo_array(ispin)%mo_set%nelectron
+!        maxocc=1.0_dp
+        nelectron = mo_array(ispin)%mo_set%nelectron
+        IF (MODULO(nelectron + multiplicity - 1,2) /= 0) THEN
+           CALL stop_program(routineN,moduleN,__LINE__,&
+                         "LSD: try to use a different multiplicity.")
+        END IF
+        mo_array(ispin)%mo_set%nelectron = (nelectron + multiplicity - 1)/2
+        mo_array(ispin+1)%mo_set%nelectron = (nelectron - multiplicity + 1)/2 
+        IF(mo_array(ispin+1)%mo_set%nelectron < 0)THEN
+          CALL stop_program(routineN,moduleN,__LINE__,&
+                         "LSD: too few electrons for this multiplicity.")
+        END IF
         mo_array(ispin+1)%mo_set%eigenvalues = mo_array(ispin)%mo_set%eigenvalues
         mo_array(ispin+1)%mo_set%occupation_numbers = mo_array(ispin)%mo_set%occupation_numbers
         CALL cp_fm_to_fm(mo_array(ispin)%mo_set%mo_coeff,mo_array(ispin+1)%mo_set%mo_coeff,error=error)
