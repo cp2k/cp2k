@@ -667,7 +667,7 @@ CONTAINS
 
           CALL section_vals_val_get(dft_section,"ROKS",l_val=roks,error=error)
 
-          IF (roks) THEN
+          IF (roks.AND.(.NOT.scf_control%use_ot)) THEN
             CALL section_vals_val_get(scf_section,"ROKS_SCHEME",&
                                       i_val=roks_scheme,error=error)
             keyword => section_get_keyword(section,"ROKS_SCHEME",error=error)

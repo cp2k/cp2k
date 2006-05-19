@@ -228,28 +228,39 @@ CONTAINS
                     mos=mos,&
                     rho=rho)
 
-    IF ( .NOT. obasis ) THEN
-      !   *** Build W matrix ***
-      !   *** (from the orthonormality constraint lambda C^T S C)
+    IF (.NOT.obasis) THEN
+
+      ! Build W matrix (from the orthonormality constraint lambda C^T S C)
+
       nspin = SIZE(mos)
 
       CALL allocate_matrix_set(matrix_w,nspin)
 
       DO ispin=1,nspin
+
         CALL replicate_matrix_structure(matrix_s(1)%matrix,&
                                         matrix_w(ispin)%matrix,&
                                         "W MATRIX")
+
+        mo_set => mos(ispin)%mo_set
+
         IF (qs_env%dft_control%roks) THEN
-          CALL calculate_w_matrix(mo_set=mos(ispin)%mo_set,&
-                                  matrix_ks=matrix_ks(ispin)%matrix,&
-                                  matrix_p=rho%rho_ao(ispin)%matrix,&
-                                  matrix_w=matrix_w(ispin)%matrix,&
-                                  error=error)
-        ELSE IF (qs_env%dft_control%restricted.AND.(ispin > 1)) THEN
-          ! not very elegant, indeed ...
-          CALL set_matrix(matrix_w(ispin)%matrix,0.0_dp)
+          IF (scf_control%use_ot) THEN
+            IF (ispin > 1) THEN
+              ! not very elegant, indeed ...
+              CALL set_matrix(matrix_w(ispin)%matrix,0.0_dp)
+            ELSE
+              CALL calculate_w_matrix(mo_set,mo_derivs(ispin)%matrix,&
+                                      matrix_w(ispin)%matrix,matrix_s(1)%matrix)
+            END IF
+          ELSE
+            CALL calculate_w_matrix(mo_set=mo_set,&
+                                    matrix_ks=matrix_ks(ispin)%matrix,&
+                                    matrix_p=rho%rho_ao(ispin)%matrix,&
+                                    matrix_w=matrix_w(ispin)%matrix,&
+                                    error=error)
+          END IF
         ELSE
-          mo_set => mos(ispin)%mo_set
           IF (scf_control%use_ot) THEN
             CALL calculate_w_matrix(mo_set,mo_derivs(ispin)%matrix,&
                                     matrix_w(ispin)%matrix,matrix_s(1)%matrix)
@@ -257,6 +268,7 @@ CONTAINS
             CALL calculate_w_matrix(mo_set,matrix_w(ispin)%matrix)
           END IF
         END IF
+
         IF (BTEST(cp_print_key_should_output(logger%iter_info,&
              qs_env%input,"DFT%PRINT%AO_MATRICES/W_MATRIX",error=error),cp_p_file)) THEN
            iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/W_MATRIX",&
@@ -265,7 +277,9 @@ CONTAINS
            CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
                 "DFT%PRINT%AO_MATRICES/W_MATRIX", error=error)
         END IF
+
       END DO
+
     END IF
 
 !   *** from an eventual mulliken restraint

@@ -695,23 +695,19 @@ CONTAINS
               cp_p_file).OR.&
         (scf_control%level_shift /= 0.0_dp).OR.&
         (scf_control%eps_jacobi /= 0.0_dp).OR.&
-        dft_control%roks) THEN
+        (dft_control%roks.AND.(.NOT.scf_control%use_ot))) THEN
        n_mo(:) = n_ao
 !MK    IF (n_mo(2) /= 0) n_mo(2) = n_ao
     END IF
 
     ! Compatibility checks for ROKS
 
-    IF (dft_control%roks) THEN
+    IF (dft_control%roks.AND.(.NOT.scf_control%use_ot)) THEN
       IF (scf_control%roks_scheme == general_roks) THEN
         IF (globenv%ionode) THEN
           CALL print_message("WARNING: General ROKS scheme is not yet tested",&
                              globenv%scr,2,1,1)
         END IF
-      END IF
-      IF (scf_control%use_ot) THEN
-        CALL stop_program(routineN,moduleN,__LINE__,&
-                          "The options ROKS and OT are not compatible")
       END IF
       IF (scf_control%eps_jacobi /= 0.0_dp) THEN
         CALL stop_program(routineN,moduleN,__LINE__,&
@@ -777,16 +773,6 @@ CONTAINS
            dft_control%nspins,globenv,error=error)
     END IF 
 
-!   *** Sets up pw_env, qs_charges, mpools... ***
-
-    CALL qs_env_setup(qs_env,error)
-
-!   Allocate and Initialie rho0 soft on the global grid
-    IF(dft_control%qs_control%method == "GAPW") THEN 
-      CALL get_qs_env(qs_env=qs_env,rho0_mpole=rho0_mpole)
-      CALL rho0_s_grid_create(qs_env, rho0_mpole, error=error)
-    END IF
-
     ! Print the DFT control parameters
 
     CALL write_dft_control(dft_control,dft_section,error)
@@ -832,6 +818,17 @@ CONTAINS
     ! Print the SCF parameters
 
     CALL scf_c_write_parameters(scf_control,globenv,qs_env%input,error=error)
+
+    ! Sets up pw_env, qs_charges, mpools ...
+
+    CALL qs_env_setup(qs_env,error)
+
+    ! Allocate and Initialie rho0 soft on the global grid
+
+    IF(dft_control%qs_control%method == "GAPW") THEN 
+      CALL get_qs_env(qs_env=qs_env,rho0_mpole=rho0_mpole)
+      CALL rho0_s_grid_create(qs_env, rho0_mpole, error=error)
+    END IF
 
     IF (ionode) CALL m_flush(output_unit)
 

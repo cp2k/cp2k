@@ -91,7 +91,8 @@ CONTAINS
                                                 potential_file_name
     INTEGER                                  :: excitations, run_id
     LOGICAL                                  :: failure, l_param, was_present
-    TYPE(section_vals_type), POINTER         :: dft_section, tmp_section, &
+    TYPE(section_vals_type), POINTER         :: dft_section, scf_section, &
+                                                tmp_section, &
                                                 xc_fun_section, xc_section
     TYPE(xc_rho_cflags_type)                 :: needs
 
@@ -106,7 +107,8 @@ CONTAINS
     dft_section => section_vals_get_subs_vals(dft_section,"DFT",error=error)
     xc_section => section_vals_get_subs_vals(dft_section,"XC",error=error)
     xc_fun_section => section_vals_get_subs_vals(xc_section,"XC_FUNCTIONAL",&
-         error=error)
+                                                 error=error)
+    scf_section => section_vals_get_subs_vals(dft_section,"SCF",error=error)
 
     CALL section_vals_val_get(dft_section,"UKS",l_val=dft_control%uks,error=error)
     CALL section_vals_val_get(dft_section,"ROKS",l_val=dft_control%roks,error=error)
@@ -122,9 +124,14 @@ CONTAINS
                                     error=error)
     dft_control%use_kinetic_energy_density = (needs%tau_spin.OR.needs%tau)
 
-    CALL section_vals_val_get(dft_section,"RESTRICTED",l_val=l_param,error=error)
-    dft_control % restricted = l_param
-    
+    ! Set restricted to true, if both OT and ROKS are requested
+    !MK in principle dft_control%restricted could be dropped completely like the
+    !MK input key by using only dft_control%roks now
+
+    CALL section_vals_val_get(scf_section,"OT%_SECTION_PARAMETERS_",l_val=l_param,&
+                              error=error)
+    dft_control%restricted = (dft_control%roks.AND.l_param)
+
     dft_control % do_tddfpt_calculation = .FALSE.
     CALL section_vals_val_get(dft_section,"CHARGE",i_val=dft_control % charge,&
          error=error)
@@ -639,7 +646,7 @@ CONTAINS
        IF (dft_control%uks) THEN
          WRITE (UNIT=output_unit,FMT="(/,T2,A,T78,A)")&
            "DFT| Spin unrestricted (spin-polarized) Kohn-Sham calculation","UKS"
-       ELSE IF ((dft_control%roks).OR.(dft_control%restricted)) THEN
+       ELSE IF (dft_control%roks) THEN
          WRITE (UNIT=output_unit,FMT="(/,T2,A,T77,A)")&
            "DFT| Spin restricted open Kohn-Sham calculation","ROKS"
        ELSE
@@ -652,40 +659,39 @@ CONTAINS
        WRITE (UNIT=output_unit,FMT="(T2,A,T76,I5)")&
          "DFT| Number of spin states",dft_control%nspins
 
-       IF ( dft_control % restricted ) THEN
-          WRITE ( output_unit, '( A, T60, A )' ) " DFT| ","      spin restricted"
-       ENDIF
-       
+       WRITE (UNIT=output_unit,FMT="(T2,A,T76,I5)")&
+         "DFT| Charge",dft_control%charge
+
        IF (dft_control%forces) THEN
-          WRITE (UNIT=output_unit,FMT="(T2,A,T78,A)")&
-               "DFT| Force calculation","YES"
+         WRITE (UNIT=output_unit,FMT="(T2,A,T78,A)")&
+           "DFT| Force calculation","YES"
        ELSE
-          WRITE (UNIT=output_unit,FMT="(T2,A,T78,A)")&
-               "DFT| Force calculation"," NO"
+         WRITE (UNIT=output_unit,FMT="(T2,A,T78,A)")&
+           "DFT| Force calculation"," NO"
        END IF
 
        SELECT CASE ( dft_control%sic_method_id )
        CASE ( sic_none )
-          WRITE ( output_unit, '( A, T60, A )' ) " DFT| ","               NO SIC"
+         tmpstr = "NO"
        CASE ( sic_mauri_spz )
-          WRITE ( output_unit, '( A, T60, A )' ) " DFT| ","        SPZ/MAURI SIC"
+         tmpstr = "SPZ/MAURI SIC"
        CASE ( sic_mauri_us )
-          WRITE ( output_unit, '( A, T60, A )' ) " DFT| ","         US/MAURI SIC"
+         tmpstr = "US/MAURI SIC"
        CASE ( sic_ad )
-          WRITE ( output_unit, '( A, T60, A )' ) " DFT| ","               AD SIC"
+         tmpstr = "AD SIC"
        CASE DEFAULT
-            ! fix throughout the cp2k for this option
-            CALL stop_program(routineN,"SIC option unknown")
+         ! fix throughout the cp2k for this option
+         CALL stop_program(routineN,moduleN,__LINE__,&
+                           "SIC option unknown")
        END SELECT
 
-       IF ( dft_control%sic_method_id .NE. sic_none) THEN
-          WRITE ( output_unit, '( A, T50, A, F17.12 )' ) " DFT| ","SIC SCALING A",dft_control%sic_scaling_a
-          WRITE ( output_unit, '( A, T50, A, F17.12 )' ) " DFT| ","SIC SCALING B",dft_control%sic_scaling_b
-       ENDIF
+       WRITE (UNIT=output_unit,FMT="(T2,A,T61,A20)")&
+         "DFT| Self-interaction correction (SIC)",ADJUSTR(TRIM(tmpstr))
 
-       IF ( dft_control % charge /= 0 ) THEN
-          WRITE ( output_unit, '( A, T60, A, T77, I4 )' ) " DFT| ","charge:",&
-               dft_control % charge
+       IF (dft_control%sic_method_id /= sic_none) THEN
+         WRITE (UNIT=output_unit,FMT="(T2,A,T66,ES15.6)")&
+           "DFT| SIC scaling parameter a",dft_control%sic_scaling_a,&
+           "DFT| SIC scaling parameter b",dft_control%sic_scaling_b
        END IF
 
        CALL section_vals_val_get(xc_section,"density_cutoff",&
@@ -696,11 +702,11 @@ CONTAINS
             r_val=tau_cut,error=error)
        CALL section_vals_val_get(xc_section,"density_smooth_cutoff_range",&
             r_val=density_smooth_cut_range,error=error)
-       WRITE (UNIT=output_unit,FMT="(T2,A,T67,E14.5)")&
-            "DFT| Cutoffs: density ",density_cut,&
-            "DFT|          gradient",gradient_cut,&
-            "DFT|          tau     ",tau_cut,&
-            "DFT|          cutoff_smoothing_range",density_smooth_cut_range
+       WRITE (UNIT=output_unit,FMT="(T2,A,T66,ES15.6)")&
+         "DFT| Cutoffs: density ",density_cut,&
+         "DFT|          gradient",gradient_cut,&
+         "DFT|          tau     ",tau_cut,&
+         "DFT|          cutoff_smoothing_range",density_smooth_cut_range
        CALL section_vals_val_get(xc_section,"XC_GRID%XC_SMOOTH_RHO",&
             c_val=tmpStr,error=error)
        WRITE ( output_unit, '( A, T61, A )' ) &

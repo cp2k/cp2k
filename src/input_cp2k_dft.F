@@ -138,12 +138,6 @@ CONTAINS
                         error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
-    CALL keyword_create(keyword, name="RESTRICTED",&
-         description="If the calculation should be (spin) restricted",&
-         usage="RESTRICTED",&
-         default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
-    CALL section_add_keyword(section,keyword,error=error)
-    CALL keyword_release(keyword,error=error)
     CALL keyword_create(keyword=keyword,&
                         name="MULTIPLICITY",&
                         variants=(/"MULTIP"/),&

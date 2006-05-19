@@ -1,9 +1,8 @@
 
 &FORCE_EVAL
   &DFT
+    ROKS
     CHARGE +1
-    LSD
-    RESTRICTED
     &MGRID
       CUTOFF 100
     &END MGRID

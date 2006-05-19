@@ -5,6 +5,10 @@
     &MGRID
       CUTOFF 150
     &END MGRID
+    &PRINT
+      &DFT_CONTROL_PARAMETERS
+      &END DFT_CONTROL_PARAMETERS
+    &END PRINT
     &QS
     &END QS
     &SCF
