@@ -404,6 +404,7 @@ OBJECTS_GENERIC =\
  tbmd_main.o\
  tbmd_model_types.o\
  tbmd_neighbor_list_env_types.o\
+ tbmd_neighbor_list_types.o\
  tbmd_neighbor_lists.o\
  termination.o\
  timings.o\

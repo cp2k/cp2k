@@ -32,7 +32,7 @@ MODULE tbmd_hamiltonian
                                              scaled_to_real
   USE cp_subsystem_types,              ONLY: cp_subsystem_type
   USE distribution_2d_types,           ONLY: distribution_2d_type
-  USE fist_neighbor_list_types,        ONLY: &
+  USE tbmd_neighbor_list_types,        ONLY: &
        first_list, first_node, get_neighbor_list, get_neighbor_list_set, &
        get_neighbor_node, neighbor_list_set_type, neighbor_list_type, &
        neighbor_node_type, next
