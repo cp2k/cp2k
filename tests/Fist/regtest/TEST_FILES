@@ -88,3 +88,5 @@ ethene_colv2_npt.inp      2
 H2O-32_SPME_fp.inp        2
 # testing loops in topology
 loop.inp                  2
+pentadiene.inp            2
+cyhex.inp                 2

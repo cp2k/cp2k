@@ -312,6 +312,10 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv,  debug ,error)
   ENDIF
 
   IF (iw>0) THEN
+     WRITE(iw,'(1x,"BOND    = ",f13.4,2x,"ANGLE   = ",f13.4,2x,'//&
+          '"DIHED      = ",f13.4)')pot_bond, pot_bend,pot_torsion+pot_imptors
+     WRITE(iw,'(1x,"1-4 VDW + 1-4 EEL (SHORT RANGE) = ",f13.4,2x,'//&
+          '"UBRAD      = ",f13.4)')pot_onef,pot_urey_bradley
      WRITE(iw,'(A)')" FIST:: CORRECTED BONDED ELECTROSTATIC FORCES + INTERNAL FORCES..."
      WRITE(iw,'(3f15.9)')((particle_set ( i ) % f ( j ),j=1,3), i = 1, SIZE(particle_set))
   END IF

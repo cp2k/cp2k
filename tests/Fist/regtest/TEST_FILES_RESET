@@ -168,3 +168,5 @@ water_3_dist.inp
 water_hbonds_dist.inp
 #new linear scaling setup algorithms.. numerics for loop.inp (10^-12)
 loop.inp
+#bug fix for onfo
+loop.inp

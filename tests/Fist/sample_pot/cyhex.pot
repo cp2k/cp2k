@@ -1,0 +1,123 @@
+*>>>>>>>   AMBER FF Converted into CHARMM FF style                      <<<<<<<
+*>>>>>>>   Generated on :: 20060524 214647.502 +0200 by :: teo          <<<<<<<
+*>>>>>>>   pcihpc07                                                     <<<<<<<
+*>>>>>>>   Leap Title :: MOL                                            <<<<<<<
+*>>>>>>>   Send all comments related to the FFs conversion to           <<<<<<<
+*>>>>>>>   teodoro.laino@gmail.com                                      <<<<<<<
+ 
+BONDS
+!
+!V(bond) = Kb(b - b0)**2
+!
+!Kb: kcal/mole/A**2
+!b0: A
+!
+!atom type Kb          b0
+!
+c31  hc1    337.300000000    1.092000000
+c32  hc2    337.300000000    1.092000000
+c33  hc3    337.300000000    1.092000000
+o    c      648.000000000    1.214000000
+c    c31    328.300000000    1.508000000
+c31  c32    303.100000000    1.535000000
+c32  c33    303.100000000    1.535000000
+ 
+ANGLES
+!
+!V(angle) = Ktheta(Theta - Theta0)**2
+!
+!V(Urey-Bradley) = Kub(S - S0)**2
+!
+!Ktheta: kcal/mole/rad**2
+!Theta0: degrees
+!Kub: kcal/mole/A**2 (Urey-Bradley)
+!S0: A
+!
+!atom types     Ktheta    Theta0   Kub     S0
+!
+c    c31  hc1     47.200000000  109.680046777
+c31  c32  hc2     46.400000000  110.050047451
+hc1  c31  hc1     39.400000000  108.350046723
+hc1  c31  c32     46.400000000  110.050047451
+c32  c33  hc3     46.400000000  110.050047451
+hc2  c32  hc2     39.400000000  108.350046723
+hc2  c32  c33     46.400000000  110.050047451
+hc3  c33  hc3     39.400000000  108.350046723
+o    c    c31     68.000000000  123.110052590
+c    c31  c32     63.800000000  110.530047428
+c31  c    c31     62.800000000  116.050050023
+c31  c32  c33     63.200000000  110.630047471
+c32  c33  c32     63.200000000  110.630047471
+ 
+DIHEDRALS
+!
+!V(dihedral) = Kchi(1 + cos(n(chi) - delta))
+!
+!Kchi: kcal/mole
+!n: multiplicity
+!delta: degrees
+!
+!atom types             Kchi    n   delta
+!
+o    c    c31  hc1      0.800000000    1    0.000000000
+o    c    c31  hc1      0.080000000    3  180.000077144
+o    c    c31  hc1      0.000000000    2  180.000077144
+c    c31  c32  hc2      0.155555556    3    0.000000000
+c31  c    c31  hc1      0.000000000    2  180.000077144
+c31  c32  c33  hc3      0.160000000    3    0.000000000
+hc1  c31  c32  hc2      0.150000000    3    0.000000000
+hc1  c31  c32  c33      0.160000000    3    0.000000000
+c32  c33  c32  hc2      0.160000000    3    0.000000000
+hc2  c32  c33  hc3      0.150000000    3    0.000000000
+o    c    c31  c32      0.000000000    2  180.000077144
+c    c31  c32  c33      0.155555556    3    0.000000000
+c31  c    c31  c32      0.000000000    2  180.000077144
+c31  c32  c33  c32      0.200000000    1  180.000077144
+c31  c32  c33  c32      0.250000000    2  180.000077144
+c31  c32  c33  c32      0.180000000    3    0.000000000
+o    c    c31  c31     10.500000000    2  180.000077144
+ 
+IMPROPER
+!
+!V(improper) = Kpsi(psi - psi0)**2
+!
+!Kpsi: kcal/mole/rad**2
+!psi0: degrees
+!note that the second column of numbers (0) is ignored
+!
+!atom types           Kpsi                   psi0
+!
+ 
+NONBONDED
+!
+!V(Lennard-Jones) = Eps,i,j[(Rmin,i,j/ri,j)**12 - 2(Rmin,i,j/ri,j)**6]
+!
+!epsilon: kcal/mole, Eps,i,j = sqrt(eps,i * eps,j)
+!Rmin/2: A, Rmin,i,j = Rmin/2,i + Rmin/2,j
+!
+!atom  ignored    epsilon      Rmin/2   ignored   eps,1-4       Rmin/2,1-4
+!
+o        0.000000000    0.210000000    1.661200000
+c        0.000000000    0.086000000    1.908000000
+c31      0.000000000    0.109400000    1.908000000
+hc1      0.000000000    0.015700000    1.487000000
+c32      0.000000000    0.109400000    1.908000000
+hc2      0.000000000    0.015700000    1.487000000
+c33      0.000000000    0.109400000    1.908000000
+hc3      0.000000000    0.015700000    1.487000000
+ 
+END
+
+!
+! This Section can be cutted & pasted into the Fist input file..
+!
+CHARGES
+o       -0.541370000
+c        0.458570000
+c31      0.005880000
+hc1      0.010000000
+c32      0.012980000
+hc2      0.004150000
+c33     -0.005170000
+hc3     -0.003170000
+END CHARGES

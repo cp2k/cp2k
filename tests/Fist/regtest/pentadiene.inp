@@ -1,0 +1,51 @@
+
+&FORCE_EVAL
+  &MM
+    &FORCEFIELD
+      parmfile ../sample_pot/pentadiene.pot
+      parmtype CHM
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE ewald
+        ALPHA .36
+        GMAX 29
+      &END EWALD
+    &END POISSON
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC 50.0 50.0 50.0
+      UNIT ANGSTROM
+    &END CELL
+    &TOPOLOGY
+      CHARGE_BETA
+      CONN_FILE pentadiene.psf
+      CONNECTIVITY PSF
+      COORD_FILE_NAME ../sample_pdb/pentadiene.pdb
+      COORDINATE PDB
+      EXCLUDE_EI 1-3
+      EXCLUDE_VDW 1-3
+    &END TOPOLOGY
+    &PRINT
+      &TOPOLOGY_INFO
+        UTIL_INFO
+      &END
+    &END
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  FFTLIB FFTSG
+  PRINT_LEVEL DEBUG
+  PROGRAM FIST
+  PROJECT mol
+  RUN_TYPE md
+&END GLOBAL
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 10
+    TIMESTEP 2.5
+    TEMPERATURE 0.0
+  &END MD
+&END MOTION

@@ -1,0 +1,108 @@
+*>>>>>>>   AMBER FF Converted into CHARMM FF style                      <<<<<<<
+*>>>>>>>   Generated on :: 20060524 153444.174 +0200 by :: teo          <<<<<<<
+*>>>>>>>   pcihpc07                                                     <<<<<<<
+*>>>>>>>   Leap Title :: MOL                                            <<<<<<<
+*>>>>>>>   Send all comments related to the FFs conversion to           <<<<<<<
+*>>>>>>>   teodoro.laino@gmail.com                                      <<<<<<<
+ 
+BONDS
+!
+!V(bond) = Kb(b - b0)**2
+!
+!Kb: kcal/mole/A**2
+!b0: A
+!
+!atom type Kb          b0
+!
+c2   ha1    344.300000000    1.087000000
+c3   hc     337.300000000    1.092000000
+ce   ha2    341.500000000    1.089000000
+c2   c3     328.300000000    1.508000000
+c2   ce     560.500000000    1.339000000
+ce   ce     390.500000000    1.451000000
+ 
+ANGLES
+!
+!V(angle) = Ktheta(Theta - Theta0)**2
+!
+!V(Urey-Bradley) = Kub(S - S0)**2
+!
+!Ktheta: kcal/mole/rad**2
+!Theta0: degrees
+!Kub: kcal/mole/A**2 (Urey-Bradley)
+!S0: A
+!
+!atom types     Ktheta    Theta0   Kub     S0
+!
+c2   c3   hc      47.000000000  110.490047525
+c2   ce   ha2     49.600000000  121.100051901
+ha1  c2   c3      45.700000000  117.300050272
+ha1  c2   ce      49.600000000  121.190052111
+hc   c3   hc      39.400000000  108.350046723
+ce   ce   ha2     47.500000000  115.900049672
+c2   c3   c2      64.600000000  109.710046847
+c2   ce   ce      65.700000000  123.080052520
+c3   c2   ce      65.700000000  117.400050315
+ 
+DIHEDRALS
+!
+!V(dihedral) = Kchi(1 + cos(n(chi) - delta))
+!
+!Kchi: kcal/mole
+!n: multiplicity
+!delta: degrees
+!
+!atom types             Kchi    n   delta
+!
+c2   c3   c2   ha1      0.000000000    2    0.000000000
+c2   ce   ce   ha2      1.000000000    2  180.000077144
+ha1  c2   c3   hc       0.000000000    2    0.000000000
+ha1  c2   ce   ce       6.650000000    2  180.000077144
+ha1  c2   ce   ha2      6.650000000    2  180.000077144
+c3   c2   ce   ha2      6.650000000    2  180.000077144
+ce   c2   c3   hc       0.000000000    2    0.000000000
+ha2  ce   ce   ha2      1.000000000    2  180.000077144
+c2   c3   c2   ce       0.000000000    2    0.000000000
+c2   ce   ce   c2       1.000000000    2  180.000077144
+c3   c2   ce   ce       6.650000000    2  180.000077144
+ 
+IMPROPER
+!
+!V(improper) = Kpsi(psi - psi0)**2
+!
+!Kpsi: kcal/mole/rad**2
+!psi0: degrees
+!note that the second column of numbers (0) is ignored
+!
+!atom types           Kpsi                   psi0
+!
+ 
+NONBONDED
+!
+!V(Lennard-Jones) = Eps,i,j[(Rmin,i,j/ri,j)**12 - 2(Rmin,i,j/ri,j)**6]
+!
+!epsilon: kcal/mole, Eps,i,j = sqrt(eps,i * eps,j)
+!Rmin/2: A, Rmin,i,j = Rmin/2,i + Rmin/2,j
+!
+!atom  ignored    epsilon      Rmin/2   ignored   eps,1-4       Rmin/2,1-4
+!
+c2       0.000000000    0.086000000    1.908000000
+ha1      0.000000000    0.015000000    1.459000000
+c3       0.000000000    0.109400000    1.908000000
+hc       0.000000000    0.015700000    1.487000000
+ce       0.000000000    0.086000000    1.908000000
+ha2      0.000000000    0.015000000    1.459000000
+ 
+END
+
+!
+! This Section can be cutted & pasted into the Fist input file..
+!
+CHARGES
+c2      -0.238180000
+ha1      0.132210000
+c3       0.088690000
+hc       0.051510000
+ce      -0.129140000
+ha2      0.139260000
+END CHARGES

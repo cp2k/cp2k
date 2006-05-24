@@ -107,7 +107,9 @@ MODULE topology_util
             topology_generate_onfo,&
             topology_generate_ub,&
             topology_molecules_check,&
-            check_subsys_element
+            check_subsys_element,&
+            reorder_structure,&
+            atom_bond_list_type
   
 !!*****
 !******************************************************************************
@@ -2393,7 +2395,7 @@ CONTAINS
     INTEGER :: counter, first, first_atom, handle, i, iatom, ibend, ibond, &
       ikind, imol_now, imolecule, itorsion, iw, j, k, handle3, kk, n,&
       last, last_atom, natom, nbend, nbond, ntorsion, position, stat, handle2
-    INTEGER :: dim1, dim2, dim3
+    INTEGER :: dim0, dim1, dim2, dim3
     INTEGER, DIMENSION(:), POINTER :: atomkind, iatomlist, first_mol, kind_of, &
       last_mol, list, list2, wlist, molecule_list, natom_of_kind
     LOGICAL                                  :: failure, found, my_qmmm
@@ -2662,23 +2664,27 @@ CONTAINS
     CALL reorder_structure(ex_torsion_list, conn_info%phi_a, conn_info%phi_d, N, error)
     !
     DO iatom = 1, SIZE(particle_set)
-       dim1 = 1 ! always exclude itself..
+       dim0 = 1 ! always exclude itself
+       dim1 = 0
        dim2 = 0
        dim3 = 0
        IF  (topology%exclude_vdw==do_skip_vdw_12 .OR. &
             topology%exclude_vdw==do_skip_vdw_13 .OR. &
-            topology%exclude_vdw==do_skip_vdw_14) dim1 = dim1 + SIZE(ex_bond_list(iatom)%bonds)
+            topology%exclude_vdw==do_skip_vdw_14) dim1 = SIZE(ex_bond_list(iatom)%bonds)
+       dim1 = dim0 + dim1
        IF  (topology%exclude_vdw==do_skip_vdw_13 .OR. &
-            topology%exclude_vdw==do_skip_vdw_14) dim2 = dim1 + SIZE(ex_bend_list(iatom)%bonds)
-       IF  (topology%exclude_vdw==do_skip_vdw_14) dim3 = dim2 + SIZE(ex_torsion_list(iatom)%bonds)
+            topology%exclude_vdw==do_skip_vdw_14) dim2 = SIZE(ex_bend_list(iatom)%bonds)
+       dim2 = dim1 + dim2
+       IF  (topology%exclude_vdw==do_skip_vdw_14) dim3 = SIZE(ex_torsion_list(iatom)%bonds)
+       dim3 = dim2 + dim3
        IF (dim3 /= 0) THEN
           NULLIFY(list, wlist)
           ALLOCATE(wlist(dim3),stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          wlist(     1:   1) = iatom
-          wlist(     2:dim1) = ex_bond_list(iatom)%bonds
-          wlist(dim1+1:dim2) = ex_bend_list(iatom)%bonds
-          wlist(dim2+1:dim3) = ex_torsion_list(iatom)%bonds
+          wlist(  dim0:dim0) = iatom
+          IF (dim1>dim0) wlist(dim0+1:dim1) = ex_bond_list(iatom)%bonds
+          IF (dim2>dim1) wlist(dim1+1:dim2) = ex_bend_list(iatom)%bonds
+          IF (dim3>dim2) wlist(dim2+1:dim3) = ex_torsion_list(iatom)%bonds
           ! Get a unique list
           DO i = 1, SIZE(wlist)-1
              IF (wlist(i)==0)CYCLE

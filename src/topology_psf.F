@@ -41,6 +41,8 @@ MODULE topology_psf
   USE topology_types,                  ONLY: atom_info_type,&
                                              connectivity_info_type,&
                                              topology_parameters_type
+  USE topology_util,                   ONLY: reorder_structure,&
+                                             atom_bond_list_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -157,12 +159,14 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: dummy_field, label
     INTEGER :: handle, i, iatom, ibond, index_now, iphi, itheta, iw, jatom, &
       natom, natom_prev, nbond, nbond_prev, nphi, nphi_prev, ntheta, &
-      ntheta_prev
+      ntheta_prev, nonfo, ionfo, nonfo_prev, stat, N
     LOGICAL                                  :: failure, found
     TYPE(atom_info_type), POINTER            :: atom_info
     TYPE(connectivity_info_type), POINTER    :: conn_info
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_parser_type), POINTER            :: parser
+    TYPE(atom_bond_list_type), DIMENSION(:), POINTER   :: ex_bond_list,&
+                                                          ex_bend_list
 
     NULLIFY(parser, logger)
     logger => cp_error_get_logger(error)
@@ -310,15 +314,16 @@ CONTAINS
     !
     ! PHI section
     !
-    nphi_prev = 0
-    IF(ASSOCIATED(conn_info%phi_a)) nphi_prev = SIZE(conn_info%phi_a)
-
+    nphi_prev  = 0
+    nonfo_prev = 0
+    IF(ASSOCIATED(conn_info%phi_a))   nphi_prev = SIZE(conn_info%phi_a)
+    IF(ASSOCIATED(conn_info%onfo_a)) nonfo_prev = SIZE(conn_info%onfo_a)
     IF(iw>0) WRITE(iw,'(T2,A)') 'PSF_INFO| Parsing the NPHI section'
     label = '!NPHI'
     CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
     IF ( .NOT. found ) THEN
        IF(iw>0) WRITE (iw,'(T2,A)') 'PSF_INFO| No NPHI section '
-       nphi = 0
+       nphi = 0       
     ELSE
        CALL parser_get_object  (parser,nphi)
        IF(iw>0) WRITE(iw,'(T2,A,I8)') 'PSF_INFO| NPHI = ',nphi
@@ -327,8 +332,8 @@ CONTAINS
        CALL reallocate(conn_info%phi_b,1,nphi_prev+nphi)
        CALL reallocate(conn_info%phi_c,1,nphi_prev+nphi)
        CALL reallocate(conn_info%phi_d,1,nphi_prev+nphi)
-       CALL reallocate(conn_info%onfo_a,1,nphi_prev+nphi)
-       CALL reallocate(conn_info%onfo_b,1,nphi_prev+nphi)
+       CALL reallocate(conn_info%onfo_a,1,nonfo_prev+nphi)
+       CALL reallocate(conn_info%onfo_b,1,nonfo_prev+nphi)
        !Read in the torsion info
        DO iphi=1,nphi,2
           CALL parser_get_next_line(parser,1,error=error)
@@ -346,9 +351,83 @@ CONTAINS
     END IF
     !
     ! ONFO structure
-    !    
+    !
     conn_info%onfo_a(:) = conn_info%phi_a(:)
     conn_info%onfo_b(:) = conn_info%phi_d(:)
+    ! Reorder bonds
+    ALLOCATE(ex_bond_list(natom),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DO I=1,natom
+       ALLOCATE(ex_bond_list(I)%bonds(0),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ENDDO
+    N = 0
+    IF(ASSOCIATED(conn_info%bond_a)) N = SIZE(conn_info%bond_a)
+    CALL reorder_structure(ex_bond_list, conn_info%bond_a, conn_info%bond_b, N, error)
+    ! Reorder bends
+    ALLOCATE(ex_bend_list(natom),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DO I=1,natom
+       ALLOCATE(ex_bend_list(I)%bonds(0),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ENDDO
+    N = 0
+    IF(ASSOCIATED(conn_info%theta_a)) N = SIZE(conn_info%theta_a)
+    CALL reorder_structure(ex_bend_list, conn_info%theta_a, conn_info%theta_c, N, error)    
+    nonfo = 0
+    DO ionfo=1, nphi
+       ! Check if the torsion is not shared between angles or bonds
+       IF ( ANY(ex_bond_list(conn_info%onfo_a(ionfo))%bonds==conn_info%onfo_b(ionfo)).OR.&
+            ANY(ex_bend_list(conn_info%onfo_a(ionfo))%bonds==conn_info%onfo_b(ionfo))) CYCLE
+       nonfo = nonfo + 1
+       conn_info%onfo_a(nonfo) = conn_info%onfo_a(ionfo)
+       conn_info%onfo_b(nonfo) = conn_info%onfo_b(ionfo)
+    END DO
+    ! deallocate bends
+    DO I=1,natom
+       DEALLOCATE(ex_bend_list(I)%bonds,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ENDDO
+    DEALLOCATE(ex_bend_list,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ! deallocate bonds
+    DO I=1,natom
+       DEALLOCATE(ex_bond_list(I)%bonds,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ENDDO
+    DEALLOCATE(ex_bond_list,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ! Get unique onfo
+    ALLOCATE(ex_bond_list(natom),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DO I=1,natom
+       ALLOCATE(ex_bond_list(I)%bonds(0),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ENDDO
+    N = 0
+    IF(ASSOCIATED(conn_info%onfo_a)) N = nonfo_prev+nonfo
+    CALL reorder_structure(ex_bond_list, conn_info%onfo_a, conn_info%onfo_b, N, error)
+    nonfo = 0
+    DO I=1,natom
+       DO ionfo = 1, SIZE(ex_bond_list(I)%bonds)
+          IF (COUNT(ex_bond_list(I)%bonds==ex_bond_list(I)%bonds(ionfo))/=1) THEN
+             ex_bond_list(I)%bonds(ionfo) = 0
+          ELSE
+             IF (ex_bond_list(I)%bonds(ionfo)<=I) CYCLE
+             nonfo = nonfo + 1
+             conn_info%onfo_a(nonfo_prev+nonfo) = I
+             conn_info%onfo_b(nonfo_prev+nonfo) = ex_bond_list(I)%bonds(ionfo)
+          END IF
+       END DO
+    END DO
+    CALL reallocate(conn_info%onfo_a,1,nonfo_prev+nonfo)
+    CALL reallocate(conn_info%onfo_b,1,nonfo_prev+nonfo)   
+    DO I=1,natom
+       DEALLOCATE(ex_bond_list(I)%bonds,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ENDDO
+    DEALLOCATE(ex_bond_list,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     !
     ! IMPHI section
     !
