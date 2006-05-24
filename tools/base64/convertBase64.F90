@@ -1,3 +1,29 @@
+!-----------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations         !
+!   Copyright (C) 2006  CP2K developers group                                 !
+!-----------------------------------------------------------------------------!
+
+!!****h* cp2k/convertBase64 [1.0] *
+!!
+!!   NAME
+!!     convertBase64
+!!
+!!   FUNCTION
+!!     small utility to convert reals to/from base64 with the IEEE754 bit 
+!!     format in big endian form.
+!!
+!!   NOTES
+!!     this code is released under GPL like all the rest of cp2k, if you
+!!     want it with another licensing contact me fawzi@gmx.ch
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     5.2006 created [fawzi]
+!!
+!!*** ***********************************************************************
+
 module machine
 #ifdef __NAG
   USE f90_unix
@@ -8,6 +34,9 @@ module machine
 contains
 FUNCTION m_iargc() RESULT (ic)
     INTEGER                                  :: ic
+#ifndef __NAG
+    integer, external :: iargc
+#endif
     ic = iargc()
 END FUNCTION m_iargc
 SUBROUTINE m_getarg(i,arg)
@@ -19,6 +48,26 @@ END SUBROUTINE m_getarg
 
 end module machine
 
+!!****h* convertBase64/base64_types [1.0] *
+!!
+!!   NAME
+!!     base64_types
+!!
+!!   FUNCTION
+!!     Module that contains the routinese and types to convert reals 
+!!     to/from base64 with the IEEE754 bit format in big endian sequence.
+!!
+!!   NOTES
+!!     this code is released under GPL like all the rest of cp2k, if you
+!!     want it with another licensing contact me fawzi@gmx.ch
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   MODIFICATION HISTORY
+!!     5.2006 created [fawzi]
+!!
+!!*** ***********************************************************************
 module base64_types
 
 #ifdef __NAG
@@ -53,16 +102,64 @@ integer, private, save :: bit_mantissa=0, bit_exp=0
 integer(mt), private, save :: pad_exp, pad_mantissa,pad6
 logical, private, save :: initialized_module=.false.
 
+!!****h* base64_types/base64c_type [1.0] *
+!!
+!!   NAME
+!!     base64c_type
+!!
+!!   FUNCTION
+!!     Converter object to/from base64, you cannot switch direction of
+!!     conversion seamlessy because pad is shared, you have to flush it
+!!
+!!   ATTRIBUTES
+!!     - pad: stores the bits that are not yet a full 6 bits
+!!     - pad_exp_in: values with all the bits of the exponent in input (i.e.
+!!       bit_exp_in) equal to one.
+!!     - lend_pad: number of bits stored in pad
+!!     - len_str: number of characters stored in str
+!!     - pos_str: position in the string (for decoding work)
+!!     - bit_mantissa_in: number of bits of the mantissa in input
+!!     - bit_exp_in: number of bits of the exponent in input
+!!     - str: string with the encoded/decoded base64 characters
+!!     - use_fast_conversion: if the fast conversion (translate function)
+!!       can be used
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   SOURCE
+!****************************************************************************
 type base64c_type
    integer(mt)::pad,pad_exp_in
-   integer :: len_pad,len_str,pos_str, bit_mantissa_in, bit_exp_in, unit_nr
+   integer :: len_pad,len_str,pos_str, bit_mantissa_in, bit_exp_in
    character(len=380) :: str
    logical :: use_fast_conversion
 end type base64c_type
+!!*** ***********************************************************************
 
-type failures_type
+!!****h* base64_types/failures_type [1.0] *
+!!
+!!   NAME
+!!     failures_type
+!!
+!!   FUNCTION
+!!     type to gather the kinds of failures encountred during the conversions
+!!
+!!   ATTRIBUTES
+!!     - support_normal: if the normal numbers work
+!!     - support_denormal: if the denormalized numbers work
+!!     - support_infinity: if inifinity is supported
+!!     - support_nan: if nan (not a number) is suported
+!!
+!!   AUTHOR
+!!     Fawzi Mohamed
+!!
+!!   SOURCE
+!****************************************************************************
+TYPE failures_type
    logical :: support_normal,support_denormal,support_infinity,support_nan
 end type failures_type
+!!*** ***********************************************************************
 
 contains
 
@@ -216,6 +313,29 @@ function my_shift(val,sh) result(res)
   res=ishft(val,sh)
 end function my_shift
 
+!!****f* base64_types/base64c_init [1.0] *
+!!
+!!   NAME
+!!     base64c_init
+!!
+!!   FUNCTION
+!!     initializes the converter
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - b64: the converter to initialize
+!!     - bit_mantissa_in: the number of bits used in the base64 stream for
+!!       the mantissa of the number (relevant only if decoding)
+!!     - bit_exp_in: the number of bits used in the base64 stream for the
+!!       exponent
+!!     - log_unit: if given and >0 logs the tests to this unit
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!*** **********************************************************************
 subroutine base64c_init(b64,bit_mantissa_in,bit_exp_in,log_unit)
   type(base64c_type), intent(out) :: b64
   integer, intent(in), optional :: bit_mantissa_in, bit_exp_in, log_unit
@@ -243,12 +363,49 @@ subroutine base64c_init(b64,bit_mantissa_in,bit_exp_in,log_unit)
   call base64c_do_tests(b64,unit_nr)
 end subroutine base64c_init
 
+!!****f* base64_types/base64c_dealloc_ref [1.0] *
+!!
+!!   NAME
+!!     base64c_dealloc_ref
+!!
+!!   FUNCTION
+!!     deallocates the memory that might have been allocated by the converter
+!!
+!!   NOTES
+!!     at the moment does nothing
+!!
+!!   INPUTS
+!!     - b64: the converter to release
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!*** **********************************************************************
 subroutine base64c_dealloc_ref(b64)
   type(base64c_type), intent(inout) :: b64
   
   ! no cleanup to do at the moment
 end subroutine base64c_dealloc_ref
 
+!!****f* base64_types/base64c_do_tests [1.0] *
+!!
+!!   NAME
+!!     base64c_do_tests
+!!
+!!   FUNCTION
+!!     performs some tests to check if the fast conversion can be used
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - b64: the converter to test
+!!     - unit_nr: if >0 logs the tests to this unit
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!*** **********************************************************************
   subroutine base64c_do_tests(b64,unit_nr)
     type(base64c_type), intent(inout) :: b64
     integer, intent(in) :: unit_nr
@@ -276,7 +433,7 @@ end subroutine base64c_dealloc_ref
     call random_number(test_r(24))
     call random_number(test_r(25))
     test_r(25)=(test_r(25)-0.5_wp)/test_r(24)
-    r1=test_r(5)
+    r1=test_r(21)
     if (unit_nr>0) write (unit_nr,"(a)") "*** data on number type ***"
     if (unit_nr>0) then
        write (unit_nr,"(a,i6,a,i20,a,i20,a,i6)") " digits ",digits(r1),&
@@ -505,6 +662,25 @@ subroutine base64c_real_fast(b64,r1)
   call base64c_feed(b64,nr(1),bit_mantissa+bit_exp+1)
 end subroutine base64c_real_fast
 
+!!****f* base64_types/base64c_real [1.0] *
+!!
+!!   NAME
+!!     base64c_real
+!!
+!!   FUNCTION
+!!     converts a real to base64, uses the optimal method
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - b64: the converter in which the real should be stored
+!!     - r1: the real to convert
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!*** **********************************************************************
 subroutine base64c_real(b64,r1)
   type(base64c_type), intent(inout) :: b64
   real(wp),intent(in) :: r1
@@ -552,6 +728,24 @@ subroutine base64c_feed(b64,bits,nbits)
   end do
 end subroutine base64c_feed
 
+!!****f* base64_types/base64c_flush [1.0] *
+!!
+!!   NAME
+!!     base64c_flush
+!!
+!!   FUNCTION
+!!     flushes the pad to str, unsed bits are set to 0
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - b64: the converter to flush
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!*** **********************************************************************
 subroutine base64c_flush(b64)
   type(base64c_type), intent(inout) :: b64
   integer(mt) :: indice
@@ -567,6 +761,25 @@ subroutine base64c_flush(b64)
   end if
 end subroutine base64c_flush
 
+!!****f* base64_types/base64c_clear [1.0] *
+!!
+!!   NAME
+!!     base64c_clear
+!!
+!!   FUNCTION
+!!     clears str and if requested also the pad
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - b64: the converter to clear
+!!     - clear_pad: if the 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!*** **********************************************************************
 subroutine base64c_clear(b64,clear_pad)
   type(base64c_type), intent(inout) :: b64
   logical, intent(in), optional :: clear_pad
@@ -583,6 +796,26 @@ subroutine base64c_clear(b64,clear_pad)
   end if
 end subroutine base64c_clear
 
+!!****f* base64_types/base64c_write [1.0] *
+!!
+!!   NAME
+!!     base64c_write
+!!
+!!   FUNCTION
+!!     writes out the character fully coded until now, ande frees str
+!!     to accept more characters. Pad is not touched.
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - b64: the converter to write out
+!!     - unit_nr: the unit to write to
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!*** **********************************************************************
 subroutine base64c_write(b64,unit_nr)
   type(base64c_type), intent(inout) :: b64
   integer, intent(in) :: unit_nr
@@ -634,6 +867,28 @@ subroutine base64c_getbits(b64,bits,nbits)
 !  call print_bits(bits,nbits)
 end subroutine base64c_getbits
 
+!!****f* base64_types/base64c_capacity_info [1.0] *
+!!
+!!   NAME
+!!     base64c_capacity_info
+!!
+!!   FUNCTION
+!!     information about how much space there is in the converter buffer and
+!!     how much is used
+!!
+!!   NOTES
+!!     bits_contained keep pad into account
+!!
+!!   INPUTS
+!!     - b64: the converter you want information about
+!!     - chars_contained,chars_free, bits_contained,bits_free,
+!!       reals_contained,reals_free: the characters,bits or reals contained
+!!       in the buffer, or those still free
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!*** **********************************************************************
 subroutine base64c_capacity_info(b64,chars_contained,chars_free,&
      bits_contained,bits_free,reals_contained,reals_free)
   type(base64c_type), intent(in) :: b64
@@ -655,6 +910,28 @@ subroutine base64c_capacity_info(b64,chars_contained,chars_free,&
        (b64%bit_mantissa_in+b64%bit_exp_in+1)
 end subroutine base64c_capacity_info
 
+!!****f* base64_types/base64c_add_string [1.0] *
+!!
+!!   NAME
+!!     base64c_capacity_inf
+!!
+!!   FUNCTION
+!!     information about how much space there is in the converter buffer and
+!!     how much is used
+!!
+!!   NOTES
+!!     bits_contained keep pad into account
+!!
+!!   INPUTS
+!!     - b64: the converter you want information about
+!!     - chars_contained,chars_free, bits_contained,bits_free,
+!!       reals_contained,reals_free: the characters,bits or reals contained
+!!       in the buffer, or those still free
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!*** **********************************************************************
 function base64c_add_string(b64,str,ignore_garbage,skip_space) result(parsed_chars)
   type(base64c_type), intent(inout) :: b64
   character(len=*), intent(in) :: str
@@ -788,6 +1065,24 @@ function base64c_decode_real_fast(b64) result(res)
   res=r1(1)
 end function base64c_decode_real_fast
 
+!!****f* base64_types/base64c_decode_real [1.0] *
+!!
+!!   NAME
+!!     base64c_decode_real
+!!
+!!   FUNCTION
+!!     decodes a real from base64 using the best method
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - b64: the converter from which you want to extract the real
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!*** **********************************************************************
 function base64c_decode_real(b64) result(res)
   type(base64c_type), intent(inout) :: b64
   real(wp) :: res
