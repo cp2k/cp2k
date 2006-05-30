@@ -1,0 +1,73 @@
+
+&FORCE_EVAL
+  &MM
+    &FORCEFIELD
+      parmfile ../sample_pot/cycbut.pot
+      parmtype CHM
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE ewald
+        ALPHA .36
+        GMAX 29
+      &END EWALD
+    &END POISSON
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC 50.0 50.0 50.0
+      UNIT ANGSTROM
+    &END CELL
+    &COORD
+  C3         3.4814498716        1.3964053248        0.0145450746
+  HC         4.5124356300        1.0357591247        0.0126308920
+  HC         2.9917191503        1.0134037365        0.9124136520
+  HC         2.9750899714        0.9741929756       -0.8561032497
+  CC         3.4307373671        2.8999755033       -0.0189345023
+  CC         2.3542130518        3.8460388581       -0.0193762289
+  C3         0.8558431561        3.7110059596        0.0137189651
+  HC         0.5534454964        2.6612798024        0.0104717657
+  HC         0.4454406534        4.1781300303        0.9114106446
+  HC         0.4056232562        4.1946837379       -0.8556735928
+  CD         3.2609713397        4.8776070214       -0.0197188218
+  C3         3.2096815229        6.3810144462        0.0129851311
+  HC         2.1783422660        6.7406620540        0.0114145825
+  HC         3.6997457904        6.7646878598        0.9103553313
+  HC         3.7154576465        6.8029592927       -0.8580992975
+  CD         4.3374510627        3.9320959373       -0.0192905622
+  C3         5.8348818088        4.0761386219        0.0138073758
+  HC         6.3258688778        3.1005259070        0.0111958074
+  HC         6.1876869265        4.6335014849       -0.8565526419
+  HC         6.1514990378        4.6109432725        0.9117994593
+    &END
+    &TOPOLOGY
+      CHARGE_BETA
+      CONN_FILE cycbut.psf
+      CONNECTIVITY PSF
+      COORD_FILE_NAME ../sample_pdb/cycbut.pdb
+      COORDINATE PDB
+      EXCLUDE_EI 1-3
+      EXCLUDE_VDW 1-3
+    &END TOPOLOGY
+    &PRINT
+      &TOPOLOGY_INFO
+        UTIL_INFO
+      &END
+    &END
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  FFTLIB FFTSG
+  PRINT_LEVEL DEBUG
+  PROGRAM FIST
+  PROJECT mol
+  RUN_TYPE md
+&END GLOBAL
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 10
+    TIMESTEP 2.5
+    TEMPERATURE 300.0
+  &END MD
+&END MOTION
