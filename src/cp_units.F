@@ -359,61 +359,66 @@ CONTAINS
           i_high=i_high+1
        END DO
        IF (i_high<i_low.OR.i_low>len_string) EXIT
-       IF (string(i_low:i_high)=='^') THEN
-          i_low=i_high+1
-          DO WHILE(i_low<=len_string)
-             IF (string(i_low:i_low)/=' ') EXIT
-             i_low=i_low+1
-          END DO
-          i_high=i_low
-          DO WHILE(i_high<=len_string)
-             SELECT CASE(string(i_high:i_high))
-             CASE('+','-','0','1','2','3','4','5','6','7','8','9')
-                i_high=i_high+1
-             CASE default
+
+       IF (i_high<=len_string) THEN
+          IF (string(i_low:i_high)=='^') THEN
+             i_low=i_high+1
+             DO WHILE(i_low<=len_string)
+                IF (string(i_low:i_low)/=' ') EXIT
+                i_low=i_low+1
+             END DO
+             i_high=i_low
+             DO WHILE(i_high<=len_string)
+                SELECT CASE(string(i_high:i_high))
+                CASE('+','-','0','1','2','3','4','5','6','7','8','9')
+                   i_high=i_high+1
+                CASE default
+                   EXIT
+                END SELECT
+             END DO
+             IF (i_high<=i_low.OR.i_low>len_string) THEN
+                CALL cp_assert(.FALSE.,cp_failure_level,&
+                        cp_assertion_failed,routineP,&
+                     "an integer number is expected after a '^'",&
+                     error,failure)
                 EXIT
-             END SELECT
-          END DO
-          IF (i_high<=i_low.OR.i_low>len_string) THEN
-             CALL cp_assert(.FALSE.,cp_failure_level,&
-                  cp_assertion_failed,routineP,&
-                  "an integer number is expected after a '^'",&
-                  error,failure)
-             EXIT
+             END IF
+             formatstr="(i"//cp_to_string(i_high-i_low+1)//")"
+             READ (string(i_low:i_high-1),formatstr)&
+                  next_power
+             power(i_unit)=power(i_unit)*next_power
+             ! next op
+             i_low=i_high
+             DO WHILE(i_low<len_string)
+                IF (string(i_low:i_low)/=' ') EXIT
+                i_low=i_low+1
+             END DO
+             i_high=i_low
+             DO WHILE(i_high<=len_string)
+                IF ( string(i_high:i_high)==' '.OR.string(i_high:i_high)=='^'.OR.&
+                     string(i_high:i_high)=='*'.OR.string(i_high:i_high)=='/') EXIT
+                i_high=i_high+1
+             END DO
           END IF
-          formatstr="(i"//cp_to_string(i_high-i_low+1)//")"
-          READ (string(i_low:i_high-1),formatstr)&
-               next_power
-          power(i_unit)=power(i_unit)*next_power
-          ! next op
-          i_low=i_high
-          DO WHILE(i_low<len_string)
-             IF (string(i_low:i_low)/=' ') EXIT
-             i_low=i_low+1
-          END DO
-          i_high=i_low
-          DO WHILE(i_high<=len_string)
-             IF ( string(i_high:i_high)==' '.OR.string(i_high:i_high)=='^'.OR.&
-                  string(i_high:i_high)=='*'.OR.string(i_high:i_high)=='/') EXIT
-             i_high=i_high+1
-          END DO
-       END IF
+       ENDIF
        IF (i_low>len_string) EXIT
        next_power=1
-       IF (string(i_low:i_high)=="*".OR.string(i_low:i_high)=='/') THEN
-          IF (string(i_low:i_high)=='/') next_power=-1
-          i_low=i_high+1
-          DO WHILE(i_low<=len_string)
-             IF (string(i_low:i_low)/=' ') EXIT
-             i_low=i_low+1
-          END DO
-          i_high=i_low
-          DO WHILE(i_high<=len_string)
-             IF ( string(i_high:i_high)==' '.OR.string(i_high:i_high)=='^'.OR.&
-                  string(i_high:i_high)=='*'.OR.string(i_high:i_high)=='/') EXIT
-             i_high=i_high+1
-          END DO
-       END IF
+       IF (i_high<=len_string) THEN
+         IF (string(i_low:i_high)=="*".OR.string(i_low:i_high)=='/') THEN
+            IF (string(i_low:i_high)=='/') next_power=-1
+            i_low=i_high+1
+            DO WHILE(i_low<=len_string)
+               IF (string(i_low:i_low)/=' ') EXIT
+               i_low=i_low+1
+            END DO
+            i_high=i_low
+            DO WHILE(i_high<=len_string)
+               IF ( string(i_high:i_high)==' '.OR.string(i_high:i_high)=='^'.OR.&
+                      string(i_high:i_high)=='*'.OR.string(i_high:i_high)=='/') EXIT
+               i_high=i_high+1
+            END DO
+         END IF
+       ENDIF
     END DO
     CALL cp_unit_create2(unit,kind_id=kind_id, unit_id=unit_id, &
          power=power, error=error)
