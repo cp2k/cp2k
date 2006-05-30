@@ -90,4 +90,7 @@ H2O-32_SPME_fp.inp        2
 loop.inp                  2
 pentadiene.inp            2
 cyhex.inp                 2
-cycbut.inp                 2
+cycbut.inp                2
+# testing cp_units
+H2O-1.inp                 2
+
