@@ -175,3 +175,7 @@ silicon_cluster.inp
 silicon_cluster_3.inp
 silicon_cluster_4.inp
 silicon_cluster_5.inp
+#bug fix for double counting of 1-4 interactions
+pentadiene.inp
+cyhex.inp
+cycbut.inp

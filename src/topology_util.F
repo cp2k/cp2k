@@ -44,8 +44,7 @@ MODULE topology_util
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: &
        do_bondparm_covalent, do_bondparm_vdw, do_conn_off, do_fist, &
-       do_qmmm_none, do_skip_ei_12, do_skip_ei_13, do_skip_ei_14, &
-       do_skip_vdw_12, do_skip_vdw_13, do_skip_vdw_14
+       do_qmmm_none, do_skip_12, do_skip_13, do_skip_14
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -2408,7 +2407,8 @@ CONTAINS
     TYPE(connectivity_info_type), POINTER    :: conn_info
     TYPE(atom_bond_list_type), DIMENSION(:), POINTER   :: ex_bond_list,&
                                                           ex_bend_list,&
-                                                          ex_torsion_list
+                                                          ex_torsion_list,&
+                                                          ex_onfo_list
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(elp_potential_type), POINTER        :: elp_potential
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
@@ -2662,21 +2662,31 @@ CONTAINS
     N = 0
     IF(ASSOCIATED(conn_info%phi_a)) N = SIZE(conn_info%phi_a)
     CALL reorder_structure(ex_torsion_list, conn_info%phi_a, conn_info%phi_d, N, error)
+    ! Reorder onfo
+    ALLOCATE(ex_onfo_list(natom),stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DO I=1,natom
+       ALLOCATE(ex_onfo_list(I)%bonds(0),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ENDDO
+    N = 0
+    IF(ASSOCIATED(conn_info%onfo_a)) N = SIZE(conn_info%onfo_a)
+    CALL reorder_structure(ex_onfo_list, conn_info%onfo_a, conn_info%onfo_b, N, error)
     !
     DO iatom = 1, SIZE(particle_set)
        dim0 = 1 ! always exclude itself
        dim1 = 0
        dim2 = 0
        dim3 = 0
-       IF  (topology%exclude_vdw==do_skip_vdw_12 .OR. &
-            topology%exclude_vdw==do_skip_vdw_13 .OR. &
-            topology%exclude_vdw==do_skip_vdw_14) dim1 = SIZE(ex_bond_list(iatom)%bonds)
+       IF  (topology%exclude_vdw==do_skip_12.OR. &
+            topology%exclude_vdw==do_skip_13.OR. &
+            topology%exclude_vdw==do_skip_14) dim1 = SIZE(ex_bond_list(iatom)%bonds)
        dim1 = dim0 + dim1
-       IF  (topology%exclude_vdw==do_skip_vdw_13 .OR. &
-            topology%exclude_vdw==do_skip_vdw_14) dim2 = SIZE(ex_bend_list(iatom)%bonds)
+       IF  (topology%exclude_vdw==do_skip_13.OR. &
+            topology%exclude_vdw==do_skip_14) dim2 = SIZE(ex_bend_list(iatom)%bonds)
        dim2 = dim1 + dim2
-       IF  (topology%exclude_vdw==do_skip_vdw_14) dim3 = SIZE(ex_torsion_list(iatom)%bonds)
-       dim3 = dim2 + dim3
+       dim3 = SIZE(ex_torsion_list(iatom)%bonds) ! Always exclude 1-4 
+       dim3 = dim2 + dim3                        ! They're treated in a different way..
        IF (dim3 /= 0) THEN
           NULLIFY(list, wlist)
           ALLOCATE(wlist(dim3),stat=stat)
@@ -2708,15 +2718,19 @@ CONTAINS
           IF(topology%exclude_vdw==topology%exclude_ei) THEN
              list2 => list
           ELSE
-             dim1 = 1 ! always exclude itself..
+             dim0 = 1 ! always exclude itself
+             dim1 = 0
              dim2 = 0
              dim3 = 0
-             IF  (topology%exclude_ei==do_skip_ei_12 .OR. &
-                  topology%exclude_ei==do_skip_ei_13 .OR. &
-                  topology%exclude_ei==do_skip_ei_14) dim1 = dim1 + SIZE(ex_bond_list(iatom)%bonds)
-             IF  (topology%exclude_ei==do_skip_ei_13 .OR. &
-                  topology%exclude_ei==do_skip_ei_14) dim2 = dim1 + SIZE(ex_bend_list(iatom)%bonds)
-             IF  (topology%exclude_ei==do_skip_ei_14) dim3 = dim2 + SIZE(ex_torsion_list(iatom)%bonds)
+             IF  (topology%exclude_ei==do_skip_12.OR. &
+                  topology%exclude_ei==do_skip_13.OR. &
+                  topology%exclude_ei==do_skip_14) dim1 = SIZE(ex_bond_list(iatom)%bonds)
+             dim1 = dim0 + dim1
+             IF  (topology%exclude_ei==do_skip_13.OR. &
+                  topology%exclude_ei==do_skip_14) dim2 = SIZE(ex_bend_list(iatom)%bonds)
+             dim2 = dim1 + dim2
+             dim3 = SIZE(ex_torsion_list(iatom)%bonds) ! Always exclude 1-4 
+             dim3 = dim2 + dim3                        ! They're treated in a different way..
              IF (dim3 /= 0) THEN
                 ALLOCATE(wlist(dim3),stat=stat)
                 CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -2748,6 +2762,11 @@ CONTAINS
        END IF
        particle_set(iatom)%list_exclude_vdw => list
        particle_set(iatom)%list_exclude_ei  => list2
+       ! The onfo must always be excluded to avoid double counting
+       DO i=1,SIZE(ex_onfo_list(iatom)%bonds)
+          CPPostcondition(ANY(list==ex_onfo_list(iatom)%bonds(i)),cp_failure_level,routineP,error,failure)
+          CPPostcondition(ANY(list2==ex_onfo_list(iatom)%bonds(i)),cp_failure_level,routineP,error,failure)
+       END DO
        IF (iw>0) THEN 
           IF (ASSOCIATED(list)) &
                WRITE(iw,*)"exclusion list_vdw :: ",&
@@ -2761,6 +2780,13 @@ CONTAINS
           END IF
        END IF
     END DO
+    ! deallocate onfo
+    DO I=1,natom
+       DEALLOCATE(ex_onfo_list(I)%bonds,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ENDDO
+    DEALLOCATE(ex_onfo_list,stat=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ! deallocate torsions
     DO I=1,natom
        DEALLOCATE(ex_torsion_list(I)%bonds,stat=stat)

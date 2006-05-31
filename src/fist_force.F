@@ -29,6 +29,7 @@ MODULE fist_force
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
+  USE cp_units,                        ONLY: cp_unit_from_cp2k
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE ewald_environment_types,         ONLY: ewald_env_get,&
                                              ewald_environment_type
@@ -130,6 +131,7 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv,  debug ,error)
     LOGICAL, SAVE                            :: first_time = .TRUE.
     REAL(KIND=dp) :: pot_bend, pot_bond, pot_imptors, pot_manybody, &
       pot_nonbond, pot_onef, pot_torsion, pot_urey_bradley, vg_coulomb
+    REAL(KIND=dp) :: xdum1, xdum2, xdum3
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: f_nonbond, f_total, fg_coulomb
     REAL(KIND=dp), DIMENSION(3, 3) :: ident, pv_bc, pv_bend, pv_bond, pv_g, &
@@ -312,10 +314,16 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv,  debug ,error)
   ENDIF
 
   IF (iw>0) THEN
+     xdum1 = cp_unit_from_cp2k(pot_bond,"kcalmol",error=error)
+     xdum2 = cp_unit_from_cp2k(pot_bend,"kcalmol",error=error)
+     xdum3 = cp_unit_from_cp2k(pot_torsion+pot_imptors,"kcalmol",error=error)
      WRITE(iw,'(1x,"BOND    = ",f13.4,2x,"ANGLE   = ",f13.4,2x,'//&
-          '"DIHED      = ",f13.4)')pot_bond, pot_bend,pot_torsion+pot_imptors
-     WRITE(iw,'(1x,"1-4 VDW + 1-4 EEL (SHORT RANGE) = ",f13.4,2x,'//&
-          '"UBRAD      = ",f13.4)')pot_onef,pot_urey_bradley
+          '"DIHED      = ",f13.4)')xdum1, xdum2, xdum3
+     xdum1 = cp_unit_from_cp2k(pot_onef,"kcalmol",error=error)
+     xdum2 = cp_unit_from_cp2k(pot_urey_bradley,"kcalmol",error=error)
+     WRITE(iw,'(1x,"1-4 VDW + 1-4 EEL (SHORT RANGE)  = ",f13.4,2x,'//&
+          '"UBRAD      = ",f13.4)')xdum1,&
+                                   xdum2
      WRITE(iw,'(A)')" FIST:: CORRECTED BONDED ELECTROSTATIC FORCES + INTERNAL FORCES..."
      WRITE(iw,'(3f15.9)')((particle_set ( i ) % f ( j ),j=1,3), i = 1, SIZE(particle_set))
   END IF

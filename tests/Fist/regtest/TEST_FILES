@@ -93,3 +93,6 @@ cyhex.inp                 2
 cycbut.inp                2
 # testing cp_units
 H2O-1.inp                 2
+# AMBER tests comparing energies w.r.t. AMBER.. differences of the order of 10^-6-10^-7 Hartree
+# see the h2o2_amber.inp for comments
+h2o2_amber.inp            2

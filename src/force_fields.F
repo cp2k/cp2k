@@ -2867,8 +2867,8 @@ CONTAINS
     CALL spline_nonbond_control ( spline_bond_env, potparm_bond, &
          atomic_kind_set , ewald_env, ff_type%ei_scale14,ff_type%vdw_scale14,&
          ff_type%eps_spline,max_energy=ff_type%max_energy, rlow_nb=ff_type%rlow_nb,&
-         emax_spline=ff_type%emax_spline, iw=iw2, iw2=iw3,iw3=iw4,&
-         error=error)
+         emax_spline=ff_type%emax_spline, iw=iw2, iw2=iw3, iw3=iw4,&
+         do_14=.TRUE., error=error)
     ! point potparm ( ikind, jkind ) % spline_data => spline_data_p ( n )
     DO ikind = 1, SIZE ( potparm_bond%pot, 1 )
        DO jkind = ikind, SIZE ( potparm_bond%pot, 2 )

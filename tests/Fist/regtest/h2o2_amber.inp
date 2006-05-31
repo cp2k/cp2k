@@ -1,0 +1,63 @@
+
+&FORCE_EVAL
+  &MM
+    &FORCEFIELD
+      ! PARM91
+      ! VDW_SCALE14 0.5
+      ! EI_SCALE14  0.5
+      ! PARM94 and Following
+      VDW_SCALE14 0.5 
+      EI_SCALE14  0.8333333
+      parmfile ../sample_pot/h2o2_amber.pot
+      parmtype CHM
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE ewald
+        ALPHA .36
+        GMAX 51
+      &END EWALD
+    &END POISSON
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC 20.0 20.0 20.0
+      UNIT ANGSTROM
+    &END CELL
+    &TOPOLOGY
+      CONN_FILE h2o2_amber.psf
+      CONNECTIVITY PSF
+      COORD_FILE_NAME ../sample_pdb/h2o2_amber.pdb
+      COORDINATE PDB
+    &END TOPOLOGY
+    &PRINT
+      &TOPOLOGY_INFO
+        UTIL_INFO
+      &END
+    &END
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  FFTLIB FFTSG
+  PRINT_LEVEL DEBUG
+  PROGRAM FIST
+  PROJECT mol
+  RUN_TYPE md
+&END GLOBAL
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 1
+    TIMESTEP 1.0
+    TEMPERATURE 0.0
+  &END MD
+&END MOTION
+# Amber results
+# BOND    =        2.2271  ANGLE   =        0.3320  DIHED      =        0.6088
+# VDWAALS =       -0.0014  EEL     =       -0.0159  HBOND      =        0.0000
+# 1-4 VDW =        0.0000  1-4 EEL =       20.9514  RESTRAINT  =        0.0000
+# The value of 1-4 EEL is 5 Kcal smaller because we subtract the e_cutoff_cul
+# that for pure electrostatic is quite big.. contrary to AMBER
+# it looks to me more nice to have the potential equals 0 at the cutoff 
+# AMBER does have a step at the cutoff distance
+

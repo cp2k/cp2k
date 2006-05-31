@@ -28,9 +28,7 @@ MODULE topology_types
                                              cell_type
   USE input_constants,                 ONLY: do_bondparm_covalent,&
                                              do_conn_generate,&
-                                             do_nhcopt_global,&
-                                             do_skip_ei_14,&
-                                             do_skip_vdw_14
+                                             do_nhcopt_global
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE termination,                     ONLY: stop_memory
@@ -215,8 +213,6 @@ SUBROUTINE init_topology (topology)
   topology%const_46=.FALSE.
   topology%charge_occup=.FALSE.
   topology%charge_beta=.FALSE.
-  topology%exclude_vdw=do_skip_vdw_14
-  topology%exclude_ei=do_skip_ei_14
   topology%para_res=.FALSE.
   topology%molname_generated=.FALSE.
 

@@ -1,0 +1,7 @@
+REMARK  MOL                                                         
+ATOM      1  O1  MOL     1       3.537   1.423   0.000
+ATOM      2  H2  MOL     1       3.864   0.681   0.493
+ATOM      3  O2  MOL     1       2.160   1.188   0.000
+ATOM      4  H1  MOL     1       1.832   1.930   0.493
+TER   
+END   

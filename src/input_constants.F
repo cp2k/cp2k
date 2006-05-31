@@ -276,12 +276,9 @@ MODULE input_constants
                                 do_nhcopt_none=3,&
                                 do_bondparm_covalent=0,&
                                 do_bondparm_vdw=1,&
-                                do_skip_ei_12=0,&
-                                do_skip_ei_13=1,&
-                                do_skip_ei_14=2,&
-                                do_skip_vdw_12=0,&
-                                do_skip_vdw_13=1,&
-                                do_skip_vdw_14=2,&
+                                do_skip_12=0,&
+                                do_skip_13=1,&
+                                do_skip_14=2,&
                                 do_conn_psf=0,&
                                 do_conn_generate=1,&
                                 do_conn_off=2,&
