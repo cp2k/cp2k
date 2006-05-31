@@ -112,7 +112,8 @@ MODULE force_env_methods
 
   PUBLIC :: force_env_create, &
        force_env_calc_energy_force, &
-       force_env_set_cell
+       force_env_set_cell,&
+       apply_qmmm_trasl
 
   INTEGER, SAVE, PRIVATE :: last_force_env_id=0
   
@@ -224,7 +225,7 @@ RECURSIVE SUBROUTINE force_env_calc_energy_force ( force_env, &
           CALL eip_bazant(force_env, error=error)
         END IF
      CASE ( use_qmmm )
-        CALL qmmm_energy_and_forces(force_env,need_f,error)
+        CALL qmmm_energy_and_forces(force_env,need_f,error=error)
      CASE default
         CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
      END SELECT
@@ -588,9 +589,10 @@ END SUBROUTINE force_env_set_cell
 !!     05.2004 created [fawzi]
 !!
 !!*** **********************************************************************
-RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,calc_force,error)
+RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,calc_force,only_apply_trasl,error)
     TYPE(force_env_type), POINTER            :: force_env
-    LOGICAL, INTENT(IN), OPTIONAL            :: calc_force
+    LOGICAL, INTENT(IN), OPTIONAL            :: calc_force,&
+                                                only_apply_trasl
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -614,6 +616,7 @@ RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,calc_force,error)
       POINTER                                :: particles_mm, particles_qm
     TYPE(qmmm_links_type), POINTER           :: qmmm_links
     TYPE(section_vals_type), POINTER         :: force_env_section
+    logical                                  :: only_apply_trasl_loc
 
   min_coord       =  HUGE(0.0_dp)
   max_coord       = -HUGE(0.0_dp)
@@ -622,6 +625,7 @@ RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,calc_force,error)
   qmmm_link       = .FALSE.
   qmmm_link_imomm = .FALSE.
   qmmm_added_chrg = .FALSE.
+  only_apply_trasl_loc = .FALSE. ; IF (PRESENT(only_apply_trasl)) only_apply_trasl_loc = only_apply_trasl
   logger => cp_error_get_logger(error)
   IF (PRESENT(calc_force)) need_f=calc_force
   NULLIFY(subsys_mm, subsys_qm, qm_atom_index,particles_mm,particles_qm, qm_cell, mm_cell)
@@ -690,6 +694,7 @@ RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,calc_force,error)
           " Translating the system in order to center the QM fragment in the QM box."
      IF (.NOT.force_env%qmmm_env%center_qm_subsys) do_translate = .FALSE.
   END IF
+  IF (only_apply_trasl_loc) RETURN
   isubsys=-1
   DO ip=1,SIZE(qm_atom_index)
      IF (isubsys/=qm_subsys_index(ip)) THEN
@@ -786,6 +791,39 @@ RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,calc_force,error)
   CALL cp_print_key_finished_output(output_unit,logger,force_env_section,&
        "QMMM%PRINT%DERIVATIVES",error=error)    
 END SUBROUTINE qmmm_energy_and_forces
-!***************************************************************************
+
+!!****f* force_env_methods/apply_qmmm_trasl [1.0] *
+!!
+!!   NAME
+!!     qmmm_forces
+!!
+!!   FUNCTION
+!!     wrapper to handle the translation of the system during geometry
+!!     optimizations
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!
+!!
+!!   AUTHOR
+!!     Teodoro Laino
+!!
+!!   MODIFICATION HISTORY
+!!     05.2006 created [teo]
+!!
+!!*** **********************************************************************
+SUBROUTINE apply_qmmm_trasl(force_env, error)
+  TYPE(force_env_type), POINTER            :: force_env
+  TYPE(cp_error_type), INTENT(inout), &
+       OPTIONAL                               :: error
+
+  SELECT CASE(force_env%in_use)
+  CASE(use_qmmm)  
+     CALL qmmm_energy_and_forces(force_env,only_apply_trasl=.TRUE.,error=error)
+  END SELECT
+
+END SUBROUTINE apply_qmmm_trasl
 
 END MODULE force_env_methods

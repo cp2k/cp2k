@@ -23,3 +23,6 @@ H2O-qmmm-gauss-8.inp
 H2O-qmmm-gauss-9.inp
 H2O-qmmm-grid-1.inp
 H2O-qmmm-none-1.inp
+#reset due to numerics
+H2O-qmmm-gauss-4.inp
+H2O-qmmm-none-1.inp
