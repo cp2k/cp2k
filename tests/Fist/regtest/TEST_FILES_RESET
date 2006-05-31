@@ -170,3 +170,8 @@ water_hbonds_dist.inp
 loop.inp
 #bug fix for onfo
 loop.inp
+#new test_type for geometry optimization -> reset due to the new spline scheme (these tests were not resetted)
+silicon_cluster.inp
+silicon_cluster_3.inp
+silicon_cluster_4.inp
+silicon_cluster_5.inp

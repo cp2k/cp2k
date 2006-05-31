@@ -361,6 +361,20 @@ SUBROUTINE cp_eval_at(gopt_env, x, f, gradient, master, para_env, force_env_sect
 
   CALL force_env_calc_energy_force(gopt_env%force_env,&
        calc_force=PRESENT(gradient),error=error)
+  !
+  ! This call is necessary for QM/MM is a Translation was applied
+  ! this makes the geometry optimizer consistent
+  idg=0
+  DO isubsys=1,SIZE(subsys)
+     CALL cp_subsys_get(subsys(isubsys)%subsys, particles=particles,&
+          error=error)
+     DO ip=1,particles%n_els
+        DO idir=1,3
+           idg=idg+1
+           particles%els(ip)%r(idir)=x(idg)
+        END DO
+     END DO
+  END DO
 
   IF (PRESENT(f)) THEN
      CALL force_env_get(gopt_env%force_env,potential_energy=f,&

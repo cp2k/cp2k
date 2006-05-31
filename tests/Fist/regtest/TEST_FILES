@@ -56,11 +56,11 @@ H2O-32_NPT_res_3.inp      2
 H2O-32_NPT_res_4.inp      2
 water_IPBV.inp            2
 water_IPBV_flex.inp       2
-silicon_cluster.inp       0
+silicon_cluster.inp       7
 silicon_cluster_2.inp     2
-silicon_cluster_3.inp     0
-silicon_cluster_4.inp     0
-silicon_cluster_5.inp     0
+silicon_cluster_3.inp     7
+silicon_cluster_4.inp     7
+silicon_cluster_5.inp     7
 # this depends on the previous runs and provides a quick check
 silicon_cluster_6.inp     2
 al2o3.inp                 2
