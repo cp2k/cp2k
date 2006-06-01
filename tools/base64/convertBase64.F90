@@ -104,7 +104,7 @@ integer(mt), private, save :: pad_exp, pad_mantissa
 integer(mt), parameter :: pad1=ibset(0_mt,0),pad2=ibset(pad1,1),&
      pad3=ibset(pad2,2),pad4=ibset(pad3,3),pad5=ibset(pad4,4),pad6=ibset(pad5,5)
 integer(mt), dimension(6), parameter :: pads=(/pad1,pad2,pad3,pad4,pad5,pad6/)
-logical, private, save :: initialized_module=.false.
+logical, private, save :: initialized_module=.false.,fast_istr=.true.
 
 !!****h* base64_types/base64c_type [1.0] *
 !!
@@ -257,10 +257,8 @@ function from_mantissa_m3(mantissa,expo,bit_exp_in,pad_e) result(res)
      ffrac=ffrac+1._wp
      if (expo==pad_e) then
         if (mantissa==0_mt) then
-           !infinity
            ffrac=infinity
         else
-           ! nan
            ffrac=nan
         end if
      else
@@ -548,7 +546,7 @@ subroutine base64c_do_tests(b64,unit_nr,testArray)
   ! test fast conversion
   if (use_fast_conversion) then
      if (unit_nr>0) write (unit_nr,"('TEST Fast conversion')")
-     call base64c_clear(b64)
+     call base64c_clear(b64,.true.)
      do ii=1,size(test_r)
         r1=test_r(ii)
         call base64c_real_fast(b64,r1)
@@ -576,7 +574,7 @@ subroutine base64c_do_tests(b64,unit_nr,testArray)
   if (.not.fast_failures%support_normal) b64%use_fast_conversion=.false.
 
   if (my_testArray) then
-     call base64c_clear(b64)
+     call base64c_clear(b64,.true.)
      if (unit_nr>0) write (unit_nr,"('Array conversion')")
      new_unit=15
      do ii=1,999
@@ -592,7 +590,7 @@ subroutine base64c_do_tests(b64,unit_nr,testArray)
      else
         open(unit=new_unit,file=trim(filename),form="FORMATTED",action="WRITE")
         call base64c_write_reals(b64,test_r,len_test_r,new_unit,flush=.true.)
-        call base64c_clear(b64)
+        call base64c_clear(b64,.true.)
         if (bit_size(mantissa(1))==bit_mantissa+bit_exp+1) then
            close(new_unit)
            open(unit=new_unit,file=trim(filename),form="FORMATTED",action="READ")
@@ -623,6 +621,7 @@ subroutine base64c_do_tests(b64,unit_nr,testArray)
         end if
      end if
   end if
+  call base64c_clear(b64,.true.)
 
   ! add a test that decodes the reference string?
 
@@ -861,155 +860,41 @@ subroutine istr2str(istr,str,nchars)
   character(len=*),intent(out) :: str
   integer, intent(in) :: nchars
 
-  integer, parameter :: iUA=ichar("A"),ila=ichar("a"),ila2=ila-26,i0=ichar("0"),i02=i0-52
+  integer(selected_int_kind(2)), dimension(len(str)) :: cstr
+  integer, parameter :: iUA=ichar("A"),ila=ichar("a"),ila2=ila-26,i0=ichar("0"),&
+       i02=i0-52,ipl=ichar('+'),ishl=ichar("/"),isp=ichar(" ")
   integer :: ival,i
+  character(len=nchars), dimension(1) :: mstr
 
   if (nchars>len(str)) STOP "wrong nchars value"
   if (nchars>size(istr)) STOP "wrong nchars value"
-  
-  do i=1,nchars
-     ival=istr(i)
-     if (ival<26) then
-        str(i:i)=char(ival+iUA)
-     else if (ival<52) then
-        str(i:i)=char(ival+ila2)
-     else if (ival<62) then
-        str(i:i)=char(ival+i02)
-     else if (ival==62) then
-        str(i:i)="+"
-     else if (ival==63) then
-        str(i:i)="/"
-     else
-        str(i:i)=" "
-     end if
-  end do
-end subroutine istr2str
 
-subroutine base64c_feed2(b64,bits,nbits)
-  type(base64c_type), intent(inout) :: b64
-  integer(mt),intent(in) :: bits
-  integer, intent(in) :: nbits
-
-  integer(mt) :: indice,my_bits
-  integer :: my_nbits,my_i
-  integer, parameter :: iUA=ichar("A"),ila=ichar("a"),ila2=ila-26,i0=ichar("0"),i02=i0-52
-  integer(mt), parameter :: pad1=1,pad2=3,pad3=7,pad4=15,pad5=31
-
-  my_bits=bits
-  my_nbits=nbits
-!  print *, "mybits,pad"
-!  call print_bits(6,my_bits,my_nbits)
-!  call print_bits(6,b64%pad,b64%len_pad)
-  select case(b64%len_pad)
-  case (0)
-     indice=iand(my_bits,pad6)
-  case (1)
-     indice=iand(my_bits,pad5)*2_mt+b64%pad
-  case (2)
-     indice=iand(my_bits,pad4)*4_mt+b64%pad
-  case (3)
-     indice=iand(my_bits,pad3)*8_mt+b64%pad
-  case (4)
-     indice=iand(my_bits,pad2)*16_mt+b64%pad
-  case (5)
-     indice=iand(my_bits,pad1)*32+b64%pad
-     !if (btest(my_bits,1)) indice=ibset(indice,6)
-  case default
-     print *,b64%len_pad
-     stop "error,len_pad"
-  end select
-!  print *, "indice"
-!  call print_bits(6,indice,6)
-  my_nbits=my_nbits-6+b64%len_pad
-  if (my_nbits>0) then
-!     print *,"my_nbits"
-!     call print_bits(6,my_bits,my_nbits)
-     my_bits=ishft(my_bits,-6+b64%len_pad)
-     do
-!        print *, "about to output,indice,my_bits",my_nbits
-!        call print_bits(6,indice,6)
-!        call print_bits(6,my_bits,my_nbits)
-!        print *, 3, "my_nbits",my_nbits,b64%len_str
-        b64%len_str=b64%len_str+1
-!t        my_i=int(indice)+1
-        b64%istr(b64%len_str)=int(indice)
-!!$        my_i=int(indice)
-!!$        if (b64%len_str>dim_buffer) stop "hit maxstr"
-!!$        if (my_i<26) then
-!!$           b64%str(b64%len_str:b64%len_str)=char(my_i+iUA)
-!!$        else if (my_i<52) then
-!!$           b64%str(b64%len_str:b64%len_str)=char(my_i+ila2)
-!!$        else if (my_i<62) then
-!!$           b64%str(b64%len_str:b64%len_str)=char(my_i+i02)
-!!$        else if (my_i==62) then
-!!$           b64%str(b64%len_str:b64%len_str)="+"
-!!$        else
-!!$           b64%str(b64%len_str:b64%len_str)="/"
-!!$        end if
-!        print *,"did output '",b64%str(b64%len_str:b64%len_str),"' at ",b64%len_str
-        !b64%str(b64%len_str:b64%len_str)=base64(my_i+1:my_i+1)
-        indice=iand(my_bits,pad6)
-        my_nbits=my_nbits-6
-        if (my_nbits<=0) exit
-        my_bits=ishft(my_bits,-6)
+  if (fast_istr) then
+     do i=1,nchars
+        ival=istr(i)
+        if (ival<26) then
+           cstr(i)=ival+iUA
+        else if (ival<52) then
+           cstr(i)=ival+ila2
+        else if (ival<62) then
+           cstr(i)=ival+i02
+        else if (ival==62) then
+           cstr(i)=ipl
+        else if (ival==63) then
+           cstr(i)=ishl
+        else
+           cstr(i)=isp
+        end if
+     end do
+     mstr=transfer(cstr,mstr(1),1)
+     str=mstr(1)
+  else
+     do i=1,nchars
+        ival=istr(i)+1
+        str(i:i)=base64(ival:ival)
      end do
   end if
-  if (my_nbits==0) then
-!     print *, "about to output,indice,my_bits",my_nbits
-!     call print_bits(6,indice,6)
-!     call print_bits(6,my_bits,my_nbits)
-     b64%len_str=b64%len_str+1
-!t     my_i=int(indice)+1
-!t     b64%str(b64%len_str:b64%len_str)=base64(my_i:my_i)
-     b64%istr(b64%len_str)=int(indice)
-!!$     my_i=int(indice)
-!!$     if (my_i<26) then
-!!$        b64%str(b64%len_str:b64%len_str)=char(my_i+iUA)
-!!$     else if (my_i<52) then
-!!$        b64%str(b64%len_str:b64%len_str)=char(my_i+ila2)
-!!$     else if (my_i<62) then
-!!$        b64%str(b64%len_str:b64%len_str)=char(my_i+i02)
-!!$     else if (my_i==62) then
-!!$        b64%str(b64%len_str:b64%len_str)="+"
-!!$     else
-!!$        b64%str(b64%len_str:b64%len_str)="/"
-!!$     end if
-!     print *,"did output '",b64%str(b64%len_str:b64%len_str),"' at ",b64%len_str
-     b64%len_pad=0
-     b64%pad=0
-  else
-     b64%pad=indice
-     b64%len_pad=6+my_nbits
-  end if
-!  print *," final pad"
-!  call print_bits(6,b64%pad,b64%len_pad)
-!f   my_bits=bits
-!f   my_nbits=nbits
-!f   do while (my_nbits>0)
-!f !     print *,"my_bits"
-!f !     call print_bits(my_bits,my_nbits)
-!f      indice=iand(ior(ishft(my_bits,b64%len_pad),b64%pad),pad6)
-!f !     print *, "pad,indice"
-!f !     call print_bits(b64%pad,b64%len_pad)
-!f !     call print_bits(indice,6)
-!f      if (b64%len_pad+my_nbits>=6) then
-!f         if (b64%len_str>=len(b64%str)) stop "maxLine"
-!f         if (indice>=64.or.indice<0) stop "indice"
-!f         b64%len_str=b64%len_str+1
-!f         b64%str(b64%len_str:b64%len_str)=base64(indice+1:indice+1)
-!f !        print *,"encoded ",base64(indice+1:indice+1)
-!f         my_bits=ishft(my_bits,-6+b64%len_pad)
-!f         my_nbits=my_nbits-6+b64%len_pad
-!f         b64%len_pad=0
-!f         b64%pad=0
-!f      else
-!f         b64%len_pad=b64%len_pad+my_nbits
-!f         b64%pad=iand(indice,ishft(pad6,-6+b64%len_pad))
-!f         my_nbits=0
-!f         my_bits=0
-!f      end if
-!f   end do
-end subroutine base64c_feed2
+end subroutine istr2str
 
 subroutine base64c_feed(b64,bits,nbits)
   type(base64c_type), intent(inout) :: b64
@@ -1018,6 +903,7 @@ subroutine base64c_feed(b64,bits,nbits)
 
   integer(mt) :: indice,my_bits
   integer :: my_nbits,my_i,j,i
+  ! to be faster assumes that the bits bigger than nbits are 0
 
   my_bits=bits
   my_nbits=nbits
@@ -1041,12 +927,8 @@ subroutine base64c_feed(b64,bits,nbits)
      end do
   end if
   if (my_nbits==0) then
-!     print *, "about to output,indice,my_bits",my_nbits
-!     call print_bits(6,indice,6)
-!     call print_bits(6,my_bits,my_nbits)
      b64%len_str=b64%len_str+1
      b64%istr(b64%len_str)=int(indice)
-!     print *,"did output '",b64%str(b64%len_str:b64%len_str),"' at ",b64%len_str
      b64%len_pad=0
      b64%pad=0
   else
@@ -1109,15 +991,14 @@ end subroutine base64c_flush
 !!*** **********************************************************************
 subroutine base64c_clear(b64,clear_pad)
   type(base64c_type), intent(inout) :: b64
-  logical, intent(in), optional :: clear_pad
+  logical, intent(in) :: clear_pad
   
   logical :: my_clear_pad
 
-  b64%istr=-1
+!  b64%istr=-1 !dbg
   b64%len_str=0
   my_clear_pad=.true.
-  if (present(clear_pad)) my_clear_pad=clear_pad
-  if (my_clear_pad) then
+  if (clear_pad) then
      b64%pad=0
      b64%len_pad=0
   end if
@@ -1146,7 +1027,7 @@ end subroutine base64c_clear
 subroutine base64c_write(b64,unit_nr)
   type(base64c_type), intent(inout) :: b64
   integer, intent(in) :: unit_nr
-  character(len=dim_buffer) :: str
+  character(len=b64%len_str) :: str
 
   if (b64%len_str>0) then
      call istr2str(b64%istr,str,b64%len_str)
@@ -1154,49 +1035,6 @@ subroutine base64c_write(b64,unit_nr)
      call base64c_clear(b64,.false.)
   end if
 end subroutine base64c_write
-
-subroutine base64c_getbits2(b64,bits,nbits)
-  type(base64c_type), intent(inout) :: b64
-  integer(mt),intent(out) :: bits
-  integer, intent(in) :: nbits
-
-  integer(mt), parameter :: pad6=63
-  integer(mt) :: indice,my_bits
-  integer :: my_nbits
-
-  if (bit_size(indice)<nbits) stop "nbits too big"
-  my_bits=0
-  my_nbits=0
-  do while (my_nbits<nbits)
-     if (b64%len_pad==0) then
-        if (b64%len_str<b64%pos_str) stop "no string to decode"
-        b64%pad=b64%istr(b64%pos_str)
-        b64%pos_str=b64%pos_str+1
-        b64%len_pad=6
-     end if
-     if (nbits-my_nbits>b64%len_pad) then
-        my_bits=ior(ishft(b64%pad,my_nbits),my_bits)
-!        print *,"my_bits,pad"
-!        call print_bits(my_bits,my_nbits+b64%len_pad)
-!        call print_bits(b64%pad,b64%len_pad)
-        b64%pad=0
-        my_nbits=my_nbits+b64%len_pad
-        b64%len_pad=0
-     else
-        my_bits=ior(ishft(iand(ishft(pad6,-6+nbits-my_nbits),&
-             b64%pad),my_nbits),my_bits)
-!        print *,"my_bits,pad"
-!        call print_bits(my_bits,nbits)
-!        call print_bits(b64%pad,b64%len_pad)
-        b64%pad=ishft(b64%pad,-nbits+my_nbits)
-        b64%len_pad=b64%len_pad-nbits+my_nbits
-        my_nbits=nbits
-     end if
-  end do
-  bits=my_bits
-!  print *, "bits"
-!  call print_bits(bits,nbits)
-end subroutine base64c_getbits2
 
 subroutine base64c_getbits(b64,bits,nbits)
   type(base64c_type), intent(inout) :: b64
@@ -1206,15 +1044,11 @@ subroutine base64c_getbits(b64,bits,nbits)
   integer(mt) :: indice,my_bits,pad
   integer :: my_nbits,len_pad,i
 
-!  print *, "requested ",nbits
   if (bit_size(indice)<nbits) stop "nbits too big"
   my_bits=0
   my_nbits=0
   if (nbits>b64%len_pad) then
      my_bits=b64%pad
-!             print *,"pre-my_bits,pad"
-!             call print_bits(6,my_bits,my_nbits+b64%len_pad)
-!             call print_bits(6,b64%pad,b64%len_pad)
      b64%pad=0
      my_nbits=b64%len_pad
      b64%len_pad=0
@@ -1224,33 +1058,21 @@ subroutine base64c_getbits(b64,bits,nbits)
         b64%pos_str=b64%pos_str+1
         my_bits=ior(ishft(pad,i),my_bits)
         my_nbits=my_nbits+6
-!                print *,"in_loop",i,", my_bits,pad"
-!                call print_bits(6,my_bits,my_nbits)
-!                call print_bits(6,pad,6)
      end do
      if (my_nbits<nbits) then
         if (b64%len_str<b64%pos_str) stop "no string to decode"
         pad=b64%istr(b64%pos_str)
         b64%pos_str=b64%pos_str+1
         my_bits=ior(ishft(iand(pads(nbits-my_nbits),pad),my_nbits),my_bits)
-!                print *,"off_loop,my_bits,pad"
-!                call print_bits(6,my_bits,nbits)
-!                call print_bits(6,pad,6)
         b64%pad=ishft(pad,my_nbits-nbits)
         b64%len_pad=6+my_nbits-nbits
      end if
   else if (nbits>0) then
      my_bits=iand(pads(nbits),b64%pad)
-!             print *,"short_req,my_bits,pad"
-!             call print_bits(6,my_bits,nbits)
-!             call print_bits(6,b64%pad,b64%len_pad)
      b64%pad=ishft(b64%pad,-nbits)
      b64%len_pad=b64%len_pad-nbits
   end if
   bits=my_bits
-!             print *,"at_end"
-!             call print_bits(6,bits,nbits)
-!             call print_bits(6,b64%pad,b64%len_pad)
 end subroutine base64c_getbits
 
 !!****f* base64_types/base64c_capacity_info [1.0] *
@@ -1552,23 +1374,8 @@ subroutine base64c_decode_reals(b64,rr,nreals,unit_nr,reals_read,rest_str)
      call base64c_capacity_info(b64,reals_contained=reals_contained)
      read_more=.true.
      do
-        if (read_more) then
-           read(unit_nr,"(a100)",advance="no",eor=10,end=120,size=nread)str
-10         continue
-           nproc=base64c_add_string(b64,str(1:nread),ignore_garbage=.false.)
-           if (nproc/=len_trim(str(1:nread))) then
-              read_more=.false.
-              if (present(rest_str)) then
-                 rest_str=str(nproc+1:nread)
-              end if
-           end if
-           call base64c_capacity_info(b64,reals_contained=reals_contained)
-        else
-           call base64c_capacity_info(b64,reals_contained=reals_contained)
-           if (reals_contained==0) exit
-        end if
         do i=ireals,min(nreals,ireals+reals_contained-1)
-           !           call base64c_getbits(b64,nr,tot_bit)
+           !BEGIN call base64c_getbits(b64,nr,tot_bit) ! inlined
            nbits=tot_bit
            if (bit_size(indice)<nbits) stop "nbits too big"
            my_bits=0
@@ -1599,8 +1406,24 @@ subroutine base64c_decode_reals(b64,rr,nreals,unit_nr,reals_read,rest_str)
               b64%len_pad=b64%len_pad-nbits
            end if
            nr=my_bits
-
+           !END call base64c_getbits(b64,nr,tot_bit) ! inlined
            rr(i:i)=transfer(nr,1._wp,1)
+
+           if (read_more) then
+              read(unit_nr,"(a200)",advance="no",eor=10,end=120,size=nread)str
+10            continue
+              nproc=base64c_add_string(b64,str(1:nread),ignore_garbage=.false.)
+              if (nproc/=len_trim(str(1:nread))) then
+                 read_more=.false.
+                 if (present(rest_str)) then
+                    rest_str=str(nproc+1:nread)
+                 end if
+              end if
+              call base64c_capacity_info(b64,reals_contained=reals_contained)
+           else
+              call base64c_capacity_info(b64,reals_contained=reals_contained)
+              if (reals_contained==0) exit
+           end if
         end do
         ireals=min(nreals,ireals+reals_contained-1)+1
         if (ireals>nreals) exit
@@ -1608,18 +1431,27 @@ subroutine base64c_decode_reals(b64,rr,nreals,unit_nr,reals_read,rest_str)
 120  continue
   else
      call base64c_capacity_info(b64,reals_contained=reals_contained)
+     read_more=.true.
      do
-        do while(reals_contained<1)
-           read(unit_nr,"(a100)",advance="no",eor=11,end=121,size=nread)str
-11         continue
-           nproc=base64c_add_string(b64,str(1:nread),ignore_garbage=.false.)
-           if (nproc/=len_trim(str(1:nread))) exit
-           call base64c_capacity_info(b64,reals_contained=reals_contained)
-        end do
         do i=ireals,min(nreals,ireals+reals_contained-1)
            rr(i)=base64c_decode_real_ref(b64)
         end do
         ireals=min(nreals,ireals+reals_contained-1)+1
+        if (read_more) then
+           read(unit_nr,"(a100)",advance="no",eor=10,end=120,size=nread)str
+10         continue
+           nproc=base64c_add_string(b64,str(1:nread),ignore_garbage=.false.)
+           if (nproc/=len_trim(str(1:nread))) then
+              read_more=.false.
+              if (present(rest_str)) then
+                 rest_str=str(nproc+1:nread)
+              end if
+           end if
+           call base64c_capacity_info(b64,reals_contained=reals_contained)
+        else
+           call base64c_capacity_info(b64,reals_contained=reals_contained)
+           if (reals_contained==0) exit
+        end if
      end do
 121  continue
   end if
@@ -1671,6 +1503,8 @@ end subroutine write_failures
 subroutine init_module()
   real(wp) :: one
   integer :: i
+  integer, dimension(64) :: ivals
+  character(len=64) :: str
 #ifdef __IEEE_EXCEPTIONS
      type(ieee_status_type) :: stat
      logical :: flag,flag2
@@ -1721,6 +1555,16 @@ subroutine init_module()
      case default
         refString=" "
      end select
+
+     do i=0,63
+        ivals(i+1)=i
+     end do
+     fast_istr=.true.
+     call istr2str(ivals,str,64)
+     if (str/=base64) then
+        fast_istr=.false.
+     end if
+
      initialized_module=.true.
   end if
 end subroutine init_module
@@ -1766,11 +1610,6 @@ function my_exponent(r1) result(res)
   res=exponent(r1)
 end function my_exponent
 
-subroutine base64c_test_array_conv(b64,filename)
-  type(base64c_type), intent(inout) :: b64
-  character(len=*), intent(in) :: filename
-
-end subroutine base64c_test_array_conv
 !============ start/end tags ===========
 
 subroutine parse_start_tag(pos,str,bit_mantissa,bit_exp,dims,failure)
@@ -2054,7 +1893,7 @@ integer :: n_arg,i,direction,log_unit,out_unit,in_unit,nFile,nread,&
      end_str
 character(len=200) :: arg_att,infile,outfile,my_format,cmndName,str
 logical :: error,exists,ignore_garbage,failure,echo,at_end
-real(wp) :: r1
+real(wp) :: r1,rr(100)
 integer, dimension(:), pointer :: dims
 
 failure=.false.
@@ -2173,23 +2012,16 @@ if (.not.error) then
             nproc=base64c_add_string(b64,str(pos:nread),ignore_garbage=ignore_garbage)
 
          do
-            read(in_unit,"(a100)",advance="no",eor=10,end=120,size=nread)str
-10          continue
-            nproc=base64c_add_string(b64,str(1:nread),ignore_garbage=ignore_garbage)
-            if (nproc<len_trim(str(1:nread))) exit
-            do
-               call base64c_capacity_info(b64,reals_contained=nreals)
-               if (nreals<1) exit
-               r1=base64c_decode_real(b64)
-               ireals=ireals+1
-               if (my_format/=" ") then
-                  write(out_unit,my_format) r1
-               else
-                  write(out_unit,"(es35.20e5)") r1
-               end if
-            end do
+            call base64c_decode_reals(b64,rr,size(rr),in_unit,reals_read=nread,rest_str=str)
+            ireals=ireals+nread
+            if (my_format/=" ") then
+               write(out_unit,my_format) rr
+            else
+               write(out_unit,"(10es35.20e5)") rr
+            end if
+            
+            if (nread/=size(rr)) exit
          end do
-120      continue
          write(log_unit,"('decoded ',i20,' reals')")ireals
       end if
    else if (direction==1) then
@@ -2283,12 +2115,13 @@ if (.not.error) then
          end if
          ireals=ireals+1
          if (echo) print *,ireals,r1
-         call base64c_real(b64,r1)
-         if (modulo(ireals,10)==0) call base64c_write(b64,out_unit)
+         rr(modulo(ireals,100)+1)=r1
+         if (modulo(ireals,100)==0) then
+            call base64c_write_reals(b64,rr,size(rr),out_unit,flush=.false.)
+         end if
       end do
 121   continue
-      call base64c_flush(b64)
-      call base64c_write(b64,out_unit)
+      call base64c_write_reals(b64,rr,modulo(ireals,100),out_unit,flush=.true.)
       write(out_unit,"('</reals>')")
       write(log_unit,"('encoded ',i20,' reals')")ireals
    else
