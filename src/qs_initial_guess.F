@@ -375,9 +375,9 @@ CONTAINS
                                  orb_basis_set=orb_basis_set)
 
             IF (ASSOCIATED(all_potential)) THEN
-              CALL get_potential(potential=all_potential,elec_conf=elec_conf)
+              CALL get_atomic_kind(atomic_kind=atomic_kind,elec_conf=elec_conf)
             ELSE IF (ASSOCIATED(gth_potential)) THEN
-              CALL get_potential(potential=gth_potential,elec_conf=elec_conf)
+              CALL get_atomic_kind(atomic_kind=atomic_kind,elec_conf=elec_conf)
             ELSE
               CYCLE
             END IF

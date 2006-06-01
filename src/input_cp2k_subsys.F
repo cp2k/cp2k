@@ -792,6 +792,14 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="ELEC_CONF",&
+            description="Specifies the electronic configration used in construction the "// &
+                        "atomic initial guess (see the pseudo potential file for the default values.",&
+            usage="ELEC_COND n_elec(s)  n_elec(p)  n_elec(d)  ... ", required=.TRUE.,&
+            n_var=-1, type_of_var=integer_t, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="BASIS_NORMALIZATION",&
             variants=s2a("ORBITAL_BASIS_NORMALIZATION","ORB_BASIS_NORM"),&
             description="The normalization of the auxliliary basis set",&

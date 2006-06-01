@@ -118,6 +118,8 @@ MODULE atomic_kind_types
     TYPE(grid_atom_type), POINTER          :: grid_atom
     INTEGER                                :: ngrid_rad,ngrid_ang 
     INTEGER                                :: lmax_rho0
+    INTEGER, DIMENSION(:), POINTER         :: elec_conf ! used to set up the initial atomic guess
+                                                        ! user can specify whatever...
   END TYPE atomic_kind_type
 
   TYPE atomic_kind_p_type
@@ -186,6 +188,7 @@ CONTAINS
       NULLIFY (atomic_kind_set(ikind)%aux_basis_set)
       NULLIFY (atomic_kind_set(ikind)%orb_basis_set)
       NULLIFY (atomic_kind_set(ikind)%atom_list)
+      NULLIFY (atomic_kind_set(ikind)%elec_conf)
       NULLIFY (atomic_kind_set(ikind)%hard_basis_set)
       NULLIFY (atomic_kind_set(ikind)%soft_basis_set)
       NULLIFY (atomic_kind_set(ikind)%paw_proj_set)
@@ -272,6 +275,11 @@ CONTAINS
         DEALLOCATE (atomic_kind_set(ikind)%atom_list,STAT=istat)
         IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                          "atomic_kind_set(ikind)%atom_list")
+        IF (ASSOCIATED(atomic_kind_set(ikind)%elec_conf)) THEN
+            DEALLOCATE (atomic_kind_set(ikind)%elec_conf,STAT=istat)
+            IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                             "atomic_kind_set(ikind)%elec_conf")
+        ENDIF
       END DO
 
       DEALLOCATE (atomic_kind_set,STAT=istat)
@@ -296,7 +304,7 @@ CONTAINS
                              element_symbol,name,mass,kind_number,natom,&
                              atom_list,alpha_core_charge,ccore_charge,&
                              core_charge_radius,ncgf,nsgf,z,zeff,qeff,&
-                             soft_basis_set,&
+                             soft_basis_set, elec_conf,&
                              hard_basis_set,paw_proj_set,softb,&
                              paw_atom,qm_atom,hard_radius,hard0_radius,&
                              max_rad_local, gpw_type_forced,&
@@ -326,6 +334,7 @@ CONTAINS
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: mass
     INTEGER, INTENT(OUT), OPTIONAL           :: kind_number, natom
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: atom_list
+    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: elec_conf
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: alpha_core_charge, &
                                                 ccore_charge, &
                                                 core_charge_radius
@@ -376,6 +385,7 @@ CONTAINS
       IF (PRESENT(kind_number)) kind_number = atomic_kind%kind_number
       IF (PRESENT(natom)) natom = atomic_kind%natom
       IF (PRESENT(atom_list)) atom_list => atomic_kind%atom_list
+      IF (PRESENT(elec_conf)) elec_conf => atomic_kind%elec_conf
       IF (PRESENT(alpha_core_charge)) THEN
         IF (ASSOCIATED(atomic_kind%all_potential)) THEN
           CALL get_potential(potential=atomic_kind%all_potential,&
@@ -1086,6 +1096,7 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: zeff_correction
     TYPE(section_vals_type), POINTER         :: kind_section
+    INTEGER, POINTER, DIMENSION(:)           :: elec_conf
 
 !   ---------------------------------------------------------------------------
 
@@ -1189,6 +1200,14 @@ CONTAINS
              END IF
           END DO
        END IF
+       ! seems like atomic_kind is not initialised here
+       CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
+            keyword_name="ELEC_CONF",n_rep_val=i,error=error)
+       IF (i>0) THEN
+          CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
+                                    keyword_name="ELEC_CONF",i_vals=elec_conf,error=error)
+          CALL set_atomic_kind(atomic_kind,elec_conf=elec_conf)
+       ENDIF
        CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
             keyword_name="CORE_CORRECTION",r_val=zeff_correction,error=error)
        CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
@@ -1321,11 +1340,22 @@ CONTAINS
         CALL read_potential(atomic_kind%element_symbol,potential_name,&
                             atomic_kind%all_potential,zeff_correction, globenv)
         CALL set_potential(atomic_kind%all_potential,z=z)
+
+        CALL get_atomic_kind(atomic_kind,elec_conf=elec_conf)
+        IF (.NOT. ASSOCIATED(elec_conf)) THEN
+           CALL get_potential(potential=atomic_kind%all_potential,elec_conf=elec_conf)
+           CALL set_atomic_kind(atomic_kind,elec_conf=elec_conf)
+        ENDIF
       CASE ("GTH")
         CALL allocate_potential(atomic_kind%gth_potential)
         CALL read_potential(atomic_kind%element_symbol,potential_name,&
                             atomic_kind%gth_potential,zeff_correction, globenv)
         CALL set_potential(atomic_kind%gth_potential,z=z)
+        CALL get_atomic_kind(atomic_kind,elec_conf=elec_conf)
+        IF (.NOT. ASSOCIATED(elec_conf)) THEN
+           CALL get_potential(potential=atomic_kind%gth_potential,elec_conf=elec_conf)
+           CALL set_atomic_kind(atomic_kind,elec_conf=elec_conf)
+        ENDIF
       CASE ("GHOST")
         atomic_kind%mass = 0.0_dp
       CASE ("ELP")
@@ -1346,6 +1376,11 @@ CONTAINS
 
       CALL allocate_potential(atomic_kind%all_potential)
       CALL set_default_all_potential(atomic_kind%all_potential,z,zeff_correction)
+      CALL get_atomic_kind(atomic_kind,elec_conf=elec_conf)
+      IF (.NOT. ASSOCIATED(elec_conf)) THEN
+          CALL get_potential(potential=atomic_kind%all_potential,elec_conf=elec_conf)
+          CALL set_atomic_kind(atomic_kind,elec_conf=elec_conf)
+      ENDIF
 
     END IF
 
@@ -1507,7 +1542,7 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE set_atomic_kind(atomic_kind,element_symbol,name,mass,kind_number,&
-                             natom,atom_list,&
+                             natom,atom_list,elec_conf,&
                              paw_atom,qm_atom,hard_radius,hard0_radius,&
                              elp_potential,soft_basis_set,hard_basis_set,&
                              lmax_rho0)
@@ -1523,7 +1558,7 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: mass
     INTEGER, INTENT(IN), OPTIONAL            :: kind_number, natom
     INTEGER, DIMENSION(:), INTENT(IN), &
-      OPTIONAL                               :: atom_list
+      OPTIONAL                               :: atom_list, elec_conf
     LOGICAL, INTENT(IN), OPTIONAL            :: paw_atom, qm_atom
     REAL(dp), INTENT(IN), OPTIONAL           :: hard_radius, hard0_radius
     TYPE(elp_potential_type), OPTIONAL, &
@@ -1567,6 +1602,13 @@ CONTAINS
                             "An invalid atom_list was supplied")
         END IF
       END IF
+      IF (PRESENT(elec_conf)) THEN
+          IF (ASSOCIATED(atomic_kind%elec_conf)) THEN
+             DEALLOCATE(atomic_kind%elec_conf)
+          ENDIF
+          ALLOCATE(atomic_kind%elec_conf(0:SIZE(elec_conf)-1))
+          atomic_kind%elec_conf(:)=elec_conf(:)
+      ENDIF
       IF (PRESENT(paw_atom)) atomic_kind%paw_atom = paw_atom
       IF (PRESENT(qm_atom)) atomic_kind%qm_atom = qm_atom
       IF (PRESENT(hard_radius)) atomic_kind%hard_radius = hard_radius
