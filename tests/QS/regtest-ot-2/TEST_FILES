@@ -29,3 +29,5 @@ H2O-sic-ad-2.inp   1
 # running H LSD
 H-1.inp            1
 H-2.inp            1
+# elec_conf
+H2O-1.inp          1
