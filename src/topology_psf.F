@@ -20,7 +20,7 @@
 !******************************************************************************
 
 MODULE topology_psf
-  USE cp_files,                        ONLY: open_file
+  USE cp_files,                        ONLY: open_file, close_file
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_parser,                       ONLY: cp_parser_type,&
@@ -616,9 +616,11 @@ CONTAINS
     WRITE(file_unit,*) " 0 !NNB"
     WRITE(file_unit,*) ""
 
-    CALL timestop(0.0_dp,handle)
+    CALL close_file(file_unit)
+
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
          "PRINT%TOPOLOGY_INFO/PSF_INFO",error=error)  
+    CALL timestop(0.0_dp,handle)
     
   END SUBROUTINE write_topology_psf
 

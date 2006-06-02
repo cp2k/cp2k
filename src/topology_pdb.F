@@ -337,9 +337,10 @@ CONTAINS
 
     IF(iw>0) WRITE(iw,*) "  Exiting write_coordinate_pdb"
 
-    CALL timestop(0.0_dp,handle)
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&
          "PRINT%TOPOLOGY_INFO/PDB_INFO",error=error)
+
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE write_coordinate_pdb
 
