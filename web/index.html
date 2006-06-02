@@ -71,6 +71,7 @@ having CVS write permission.
  <li><a href="http://cvs.berlios.de/cgi-bin/viewcvs.cgi/cp2k/cp2k/src/?sortby=date">Browse the sources and follow development</a></li>
  <li><a href="regtest.html">Automatic regression tester</a></li>
  <li><a href="http://developer.berlios.de/projects/cp2k">The Berlios project page</a></li>
+ <li><a href="http://developer.berlios.de/forum/forum.php?forum_id=411">Help forum</li>
  <li>Goedecker-Teter-Hutter (GTH) pseudopotential parameter sets
  (<a href="http://cvs.berlios.de/cgi-bin/viewcvs.cgi/cp2k/potentials/Goedecker/cp2k">CP2K format</a>,
   <a href="http://cvs.berlios.de/cgi-bin/viewcvs.cgi/cp2k/potentials/Goedecker/cpmd">CPMD format</a>)
