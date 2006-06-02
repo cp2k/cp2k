@@ -821,7 +821,7 @@ CONTAINS
     IMPLICIT NONE
     INTEGER, INTENT(IN) :: unit
     INTEGER :: my_sec, my_res, my_bonds, local, my_phi, my_theta, my_atom
-    INTEGER :: i, ind, ifirst, ilast
+    INTEGER :: i, j, ind, ifirst, ilast
     INTEGER, DIMENSION(:), POINTER :: my_i, my_j, my_k, my_l
     CHARACTER (LEN=2) :: int_format
 
@@ -894,6 +894,7 @@ CONTAINS
        my_phi = COUNT(MASK=LPH>=0) + COUNT(MASK=LP>=0)
        ALLOCATE(my_i(my_phi), my_j(my_phi), my_k(my_phi), my_l(my_phi))
        ind = 0
+       ! Get dihedrals
        DO I = 1, NPHIH
           IF (LPH(i) >= 0) THEN
              ind = ind + 1
@@ -913,8 +914,41 @@ CONTAINS
           END IF
        END DO
        IF (ind .NE. my_phi) CALL stop_converter("Error in write_psf :: evaluation of proper torsion.")
-       WRITE(unit,*) " ",my_phi," !NPHI"
-       WRITE(unit,'(8'//int_format//')') (my_i(local),my_j(local),my_k(local),my_l(local), local=1,my_phi)
+       ! Now get unique dihedrals
+       DO i = 1, my_phi
+          IF ( my_i(i)==-999999 .AND.&
+               my_j(i)==-999999 .AND.&
+               my_k(i)==-999999 .AND.&
+               my_l(i)==-999999) CYCLE
+          DO j = i+1, my_phi
+             IF ( my_i(i)==my_i(j) .AND.&
+                  my_j(i)==my_j(j) .AND.&
+                  my_k(i)==my_k(j) .AND.&
+                  my_l(i)==my_l(j)) THEN
+                my_i(j)=-999999
+                my_j(j)=-999999
+                my_k(j)=-999999
+                my_l(j)=-999999
+                ind = ind - 1
+             END IF
+          END DO
+       END DO
+       DO WHILE (ANY(my_i(1:ind)==-999999))
+          DO i = 1, my_phi
+             IF ( my_i(i)==-999999 .AND.&
+                  my_j(i)==-999999 .AND.&
+                  my_k(i)==-999999 .AND.&
+                  my_l(i)==-999999) THEN
+                my_i(i:i+my_phi-(i+1)) = my_i(i+1:my_phi)
+                my_j(i:i+my_phi-(i+1)) = my_j(i+1:my_phi)
+                my_k(i:i+my_phi-(i+1)) = my_k(i+1:my_phi)
+                my_l(i:i+my_phi-(i+1)) = my_l(i+1:my_phi)
+             END IF
+          END DO
+       END DO
+       !
+       WRITE(unit,*) " ",ind," !NPHI"
+       WRITE(unit,'(8'//int_format//')') (my_i(local),my_j(local),my_k(local),my_l(local), local=1,ind)
        WRITE(unit,*) ""
        DEALLOCATE(my_i, my_j, my_k, my_l)
        !
@@ -942,8 +976,40 @@ CONTAINS
           END IF
        END DO
        IF (ind .NE. my_phi) CALL stop_converter("Error in write_psf :: evaluation of improper torsion.")
-       WRITE(unit,*) " ",my_phi," !NIMPHI"
-       WRITE(unit,'(8'//int_format//')') (my_i(local),my_j(local),my_k(local),my_l(local), local=1,my_phi)
+       ! Now get unique dihedrals
+       DO i = 1, my_phi
+          IF ( my_i(i)==-999999 .AND.&
+               my_j(i)==-999999 .AND.&
+               my_k(i)==-999999 .AND.&
+               my_l(i)==-999999) CYCLE
+          DO j = i+1, my_phi
+             IF ( my_i(i)==my_i(j) .AND.&
+                  my_j(i)==my_j(j) .AND.&
+                  my_k(i)==my_k(j) .AND.&
+                  my_l(i)==my_l(j)) THEN
+                my_i(j)=-999999
+                my_j(j)=-999999
+                my_k(j)=-999999
+                my_l(j)=-999999
+                ind = ind - 1
+             END IF
+          END DO
+       END DO
+       DO WHILE (ANY(my_i(1:ind)==-999999))
+          DO i = 1, my_phi
+             IF ( my_i(i)==-999999 .AND.&
+                  my_j(i)==-999999 .AND.&
+                  my_k(i)==-999999 .AND.&
+                  my_l(i)==-999999) THEN
+                my_i(i:i+my_phi-(i+1)) = my_i(i+1:my_phi)
+                my_j(i:i+my_phi-(i+1)) = my_j(i+1:my_phi)
+                my_k(i:i+my_phi-(i+1)) = my_k(i+1:my_phi)
+                my_l(i:i+my_phi-(i+1)) = my_l(i+1:my_phi)
+             END IF
+          END DO
+       END DO
+       WRITE(unit,*) " ",ind," !NIMPHI"
+       WRITE(unit,'(8'//int_format//')') (my_i(local),my_j(local),my_k(local),my_l(local), local=1,ind)
        WRITE(unit,*) ""
        DEALLOCATE(my_i, my_j, my_k, my_l)
     ELSE
@@ -965,8 +1031,40 @@ CONTAINS
           my_l(ind) = ABS(LP(i))/3+1
        END DO
        IF (ind .NE. my_phi) CALL stop_converter("Error in write_psf :: evaluation of proper torsion.")
-       WRITE(unit,*) " ",my_phi," !NPHI"
-       WRITE(unit,'(8'//int_format//')') (my_i(local),my_j(local),my_k(local),my_l(local), local=1,my_phi)
+       ! Now get unique dihedrals
+       DO i = 1, my_phi
+          IF ( my_i(i)==-999999 .AND.&
+               my_j(i)==-999999 .AND.&
+               my_k(i)==-999999 .AND.&
+               my_l(i)==-999999) CYCLE
+          DO j = i+1, my_phi
+             IF ( my_i(i)==my_i(j) .AND.&
+                  my_j(i)==my_j(j) .AND.&
+                  my_k(i)==my_k(j) .AND.&
+                  my_l(i)==my_l(j)) THEN
+                my_i(j)=-999999
+                my_j(j)=-999999
+                my_k(j)=-999999
+                my_l(j)=-999999
+                ind = ind - 1
+             END IF
+          END DO
+       END DO
+       DO WHILE (ANY(my_i(1:ind)==-999999))
+          DO i = 1, my_phi
+             IF ( my_i(i)==-999999 .AND.&
+                  my_j(i)==-999999 .AND.&
+                  my_k(i)==-999999 .AND.&
+                  my_l(i)==-999999) THEN
+                my_i(i:i+my_phi-(i+1)) = my_i(i+1:my_phi)
+                my_j(i:i+my_phi-(i+1)) = my_j(i+1:my_phi)
+                my_k(i:i+my_phi-(i+1)) = my_k(i+1:my_phi)
+                my_l(i:i+my_phi-(i+1)) = my_l(i+1:my_phi)
+             END IF
+          END DO
+       END DO
+       WRITE(unit,*) " ",ind," !NPHI"
+       WRITE(unit,'(8'//int_format//')') (my_i(local),my_j(local),my_k(local),my_l(local), local=1,ind)
        WRITE(unit,*) ""
        DEALLOCATE(my_i, my_j, my_k, my_l)
        WRITE(unit,*) " ",0," !NIMPHI"

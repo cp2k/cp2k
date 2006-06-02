@@ -334,6 +334,7 @@ CONTAINS
        CALL section_vals_val_get(ff_section,"SPLINE%EPS_SPLINE",r_val=ff_type%eps_spline,error=error)
        CALL section_vals_val_get(ff_section,"SPLINE%EMAX_SPLINE",r_val=ff_type%emax_spline,error=error)
        CALL section_vals_val_get(ff_section,"SPLINE%EMAX_ACCURACY",r_val=ff_type%max_energy,error=error)
+       CALL section_vals_val_get(ff_section,"SCALE_CUTOFF",l_val=ff_type%scale_cutoff,error=error)
 
        tmp_section  => section_vals_get_subs_vals(ff_section,"NONBONDED",error=error)
        CALL section_vals_get(tmp_section,explicit=explicit,error=error)
@@ -2712,7 +2713,96 @@ CONTAINS
     CALL timestop(handle2)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
-    ! 12. Set spline_bond_env, use for ONFO interaction
+    !12. Set up atomic_kind_set()%elp_potentail%qeff (PART 2)
+    !-----------------------------------------------------------------------------
+    CALL timeset(routineN//'_qeff',handle2)
+    ALLOCATE(charge(SIZE(atomic_kind_set)),STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DO i=1,SIZE(atomic_kind_set)
+       atomic_kind => atomic_kind_set(i)
+       CALL get_atomic_kind(atomic_kind=atomic_kind,&
+            elp_potential=elp_potential,&
+            atom_list=my_atom_list,&
+            name=atmname) 
+       CALL get_potential(potential=elp_potential,&
+            qeff=charge(i))
+
+       found = .FALSE.
+       only_qm = qmmm_ff_precond_only_qm(id1=atmname,is_link=is_link_atom)
+       CALL uppercase(atmname)
+       IF(charge(i)/=-HUGE(0.0_dp)) found = .TRUE.
+       ! loop over params from charmm  
+       IF(ASSOCIATED(ff_type%chm_info%charge_atm)) THEN
+          DO j=1,SIZE(ff_type%chm_info%charge_atm)
+             IF(TRIM(ff_type%chm_info%charge_atm(j))==atmname) THEN
+                charge(i) = ff_type%chm_info%charge(j)
+                IF (found) CALL Pwarning("Multiple charge declarations: "//TRIM(atmname)//&
+                     " overwriting!",globenv,error)
+                found = .TRUE.
+             END IF
+          END DO
+       END IF
+       ! always have the input param last to overwrite all the other ones
+       IF(ASSOCIATED(ff_type%inp_info%charge_atm)) THEN
+          DO j=1,SIZE(ff_type%inp_info%charge_atm)
+             IF (iw>0) WRITE(iw,*)"Charge Checking ::",TRIM(ff_type%inp_info%charge_atm(j)),atmname
+             IF(TRIM(ff_type%inp_info%charge_atm(j))==atmname) THEN
+                charge(i) = ff_type%inp_info%charge(j)
+                IF (found) CALL Pwarning("Multiple charge declarations: "//TRIM(atmname)//&
+                     " overwriting!",globenv,error)
+                found = .TRUE.
+             END IF
+          END DO
+       END IF       
+       IF (ASSOCIATED(ff_type%inp_info%nonbonded)) THEN
+          IF (ASSOCIATED(ff_type%inp_info%nonbonded%pot)) THEN
+             ! Let's find the nonbonded potential where this atom is involved
+             DO j = 1, SIZE(ff_type%inp_info%nonbonded%pot)
+                IF (atmname==ff_type%inp_info%nonbonded%pot(j)%pot %at1.OR.&
+                     atmname==ff_type%inp_info%nonbonded%pot(j)%pot %at2) THEN                
+                   SELECT CASE(ff_type%inp_info%nonbonded%pot(j)%pot%type)
+                   CASE (ea_type)
+                      ! Nothing to complain.. we don't need charges
+                   CASE default
+                      IF(.NOT.found) THEN
+                         CALL stop_program("FF_coordinate_pack","missing qeff parm "//atmname)
+                      END IF
+                   END SELECT
+                END IF
+             END DO
+          END IF
+       END IF
+       !
+       ! QM/MM modifications
+       !
+       IF (only_qm.AND.my_qmmm) THEN
+          IF (qmmm_env%qmmm_coupl_type /= do_qmmm_none) THEN 
+             scale_factor = 0.0_dp
+             IF (is_link_atom) THEN
+                !
+                ! Find the scaling factor...
+                !
+                DO ilink = 1, SIZE(qmmm_env%mm_link_atoms)
+                   IF (ANY(my_atom_list == qmmm_env%mm_link_atoms(ilink))) EXIT
+                END DO
+                CPPostcondition(ilink <= SIZE(qmmm_env%mm_link_atoms),cp_failure_level,routineP,error,failure)
+                scale_factor = qmmm_env%fist_scale_charge_link(ilink)
+             END IF
+             charge(i) = charge(i) * scale_factor
+          END IF
+       END IF
+
+       CALL set_potential(potential=elp_potential,&
+            qeff=charge(i))
+       CALL set_atomic_kind(atomic_kind=atomic_kind,&
+            elp_potential=elp_potential)
+    END DO
+    DEALLOCATE (charge,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CALL timestop(handle2)
+    !-----------------------------------------------------------------------------
+    !-----------------------------------------------------------------------------
+    ! 13. Set spline_bond_env, use for ONFO interaction
     !-----------------------------------------------------------------------------
     CALL timeset(routineN//'_onfo2',handle2)
     CALL pair_potential_pp_create ( potparm_bond,  &
@@ -2868,8 +2958,7 @@ CONTAINS
          atomic_kind_set , ewald_env, ff_type%ei_scale14,ff_type%vdw_scale14,&
          ff_type%eps_spline,max_energy=ff_type%max_energy, rlow_nb=ff_type%rlow_nb,&
          emax_spline=ff_type%emax_spline, iw=iw2, iw2=iw3, iw3=iw4,&
-         do_14=.TRUE., error=error)
-    ! point potparm ( ikind, jkind ) % spline_data => spline_data_p ( n )
+         do_14=.TRUE., scale_cutoff=ff_type%scale_cutoff, error=error)
     DO ikind = 1, SIZE ( potparm_bond%pot, 1 )
        DO jkind = ikind, SIZE ( potparm_bond%pot, 2 )
           n = spline_bond_env % spltab ( ikind, jkind )
@@ -2883,7 +2972,7 @@ CONTAINS
     CALL timestop(handle2)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
-    ! 13. ONFO
+    ! 14. ONFO
     !-----------------------------------------------------------------------------
     CALL timeset(routineN//'_onfo3',handle2)
     DO i=1,SIZE(molecule_kind_set)
@@ -2920,95 +3009,6 @@ CONTAINS
             onfo_list=onfo_list)
     END DO
     CALL pair_potential_pp_release ( potparm_bond, error )
-    CALL timestop(handle2)
-    !-----------------------------------------------------------------------------
-    !-----------------------------------------------------------------------------
-    ! 14. Set up atomic_kind_set()%elp_potentail%qeff (PART 2)
-    !-----------------------------------------------------------------------------
-    CALL timeset(routineN//'_qeff',handle2)
-    ALLOCATE(charge(SIZE(atomic_kind_set)),STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    DO i=1,SIZE(atomic_kind_set)
-       atomic_kind => atomic_kind_set(i)
-       CALL get_atomic_kind(atomic_kind=atomic_kind,&
-            elp_potential=elp_potential,&
-            atom_list=my_atom_list,&
-            name=atmname) 
-       CALL get_potential(potential=elp_potential,&
-            qeff=charge(i))
-
-       found = .FALSE.
-       only_qm = qmmm_ff_precond_only_qm(id1=atmname,is_link=is_link_atom)
-       CALL uppercase(atmname)
-       IF(charge(i)/=-HUGE(0.0_dp)) found = .TRUE.
-       ! loop over params from charmm  
-       IF(ASSOCIATED(ff_type%chm_info%charge_atm)) THEN
-          DO j=1,SIZE(ff_type%chm_info%charge_atm)
-             IF(TRIM(ff_type%chm_info%charge_atm(j))==atmname) THEN
-                charge(i) = ff_type%chm_info%charge(j)
-                IF (found) CALL Pwarning("Multiple charge declarations: "//TRIM(atmname)//&
-                     " overwriting!",globenv,error)
-                found = .TRUE.
-             END IF
-          END DO
-       END IF
-       ! always have the input param last to overwrite all the other ones
-       IF(ASSOCIATED(ff_type%inp_info%charge_atm)) THEN
-          DO j=1,SIZE(ff_type%inp_info%charge_atm)
-             IF (iw>0) WRITE(iw,*)"Charge Checking ::",TRIM(ff_type%inp_info%charge_atm(j)),atmname
-             IF(TRIM(ff_type%inp_info%charge_atm(j))==atmname) THEN
-                charge(i) = ff_type%inp_info%charge(j)
-                IF (found) CALL Pwarning("Multiple charge declarations: "//TRIM(atmname)//&
-                     " overwriting!",globenv,error)
-                found = .TRUE.
-             END IF
-          END DO
-       END IF       
-       IF (ASSOCIATED(ff_type%inp_info%nonbonded)) THEN
-          IF (ASSOCIATED(ff_type%inp_info%nonbonded%pot)) THEN
-             ! Let's find the nonbonded potential where this atom is involved
-             DO j = 1, SIZE(ff_type%inp_info%nonbonded%pot)
-                IF (atmname==ff_type%inp_info%nonbonded%pot(j)%pot %at1.OR.&
-                     atmname==ff_type%inp_info%nonbonded%pot(j)%pot %at2) THEN                
-                   SELECT CASE(ff_type%inp_info%nonbonded%pot(j)%pot%type)
-                   CASE (ea_type)
-                      ! Nothing to complain.. we don't need charges
-                   CASE default
-                      IF(.NOT.found) THEN
-                         CALL stop_program("FF_coordinate_pack","missing qeff parm "//atmname)
-                      END IF
-                   END SELECT
-                END IF
-             END DO
-          END IF
-       END IF
-       !
-       ! QM/MM modifications
-       !
-       IF (only_qm.AND.my_qmmm) THEN
-          IF (qmmm_env%qmmm_coupl_type /= do_qmmm_none) THEN 
-             scale_factor = 0.0_dp
-             IF (is_link_atom) THEN
-                !
-                ! Find the scaling factor...
-                !
-                DO ilink = 1, SIZE(qmmm_env%mm_link_atoms)
-                   IF (ANY(my_atom_list == qmmm_env%mm_link_atoms(ilink))) EXIT
-                END DO
-                CPPostcondition(ilink <= SIZE(qmmm_env%mm_link_atoms),cp_failure_level,routineP,error,failure)
-                scale_factor = qmmm_env%fist_scale_charge_link(ilink)
-             END IF
-             charge(i) = charge(i) * scale_factor
-          END IF
-       END IF
-
-       CALL set_potential(potential=elp_potential,&
-            qeff=charge(i))
-       CALL set_atomic_kind(atomic_kind=atomic_kind,&
-            elp_potential=elp_potential)
-    END DO
-    DEALLOCATE (charge,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     CALL timestop(handle2)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
@@ -3139,7 +3139,7 @@ CONTAINS
          atomic_kind_set,ewald_env,eps_spline=ff_type%eps_spline,&
          max_energy=ff_type%max_energy, rlow_nb=ff_type%rlow_nb,&
          emax_spline=ff_type%emax_spline, iw=iw2, iw2=iw3,iw3=iw4,&
-         error=error)
+         scale_cutoff=ff_type%scale_cutoff, error=error)
     !---------------------------------------
     ! create the manybody spline environment
     !---------------------------------------

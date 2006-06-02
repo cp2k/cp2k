@@ -8,7 +8,7 @@
       ! PARM94 and Following
       VDW_SCALE14 0.5 
       EI_SCALE14  0.8333333
-      parmfile ../sample_pot/h2o2_amber.pot
+      parmfile ../sample_pot/gly.pot
       parmtype CHM
       scale_cutoff .false.
     &END FORCEFIELD
@@ -22,13 +22,13 @@
   &END MM
   &SUBSYS
     &CELL
-      ABC 20.0 20.0 20.0
+      ABC 30.0 30.0 30.0
       UNIT ANGSTROM
     &END CELL
     &TOPOLOGY
-      CONN_FILE h2o2_amber.psf
+      CONN_FILE gly.psf
       CONNECTIVITY PSF
-      COORD_FILE_NAME ../sample_pdb/h2o2_amber.pdb
+      COORD_FILE_NAME ../sample_pdb/gly.pdb
       COORDINATE PDB
     &END TOPOLOGY
     &PRINT
@@ -54,7 +54,8 @@
   &END MD
 &END MOTION
 # Amber results
-# BOND    =        2.2271  ANGLE   =        0.3320  DIHED      =        0.6088
-# VDWAALS =       -0.0014  EEL     =       -0.0159  HBOND      =        0.0000
-# 1-4 VDW =        0.0000  1-4 EEL =       20.9514  RESTRAINT  =        0.0000
+# BOND    =        0.0203  ANGLE   =        0.0722  DIHED      =       10.8805
+# VDWAALS =       -0.1629  EEL     =      -82.1936  HBOND      =        0.0000
+# 1-4 VDW =        3.5047  1-4 EEL =       48.3910  RESTRAINT  =        0.0000
+
 

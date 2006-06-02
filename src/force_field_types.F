@@ -168,6 +168,7 @@ MODULE force_field_types
                                                  max_energy,&
                                                  emax_spline,&
                                                  rlow_nb
+    LOGICAL                                   :: scale_cutoff
   END TYPE force_field_type
 
 ! *** Public subroutines ***

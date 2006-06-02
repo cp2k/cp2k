@@ -2281,18 +2281,8 @@ CONTAINS
                 atm_b = conn_info%c_bond_b(j)
                 IF(first<=atm_a .AND. atm_a <=last) THEN
                    DO k=1,nonfo
-                      IF( ( (atm_a==conn_info%phi_a(k)) .AND.&
-                           (atm_b==conn_info%phi_b(k)) ) .OR.&
-                           ( (atm_a==conn_info%phi_b(k)) .AND.&
-                           (atm_b==conn_info%phi_c(k)) ) .OR.&
-                           ( (atm_a==conn_info%phi_c(k)) .AND.&
-                           (atm_b==conn_info%phi_d(k)) ) .OR.&
-                           ( (atm_a==conn_info%phi_d(k)) .AND.&
-                           (atm_b==conn_info%phi_c(k)) ) .OR.&
-                           ( (atm_a==conn_info%phi_c(k)) .AND.&
-                           (atm_b==conn_info%phi_b(k)) ) .OR.&
-                           ( (atm_a==conn_info%phi_b(k)) .AND.&
-                           (atm_b==conn_info%phi_a(k)) ) ) THEN
+                      atm_b = conn_info%onfo_a(k)
+                      IF (atm_b >= first .AND. atm_b <= last ) THEN
                          checkme(k)=1
                       END IF
                    END DO
@@ -2407,7 +2397,6 @@ CONTAINS
     TYPE(connectivity_info_type), POINTER    :: conn_info
     TYPE(atom_bond_list_type), DIMENSION(:), POINTER   :: ex_bond_list,&
                                                           ex_bend_list,&
-                                                          ex_torsion_list,&
                                                           ex_onfo_list
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(elp_potential_type), POINTER        :: elp_potential
@@ -2652,16 +2641,6 @@ CONTAINS
     N = 0
     IF(ASSOCIATED(conn_info%theta_a)) N = SIZE(conn_info%theta_a)
     CALL reorder_structure(ex_bend_list, conn_info%theta_a, conn_info%theta_c, N, error)
-    ! Reorder torsions
-    ALLOCATE(ex_torsion_list(natom),stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    DO I=1,natom
-       ALLOCATE(ex_torsion_list(I)%bonds(0),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ENDDO
-    N = 0
-    IF(ASSOCIATED(conn_info%phi_a)) N = SIZE(conn_info%phi_a)
-    CALL reorder_structure(ex_torsion_list, conn_info%phi_a, conn_info%phi_d, N, error)
     ! Reorder onfo
     ALLOCATE(ex_onfo_list(natom),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -2685,7 +2664,7 @@ CONTAINS
        IF  (topology%exclude_vdw==do_skip_13.OR. &
             topology%exclude_vdw==do_skip_14) dim2 = SIZE(ex_bend_list(iatom)%bonds)
        dim2 = dim1 + dim2
-       dim3 = SIZE(ex_torsion_list(iatom)%bonds) ! Always exclude 1-4 
+       dim3 = SIZE(ex_onfo_list(iatom)%bonds)    ! Always exclude 1-4 
        dim3 = dim2 + dim3                        ! They're treated in a different way..
        IF (dim3 /= 0) THEN
           NULLIFY(list, wlist)
@@ -2694,7 +2673,7 @@ CONTAINS
           wlist(  dim0:dim0) = iatom
           IF (dim1>dim0) wlist(dim0+1:dim1) = ex_bond_list(iatom)%bonds
           IF (dim2>dim1) wlist(dim1+1:dim2) = ex_bend_list(iatom)%bonds
-          IF (dim3>dim2) wlist(dim2+1:dim3) = ex_torsion_list(iatom)%bonds
+          IF (dim3>dim2) wlist(dim2+1:dim3) = ex_onfo_list(iatom)%bonds
           ! Get a unique list
           DO i = 1, SIZE(wlist)-1
              IF (wlist(i)==0)CYCLE
@@ -2729,7 +2708,7 @@ CONTAINS
              IF  (topology%exclude_ei==do_skip_13.OR. &
                   topology%exclude_ei==do_skip_14) dim2 = SIZE(ex_bend_list(iatom)%bonds)
              dim2 = dim1 + dim2
-             dim3 = SIZE(ex_torsion_list(iatom)%bonds) ! Always exclude 1-4 
+             dim3 = SIZE(ex_onfo_list(iatom)%bonds)    ! Always exclude 1-4 
              dim3 = dim2 + dim3                        ! They're treated in a different way..
              IF (dim3 /= 0) THEN
                 ALLOCATE(wlist(dim3),stat=stat)
@@ -2737,7 +2716,7 @@ CONTAINS
                 wlist(     1:   1) = iatom
                 wlist(     2:dim1) = ex_bond_list(iatom)%bonds
                 wlist(dim1+1:dim2) = ex_bend_list(iatom)%bonds
-                wlist(dim2+1:dim3) = ex_torsion_list(iatom)%bonds
+                wlist(dim2+1:dim3) = ex_onfo_list(iatom)%bonds
                 ! Get a unique list
                 DO i = 1, SIZE(wlist)-1
                    IF (wlist(i)==0)CYCLE
@@ -2786,13 +2765,6 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ENDDO
     DEALLOCATE(ex_onfo_list,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ! deallocate torsions
-    DO I=1,natom
-       DEALLOCATE(ex_torsion_list(I)%bonds,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ENDDO
-    DEALLOCATE(ex_torsion_list,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ! deallocate bends
     DO I=1,natom

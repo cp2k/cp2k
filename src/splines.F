@@ -77,6 +77,8 @@ MODULE splines
      ! 1/6 otherwise
      REAL (KIND=dp)          :: x1          ! starting x value if uniform incr.
      REAL (KIND=dp)          :: xn          ! end x value if uniform incr.
+     ! used only for 1-4 bond_splines
+     REAL (KIND=dp)          :: ei_scale14, ei_cutoff14
   END TYPE spline_data_type
 
   TYPE spline_data_p_type
@@ -378,8 +380,9 @@ CONTAINS
        spline_data_dest%invh      = spline_data_source%invh
        spline_data_dest%h26       = spline_data_source%h26 
        spline_data_dest%x1        = spline_data_source%x1  
-       spline_data_dest%xn        = spline_data_source%xn  
-
+       spline_data_dest%xn        = spline_data_source%xn
+       spline_data_dest%ei_scale14  = spline_data_source%ei_scale14
+       spline_data_dest%ei_cutoff14 = spline_data_source%ei_cutoff14
        IF (ASSOCIATED(spline_data_source%x)) THEN
           ALLOCATE(spline_data_dest%x(SIZE(spline_data_source%x)), stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -535,11 +538,11 @@ CONTAINS
   !!   SOURCE
   !******************************************************************************
 
-  SUBROUTINE init_spline ( spl, dx, y1a, y1b )
+  SUBROUTINE init_spline ( spl, dx, y1a, y1b, ei_scale14, ei_cutoff14)
 
     TYPE(spline_data_type), POINTER          :: spl
     REAL(KIND=dp), INTENT(IN)                :: dx 
-    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: y1a, y1b
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: y1a, y1b, ei_scale14, ei_cutoff14
 
     INTEGER                                  :: err, i, n
     REAL(KIND=dp)                            :: p, s
@@ -559,6 +562,10 @@ CONTAINS
     spl % invh = 1.0_dp/dx
     spl % h26  = dx**2 / 6.0_dp
     spl % y2   => spl % x
+    spl % ei_scale14  = HUGE(0.0_dp)
+    spl % ei_cutoff14 = HUGE(0.0_dp)
+    IF (PRESENT(ei_scale14 )) spl % ei_scale14  = ei_scale14
+    IF (PRESENT(ei_cutoff14)) spl % ei_cutoff14 = ei_cutoff14
     NULLIFY (spl%x)
     ALLOCATE (ww(1:n),STAT=err)
     IF ( err /= 0 ) CALL stop_memory ( 'init_spline', 'ww', spl % n )

@@ -96,3 +96,5 @@ H2O-1.inp                 2
 # AMBER tests comparing energies w.r.t. AMBER.. differences of the order of 10^-6-10^-7 Hartree
 # see the h2o2_amber.inp for comments
 h2o2_amber.inp            2
+gly_amber.inp             2
+mol_amber.inp             2

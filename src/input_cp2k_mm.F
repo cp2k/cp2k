@@ -289,6 +289,13 @@ CONTAINS
             usage="EI_SCALE14 1.0", default_r_val=0.0_dp,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="SCALE_CUTOFF",&
+            description="Enables the scaling of the energy at the cutoff radius."//&
+            " In this way the energy at the cutoff radius is zero.",&
+            usage="SCALE_CUTOFF <LOGICAL>", default_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
        !
        ! subsections
        !

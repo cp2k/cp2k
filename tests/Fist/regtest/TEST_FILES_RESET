@@ -179,3 +179,7 @@ silicon_cluster_5.inp
 pentadiene.inp
 cyhex.inp
 cycbut.inp
+#bug fix for onfo
+loop.inp
+#conforming the input to the amber calculation
+h2o2_amber.inp

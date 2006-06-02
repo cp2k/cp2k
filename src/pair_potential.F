@@ -57,6 +57,7 @@ MODULE pair_potential
   IMPLICIT NONE
 
   PRIVATE
+  REAL(KIND=dp), PARAMETER :: ifourpi = 1.0_dp / ( 4.0_dp * pi )
   PUBLIC :: potential_f, potential_s
   PUBLIC :: spline_nonbond_control, get_nonbond_storage
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pair_potential'
@@ -161,9 +162,6 @@ CONTAINS
     REAL(KIND=dp)                            :: ener_coul
     LOGICAL, INTENT(IN)                      :: my_do_14
 
-    REAL(KIND=dp), PARAMETER :: eps = 1.0E-6_dp, &
-         ifourpi = 1.0_dp / ( 4.0_dp * pi )
-
     INTEGER                                  :: ewald_type
     REAL(KIND=dp)                            :: alpha, eps0
 
@@ -179,7 +177,10 @@ CONTAINS
           ener_coul = ei_scale14 * ifourpi / eps0 * qi * qj / r - pot % e_cutoff_coul
        END IF
     ELSE
-       ener_coul = ei_scale14 * ifourpi / eps0 * qi * qj / r - pot % e_cutoff_coul
+       ! to avoid a large numberof points in the spline generation
+       ! we evaluate the 1-4 interactions analytically..
+       ener_coul = 0.0_dp
+       !ei_scale14 * ifourpi / eps0 * qi * qj / r - pot % e_cutoff_coul
     ENDIF
 
   END FUNCTION ener_coul
@@ -204,7 +205,7 @@ CONTAINS
   !******************************************************************************
   SUBROUTINE spline_nonbond_control ( spline_env, potparm, atomic_kind_set, &
        ewald_env, ei_scale14, vdw_scale14, eps_spline, max_energy, rlow_nb,&
-       emax_spline, iw, iw2, iw3, do_14, error)
+       emax_spline, iw, iw2, iw3, do_14, scale_cutoff, error)
 
     TYPE(spline_environment_type), POINTER   :: spline_env
     TYPE(pair_potential_pp_type), POINTER    :: potparm
@@ -217,6 +218,7 @@ CONTAINS
          emax_spline
     INTEGER, INTENT(IN)                      :: iw, iw2, iw3
     LOGICAL, INTENT(IN),OPTIONAL             :: do_14
+    LOGICAL, INTENT(IN)                      :: scale_cutoff
     TYPE(cp_error_type), INTENT(inout), &
          OPTIONAL                               :: error
 
@@ -226,7 +228,8 @@ CONTAINS
     INTEGER                                  :: nsize, nkx, kx, ncount
     REAL(KIND=dp)                            :: dx2, e, &
          hicut, locut, qi, qj, x, x2,&
-         xdum,diffmax, xdum1, xsav, ediff, my_ei_scale14, my_vdw_scale14
+         xdum,diffmax, xdum1, xsav, ediff
+    REAL(KIND=dp):: my_ei_scale14, my_vdw_scale14, eps0, myfac1, myfac2
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     LOGICAL                                  :: failure, check_bounds, my_do_14
     
@@ -257,9 +260,11 @@ CONTAINS
           IF (ABS(hicut) <= 1.0E-15_dp) hicut = 1.0E3_dp
           potparm%pot(i,j)%pot %energy_cutoff = 0.0_dp
           potparm%pot(i,j)%pot %e_cutoff_coul = 0.0_dp
-          potparm%pot(i,j)%pot %energy_cutoff = ener_pot(potparm%pot(i,j)%pot,qi,qj,hicut,my_vdw_scale14)
-          potparm%pot(i,j)%pot %e_cutoff_coul &
-               = ener_coul ( potparm%pot( i, j )%pot, qi, qj, hicut, ewald_env, my_ei_scale14, my_do_14 )
+          IF (scale_cutoff) THEN
+             potparm%pot(i,j)%pot %energy_cutoff = ener_pot(potparm%pot(i,j)%pot,qi,qj,hicut,my_vdw_scale14)
+             potparm%pot(i,j)%pot %e_cutoff_coul &
+                  = ener_coul ( potparm%pot( i, j )%pot, qi, qj, hicut, ewald_env, my_ei_scale14, my_do_14 )
+          END IF
           ! Find the real locut according emax_spline
           dx2 = (hicut-locut)/10000.0_dp
           x   = hicut
@@ -286,7 +291,18 @@ CONTAINS
                 spline_env % spline_data_p ( n ) % spline_data % y(jx) = e
                 x2 = x2 + dx2
              END DO ! jx: loop over distance
-             CALL init_spline(spline_env%spline_data_p(n)%spline_data,dx=dx2)
+             IF (my_do_14) THEN
+                CALL ewald_env_get ( ewald_env, eps0 = eps0 )
+                myfac1 = my_ei_scale14 * ifourpi / eps0 * qi * qj 
+                myfac2 = 0.0_dp
+                IF (scale_cutoff) THEN
+                   myfac2 = my_ei_scale14 * ifourpi / eps0 * qi * qj / hicut
+                END IF
+                CALL init_spline(spline_env%spline_data_p(n)%spline_data,dx=dx2,&
+                     ei_scale14=myfac1, ei_cutoff14=myfac2)
+             ELSE
+                CALL init_spline(spline_env%spline_data_p(n)%spline_data,dx=dx2)
+             END IF
              ! This is the check for required accuracy on spline setup
              dx2 = (hicut - locut)/REAL(5*npoints+1,KIND=dp)
              x2  = locut + dx2

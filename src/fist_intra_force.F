@@ -110,6 +110,7 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
       nimptors, nkind, nmol_per_kind, nonefs, ntorsions, nub
     REAL(KIND=dp) :: d12, d32, dist, dist1, dist2, energy, fscalar, id12, &
       id32, is32, ism, isn, iw1, iw2, rab2, s32, sm, sn, theta, w1, w2
+    REAL(KIND=dp) :: rinv, rinv2
     REAL(KIND=dp), DIMENSION(3)              :: b12, b32, g1, g2, g3, gt1, &
                                                 gt2, gt3, gt4, rij, t12, t32, &
                                                 t34, t43, tm, tn, u1, u2, &
@@ -279,7 +280,7 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
         index_a = torsion_list ( itorsion ) % a + first_atom - 1
         index_b = torsion_list ( itorsion ) % b + first_atom - 1
         index_c = torsion_list ( itorsion ) % c + first_atom - 1
-        index_d = torsion_list ( itorsion ) % d + first_atom - 1
+        index_d = torsion_list ( itorsion ) % d + first_atom - 1        
         t12 = particle_set ( index_a ) % r - particle_set ( index_b ) % r
         t32 = particle_set ( index_c ) % r - particle_set ( index_b ) % r
         t43 = particle_set ( index_d ) % r - particle_set ( index_c ) % r
@@ -415,8 +416,14 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
         rij = particle_set ( index_b ) % r - particle_set ( index_a ) % r
         rab2 = DOT_PRODUCT ( rij, rij )
         spline_data => onef_list ( ionef ) % onfo_kind % spline_data
+        ! LJ contribution
         energy = potential_s ( spline_data, rab2, fscalar )
         pot_onef = pot_onef + energy
+        ! EI contribution
+        rinv2 = 1.0_dp/rab2
+        rinv  = SQRT(rinv2)
+        pot_onef = pot_onef + spline_data%ei_scale14 * rinv - spline_data%ei_cutoff14
+        fscalar  = fscalar + spline_data%ei_scale14 * rinv2 * rinv
         particle_set ( index_a )% f(1) = particle_set ( index_a ) % f(1) -rij(1) * fscalar
         particle_set ( index_a )% f(2) = particle_set ( index_a ) % f(2) -rij(2) * fscalar
         particle_set ( index_a )% f(3) = particle_set ( index_a ) % f(3) -rij(3) * fscalar
