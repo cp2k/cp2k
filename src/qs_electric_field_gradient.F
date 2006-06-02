@@ -151,8 +151,9 @@ CONTAINS
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     efg_diagval = 0._dp
 
-    ALLOCATE (vh0(natom,-2:2),STAT=istat )
+    ALLOCATE (vh0(1:natom,-2:2),STAT=istat )
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    vh0 = 0._dp
 
     ALLOCATE (dvr2(6),STAT=istat )
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -270,10 +271,6 @@ CONTAINS
     DEALLOCATE (dvr2,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-!deb
-    WRITE(6,*) "END EFG CALCULATION"
-!deb
-
   END SUBROUTINE qs_efg_calc
 
 !*******************************************************************************
@@ -328,7 +325,7 @@ CONTAINS
 
     max_iso_not0 = harmonics%max_iso_not0
 
-!   Distribute the atoms of this kind
+    ! Distribute the atoms of this kind
     num_pe = para_env%num_pe
     mepos  = para_env%mepos
     bo = get_limit( natom, num_pe, mepos )
