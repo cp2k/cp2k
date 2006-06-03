@@ -56,7 +56,7 @@ CONTAINS
          "| using the QM/MM module of CP2K.                                          |",&
          "|--------------------------------------------------------------------------|",&
          "|                                                                          |",&
-         "|   T.Laino, F.Mohamed, A.Laio, M. Parrinello                              |",&
+         "|   T. Laino, F. Mohamed, A. Laio, M. Parrinello                           |",&
          "|   An Efficient Real Space Multigrid QM/MM Electrostatic Coupling         |",&
          "|   J. Chem. Th. Comp.  1(6) (2005) pp.1176-1184                           |",&
          "!   http://dx.doi.org/10.1021/ct050123f                                    !",&
