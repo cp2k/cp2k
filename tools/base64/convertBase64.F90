@@ -558,7 +558,7 @@ subroutine base64c_do_tests(b64,unit_nr,testArray)
              my_is_nan(test_r(ii)).and.my_is_nan(test2(ii))) ) then
            call add_failed_nr(fast_failures,test_r(ii))
            if (unit_nr>0) then
-              write (unit_nr,"(a,i2,a,es35.20e5,a,es35.20e5)") "ii",ii,"test_r",test_r(ii),"test2",test2(ii)
+              write (unit_nr,"(a,i2,a,es35.20e5,a,es35.20e5)") "ii",ii,"test_r",test_r(ii)," test2",test2(ii)
            end if
         end if
      end do
@@ -602,13 +602,13 @@ subroutine base64c_do_tests(b64,unit_nr,testArray)
                       ii," from the requested one ",len_test_r
               end if
            end if
-           close(new_unit,status="delete")
+           close(new_unit)!,status="delete")
            do ii=1,len_test_r
               if (test2(ii)/=test_r(ii).and..not.(&
                    my_is_nan(test_r(ii)).and.my_is_nan(test2(ii))) ) then
                  call add_failed_nr(array_failures,test_r(ii))
                  if (unit_nr>0) then
-                    write (unit_nr,"(a,i2,a,es35.20e5,a,es35.20e5)") "ii",ii,"test_r",test_r(ii),"test2",test2(ii)
+                    write (unit_nr,"(a,i2,a,es35.20e5,a,es35.20e5)") "ii",ii,"test_r",test_r(ii)," test2",test2(ii)
                  end if
               end if
            end do
@@ -1150,7 +1150,7 @@ function base64c_add_string(b64,str,ignore_garbage,skip_space) result(parsed_cha
 
   logical :: my_ignore_garbage,my_skip_space
   character :: c
-  integer :: aval,i
+  integer :: aval,i,shft
   integer, parameter :: iba=iachar('A'),ibz=iachar('Z'),&
        ila=iachar('a'),ilz=iachar('z'),i0=iachar('0'),i9=iachar('9'),&
        ip=iachar('+'), is=iachar('/'), isp=iachar(' ')
@@ -1160,12 +1160,13 @@ function base64c_add_string(b64,str,ignore_garbage,skip_space) result(parsed_cha
   if (present(skip_space)) my_skip_space=skip_space
   b64%len_str=b64%len_str-b64%pos_str+1
   if (b64%pos_str/=1) then
+     shft=b64%pos_str-1
      do i=1,b64%len_str
-        b64%istr(i)=b64%istr(i+b64%pos_str-1)
+        b64%istr(i)=b64%istr(i+shft)
      end do
-     do i=b64%len_str+1,b64%len_str+b64%pos_str
-        b64%istr(i)=-1
-     end do
+!!$     do i=b64%len_str+1,b64%len_str+b64%pos_str
+!!$        b64%istr(i)=-1
+!!$     end do
   end if
   b64%pos_str=1
   parsed_chars=-1
@@ -1342,7 +1343,7 @@ end function base64c_decode_real
 !!     - nreals: the number of reals to read
 !!     - unit_nr: the unit from which to read if not enough reals are in
 !!       the buffer
-!!     - nread: the number of reals actually read (if not given and not
+!!     - nread: the number of reals actually read. If not given and not
 !!       equal to nreals, stops with an error
 !!
 !!   AUTHOR
@@ -1362,7 +1363,7 @@ subroutine base64c_decode_reals(b64,rr,nreals,unit_nr,reals_read,rest_str)
   integer(mt) :: nr
   real(wp),dimension(1) :: r1
   integer :: tot_bit, reals_contained,nproc,i
-  character(len=100) :: str
+  character(len=200) :: str
   logical :: read_more
 
   rest_str=" "
@@ -1408,25 +1409,24 @@ subroutine base64c_decode_reals(b64,rr,nreals,unit_nr,reals_read,rest_str)
            nr=my_bits
            !END call base64c_getbits(b64,nr,tot_bit) ! inlined
            rr(i:i)=transfer(nr,1._wp,1)
-
-           if (read_more) then
-              read(unit_nr,"(a200)",advance="no",eor=10,end=120,size=nread)str
-10            continue
-              nproc=base64c_add_string(b64,str(1:nread),ignore_garbage=.false.)
-              if (nproc/=len_trim(str(1:nread))) then
-                 read_more=.false.
-                 if (present(rest_str)) then
-                    rest_str=str(nproc+1:nread)
-                 end if
-              end if
-              call base64c_capacity_info(b64,reals_contained=reals_contained)
-           else
-              call base64c_capacity_info(b64,reals_contained=reals_contained)
-              if (reals_contained==0) exit
-           end if
         end do
         ireals=min(nreals,ireals+reals_contained-1)+1
         if (ireals>nreals) exit
+        if (read_more) then
+           read(unit_nr,"(a200)",advance="no",eor=10,end=120,size=nread)str
+10         continue
+           nproc=base64c_add_string(b64,str(1:nread),ignore_garbage=.false.)
+           if (nproc/=nread) then
+              read_more=.false.
+              if (present(rest_str)) then
+                 rest_str=str(nproc+1:nread)
+              end if
+           end if
+           call base64c_capacity_info(b64,reals_contained=reals_contained)
+        else
+           call base64c_capacity_info(b64,reals_contained=reals_contained)
+           if (reals_contained==0) exit
+        end if
      end do
 120  continue
   else
@@ -1438,8 +1438,8 @@ subroutine base64c_decode_reals(b64,rr,nreals,unit_nr,reals_read,rest_str)
         end do
         ireals=min(nreals,ireals+reals_contained-1)+1
         if (read_more) then
-           read(unit_nr,"(a100)",advance="no",eor=10,end=120,size=nread)str
-10         continue
+           read(unit_nr,"(a100)",advance="no",eor=11,end=121,size=nread)str
+11         continue
            nproc=base64c_add_string(b64,str(1:nread),ignore_garbage=.false.)
            if (nproc/=len_trim(str(1:nread))) then
               read_more=.false.
@@ -2015,9 +2015,9 @@ if (.not.error) then
             call base64c_decode_reals(b64,rr,size(rr),in_unit,reals_read=nread,rest_str=str)
             ireals=ireals+nread
             if (my_format/=" ") then
-               write(out_unit,my_format) rr
+               write(out_unit,my_format) rr(1:nread)
             else
-               write(out_unit,"(10es35.20e5)") rr
+               write(out_unit,"(es35.20e5)") rr(1:nread)
             end if
             
             if (nread/=size(rr)) exit
@@ -2113,9 +2113,9 @@ if (.not.error) then
             end select
             pos=i
          end if
-         ireals=ireals+1
          if (echo) print *,ireals,r1
          rr(modulo(ireals,100)+1)=r1
+         ireals=ireals+1
          if (modulo(ireals,100)==0) then
             call base64c_write_reals(b64,rr,size(rr),out_unit,flush=.false.)
          end if
