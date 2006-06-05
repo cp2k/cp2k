@@ -1035,7 +1035,6 @@ CONTAINS
          rand=0.0E0_dp
       ELSE
          IF(ionode) rand=next_random_number(rng_stream)
-!     CALL RANDOM_NUMBER(rand)
          CALL mp_bcast(rand,source,group)
       ENDIF
          

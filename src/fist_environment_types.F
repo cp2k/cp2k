@@ -50,6 +50,9 @@ MODULE fist_environment_types
                                              fist_nonbond_env_retain,&
                                              fist_nonbond_env_type
   USE kinds,                           ONLY: dp
+  USE input_section_types,             ONLY: section_vals_release,&
+                                             section_vals_retain,&
+                                             section_vals_type
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_create,&
                                              mol_kind_new_list_release,&
                                              mol_kind_new_list_type
@@ -88,7 +91,8 @@ MODULE fist_environment_types
     TYPE ( cp_para_env_type ), POINTER             :: para_env
     TYPE ( cp_subsystem_type ), POINTER            :: subsys
     TYPE ( fist_nonbond_env_type ), POINTER        :: fist_nonbond_env
-  END TYPE fist_environment_type
+    TYPE(section_vals_type), POINTER               :: input
+ END TYPE fist_environment_type
 
 ! *****************************************************************************
 
@@ -145,7 +149,7 @@ CONTAINS
                            local_particles, local_molecules, molecule_kind_set, &
                            molecule_set, cell, cell_ref, ewald_env,  &
                            fist_nonbond_env, thermo, para_env, subsys,  &
-                           qmmm, qmmm_env, error )
+                           qmmm, qmmm_env, input, error )
 
 !   Purpose: Get the FIST environment.
 
@@ -169,6 +173,8 @@ CONTAINS
       POINTER                                :: fist_nonbond_env
     TYPE(fist_energy_type), OPTIONAL, &
       POINTER                                :: thermo
+    TYPE(section_vals_type), OPTIONAL, &
+      POINTER                                :: input
     TYPE(cp_para_env_type), OPTIONAL, &
       POINTER                                :: para_env
     TYPE(cp_subsystem_type), OPTIONAL, &
@@ -195,6 +201,7 @@ CONTAINS
 !    CPPrecondition(fist_env%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(fist_env%subsys),cp_failure_level,routineP,error,failure)
 
+    IF ( PRESENT ( input ) ) input => fist_env%input
     IF ( PRESENT ( qmmm ) ) qmmm = fist_env % qmmm
     IF ( PRESENT ( qmmm_env )) qmmm_env => fist_env % qmmm_env
     IF ( PRESENT ( cell ) ) cell => fist_env % cell
@@ -235,6 +242,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
+    NULLIFY (fist_env%input)
     NULLIFY (fist_env%cell)
     NULLIFY (fist_env%qmmm_env)
     NULLIFY (fist_env%cell_ref)
@@ -260,7 +268,7 @@ CONTAINS
                            local_particles, local_molecules, molecule_kind_set, &
                            molecule_set, cell, cell_ref, ewald_env,  &
                            fist_nonbond_env, thermo, subsys, qmmm, qmmm_env, &
-                           error )
+                           input, error )
 
 !   Purpose: Set the FIST environment.
 
@@ -272,6 +280,8 @@ CONTAINS
     TYPE(distribution_1d_type), OPTIONAL, &
       POINTER                                :: local_particles, &
                                                 local_molecules
+    TYPE(section_vals_type), OPTIONAL, &
+      POINTER                                :: input
     TYPE(molecule_kind_type), OPTIONAL, &
       POINTER                                :: molecule_kind_set( : )
     TYPE(molecule_type), OPTIONAL, POINTER   :: molecule_set( : )
@@ -336,6 +346,11 @@ CONTAINS
        CALL fist_nonbond_env_release ( fist_env % fist_nonbond_env, error )
        fist_env % fist_nonbond_env => fist_nonbond_env
     ENDIF
+    IF (PRESENT(input)) THEN
+       CALL section_vals_retain(input,error=error)
+       CALL section_vals_release(fist_env%input,error=error)
+       fist_env%input => input
+    END IF
     IF ( PRESENT ( thermo ) ) fist_env % thermo => thermo
     IF (PRESENT(subsys)) THEN
        CALL cp_subsys_retain(subsys,error=error)
@@ -549,6 +564,7 @@ SUBROUTINE fist_env_release(fist_env,error)
         CALL fist_nonbond_env_release ( fist_env % fist_nonbond_env, error = error )
 
         CALL cp_subsys_release(fist_env%subsys,error=error)
+        CALL section_vals_release(fist_env%input,error=error)
         DEALLOCATE(fist_env, stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
      END IF

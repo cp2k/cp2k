@@ -641,7 +641,8 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(pair_potential_pp_type), POINTER    :: potparm
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(section_vals_type), POINTER         :: input, xc_fun, xc_fun_section
+    TYPE(section_vals_type), POINTER         :: input, xc_fun, xc_fun_section,&
+         spline_section
     TYPE(bond_type), DIMENSION(:), POINTER   :: bond_list
     TYPE(bend_type), DIMENSION(:), POINTER   :: bend_list
     TYPE(torsion_type), DIMENSION(:), POINTER   :: torsion_list
@@ -656,14 +657,14 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
 ! nullify some stuff
       NULLIFY(qs_env,atomic_kind_set,atomic_kind,gth_potential,&
          orb_basis_set,elp_potential,input,xc_fun,kg_env,&
-         bond_list,bend_list,torsion_list)
+         bond_list,bend_list,torsion_list,spline_section)
 
 ! grab some of the structures we're gonna need
       SELECT CASE ( force_env%in_use )
       CASE ( use_fist_force )
          CALL force_env_get(force_env,fist_env=fist_env,subsys=subsys)
          CALL get_fist_env(fist_env,cell=cell,ewald_env=ewald_env,&
-            atomic_kind_set=atomic_kind_set,&
+            input=input,atomic_kind_set=atomic_kind_set,&
             fist_nonbond_env=fist_nonbond_env,error=error)
          CALL ewald_env_get(ewald_env,unit_type=unit_type,&
             ewald_type=ewald_type,alpha=alpha,gmax=gmax,o_spline=o_spline,&
@@ -695,13 +696,6 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
       
 ! find out how many atom types we have
       ntypes=SIZE(atomic_kind_set(:))
-
-! a way to check and see what bond, bend, and tors types we've
-! already written
-!      ALLOCATE (lbond(1:nbonmolecule_kind_set(nmolecule_kind),STAT=istat)
-!    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-!                                     "molecule_kind_set",&
-!                                     nmolecule_kind*int_size)
 
 ! open the file
       CALL open_file(file_name=filename,unit_number=unit,&
@@ -746,11 +740,20 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
 
 ! now some of the force field stuff
          WRITE(unit,10000) "    &FORCEFIELD"
-! doesn't look like these values are stored past read-in
-!         WRITE(unit,10000) "      parmfile water.pot"
-!         WRITE(unit,10000) "      parmtype CHM"
 
-         
+! need to keep the value of EMAX_SPLINE, in particular for the HF
+! calculations (very large cutoff)
+         spline_section => section_vals_get_subs_vals(input,&
+              "MM%FORCEFIELD%SPLINE",error=error)
+         CALL section_vals_val_get(spline_section,"EMAX_SPLINE",&
+              r_val=r_val)
+         WRITE(unit,10000) "      &SPLINE"       
+         WRITE(unit,20002) "        EMAX_SPLINE ",r_val
+         CALL section_vals_val_get(spline_section,"EPS_SPLINE",&
+              r_val=r_val)
+         WRITE(unit,20002) "        EPS_SPLINE ",r_val
+         WRITE(unit,10000) "      &END SPLINE"       
+
 ! charges
          DO itype=1,ntypes
             atomic_kind => atomic_kind_set(itype)
@@ -1087,6 +1090,7 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
       WRITE(unit,10000) "  &END SUBSYS"
       WRITE(unit,10000) "&END FORCE_EVAL"
       WRITE(unit,10000) "&GLOBAL"
+
       SELECT CASE ( force_env%in_use )
       CASE ( use_fist_force )
          WRITE(unit,10000) ' PROGRAM      FIST'
@@ -1097,6 +1101,16 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
       CASE default
         CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
       END SELECT
+
+      SELECT CASE ( force_env%in_use )
+      CASE ( use_fist_force )
+         WRITE(unit,10000) ' RUN_TYPE     DEBUG'
+      CASE (use_qs_force)
+         WRITE(unit,10000) ' RUN_TYPE     ENERGY_FORCE'
+      CASE (use_kg_force)
+         WRITE(unit,10000) ' RUN_TYPE     ENERGY_FORCE'
+      END SELECT
+
       WRITE(unit,10000) ' PROJECT      H2O_MC'
       WRITE(unit,20001) ' FFTLIB       ',TRIM(ADJUSTL(fft_lib))
 ! need to write the correct print level
@@ -1121,7 +1135,7 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
 10000 FORMAT(A)
 20000 FORMAT(A,F8.2)
 20001 FORMAT(A,A)
-20002 FORMAT(A,F12.6)
+20002 FORMAT(A,F18.12)
 20003 FORMAT(A,I10)
 20004 FORMAT(A,E12.6)
 30000 FORMAT(A,F12.8,2X,I8)
