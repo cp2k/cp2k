@@ -147,7 +147,7 @@ CONTAINS
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
-    CALL timeset(routineN,"E",'',handle)
+    CALL timeset(routineN,handle)
 
     CALL get_cp2k_units ( unit )
 
@@ -585,7 +585,7 @@ CONTAINS
             "PRINT%FORCES", error=error)
     END IF
     init = .FALSE.
-    CALL timestop(zero,handle)
+    CALL timestop(handle)
 
   END SUBROUTINE md_energy
 
