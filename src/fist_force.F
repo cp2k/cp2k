@@ -589,13 +589,16 @@ SUBROUTINE fist_dipole(atomic_kind_set, particle_set, cell, unit_nr, error)
     COMPLEX(KIND=dp), DIMENSION(3)           :: ggamma, zeta
     INTEGER                                  :: i, iparticle_kind, j
     INTEGER, DIMENSION(:), POINTER           :: atom_list
-    REAL(KIND=dp)                            :: dipole(3), gvec(3), q, theta
+    REAL(KIND=dp)                            :: dipole(3), gvec(3), q, theta, dipole_deriv(3)
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
 
   NULLIFY(atomic_kind)
   DO i = 1,3
      gvec(i) = 2.0_dp*pi/cell%hmat(i,i)
   ENDDO
+
+  ! dipole deriv will be the derivative of the Dipole (dM/dt=\sum e_j v_j)
+  dipole_deriv=0.0_dp  
 
   ggamma = CMPLX(0.0_dp,0.0_dp,KIND=dp)
   DO iparticle_kind = 1, SIZE(atomic_kind_set)     
@@ -605,6 +608,7 @@ SUBROUTINE fist_dipole(atomic_kind_set, particle_set, cell, unit_nr, error)
      
      DO i = 1, SIZE(atom_list)
         DO j = 1, 3
+           dipole_deriv(j)=dipole_deriv(j)+particle_set(i)%v(j)*q
            theta = particle_set(i)%r(j)*gvec(j)
            zeta(j) = q * CMPLX(COS(theta),SIN(theta),KIND=dp)
         END DO
@@ -619,8 +623,9 @@ SUBROUTINE fist_dipole(atomic_kind_set, particle_set, cell, unit_nr, error)
   END DO
   
   IF (unit_nr>0) THEN
-     WRITE(unit_nr,'(1X,A,3F12.6)')"MM DIPOLE BERRY PHASE ( A.U.)|",dipole
-     WRITE(unit_nr,'(1X,A,3F12.6)')"MM DIPOLE BERRY PHASE (Debye)|",dipole*debye
+     WRITE(unit_nr,'(1X,A,3F12.6)')"MM DIPOLE BERRY PHASE ( A.U.)|                ",dipole
+     WRITE(unit_nr,'(1X,A,3F12.6)')"MM DIPOLE BERRY PHASE (Debye)|                ",dipole*debye
+     WRITE(unit_nr,'(1X,A,3F12.6)')"MM DIPOLE (NON BERRY PHASE) DERIVATIVE (A.U.)|",dipole_deriv
   END IF
   
 END SUBROUTINE fist_dipole
