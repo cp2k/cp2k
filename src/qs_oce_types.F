@@ -651,7 +651,7 @@ CONTAINS
 
     max_overlap_ab  = 0.0_dp
     DO iset = 1,nseta
-       zetamin = 10.0_dp
+       zetamin = HUGE(1.0_dp)
        gcca_zmin = 1.0_dp
        DO iexp = 1,npgfa(iset)
          IF(zeta(iexp,iset) .LT. zetamin) THEN
@@ -670,7 +670,7 @@ CONTAINS
          END IF
 !      write(*,*) ' AC ',sqrt(dac2), iset,zetamin,lshella,gcca_zmin,gauss_value_a
          DO jset = 1,nsetb
-           zetbmin = 10.0_dp
+           zetbmin = HUGE(1.0_dp)
            gccb_zmin = 1.0_dp
            DO iexp = 1,npgfb(jset)
              IF(zetb(iexp,jset) .LT. zetbmin) THEN
