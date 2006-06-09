@@ -3,3 +3,4 @@
 # Note: other distribution might require different flags for
 #       Xalan or even different conversion tools
 Xalan -i 1 -o cp2k_input.htm cp2k_input.xml cp2k_input.xsl
+#Xalan -i 1 -o cp2k_input.htm cp2k_input.xml cp2k_input_nojavascript.xsl
