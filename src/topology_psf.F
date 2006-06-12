@@ -145,8 +145,7 @@ CONTAINS
 !******************************************************************************
 
   SUBROUTINE read_topology_psf (filename,topology,globenv,subsys_section, error)
-    CHARACTER(LEN=default_string_length), &
-      INTENT(IN)                             :: filename
+    CHARACTER(LEN=*), INTENT(IN)             :: filename
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
     TYPE(global_environment_type), &

@@ -45,6 +45,7 @@ MODULE input_cp2k_check
        section_vals_set_subs_vals, section_vals_type, section_vals_val_get, &
        section_vals_val_set
   USE kinds,                           ONLY: default_string_length,&
+                                             default_path_length,&
                                              dp
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -249,7 +250,8 @@ SUBROUTINE handle_ext_restart(input_file,para_env,error)
     CHARACTER(len=*), PARAMETER :: routineN = 'handle_ext_restart', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(default_string_length)         :: path, r_file_path
+    CHARACTER(default_string_length)         :: path
+    CHARACTER(default_path_length)           :: r_file_path
     INTEGER                                  :: handle, i_rep_val, myi, &
                                                 n_rep_val
     LOGICAL                                  :: explicit1, explicit2, &
@@ -264,7 +266,7 @@ SUBROUTINE handle_ext_restart(input_file,para_env,error)
 
   CALL timeset(routineN,handle)
 
-  failure=.FALSE.
+  failure=.FALSE. 
   NULLIFY(work_section)
   IF (.NOT. failure) THEN
      r_section => section_vals_get_subs_vals(input_file,&

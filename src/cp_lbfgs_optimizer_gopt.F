@@ -829,6 +829,8 @@ END SUBROUTINE cp_opt_gopt_release
              dataunit = cp_print_key_unit_nr(logger,input,&
                   "MOTION%GEOOPT%PRINT%PROGRAM_RUN_INFO",extension=".geoLog",error=error)
              IF (dataunit>0) THEN
+                wildcard = "LBFGS"
+                CALL write_cycle_infos(dataunit,optimizer%isave(30),optimizer%f,wildcard=wildcard)
                 WRITE(dataunit,'(T2,A)')"*****"
                 WRITE(dataunit,'(T2,A)')"* Specific L-BFGS convergence cryteria met.. CONVERGED!"
                 WRITE(dataunit,'(T2,A)')"*****"

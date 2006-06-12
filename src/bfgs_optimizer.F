@@ -197,8 +197,12 @@ CONTAINS
     CALL cp_eval_at(gopt_env, x0, etot, g, gopt_env%force_env%para_env%mepos,&
             gopt_env%force_env%para_env, force_env_section, error)
 
+    ! Print info at time 0
     emin = etot
     it = 0
+    IF(output_unit>0) CALL write_cycle_infos &
+         (output_unit,it,etot,wildcard=" BFGS")
+
     DO        
        it = it + 1
        CALL cp_iterate(logger%iter_info,iter_nr=it,error=error)
@@ -689,9 +693,9 @@ CONTAINS
  SUBROUTINE write_cycle_infos(output_unit,it,etot,ediff,pred,rat,step,rad,emin,wildcard)
 
     INTEGER, INTENT(IN)                      :: output_unit, it
-    REAL(KIND=dp), INTENT(IN)                :: etot, ediff
+    REAL(KIND=dp), INTENT(IN)                :: etot
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: pred, rat, step, rad
-    REAL(KIND=dp), INTENT(IN)                :: emin
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: emin, ediff
     CHARACTER(LEN=5), OPTIONAL               :: wildcard
 
      WRITE(UNIT=output_unit,FMT="(/,T2,8('-'),A,I5,1X,12('-'))")&
@@ -700,8 +704,10 @@ CONTAINS
       " Optimization Method        = ",wildcard
      WRITE(UNIT=output_unit,FMT="(T2,A,F20.10)")&
       " Total Energy               = ",etot
-     WRITE(UNIT=output_unit,FMT="(T2,A,F20.10)")&
-      " Real energy change         = ",ediff
+     IF (PRESENT(ediff)) THEN
+        WRITE(UNIT=output_unit,FMT="(T2,A,F20.10)")&
+             " Real energy change         = ",ediff
+     END IF
      IF (PRESENT(pred)) THEN
         WRITE(UNIT=output_unit,FMT="(T2,A,F20.10)")&
              " Predicted change in energy = ",pred
@@ -718,16 +724,18 @@ CONTAINS
         WRITE(UNIT=output_unit,FMT="(T2,A,F20.10)")&
              " Trust radius               = ",rad
      END IF
-     IF( etot < emin )THEN
-      WRITE(UNIT=output_unit,FMT="(T2,2A)")&
-       " Decrease in energy         =     ",&
-       "             YES"
-     ELSE
-      WRITE(UNIT=output_unit,FMT="(T2,2A)")&
-       " Decrease in energy         =     ",&
-       "              NO"
+     IF (PRESENT(emin)) THEN
+        IF( etot < emin )THEN
+           WRITE(UNIT=output_unit,FMT="(T2,2A)")&
+                " Decrease in energy         =     ",&
+                "             YES"
+        ELSE
+           WRITE(UNIT=output_unit,FMT="(T2,2A)")&
+                " Decrease in energy         =     ",&
+                "              NO"
+        END IF
      END IF
-
+     IF (it==0) WRITE(UNIT=output_unit,FMT="(T2,51('-'))")
  END SUBROUTINE write_cycle_infos
 
 ! ***********************************************************************************

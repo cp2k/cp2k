@@ -30,6 +30,7 @@ MODULE topology_types
                                              do_conn_generate,&
                                              do_nhcopt_global
   USE kinds,                           ONLY: default_string_length,&
+                                             default_path_length,&
                                              dp
   USE termination,                     ONLY: stop_memory
   USE colvar_types,                    ONLY: colvar_p_type,&
@@ -121,8 +122,8 @@ MODULE topology_types
     LOGICAL                                   :: coordinate
     LOGICAL                                   :: connectivity
     LOGICAL                                   :: dump_topology
-    CHARACTER (LEN=default_string_length)     :: coord_file_name
-    CHARACTER (LEN=default_string_length)     :: conn_file_name
+    CHARACTER (LEN=default_path_length)       :: coord_file_name
+    CHARACTER (LEN=default_path_length)       :: conn_file_name
     LOGICAL                                   :: const_atom
     LOGICAL                                   :: const_hydr
     LOGICAL                                   :: const_colv

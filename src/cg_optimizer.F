@@ -257,6 +257,8 @@ CONTAINS
        emin    = HUGE(0.0_dp)
        ! Main Loop
        wildcard = "   SD"
+       IF(ionode) CALL write_cycle_infos &
+            (output_unit,it=0,etot=opt_energy,wildcard=wildcard)
        DO its = 1, maxiter
           CALL cp_iterate(logger%iter_info,iter_nr=its,error=error)
           xold = x0

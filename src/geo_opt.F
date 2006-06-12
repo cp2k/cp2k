@@ -230,6 +230,8 @@ MODULE geo_opt
         CALL cp_eval_at(gopt_env,optimizer%x,f=f,master=optimizer%master,&
              para_env=optimizer%para_env,force_env_section=force_env_section, error=error)
 
+        
+        
         CALL force_env_get(force_env,subsys=subsys,cell=cell,error=error)
         DO isubsys=1,SIZE(subsys)
            CALL cp_subsys_get(subsys(isubsys)%subsys, particles=particles,&

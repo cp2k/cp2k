@@ -24,6 +24,7 @@
 MODULE force_field_types
 
   USE kinds,                           ONLY: default_string_length,&
+                                             default_path_length,&
                                              dp
   USE pair_potential_types,            ONLY: pair_potential_p_release,&
                                              pair_potential_p_type
@@ -159,7 +160,7 @@ MODULE force_field_types
   TYPE force_field_type
     TYPE (input_info_type),POINTER   :: inp_info
     TYPE (charmm_info_type),POINTER  :: chm_info
-    CHARACTER (LEN=default_string_length)     :: ff_file_name
+    CHARACTER (LEN=default_path_length)       :: ff_file_name
     CHARACTER (LEN=default_string_length)     :: ff_type
     REAL(KIND=dp)                             :: rcut_nb
     REAL(KIND=dp)                             :: ei_scale14
