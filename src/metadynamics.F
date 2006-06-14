@@ -141,19 +141,22 @@ CONTAINS
        ALLOCATE(meta_env%metavar(n_colvar), stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routinep,error,failure)
        DO i=1,n_colvar
+          meta_env%metavar(i)%mass=-HUGE(0.0_dp)
+          meta_env%metavar(i)%lambda=-HUGE(0.0_dp)
           meta_env%metavar(i)%ss=0.0_dp
           meta_env%metavar(i)%ss0=0.0_dp
           meta_env%metavar(i)%ff_s=0.0_dp
           meta_env%metavar(i)%vv=0.0_dp
           meta_env%metavar(i)%vvp=0.0_dp
-          meta_env%metavar(i)%wall_p=0.0_dp
-          meta_env%metavar(i)%wall_m=0.0_dp
-          meta_env%metavar(i)%mass=-HUGE(0.0_dp)
-          meta_env%metavar(i)%lambda=-HUGE(0.0_dp)
-          meta_env%metavar(i)%icolvar=0
-          meta_env%metavar(i)%isubsys=0
+          meta_env%metavar(i)%cv_energy=0.0_dp
+          meta_env%metavar(i)%delta_s=0.0_dp
+          meta_env%metavar(i)%ff_hills=0.0_dp
           meta_env%metavar(i)%do_wall_p=.FALSE.
           meta_env%metavar(i)%do_wall_m=.FALSE.
+          meta_env%metavar(i)%wall_p=0.0_dp
+          meta_env%metavar(i)%wall_m=0.0_dp
+          meta_env%metavar(i)%icolvar=0
+          meta_env%metavar(i)%isubsys=0
        END DO
     END IF
   END SUBROUTINE metadyn_create
