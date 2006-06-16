@@ -53,6 +53,17 @@ CONTAINS
 
 !   Purpose: Calculate the first derivative of an integral block.
 
+! This takes the derivative  with respect to 
+! the atomic position Ra, i.e. the center of the primitive on the left.
+! To get the derivative of the left primitive with respect to r (orbital coordinate), 
+! take the opposite sign.
+! To get the derivative with respect to the center of the primitive on the right Rb, 
+! take the opposite sign.
+! To get the derivative of the right primitive with respect to r, 
+! do not change the sign. 
+
+!       *** [da/dRi|O|b] = 2*zeta*[a+1i|O|b] - Ni(a)[a-1i|O|b] ***
+
 !   History: - Creation (05.10.2000, Matthias Krack)
 
 !   ***************************************************************************
@@ -68,8 +79,10 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(OUT)                            :: dabdx, dabdy, dabdz
 
-    INTEGER :: ax, ay, az, bx, by, bz, coa, coamx, coamy, coamz, coapx, &
-      coapy, coapz, cob, codb, i, ipgf, j, jpgf, la, lb, na, nb, nda, ndb
+    INTEGER                                  :: ax, ay, az, bx, by, bz, coa, &
+                                                coamx, coamy, coamz, coapx, &
+                                                coapy, coapz, cob, codb, i, ipgf, &
+                                                j, jpgf, la, lb, na, nb, nda, ndb
     REAL(KIND=dp)                            :: fa, fx, fy, fz
 
 !   ---------------------------------------------------------------------------
@@ -108,7 +121,7 @@ CONTAINS
 
 !       *** [da/dRi|O|b] = 2*zeta*[a+1i|O|b] - Ni(a)[a-1i|O|b] ***
 
-        DO la=MAX(0,la_min),la_max
+        DO la=0,la_max !MAX(0,la_min),la_max
 
           IF (la == 0) THEN
 

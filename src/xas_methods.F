@@ -54,8 +54,7 @@ MODULE xas_methods
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply,&
-                                             cp_sm_fm_multiply_general
+  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: &
        do_loc_none, op_loc_berry, state_loc_upton, xas_1s_type, xas_2p_type, &
@@ -826,14 +825,16 @@ CONTAINS
         ELSEIF(xas_control%dipole_form==xas_dip_vel) THEN
           CALL allocate_matrix_set(xas_env%ostrength_sm,3)
           NULLIFY(xas_env%ostrength_sm(1)%matrix)
-          CALL set_up_op_sm(xas_env%ostrength_sm(1)%matrix,qs_env,symmetry="none",&
+ !        CALL set_up_op_sm(xas_env%ostrength_sm(1)%matrix,qs_env,symmetry="none",&
+          CALL set_up_op_sm(xas_env%ostrength_sm(1)%matrix,qs_env,symmetry="antisymmetric",&
           name="xas_env%ostrength_sm",error=error)
           CALL set_matrix(xas_env%ostrength_sm(1)%matrix,0.0_dp)
           DO i = 2,3
              NULLIFY(xas_env%ostrength_sm(i)%matrix)
              CALL replicate_matrix_structure(xas_env%ostrength_sm(1)%matrix, &
                   xas_env%ostrength_sm(i)%matrix,"xas_env%ostrength_sm"//&
-                  "-"//TRIM(ADJUSTL(cp_to_string(i))),target_symmetry="none")
+ !                "-"//TRIM(ADJUSTL(cp_to_string(i))),target_symmetry="none")
+                  "-"//TRIM(ADJUSTL(cp_to_string(i))),target_symmetry="antisymmetric")
              CALL set_matrix(xas_env%ostrength_sm(i)%matrix,0.0_dp)
           END DO 
         END IF
@@ -1487,11 +1488,7 @@ CONTAINS
          CPPrecondition(ASSOCIATED(fm_set(1,i)%matrix),cp_failure_level,routineP,error,failure)
          CALL cp_fm_set_all(fm_set(1,i)%matrix, 0.0_dp, error=error)
          CALL cp_fm_set_all(fm_work, 0.0_dp, error=error)
-!         IF(op_sm(i)%matrix%symmetry=="none") THEN
-!           CALL cp_sm_fm_multiply_general(op_sm(i)%matrix,all_vectors,fm_work,ncol=nvirtual)
-!         ELSE 
-           CALL cp_sm_fm_multiply(op_sm(i)%matrix,all_vectors,fm_work,ncol=nvirtual)
-!         END IF
+         CALL cp_sm_fm_multiply(op_sm(i)%matrix,all_vectors,fm_work,ncol=nvirtual)
          CALL cp_fm_gemm("T","N",1,nvirtual,nao,1.0_dp,excvec,&
               fm_work,0.0_dp, fm_set(1,i)%matrix,b_first_col=1,error=error)
       END DO

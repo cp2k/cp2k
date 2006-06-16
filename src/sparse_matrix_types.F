@@ -147,6 +147,7 @@ MODULE sparse_matrix_types
 
   INTERFACE allocate_matrix_set
     MODULE PROCEDURE allocate_real_matrix_set
+    MODULE PROCEDURE allocate_real_matrix_set_2d
   END INTERFACE
 
   INTERFACE copy_matrix
@@ -163,6 +164,7 @@ MODULE sparse_matrix_types
 
   INTERFACE deallocate_matrix_set
     MODULE PROCEDURE deallocate_real_matrix_set
+    MODULE PROCEDURE deallocate_real_matrix_set_2d
   END INTERFACE
 
   INTERFACE find_block_node
@@ -857,7 +859,42 @@ END SUBROUTINE cp_sm_scale_and_add
     END DO
 
   END SUBROUTINE allocate_real_matrix_set
-!******************************************************************
+! *****************************************************************************
+
+  SUBROUTINE allocate_real_matrix_set_2d(matrix_set,nmatrix,mmatrix)
+
+!   Purpose: Allocate and initialize a real matrix set.
+
+!   History: - Creation (13.03.2002, MK)
+
+!   ***************************************************************************
+
+    TYPE(real_matrix_p_type), DIMENSION(:,:), &
+      POINTER                                :: matrix_set
+    INTEGER, INTENT(IN)                      :: nmatrix
+    INTEGER, INTENT(IN)                      :: mmatrix
+
+    CHARACTER(LEN=*), PARAMETER :: routine = &
+      "SUBROUTINE allocate_real_matrix_set (MODULE sparse_matrix_types)"
+
+    INTEGER                                  :: imatrix, istat,jmatrix
+
+!   ---------------------------------------------------------------------------
+
+    IF (ASSOCIATED(matrix_set)) CALL deallocate_matrix_set(matrix_set)
+
+    ALLOCATE (matrix_set(nmatrix,mmatrix),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routine,"matrix_set",0)
+
+    DO jmatrix=1,mmatrix
+      DO imatrix=1,nmatrix
+        NULLIFY (matrix_set(imatrix,jmatrix)%matrix)
+      END DO
+    END DO
+
+  END SUBROUTINE allocate_real_matrix_set_2d
+! *****************************************************************************
+
   SUBROUTINE copy_local_sm_to_replicated_fm(sparse_matrix,fm)
 
 !   Purpose: copy to local blocks of a sparse matrix in a replicated full matrix (why ??)
@@ -1389,6 +1426,37 @@ END SUBROUTINE cp_sm_scale_and_add
 
   END SUBROUTINE deallocate_real_matrix_set
 
+! *****************************************************************************
+
+  SUBROUTINE deallocate_real_matrix_set_2d(matrix_set)
+
+!   Purpose: Deallocate a real matrix set.
+
+!   History: - Creation (13.03.2002, MK)
+
+!   ***************************************************************************
+
+    TYPE(real_matrix_p_type), DIMENSION(:,:), &
+      POINTER                                :: matrix_set
+
+    CHARACTER(LEN=*), PARAMETER :: routine = &
+      "SUBROUTINE deallocate_real_matrix_set (MODULE sparse_matrix_types)"
+
+    INTEGER                                  :: imatrix, istat, jmatrix
+
+!   ---------------------------------------------------------------------------
+
+    IF (ASSOCIATED(matrix_set)) THEN
+      DO jmatrix=1,SIZE(matrix_set,2)
+        DO imatrix=1,SIZE(matrix_set,1)
+          CALL deallocate_matrix(matrix_set(imatrix,jmatrix)%matrix)
+        END DO
+      END DO
+      DEALLOCATE (matrix_set,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routine,"matrix_set")
+    END IF
+
+  END SUBROUTINE deallocate_real_matrix_set_2d
 ! *****************************************************************************
 
   FUNCTION find_real_block_node(matrix,block_row,block_col) RESULT(block_node)

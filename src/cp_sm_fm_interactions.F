@@ -1053,6 +1053,7 @@ CONTAINS
     IF (PRESENT(alpha)) my_alpha=alpha
     IF (PRESENT(beta)) my_beta=beta
     failure=.FALSE.
+
 !FM  NULLIFY(tmp_m)
     IF (ASSOCIATED(sparse_matrix%distribution_2d)) THEN
        IF (v_in%matrix_struct%para_env%num_pe>2) THEN
@@ -1068,8 +1069,6 @@ CONTAINS
                   alpha=my_alpha,beta=1.0_dp,transpose_sm=.TRUE.,&
                   do_diagonal_blocks=.FALSE.,antisymmetric=.FALSE.,error=error)
           CASE("antisymmetric")
-             CALL stop_program(routineN,moduleN,__LINE__,&
-           "Check this! sm_fm_multiply for antisymmetric matrix seems not to work properly ")
              CALL cp_sm_fm_multiply_2d(sparse_matrix,v_in,v_out,ncol=ncol,&
                   alpha=my_alpha,beta=my_beta,transpose_sm=.FALSE.,&
                   do_diagonal_blocks=.TRUE.,antisymmetric=.TRUE.,error=error)

@@ -909,7 +909,6 @@ CONTAINS
            all_evals=all_evals,nvirtual1=nvirtual1)
       CALL get_mo_set(mos(1)%mo_set, eigenvalues=eigenvalues,mo_coeff=mo_coeff,&
            nao=nao,nmo=nmo,homo=homo)
- write(*,*) 'size ',nmo,homo,nvirtual1,nvirtual2
 
       IF(xas_control%emission) THEN
         CALL cp_fm_to_fm(mo_coeff,all_vectors,ncol=nvirtual1,&

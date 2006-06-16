@@ -108,6 +108,10 @@ CONTAINS
     CALL cp_fm_get_info ( rmat , nrow_global = nstate, error = error )
     tolerance = 1.0e10_dp
     sweeps = 0
+    IF (rmat%matrix_struct%para_env%mepos .EQ. rmat%matrix_struct%para_env%source ) THEN
+      WRITE(cp_logger_get_default_unit_nr(),'(T10,A )') "Localization by iterative Jacobi rotation"
+      WRITE(cp_logger_get_default_unit_nr(),'(T20,A12,T40,A12 )') "Iteration", "Tolerance"
+    END IF
 ! do jacobi sweeps until converged
     DO WHILE ( tolerance >= eps_localization .AND. sweeps < max_iter ) 
       sweeps = sweeps + 1
@@ -127,7 +131,7 @@ CONTAINS
       END DO
       CALL check_tolerance ( c_zij, weights, tolerance )
       IF (rmat%matrix_struct%para_env%mepos .EQ. rmat%matrix_struct%para_env%source ) THEN
-          WRITE(cp_logger_get_default_unit_nr(),'(I6,1X,E12.4)') &
+          WRITE(cp_logger_get_default_unit_nr(),'(T20,I12,T40,E12.4)') &
                  sweeps,tolerance
       ENDIF
     END DO

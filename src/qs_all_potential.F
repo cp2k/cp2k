@@ -106,6 +106,7 @@ MODULE qs_all_potential
       icoam_plus, icoap_plus, icob, icobm, ipgfa, ipgfb, istat, katom, kkind, &
       knode, na, na_plus, nap, nb, nb_plus, ncoa, ncob, nnode_c
     INTEGER, DIMENSION(3)                    :: la, lam, lap, lb, lbm
+    LOGICAL :: calculate_forces
     REAL(dp) :: cerf, der_intab_a, der_intab_b, force_a, force_b, rab2, &
       rac(3), rac2, rbc(3), rbc2, rpgfc, zax2, zbx2, zc, zetc
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: ff
@@ -114,6 +115,12 @@ MODULE qs_all_potential
       DIMENSION(:, :, :)                     :: vverf, vvnuc
 
 !   ---------------------------------------------------------------------------
+
+    IF(PRESENT(pab).AND.PRESENT(f_a).AND.PRESENT(f_b)) THEN
+      calculate_forces = .TRUE.
+    ELSE
+      calculate_forces = .FALSE.
+    END IF
 
     ncoa = npgfa*ncoset(la_max)
     ncob = npgfb*ncoset(lb_max)
@@ -125,9 +132,14 @@ MODULE qs_all_potential
     END IF
     Int_ab_sum = 0.0_dp
 
-    IF (nder > 0) THEN
-      na_plus = npgfa*ncoset(la_max+nder)
-      nb_plus = npgfb*ncoset(lb_max)
+    IF(calculate_forces) THEN
+      IF(nder==0) THEN
+         na_plus = npgfa*ncoset(la_max+1)
+         nb_plus = npgfb*ncoset(lb_max)
+      ELSEIF (nder > 0) THEN
+        na_plus = npgfa*ncoset(la_max+nder)
+        nb_plus = npgfb*ncoset(lb_max)
+      END IF
       ALLOCATE(Int_ab_plus(na_plus,nb_plus),STAT=istat)
       IF (istat /= 0) THEN
          CALL stop_memory(routineN,moduleN,__LINE__,"Int_ab_plus",&
@@ -135,6 +147,8 @@ MODULE qs_all_potential
       END IF
       f_a = 0.0_dp
       f_b = 0.0_dp
+    ELSE
+      
     END IF
 
     ALLOCATE(vverf(ncoset(la_max+nder),ncoset(lb_max),la_max+nder+lb_max+1),STAT=istat)
@@ -175,7 +189,7 @@ MODULE qs_all_potential
            CYCLE 
         END IF
 
-        IF(nder > 0) THEN
+        IF(calculate_forces) THEN
 
           Int_ab_plus = 0.0_dp
           CALL verfc(la_max+nder,npgfa,zeta,rpgfa,la_min,&
@@ -267,7 +281,7 @@ MODULE qs_all_potential
 
     hab(1:ncoa,1:ncob) = hab(1:ncoa,1:ncob) + Int_ab_sum(1:ncoa,1:ncob) 
 
-    IF (nder > 0) THEN
+    IF (calculate_forces) THEN
       DEALLOCATE(Int_ab_plus,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                        "Int_ab_plus")

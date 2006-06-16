@@ -55,7 +55,8 @@ MODULE qs_linres_methods
        do_loc_none, lr_cg, lr_diis, lr_ls_2pnt, lr_ls_3pnt, lr_ls_gold, &
        lr_ls_none, lr_precond_none, lr_sd, op_loc_berry, state_loc_all
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                             section_vals_type
+                                             section_vals_type,&
+                                             section_vals_val_get
   USE kinds,                           ONLY: dp
   USE preconditioner,                  ONLY: apply_preconditioner_lr,&
                                              make_preconditioner
@@ -315,18 +316,18 @@ CONTAINS
        DO ispin = 1,dft_control%nspins
          CALL get_mo_set(mo_set=mos(ispin)%mo_set,homo=homo,nao=nao )
          CALL cp_sm_fm_multiply(matrix_s(1)%matrix,h1_psi0(ispin)%matrix,&
-              psi1(ispin)%matrix,ncol=homo,alpha=1.0_dp,error=error)
+              X(ispin)%matrix,ncol=homo,alpha=1.0_dp,error=error)
          CALL cp_fm_gemm(transa='T',transb='N',n=homo,&
                   m=homo,k=nao,alpha=1.0_dp,&
                   matrix_a=h1_psi0(ispin)%matrix, &
-                  matrix_b=psi1(ispin)%matrix,&
+                  matrix_b=X(ispin)%matrix,&
                   beta=0.0_dp,matrix_c=Ab(ispin)%matrix,&
                   error=error)
          
          ALLOCATE(vectorsnorm(homo), STAT=istat)
          DO i=1,homo
            CALL cp_fm_get_element(Ab(ispin)%matrix,i,i,vectorsnorm(i))
-           write(*,*) i , vectorsnorm(i),sqrt(vectorsnorm(i))
+!           write(*,*) i , vectorsnorm(i),sqrt(vectorsnorm(i))
            max_input_norm = MAX(max_input_norm,sqrt(vectorsnorm(i)))
          END DO 
          DEALLOCATE(vectorsnorm,STAT=istat)
@@ -343,12 +344,19 @@ CONTAINS
          END IF
          RETURN
        END IF
-       max_input_norm = 1.0_dp / max_input_norm !/ 2.0_dp
-       DO ispin = 1,dft_control%nspins
-         CALL cp_fm_scale(max_input_norm,h1_psi0(ispin)%matrix,error=error)
-       END DO
+!      max_input_norm = 1.0_dp / max_input_norm 
+!       DO ispin = 1,dft_control%nspins
+!         CALL cp_fm_scale(max_input_norm,h1_psi0(ispin)%matrix,error=error)
+!       END DO
+!       IF(output_unit>0) THEN
+!          WRITE (UNIT=output_unit,FMT="(T10,A,f16.8/)")&
+!            "Scaling factor applied to H1 :",max_input_norm
+!       ENDIF
+
      END IF
 
+!    Reset the stepsize linres_control%ds_min,
+     CALL section_vals_val_get(lr_section,"STEPSIZE",r_val=linres_control%ds_min)
 
      CALL check_p_env_init(p_env,linres_control, dft_control%nspins, error=error)
 
@@ -372,10 +380,11 @@ CONTAINS
             REPEAT("-",77)
      END IF
 
+     ! Multiply the right part of the equation by the occupation numbers 
      DO ispin = 1, dft_control%nspins
        CALL get_mo_set(mo_set=mos(ispin)%mo_set, &
                        occupation_numbers=occupations )
-       CALL cp_fm_column_scale(h1_psi0(ispin)%matrix, occupations)
+!       CALL cp_fm_column_scale(h1_psi0(ispin)%matrix, occupations)
      END DO
 
      ik = 1
@@ -386,19 +395,25 @@ CONTAINS
        p_env%gnorm = 0.0_dp
        p_env%gradient = 0.0_dp
 
-       DO ispin=1, dft_control%nspins
-          CALL cp_fm_to_fm(b(ispin)%matrix, X(ispin)%matrix)
-       END DO
        ! Apply the operators that do not depend on the perturbation
-       CALL apply_op(X, Ab(:), p_env, qs_env, linres_control%do_kernel)
+       CALL apply_op(b, Ab(:), p_env, qs_env, linres_control%do_kernel)
 
        ! Apply the perturbative operator
        DO ispin=1, dft_control%nspins
+         ! Multiply the left part of the equation by the occupation numbers 
           CALL get_mo_set(mo_set=mos(ispin)%mo_set, &
                           occupation_numbers=occupations )
-          CALL cp_fm_column_scale(Ab(ispin)%matrix, occupations)
+!          CALL cp_fm_column_scale(Ab(ispin)%matrix, occupations)
           CALL cp_fm_trace(psi1(ispin)%matrix,Ab(ispin)%matrix,tmp1,error)
-          CALL cp_fm_trace(psi1(ispin)%matrix,h1_psi0(ispin)%matrix,tmp2,error)
+          CALL cp_fm_trace(psi1(ispin)%matrix, h1_psi0(ispin)%matrix,tmp2,error)
+! dbg
+!          CALL cp_sm_fm_multiply(matrix_s(1)%matrix,Ab(ispin)%matrix,&
+!                X(ispin)%matrix,ncol=homo,alpha=1.0_dp,error=error)
+!          CALL cp_fm_trace(psi1(ispin)%matrix,X(ispin)%matrix,tmp1,error)
+!          CALL cp_sm_fm_multiply(matrix_s(1)%matrix,h1_psi0(ispin)%matrix,&
+!               X(ispin)%matrix,ncol=homo,alpha=1.0_dp,error=error)
+!          CALL cp_fm_trace(psi1(ispin)%matrix,X(ispin)%matrix,tmp2,error)
+!dbg
           CALL cp_fm_scale_and_add(+1.0_dp, Ab(ispin)%matrix, &
                                    +1.0_dp, h1_psi0(ispin)%matrix) ! add h1_psi0 to Ab 
 !        Total perturbation energy :
@@ -406,10 +421,7 @@ CONTAINS
 !                 sum_k (<psi1_k|H_1|psi0_k> + <psi0_k|H_1|psi1_k>)
 !        Since H_1 and psi1_k are purely imaginary the second term is 
 !                        2*\sum_k <psi1_k|H_1|psi0_k>
-!          CALL get_mo_set(mo_set=mos(ispin)%mo_set, &
-!                          occupation_numbers=occupations )
-!          CALL cp_fm_column_scale(Ab(ispin)%matrix, occupations)
- write(*,*) 'ene ', tmp1,tmp2
+! write(*,*) 'ene ', tmp1,tmp2
           p_env%etotal = p_env%etotal + tmp1+2.0_dp*tmp2 
        END DO
 
@@ -425,7 +437,7 @@ CONTAINS
        END IF
 
     !  Check ortho
-!       IF(linres_control%check_ortho) THEN
+       IF(linres_control%check_ortho) THEN
          DO ispin=1, dft_control%nspins
            CALL  cp_fm_gemm('T','N',p_env%n_mo(ispin),p_env%n_mo(ispin),p_env%n_ao(ispin),&   
                 1.0_dp,p_env%S_psi0(ispin)%matrix,&
@@ -442,7 +454,7 @@ CONTAINS
   !           CALL p_postortho
           END IF
          END DO
-!       END IF
+       END IF
 
        !Check Convergence
        IF(iter /= 1) THEN
@@ -470,10 +482,18 @@ CONTAINS
 
 
 !    Scaling output
-     max_input_norm = 1._dp/max_input_norm
-     DO ispin = 1,dft_control%nspins
-       CALL cp_fm_scale(max_input_norm,psi1(ispin)%matrix,error=error)
-     END DO
+!     max_input_norm = 1._dp/max_input_norm
+!     IF(output_unit>0) THEN
+!        WRITE (UNIT=output_unit,FMT="(T10,A,f16.8/)")&
+!            "Scaling factor applied to c1 :",max_input_norm
+!     ENDIF
+!     DO ispin = 1,dft_control%nspins
+!       CALL cp_fm_scale(max_input_norm,psi1(ispin)%matrix,error=error)
+!     END DO
+!     IF(output_unit>0) THEN
+!        WRITE (UNIT=output_unit,FMT="(T10,A,f16.8/)")&
+!           "Total energy correction :",p_env%etotal*max_input_norm*max_input_norm
+!     ENDIF
 
     !----------!
     ! clean up !

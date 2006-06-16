@@ -26,6 +26,7 @@ MODULE qs_rho_atom_methods
                                              gapw_control_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE erf_fn,                          ONLY: erf
+  USE input_constants,                 ONLY: lr_chemshift
   USE kinds,                           ONLY: dp,&
                                              dp_size,&
                                              int_size
@@ -46,6 +47,7 @@ MODULE qs_rho_atom_methods
                                              grid_atom_type
   USE qs_harmonics_atom,               ONLY: create_harmonics_atom,&
                                              harmonics_atom_type
+  USE qs_linres_types,                 ONLY: linres_control_type
   USE qs_neighbor_list_types,          ONLY: &
        first_list, first_node, get_neighbor_list, get_neighbor_list_set, &
        get_neighbor_node, neighbor_list_set_p_type, neighbor_list_type, &
@@ -211,7 +213,7 @@ MODULE qs_rho_atom_methods
             dgg = 0.0_dp
             vgg = 0.0_dp
             done_vgg = .FALSE.
-!test reduce expansion local densities
+       ! reduce the number of terms in the expansion local densities
        IF(lmin12 .LE. lmax_expansion) THEN
             IF (lmin12 == 0) THEN
               gg(1:nr,lmin12) = g1(1:nr)*g2(1:nr)
@@ -221,7 +223,7 @@ MODULE qs_rho_atom_methods
               gg(1:nr,lmin12) = grid_atom%rad2l(1:nr,lmin12)*g1(1:nr)*g2(1:nr)
             END IF
            
-!test reduce expansion local densities
+            ! reduce the number of terms in the expansion local densities
             IF(lmax12 .GT. lmax_expansion) lmax12 = lmax_expansion
 
             DO l=lmin12+1,lmax12
@@ -822,7 +824,7 @@ MODULE qs_rho_atom_methods
       lc2, lcleb, ll, llmax, lmax_sphere, lp, m1, m2, max_s_harm, max_s_set, &
       maxlgto, mm, mp, na, nat, natom, nkind, nr, nspins, quadrature
     INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL                                  :: paw_atom
+    LOGICAL                                  :: do_dxyz_asym,paw_atom
     REAL(dp)                                 :: cosia, phi
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: rga
     REAL(dp), DIMENSION(:, :, :), POINTER    :: my_CG
@@ -833,6 +835,7 @@ MODULE qs_rho_atom_methods
     TYPE(grid_atom_type), POINTER            :: grid_atom
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(harmonics_atom_type), POINTER       :: harmonics
+    TYPE(linres_control_type), POINTER       :: linres_control
     TYPE(rho_atom_type), DIMENSION(:), &
       POINTER                                :: rho_atom_set
 
@@ -843,12 +846,12 @@ MODULE qs_rho_atom_methods
     NULLIFY(rho_atom_set)
     NULLIFY(atomic_kind_set)
     NULLIFY(atomic_kind)
-    NULLIFY(dft_control)
+    NULLIFY(dft_control,linres_control)
     NULLIFY(orb_basis_set)
     NULLIFY(my_CG, atomic_kind, grid_atom, harmonics,atom_list)
 
     CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, &
-                    dft_control=dft_control) 
+                    dft_control=dft_control,linres_control=linres_control) 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                              maxlgto=maxlgto,&
                              natom = natom)
@@ -868,6 +871,11 @@ MODULE qs_rho_atom_methods
     CALL clebsch_gordon_init ( lcleb )
     CALL reallocate(my_CG,1,max_s_set,1,max_s_set,1,max_s_harm)
 
+!   *** If NMR compute additional expasion coefficientsin the harmonics
+    do_dxyz_asym = .FALSE.
+    IF(ASSOCIATED(linres_control)) THEN
+      IF(linres_control%property==lr_chemshift) do_dxyz_asym=.TRUE.
+    END IF
     ALLOCATE(rga(lcleb,2),STAT=istat)
     DO lc1 = 0,maxlgto
       DO  iso1=nsoset(lc1-1)+1,nsoset(lc1)
@@ -985,7 +993,8 @@ MODULE qs_rho_atom_methods
       CALL create_harmonics_atom(harmonics, orb_basis_set,&
                    my_CG,na,llmax,max_s_harm,ll,grid_atom%wa,&
                    grid_atom%phi,grid_atom%cos_phi,&
-                   grid_atom%theta,grid_atom%cos_theta,grid_atom%cotan_phi)
+                   grid_atom%theta,grid_atom%cos_theta,&
+                   grid_atom%cotan_phi,do_dxyz_asym)
 
     END DO
 

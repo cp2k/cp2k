@@ -30,15 +30,23 @@ MODULE qs_linres_nmr_op
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add,cp_fm_column_scale
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_fm_types,                     ONLY: cp_fm_get_submatrix,&
+  USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
+                                             cp_fm_struct_release,&
+                                             cp_fm_struct_type
+  USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                             cp_fm_get_submatrix,&
+                                             cp_fm_p_type,&
                                              cp_fm_set_all,&
+                                             cp_fm_to_fm,&
+                                             cp_fm_release,&
                                              cp_fm_set_submatrix,&
                                              cp_fm_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
-  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply,&
-                                             cp_sm_fm_multiply_general
+  USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply,copy_sm_to_fm
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: dp
@@ -53,8 +61,9 @@ MODULE qs_linres_nmr_op
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
   USE qs_operators_ao,                 ONLY: p_xyz_ao,&
-                                             rRc_xyz_ao,&
                                              rmc_x_p_xyz_ao
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -106,20 +115,24 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'nmr_operators', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: homo, iao, iatom, idir, &
+    INTEGER                                  :: handle,homo, iao, iatom, idir, &
                                                 idir2, ii, iii, ispin, istat, &
                                                 istate, nao, natom, nmo, &
                                                 nsgf, output_unit
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf, last_sgf
-    LOGICAL                                  :: failure, ionode, soft_only
+    LOGICAL                                  :: failure, ionode
     REAL(dp)                                 :: ck(3), ckdk(3), dk(3)
+    REAL(dp), DIMENSION(:,:), POINTER        :: vecbuf_c0
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_2d_r_p_type), DIMENSION(3)       :: vecbuf_cmd, vecbuf_p0, &
-                                                vecbuf_rxp0
+    TYPE(cp_2d_r_p_type), DIMENSION(3)       :: vecbuf_RmdC0
+    TYPE(cp_fm_struct_type), POINTER         :: tmp_fm_struct
     TYPE(cp_fm_type), POINTER                :: mo_coeff
+    TYPE(cp_fm_type), POINTER                :: fm_work1,fm_work2
+    TYPE(cp_fm_p_type), DIMENSION(3)         :: fm_Rmd_mos
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(linres_control_type), POINTER       :: linres_control
     TYPE(mo_set_p_type), DIMENSION(:), &
@@ -128,14 +141,15 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(section_vals_type), POINTER         :: lr_section
 !dbg
-    integer :: i,j, k
-     real(dp) :: ov_tmp(4,4)
+    integer :: i,j, k, fnum
 !dbg
+
+    CALL timeset(routineN,"I"," ",handle)
 
     failure = .FALSE.
 
-    NULLIFY(atomic_kind_set,cell,dft_control,linres_control,logger,mos,particle_set,&
-         lr_section)
+    NULLIFY(atomic_kind_set,cell,dft_control,linres_control)
+    NULLIFY(logger,mos,particle_set,lr_section,fm_work1)
  
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
@@ -153,37 +167,28 @@ CONTAINS
 
     CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, cell=cell, &
                     dft_control=dft_control, linres_control=linres_control,&
-                    mos=mos, particle_set=particle_set)
+                    mos=mos, para_env=para_env, &
+                    particle_set=particle_set)
+
 
     ! Calculate the px py pz operators
     CALL p_xyz_ao(nmr_env%op_p_ao,qs_env,minimum_image=.TRUE.,error=error)
-    ! Multiply the p operator to the psi0
+    ! Apply the p operator to the psi0
     DO idir = 1,3
       DO ispin = 1, dft_control%nspins
          CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff, nao=nao, nmo=nmo)
          CALL cp_fm_set_all(nmr_env%p_psi0(ispin,idir)%matrix,0.0_dp,error=error)
          CALL cp_sm_fm_multiply(nmr_env%op_p_ao(idir)%matrix,mo_coeff,&
                 nmr_env%p_psi0(ispin,idir)%matrix,ncol=nmo,alpha=-1.0_dp,error=error)
-!dbg
-! write(*,*) 'idir ', idir
-!         ov_tmp = 0.0_dp
-!         CALL dgemm('T','N',4,4,nao,1.0_dp,mo_coeff%local_data(1,1),&
-!              nao, nmr_env%p_psi0(ispin,idir)%matrix%local_data(1,1),&
-!              nao,0.0_dp,ov_tmp(1,1),4)
-!         do i = 1,4
-!         write(*,'(I4,4f12.6)') i,( ov_tmp(i,j), j=1,4)
-!         end do 
-!dbg
       END DO 
     END DO 
 
+    NULLIFY(vecbuf_c0)
+    ALLOCATE(vecbuf_c0(1,nao),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DO idir = 1,3 
-      NULLIFY(vecbuf_p0(idir)%array,vecbuf_rxp0(idir)%array,vecbuf_cmd(idir)%array)
-      ALLOCATE(vecbuf_p0(idir)%array(1,nao),STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-      ALLOCATE(vecbuf_rxp0(idir)%array(1,nao),STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-      ALLOCATE(vecbuf_cmd(idir)%array(1,nao),STAT=istat)
+      NULLIFY(vecbuf_Rmdc0(idir)%array)
+      ALLOCATE(vecbuf_Rmdc0(idir)%array(1,nao),STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     END DO 
 
@@ -198,10 +203,10 @@ CONTAINS
     !First term: operator matrix elements
     CALL rmc_x_p_xyz_ao(nmr_env%op_rmd_ao,qs_env,minimum_image=.TRUE.,error=error)
 
-    ! Multiply the (r-c)xp operator to the psi0
-    DO idir = 1,3
-      DO ispin = 1, dft_control%nspins
-         CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff, nao=nao, nmo=nmo)
+    ! Apply the (r-c)xp operator to the psi0
+    DO ispin = 1, dft_control%nspins
+      CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff, nao=nao, nmo=nmo, homo=homo)
+      DO idir = 1,3
          CALL cp_fm_set_all(nmr_env%rxp_psi0(ispin,idir)%matrix,0.0_dp,error=error)
          CALL cp_sm_fm_multiply(nmr_env%op_rmd_ao(idir)%matrix,mo_coeff,&
                 nmr_env%rxp_psi0(ispin,idir)%matrix,ncol=nmo,alpha=-1.0_dp,error=error)
@@ -225,7 +230,6 @@ CONTAINS
     DO iatom = 1,natom
       DO iao = first_sgf(iatom),last_sgf(iatom)
         DO idir = 1,3
-          vecbuf_cmd(idir)%array(1,iao) = particle_set(iatom)%r(idir)
           nmr_env%basisfun_center(idir,iao) = particle_set(iatom)%r(idir)
         END DO
       END DO
@@ -236,88 +240,179 @@ CONTAINS
     DO ispin = 1, dft_control%nspins
        CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff, nao=nao, nmo=nmo,homo=homo)
       
+      !   Allocate full matrices as working storage in the calculation 
+      !   of the rxp operator matrix. 3 matrices for the 3 Cartesian direction
+      !   plus one to apply the momentum oprator to the modified mos fm
+       NULLIFY(tmp_fm_struct)
+       CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=nao,&
+            ncol_global=homo,para_env=para_env,context=mo_coeff%matrix_struct%context)
+       DO idir = 1,3
+          NULLIFY(fm_Rmd_mos(idir)%matrix)
+          CALL cp_fm_create (fm_Rmd_mos(idir)%matrix,tmp_fm_struct) 
+       END DO 
+       CALL cp_fm_create (fm_work1,tmp_fm_struct)
+       CALL cp_fm_struct_release ( tmp_fm_struct )
+!dbg
+!       CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=nao,&
+!            ncol_global=nao,para_env=para_env,context=mo_coeff%matrix_struct%context)
+!       CALL cp_fm_create (fm_work2,tmp_fm_struct)
+!       CALL cp_fm_struct_release ( tmp_fm_struct )
+!       DO idir =1,3
+!           CALL copy_sm_to_fm(nmr_env%op_rmd_ao(idir)%matrix,fm_work2,error=error)
+!           fnum = 100+idir
+!           write(fnum,*) 'rmcxp_op ', idir
+!           DO  i=1,nao
+!             write(fnum,'(i5,60f10.6)') i, (fm_work2%local_data(i,j),j=1,nao)
+!           END DO
+!            write(fnum,*) 'check symmetry'
+!            do i=1,nao
+!              do j = i,nao
+!                 write(fnum,'(2i4,3f16.8)') i, j,  fm_work2%local_data(i,j), &
+!                     fm_work2%local_data(j,i), &
+!                     fm_work2%local_data(i,j)+ fm_work2%local_data(j,i)
+!              end do
+!            end do
+!           CALL copy_sm_to_fm(nmr_env%op_p_ao(idir)%matrix,fm_work2,error=error)
+!           fnum = 200+idir
+!           write(fnum,*) 'p_op ', idir
+!           DO  i=1,nao
+!             write(fnum,'(i5,60f10.6)') i, (fm_work2%local_data(i,j),j=1,nao)
+!           END DO
+!            write(fnum,*) 'check symmetry'
+!            do i=1,nao
+!              do j = i,nao
+!                 write(fnum,'(2i4,3f16.8)') i, j,  fm_work2%local_data(i,j), &
+!                     fm_work2%local_data(j,i), &
+!                     fm_work2%local_data(i,j)+ fm_work2%local_data(j,i)
+!              end do
+!            end do
+!       END DO
+!           fnum = 400
+!           write(fnum,*) 'c0 '
+!           DO  i=1,nao
+!             write(fnum,'(i5,60f10.6)') i, (mo_coeff%local_data(i,j),j=1,homo)
+!           END DO
+!dbg
+
+   ! This part should be done better, using the full matrix distribution
        DO istate = 1,homo
-         !center of the localized psi0 state istate 
+         CALL cp_fm_get_submatrix(mo_coeff,vecbuf_c0,1,istate,nao,1,transpose=.TRUE.,error=error)
+!
+!         !center of the localized psi0 state istate 
          dk(1:3) = linres_control%localized_wfn_control%centers_set(ispin)%array(1:3,istate)
-         !get the corresponding vector from the full matrix (p psi0)
          DO idir = 1,3
-           CALL cp_fm_get_submatrix(nmr_env%p_psi0(ispin,idir)%matrix,vecbuf_p0(idir)%array,&
+!!  This loop should be distributed over the processors
+           DO iao = 1,nao
+!             ck(1:3) = 0.5_dp !nmr_env%basisfun_center(1:3,iao)
+             ck(1:3) = nmr_env%basisfun_center(1:3,iao)
+             ckdk = pbc(dk,ck,cell)
+             vecbuf_Rmdc0(idir)%array(1,iao) = vecbuf_c0(1,iao)*ckdk(idir)
+           END DO ! iao
+           CALL cp_fm_set_submatrix(fm_Rmd_mos(idir)%matrix,vecbuf_Rmdc0(idir)%array,&
                 1,istate,nao,1,transpose=.TRUE.,error=error)
-         END DO
-         DO idir = 1,3
+!
+         END DO  ! idir
+       END DO  ! istate
+!dbg
+!         ck(1:3) = 0.0_dp
+!        DO idir = 1,3
+!          do i = 1,nao
+!             do j = 1,homo
+!                fm_Rmd_mos(idir)%matrix%local_data(i,j) = mo_coeff%local_data(i,j)*(ck(idir) - 1.5_dp)
+!                fm_Rmd_mos(idir)%matrix%local_data(i,j) = mo_coeff%local_data(i,j)*&
+!                    (ck(idir) - nmr_env%centers_set(ispin)%array(idir,j))
+!             end do 
+!          end do 
+!        END DO
+!        DEALLOCATE(vec_fact,STAT=istat)
+
+
+!dbg
+!           fnum = 300+idir
+!           write(fnum,*) 'cmd_c0 1'
+!           DO  i=1,nao
+!             write(fnum,'(i5,50f10.6)') i, (fm_Rmd_mos(1)%matrix%local_data(i,j),j=1,homo)
+!           END DO
+!             write(fnum,*)
+!           write(fnum,*) 'cmd_c0 2'
+!           DO  i=1,nao
+!             write(fnum,'(i5,50f10.6)') i, (fm_Rmd_mos(2)%matrix%local_data(i,j),j=1,homo)
+!           END DO
+!             write(fnum,*)
+!           write(fnum,*) 'cmd_c0 3'
+!           DO  i=1,nao
+!             write(fnum,'(i5,50f10.6)') i, (fm_Rmd_mos(3)%matrix%local_data(i,j),j=1,homo)
+!           END DO
+!dbg
+       DO idir = 1,3
            CALL set_vecp(idir,ii,iii)
 
-           !get the full matrix vector containing only the first term, 
-           !to which now the second term will be added
-           CALL cp_fm_get_submatrix(nmr_env%rxp_psi0(ispin,idir)%matrix,vecbuf_rxp0(idir)%array,&
-                1,istate,nao,1,transpose=.TRUE.,error=error)
+!dbg
+!           fnum = 410
+!           write(fnum,*) '(r-C)xp_c0 ', idir    
+!           DO  i=1,nao
+!             write(fnum,'(i5,50f10.6)') i, (nmr_env%rxp_psi0(ispin,idir)%matrix%local_data(i,j),j=1,homo)
+!           END DO
+!dbg
+           !Add the second term to the idir component
+           CALL cp_fm_set_all(fm_work1,0.0_dp,error=error)
+           CALL cp_sm_fm_multiply(nmr_env%op_p_ao(iii)%matrix,fm_Rmd_mos(ii)%matrix,&
+                fm_work1,ncol=homo,alpha=-1.0_dp,error=error)
+           CALL cp_fm_scale_and_add(1.0_dp,nmr_env%rxp_psi0(ispin,idir)%matrix,&
+                1.0_dp, fm_work1,error=error)
+!dbg
+!           fnum = 420
+!           write(fnum,*) '(C-d)xp_c0 ', 1,idir    
+!           DO  i=1,nao
+!             write(fnum,'(i5,50f10.6)') i, (fm_work1%local_data(i,j),j=1,homo)
+!           END DO
+!dbg
 
-!  This loop should be distributed over the processors
-           DO iao = 1,nao
-             DO idir2 = 1,3
-               ck(idir2) = nmr_env%basisfun_center(idir2,iao)
-             END DO
+           CALL cp_fm_set_all(fm_work1,0.0_dp,error=error)
+           CALL cp_sm_fm_multiply(nmr_env%op_p_ao(ii)%matrix,fm_Rmd_mos(iii)%matrix,&
+                fm_work1,ncol=homo,alpha=-1.0_dp,error=error)
+           CALL cp_fm_scale_and_add(1.0_dp,nmr_env%rxp_psi0(ispin,idir)%matrix,&
+                -1.0_dp, fm_work1,error=error)
+!dbg
+!           fnum = 420
+!           write(fnum,*) '(C-d)xp_c0 ',2, idir    
+!           DO  i=1,nao
+!             write(fnum,'(i5,50f10.6)') i, (fm_work1%local_data(i,j),j=1,homo)
+!           END DO
+!           fnum = 430
+!           write(fnum,*) '(r-d)xp_c0 ', idir    
+!           DO  i=1,nao
+!             write(fnum,'(i5,50f10.6)') i, (nmr_env%rxp_psi0(ispin,idir)%matrix%local_data(i,j),j=1,homo)
+!           END DO
+!dbg
 
-             ckdk = pbc(dk,ck,cell)
-!             ckdk(1) = ck(1)-dk(1)
-!             ckdk(2) = ck(2)-dk(2)
-!             ckdk(3) = ck(3)-dk(3)
-             !Add the second term element by element (not very efficient indeed)
-!                                ckdk(iii)*vecbuf_p0(ii)%array(1,iao)
-             vecbuf_rxp0(idir)%array(1,iao) =  vecbuf_rxp0(idir)%array(1,iao) + & 
-                                ckdk(ii)*vecbuf_p0(iii)%array(1,iao) - &
-                                ckdk(iii)*vecbuf_p0(ii)%array(1,iao)
-!                                vecbuf_p0(iii)%array(1,iao) - &
-!                                vecbuf_p0(ii)%array(1,iao)
-!  if(idir == 1) then
-!  write(*,'(A,I4,A,i4,4f10.6)') ' is ', istate , 'iao ', iao, ckdk(1:3), vecbuf_rxp0(idir)%array(1,iao)
-!  end if
-           END DO  ! iao
+       END DO ! idir
 
-           !Give back the modified vector to the full matrix
-           CALL cp_fm_set_submatrix(nmr_env%rxp_psi0(ispin,idir)%matrix,vecbuf_rxp0(idir)%array,&
-                1,istate,nao,1,transpose=.TRUE.,error=error)
-         END DO   ! idir
-       END DO  ! istate
+       DO idir = 1,3
+         CALL cp_fm_release (fm_Rmd_mos(idir)%matrix,error=error)
+       END DO
+       CALL cp_fm_release (fm_work1,error=error)
+!dbg
+!       CALL cp_fm_release (fm_work2,error=error)
+!dbg
+
     END DO  ! ispin
 !dbg
-!    DO idir = 1,3
-!       CALL get_mo_set(mos(1)%mo_set, mo_coeff=mo_coeff, nao=nao)
-! write(*,*) 'idir ', idir
-!         ov_tmp = 0.0_dp
-!         CALL dgemm('T','N',4,4,nao,1.0_dp,mo_coeff%local_data(1,1),&
-!              nao, nmr_env%rxp_psi0(ispin,idir)%matrix%local_data(1,1),&
-!              nao,0.0_dp,ov_tmp(1,1),4)
-!         do i = 1,4
-!         write(*,'(I4,4f12.6)') i,( ov_tmp(i,j), j=1,4)
-!         end do 
 !        stop 'rxp'
-!    END DO
 !dbg
 
-    ! Calculate the x y z x2 xy xz y2 yz z2 operators (in this order)
-    output_unit = cp_print_key_unit_nr(logger,lr_section,"PRINT%PROGRAM_RUN_INFO",&
-         extension=".linresLog",error=error)
-    IF (output_unit>0) THEN
-      WRITE (UNIT=output_unit,FMT="(T10,A,/)")&
-         "Calculation of the (r-Rc) operator at first and second order"
-    END IF
-    CALL cp_print_key_finished_output(output_unit,logger,lr_section,&
-         "PRINT%PROGRAM_RUN_INFO",error=error)
-    soft_only = dft_control%qs_control%gapw
-    dk =  linres_control%localized_wfn_control%centers_set(1)%array(1:3,1)
-    CALL rRc_xyz_ao(nmr_env%op_mom_ao,qs_env,dk,order=2,minimum_image=.TRUE.,error=error)
+
     DEALLOCATE (first_sgf,last_sgf,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
+    DEALLOCATE(vecbuf_c0,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     DO idir = 1,3
-      DEALLOCATE(vecbuf_p0(idir)%array,STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-      DEALLOCATE(vecbuf_rxp0(idir)%array,STAT=istat)
-      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-      DEALLOCATE(vecbuf_cmd(idir)%array,STAT=istat)
+      DEALLOCATE(vecbuf_Rmdc0(idir)%array,STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     END DO
+
+    CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE nmr_operators
 

@@ -674,7 +674,7 @@ CONTAINS
 
     INTEGER                                  :: ia, iso, ispin, na
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: rad, urad, usin_ia
+    REAL(KIND=dp)                            :: rad, urad
 
    failure = .FALSE.
    CPPostcondition(ASSOCIATED(r_h),cp_failure_level,routineP,error,failure)
@@ -714,9 +714,8 @@ CONTAINS
       DO ispin = 1,nspins
          DO iso = 1,harmonics%max_iso_not0
             DO ia = 1,na
-               usin_ia = grid_atom%usin_theta(ia) 
 
-!              icomponents of the gradient of rho1 hard 
+!              components of the gradient of rho1 hard 
                drho_h(1,ia,ir,ispin) = drho_h(1,ia,ir,ispin) + & 
                                        dr_h(ispin)%r_coef(ir,iso)*&
                                        harmonics%a(1,ia)*harmonics%slm(ia,iso) +&

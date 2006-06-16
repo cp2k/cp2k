@@ -37,25 +37,35 @@ MODULE qs_linres_nmr_utils
   USE convert_units,                   ONLY: convert_to_cp2k_units
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
   USE cp_control_types,                ONLY: dft_control_type
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
+                                             cp_fm_scale_and_add
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                              fm_pool_create_fm,&
                                              fm_pool_give_back_fm,&
                                              fm_pools_create_fm_vect,&
                                              fm_pools_give_back_fm_vect
-  USE cp_fm_types,                     ONLY: cp_fm_get_submatrix,&
+  USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
+                                             cp_fm_struct_release,&
+                                             cp_fm_struct_type
+  USE cp_fm_types,                     ONLY: cp_fm_create,&
+                                             cp_fm_get_submatrix,&
                                              cp_fm_p_type,&
+                                             cp_fm_release,&
                                              cp_fm_set_all,&
                                              cp_fm_set_submatrix,&
-                                             cp_fm_to_fm
+                                             cp_fm_to_fm,&
+                                             cp_fm_type
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_parser,                       ONLY: cp_parser_type,&
                                              parser_create,&
                                              parser_get_next_line,&
                                              parser_get_object,&
                                              parser_release
+  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE input_constants,                 ONLY: restart_guess
   USE input_section_types,             ONLY: section_get_ival,&
                                              section_vals_get_subs_vals,&
@@ -123,22 +133,27 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'nmr_do_nmr', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, iao, idir, idir2, ii, &
-                                                iii, ispin, ist_true, istat, &
-                                                istate, istate2, ncubes, &
+    INTEGER                                  :: handle, homo, iao, idir, idir2, ii, &
+                                                iii, ik, ispin, ist_true, istat, &
+                                                istate, istate2, nao, nmo, ncubes, &
                                                 output_unit
     LOGICAL                                  :: failure, ionode
     REAL(dp)                                 :: dk(3), dkl(3), dl(3)
+    REAL(dp), DIMENSION(:), POINTER          :: dkl_vec_ii,dkl_vec_iii
     REAL(dp), DIMENSION(:, :), POINTER       :: vecbuf_dklxp0
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_2d_r_p_type), DIMENSION(3)       :: vecbuf_p0
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: h1_psi0, psi1
+    TYPE(cp_fm_type), POINTER                :: mo_coeff, fm_work_ii, fm_work_iii
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
       POINTER                                :: ao_mo_fm_pools
+    TYPE(cp_fm_struct_type), POINTER         :: tmp_fm_struct
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(linres_control_type), POINTER       :: linres_control
+    TYPE(mo_set_p_type), DIMENSION(:), &
+      POINTER                                :: mos
     TYPE(qs_matrix_pools_type), POINTER      :: mpools
     TYPE(section_vals_type), POINTER         :: lr_section, nmr_section
 
@@ -146,7 +161,8 @@ CONTAINS
     CALL timeset(routineN,"I"," ",handle)
 
     NULLIFY(ao_mo_fm_pools, cell, dft_control, linres_control, lr_section, nmr_section)
-    NULLIFY(logger, mpools, psi1,h1_psi0, vecbuf_dklxp0)
+    NULLIFY(logger, mpools, psi1,h1_psi0, vecbuf_dklxp0, mos, mo_coeff,para_env )
+    NULLIFY(fm_work_ii, fm_work_iii, tmp_fm_struct, dkl_vec_ii,dkl_vec_iii )
 
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
@@ -164,7 +180,8 @@ CONTAINS
     CALL get_qs_env(qs_env=qs_env,&
           dft_control= dft_control,&
           mpools=mpools,cell=cell,&
-          linres_control=linres_control)
+          linres_control=linres_control,&
+          mos=mos,para_env=para_env)
 
     !----------------------!
     ! allocate the vectors !
@@ -179,7 +196,7 @@ CONTAINS
     END IF
 
     ! operator p
-    DO idir = 1,3
+    DO idir = 1,-3
       IF(.NOT. nmr_env%simplenmr_done(idir)) THEN
 
          IF(output_unit>0) THEN
@@ -243,13 +260,11 @@ CONTAINS
     END DO ! idir
 
     ! operator rxp
-!dbg
-      DO idir = 1,3
-         CALL cp_fm_set_all(nmr_env%psi1_rxp(1,idir)%matrix,0.0_dp,error=error)
-      END DO 
-!dbg
+    DO idir = 1,3
+       CALL cp_fm_set_all(nmr_env%psi1_rxp(1,idir)%matrix,0.0_dp,error=error)
+    END DO 
 
-    DO idir = 1,-1!3 
+    DO idir = 1,3 
 
       IF(.NOT. nmr_env%simplenmr_done(idir+3)) THEN
 
@@ -315,17 +330,26 @@ CONTAINS
        END DO 
 
 !      The correction is state depedent a loop over the states is necessary
-       DO idir = 1,3 
-         NULLIFY(vecbuf_p0(idir)%array,vecbuf_dklxp0)
-         ALLOCATE(vecbuf_p0(idir)%array(1,nmr_env%nao),STAT=istat)
-         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-         vecbuf_p0(idir)%array(1,nmr_env%nao) = 0.0_dp
-       END DO
        ALLOCATE(vecbuf_dklxp0(1,nmr_env%nao),STAT=istat)
        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        vecbuf_dklxp0(1,nmr_env%nao) = 0.0_dp
 
        DO ispin=1, dft_control%nspins
+
+         CALL get_mo_set(mo_set=mos(ispin)%mo_set,nao=nao,nmo=nmo,homo=homo)
+         NULLIFY(tmp_fm_struct)
+         CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=nao,&
+               ncol_global=nmo,para_env=para_env,context=mo_coeff%matrix_struct%context)
+         CALL cp_fm_create (fm_work_ii, tmp_fm_struct )
+         CALL cp_fm_set_all(fm_work_ii,0.0_dp,error=error)
+         CALL cp_fm_create (fm_work_iii, tmp_fm_struct )
+         CALL cp_fm_set_all(fm_work_iii,0.0_dp,error=error)
+         CALL cp_fm_struct_release ( tmp_fm_struct )
+
+         ALLOCATE(dkl_vec_ii(nmr_env%nstates(ispin)),STAT=istat)
+         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+         ALLOCATE(dkl_vec_iii(nmr_env%nstates(ispin)),STAT=istat)
+         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
          DO idir = 1,3
            DO istate = 1,nmr_env%nstates(ispin)
              ist_true = nmr_env%statetrueindex(idir,istate)
@@ -342,21 +366,30 @@ CONTAINS
              DO istate2 = 1,nmr_env%nstates(ispin)
                 dl(1:3)  = nmr_env%centers_set(ispin)%array(1:3,istate2)
                 dkl = pbc(dl,dk,cell)
+                dkl_vec_ii(istate2)  = dkl(ii)
+                dkl_vec_iii(istate2) = dkl(iii)
+             END DO
 
-               DO idir2 = 1,3
-                  CALL cp_fm_get_submatrix(nmr_env%p_psi0(ispin,idir2)%matrix,&
-                       vecbuf_p0(idir2)%array,&
-                       1,istate2,nmr_env%nao,1,transpose=.TRUE.,error=error)
-               END DO
+         ! First term
+             ! Rescale the ground zero orbitals by (dk-dl)_ii
+             CALL cp_fm_to_fm(mo_coeff,fm_work_ii,error=error)
+             CALL cp_fm_column_scale(fm_work_ii,dkl_vec_ii(1:homo)) 
+             ! Apply the p_iii operator
+             CALL cp_sm_fm_multiply(nmr_env%op_p_ao(iii)%matrix,fm_work_ii,&
+                   fm_work_iii,ncol=nmo,alpha=-1.0_dp,error=error)
+             ! Copy in h1_psi1
+             CALL cp_fm_to_fm(fm_work_iii,h1_psi0(ispin)%matrix,error=error)
 
-               DO iao = 1,nmr_env%nao
-                  vecbuf_dklxp0(1,iao) = dkl(ii)* vecbuf_p0(iii)%array(1,iao)-&
-                                         dkl(iii)* vecbuf_p0(ii)%array(1,iao)
-               END DO  ! iao
-               CALL cp_fm_set_submatrix(h1_psi0(ispin)%matrix, vecbuf_dklxp0,&
-                     1,istate2,nmr_env%nao,1,transpose=.TRUE.,error=error)
 
-             END DO ! istate2 
+         ! Second term
+             ! Rescale the ground zero orbitals by (dk-dl)_iii
+             CALL cp_fm_to_fm(mo_coeff,fm_work_iii,error=error)
+             CALL cp_fm_column_scale(fm_work_iii,dkl_vec_iii(1:homo)) 
+             ! Apply the p_iii operator
+             CALL cp_sm_fm_multiply(nmr_env%op_p_ao(ii)%matrix,fm_work_iii,&
+                   fm_work_ii,ncol=nmo,alpha=-1.0_dp,error=error)
+             ! Copy in h1_psi1
+             CALL cp_fm_scale_and_add(1.0_dp,h1_psi0(ispin)%matrix,-1.0_dp,fm_work_ii,error=error)
 
              ! Optimize the response wavefunctions 
              CALL linres_scf(p_env, qs_env, psi1, h1_psi0,error=error)
@@ -367,9 +400,9 @@ CONTAINS
              END IF
              ! the optimized wfns are copied in the  fm
              CALL cp_fm_get_submatrix(psi1(ispin)%matrix,vecbuf_dklxp0 ,&
-                    1,ist_true,nmr_env%nao,1,transpose=.TRUE.,error=error)
+                    1,ist_true,nao,1,transpose=.TRUE.,error=error)
              CALL cp_fm_set_submatrix(nmr_env%psi1_D(ispin,idir)%matrix, vecbuf_dklxp0,&
-                    1,ist_true,nmr_env%nao,1,transpose=.TRUE.,error=error)
+                    1,ist_true,nao,1,transpose=.TRUE.,error=error)
              nmr_env%fullnmr_done(idir*ispin,istate) = .TRUE.
 
            END DO  ! istate
@@ -384,10 +417,14 @@ CONTAINS
                     "PRINT%RESPONSE_FUNCTION_CUBES%STRIDE"),error=error)
            END IF  ! print response functions
 
-
-!        CALL nmr_restart_nmr(nmr_env,qs_env,action="write",ivec=idir+6,error=error)
+!          CALL nmr_restart_nmr(nmr_env,qs_env,action="write",ivec=idir+6,error=error)
           
-        END DO  ! idir
+         END DO  ! idir
+
+         CALL cp_fm_release(fm_work_ii,error=error)
+         CALL cp_fm_release(fm_work_iii,error=error)
+         DEALLOCATE(dkl_vec_ii,dkl_vec_iii,STAT=istat)
+         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        END DO  ! ispin
      END IF
 
@@ -628,7 +665,8 @@ CONTAINS
 
 !    Conversion factors
      nmr_env%shift_factor = 1.0_dp
-     nmr_env%chi_factor = 1.0_dp
+!    chi_factor =  1/4 * e^2/m * a_0 ^2
+     nmr_env%chi_factor = 1.9727566E-29_dp / 1.0E-30_dp ! -> displayed in 10^-30 J/T^2
      nmr_env%shift_SI_ppm = 1.0_dp
      nmr_env%chi_SI_ppm = 1.0_dp
 
@@ -713,32 +751,16 @@ CONTAINS
 
      ! px py pz operator acting on the atomic orbitals
      CALL allocate_matrix_set(nmr_env%op_p_ao,3)
-     ! FIX_ME : this matrix should be antisymmetric, but the multiplication
-     !          between an amtisymmetric sparse-matrix and the full-matrix seems not
-     !          to wark properly. Therefore for the time being this is a 
-     !          sparse matrix with no specified symmetry, which means that
-     !          all the blocks need to be allocated and computed.
-     CALL set_up_op_sm(nmr_env%op_p_ao(1)%matrix,qs_env,symmetry="none",&
+     CALL set_up_op_sm(nmr_env%op_p_ao(1)%matrix,qs_env,symmetry="antisymmetric",&
           name="OP_P",error=error)
      CALL set_matrix(nmr_env%op_p_ao(1)%matrix,0.0_dp)
      DO idir = 2,3 
        CALL replicate_matrix_structure(nmr_env%op_p_ao(1)%matrix, &
             nmr_env%op_p_ao(idir)%matrix,&
             "nmr_env%op_p_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir))),&
-            target_symmetry="none")
+            target_symmetry="antisymmetric")
        CALL set_matrix(nmr_env%op_p_ao(idir)%matrix,0.0_dp)
      END DO
-
-     ! x  y z   x2 xy xz y2 yz z2 operators (in this order)
-     CALL allocate_matrix_set(nmr_env%op_mom_ao,9)
-     DO idir = 1,SIZE(nmr_env%op_mom_ao,1)
-       CALL replicate_matrix_structure(matrix_s(1)%matrix, &
-            nmr_env%op_mom_ao(idir)%matrix,&
-            "nmr_env%op_mom_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir))),&
-            target_symmetry="symmetric")
-       CALL set_matrix(nmr_env%op_mom_ao(idir)%matrix,0.0_dp)
-     END DO
-
 
      ! for the rxp we cannot calculate it a priori because it is in facts (r-dk)xp 
      ! where dk is the center of the orbital it is applied to. We would need nstate operators

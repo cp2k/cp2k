@@ -43,6 +43,8 @@ MODULE ai_angmom
 
 ! *****************************************************************************
 
+  USE ai_moments,                      ONLY: moment
+  USE ai_derivatives,                  ONLY: dabdr
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
   USE orbital_pointers,                ONLY: coset,&
@@ -54,7 +56,7 @@ MODULE ai_angmom
 
 ! *** Public subroutines ***
 
-  PUBLIC :: angmom
+  PUBLIC :: angmom, angmom2
 
 ! *****************************************************************************
 
@@ -266,7 +268,8 @@ CONTAINS
 
             rbp(:) = rap(:) - rab(:)
 
-!           *** [a|L|p] = [a+1i|L|s] - (Bi - Ai)*[a|L|s] ***
+!           *** [a|L|p] = [a+1i|Lm|s] - (Bi - Ai)*[a|Lm|s] ***
+!           ***         + [a+1k|s] + (Ak - Ck)*[a|s]  eps(i,m,k)
 
             IF (lb_max == 1) THEN
               la_start = la_min
@@ -278,30 +281,36 @@ CONTAINS
               DO ax=0,la
                 DO ay=0,la-ax
                   az = la - ax - ay
-                  s(coset(ax,ay,az),2) = s(coset(ax+1,ay,az),1) -&
-                                         rab(1)*s(coset(ax,ay,az),1)
-                  s(coset(ax,ay,az),3) = s(coset(ax,ay+1,az),1) -&
-                                         rab(2)*s(coset(ax,ay,az),1)
-                  s(coset(ax,ay,az),4) = s(coset(ax,ay,az+1),1) -&
-                                         rab(3)*s(coset(ax,ay,az),1)
-                  as(coset(ax,ay,az),2,1) = as(coset(ax+1,ay,az),1,1) -&
-                                         rab(1)*as(coset(ax,ay,az),1,1)
-                  as(coset(ax,ay,az),3,1) = as(coset(ax,ay+1,az),1,1) -&
-                                         rab(2)*as(coset(ax,ay,az),1,1)
-                  as(coset(ax,ay,az),4,1) = as(coset(ax,ay,az+1),1,1) -&
-                                         rab(3)*as(coset(ax,ay,az),1,1)
-                  as(coset(ax,ay,az),2,2) = as(coset(ax+1,ay,az),1,2) -&
-                                         rab(1)*as(coset(ax,ay,az),1,2)
-                  as(coset(ax,ay,az),3,2) = as(coset(ax,ay+1,az),1,2) -&
-                                         rab(2)*as(coset(ax,ay,az),1,2)
-                  as(coset(ax,ay,az),4,2) = as(coset(ax,ay,az+1),1,2) -&
-                                         rab(3)*as(coset(ax,ay,az),1,2)
-                  as(coset(ax,ay,az),2,3) = as(coset(ax+1,ay,az),1,3) -&
-                                         rab(1)*as(coset(ax,ay,az),1,3)
-                  as(coset(ax,ay,az),3,3) = as(coset(ax,ay+1,az),1,3) -&
-                                         rab(2)*as(coset(ax,ay,az),1,3)
-                  as(coset(ax,ay,az),4,3) = as(coset(ax,ay,az+1),1,3) -&
-                                         rab(3)*as(coset(ax,ay,az),1,3)
+                  s(coset(ax,ay,az),2) = s(coset(ax+1,ay,az),1) - &
+                                                 rab(1)*s(coset(ax,ay,az),1)
+                  s(coset(ax,ay,az),3) = s(coset(ax,ay+1,az),1) - &
+                                                 rab(2)*s(coset(ax,ay,az),1)
+                  s(coset(ax,ay,az),4) = s(coset(ax,ay,az+1),1) - &
+                                                 rab(3)*s(coset(ax,ay,az),1)
+                  as(coset(ax,ay,az),2,1) = as(coset(ax+1,ay,az),1,1) - &
+                                                 rab(1)*as(coset(ax,ay,az),1,1)
+                  as(coset(ax,ay,az),3,1) = as(coset(ax,ay+1,az),1,1) - & 
+                                                 rab(2)*as(coset(ax,ay,az),1,1) &
+                                - s(coset(ax,ay,az+1),1) - rac(3)*s(coset(ax,ay,az),1)
+                  as(coset(ax,ay,az),4,1) = as(coset(ax,ay,az+1),1,1) - &
+                                                 rab(3)*as(coset(ax,ay,az),1,1) &
+                                + s(coset(ax,ay+1,az),1) + rac(2)*s(coset(ax,ay,az),1)
+                  as(coset(ax,ay,az),2,2) = as(coset(ax+1,ay,az),1,2) - &
+                                                 rab(1)*as(coset(ax,ay,az),1,2) &
+                                + s(coset(ax,ay,az+1),1) + rac(3)*s(coset(ax,ay,az),1)
+                  as(coset(ax,ay,az),3,2) = as(coset(ax,ay+1,az),1,2) - &
+                                                 rab(2)*as(coset(ax,ay,az),1,2)
+                  as(coset(ax,ay,az),4,2) = as(coset(ax,ay,az+1),1,2) - &
+                                                 rab(3)*as(coset(ax,ay,az),1,2) &
+                                - s(coset(ax+1,ay,az),1) - rac(1)*s(coset(ax,ay,az),1)
+                  as(coset(ax,ay,az),2,3) = as(coset(ax+1,ay,az),1,3) - &
+                                                 rab(1)*as(coset(ax,ay,az),1,3) &
+                                - s(coset(ax,ay+1,az),1) - rac(2)*s(coset(ax,ay,az),1)
+                  as(coset(ax,ay,az),3,3) = as(coset(ax,ay+1,az),1,3) - &
+                                                 rab(2)*as(coset(ax,ay,az),1,3) &
+                                + s(coset(ax+1,ay,az),1) + rac(1)*s(coset(ax,ay,az),1)
+                  as(coset(ax,ay,az),4,3) = as(coset(ax,ay,az+1),1,3) - &
+                                                 rab(3)*as(coset(ax,ay,az),1,3)
                 END DO
               END DO
             END DO
@@ -403,7 +412,8 @@ CONTAINS
 
 !             *** Horizontal recurrence steps ***
 
-!             *** [a|L|b] = [a+1i|L|b-1i] - (Bi - Ai)*[a|L|b-1i] ***
+!             *** [a|Lm|b] = [a+1i|Lm|b-1i] - (Bi - Ai)*[a|Lm|b-1i] ***
+!             ***         + [a+1k|b-1i] + (Ak - Ck)*[a|b-1i]  eps(i,m,k)
 
               IF (lb == lb_max) THEN
                 la_start = la_min
@@ -423,10 +433,14 @@ CONTAINS
                       rab(3)*s(coset(ax,ay,az),coset(0,0,lb-1))
                     as(coset(ax,ay,az),coset(0,0,lb),1) =&
                       as(coset(ax,ay,az+1),coset(0,0,lb-1),1) -&
-                      rab(3)*as(coset(ax,ay,az),coset(0,0,lb-1),1) 
+                      rab(3)*as(coset(ax,ay,az),coset(0,0,lb-1),1) &
+                      +s(coset(ax,ay+1,az),coset(0,0,lb-1)) &
+                      +rac(2)*s(coset(ax,ay,az),coset(0,0,lb-1))
                     as(coset(ax,ay,az),coset(0,0,lb),2) =&
                       as(coset(ax,ay,az+1),coset(0,0,lb-1),2) -&
-                      rab(3)*as(coset(ax,ay,az),coset(0,0,lb-1),2)
+                      rab(3)*as(coset(ax,ay,az),coset(0,0,lb-1),2) &
+                      -s(coset(ax+1,ay,az),coset(0,0,lb-1)) &
+                      -rac(1)*s(coset(ax,ay,az),coset(0,0,lb-1))
                     as(coset(ax,ay,az),coset(0,0,lb),3) =&
                       as(coset(ax,ay,az+1),coset(0,0,lb-1),3) -&
                       rab(3)*as(coset(ax,ay,az),coset(0,0,lb-1),3)
@@ -440,13 +454,17 @@ CONTAINS
                         rab(2)*s(coset(ax,ay,az),coset(0,by-1,bz))
                       as(coset(ax,ay,az),coset(0,by,bz),1) =&
                         as(coset(ax,ay+1,az),coset(0,by-1,bz),1) -&
-                        rab(2)*as(coset(ax,ay,az),coset(0,by-1,bz),1)
+                        rab(2)*as(coset(ax,ay,az),coset(0,by-1,bz),1) &
+                        -s(coset(ax,ay,az+1),coset(0,by-1,bz)) &
+                        -rac(3)*s(coset(ax,ay,az),coset(0,by-1,bz))
                       as(coset(ax,ay,az),coset(0,by,bz),2) =&
                         as(coset(ax,ay+1,az),coset(0,by-1,bz),2) -&
                         rab(2)*as(coset(ax,ay,az),coset(0,by-1,bz),2)
                       as(coset(ax,ay,az),coset(0,by,bz),3) =&
                         as(coset(ax,ay+1,az),coset(0,by-1,bz),3) -&
-                        rab(2)*as(coset(ax,ay,az),coset(0,by-1,bz),3)
+                        rab(2)*as(coset(ax,ay,az),coset(0,by-1,bz),3) &
+                        +s(coset(ax+1,ay,az),coset(0,by-1,bz)) &
+                        +rac(1)*s(coset(ax,ay,az),coset(0,by-1,bz))
                     END DO
 
 !                   *** Shift of angular momentum component x from a to b ***
@@ -462,10 +480,14 @@ CONTAINS
                           rab(1)*as(coset(ax,ay,az),coset(bx-1,by,bz),1)
                         as(coset(ax,ay,az),coset(bx,by,bz),2) =&
                           as(coset(ax+1,ay,az),coset(bx-1,by,bz),2) -&
-                          rab(1)*as(coset(ax,ay,az),coset(bx-1,by,bz),2)
+                          rab(1)*as(coset(ax,ay,az),coset(bx-1,by,bz),2) &
+                          +s(coset(ax,ay,az+1),coset(bx-1,by,bz)) &
+                          +rac(3)*s(coset(ax,ay,az),coset(bx-1,by,bz))
                         as(coset(ax,ay,az),coset(bx,by,bz),3) =&
                           as(coset(ax+1,ay,az),coset(bx-1,by,bz),3) -&
-                          rab(1)*as(coset(ax,ay,az),coset(bx-1,by,bz),3)
+                          rab(1)*as(coset(ax,ay,az),coset(bx-1,by,bz),3) &
+                          -s(coset(ax,ay+1,az),coset(bx-1,by,bz)) &
+                          -rac(2)*s(coset(ax,ay,az),coset(bx-1,by,bz))
                       END DO
                     END DO
 
@@ -480,7 +502,7 @@ CONTAINS
 !             *** [a|L|b] = (Pi - Bi)*[a|L|b-1i] + f2*Ni(a)*[a-1i|L|b-1i] + ***
 !             ***         f2*Ni(b-1i)*[a|L|b-2i]                            ***
 !             ***         + xa/(xa+xb)*(AC x 1i)*[a|b-1i]                   ***
-!             ***         + 0.5*zetp*SUM_k Nk(a)*(1k x 1i)*[a-1k|b-1i]          ***
+!             ***         + 0.5*zetp*SUM_k Nk(a)*(1k x 1i)*[a-1k|b-1i]      ***
 
               DO ax=0,la_max
                 fx = f2*REAL(ax,dp)
@@ -532,10 +554,10 @@ CONTAINS
                   END IF
                   IF ( ay > 0 ) as(coset(ax,ay,az),coset(0,0,lb),1) =&
                                 as(coset(ax,ay,az),coset(0,0,lb),1) +&
-                                f2*REAL(ay,dp)*s(coset(ax,ay-1,az),coset(0,0,lb))
+                                f2*REAL(ay,dp)*s(coset(ax,ay-1,az),coset(0,0,lb-1))
                   IF ( ax > 0 ) as(coset(ax,ay,az),coset(0,0,lb),2) =&
                                 as(coset(ax,ay,az),coset(0,0,lb),2) -&
-                                f2*REAL(ax,dp)*s(coset(ax-1,ay,az),coset(0,0,lb))
+                                f2*REAL(ax,dp)*s(coset(ax-1,ay,az),coset(0,0,lb-1))
 
 !                 *** Increase the angular momentum component y of function b ***
 
@@ -554,10 +576,10 @@ CONTAINS
                       ac2(3)*s(coset(ax,ay,az),coset(0,0,bz))
                     IF ( az > 0 ) as(coset(ax,ay,az),coset(0,1,bz),1) =&
                                   as(coset(ax,ay,az),coset(0,1,bz),1) -&
-                                  f2*REAL(az,dp)*s(coset(ax,ay,az-1),coset(0,1,bz))
+                                  f2*REAL(az,dp)*s(coset(ax,ay,az-1),coset(0,0,bz))
                     IF ( ax > 0 ) as(coset(ax,ay,az),coset(0,1,bz),3) =&
                                   as(coset(ax,ay,az),coset(0,1,bz),3) +&
-                                  f2*REAL(ax,dp)*s(coset(ax-1,ay,az),coset(0,1,bz))
+                                  f2*REAL(ax,dp)*s(coset(ax-1,ay,az),coset(0,0,bz))
                     DO by=2,lb
                       bz = lb - by
                       f3 = f2*REAL(by-1,dp)
@@ -578,10 +600,10 @@ CONTAINS
                         ac2(3)*s(coset(ax,ay,az),coset(0,by-1,bz))
                       IF ( az > 0 ) as(coset(ax,ay,az),coset(0,by,bz),1) =&
                                     as(coset(ax,ay,az),coset(0,by,bz),1) -&
-                                    f2*REAL(az,dp)*s(coset(ax,ay,az-1),coset(0,by,bz))
+                                    f2*REAL(az,dp)*s(coset(ax,ay,az-1),coset(0,by-1,bz))
                       IF ( ax > 0 ) as(coset(ax,ay,az),coset(0,by,bz),3) =&
                                     as(coset(ax,ay,az),coset(0,by,bz),3) +&
-                                    f2*REAL(ax,dp)*s(coset(ax-1,ay,az),coset(0,by,bz))
+                                    f2*REAL(ax,dp)*s(coset(ax-1,ay,az),coset(0,by-1,bz))
                     END DO
                   ELSE
                     bz = lb - 1
@@ -602,10 +624,10 @@ CONTAINS
                       ac2(3)*s(coset(ax,ay,az),coset(0,0,bz))
                     IF ( az > 0 ) as(coset(ax,ay,az),coset(0,1,bz),1) =&
                                   as(coset(ax,ay,az),coset(0,1,bz),1) -&
-                                  f2*REAL(az,dp)*s(coset(ax,ay,az-1),coset(0,1,bz))
+                                  f2*REAL(az,dp)*s(coset(ax,ay,az-1),coset(0,0,bz))
                     IF ( ax > 0 ) as(coset(ax,ay,az),coset(0,1,bz),3) =&
                                   as(coset(ax,ay,az),coset(0,1,bz),3) +&
-                                  f2*REAL(ax,dp)*s(coset(ax-1,ay,az),coset(0,1,bz))
+                                  f2*REAL(ax,dp)*s(coset(ax-1,ay,az),coset(0,0,bz))
                     DO by=2,lb
                       bz = lb - by
                       f3 = f2*REAL(by-1,dp)
@@ -630,10 +652,10 @@ CONTAINS
                         ac2(3)*s(coset(ax,ay,az),coset(0,by-1,bz))
                       IF ( az > 0 ) as(coset(ax,ay,az),coset(0,by,bz),1) =&
                                     as(coset(ax,ay,az),coset(0,by,bz),1) -&
-                                    f2*REAL(az,dp)*s(coset(ax,ay,az-1),coset(0,by,bz))
+                                    f2*REAL(az,dp)*s(coset(ax,ay,az-1),coset(0,by-1,bz))
                       IF ( ax > 0 ) as(coset(ax,ay,az),coset(0,by,bz),3) =&
                                     as(coset(ax,ay,az),coset(0,by,bz),3) +&
-                                    f2*REAL(ax,dp)*s(coset(ax-1,ay,az),coset(0,by,bz))
+                                    f2*REAL(ax,dp)*s(coset(ax-1,ay,az),coset(0,by-1,bz))
                     END DO
                   END IF
 
@@ -655,10 +677,10 @@ CONTAINS
                         ac1(3)*s(coset(ax,ay,az),coset(0,by,bz))
                       IF ( az > 0 ) as(coset(ax,ay,az),coset(1,by,bz),2) =&
                                     as(coset(ax,ay,az),coset(1,by,bz),2) +&
-                                    f2*REAL(az,dp)*s(coset(ax,ay,az-1),coset(1,by,bz))
+                                    f2*REAL(az,dp)*s(coset(ax,ay,az-1),coset(0,by,bz))
                       IF ( ay > 0 ) as(coset(ax,ay,az),coset(1,by,bz),3) =&
                                     as(coset(ax,ay,az),coset(1,by,bz),3) -&
-                                    f2*REAL(ay,dp)*s(coset(ax,ay-1,az),coset(1,by,bz))
+                                    f2*REAL(ay,dp)*s(coset(ax,ay-1,az),coset(0,by,bz))
                     END DO
                     DO bx=2,lb
                       f3 = f2*REAL(bx-1,dp)
@@ -681,10 +703,10 @@ CONTAINS
                           ac1(3)*s(coset(ax,ay,az),coset(bx-1,by,bz))
                         IF ( az > 0 ) as(coset(ax,ay,az),coset(bx,by,bz),2) =&
                                       as(coset(ax,ay,az),coset(bx,by,bz),2) +&
-                                      f2*REAL(az,dp)*s(coset(ax,ay,az-1),coset(bx,by,bz))
+                                      f2*REAL(az,dp)*s(coset(ax,ay,az-1),coset(bx-1,by,bz))
                         IF ( ay > 0 ) as(coset(ax,ay,az),coset(bx,by,bz),3) =&
                                       as(coset(ax,ay,az),coset(bx,by,bz),3) -&
-                                      f2*REAL(ay,dp)*s(coset(ax,ay-1,az),coset(bx,by,bz))
+                                      f2*REAL(ay,dp)*s(coset(ax,ay-1,az),coset(bx-1,by,bz))
                       END DO
                     END DO
                   ELSE
@@ -707,10 +729,10 @@ CONTAINS
                         ac1(3)*s(coset(ax,ay,az),coset(0,by,bz))
                       IF ( az > 0 ) as(coset(ax,ay,az),coset(1,by,bz),2) =&
                                     as(coset(ax,ay,az),coset(1,by,bz),2) +&
-                                    f2*REAL(az,dp)*s(coset(ax,ay,az-1),coset(1,by,bz))
+                                    f2*REAL(az,dp)*s(coset(ax,ay,az-1),coset(0,by,bz))
                       IF ( ay > 0 ) as(coset(ax,ay,az),coset(1,by,bz),3) =&
                                     as(coset(ax,ay,az),coset(1,by,bz),3) -&
-                                    f2*REAL(ay,dp)*s(coset(ax,ay-1,az),coset(1,by,bz))
+                                    f2*REAL(ay,dp)*s(coset(ax,ay-1,az),coset(0,by,bz))
                     END DO
                     DO bx=2,lb
                       f3 = f2*REAL(bx-1,dp)
@@ -737,10 +759,10 @@ CONTAINS
                           ac1(3)*s(coset(ax,ay,az),coset(bx-1,by,bz))
                       IF ( az > 0 ) as(coset(ax,ay,az),coset(bx,by,bz),2) =&
                                     as(coset(ax,ay,az),coset(bx,by,bz),2) +&
-                                    f2*REAL(az,dp)*s(coset(ax,ay,az-1),coset(bx,by,bz))
+                                    f2*REAL(az,dp)*s(coset(ax,ay,az-1),coset(bx-1,by,bz))
                       IF ( ay > 0 ) as(coset(ax,ay,az),coset(bx,by,bz),3) =&
                                     as(coset(ax,ay,az),coset(bx,by,bz),3) -&
-                                    f2*REAL(ay,dp)*s(coset(ax,ay-1,az),coset(bx,by,bz))
+                                    f2*REAL(ay,dp)*s(coset(ax,ay-1,az),coset(bx-1,by,bz))
                       END DO
                     END DO
                   END IF
@@ -876,6 +898,68 @@ CONTAINS
     END DO
 
   END SUBROUTINE angmom
+
+! *****************************************************************************
+  SUBROUTINE angmom2(la_max,npgfa,zeta,rpgfa,la_min,&
+                     lb_max,npgfb,zetb,rpgfb,lb_min,&
+                     rac,rbc,angab)
+
+    INTEGER, INTENT(IN)                      :: la_max, npgfa
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zeta, rpgfa
+    INTEGER, INTENT(IN)                      :: la_min, lb_max, npgfb
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zetb, rpgfb
+    INTEGER, INTENT(IN)                      :: lb_min
+    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rac, rbc
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      INTENT(INOUT)                          :: angab
+
+    INTEGER                                  :: lda_min, ldb_min, lmax, lds, i,&
+                                                ia, ib, na, nb, ja, jb, istat
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      POINTER                                :: mab
+    REAL(KIND=dp), DIMENSION(:, :, :, :), &
+      POINTER                                :: dmab
+    REAL(KIND=dp)                            :: dab
+!   ---------------------------------------------------------------------------
+
+    dab = SQRT( SUM ((rac - rbc)**2) )
+
+    lda_min = MAX ( 0, la_min-1 )
+    ldb_min = MAX ( 0, lb_min-1 )
+    lmax = MAX(la_max+1,lb_max+1)
+    lds = ncoset(lmax+1)*MAX(npgfa,npgfb)
+    ALLOCATE(mab(lds,lds,3),STAT=istat)
+    ALLOCATE(dmab(lds,lds,3,3),STAT=istat)
+    mab = 0.0_dp
+    CALL moment(lb_max+1,npgfb,zetb,rpgfb,ldb_min,&
+                la_max,npgfa,zeta,rpgfa,lda_min,&
+                1,rbc,rac,mab)
+
+    DO i=1,3
+      CALL dabdr(lb_max,npgfb,zetb,rpgfb,lb_min,&
+                 la_max,npgfa,zeta,rpgfa,la_min,&
+                 dab,mab(:,:,i),dmab(:,:,1,i),dmab(:,:,2,i),dmab(:,:,3,i))
+    END DO
+
+    na=0
+    DO ia=1,npgfa
+      nb=0
+      DO ib=1,npgfb
+        do ja=na+1,na+ncoset(la_max)
+          do jb=nb+1,nb+ncoset(lb_max)
+            angab(ja,jb,1) = -dmab(jb,ja,3,2) + dmab(jb,ja,2,3)
+            angab(ja,jb,2) = -dmab(jb,ja,1,3) + dmab(jb,ja,3,1)
+            angab(ja,jb,3) = -dmab(jb,ja,2,1) + dmab(jb,ja,1,2)
+          enddo
+        enddo
+        nb = nb + ncoset(lb_max)
+      END DO
+      na = na + ncoset(la_max)
+    END DO
+
+    DEALLOCATE(mab,dmab,STAT=istat)
+
+  END SUBROUTINE angmom2
 
 ! *****************************************************************************
 

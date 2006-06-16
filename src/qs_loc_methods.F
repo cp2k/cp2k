@@ -332,12 +332,13 @@ CONTAINS
 
     SELECT CASE ( method ) 
     CASE ( do_loc_jacobi )
-       CALL jacobi_rotations ( weights, zij_fm_set, vectors, max_iter=100000,eps_localization=1.0E-4_dp, sweeps=sweeps ) 
+       CALL jacobi_rotations ( weights, zij_fm_set, vectors, max_iter=100000,&
+            eps_localization=1.0E-4_dp, sweeps=sweeps ) 
     CASE ( do_loc_crazy )
-       CALL crazy_rotations  ( weights, zij_fm_set, vectors, max_iter=200, &
-                  eps_localization=1.0E-4_dp, iterations= sweeps ) 
+       CALL crazy_rotations( weights, zij_fm_set, vectors, max_iter=200, &
+            eps_localization=1.0E-4_dp, iterations= sweeps ) 
     CASE ( do_loc_direct )
-       CALL direct_mini      ( weights, zij_fm_set, vectors, sweeps ) 
+       CALL direct_mini( weights, zij_fm_set, vectors, sweeps ) 
     CASE ( do_loc_none ) 
       IF (ionode) THEN
           scr=cp_logger_get_default_unit_nr()
@@ -348,7 +349,7 @@ CONTAINS
     END SELECT
     IF (ionode) THEN
        scr=cp_logger_get_default_unit_nr()
-       WRITE(scr,'(A,I3,A,I6,A)') " Localization  for spin ",ispin ,&
+       WRITE(scr,'(T15,A,I3,A,I6,A)') " Localization  for spin ",ispin ,&
             " converged in ",sweeps," iterations"
     ENDIF
 
