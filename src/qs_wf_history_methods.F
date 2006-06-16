@@ -932,9 +932,9 @@ SUBROUTINE wfi_extrapolate(globenv,wf_history, qs_env, dt, extrapolation_method_
     CHARACTER(len=*), PARAMETER :: routineN = 'wfi_extrapolate', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: actual_extrapolation_method_nr&
-                                                , handle, i, ispin, k, n, &
-                                                nmo, nvec
+    INTEGER                                  :: actual_extrapolation_method_nr, &
+                                                handle, i, ispin, k, n, &
+                                                nmo, nvec, output_unit
     LOGICAL                                  :: failure, ionode, my_kg_gpw, &
                                                 my_orthogonal_wf
     REAL(KIND=dp)                            :: alpha, beta, t0, t1, t2
@@ -950,6 +950,7 @@ SUBROUTINE wfi_extrapolate(globenv,wf_history, qs_env, dt, extrapolation_method_
     TYPE(qs_wf_snapshot_type), POINTER       :: t0_state, t1_state
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
+    TYPE(cp_logger_type), POINTER            :: logger
 
   NULLIFY(mos, ao_mo_fm_pools, t0_state, t1_state, matrix_s, mo_coeff, rho, rho_xc)
   failure=.FALSE.
@@ -957,6 +958,14 @@ SUBROUTINE wfi_extrapolate(globenv,wf_history, qs_env, dt, extrapolation_method_
   IF(PRESENT(kg_gpw)) my_kg_gpw = kg_gpw
 
   CALL timeset(routineN,"I","",handle)
+
+  logger => cp_error_get_logger(error)
+  ionode = logger%para_env%mepos==logger%para_env%source
+  IF (ionode) THEN
+     output_unit= cp_logger_get_default_unit_nr(logger)
+  ELSE
+     output_unit = -1
+  END IF
   
   CPPrecondition(ASSOCIATED(wf_history),cp_failure_level,routineP,error,failure)
   CPPrecondition(wf_history%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -1368,7 +1377,10 @@ SUBROUTINE wfi_extrapolate(globenv,wf_history, qs_env, dt, extrapolation_method_
                                      error=error)
         CALL cp_fm_to_fm(t1_state%wf(ispin)%matrix,mo_coeff)
         alpha = REAL(4*nvec - 2,KIND=dp)/REAL(nvec + 1,KIND=dp)
-        IF (ionode) PRINT*," B( 1 ) =",alpha
+        IF (ionode) THEN
+          WRITE(output_unit,*) ""
+          WRITE(output_unit,*) " B( 1 ) =",alpha
+        END IF
         CALL cp_fm_scale(alpha,mo_coeff)
 
         DO i=2,nvec
@@ -1378,7 +1390,7 @@ SUBROUTINE wfi_extrapolate(globenv,wf_history, qs_env, dt, extrapolation_method_
           CALL cp_fm_gemm('N','N',n,k,k,1.0_dp,t0_state%wf(ispin)%matrix,csc,0.0_dp,fm_tmp)
           alpha = (-1.0_dp)**(i + 1)*REAL(i,KIND=dp)*&
                   binomial(2*nvec,nvec - i)/binomial(2*nvec - 2,nvec -1)
-          IF (ionode) PRINT*," B(",i,") =",alpha
+          IF (ionode) WRITE(output_unit,*) " B(",i,") =",alpha
           CALL cp_fm_scale_and_add(1.0_dp,mo_coeff,alpha,fm_tmp)
         END DO
         CALL cp_fm_release(csc)

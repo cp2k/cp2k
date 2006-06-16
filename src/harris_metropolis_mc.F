@@ -470,7 +470,8 @@ CONTAINS
       Ekin_new, Ekin_prev, Epot_new, Epot_prev, eps_default_tmp, eps_scf_tmp, &
       mass, md_run_start_time, new_ldmc_energy, prev_ldmc_energy, prob, &
       random_number, sigma, temp, temperature, time_iter_start, &
-      time_iter_stop, v2
+      time_iter_stop, v2, lpsc_prev_energy, lpsc_new_energy, lpsc_diff_energy, &
+      dftMC, auxMC, dftMC_diff, auxMC_diff
     REAL(KIND=dp), DIMENSION(3)              :: vcom, vcom_new
     REAL(KIND=dp), POINTER                   :: t, used_time
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
@@ -951,7 +952,9 @@ CONTAINS
 
        ! MC MD-approach
        md_approach_nr = md_approach_nr+1
-       CALL harris_mc_md_approach(md_env, globenv, simpar, logger, error)
+       CALL harris_mc_md_approach(md_env, globenv, simpar, logger, error, &
+                                  lpsc_prev_energy, lpsc_new_energy, &
+                                  lpsc_diff_energy)
 
        SELECT CASE(mc_method)
        CASE(EIP_MC_method)
@@ -1079,14 +1082,119 @@ CONTAINS
          ! Metropolis Monte Carlo acceptance criterion
          ionode = globenv%ionode
          iw = globenv%scr
-         !direct accept
-         IF (new_ldmc_energy < prev_ldmc_energy) THEN
-            accepted = .TRUE.
-            accepted_md = accepted_md+1
-            accept = accept + 1
-            acceptance_rate = 100*(DBLE(accept)/DBLE(accept+reject))
-            prob = 1.0_dp
-            IF (ionode .AND. globenv%print_level >= 1) THEN
+         IF (lpsc) THEN
+           ! direct accept
+           dftMC_diff = new_ldmc_energy - prev_ldmc_energy
+           auxMC_diff = lpsc_diff_energy
+           IF (dftMC_diff < auxMC_diff) THEN
+             accepted = .TRUE.
+             accepted_md = accepted_md+1
+             accept = accept + 1
+             acceptance_rate = 100*(DBLE(accept)/DBLE(accept+reject))
+             prob = 1.0_dp
+             IF (ionode .AND. globenv%print_level >= 1) THEN
+               WRITE(iw, *) ""
+               WRITE(iw, *) "Kinetic DFT-Energy =", Ekin_new, " & Potential DFT-Energy = ", Epot_new
+               WRITE(iw, *) ""
+               WRITE(iw, *) "New DFT-Energy =", new_ldmc_energy, " & Previous DFT-Energy = ", prev_ldmc_energy
+               WRITE(iw, *) "DFT Energy difference = ", new_ldmc_energy - prev_ldmc_energy
+               WRITE(iw, *) ""
+               WRITE(iw, *) "This HMC approach is directly accepted"
+               WRITE(iw, *) "Current acceptance ration =", acceptance_rate, "%"
+               WRITE(iw, *) "accepts =", accept, "  rejects =", reject
+               WRITE(iw, *) ""
+             END IF
+             random_number = 0.0_dp
+           ELSE
+             ! Random Number
+             random_number = next_random_number(rng_stream=rng_stream,error=error)
+
+             IF (.NOT. ext_temp) THEN
+               ! *** Calculate the current temperature ***
+               DO isubsys=1,SIZE(subsys)
+
+                 CALL cp_subsys_get(subsys(isubsys)%subsys,&
+                      local_particles=local_particles,&
+                      particles=particles, atomic_kinds=atomic_kinds,&
+                      error=error)
+
+                 e_kinetic = 0.0_dp
+
+                 DO ikind=1,SIZE(particles%els)
+                    atomic_kind => atomic_kinds%els(ikind)
+                    CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                         mass=mass)
+                    atom_list => local_particles%list(ikind)%array
+                    v2 = 0.0_dp
+                    DO iatom=1,SIZE(atom_list)
+                       atom = atom_list(iatom)
+                       v2 = v2 + particles%els(atom)%v(1)*particles%els(atom)%v(1) +&
+                            particles%els(atom)%v(2)*particles%els(atom)%v(2) +&
+                            particles%els(atom)%v(3)*particles%els(atom)%v(3)
+                    END DO
+                    e_kinetic = e_kinetic + 0.5_dp*mass*v2
+                 END DO
+               END DO
+               CALL mp_sum(e_kinetic, globenv%para_env%group) !FM loop on all particles and avoid sum?
+
+               temperature = 2.0_dp*e_kinetic/REAL(simpar%nfree,dp)
+             END IF
+
+             IF (.NOT. ext_temp) THEN
+               prob = EXP((-1)*((dftMC_diff-auxMC_diff)/(simpar%temp_beta* &
+                    temperature+simpar%temp_alpha)))
+             ELSE
+               prob = EXP((-1)*((dftMC_diff-auxMC_diff)/(simpar%temp_beta* &
+                    simpar%temp_ext+simpar%temp_alpha)))
+             END IF
+
+             IF (prob > random_number) THEN
+               accepted = .TRUE.
+               accepted_md = accepted_md+1
+               accept = accept + 1
+               acceptance_rate = 100*(DBLE(accept)/DBLE(accept+reject))
+               IF (ionode .AND. globenv%print_level >= 1) THEN
+                 WRITE(iw, *) ""
+
+                 WRITE(iw, *) ""
+                 WRITE(iw, *) "New Energy             =", new_ldmc_energy, ">", prev_ldmc_energy, "= Previous Energy"
+                 WRITE(iw, *) "Energy difference = ", new_ldmc_energy - prev_ldmc_energy
+                 WRITE(iw, *) "Transition probability =", prob, ">", random_number, "= Random Number"
+                 WRITE(iw, *) ""
+                 WRITE(iw, *) "This HMC approach is accepted"
+                 WRITE(iw, *) "Current acceptance ratio =", (accept*100)/(accept+reject), "%"
+                 WRITE(iw, *) "accepts =", accept, "  rejects =", reject
+                 WRITE(iw, *) ""
+               END IF
+             ELSE
+               accepted = .FALSE.
+               reject = reject + 1
+               acceptance_rate = 100*(DBLE(accept)/DBLE(accept+reject))
+               IF (ionode .AND. globenv%print_level >= 1) THEN
+                 WRITE(iw, *) ""
+
+                 WRITE(iw, *) ""
+                 WRITE(iw, *) "New Energy             =", new_ldmc_energy, ">", prev_ldmc_energy, "= Previous Energy"
+                 WRITE(iw, *) "Energy difference = ", new_ldmc_energy - prev_ldmc_energy
+                 WRITE(iw, *) "Transition probability =", prob, "<", random_number, "= Random Number"
+                 WRITE(iw, *) ""
+                 WRITE(iw, *) "This HMC approach is rejected"
+                 WRITE(iw, *) "Current acceptance ratio =", acceptance_rate, "%"
+                 WRITE(iw, *) "accepts =", accept, "  rejects =", reject
+                 WRITE(iw, *) ""
+               END IF
+             END IF
+
+           END IF
+         ELSE
+           ! direct accept
+           IF (new_ldmc_energy < prev_ldmc_energy) THEN
+             accepted = .TRUE.
+             accepted_md = accepted_md+1
+             accept = accept + 1
+             acceptance_rate = 100*(DBLE(accept)/DBLE(accept+reject))
+             prob = 1.0_dp
+             IF (ionode .AND. globenv%print_level >= 1) THEN
                WRITE(iw, *) ""
                WRITE(iw, *) "Kinetic Energy =", Ekin_new, " & Potential Energy = ", Epot_new
                WRITE(iw, *) ""
@@ -1097,89 +1205,90 @@ CONTAINS
                WRITE(iw, *) "Current acceptance ration =", acceptance_rate, "%"
                WRITE(iw, *) "accepts =", accept, "  rejects =", reject
                WRITE(iw, *) ""
-            END IF
-            random_number = 0.0_dp
-         ELSE
-            ! Random Number
-            random_number = next_random_number(rng_stream=rng_stream,error=error)
+             END IF
+             random_number = 0.0_dp
+           ELSE
+             ! Random Number
+             random_number = next_random_number(rng_stream=rng_stream,error=error)
 
-            IF (.NOT. ext_temp) THEN
+             IF (.NOT. ext_temp) THEN
                ! *** Calculate the current temperature ***
                DO isubsys=1,SIZE(subsys)
 
-                  CALL cp_subsys_get(subsys(isubsys)%subsys,&
-                       local_particles=local_particles,&
-                       particles=particles, atomic_kinds=atomic_kinds,&
-                       error=error)
+                 CALL cp_subsys_get(subsys(isubsys)%subsys,&
+                      local_particles=local_particles,&
+                      particles=particles, atomic_kinds=atomic_kinds,&
+                      error=error)
 
-                  e_kinetic = 0.0_dp
+                 e_kinetic = 0.0_dp
 
-                  DO ikind=1,SIZE(particles%els)
-                     atomic_kind => atomic_kinds%els(ikind)
-                     CALL get_atomic_kind(atomic_kind=atomic_kind,&
-                          mass=mass)
-                     atom_list => local_particles%list(ikind)%array
-                     v2 = 0.0_dp
-                     DO iatom=1,SIZE(atom_list)
-                        atom = atom_list(iatom)
-                        v2 = v2 + particles%els(atom)%v(1)*particles%els(atom)%v(1) +&
-                             particles%els(atom)%v(2)*particles%els(atom)%v(2) +&
-                             particles%els(atom)%v(3)*particles%els(atom)%v(3)
-                     END DO
-                     e_kinetic = e_kinetic + 0.5_dp*mass*v2
-                  END DO
+                 DO ikind=1,SIZE(particles%els)
+                    atomic_kind => atomic_kinds%els(ikind)
+                    CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                         mass=mass)
+                    atom_list => local_particles%list(ikind)%array
+                    v2 = 0.0_dp
+                    DO iatom=1,SIZE(atom_list)
+                       atom = atom_list(iatom)
+                       v2 = v2 + particles%els(atom)%v(1)*particles%els(atom)%v(1) +&
+                            particles%els(atom)%v(2)*particles%els(atom)%v(2) +&
+                            particles%els(atom)%v(3)*particles%els(atom)%v(3)
+                    END DO
+                    e_kinetic = e_kinetic + 0.5_dp*mass*v2
+                 END DO
                END DO
                CALL mp_sum(e_kinetic, globenv%para_env%group) !FM loop on all particles and avoid sum?
 
                temperature = 2.0_dp*e_kinetic/REAL(simpar%nfree,dp)
-            END IF
+             END IF
 
-            !prob = EXP((-1)*(ABS(prev_ldmc_energy-new_ldmc_energy)/(boltzmann* &
-            !                 (simpar%temp_beta*(simpar%temp_ext)+simpar%temp_alpha))))
-            IF (.NOT. ext_temp) THEN
+             !prob = EXP((-1)*(ABS(prev_ldmc_energy-new_ldmc_energy)/(boltzmann* &
+             !                 (simpar%temp_beta*(simpar%temp_ext)+simpar%temp_alpha))))
+             IF (.NOT. ext_temp) THEN
                prob = EXP((-1)*(ABS(prev_ldmc_energy-new_ldmc_energy)/(simpar%temp_beta* &
                     temperature+simpar%temp_alpha)))
-            ELSE
+             ELSE
                prob = EXP((-1)*(ABS(prev_ldmc_energy-new_ldmc_energy)/(simpar%temp_beta* &
                     simpar%temp_ext+simpar%temp_alpha)))
-            END IF
+             END IF
 
-            IF (prob > random_number) THEN
+             IF (prob > random_number) THEN
                accepted = .TRUE.
                accepted_md = accepted_md+1
                accept = accept + 1
                acceptance_rate = 100*(DBLE(accept)/DBLE(accept+reject))
                IF (ionode .AND. globenv%print_level >= 1) THEN
-                  WRITE(iw, *) ""
+                 WRITE(iw, *) ""
 
-                  WRITE(iw, *) ""
-                  WRITE(iw, *) "New Energy             =", new_ldmc_energy, ">", prev_ldmc_energy, "= Previous Energy"
-                  WRITE(iw, *) "Energy difference = ", new_ldmc_energy - prev_ldmc_energy
-                  WRITE(iw, *) "Transition probability =", prob, ">", random_number, "= Random Number"
-                  WRITE(iw, *) ""
-                  WRITE(iw, *) "This HMC approach is accepted"
-                  WRITE(iw, *) "Current acceptance ratio =", (accept*100)/(accept+reject), "%"
-                  WRITE(iw, *) "accepts =", accept, "  rejects =", reject
-                  WRITE(iw, *) ""
+                 WRITE(iw, *) ""
+                 WRITE(iw, *) "New Energy             =", new_ldmc_energy, ">", prev_ldmc_energy, "= Previous Energy"
+                 WRITE(iw, *) "Energy difference = ", new_ldmc_energy - prev_ldmc_energy
+                 WRITE(iw, *) "Transition probability =", prob, ">", random_number, "= Random Number"
+                 WRITE(iw, *) ""
+                 WRITE(iw, *) "This HMC approach is accepted"
+                 WRITE(iw, *) "Current acceptance ratio =", (accept*100)/(accept+reject), "%"
+                 WRITE(iw, *) "accepts =", accept, "  rejects =", reject
+                 WRITE(iw, *) ""
                END IF
-            ELSE
+             ELSE
                accepted = .FALSE.
                reject = reject + 1
                acceptance_rate = 100*(DBLE(accept)/DBLE(accept+reject))
                IF (ionode .AND. globenv%print_level >= 1) THEN
-                  WRITE(iw, *) ""
+                 WRITE(iw, *) ""
 
-                  WRITE(iw, *) ""
-                  WRITE(iw, *) "New Energy             =", new_ldmc_energy, ">", prev_ldmc_energy, "= Previous Energy"
-                  WRITE(iw, *) "Energy difference = ", new_ldmc_energy - prev_ldmc_energy
-                  WRITE(iw, *) "Transition probability =", prob, "<", random_number, "= Random Number"
-                  WRITE(iw, *) ""
-                  WRITE(iw, *) "This HMC approach is rejected"
-                  WRITE(iw, *) "Current acceptance ratio =", acceptance_rate, "%"
-                  WRITE(iw, *) "accepts =", accept, "  rejects =", reject
-                  WRITE(iw, *) ""
+                 WRITE(iw, *) ""
+                 WRITE(iw, *) "New Energy             =", new_ldmc_energy, ">", prev_ldmc_energy, "= Previous Energy"
+                 WRITE(iw, *) "Energy difference = ", new_ldmc_energy - prev_ldmc_energy
+                 WRITE(iw, *) "Transition probability =", prob, "<", random_number, "= Random Number"
+                 WRITE(iw, *) ""
+                 WRITE(iw, *) "This HMC approach is rejected"
+                 WRITE(iw, *) "Current acceptance ratio =", acceptance_rate, "%"
+                 WRITE(iw, *) "accepts =", accept, "  rejects =", reject
+                 WRITE(iw, *) ""
                END IF
-            END IF
+             END IF
+           END IF
          END IF
        END IF
 
@@ -1426,7 +1535,9 @@ CONTAINS
 !!     09.2005 initial create [tdk]
 !!
 !!*** **********************************************************************
-  SUBROUTINE harris_mc_md_approach(md_env, globenv, simpar, logger, error)
+  SUBROUTINE harris_mc_md_approach(md_env, globenv, simpar, logger, error, &
+                                   lpsc_prev_energy, lpsc_new_energy, &
+                                   lpsc_diff_energy)
 
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(global_environment_type), POINTER   :: globenv
@@ -1435,6 +1546,9 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: lpsc_prev_energy, &
+                                                lpsc_new_energy, &
+                                                lpsc_diff_energy
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'harris_mc_md_approach', &
       routineP = moduleN//':'//routineN
@@ -1638,12 +1752,20 @@ CONTAINS
         iw = globenv%scr
         IF (ionode .AND. globenv%print_level >= 1) THEN
           WRITE(iw, *) ""
-          WRITE(iw, *) "New MC Energy             =", new_lpsc_energy
+          WRITE(iw, *) "Kinetic MD Energy =", Ekin_new, " & Potential MD Energy = ", Epot_new
+          WRITE(iw, *) ""
+          WRITE(iw, *) "New MC Energy        =", new_lpsc_energy
           WRITE(iw, *) "MC Energy difference = ", new_lpsc_energy - prev_lpsc_energy
         END IF
+        lpsc_prev_energy = prev_lpsc_energy
+        lpsc_new_energy  = new_lpsc_energy
+        lpsc_diff_energy = new_lpsc_energy - prev_lpsc_energy
+      ELSE
+        lpsc_prev_energy = 0.0_dp
+        lpsc_new_energy  = 0.0_dp
+        lpsc_diff_energy = 0.0_dp
       END IF
 
-      
 
       DO ibead = 1,nbeads
         CALL temperature_control(simpar, force_env_p(ibead)%force_env, error)

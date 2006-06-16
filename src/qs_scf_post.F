@@ -234,8 +234,8 @@ CONTAINS
     TYPE evals_p_type
          REAL(KIND = dp), DIMENSION(:), POINTER :: evals
     END TYPE
-    TYPE (evals_p_type), DIMENSION(:), POINTER :: unoccupied_evals
-    INTEGER ::  handle, ispin, istat, n, nmo, output_unit,i
+    TYPE (evals_p_type), DIMENSION(:), POINTER  :: unoccupied_evals
+    INTEGER            ::  handle, ispin, istat, n, nmo, output_unit,i
     INTEGER            :: file_unit,ivector,nao,nlumos, homo, unit_nr, idir
     LOGICAL            :: homoEQnmo, efg_interpolation
     CHARACTER(LEN=default_string_length)  :: filename
