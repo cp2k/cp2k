@@ -31,6 +31,7 @@ MODULE input_cp2k_check
                                              cp_unit_set_release,&
                                              cp_unit_set_type
   USE input_constants,                 ONLY: xc_funct_blyp,&
+                                             xc_funct_bp,&
                                              xc_funct_hcth120,&
                                              xc_funct_no_shortcut,&
                                              xc_funct_olyp,&
@@ -178,6 +179,13 @@ SUBROUTINE xc_functionals_expand(functionals,error)
         CALL section_vals_val_set(functionals,"BECKE88%_SECTION_PARAMETERS_",&
              l_val=.TRUE.,error=error)
         CALL section_vals_val_set(functionals,"LYP%_SECTION_PARAMETERS_",&
+             l_val=.TRUE.,error=error)
+        CALL section_vals_val_set(functionals,"_SECTION_PARAMETERS_",&
+             i_val=xc_funct_no_shortcut,error=error)
+     CASE(xc_funct_bp)
+        CALL section_vals_val_set(functionals,"BECKE88%_SECTION_PARAMETERS_",&
+             l_val=.TRUE.,error=error)
+        CALL section_vals_val_set(functionals,"P86C%_SECTION_PARAMETERS_",&
              l_val=.TRUE.,error=error)
         CALL section_vals_val_set(functionals,"_SECTION_PARAMETERS_",&
              i_val=xc_funct_no_shortcut,error=error)

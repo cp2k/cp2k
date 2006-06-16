@@ -1465,8 +1465,8 @@ SUBROUTINE create_xc_fun_section(section,error)
      CALL keyword_create(keyword,name="_SECTION_PARAMETERS_",&
           description="shorcut for the most commont functionals combinations",&
           usage="&xc_functional BLYP",&
-          enum_c_vals=s2a("BLYP","PADE","PBE","TPSS","HCTH120","OLYP","NO_SHORTCUT"),&
-          enum_i_vals=(/xc_funct_blyp,xc_funct_pade,xc_funct_pbe,&
+          enum_c_vals=s2a("BLYP","BP","PADE","PBE","TPSS","HCTH120","OLYP","NO_SHORTCUT"),&
+          enum_i_vals=(/xc_funct_blyp,xc_funct_bp,xc_funct_pade,xc_funct_pbe,&
           xc_funct_tpss,xc_funct_hcth120,xc_funct_olyp,xc_funct_no_shortcut/),&
           default_i_val=xc_funct_no_shortcut,lone_keyword_i_val=xc_funct_no_shortcut,&
           error=error)
