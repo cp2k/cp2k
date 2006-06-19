@@ -915,10 +915,9 @@ CONTAINS
 
          IF (globenv%ionode .AND. globenv%print_level >= 1) THEN
             iw = globenv%scr
-            WRITE(iw, *) ""
+            WRITE(iw, *) ""; WRITE(iw, *) ""
             WRITE(iw, *) "Kinetic Energy =", Ekin_prev, " & Potential Energy = ", Epot_prev
             WRITE(iw, *) "prev_ldmc_energy =", prev_ldmc_energy
-            WRITE(iw, *) ""
          END IF
          !END IF
        END IF
@@ -1694,10 +1693,9 @@ CONTAINS
 
           IF (globenv%ionode .AND. globenv%print_level >= 1) THEN
             iw = globenv%scr
-            WRITE(iw, *) ""
+            WRITE(iw, *) ""; WRITE(iw, *) ""
             WRITE(iw, *) "Kinetic MD Energy =", Ekin_prev, " & Potential MD Energy = ", Epot_prev
             WRITE(iw, *) "prev_lpsc_energy =", prev_lpsc_energy
-            WRITE(iw, *) ""
           END IF
         ELSE IF (iter==simpar%ld_steps) THEN
           IF (globenv%prog_name_id == do_kg) THEN
@@ -1746,16 +1744,16 @@ CONTAINS
               new_lpsc_energy = Econs
             END IF
           END IF
-        END IF
-        
-        ionode = globenv%ionode
-        iw = globenv%scr
-        IF (ionode .AND. globenv%print_level >= 1) THEN
-          WRITE(iw, *) ""
-          WRITE(iw, *) "Kinetic MD Energy =", Ekin_new, " & Potential MD Energy = ", Epot_new
-          WRITE(iw, *) ""
-          WRITE(iw, *) "New MC Energy        =", new_lpsc_energy
-          WRITE(iw, *) "MC Energy difference = ", new_lpsc_energy - prev_lpsc_energy
+
+          ionode = globenv%ionode
+          iw = globenv%scr
+          IF (ionode .AND. globenv%print_level >= 1) THEN
+            WRITE(iw, *) ""; WRITE(iw, *) ""
+            WRITE(iw, *) "Kinetic MD Energy =", Ekin_new, " & Potential MD Energy = ", Epot_new
+            WRITE(iw, *) ""
+            WRITE(iw, *) "new_lpsc_energy      =", new_lpsc_energy
+            WRITE(iw, *) "MD Energy difference = ", new_lpsc_energy - prev_lpsc_energy
+          END IF
         END IF
         lpsc_prev_energy = prev_lpsc_energy
         lpsc_new_energy  = new_lpsc_energy
