@@ -49,8 +49,6 @@ MODULE qs_linres_nmr_shift
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE kinds,                           ONLY: dp
-  USE orbital_pointers,                ONLY: coset,&
-                                             ncoset
   USE particle_types,                  ONLY: particle_type
   USE pw_grid_types,                   ONLY: pw_grid_type
   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
@@ -71,7 +69,7 @@ MODULE qs_linres_nmr_shift
                                              nmr_env_type
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
-  USE qs_operators_ao,                 ONLY: rRc_xyz_ao,rRc_xyz_der_ao,set_up_op_sm
+  USE qs_operators_ao,                 ONLY: rRc_xyz_der_ao,set_up_op_sm
   USE sparse_matrix_types,             ONLY: allocate_matrix_set,&
                                              deallocate_matrix_set,&
                                              real_matrix_p_type,&
@@ -633,15 +631,6 @@ CONTAINS
 
              imom = ind_m2(idir2,iii_B)
              d1mdk_ii(1:homo) = d1mdk(iii_B,1:homo)
-!dbg
-!    write(*,*) 1 , 1 , ind_m2(1,1), coset(2,0,0)
-!    write(*,*) 2 , 2 , ind_m2(2,2),coset(0,2,0)
-!    write(*,*) 3 , 3 , ind_m2(3,3),coset(0,0,2)
-!    write(*,*) 1 , 2 , ind_m2(1,2),coset(1,1,0)
-!    write(*,*) 1 , 3 , ind_m2(1,3),coset(1,0,1)
-!    write(*,*) 2 , 3 , ind_m2(2,3),coset(0,1,1)
-!dbg
-
 
 ! second term ppsi0 times p2
              CALL cp_fm_set_all(fm_work1,0.0_dp,error=error)

@@ -109,6 +109,9 @@ MODULE qs_collocate_density
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_interactions,                 ONLY: exp_radius_very_extended
+  USE qs_modify_pab_block,             ONLY: prepare_dadb,&
+                                             prepare_adb_m_dab,&
+                                             prepare_ardb_m_darb
   USE qs_neighbor_list_types,          ONLY: &
        first_list, first_node, get_neighbor_list, get_neighbor_list_set, &
        get_neighbor_node, neighbor_list_set_p_type, neighbor_list_type, &
@@ -1485,7 +1488,8 @@ CONTAINS
                                           rsgrid,cube_info,l_info,&
                                           eps_rho_rspace,lgrid,ithread,&
                                           compute_tau,map_consistent,&
-                                          collocate_rho0,rpgf0_s)
+                                          collocate_rho0,compute_adb_m_dab,&
+                                          compute_ardb_m_darb,rpgf0_s,idir,ir)
 
     INTEGER, INTENT(IN)                      :: la_max
     REAL(KIND=dp), INTENT(IN)                :: zeta
@@ -1495,7 +1499,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: ra, rab
     REAL(KIND=dp), INTENT(IN)                :: rab2, scale
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pab
-    INTEGER                                  :: o1, o2
+    INTEGER,INTENT(IN)                       :: o1, o2
     TYPE(realspace_grid_type), POINTER       :: rsgrid
     TYPE(cube_info_type), INTENT(IN)         :: cube_info
     TYPE(l_info_type), INTENT(IN)            :: l_info
@@ -1503,7 +1507,10 @@ CONTAINS
     TYPE(lgrid_type), OPTIONAL               :: lgrid
     INTEGER, INTENT(IN), OPTIONAL            :: ithread
     LOGICAL, INTENT(IN), OPTIONAL            :: compute_tau, map_consistent, &
-                                                collocate_rho0
+                                                collocate_rho0,&
+                                                compute_adb_m_dab,&
+                                                compute_ardb_m_darb
+    INTEGER, INTENT(IN), OPTIONAL            :: idir, ir
     REAL(dp), INTENT(IN), OPTIONAL           :: rpgf0_s
 
     INTEGER :: cmax, coef_max, gridbounds(2,3), i, ico, ico_l, icoef, ig, &
@@ -1517,7 +1524,9 @@ CONTAINS
     INTEGER, POINTER                         :: ipzyx(:,:,:,:,:,:)
     LOGICAL                                  :: my_collocate_rho0, &
                                                 my_compute_tau, &
-                                                my_map_consistent
+                                                my_map_consistent,&
+                                                my_compute_adb_m_dab,&
+                                                my_compute_ardb_m_darb
     REAL(KIND=dp) :: a, b, binomial_k_lxa, binomial_l_lxb, cutoff, f, pg, &
       prefactor, radius, rpg, ya, yap, yb, ybp, za, zap, zb, zbp, zetp
     REAL(KIND=dp), DIMENSION(3)              :: dr, rap, rb, rbp, roffset, rp
@@ -1559,6 +1568,18 @@ CONTAINS
        my_collocate_rho0=.FALSE.
     END IF
     
+    IF (PRESENT(compute_adb_m_dab)) THEN
+       my_compute_adb_m_dab=compute_adb_m_dab
+    ELSE
+       my_compute_adb_m_dab=.FALSE.
+    ENDIF
+
+    IF (PRESENT(compute_ardb_m_darb)) THEN
+       my_compute_ardb_m_darb=compute_ardb_m_darb
+    ELSE
+       my_compute_ardb_m_darb=.FALSE.
+    ENDIF
+
     zetp      = zeta + zetb
     f         = zetb/zetp
     rap(:)    = f*rab(:)
@@ -1599,7 +1620,7 @@ CONTAINS
         lb_min_local=MAX(lb_min-1,0)
         ! create a new pab_local so that mapping pab_local with pgf_a pgf_b
         ! is equivalent to mapping pab with 0.5 * (nabla pgf_a) . (nabla pgf_b)
-        ! (ddx pgf_a ) (ddx pgf_b) = (a pgf_{a-1} - 2*zeta*pgf_{a+1}*(b pgf_{x-1} - 2 * zetb * pgf_{b+1})
+        ! (ddx pgf_a ) (ddx pgf_b) = (lax pgf_{a-1x} - 2*zeta*pgf_{a+1x})*(lbx pgf_{b-1x} - 2*zetb*pgf_{b+1x})
         ! cleaner would possibly be to touch pzyx directly (avoiding the following allocate)
         ALLOCATE(pab_local(ncoset(la_max_local),ncoset(lb_max_local)))
         pab_local = 0.0_dp
@@ -1609,53 +1630,9 @@ CONTAINS
            DO lyb=0,lb_max-lxb
               DO lza=MAX(la_min-lxa-lya,0),la_max-lxa-lya
               DO lzb=MAX(lb_min-lxb-lyb,0),lb_max-lxb-lyb
-                     ! this element of pab results in 12 elements of pab_local
-                     ico=coset(lxa,lya,lza)
-                     jco=coset(lxb,lyb,lzb)
-                     ! x  (all safe if lxa = 0, as the spurious added terms have zero prefactor)
 
-                     ico_l=coset(MAX(lxa-1,0),lya,lza)
-                     jco_l=coset(MAX(lxb-1,0),lyb,lzb)
-                     pab_local(ico_l,jco_l)=pab_local(ico_l,jco_l)+        lxa* lxb*pab(o1+ico,o2+jco)
-                     ico_l=coset(MAX(lxa-1,0),lya,lza)
-                     jco_l=coset(   (lxb+1  ),lyb,lzb)
-                     pab_local(ico_l,jco_l)=pab_local(ico_l,jco_l)-2.0_dp* lxa*zetb*pab(o1+ico,o2+jco)
-                     ico_l=coset(   (lxa+1  ),lya,lza)
-                     jco_l=coset(MAX(lxb-1,0),lyb,lzb)
-                     pab_local(ico_l,jco_l)=pab_local(ico_l,jco_l)-2.0_dp*zeta* lxb*pab(o1+ico,o2+jco)
-                     ico_l=coset(   (lxa+1  ),lya,lza)
-                     jco_l=coset(   (lxb+1  ),lyb,lzb)
-                     pab_local(ico_l,jco_l)=pab_local(ico_l,jco_l)+4.0_dp*zeta*zetb*pab(o1+ico,o2+jco)
-
-                     ! y 
-
-                     ico_l=coset(lxa,MAX(lya-1,0),lza)
-                     jco_l=coset(lxb,MAX(lyb-1,0),lzb)
-                     pab_local(ico_l,jco_l)=pab_local(ico_l,jco_l)+        lya* lyb*pab(o1+ico,o2+jco)
-                     ico_l=coset(lxa,MAX(lya-1,0),lza)
-                     jco_l=coset(lxb,   (lyb+1  ),lzb)
-                     pab_local(ico_l,jco_l)=pab_local(ico_l,jco_l)-2.0_dp* lya*zetb*pab(o1+ico,o2+jco)
-                     ico_l=coset(lxa,   (lya+1  ),lza)
-                     jco_l=coset(lxb,MAX(lyb-1,0),lzb)
-                     pab_local(ico_l,jco_l)=pab_local(ico_l,jco_l)-2.0_dp*zeta* lyb*pab(o1+ico,o2+jco)
-                     ico_l=coset(lxa,   (lya+1  ),lza)
-                     jco_l=coset(lxb,   (lyb+1  ),lzb)
-                     pab_local(ico_l,jco_l)=pab_local(ico_l,jco_l)+4.0_dp*zeta*zetb*pab(o1+ico,o2+jco)
-
-                     ! z 
-
-                     ico_l=coset(lxa,lya,MAX(lza-1,0))
-                     jco_l=coset(lxb,lyb,MAX(lzb-1,0))
-                     pab_local(ico_l,jco_l)=pab_local(ico_l,jco_l)+        lza* lzb*pab(o1+ico,o2+jco)
-                     ico_l=coset(lxa,lya,MAX(lza-1,0))
-                     jco_l=coset(lxb,lyb,   (lzb+1  ))
-                     pab_local(ico_l,jco_l)=pab_local(ico_l,jco_l)-2.0_dp* lza*zetb*pab(o1+ico,o2+jco)
-                     ico_l=coset(lxa,lya,   (lza+1  ))
-                     jco_l=coset(lxb,lyb,MAX(lzb-1,0))
-                     pab_local(ico_l,jco_l)=pab_local(ico_l,jco_l)-2.0_dp*zeta* lzb*pab(o1+ico,o2+jco)
-                     ico_l=coset(lxa,lya,   (lza+1  ))
-                     jco_l=coset(lxb,lyb,   (lzb+1  ))
-                     pab_local(ico_l,jco_l)=pab_local(ico_l,jco_l)+4.0_dp*zeta*zetb*pab(o1+ico,o2+jco)
+                 ! this element of pab results in 12 elements of pab_local
+                 CALL prepare_dadb(pab_local,pab,lxa,lya,lza,lxb,lyb,lzb,o1,o2,zeta,zetb)
 
               ENDDO
               ENDDO
@@ -1666,6 +1643,67 @@ CONTAINS
         o1_local=0
         o2_local=0
         pab_local=pab_local * 0.5_dp
+    ELSEIF(my_compute_adb_m_dab) THEN
+        la_max_local=la_max+1
+        la_min_local=MAX(la_min-1,0)
+        lb_max_local=lb_max+1
+        lb_min_local=MAX(lb_min-1,0)
+        ! create a new pab_local so that mapping pab_local with pgf_a pgf_b
+        ! is equivalent to mapping pab with  
+        !    pgf_a (nabla_{idir} pgf_b) - (nabla_{idir} pgf_a) pgf_b
+        ! ( pgf_a ) (ddx pgf_b) - (ddx pgf_a)( pgf_b ) =
+        !          pgf_a *(lbx pgf_{b-1x} - 2*zetb*pgf_{b+1x}) -
+        !                   (lax pgf_{a-1x} - 2*zeta*pgf_{a+1x}) pgf_b
+
+        ALLOCATE(pab_local(ncoset(la_max_local),ncoset(lb_max_local)))
+        pab_local = 0.0_dp
+        DO lxa=0,la_max
+        DO lxb=0,lb_max
+           DO lya=0,la_max-lxa
+           DO lyb=0,lb_max-lxb
+              DO lza=MAX(la_min-lxa-lya,0),la_max-lxa-lya
+              DO lzb=MAX(lb_min-lxb-lyb,0),lb_max-lxb-lyb
+
+                 ! this element of pab results in 4 elements of pab_local
+                 CALL prepare_adb_m_dab(pab_local,pab,idir,&
+                      lxa,lya,lza,lxb,lyb,lzb,o1,o2,zeta,zetb)
+              END DO
+              END DO
+           END DO
+           END DO
+        END DO
+        END DO
+    ELSEIF(my_compute_ardb_m_darb) THEN
+        la_max_local=la_max+2
+        la_min_local=MAX(la_min-1,0)
+        lb_max_local=lb_max+2
+        lb_min_local=MAX(lb_min-1,0)
+        ! create a new pab_local so that mapping pab_local with pgf_a pgf_b
+        ! is equivalent to mapping pab with  
+        ! pgf_a (r-Rb)_{ir} (nabla_{idir} pgf_b) - (nabla_{idir} pgf_a) (r-Rb)_{ir}  pgf_b
+        ! ( pgf_a )(r-Rb)_{ir} (ddx pgf_b) - (ddx pgf_a) (r-Rb)_{ir} ( pgf_b ) = 
+        !                        pgf_a *(lbx pgf_{b-1x+1ir} - 2*zetb*pgf_{b+1x+1ir}) - 
+        !                       (lax pgf_{a-1x} - 2*zeta*pgf_{a+1x}) pgf_{b+1ir}
+
+        ALLOCATE(pab_local(ncoset(la_max_local),ncoset(lb_max_local)))
+        pab_local = 0.0_dp
+        DO lxa=0,la_max
+        DO lxb=0,lb_max
+           DO lya=0,la_max-lxa
+           DO lyb=0,lb_max-lxb
+              DO lza=MAX(la_min-lxa-lya,0),la_max-lxa-lya
+              DO lzb=MAX(lb_min-lxb-lyb,0),lb_max-lxb-lyb
+
+                 ! this element of pab results in 4 elements of pab_local
+                 CALL prepare_ardb_m_darb(pab_local,pab,idir,ir,&
+                      lxa,lya,lza,lxb,lyb,lzb,o1,o2,zeta,zetb)
+              END DO
+              END DO
+           END DO
+           END DO
+        END DO
+        END DO
+
     ELSE
         la_max_local=la_max
         la_min_local=la_min
@@ -1863,7 +1901,7 @@ CONTAINS
               gridbounds(1,1),map(-cmax,1),sphere_bounds(1))
     END IF
 
-    IF (my_compute_tau) THEN
+    IF (my_compute_tau .OR. my_compute_adb_m_dab) THEN
        DEALLOCATE(pab_local)
     ENDIF
 

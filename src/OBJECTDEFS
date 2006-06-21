@@ -338,6 +338,7 @@ OBJECTS_GENERIC =\
  qs_matrix_pools.o\
  qs_mo_methods.o\
  qs_mo_types.o\
+ qs_modify_pab_block.o\
  qs_neighbor_list_types.o\
  qs_neighbor_lists.o\
  qs_numerical_pressure.o\
