@@ -27,9 +27,11 @@ MODULE topology
                                              cp_print_key_unit_nr
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: do_conn_generate,&
+                                             do_conn_gtop,&
                                              do_conn_mol_set,&
                                              do_conn_off,&
                                              do_conn_psf,&
+                                             do_coord_g96,&
                                              do_coord_pdb,&
                                              do_coord_xyz
   USE input_section_types,             ONLY: section_vals_get,&
@@ -54,6 +56,10 @@ MODULE topology
   USE topology_psf,                    ONLY: pre_read_topology_psf,&
                                              read_topology_psf,&
                                              write_topology_psf
+  USE topology_gromos,                 ONLY: pre_read_topology_gromos,&
+                                             read_topology_gromos,&
+                                             read_coordinate_g96,&
+                                             write_topology_gromos
   USE topology_types,                  ONLY: deallocate_topology,&
                                              init_topology,&
                                              topology_parameters_type
@@ -327,6 +333,13 @@ CONTAINS
        CALL topology_generate_molecule(topology,my_qmmm,qmmm_env,globenv,subsys_section,error)
        IF(topology%molecules_check) &
             CALL topology_molecules_check(topology,globenv,subsys_section,error)
+    CASE (do_conn_gtop)
+       STOP
+       CALL pre_read_topology_gromos(topology,subsys_section,error)
+       CALL read_topology_gromos(topology%conn_file_name,topology,globenv,subsys_section,error)
+       CALL topology_generate_molecule(topology,my_qmmm,qmmm_env,globenv,subsys_section,error)
+       IF(topology%molecules_check) &
+            CALL topology_molecules_check(topology,globenv,subsys_section,error)
     CASE (do_conn_psf)
        CALL pre_read_topology_psf(topology,subsys_section,error)
        CALL read_topology_psf(topology%conn_file_name,topology,globenv,subsys_section,error)
@@ -440,6 +453,10 @@ CONTAINS
     !-----------------------------------------------------------------------------
     CALL timeset(routineN//"_READ_COORDINATE",'I','',handle2)
     SELECT CASE (topology%coord_type)
+    CASE (do_coord_g96)
+       STOP
+       CALL read_coordinate_g96 (topology,globenv,subsys_section,error)
+       CALL read_atoms_input ( topology, globenv, overwrite=.TRUE., subsys_section=subsys_section,error=error)
     CASE (do_coord_pdb)
        CALL read_coordinate_pdb (topology,globenv,subsys_section,error)
        CALL read_atoms_input ( topology, globenv, overwrite=.TRUE., subsys_section=subsys_section,error=error)

@@ -410,6 +410,7 @@ OBJECTS_GENERIC =\
  termination.o\
  timings.o\
  topology.o\
+ topology_gromos.o\
  topology_input.o\
  topology_pdb.o\
  topology_psf.o\

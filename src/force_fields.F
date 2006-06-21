@@ -59,6 +59,7 @@ MODULE force_fields
                                              bend_kind_type, &
                                              bond_kind_type,&
                                              charmm_info_type,&
+                                             gromos_info_type,&
                                              deallocate_bend_kind_set, &
                                              deallocate_bond_kind_set,&
                                              deallocate_ff_type,&
@@ -223,8 +224,6 @@ CONTAINS
     ! 3. If reading in from external file, make sure its there first
     !-----------------------------------------------------------------------------
     IF(ff_type%ff_type/="OFF") THEN
-       !------------------------------------------------------
-       !Make sure the file really do exist before proceding
        IF(globenv%ionode) THEN
           INQUIRE(FILE=ff_type%ff_file_name,EXIST=found)
           IF(found) THEN
@@ -243,6 +242,8 @@ CONTAINS
        SELECT CASE (ff_type%ff_type)
        CASE ("CHM")
           CALL read_force_field_charmm(ff_type,globenv,mm_section,error)
+       CASE ("GROMOS")
+          CALL read_force_field_gromos(ff_type,globenv,mm_section,error)
        CASE DEFAULT
           CALL stop_program ("force_field_control","force field type not implemented")
        END SELECT
@@ -1209,6 +1210,487 @@ CONTAINS
     CALL read_force_field_section1(ff_section, mm_section, ff_type, globenv, error)
   END SUBROUTINE read_force_field_section
 
+
+!******************************************************************************
+!!****** force_fields/read_force_field_gromos [1.0] *
+!!
+!!   NAME
+!!     read_force_field_gromos
+!!
+!!   FUNCTION
+!!     Reads the GROMOS force_field
+!!
+!!   AUTHOR
+!!     ikuo
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!******************************************************************************
+  
+  SUBROUTINE read_force_field_gromos ( ff_type , globenv, mm_section, error )
+
+
+    TYPE(force_field_type), INTENT(INOUT)    :: ff_type
+    TYPE(global_environment_type), &
+      OPTIONAL, POINTER                      :: globenv
+    TYPE(section_vals_type), POINTER         :: mm_section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'read_force_field_gromos', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_string_length)     :: label, string, string2, &
+                                                string3, string4
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(2)                           :: angl_section, impr_section, &
+                                                nbon_section, thet_section
+    INTEGER                                  :: dummy, handle, ilab, iw, &
+                                                nbend, nbond, nimpr, &
+                                                nnonbond, nonfo, ntorsion, nub
+    LOGICAL                                  :: failure, found
+    TYPE(gromos_info_type), POINTER          :: gro_info
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_parser_type), POINTER            :: parser
+
+
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(20)                          :: avail_section
+    CHARACTER(LEN=default_string_length), &
+      POINTER                                :: namearray(:)
+    INTEGER:: irestyp,iatyp,iresid,itemp,offset
+    INTEGER:: itype,ntype,iatom,jatom,katom,latom
+    INTEGER,POINTER:: type_conversion(:)
+
+
+    CALL timeset(routineN,'I','',handle)
+    failure = .FALSE.
+    NULLIFY(logger,parser)
+    logger => cp_error_get_logger(error)
+    iw = cp_print_key_unit_nr(logger,mm_section,"PRINT%FF_INFO",&
+         extension=".mmLog",error=error)
+
+    avail_section( 1) = "TITLE" 
+    avail_section( 2) = "TOPPHYSCON"
+    avail_section( 3) = "TOPVERSION"
+    avail_section( 4) = "ATOMTYPENAME"
+    avail_section( 5) = "RESNAME"
+    avail_section( 6) = "SOLUTEATOM"
+    avail_section( 7) = "BONDTYPE"
+    avail_section( 8) = "BONDH"
+    avail_section( 9) = "BOND"
+    avail_section(10) = "BONDANGLETYPE"
+    avail_section(11) = "BONDANGLEH" 
+    avail_section(12) = "BONDANGLE"
+    avail_section(13) = "IMPDIHEDRALTYPE"
+    avail_section(14) = "IMPDIHEDRALH"
+    avail_section(15) = "IMPDIHEDRAL"
+    avail_section(16) = "DIHEDRALTYPE"
+    avail_section(17) = "DIHEDRALH"
+    avail_section(18) = "DIHEDRAL"
+    avail_section(19) = "LJPARAMETERS"
+    avail_section(20) = "SOLVENTATOM"
+
+    gro_info => ff_type%gro_info
+
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! ATOMTYPENAME SECTION
+    IF(iw>0) WRITE(iw,'(T2,A)') 'GROMOS_FF| Parsing the ATOMTYPENAME section'    
+    CALL parser_create(parser,ff_type%ff_file_name,para_env=globenv%para_env)
+    label = TRIM(avail_section(4))
+    CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
+    IF(found) THEN
+      CALL parser_get_next_line(parser,1,error=error)
+      CALL parser_get_object(parser,ntype)
+      CALL reallocate(namearray,1,ntype)
+      !ALLOCATE(namearray(ntype),stat=stat)
+      !CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      DO itype=1,ntype
+        CALL parser_get_next_line(parser,1,error=error)
+        CALL parser_get_object(parser,namearray(itype))
+        IF(iw>0) WRITE(iw,*) "GROMOS_FF| ",TRIM(namearray(itype))
+      END DO
+    END IF
+    CALL parser_release(parser,error=error)
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! SOLUTEATOM SECTION
+    IF(iw>0) WRITE(iw,'(T2,A)') 'GROMOS_FF| Parsing the ATOMTYPENAME section'    
+    CALL parser_create(parser,ff_type%ff_file_name,para_env=globenv%para_env)
+    label = TRIM(avail_section(6))
+    CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
+    IF(found) THEN
+      CALL parser_get_next_line(parser,1,error=error)
+      CALL parser_get_object(parser,ntype)
+      NULLIFY(type_conversion)
+      CALL reallocate(type_conversion,1,ntype)
+      DO itype=1,ntype
+        CALL parser_get_next_line(parser,1,error=error)
+        CALL parser_get_object(parser,itemp)
+        CALL parser_get_object(parser,itemp)
+        CALL parser_get_object(parser,string)
+        CALL parser_get_object(parser,type_conversion(itype))
+        CALL parser_get_next_line(parser,1,error=error)
+        IF(iw>0) WRITE(iw,*) "GROMOS_FF| ",TRIM(namearray(itype))
+      END DO
+    END IF
+    CALL parser_release(parser,error=error)
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! BONDTYPE SECTION
+    IF(iw>0) WRITE(iw,'(T2,A)') 'GROMOS_FF| Parsing the BONDTYPE section'    
+    CALL parser_create(parser,ff_type%ff_file_name,para_env=globenv%para_env)
+    label = TRIM(avail_section(7))
+    CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
+    IF(found) THEN
+      CALL parser_get_next_line(parser,1,error=error)
+      CALL parser_get_object(parser,ntype)
+      offset = 0
+      IF(ASSOCIATED(gro_info%bond_a)) offset = SIZE(gro_info%bond_a)
+      CALL reallocate(gro_info%bond_a,1,offset+ntype)
+      CALL reallocate(gro_info%bond_b,1,offset+ntype)
+      CALL reallocate(gro_info%bond_k,1,offset+ntype)
+      CALL reallocate(gro_info%bond_r0,1,offset+ntype)
+      DO itype=1,ntype
+        CALL parser_get_next_line(parser,1,error=error)
+        CALL parser_get_object(parser,gro_info%bond_k(offset+itype))
+        CALL parser_get_object(parser,gro_info%bond_r0(offset+itype))
+        IF(iw>0) WRITE(iw,*) "GROMOS_FF| PUT BONDTYPE INFO HERE!!!!"
+      END DO
+    END IF
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! BONDH SECTION
+    IF(iw>0) WRITE(iw,'(T2,A)') 'GROMOS_FF| Parsing the BONDH section'    
+    label = TRIM(avail_section(8))
+    CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
+    IF(found) THEN
+      CALL parser_get_next_line(parser,1,error=error)
+      CALL parser_get_object(parser,ntype)
+      DO itype=1,ntype
+        CALL parser_get_next_line(parser,1,error=error)
+        CALL parser_get_object(parser,iatom)
+        CALL parser_get_object(parser,jatom)
+        CALL parser_get_object(parser,itemp)
+        gro_info%bond_a(itemp)=namearray(type_conversion(iatom))
+        gro_info%bond_b(itemp)=namearray(type_conversion(jatom))
+        IF(iw>0) WRITE(iw,*) "GROMOS_FF| PUT BONDH INFO HERE!!!!"
+      END DO
+    END IF
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! BOND SECTION
+    IF(iw>0) WRITE(iw,'(T2,A)') 'GROMOS_FF| Parsing the BOND section'    
+    label = TRIM(avail_section(9))
+    CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
+    IF(found) THEN
+      CALL parser_get_next_line(parser,1,error=error)
+      CALL parser_get_object(parser,ntype)
+      DO itype=1,ntype
+        CALL parser_get_next_line(parser,1,error=error)
+        CALL parser_get_object(parser,iatom)
+        CALL parser_get_object(parser,jatom)
+        CALL parser_get_object(parser,itemp)
+        gro_info%bond_a(itemp)=namearray(type_conversion(iatom))
+        gro_info%bond_b(itemp)=namearray(type_conversion(jatom))
+        IF(iw>0) WRITE(iw,*) "GROMOS_FF| PUT BOND INFO HERE!!!!"
+      END DO
+    END IF
+    CALL parser_release(parser,error=error)
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! BONDANGLETYPE SECTION
+    IF(iw>0) WRITE(iw,'(T2,A)') 'GROMOS_FF| Parsing the BONDANGLETYPE section'    
+    CALL parser_create(parser,ff_type%ff_file_name,para_env=globenv%para_env)
+    label = TRIM(avail_section(10))
+    CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
+    IF(found) THEN
+      CALL parser_get_next_line(parser,1,error=error)
+      CALL parser_get_object(parser,ntype)
+      offset = 0
+      IF(ASSOCIATED(gro_info%bend_a)) offset = SIZE(gro_info%bend_a)
+      CALL reallocate(gro_info%bend_a,1,offset+ntype)
+      CALL reallocate(gro_info%bend_b,1,offset+ntype)
+      CALL reallocate(gro_info%bend_c,1,offset+ntype)
+      CALL reallocate(gro_info%bend_k,1,offset+ntype)
+      CALL reallocate(gro_info%bend_theta0,1,offset+ntype)
+      DO itype=1,ntype
+        CALL parser_get_next_line(parser,1,error=error)
+        CALL parser_get_object(parser,gro_info%bend_k(offset+itype))
+        CALL parser_get_object(parser,gro_info%bend_theta0(offset+itype))
+        IF(iw>0) WRITE(iw,*) "GROMOS_FF| PUT BONDANGLETYPE INFO HERE!!!!"
+      END DO
+    END IF
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! BONDANGLEH SECTION
+    IF(iw>0) WRITE(iw,'(T2,A)') 'GROMOS_FF| Parsing the BONDANGLEH section'    
+    label = TRIM(avail_section(11))
+    CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
+    IF(found) THEN
+      CALL parser_get_next_line(parser,1,error=error)
+      CALL parser_get_object(parser,ntype)
+      DO itype=1,ntype
+        CALL parser_get_next_line(parser,1,error=error)
+        CALL parser_get_object(parser,iatom)
+        CALL parser_get_object(parser,jatom)
+        CALL parser_get_object(parser,katom)
+        CALL parser_get_object(parser,itemp)
+        gro_info%bend_a(itemp)=namearray(type_conversion(iatom))
+        gro_info%bend_b(itemp)=namearray(type_conversion(jatom))
+        gro_info%bend_c(itemp)=namearray(type_conversion(katom))
+        IF(iw>0) WRITE(iw,*) "GROMOS_FF| PUT BONDANGLEH INFO HERE!!!!"
+      END DO
+    END IF
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! BONDANGLE SECTION
+    IF(iw>0) WRITE(iw,'(T2,A)') 'GROMOS_FF| Parsing the BONDANGLE section'    
+    label = TRIM(avail_section(12))
+    CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
+    IF(found) THEN
+      CALL parser_get_next_line(parser,1,error=error)
+      CALL parser_get_object(parser,ntype)
+      DO itype=1,ntype
+        CALL parser_get_next_line(parser,1,error=error)
+        CALL parser_get_object(parser,iatom)
+        CALL parser_get_object(parser,jatom)
+        CALL parser_get_object(parser,katom)
+        CALL parser_get_object(parser,itemp)
+        gro_info%bend_a(itemp)=namearray(type_conversion(iatom))
+        gro_info%bend_b(itemp)=namearray(type_conversion(jatom))
+        gro_info%bend_c(itemp)=namearray(type_conversion(katom))
+        IF(iw>0) WRITE(iw,*) "GROMOS_FF| PUT BONDANGLE INFO HERE!!!!"
+      END DO
+    END IF
+    CALL parser_release(parser,error=error)
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! IMPDIHEDRALTYPE SECTION
+    IF(iw>0) WRITE(iw,'(T2,A)') 'GROMOS_FF| Parsing the IMPDIHEDRALTYPE section'    
+    CALL parser_create(parser,ff_type%ff_file_name,para_env=globenv%para_env)
+    label = TRIM(avail_section(13))
+    CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
+    IF(found) THEN
+      CALL parser_get_next_line(parser,1,error=error)
+      CALL parser_get_object(parser,ntype)
+      offset = 0
+      IF(ASSOCIATED(gro_info%impr_a)) offset = SIZE(gro_info%impr_a)
+      CALL reallocate(gro_info%impr_a,1,offset+ntype)
+      CALL reallocate(gro_info%impr_b,1,offset+ntype)
+      CALL reallocate(gro_info%impr_c,1,offset+ntype)
+      CALL reallocate(gro_info%impr_d,1,offset+ntype)
+      CALL reallocate(gro_info%impr_k,1,offset+ntype)
+      CALL reallocate(gro_info%impr_phi0,1,offset+ntype)
+      DO itype=1,ntype
+        CALL parser_get_next_line(parser,1,error=error)
+        CALL parser_get_object(parser,gro_info%impr_k(offset+itype))
+        CALL parser_get_object(parser,gro_info%impr_phi0(offset+itype))
+        IF(iw>0) WRITE(iw,*) "GROMOS_FF| PUT IMPDIHEDRALTYPE INFO HERE!!!!"
+      END DO
+    END IF
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! IMPDIHEDRALH SECTION
+    IF(iw>0) WRITE(iw,'(T2,A)') 'GROMOS_FF| Parsing the IMPDIHEDRALH section'    
+    label = TRIM(avail_section(14))
+    CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
+    IF(found) THEN
+      CALL parser_get_next_line(parser,1,error=error)
+      CALL parser_get_object(parser,ntype)
+      DO itype=1,ntype
+        CALL parser_get_next_line(parser,1,error=error)
+        CALL parser_get_object(parser,iatom)
+        CALL parser_get_object(parser,jatom)
+        CALL parser_get_object(parser,katom)
+        CALL parser_get_object(parser,latom)
+        CALL parser_get_object(parser,itemp)
+        gro_info%impr_a(itemp)=namearray(type_conversion(iatom))
+        gro_info%impr_b(itemp)=namearray(type_conversion(jatom))
+        gro_info%impr_c(itemp)=namearray(type_conversion(katom))
+        gro_info%impr_c(itemp)=namearray(type_conversion(latom))
+        IF(iw>0) WRITE(iw,*) "GROMOS_FF| PUT IMPDIHEDRALH INFO HERE!!!!"
+      END DO
+    END IF
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! IMPDIHEDRAL SECTION
+    IF(iw>0) WRITE(iw,'(T2,A)') 'GROMOS_FF| Parsing the IMPDIHEDRAL section'    
+    label = TRIM(avail_section(15))
+    CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
+    IF(found) THEN
+      CALL parser_get_next_line(parser,1,error=error)
+      CALL parser_get_object(parser,ntype)
+      DO itype=1,ntype
+        CALL parser_get_next_line(parser,1,error=error)
+        CALL parser_get_object(parser,iatom)
+        CALL parser_get_object(parser,jatom)
+        CALL parser_get_object(parser,katom)
+        CALL parser_get_object(parser,latom)
+        CALL parser_get_object(parser,itemp)
+        gro_info%impr_a(itemp)=namearray(type_conversion(iatom))
+        gro_info%impr_b(itemp)=namearray(type_conversion(jatom))
+        gro_info%impr_c(itemp)=namearray(type_conversion(katom))
+        gro_info%impr_c(itemp)=namearray(type_conversion(latom))
+        IF(iw>0) WRITE(iw,*) "GROMOS_FF| PUT IMPDIHEDRAL INFO HERE!!!!"
+      END DO
+    END IF
+    CALL parser_release(parser,error=error)
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! DIHEDRALTYPE SECTION
+    IF(iw>0) WRITE(iw,'(T2,A)') 'GROMOS_FF| Parsing the DIHEDRALTYPE section'    
+    CALL parser_create(parser,ff_type%ff_file_name,para_env=globenv%para_env)
+    label = TRIM(avail_section(16))
+    CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
+    IF(found) THEN
+      CALL parser_get_next_line(parser,1,error=error)
+      CALL parser_get_object(parser,ntype)
+      offset = 0
+      IF(ASSOCIATED(gro_info%torsion_a)) offset = SIZE(gro_info%torsion_a)
+      CALL reallocate(gro_info%torsion_a,1,offset+ntype)
+      CALL reallocate(gro_info%torsion_b,1,offset+ntype)
+      CALL reallocate(gro_info%torsion_c,1,offset+ntype)
+      CALL reallocate(gro_info%torsion_d,1,offset+ntype)
+      CALL reallocate(gro_info%torsion_k,1,offset+ntype)
+      CALL reallocate(gro_info%torsion_m,1,offset+ntype)
+      CALL reallocate(gro_info%torsion_cosphi0,1,offset+ntype)
+      DO itype=1,ntype
+        CALL parser_get_next_line(parser,1,error=error)
+        CALL parser_get_object(parser,gro_info%torsion_k(offset+itype))
+        CALL parser_get_object(parser,gro_info%torsion_cosphi0(offset+itype))
+        CALL parser_get_object(parser,gro_info%torsion_m(offset+itype))
+        IF(iw>0) WRITE(iw,*) "GROMOS_FF| PUT DIHEDRALTYPE INFO HERE!!!!"
+      END DO
+    END IF
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! DIHEDRALH SECTION
+    IF(iw>0) WRITE(iw,'(T2,A)') 'GROMOS_FF| Parsing the DIHEDRALH section'    
+    label = TRIM(avail_section(17))
+    CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
+    IF(found) THEN
+      CALL parser_get_next_line(parser,1,error=error)
+      CALL parser_get_object(parser,ntype)
+      DO itype=1,ntype
+        CALL parser_get_next_line(parser,1,error=error)
+        CALL parser_get_object(parser,iatom)
+        CALL parser_get_object(parser,jatom)
+        CALL parser_get_object(parser,katom)
+        CALL parser_get_object(parser,latom)
+        CALL parser_get_object(parser,itemp)
+        gro_info%torsion_a(itemp)=namearray(type_conversion(iatom))
+        gro_info%torsion_b(itemp)=namearray(type_conversion(jatom))
+        gro_info%torsion_c(itemp)=namearray(type_conversion(katom))
+        gro_info%torsion_c(itemp)=namearray(type_conversion(latom))
+        IF(iw>0) WRITE(iw,*) "GROMOS_FF| PUT DIHEDRALH INFO HERE!!!!"
+      END DO
+    END IF
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! DIHEDRAL SECTION
+    IF(iw>0) WRITE(iw,'(T2,A)') 'GROMOS_FF| Parsing the DIHEDRAL section'    
+    label = TRIM(avail_section(18))
+    CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
+    IF(found) THEN
+      CALL parser_get_next_line(parser,1,error=error)
+      CALL parser_get_object(parser,ntype)
+      DO itype=1,ntype
+        CALL parser_get_next_line(parser,1,error=error)
+        CALL parser_get_object(parser,iatom)
+        CALL parser_get_object(parser,jatom)
+        CALL parser_get_object(parser,katom)
+        CALL parser_get_object(parser,latom)
+        CALL parser_get_object(parser,itemp)
+        gro_info%torsion_a(itemp)=namearray(type_conversion(iatom))
+        gro_info%torsion_b(itemp)=namearray(type_conversion(jatom))
+        gro_info%torsion_c(itemp)=namearray(type_conversion(katom))
+        gro_info%torsion_c(itemp)=namearray(type_conversion(latom))
+        IF(iw>0) WRITE(iw,*) "GROMOS_FF| PUT DIHEDRAL INFO HERE!!!!"
+      END DO
+    END IF
+    CALL parser_release(parser,error=error)
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+    
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! LJPARAMETERS SECTION
+    IF(iw>0) WRITE(iw,'(T2,A)') 'GROMOS_FF| Parsing the LJPARAMETERS section'    
+    CALL parser_create(parser,ff_type%ff_file_name,para_env=globenv%para_env)
+    label = TRIM(avail_section(19))
+    CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
+    IF(found) THEN
+      CALL parser_get_next_line(parser,1,error=error)
+      CALL parser_get_object(parser,ntype)
+      offset = 0
+      IF(ASSOCIATED(gro_info%nonbond_a)) offset = SIZE(gro_info%nonbond_a)
+      ntype=SIZE(namearray)
+      CALL reallocate(gro_info%nonbond_a,1,offset+ntype)
+      CALL reallocate(gro_info%nonbond_eps,1,offset+ntype)
+      CALL reallocate(gro_info%nonbond_rmin2,1,offset+ntype)
+      CALL reallocate(gro_info%nonbond_a_14,1,offset+ntype)
+      CALL reallocate(gro_info%nonbond_eps_14,1,offset+ntype)
+      CALL reallocate(gro_info%nonbond_rmin2_14,1,offset+ntype)
+      DO itype=1,ntype*(ntype+1)/2
+        CALL parser_get_next_line(parser,1,error=error)
+        CALL parser_get_object(parser,iatom)
+        CALL parser_get_object(parser,jatom)
+        IF(iatom==jatom) THEN
+          gro_info%nonbond_a(iatom) = namearray(iatom)
+          CALL parser_get_object(parser,gro_info%nonbond_eps(iatom))
+          CALL parser_get_object(parser,gro_info%nonbond_rmin2(iatom))
+          CALL parser_get_object(parser,gro_info%nonbond_eps_14(iatom))
+          CALL parser_get_object(parser,gro_info%nonbond_rmin2_14(iatom))
+        END IF
+        IF(iw>0) WRITE(iw,*) "GROMOS_FF| PUT LJPARAMETERS INFO HERE!!!!"
+      END DO
+    END IF
+    CALL parser_release(parser,error=error)
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+    
+
+
+
+
+
+
+    CALL cp_print_key_finished_output(iw,logger,mm_section,&
+         "PRINT%FF_INFO",error=error)
+    CALL timestop(0.0_dp,handle)
+
+  END SUBROUTINE read_force_field_gromos
+
+
 !******************************************************************************
 !!****** force_fields/read_force_field_charmm [1.0] *
 !!
@@ -1219,11 +1701,9 @@ CONTAINS
 !!     Reads the charmm force_field
 !!
 !!   AUTHOR
-!!
+!!     ikuo
 !!
 !!   MODIFICATION HISTORY
-!!
-!!
 !!
 !!   SOURCE
 !******************************************************************************
@@ -1680,6 +2160,7 @@ CONTAINS
       POINTER                                :: bond_kind_set
     TYPE(bond_type), DIMENSION(:), POINTER   :: bond_list
     TYPE(charmm_info_type), POINTER          :: chm_info
+    TYPE(gromos_info_type), POINTER          :: gro_info
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(elp_potential_type), POINTER        :: elp_potential
     TYPE(impr_kind_type), DIMENSION(:), &
@@ -1728,6 +2209,7 @@ CONTAINS
     IF (PRESENT(qmmm).AND.PRESENT(qmmm_env)) my_qmmm = qmmm
     inp_info => ff_type%inp_info
     chm_info => ff_type%chm_info
+    gro_info => ff_type%gro_info
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 1. Determine the number of unique bond kind and allocate bond_kind_set
@@ -2204,6 +2686,24 @@ CONTAINS
           CALL uppercase(name_atm_a)
           CALL uppercase(name_atm_b)
 
+          ! loop over params from gromos
+          IF(ASSOCIATED(gro_info%bond_a)) THEN
+             DO k=1,SIZE(gro_info%bond_a)
+                IF( ((TRIM(gro_info%bond_a(k))==TRIM(name_atm_a)) .AND. &
+                     (TRIM(gro_info%bond_b(k))==TRIM(name_atm_b))) .OR. &
+                     ((TRIM(gro_info%bond_a(k))==TRIM(name_atm_b)) .AND. &
+                     (TRIM(gro_info%bond_b(k))==TRIM(name_atm_a))) ) THEN
+                   bond_list(j)%bond_kind%name = "GROMOS"
+                   bond_list(j)%bond_kind%k(1) = gro_info%bond_k(k)
+                   bond_list(j)%bond_kind%r0   = gro_info%bond_r0(k)
+                   IF (found) CALL Pwarning("Multiple Bond declarations: "//TRIM(name_atm_a)//&
+                        " and "//TRIM(name_atm_b)//" overwriting!",globenv,error)
+                   found = .TRUE.
+                   EXIT
+                END IF
+             END DO
+          END IF
+
           ! loop over params from charmm
           IF(ASSOCIATED(chm_info%bond_a)) THEN
              DO k=1,SIZE(chm_info%bond_a)
@@ -2241,7 +2741,7 @@ CONTAINS
           END IF
 
           IF(.NOT.found) THEN
-             CALL stop_program("FF_pack","missing bond parm"//&
+             CALL stop_program("FF_pack","missing bond parm "//&
                   TRIM(name_atm_a)//" "//TRIM(name_atm_b))
           END IF
           !
@@ -2287,7 +2787,28 @@ CONTAINS
           CALL uppercase(name_atm_a)
           CALL uppercase(name_atm_b)
           CALL uppercase(name_atm_c)
-          ! loop over params from charmm
+
+          ! loop over params from GROMOS
+          IF(ASSOCIATED(gro_info%bend_a)) THEN
+             DO k=1,SIZE(gro_info%bend_a)
+                IF( ((TRIM(gro_info%bend_a(k))==TRIM(name_atm_a)) .AND. &
+                     (TRIM(gro_info%bend_b(k))==TRIM(name_atm_b)) .AND. &
+                     (TRIM(gro_info%bend_c(k))==TRIM(name_atm_c))) .OR. &
+                     ((TRIM(gro_info%bend_a(k))==TRIM(name_atm_c)) .AND. &
+                     (TRIM(gro_info%bend_b(k))==TRIM(name_atm_b)) .AND. &
+                     (TRIM(gro_info%bend_c(k))==TRIM(name_atm_a))) ) THEN
+                   bend_list(j)%bend_kind%name   = "GROMOS"
+                   bend_list(j)%bend_kind%k      = gro_info%bend_k(k)
+                   bend_list(j)%bend_kind%theta0 = gro_info%bend_theta0(k)
+                   IF (found) CALL Pwarning("Multiple Bend declarations: "//TRIM(name_atm_a)//&
+                        ","//TRIM(name_atm_b)//" and "//TRIM(name_atm_c)//" overwriting!",globenv,error)
+                   found = .TRUE.
+                   EXIT
+                END IF
+             END DO
+          END IF
+
+          ! loop over params from CHARMM
           IF(ASSOCIATED(chm_info%bend_a)) THEN
              DO k=1,SIZE(chm_info%bend_a)
                 IF( ((TRIM(chm_info%bend_a(k))==TRIM(name_atm_a)) .AND. &
@@ -2375,6 +2896,10 @@ CONTAINS
           CALL uppercase(name_atm_a)
           CALL uppercase(name_atm_b)
           CALL uppercase(name_atm_c)
+
+          ! loop over params from GROMOS
+          ! ikuo - None that I know... 
+
           ! loop over params from charmm
           IF(ASSOCIATED(chm_info%ub_a)) THEN
              DO k=1,SIZE(chm_info%ub_a)
@@ -2474,7 +2999,33 @@ CONTAINS
              CALL uppercase(name_atm_b)
              CALL uppercase(name_atm_c)
              CALL uppercase(name_atm_d)
-             ! loop over params from charmm
+
+             ! loop over params from GROMOS
+             IF(ASSOCIATED(gro_info%torsion_a)) THEN
+                DO k=1,SIZE(gro_info%torsion_a)
+                   IF( ((TRIM(gro_info%torsion_a(k))==TRIM(name_atm_a)) .AND. &
+                        (TRIM(gro_info%torsion_b(k))==TRIM(name_atm_b)) .AND. &
+                        (TRIM(gro_info%torsion_c(k))==TRIM(name_atm_c)) .AND. &
+                        (TRIM(gro_info%torsion_d(k))==TRIM(name_atm_d))) .OR. &
+                       ((TRIM(gro_info%torsion_a(k))==TRIM(name_atm_d)) .AND. &
+                        (TRIM(gro_info%torsion_b(k))==TRIM(name_atm_c)) .AND. &
+                        (TRIM(gro_info%torsion_c(k))==TRIM(name_atm_b)) .AND. &
+                        (TRIM(gro_info%torsion_d(k))==TRIM(name_atm_a))) ) THEN
+                      imul = torsion_list(j)%torsion_kind%nmul + 1
+                      CALL reallocate(torsion_list(j)%torsion_kind%k,1,imul)
+                      CALL reallocate(torsion_list(j)%torsion_kind%m,1,imul)
+                      CALL reallocate(torsion_list(j)%torsion_kind%cosphi0,1,imul)
+                      torsion_list(j)%torsion_kind%name    = "GROMOS"
+                      torsion_list(j)%torsion_kind%k(imul) = gro_info%torsion_k(k)
+                      torsion_list(j)%torsion_kind%m(imul) = gro_info%torsion_m(k)
+                      torsion_list(j)%torsion_kind%cosphi0(imul) = gro_info%torsion_cosphi0(k)
+                      torsion_list(j)%torsion_kind%nmul = imul
+                      found = .TRUE.
+                   END IF
+                END DO
+             END IF
+
+             ! loop over params from CHARMM
              IF(ASSOCIATED(chm_info%torsion_a)) THEN
                 DO k=1,SIZE(chm_info%torsion_a)
                    IF( ((TRIM(chm_info%torsion_a(k))==TRIM(name_atm_a)) .AND. &
@@ -2497,6 +3048,7 @@ CONTAINS
                       found = .TRUE.
                    END IF
                 END DO
+
                 IF(.NOT.found) THEN
                    DO k=1,SIZE(chm_info%torsion_a)
                       IF( ((TRIM(chm_info%torsion_a(k))==TRIM("X")) .AND. &
@@ -2620,6 +3172,31 @@ CONTAINS
           CALL uppercase(name_atm_b)
           CALL uppercase(name_atm_c)
           CALL uppercase(name_atm_d)
+
+          ! loop over params from GROMOS
+          IF(ASSOCIATED(gro_info%impr_a)) THEN
+             DO k=1,SIZE(gro_info%impr_a)
+                IF( ((TRIM(gro_info%impr_a(k))==TRIM(name_atm_a)) .AND. &
+                     (TRIM(gro_info%impr_b(k))==TRIM(name_atm_b)) .AND. &
+                     (TRIM(gro_info%impr_c(k))==TRIM(name_atm_c)) .AND. &
+                     (TRIM(gro_info%impr_d(k))==TRIM(name_atm_d))) .OR. &
+                     ((TRIM(gro_info%impr_a(k))==TRIM(name_atm_d)) .AND. &
+                     (TRIM(gro_info%impr_b(k))==TRIM(name_atm_c)) .AND. &
+                     (TRIM(gro_info%impr_c(k))==TRIM(name_atm_b)) .AND. &
+                     (TRIM(gro_info%impr_d(k))==TRIM(name_atm_a))) ) THEN
+                   impr_list(j)%impr_kind%name = "GROMOS"
+                   impr_list(j)%impr_kind%k    = gro_info%impr_k(k)
+                   impr_list(j)%impr_kind%phi0 = gro_info%impr_phi0(k)
+                   IF (found) CALL Pwarning("Multiple Improper declarations: "//TRIM(name_atm_a)//&
+                        ","//TRIM(name_atm_b)//","//TRIM(name_atm_c)//" and "//TRIM(name_atm_d)//&
+                        " overwriting!",globenv,error)
+                   found = .TRUE.
+                   EXIT
+                END IF
+             END DO
+          END IF
+
+
           ! loop over params from charmm
           IF(ASSOCIATED(chm_info%impr_a)) THEN
              DO k=1,SIZE(chm_info%impr_a)
@@ -2823,10 +3400,76 @@ CONTAINS
           CALL uppercase(name_atm_a)
           CALL uppercase(name_atm_b)
 
-          ! loop over params from charmm
-          ii = 0 
-          jj = 0
+          ! loop over params from GROMOS
+          IF(ASSOCIATED(gro_info%nonbond_a_14)) THEN
+             ii = 0 
+             jj = 0
+             DO k=1,SIZE(gro_info%nonbond_a_14)
+                IF(TRIM(name_atm_a)==TRIM(gro_info%nonbond_a_14(k))) THEN
+                   ii = k
+                   rmin2_a = gro_info%nonbond_rmin2_14(k)
+                   epsilon_a = gro_info%nonbond_eps_14(k)
+                   found_a = .TRUE.
+                END IF
+             END DO
+             DO k=1,SIZE(gro_info%nonbond_a_14)
+                IF(TRIM(name_atm_b)==TRIM(gro_info%nonbond_a_14(k))) THEN
+                   jj = k
+                   rmin2_b   = gro_info%nonbond_rmin2_14(k)
+                   epsilon_b = gro_info%nonbond_eps_14(k)
+                   found_b   = .TRUE.
+                END IF
+             END DO
+          END IF
+          IF(ASSOCIATED(gro_info%nonbond_a)) THEN
+             IF(.NOT.found_a) THEN
+                DO k=1,SIZE(gro_info%nonbond_a)
+                   IF(TRIM(name_atm_a)==TRIM(gro_info%nonbond_a(k))) THEN
+                      ii = k
+                      rmin2_a   = gro_info%nonbond_rmin2(k)
+                      epsilon_a = gro_info%nonbond_eps(k)
+                   END IF
+                END DO
+             END IF
+             IF(.NOT.found_b) THEN
+                DO k=1,SIZE(gro_info%nonbond_a)
+                   IF(TRIM(name_atm_b)==TRIM(gro_info%nonbond_a(k))) THEN
+                      jj = k
+                      rmin2_b   = gro_info%nonbond_rmin2(k)
+                      epsilon_b = gro_info%nonbond_eps(k)
+                   END IF
+                END DO
+             END IF
+             IF(ii/=0 .AND. jj/=0) THEN
+                rmin = rmin2_a + rmin2_b
+                epsilon = SQRT(epsilon_a*epsilon_b)
+                CALL  pair_potential_lj_create(potparm_bond%pot(i,j)%pot, error)
+                potparm_bond%pot(i,j)%pot%type       = lj_type
+                potparm_bond%pot(i,j)%pot%at1        = name_atm_a
+                potparm_bond%pot(i,j)%pot%at2        = name_atm_b
+                potparm_bond%pot(i,j)%pot%lj%epsilon = epsilon
+                potparm_bond%pot(i,j)%pot%lj%sigma6  = 0.5_dp*rmin**6
+                potparm_bond%pot(i,j)%pot%lj%sigma12 = 0.25_dp*rmin**12
+                potparm_bond%pot(i,j)%pot%rcutsq     = (10.0_dp*bohr)**2
+                IF (found) CALL Pwarning("Multiple Lennard-Jones declarations: "//TRIM(name_atm_a)//&
+                     " and "//TRIM(name_atm_b)//" overwriting!",globenv,error)
+                found = .TRUE.
+             END IF
+          END IF
+
+
+
+
+
+
+
+
+
+
+          ! loop over params from CHARMM
           IF(ASSOCIATED(chm_info%nonbond_a_14)) THEN
+             ii = 0 
+             jj = 0
              DO k=1,SIZE(chm_info%nonbond_a_14)
                 IF(TRIM(name_atm_a)==TRIM(chm_info%nonbond_a_14(k))) THEN
                    ii = k
@@ -2863,22 +3506,21 @@ CONTAINS
                    END IF
                 END DO
              END IF
-          END IF
-
-          IF(ii/=0 .AND. jj/=0) THEN
-             rmin = rmin2_a + rmin2_b
-             epsilon = SQRT(epsilon_a*epsilon_b)
-             CALL  pair_potential_lj_create(potparm_bond%pot(i,j)%pot, error)
-             potparm_bond%pot(i,j)%pot%type       = lj_type
-             potparm_bond%pot(i,j)%pot%at1        = name_atm_a
-             potparm_bond%pot(i,j)%pot%at2        = name_atm_b
-             potparm_bond%pot(i,j)%pot%lj%epsilon = epsilon
-             potparm_bond%pot(i,j)%pot%lj%sigma6  = 0.5_dp*rmin**6
-             potparm_bond%pot(i,j)%pot%lj%sigma12 = 0.25_dp*rmin**12
-             potparm_bond%pot(i,j)%pot%rcutsq     = (10.0_dp*bohr)**2
-             IF (found) CALL Pwarning("Multiple Lennard-Jones declarations: "//TRIM(name_atm_a)//&
-                  " and "//TRIM(name_atm_b)//" overwriting!",globenv,error)
-             found = .TRUE.
+             IF(ii/=0 .AND. jj/=0) THEN
+                rmin = rmin2_a + rmin2_b
+                epsilon = SQRT(epsilon_a*epsilon_b)
+                CALL  pair_potential_lj_create(potparm_bond%pot(i,j)%pot, error)
+                potparm_bond%pot(i,j)%pot%type       = lj_type
+                potparm_bond%pot(i,j)%pot%at1        = name_atm_a
+                potparm_bond%pot(i,j)%pot%at2        = name_atm_b
+                potparm_bond%pot(i,j)%pot%lj%epsilon = epsilon
+                potparm_bond%pot(i,j)%pot%lj%sigma6  = 0.5_dp*rmin**6
+                potparm_bond%pot(i,j)%pot%lj%sigma12 = 0.25_dp*rmin**12
+                potparm_bond%pot(i,j)%pot%rcutsq     = (10.0_dp*bohr)**2
+                IF (found) CALL Pwarning("Multiple Lennard-Jones declarations: "//TRIM(name_atm_a)//&
+                     " and "//TRIM(name_atm_b)//" overwriting!",globenv,error)
+                found = .TRUE.
+             END IF
           END IF
 
           ! always have the input param last to overwrite all the other ones
@@ -3030,7 +3672,42 @@ CONTAINS
           only_qm = qmmm_ff_precond_only_qm(id1=name_atm_a, id2=name_atm_b)
           CALL uppercase(name_atm_a)
           CALL uppercase(name_atm_b)
-          ! loop over params from charmm
+
+          ! loop over params from GROMOS
+          IF(ASSOCIATED(gro_info%nonbond_a)) THEN
+             ii = 0 
+             jj = 0
+             DO k=1,SIZE(gro_info%nonbond_a)
+                IF(TRIM(name_atm_a)==TRIM(gro_info%nonbond_a(k))) THEN
+                   ii = k
+                END IF
+             END DO
+             DO k=1,SIZE(gro_info%nonbond_a)
+                IF(TRIM(name_atm_b)==TRIM(gro_info%nonbond_a(k))) THEN
+                   jj = k
+                END IF
+             END DO
+
+             IF(ii/=0 .AND. jj/=0) THEN
+                rmin = gro_info%nonbond_rmin2(ii)+gro_info%nonbond_rmin2(jj)
+                epsilon = SQRT(gro_info%nonbond_eps(ii)*&
+                     gro_info%nonbond_eps(jj))
+                CALL  pair_potential_lj_create(potparm_nonbond%pot(i,j)%pot, error)
+                potparm_nonbond%pot(i,j)%pot%type       = lj_type
+                potparm_nonbond%pot(i,j)%pot%at1        = name_atm_a
+                potparm_nonbond%pot(i,j)%pot%at2        = name_atm_b
+                potparm_nonbond%pot(i,j)%pot%lj%epsilon = epsilon
+                potparm_nonbond%pot(i,j)%pot%lj%sigma6  = 0.5_dp*rmin**6
+                potparm_nonbond%pot(i,j)%pot%lj%sigma12 = 0.25_dp*rmin**12
+                potparm_nonbond%pot(i,j)%pot%rcutsq     = (10.0_dp*bohr)**2
+                IF (found) CALL Pwarning("Multiple Lennard-Jones declarations: "//TRIM(name_atm_a)//&
+                     " and "//TRIM(name_atm_b)//" overwriting!",&
+                     globenv,error)
+                found = .TRUE.
+             END IF
+          END IF
+
+          ! loop over params from CHARMM
           IF(ASSOCIATED(chm_info%nonbond_a)) THEN
              ii = 0 
              jj = 0
@@ -3063,6 +3740,8 @@ CONTAINS
                 found = .TRUE.
              END IF
           END IF
+
+
           ! always have the input param last to overwrite all the other ones
           IF(ASSOCIATED(inp_info%nonbonded)) THEN
              DO k=1,SIZE(inp_info%nonbonded%pot)

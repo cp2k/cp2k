@@ -442,6 +442,16 @@ CONTAINS
             default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword,"g96_info",&
+            description="if the printkey is active prints information regarding G96",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+       CALL keyword_create(keyword,"gtop_info",&
+            description="if the printkey is active prints information regarding GROMOS Topology",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
        CALL keyword_create(keyword,"util_info",&
             description="if the printkey is active prints information regarding topology utilities",&
             default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
@@ -1445,9 +1455,9 @@ CONTAINS
        CALL keyword_create(keyword, name="COORDINATE",&
             variants=s2a( "COORDINA", "COORD"),&
             description="Set up the way in which coordinates will be read.",&
-            usage="COORDINATE (PDB||XYZ||OFF)", &
-            enum_c_vals=s2a( "PDB","XYZ","OFF"),&
-            enum_i_vals=(/do_coord_pdb, do_coord_xyz, do_coord_off/),&
+            usage="COORDINATE (PDB||XYZ||G96||OFF)", &
+            enum_c_vals=s2a( "PDB","XYZ","G96","OFF"),&
+            enum_i_vals=(/do_coord_pdb, do_coord_xyz, do_coord_g96, do_coord_off/),&
             default_i_val=do_coord_off,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
@@ -1456,14 +1466,16 @@ CONTAINS
             variants=(/ "CONNECTI"/),&
             description="Ways to determine and generate a molecules. "// &
             "Default is to use GENERATE",&
-            usage="CONNECTIVITY (PSF||GENERATE||OFF||MOL_SET)", &
-            enum_c_vals=s2a("PSF","GENERATE","OFF","MOL_SET"),&
+            usage="CONNECTIVITY (PSF||GENERATE||OFF||MOL_SET|GTOP)", &
+            enum_c_vals=s2a("PSF","GENERATE","OFF","MOL_SET","GTOP"),&
             enum_i_vals=(/do_conn_psf,do_conn_generate,&
-                          do_conn_off,do_conn_mol_set/),&
+                          do_conn_off,do_conn_mol_set,&
+                          do_conn_gtop/),&
             enum_desc=s2a("Use a PSF file for you system to determine molecules.",&
                           "Use a simple distance criteria. (Look at keyword BONDPARM)",&
                           "Do not generate molecules. (Use for QS or ill defined systems)",&
-                          "Use multiple PSF (for now...) files to generate the whole sytem."),&
+                          "Use multiple PSF (for now...) files to generate the whole sytem.",&
+                          "Use GROMOS topology file."),&
             default_i_val=do_conn_generate,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

@@ -268,7 +268,7 @@ CONTAINS
 
        CALL keyword_create(keyword, name="PARMTYPE",&
             description="Specifies the type of parameters file to use.",&
-            usage="PARMTYPE {OFF|CHM}",default_c_val="OFF",error=error)
+            usage="PARMTYPE {OFF|CHM|GROMOS}",default_c_val="OFF",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

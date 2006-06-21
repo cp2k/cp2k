@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2003  CP2K developers group                          !
+!   Copyright (C) 2000 - 2006  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 
 
@@ -157,9 +157,41 @@ MODULE force_field_types
     REAL (KIND=dp), POINTER                        :: nonbond_rmin2_14(:)
   END TYPE charmm_info_type
 
+  TYPE gromos_info_type
+    CHARACTER (LEN=default_string_length), POINTER :: bond_a(:)
+    CHARACTER (LEN=default_string_length), POINTER :: bond_b(:)
+    REAL(KIND=dp), POINTER                         :: bond_k(:)
+    REAL(KIND=dp), POINTER                         :: bond_r0(:)
+    CHARACTER (LEN=default_string_length), POINTER :: bend_a(:)
+    CHARACTER (LEN=default_string_length), POINTER :: bend_b(:)
+    CHARACTER (LEN=default_string_length), POINTER :: bend_c(:)
+    REAL(KIND=dp), POINTER                         :: bend_k(:)
+    REAL(KIND=dp), POINTER                         :: bend_theta0(:)
+    CHARACTER (LEN=default_string_length), POINTER :: torsion_a(:)
+    CHARACTER (LEN=default_string_length), POINTER :: torsion_b(:)
+    CHARACTER (LEN=default_string_length), POINTER :: torsion_c(:)
+    CHARACTER (LEN=default_string_length), POINTER :: torsion_d(:)
+    REAL(KIND=dp), POINTER                         :: torsion_k(:)
+    INTEGER, POINTER                               :: torsion_m(:)
+    REAL(KIND=dp), POINTER                         :: torsion_cosphi0(:)
+    CHARACTER (LEN=default_string_length), POINTER :: impr_a(:)
+    CHARACTER (LEN=default_string_length), POINTER :: impr_b(:)
+    CHARACTER (LEN=default_string_length), POINTER :: impr_c(:)
+    CHARACTER (LEN=default_string_length), POINTER :: impr_d(:)
+    REAL(KIND=dp), POINTER                         :: impr_k(:)
+    REAL(KIND=dp), POINTER                         :: impr_phi0(:)
+    CHARACTER (LEN=default_string_length), POINTER :: nonbond_a(:)
+    REAL (KIND=dp), POINTER                        :: nonbond_eps(:)
+    REAL (KIND=dp), POINTER                        :: nonbond_rmin2(:)
+    CHARACTER (LEN=default_string_length), POINTER :: nonbond_a_14(:)
+    REAL (KIND=dp), POINTER                        :: nonbond_eps_14(:)
+    REAL (KIND=dp), POINTER                        :: nonbond_rmin2_14(:)
+  END TYPE gromos_info_type
+
   TYPE force_field_type
     TYPE (input_info_type),POINTER   :: inp_info
     TYPE (charmm_info_type),POINTER  :: chm_info
+    TYPE (gromos_info_type),POINTER  :: gro_info
     CHARACTER (LEN=default_path_length)       :: ff_file_name
     CHARACTER (LEN=default_string_length)     :: ff_type
     REAL(KIND=dp)                             :: rcut_nb
@@ -186,6 +218,7 @@ MODULE force_field_types
             deallocate_bond_kind_set,&
             torsion_kind_dealloc_ref,&
             impr_kind_dealloc_ref,&
+            init_gromos_info,deallocate_gromos_info,&
             init_chm_info,deallocate_chm_info,&
             init_inp_info,deallocate_inp_info
 
@@ -200,6 +233,7 @@ MODULE force_field_types
             ub_kind_type,&
             ub_kind_dealloc_ref,&
             charmm_info_type,&
+            gromos_info_type,&
             input_info_type,&
             force_field_type
 
@@ -478,9 +512,9 @@ CONTAINS
 !!     1. Just NULLIFY and zero all the stuff
 !!
 !!   AUTHOR
+!!     ikuo
 !!
 !!   MODIFICATION HISTORY
-!!     none
 !!
 !!   SOURCE
 !******************************************************************************
@@ -500,10 +534,12 @@ CONTAINS
     !-----------------------------------------------------------------------------
     ! 1. Initialize 
     !-----------------------------------------------------------------------------
-    NULLIFY(ff_type%inp_info,ff_type%chm_info)
+    NULLIFY(ff_type%inp_info,ff_type%chm_info,ff_type%gro_info)
     ALLOCATE(ff_type%inp_info,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ALLOCATE(ff_type%chm_info,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE(ff_type%gro_info,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
     !-----------------------------------------------------------------------------
@@ -517,8 +553,67 @@ CONTAINS
     ! 3. Initialize and Nullify things in ff_type%chm_info
     !-----------------------------------------------------------------------------
     CALL init_chm_info(ff_type%chm_info)
+
+    !-----------------------------------------------------------------------------
+    !-----------------------------------------------------------------------------
+    ! 4. Initialize and Nullify things in ff_type%chm_info
+    !-----------------------------------------------------------------------------
+    CALL init_gromos_info(ff_type%gro_info)
     
   END SUBROUTINE init_ff_type
+
+
+!******************************************************************************
+!!****** force_field_types/init_gromos_info0 [1.0] *
+!!
+!!   NAME
+!!     init_gromos_info
+!!
+!!   FUNCTION
+!!     Specific function to initialize the gro_info
+!!
+!!   AUTHOR
+!!     ikuo
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!******************************************************************************
+SUBROUTINE init_gromos_info(gro_info)
+    TYPE(gromos_info_type), POINTER          :: gro_info
+
+  NULLIFY(gro_info%bond_a)
+  NULLIFY(gro_info%bond_b)
+  NULLIFY(gro_info%bond_k)
+  NULLIFY(gro_info%bond_r0)
+  NULLIFY(gro_info%bend_a)
+  NULLIFY(gro_info%bend_b)
+  NULLIFY(gro_info%bend_c)
+  NULLIFY(gro_info%bend_k)
+  NULLIFY(gro_info%bend_theta0)
+  NULLIFY(gro_info%torsion_a)
+  NULLIFY(gro_info%torsion_b)
+  NULLIFY(gro_info%torsion_c)
+  NULLIFY(gro_info%torsion_d)
+  NULLIFY(gro_info%torsion_k)
+  NULLIFY(gro_info%torsion_m)
+  NULLIFY(gro_info%torsion_cosphi0)
+  NULLIFY(gro_info%impr_a)
+  NULLIFY(gro_info%impr_b)
+  NULLIFY(gro_info%impr_c)
+  NULLIFY(gro_info%impr_d)
+  NULLIFY(gro_info%impr_k)
+  NULLIFY(gro_info%impr_phi0)
+  NULLIFY(gro_info%nonbond_a)
+  NULLIFY(gro_info%nonbond_eps)
+  NULLIFY(gro_info%nonbond_rmin2)
+  NULLIFY(gro_info%nonbond_a_14)
+  NULLIFY(gro_info%nonbond_eps_14)
+  NULLIFY(gro_info%nonbond_rmin2_14)
+  
+END SUBROUTINE init_gromos_info
+
+
 
 !******************************************************************************
 !!****** force_field_types/init_chm_info [1.0] *
@@ -577,6 +672,7 @@ SUBROUTINE init_chm_info(chm_info)
   NULLIFY(chm_info%nonbond_rmin2_14)
   
 END SUBROUTINE init_chm_info
+
 
 !******************************************************************************
 !!****** force_field_types/init_inp_info [1.0] *
@@ -650,7 +746,6 @@ END SUBROUTINE init_inp_info
 !!   AUTHOR
 !!
 !!   MODIFICATION HISTORY
-!!     none
 !!
 !!   SOURCE
 !******************************************************************************
@@ -680,7 +775,13 @@ SUBROUTINE deallocate_ff_type (ff_type,error)
 
   !-----------------------------------------------------------------------------
   !-----------------------------------------------------------------------------
-  ! 3. DEALLOCATE things in ff_type
+  ! 3. DEALLOCATE things in ff_type%gro_info
+  !-----------------------------------------------------------------------------
+    CALL deallocate_gromos_info(ff_type%gro_info,error)
+
+  !-----------------------------------------------------------------------------
+  !-----------------------------------------------------------------------------
+  ! 4. DEALLOCATE things in ff_type
   !-----------------------------------------------------------------------------
     IF(ASSOCIATED(ff_type%inp_info)) THEN
        DEALLOCATE(ff_type%inp_info,STAT=stat)
@@ -690,8 +791,155 @@ SUBROUTINE deallocate_ff_type (ff_type,error)
        DEALLOCATE(ff_type%chm_info,STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)       
     END IF
+    IF(ASSOCIATED(ff_type%gro_info)) THEN
+       DEALLOCATE(ff_type%gro_info,STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)       
+    END IF
 
 END SUBROUTINE deallocate_ff_type
+
+!******************************************************************************
+!!****** force_field_types/deallocate_gromos_info [1.0] *
+!!
+!!   NAME
+!!     deallocate_gromos_info
+!!
+!!   FUNCTION
+!!     Specific function to deallocate the gro_info
+!!
+!!   AUTHOR
+!!     ikuo
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!******************************************************************************
+SUBROUTINE deallocate_gromos_info(gro_info,error)
+    TYPE(gromos_info_type), POINTER          :: gro_info
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_gromos_info', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
+  failure = .FALSE.
+  IF(ASSOCIATED(gro_info%bond_a)) THEN
+    DEALLOCATE(gro_info%bond_a,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  END IF
+  IF(ASSOCIATED(gro_info%bond_b)) THEN
+    DEALLOCATE(gro_info%bond_b,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  END IF
+  IF(ASSOCIATED(gro_info%bond_k)) THEN
+    DEALLOCATE(gro_info%bond_k,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  END IF
+  IF(ASSOCIATED(gro_info%bond_r0)) THEN
+    DEALLOCATE(gro_info%bond_r0,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  END IF
+  IF(ASSOCIATED(gro_info%bend_a)) THEN
+    DEALLOCATE(gro_info%bend_a,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  END IF
+  IF(ASSOCIATED(gro_info%bend_b)) THEN
+    DEALLOCATE(gro_info%bend_b,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  END IF
+  IF(ASSOCIATED(gro_info%bend_c)) THEN
+    DEALLOCATE(gro_info%bend_c,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  END IF
+  IF(ASSOCIATED(gro_info%bend_k)) THEN
+    DEALLOCATE(gro_info%bend_k,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  END IF
+  IF(ASSOCIATED(gro_info%bend_theta0)) THEN
+    DEALLOCATE(gro_info%bend_theta0,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  END IF
+  IF(ASSOCIATED(gro_info%torsion_a)) THEN
+    DEALLOCATE(gro_info%torsion_a,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  END IF
+  IF(ASSOCIATED(gro_info%torsion_b)) THEN
+    DEALLOCATE(gro_info%torsion_b,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  END IF
+  IF(ASSOCIATED(gro_info%torsion_c)) THEN
+    DEALLOCATE(gro_info%torsion_c,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  END IF
+  IF(ASSOCIATED(gro_info%torsion_d)) THEN
+    DEALLOCATE(gro_info%torsion_d,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  END IF
+  IF(ASSOCIATED(gro_info%torsion_k)) THEN
+    DEALLOCATE(gro_info%torsion_k,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  END IF
+  IF(ASSOCIATED(gro_info%torsion_m)) THEN
+    DEALLOCATE(gro_info%torsion_m,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  END IF
+  IF(ASSOCIATED(gro_info%torsion_cosphi0)) THEN
+    DEALLOCATE(gro_info%torsion_cosphi0,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  END IF
+  IF(ASSOCIATED(gro_info%impr_a)) THEN
+    DEALLOCATE(gro_info%impr_a,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  END IF
+  IF(ASSOCIATED(gro_info%impr_b)) THEN
+    DEALLOCATE(gro_info%impr_b,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  END IF
+  IF(ASSOCIATED(gro_info%impr_c)) THEN
+    DEALLOCATE(gro_info%impr_c,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  END IF
+  IF(ASSOCIATED(gro_info%impr_d)) THEN
+    DEALLOCATE(gro_info%impr_d,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  END IF
+  IF(ASSOCIATED(gro_info%impr_k)) THEN
+    DEALLOCATE(gro_info%impr_k,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  END IF
+  IF(ASSOCIATED(gro_info%impr_phi0)) THEN
+    DEALLOCATE(gro_info%impr_phi0,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  END IF
+  IF(ASSOCIATED(gro_info%nonbond_a)) THEN
+    DEALLOCATE(gro_info%nonbond_a,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  END IF
+  IF(ASSOCIATED(gro_info%nonbond_eps)) THEN
+    DEALLOCATE(gro_info%nonbond_eps,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  END IF
+  IF(ASSOCIATED(gro_info%nonbond_rmin2)) THEN
+    DEALLOCATE(gro_info%nonbond_rmin2,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  END IF
+  IF(ASSOCIATED(gro_info%nonbond_a_14)) THEN
+    DEALLOCATE(gro_info%nonbond_a_14,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  END IF
+  IF(ASSOCIATED(gro_info%nonbond_eps_14)) THEN
+    DEALLOCATE(gro_info%nonbond_eps_14,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  END IF
+  IF(ASSOCIATED(gro_info%nonbond_rmin2_14)) THEN
+    DEALLOCATE(gro_info%nonbond_rmin2_14,STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+  END IF
+
+END SUBROUTINE deallocate_gromos_info
 
 !******************************************************************************
 !!****** force_field_types/deallocate_chm_info [1.0] *
