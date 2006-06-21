@@ -266,7 +266,7 @@ CONTAINS
                            0,0.0_dp,0,&
                            ra,rab,rab2,scale,pab,na1-1,0,&
                            rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
-                           l_info,eps_rho_rspace)
+                           l_info,eps_rho_rspace,ga_gb_function=401,error=error)
             END DO
 
          END DO                     
@@ -443,7 +443,8 @@ CONTAINS
         CALL collocate_pgf_product_rspace(0,alpha,0,0,0.0_dp,0,ra,&
                                           (/0.0_dp,0.0_dp,0.0_dp/),&
                                           0.0_dp,scale,pab,0,0,rs_rho,&
-                                          cube_info,l_info,eps_rho_rspace)
+                                          cube_info,l_info,eps_rho_rspace,&
+                                          ga_gb_function=401,error=error)
 
       END DO
 
@@ -644,7 +645,7 @@ CONTAINS
                         0,0.0_dp,0,&
                         ra,rab,rab2,scale,pab,na1-1,0,&
                         rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
-                        l_info,eps_rho_rspace)
+                        l_info,eps_rho_rspace,ga_gb_function=401,error=error)
             END DO
 
             offset=offset+nsgfa(iset)

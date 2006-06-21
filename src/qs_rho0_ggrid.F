@@ -267,8 +267,8 @@ MODULE qs_rho0_ggrid
         CALL collocate_pgf_product_rspace(&
            l0_ikind,zet0_s,0,0,0.0_dp,0,&
            ra, (/0.0_dp,0.0_dp,0.0_dp/), 0.0_dp, 1.0_dp, pab,0,0,&
-           rs_grid, cube_info(igrid),l_info,eps_rho_rspace,&
-           ithread=ithread,collocate_rho0=.TRUE.,rpgf0_s=rpgf0_s)
+           rs_grid, cube_info(igrid),l_info,eps_rho_rspace,ga_gb_function=401,&
+           ithread=ithread,collocate_rho0=.TRUE.,rpgf0_s=rpgf0_s,error=error)
 
       END DO  !  j
 
@@ -407,7 +407,7 @@ MODULE qs_rho0_ggrid
     INTEGER :: auxbas_grid, bo(2), dir, handle, iat, iatom, ic, icg, ico, &
       ig1, ig2, igrid, ikind, ipgf1, ipgf2, is, iset1, iset2, iso, iso1, &
       iso2, ispin, istat, ithread, j, l0_ikind, lmax0, lshell, lx, ly, lz, &
-      m1, m2, maxso, n1, n2, nat, natom, nch_ik, nch_max, ncurr, npme, nset, &
+      m1, m2, maxso, n1, n2, nat, nch_ik, nch_max, ncurr, npme, nset, &
       nspins, nthread, omp_get_max_threads, omp_get_thread_num
     INTEGER, DIMENSION(:), POINTER           :: atom_list, lmax, npgf
     INTEGER, DIMENSION(:, :), POINTER        :: tasks

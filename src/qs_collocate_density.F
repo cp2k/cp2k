@@ -109,7 +109,10 @@ MODULE qs_collocate_density
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_interactions,                 ONLY: exp_radius_very_extended
-  USE qs_modify_pab_block,             ONLY: prepare_dadb,&
+  USE qs_modify_pab_block,             ONLY: FUNC_AB, FUNC_DADB, &
+                                             FUNC_ADBmDAB,&
+                                             FUNC_ARDBmDARB,&
+                                             prepare_dadb,&
                                              prepare_adb_m_dab,&
                                              prepare_ardb_m_darb
   USE qs_neighbor_list_types,          ONLY: &
@@ -339,13 +342,15 @@ CONTAINS
             igrid_level = gaussian_gridlevel(gridlevel_info, zeta(ipgf,iset))
 
             CALL collocate_pgf_product_rspace(la_max=la_max(iset), zeta=zeta(ipgf,iset), &
-                                              la_min=la_min(iset), lb_max=0, zetb=0.0_dp, lb_min=0, &
-                                              ra=ra, rab=(/0.0_dp,0.0_dp,0.0_dp/), rab2=0.0_dp, &
-                                              scale=1.0_dp, pab=pab, o1=na1, o2=0, &
-                                              rsgrid=rs_rho(igrid_level)%rs_grid, &
-                                              cube_info=cube_info(igrid_level), l_info=l_info, &
-                                              eps_rho_rspace=eps_rho_rspace, ithread=ithread, &
-                                              compute_tau=.FALSE., map_consistent=map_consistent)
+                                              la_min=la_min(iset),&
+                                              lb_max=0, zetb=0.0_dp, lb_min=0,&
+                                              ra=ra,rab=(/0.0_dp,0.0_dp,0.0_dp/),rab2=0.0_dp,&
+                                              scale=1.0_dp, pab=pab, o1=na1, o2=0,&
+                                              rsgrid=rs_rho(igrid_level)%rs_grid,&
+                                              cube_info=cube_info(igrid_level),l_info=l_info,&
+                                              eps_rho_rspace=eps_rho_rspace,&
+                                              ga_gb_function=FUNC_AB, ithread=ithread, &
+                                              map_consistent=map_consistent,error=error)
           END DO
         END DO
       END DO
@@ -538,7 +543,8 @@ CONTAINS
 !$      ithread=omp_get_thread_num()
         CALL collocate_pgf_product_rspace(0,alpha,0,0,0.0_dp,0,ra,&
              (/0.0_dp,0.0_dp,0.0_dp/),0.0_dp,-1.0_dp,pab,0,0,rs_rho,&
-             cube_info,l_info,eps_rho_rspace,ithread=ithread)
+             cube_info,l_info,eps_rho_rspace,ga_gb_function=FUNC_AB,&
+             ithread=ithread,error=error)
 
       END DO
     
@@ -589,7 +595,7 @@ CONTAINS
     REAL(kind=dp), PARAMETER                 :: mult_tasks = 2.0_dp
 
     INTEGER :: ab, bcol, brow, curr_tasks, dir, first_pgfb, first_setb, &
-      handle, i, iatom, igrid_level, ijatoms, ijsets, ikind, ilist, inode, &
+      ga_gb_function, handle, i, iatom, igrid_level, ijatoms, ijsets, ikind, ilist, inode, &
       ipgf, iset, istat, itask, ithread, j, jatom, jkind, jpgf, jset, k, &
       maxco, maxsgf, maxsgf_set, n, na1, na2, natom_pairs, nb1, nb2, ncoa, &
       ncob, nkind, nlist, nnode, npme, nseta, nsetb, nthread, &
@@ -673,8 +679,10 @@ CONTAINS
 
     IF (my_compute_tau) THEN
        CALL timeset("calculate_rho_tau","I"," ",handle)
+       ga_gb_function = FUNC_DADB
     ELSE
        CALL timeset("calculate_rho_elec","I"," ",handle)
+       ga_gb_function = FUNC_AB
     ENDIF
 
     CALL get_qs_env(qs_env=qs_env,&
@@ -1027,7 +1035,7 @@ CONTAINS
 !$OMP shared(deltap,npgfa,npgfb,ncoset,la_max,lb_max,first_sgfa,first_sgfb) &
 !$OMP shared(nsgfa,nsgfb,sphi_a,sphi_b,dab_local,la_min,lb_min,zeta,zetb) &
 !$OMP shared(rs_rho,igrid_level,cube_info,l_info,eps_rho_rspace,lgrid,nthread) &
-!$OMP shared(workt,pabt,my_compute_tau,map_consistent)
+!$OMP shared(workt,pabt,ga_gb_function,map_consistent)
           ithread = 0
 !$        ithread = omp_get_thread_num()
           pab => pabt(:,:,ithread)
@@ -1104,16 +1112,20 @@ CONTAINS
                       lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
                       ra,rab,rab2,scale,pab,na1-1,nb1-1,&
                       rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
-                      l_info,eps_rho_rspace,lgrid=lgrid,ithread=ithread, &
-                      compute_tau=my_compute_tau,map_consistent=map_consistent)
+                      l_info,eps_rho_rspace,&
+                      ga_gb_function=ga_gb_function,&
+                      lgrid=lgrid,ithread=ithread, &
+                      map_consistent=map_consistent)
                   ELSE
                     CALL collocate_pgf_product_rspace(&
                       lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
                       la_max(iset),zeta(ipgf,iset),la_min(iset),&
                       rb,-rab,rab2,scale,pab,nb1-1,na1-1,&
                       rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
-                      l_info,eps_rho_rspace,lgrid=lgrid,ithread=ithread, &
-                      compute_tau=my_compute_tau,map_consistent=map_consistent)
+                      l_info,eps_rho_rspace,&
+                      ga_gb_function=ga_gb_function,&
+                      lgrid=lgrid,ithread=ithread, &
+                      map_consistent=map_consistent)
                   END IF
                 ELSE
                   IF (iatom <= jatom) THEN
@@ -1122,7 +1134,8 @@ CONTAINS
                       lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
                       ra,rab,rab2,scale,pab,na1-1,nb1-1,&
                       rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
-                      l_info,eps_rho_rspace,compute_tau=my_compute_tau, &
+                      l_info,eps_rho_rspace,&
+                      ga_gb_function=ga_gb_function, &
                       map_consistent=map_consistent)
                   ELSE
                     CALL collocate_pgf_product_rspace(&
@@ -1130,7 +1143,8 @@ CONTAINS
                       la_max(iset),zeta(ipgf,iset),la_min(iset),&
                       rb,-rab,rab2,scale,pab,nb1-1,na1-1,&
                       rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
-                      l_info,eps_rho_rspace,compute_tau=my_compute_tau, &
+                      l_info,eps_rho_rspace,&
+                      ga_gb_function=ga_gb_function, &
                       map_consistent=map_consistent)
                   END IF
                 END IF
@@ -1374,7 +1388,7 @@ CONTAINS
                         0,0.0_dp,0,&
                         ra,rab,rab2,scale,pab,na1-1,0,&
                         rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
-                        l_info,eps_rho_rspace)
+                        l_info,eps_rho_rspace,ga_gb_function=FUNC_AB,error=error)
          END DO
 
          offset=offset+nsgfa(iset)
@@ -1486,10 +1500,11 @@ CONTAINS
                                           lb_max,zetb,lb_min,&
                                           ra,rab,rab2,scale,pab,o1,o2,&
                                           rsgrid,cube_info,l_info,&
-                                          eps_rho_rspace,lgrid,ithread,&
-                                          compute_tau,map_consistent,&
-                                          collocate_rho0,compute_adb_m_dab,&
-                                          compute_ardb_m_darb,rpgf0_s,idir,ir)
+                                          eps_rho_rspace,ga_gb_function,&
+                                          lgrid,ithread,&
+                                          map_consistent,&
+                                          collocate_rho0,&
+                                          rpgf0_s,idir,ir,error)
 
     INTEGER, INTENT(IN)                      :: la_max
     REAL(KIND=dp), INTENT(IN)                :: zeta
@@ -1504,17 +1519,21 @@ CONTAINS
     TYPE(cube_info_type), INTENT(IN)         :: cube_info
     TYPE(l_info_type), INTENT(IN)            :: l_info
     REAL(KIND=dp), INTENT(IN)                :: eps_rho_rspace
+    INTEGER, INTENT(IN)                      :: ga_gb_function
     TYPE(lgrid_type), OPTIONAL               :: lgrid
     INTEGER, INTENT(IN), OPTIONAL            :: ithread
-    LOGICAL, INTENT(IN), OPTIONAL            :: compute_tau, map_consistent, &
-                                                collocate_rho0,&
-                                                compute_adb_m_dab,&
-                                                compute_ardb_m_darb
+    LOGICAL, INTENT(IN), OPTIONAL            :: map_consistent, &
+                                                collocate_rho0
     INTEGER, INTENT(IN), OPTIONAL            :: idir, ir
     REAL(dp), INTENT(IN), OPTIONAL           :: rpgf0_s
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
-    INTEGER :: cmax, coef_max, gridbounds(2,3), i, ico, ico_l, icoef, ig, &
-      ithread_l, jco, jco_l, k, l, la_max_local, la_min_local, lb_max_local, &
+    CHARACTER(len=*), PARAMETER :: routineN = 'collocate_pgf_product_rspace', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER :: cmax, coef_max, gridbounds(2,3), i, ico, icoef, ig, &
+      ithread_l, jco, k, l, la_max_local, la_min_local, lb_max_local, &
       lb_min_local, length, lx, lx_max, lxa, lxb, lxy, lxy_max, lxyz, &
       lxyz_max, lya, lyb, lza, lzb, o1_local, o2_local, offset, start
     INTEGER, DIMENSION(3)                    :: cubecenter, lb_cube, ng, &
@@ -1522,11 +1541,8 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: ly_max, lz_max, sphere_bounds
     INTEGER, DIMENSION(:, :), POINTER        :: map
     INTEGER, POINTER                         :: ipzyx(:,:,:,:,:,:)
-    LOGICAL                                  :: my_collocate_rho0, &
-                                                my_compute_tau, &
-                                                my_map_consistent,&
-                                                my_compute_adb_m_dab,&
-                                                my_compute_ardb_m_darb
+    LOGICAL                                  :: failure, my_collocate_rho0, &
+                                                my_map_consistent
     REAL(KIND=dp) :: a, b, binomial_k_lxa, binomial_l_lxb, cutoff, f, pg, &
       prefactor, radius, rpg, ya, yap, yb, ybp, za, zap, zb, zbp, zetp
     REAL(KIND=dp), DIMENSION(3)              :: dr, rap, rb, rbp, roffset, rp
@@ -1537,10 +1553,9 @@ CONTAINS
                                                 dpz(:,:), polx(:,:), &
                                                 poly(:,:), polz(:,:), pzyx(:)
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'collocate_pgf_product_rspace', &
-      routineP = moduleN//':'//routineN
-
 !   ---------------------------------------------------------------------------
+
+    failure = .FALSE.
 
     IF (PRESENT(ithread)) THEN
        ithread_l=ithread
@@ -1556,11 +1571,11 @@ CONTAINS
     ENDIF
 
 
-    IF (PRESENT(compute_tau)) THEN
-       my_compute_tau=compute_tau
-    ELSE
-       my_compute_tau=.FALSE.
-    ENDIF
+!    IF (PRESENT(compute_tau)) THEN
+!       my_compute_tau=compute_tau
+!    ELSE
+!       my_compute_tau=.FALSE.
+!    ENDIF
 
     IF (PRESENT(collocate_rho0).AND.PRESENT(rpgf0_s)) THEN
        my_collocate_rho0=collocate_rho0
@@ -1568,17 +1583,17 @@ CONTAINS
        my_collocate_rho0=.FALSE.
     END IF
     
-    IF (PRESENT(compute_adb_m_dab)) THEN
-       my_compute_adb_m_dab=compute_adb_m_dab
-    ELSE
-       my_compute_adb_m_dab=.FALSE.
-    ENDIF
+!    IF (PRESENT(compute_adb_m_dab)) THEN
+!       my_compute_adb_m_dab=compute_adb_m_dab
+!    ELSE
+!       my_compute_adb_m_dab=.FALSE.
+!    ENDIF
 
-    IF (PRESENT(compute_ardb_m_darb)) THEN
-       my_compute_ardb_m_darb=compute_ardb_m_darb
-    ELSE
-       my_compute_ardb_m_darb=.FALSE.
-    ENDIF
+!    IF (PRESENT(compute_ardb_m_darb)) THEN
+!       my_compute_ardb_m_darb=compute_ardb_m_darb
+!    ELSE
+!       my_compute_ardb_m_darb=.FALSE.
+!    ENDIF
 
     zetp      = zeta + zetb
     f         = zetb/zetp
@@ -1613,7 +1628,8 @@ CONTAINS
 
     ! it's a choice to compute lX_min/max, pab here, 
     ! this way we get the same radius as we use for the corresponding density
-    IF (my_compute_tau) THEN
+    SELECT CASE (ga_gb_function)
+    CASE(FUNC_DADB)!IF (my_compute_tau) THEN
         la_max_local=la_max+1
         la_min_local=MAX(la_min-1,0)
         lb_max_local=lb_max+1
@@ -1643,7 +1659,8 @@ CONTAINS
         o1_local=0
         o2_local=0
         pab_local=pab_local * 0.5_dp
-    ELSEIF(my_compute_adb_m_dab) THEN
+    CASE(FUNC_ADBmDAB)!ELSEIF(my_compute_adb_m_dab) THEN
+        CPPrecondition(PRESENT(idir),cp_failure_level,routineP,error,failure)
         la_max_local=la_max+1
         la_min_local=MAX(la_min-1,0)
         lb_max_local=lb_max+1
@@ -1673,7 +1690,9 @@ CONTAINS
            END DO
         END DO
         END DO
-    ELSEIF(my_compute_ardb_m_darb) THEN
+    CASE(FUNC_ARDBmDARB)!ELSEIF(my_compute_ardb_m_darb) THEN
+        CPPrecondition(PRESENT(idir),cp_failure_level,routineP,error,failure)
+        CPPrecondition(PRESENT(ir),cp_failure_level,routineP,error,failure)
         la_max_local=la_max+2
         la_min_local=MAX(la_min-1,0)
         lb_max_local=lb_max+2
@@ -1704,7 +1723,7 @@ CONTAINS
         END DO
         END DO
 
-    ELSE
+    CASE(FUNC_AB)!ELSE
         la_max_local=la_max
         la_min_local=la_min
         lb_max_local=lb_max
@@ -1712,7 +1731,9 @@ CONTAINS
         pab_local => pab
         o1_local=o1
         o2_local=o2
-    ENDIF
+    CASE DEFAULT
+        CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+    END SELECT!ENDIF
 
     coef_max=la_max_local+lb_max_local+1
    
@@ -1901,7 +1922,7 @@ CONTAINS
               gridbounds(1,1),map(-cmax,1),sphere_bounds(1))
     END IF
 
-    IF (my_compute_tau .OR. my_compute_adb_m_dab) THEN
+    IF (ga_gb_function /= FUNC_AB) THEN
        DEALLOCATE(pab_local)
     ENDIF
 

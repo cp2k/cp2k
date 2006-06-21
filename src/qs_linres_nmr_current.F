@@ -111,6 +111,9 @@ MODULE qs_linres_nmr_current
   USE qs_linres_types,                 ONLY: nmr_env_type
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
+  USE qs_modify_pab_block,             ONLY: FUNC_AB, &
+                                             FUNC_ADBmDAB,&
+                                             FUNC_ARDBmDARB
   USE qs_neighbor_list_types,          ONLY: &
        first_list, first_node, get_neighbor_list, get_neighbor_list_set, &
        get_neighbor_node, neighbor_list_set_p_type, neighbor_list_type, &
@@ -1168,17 +1171,20 @@ CONTAINS
                        la_min(iset),lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
                        ra,rab,rab2,scale,jpab,na1-1,nb1-1,&
                        rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
-                       l_info,eps_rho_rspace,lgrid=lgrid,ithread=ithread, &
-                       compute_adb_m_dab=.TRUE.,idir=idir,&
-                       map_consistent=map_consistent)
+                       l_info,eps_rho_rspace,&
+                       ga_gb_function=FUNC_ADBmDAB,&
+                       lgrid=lgrid,ithread=ithread, &
+                       idir=idir,&
+                       map_consistent=map_consistent,error=error)
                 ELSE
                   CALL collocate_pgf_product_rspace(la_max(iset),zeta(ipgf,iset),&
                        la_min(iset),lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
                        ra,rab,rab2,scale,jpab,na1-1,nb1-1,&
                        rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
-                       l_info,eps_rho_rspace,lgrid=lgrid, &
-                       compute_adb_m_dab=.TRUE.,idir=idir,&
-                       map_consistent=map_consistent)
+                       l_info,eps_rho_rspace,&
+                       ga_gb_function=FUNC_ADBmDAB,&
+                       idir=idir,&
+                       map_consistent=map_consistent,error=error)
                 END IF
      ! here the decontracted mat_jp_rii{ab} is multiplied by 
      !     f_{ab} = g_{a} (r - R_{b})_{iiB} (dg_{b}/dr)_{idir} - 
@@ -1188,17 +1194,20 @@ CONTAINS
                        la_min(iset),lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
                        ra,rab,rab2,scale,jpab_ii,na1-1,nb1-1,&
                        rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
-                       l_info,eps_rho_rspace,lgrid=lgrid,ithread=ithread, &
-                       compute_ardb_m_darb=.TRUE.,idir=idir,ir=iiiB,&
-                       map_consistent=map_consistent)
+                       l_info,eps_rho_rspace,&
+                       ga_gb_function=FUNC_ARDBmDARB,&
+                       lgrid=lgrid,ithread=ithread, &
+                       idir=idir,ir=iiiB,&
+                       map_consistent=map_consistent,error=error)
                 ELSE
                   CALL collocate_pgf_product_rspace(la_max(iset),zeta(ipgf,iset),&
                        la_min(iset),lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
                        ra,rab,rab2,scale,jpab_ii,na1-1,nb1-1,&
                        rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
-                       l_info,eps_rho_rspace,lgrid=lgrid, &
-                       compute_ardb_m_darb=.TRUE.,idir=idir,ir=iiiB,&
-                       map_consistent=map_consistent)
+                       l_info,eps_rho_rspace,&
+                       ga_gb_function=FUNC_ARDBmDARB,&
+                       idir=idir,ir=iiiB,&
+                       map_consistent=map_consistent,error=error)
                 END IF
      ! here the decontracted mat_jp_riii{ab} is multiplied by 
      !     f_{ab} = -g_{a} (r - R_{b})_{iiB} (dg_{b}/dr)_{idir} + 
@@ -1209,17 +1218,20 @@ CONTAINS
                        la_min(iset),lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
                        ra,rab,rab2,scale,jpab_iii,na1-1,nb1-1,&
                        rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
-                       l_info,eps_rho_rspace,lgrid=lgrid,ithread=ithread, &
-                       compute_ardb_m_darb=.TRUE.,idir=idir,ir=iiB,&
-                       map_consistent=map_consistent)
+                       l_info,eps_rho_rspace,&
+                       ga_gb_function=FUNC_ARDBmDARB,&
+                       lgrid=lgrid,ithread=ithread, &
+                       idir=idir,ir=iiB,&
+                       map_consistent=map_consistent,error=error)
                 ELSE
                   CALL collocate_pgf_product_rspace(la_max(iset),zeta(ipgf,iset),&
                        la_min(iset),lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
                        ra,rab,rab2,scale,jpab_iii,na1-1,nb1-1,&
                        rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
-                       l_info,eps_rho_rspace,lgrid=lgrid, &
-                       compute_ardb_m_darb=.TRUE.,idir=idir,ir=iiB,&
-                       map_consistent=map_consistent)
+                       l_info,eps_rho_rspace,&
+                       ga_gb_function=FUNC_ARDBmDARB,&
+                       idir=idir,ir=iiB,&
+                       map_consistent=map_consistent,error=error)
                 END IF
       ! The last term if idir=iiB or idir=iiiB
       ! Either the decontracted mat_jp_rii{ab} or the decontracted mat_jp_riii{ab}
@@ -1231,17 +1243,18 @@ CONTAINS
                           la_min(iset),lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
                           ra,rab,rab2,scale,jpab_ii,na1-1,nb1-1,&
                           rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
-                          l_info,eps_rho_rspace,lgrid=lgrid,ithread=ithread, &
-!                          compute_ab=.TRUE.,&
-                          map_consistent=map_consistent)
+                          l_info,eps_rho_rspace,&
+                          ga_gb_function=FUNC_AB,&
+                          lgrid=lgrid,ithread=ithread, &
+                          map_consistent=map_consistent,error=error)
                   ELSE
                      CALL collocate_pgf_product_rspace(la_max(iset),zeta(ipgf,iset),&
                           la_min(iset),lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
                           ra,rab,rab2,scale,jpab_ii,na1-1,nb1-1,&
                           rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
-                          l_info,eps_rho_rspace,lgrid=lgrid, &
-!                          compute_ab=.TRUE.,&
-                          map_consistent=map_consistent)
+                          l_info,eps_rho_rspace,&
+                          ga_gb_function=FUNC_AB,&
+                          map_consistent=map_consistent,error=error)
                   END IF
                 ELSEIF(idir==iiB) THEN
                   scale = -1.0_dp
@@ -1250,17 +1263,18 @@ CONTAINS
                           la_min(iset),lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
                           ra,rab,rab2,scale,jpab_iii,na1-1,nb1-1,&
                           rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
-                          l_info,eps_rho_rspace,lgrid=lgrid,ithread=ithread, &
-!                          compute_ab=.TRUE.,&
-                          map_consistent=map_consistent)
+                          l_info,eps_rho_rspace,&
+                          ga_gb_function=FUNC_AB,&
+                          lgrid=lgrid,ithread=ithread, &
+                          map_consistent=map_consistent,error=error)
                   ELSE
                      CALL collocate_pgf_product_rspace(la_max(iset),zeta(ipgf,iset),&
                           la_min(iset),lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
                           ra,rab,rab2,scale,jpab_iii,na1-1,nb1-1,&
                           rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
-                          l_info,eps_rho_rspace,lgrid=lgrid, &
-!                          compute_ab=.TRUE.,&
-                          map_consistent=map_consistent)
+                          l_info,eps_rho_rspace,&
+                          ga_gb_function=FUNC_AB,&
+                          map_consistent=map_consistent,error=error)
                   END IF
 
                 END IF
@@ -1690,7 +1704,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
 
-    INTEGER  :: cubecenter(3),homo, igrid_level, istat, istate, iao, idir, jao, &
+    INTEGER  :: cubecenter(3),homo, igrid_level, istat, istate, iao, idir, &
                 ix, iy, iz, lb(3), ub(3), nao, ng(3), nmo
     LOGICAL :: failure,wavefunction
     REAL(KIND=dp):: rpos(3),rx,ry,rz, dk(3),dr(3), mom(3), rdk(3),roffset(3), shift(3),sumr, sumrm(9)
@@ -1705,8 +1719,6 @@ CONTAINS
     TYPE(cp_2d_r_p_type), DIMENSION(3)       :: vecbuf
     TYPE(cp_fm_struct_type), POINTER         :: tmp_fm_struct
     TYPE(cp_fm_type), POINTER                :: mo_coeff
-    TYPE(cp_fm_type), POINTER                :: fm_work1,fm_work2
-    TYPE(cp_fm_type), POINTER                :: fm_work3
     TYPE(cp_rs_pool_p_type), DIMENSION(:), &
       POINTER                                :: rs_pools
     TYPE(cube_info_type), DIMENSION(:), &

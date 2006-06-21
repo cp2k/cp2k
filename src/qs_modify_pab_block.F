@@ -24,8 +24,7 @@ MODULE  qs_modify_pab_block
 
 ! *****************************************************************************
 
-  USE kinds,                           ONLY: dp,&
-                                             dp_size
+  USE kinds,                           ONLY: dp
   USE orbital_pointers,                ONLY: coset
 
   IMPLICIT NONE
@@ -37,6 +36,11 @@ MODULE  qs_modify_pab_block
 ! *** Public subroutines ***
 
   PUBLIC :: prepare_dadb,prepare_adb_m_dab,prepare_ardb_m_darb
+  PUBLIC :: FUNC_AB, FUNC_DADB, FUNC_ADBmDAB, FUNC_ARDBmDARB
+
+  ! Flags for the type of function to be collocated
+  INTEGER, PARAMETER :: FUNC_AB = 401, FUNC_DADB = 402
+  INTEGER, PARAMETER :: FUNC_ADBmDAB = 403, FUNC_ARDBmDARB = 404
 
 !!***
 ! *****************************************************************************

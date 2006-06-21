@@ -70,6 +70,7 @@ MODULE kg_gpw_collocate_den
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_integrate_potential,          ONLY: integrate_pgf_product_rspace
+  USE qs_modify_pab_block,             ONLY: FUNC_AB, FUNC_DADB
   USE realspace_grid_types,            ONLY: pw2rs,&
                                              realspace_grid_p_type,&
                                              rs2pw,&
@@ -155,8 +156,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_rho_mol', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: bcol, brow, curr_tasks, first_pgfb, first_setb, handle, i, &
-      iat, iatom, igrid_level, igridlevel, ikind, ikind_old, ipgf, iset, &
+    INTEGER :: bcol, brow, curr_tasks, first_pgfb, first_setb,ga_gb_function,& 
+      handle, i, iat, iatom, igrid_level, igridlevel, ikind, ikind_old, ipgf, iset, &
       istat, itask, ithread, j, jat, jatom, jkind, jkind_old, jpgf, jset, k, &
       maxco, maxsgf, maxsgf_set, n, na1, na2, nat_mol, nb1, nb2, ncoa, ncob, &
       nseta, nsetb, nthread, num_tasks, omp_get_max_threads, &
@@ -213,8 +214,10 @@ CONTAINS
 
     IF (my_compute_tau) THEN
        CALL timeset("calculate_rho_mol_tau","I","",handle)
+       ga_gb_function = FUNC_DADB
     ELSE
        CALL timeset("calculate_rho_mol_elec","I","",handle)
+       ga_gb_function = FUNC_AB
     ENDIF
 
     NULLIFY(atomic_kind_set,dft_control)
@@ -495,7 +498,7 @@ CONTAINS
 !$OMP shared(npgfa,npgfb,ncoset,la_max,lb_max,first_sgfa,first_sgfb) &
 !$OMP shared(nsgfa,nsgfb,sphi_a,sphi_b,la_min,lb_min,zeta,zetb) &
 !$OMP shared(rs_rho,igrid_level,cube_info,l_info,eps_rho_rspace,lgrid,nthread) &
-!$OMP shared(workt,pabt,my_compute_tau,map_consistent)
+!$OMP shared(workt,pabt,ga_gb_function,map_consistent)
             ithread = 0
 !$          ithread = omp_get_thread_num()
             pab => pabt(:,:,ithread)
@@ -552,16 +555,20 @@ CONTAINS
                        lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
                        ra,rab,rab2,scale,pab,na1-1,nb1-1,&
                        rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
-                       l_info,eps_rho_rspace,lgrid=lgrid,ithread=ithread, &
-                       compute_tau=my_compute_tau,map_consistent=map_consistent)
+                       l_info,eps_rho_rspace,&
+                       ga_gb_function=ga_gb_function,&
+                       lgrid=lgrid,ithread=ithread, &
+                       map_consistent=map_consistent)
                 ELSE
                   CALL collocate_pgf_product_rspace(&
                        lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
                        la_max(iset),zeta(ipgf,iset),la_min(iset),&
                        rb,-rab,rab2,scale,pab,nb1-1,na1-1,&
                        rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
-                       l_info,eps_rho_rspace,lgrid=lgrid,ithread=ithread, &
-                       compute_tau=my_compute_tau,map_consistent=map_consistent)
+                       l_info,eps_rho_rspace,&
+                       ga_gb_function=ga_gb_function,&
+                       lgrid=lgrid,ithread=ithread, &
+                       map_consistent=map_consistent)
                 END IF
               ELSE
                 IF (iatom <= jatom) THEN
@@ -570,7 +577,8 @@ CONTAINS
                        lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
                        ra,rab,rab2,scale,pab,na1-1,nb1-1,&
                        rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
-                       l_info,eps_rho_rspace,compute_tau=my_compute_tau, &
+                       l_info,eps_rho_rspace,&
+                       ga_gb_function=ga_gb_function,&
                        map_consistent=map_consistent)
                 ELSE
                   CALL collocate_pgf_product_rspace(&
@@ -578,7 +586,8 @@ CONTAINS
                        la_max(iset),zeta(ipgf,iset),la_min(iset),&
                        rb,-rab,rab2,scale,pab,nb1-1,na1-1,&
                        rs_rho(igrid_level)%rs_grid,cube_info(igrid_level),&
-                       l_info,eps_rho_rspace,compute_tau=my_compute_tau, &
+                       l_info,eps_rho_rspace,&
+                       ga_gb_function=ga_gb_function,&
                        map_consistent=map_consistent)
                 END IF
               END IF
