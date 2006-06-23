@@ -480,7 +480,7 @@ CONTAINS
           WRITE (UNIT=iw,FMT="(T2,A,T36,A,T80,A)")&
                "-","BSSE RESULTS","-"
           WRITE (UNIT=iw,FMT="(T2,A,T80,A)") "-","-"
-          WRITE (UNIT=iw,FMT="(T2,A,T21,A,F15.9,T80,A)") "-","CP-corrected Total energy:",SUM(Em),"-"
+          WRITE (UNIT=iw,FMT="(T2,A,T20,A,F16.6,T80,A)") "-","CP-corrected Total energy:",SUM(Em),"-"
           WRITE (UNIT=iw,FMT="(T2,A,T80,A)") "-","-"
           DO i = 1, SIZE(conf,1)
              IF (i.GT.1) THEN
@@ -488,9 +488,9 @@ CONTAINS
                    WRITE (UNIT=iw,FMT="(T2,A,T80,A)") "-","-"
                 END IF
              END IF
-             WRITE (UNIT=iw,FMT="(T2,A,T24,I3,A,F16.9,T80,A)") "-",SUM(conf(i,:)),"-body contribution:",Em(i),"-"
+             WRITE (UNIT=iw,FMT="(T2,A,T24,I3,A,F16.6,T80,A)") "-",SUM(conf(i,:)),"-body contribution:",Em(i),"-"
           END DO
-          WRITE (UNIT=iw,FMT="(T2,A,T20,A,F16.9,T80,A)") "-","BSSE  interaction  energy:",SUM(Em(Num_of_frag+1:)),"-"
+          WRITE (UNIT=iw,FMT="(T2,A,T20,A,F16.6,T80,A)") "-","BSSE  interaction  energy:",SUM(Em(Num_of_frag+1:)),"-"
           WRITE (UNIT=iw,FMT="(T2,A)") REPEAT("-",79)
        END IF
     END IF

@@ -46,11 +46,13 @@
     &END COORD
     &KIND H_ghost
       BASIS_SET DZVP-GTH-PADE
-      POTENTIAL ghost
+      POTENTIAL GTH-PADE-q1
+      GHOST
     &END KIND
     &KIND O_ghost
       BASIS_SET DZVP-GTH-PADE
-      POTENTIAL ghost
+      POTENTIAL GTH-PADE-q6
+      GHOST
     &END KIND
     &KIND H
       BASIS_SET DZVP-GTH-PADE

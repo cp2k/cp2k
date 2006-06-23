@@ -897,15 +897,28 @@ CONTAINS
        CALL keyword_release(keyword,error=error)
 
        ! Logicals
+
        CALL keyword_create(keyword, name="GPW_TYPE",&
           description="Force one type to be treated by the GPW scheme,"//&
           " whatever are its primitives, even if the GAPW method is used",&
           usage="GPW_TYPE",&
           default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
-     CALL section_add_keyword(section,keyword,error=error)
-     CALL keyword_release(keyword,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword,&
+                           name="GHOST",&
+                           description="This keyword makes all atoms of this "//&
+                                        "to ghost atoms, i.e. the nuclear charge zero.",&
+                           usage="GHOST",&
+                           default_l_val=.FALSE.,&
+                           lone_keyword_l_val=.TRUE.,&
+                           error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
 
     END IF
+
   END SUBROUTINE create_kind_section
 
 !***************************************************************************

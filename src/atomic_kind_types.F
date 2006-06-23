@@ -107,6 +107,7 @@ MODULE atomic_kind_types
     LOGICAL                                :: paw_atom     ! needs atomic rho1
     LOGICAL                                :: qm_atom    ! needs atomic rho1
     LOGICAL                                :: gpw_type_forced ! gpw atom even if with hard exponents 
+    LOGICAL                                :: ghost
     CHARACTER(LEN=default_string_length)   :: name
     CHARACTER(LEN=2)                       :: element_symbol
     REAL(KIND = dp)                        :: mass
@@ -209,6 +210,7 @@ CONTAINS
       atomic_kind_set(ikind)%ngrid_rad = 50
       atomic_kind_set(ikind)%ngrid_ang = 50 
       atomic_kind_set(ikind)%lmax_rho0 = 0 
+      atomic_kind_set(ikind)%ghost = .FALSE.
     END DO
 
   END SUBROUTINE allocate_atomic_kind_set
@@ -309,7 +311,7 @@ CONTAINS
                              paw_atom,qm_atom,hard_radius,hard0_radius,&
                              max_rad_local, gpw_type_forced,&
                              harmonics, max_iso_not0, max_s_harm,&
-                             grid_atom, ngrid_ang, ngrid_rad, lmax_rho0)
+                             grid_atom, ngrid_ang, ngrid_rad, lmax_rho0, ghost)
 
 !   Purpose: Get informations about an atomic kind.
 
@@ -355,6 +357,7 @@ CONTAINS
     TYPE(grid_atom_type), OPTIONAL, POINTER  :: grid_atom
     INTEGER, INTENT(OUT), OPTIONAL           :: ngrid_ang, ngrid_rad, &
                                                 lmax_rho0
+    LOGICAL, INTENT(OUT), OPTIONAL           :: ghost
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'get_atomic_kind'
 
@@ -493,10 +496,12 @@ CONTAINS
             max_iso_not0 = 0
          END IF
       END IF
-      IF (PRESENT(grid_atom))  grid_atom => atomic_kind%grid_atom
-      IF (PRESENT(ngrid_ang))  ngrid_ang = atomic_kind%ngrid_ang
-      IF (PRESENT(ngrid_rad))  ngrid_rad = atomic_kind%ngrid_rad
-      IF (PRESENT(lmax_rho0))  lmax_rho0 = atomic_kind%lmax_rho0
+      IF (PRESENT(grid_atom)) grid_atom => atomic_kind%grid_atom
+      IF (PRESENT(ngrid_ang)) ngrid_ang = atomic_kind%ngrid_ang
+      IF (PRESENT(ngrid_rad)) ngrid_rad = atomic_kind%ngrid_rad
+      IF (PRESENT(lmax_rho0)) lmax_rho0 = atomic_kind%lmax_rho0
+      IF (PRESENT(ghost)) ghost = atomic_kind%ghost
+
     ELSE
 
       CALL stop_program(routineN,moduleN,__LINE__,&
@@ -1100,6 +1105,8 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
+    NULLIFY (elec_conf)
+
     failure = .FALSE.
     aux_basis_set_name = ""
     orb_basis_set_name = ""
@@ -1260,6 +1267,8 @@ CONTAINS
             "# point radial grid < 0",error,failure)
        CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
             keyword_name="GPW_TYPE",l_val=atomic_kind%gpw_type_forced,error=error)
+       CALL section_vals_val_get(kind_section,i_rep_section=k_rep,&
+            keyword_name="GHOST",l_val=atomic_kind%ghost,error=error)
     END IF
 
 !   *** The corresponding element of the current atomic kind is still   ***
@@ -1338,26 +1347,40 @@ CONTAINS
       CASE ("ALL")
         CALL allocate_potential(atomic_kind%all_potential)
         CALL read_potential(atomic_kind%element_symbol,potential_name,&
-                            atomic_kind%all_potential,zeff_correction, globenv)
+                            atomic_kind%all_potential,zeff_correction,globenv)
         CALL set_potential(atomic_kind%all_potential,z=z)
-
         CALL get_atomic_kind(atomic_kind,elec_conf=elec_conf)
-        IF (.NOT. ASSOCIATED(elec_conf)) THEN
-           CALL get_potential(potential=atomic_kind%all_potential,elec_conf=elec_conf)
-           CALL set_atomic_kind(atomic_kind,elec_conf=elec_conf)
-        ENDIF
+        IF (.NOT.ASSOCIATED(elec_conf)) THEN
+          CALL get_potential(potential=atomic_kind%all_potential,elec_conf=elec_conf)
+          CALL set_atomic_kind(atomic_kind,elec_conf=elec_conf)
+        END IF
+        IF (atomic_kind%ghost) THEN
+          atomic_kind%mass = 0.0_dp
+          CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                               elec_conf=elec_conf)
+          elec_conf(:) = 0
+          CALL get_potential(potential=atomic_kind%all_potential,&
+                             elec_conf=elec_conf)
+          elec_conf(:) = 0
+          CALL set_potential(potential=atomic_kind%all_potential,&
+                             zeff=0.0_dp,&
+                             zeff_correction=0.0_dp)
+        END IF
       CASE ("GTH")
-        CALL allocate_potential(atomic_kind%gth_potential)
-        CALL read_potential(atomic_kind%element_symbol,potential_name,&
-                            atomic_kind%gth_potential,zeff_correction, globenv)
-        CALL set_potential(atomic_kind%gth_potential,z=z)
-        CALL get_atomic_kind(atomic_kind,elec_conf=elec_conf)
-        IF (.NOT. ASSOCIATED(elec_conf)) THEN
-           CALL get_potential(potential=atomic_kind%gth_potential,elec_conf=elec_conf)
-           CALL set_atomic_kind(atomic_kind,elec_conf=elec_conf)
-        ENDIF
-      CASE ("GHOST")
-        atomic_kind%mass = 0.0_dp
+        IF (atomic_kind%ghost) THEN
+          IF (ASSOCIATED(atomic_kind%elec_conf)) atomic_kind%elec_conf = 0
+          atomic_kind%mass = 0.0_dp
+        ELSE
+          CALL allocate_potential(atomic_kind%gth_potential)
+          CALL read_potential(atomic_kind%element_symbol,potential_name,&
+                              atomic_kind%gth_potential,zeff_correction,globenv)
+          CALL set_potential(atomic_kind%gth_potential,z=z)
+          CALL get_atomic_kind(atomic_kind,elec_conf=elec_conf)
+          IF (.NOT.ASSOCIATED(elec_conf)) THEN
+            CALL get_potential(potential=atomic_kind%gth_potential,elec_conf=elec_conf)
+            CALL set_atomic_kind(atomic_kind,elec_conf=elec_conf)
+          END IF
+        END IF
       CASE ("ELP")
         CALL allocate_potential(atomic_kind%elp_potential)
         CALL read_potential(atomic_kind%element_symbol,potential_name,&
@@ -1377,10 +1400,22 @@ CONTAINS
       CALL allocate_potential(atomic_kind%all_potential)
       CALL set_default_all_potential(atomic_kind%all_potential,z,zeff_correction)
       CALL get_atomic_kind(atomic_kind,elec_conf=elec_conf)
-      IF (.NOT. ASSOCIATED(elec_conf)) THEN
-          CALL get_potential(potential=atomic_kind%all_potential,elec_conf=elec_conf)
-          CALL set_atomic_kind(atomic_kind,elec_conf=elec_conf)
-      ENDIF
+      IF (.NOT.ASSOCIATED(elec_conf)) THEN
+        CALL get_potential(potential=atomic_kind%all_potential,elec_conf=elec_conf)
+        CALL set_atomic_kind(atomic_kind,elec_conf=elec_conf)
+      END IF
+      IF (atomic_kind%ghost) THEN
+        atomic_kind%mass = 0.0_dp
+        CALL get_atomic_kind(atomic_kind=atomic_kind,&
+                             elec_conf=elec_conf)
+        elec_conf(:) = 0
+        CALL get_potential(potential=atomic_kind%all_potential,&
+                           elec_conf=elec_conf)
+        elec_conf(:) = 0
+        CALL set_potential(potential=atomic_kind%all_potential,&
+                           zeff=0.0_dp,&
+                           zeff_correction=0.0_dp)
+      END IF
 
     END IF
 
@@ -1545,7 +1580,7 @@ CONTAINS
                              natom,atom_list,elec_conf,&
                              paw_atom,qm_atom,hard_radius,hard0_radius,&
                              elp_potential,soft_basis_set,hard_basis_set,&
-                             lmax_rho0)
+                             lmax_rho0,zeff,ghost)
 
 !   Purpose: Set the components of an atomic kind data set.
 
@@ -1566,6 +1601,8 @@ CONTAINS
     TYPE(gto_basis_set_type), OPTIONAL, &
       POINTER                                :: soft_basis_set, hard_basis_set
     INTEGER, INTENT(IN), OPTIONAL            :: lmax_rho0
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: zeff
+    LOGICAL, INTENT(IN), OPTIONAL            :: ghost
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'set_atomic_kind'
 
@@ -1616,7 +1653,15 @@ CONTAINS
       IF (PRESENT(elp_potential)) atomic_kind%elp_potential => elp_potential
       IF (PRESENT(soft_basis_set)) atomic_kind%soft_basis_set => soft_basis_set
       IF (PRESENT(hard_basis_set)) atomic_kind%hard_basis_set => hard_basis_set
-      IF (PRESENT(lmax_rho0))  atomic_kind%lmax_rho0 = lmax_rho0
+      IF (PRESENT(lmax_rho0)) atomic_kind%lmax_rho0 = lmax_rho0
+      IF (PRESENT(zeff)) THEN
+        IF (ASSOCIATED(atomic_kind%all_potential)) THEN
+          CALL set_potential(potential=atomic_kind%all_potential,zeff=zeff)
+        ELSE IF (ASSOCIATED(atomic_kind%gth_potential)) THEN
+          CALL set_potential(potential=atomic_kind%gth_potential,zeff=zeff)
+        END IF
+      END IF
+      IF (PRESENT(ghost)) atomic_kind%ghost = ghost
 
     ELSE
 
@@ -1662,6 +1707,11 @@ CONTAINS
 
         CALL write_orb_basis_set(atomic_kind%orb_basis_set,force_env_section,&
                                  output_unit,error)
+
+        IF (atomic_kind%ghost) THEN
+          WRITE (UNIT=output_unit,FMT="(/,T6,A)")&
+            "The atoms of this atomic kind are GHOST atoms!"
+        END IF
 
         IF (atomic_kind%paw_atom) THEN
           WRITE (UNIT=output_unit,FMT="(/,T6,A,/)")&
