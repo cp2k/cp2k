@@ -174,10 +174,14 @@ CONTAINS
     LOGICAL                                  :: do_onfo
 
     CHARACTER(LEN=default_string_length), &
-      DIMENSION(20)                          :: avail_section
+      DIMENSION(21)                          :: avail_section
     CHARACTER(LEN=default_string_length), &
       POINTER                                :: namearray1(:),namearray2(:)
-    INTEGER:: irestyp,iatyp,iresid,itemp,offset
+    INTEGER:: irestyp,iatyp,iresid,itemp,offset,nsolute,isolvent,nsolvent
+    INTEGER:: icon,ncon
+
+    INTEGER, POINTER :: na(:),ba(:),bb(:)
+    REAL(KIND=dp),POINTER :: am(:),ac(:)
 
     NULLIFY(parser, logger)
     NULLIFY(namearray1,namearray2)
@@ -206,6 +210,7 @@ CONTAINS
     avail_section(18) = "DIHEDRAL"
     avail_section(19) = "LJPARAMETERS"
     avail_section(20) = "SOLVENTATOM"
+    avail_section(21) = "SOLVENTCONSTR"
 
     atom_info => topology%atom_info
     conn_info => topology%conn_info
@@ -322,8 +327,8 @@ CONTAINS
       CALL reallocate(atom_info%label_atmname,1,natom_prev+natom)
       CALL reallocate(atom_info%atm_charge,1,natom_prev+natom)
       CALL reallocate(atom_info%atm_mass,1,natom_prev+natom)
+      CALL parser_get_next_line(parser,1,error=error)
       DO iatom=1,natom
-        CALL parser_get_next_line(parser,1,error=error)
         CALL parser_get_object(parser,itemp)
         CALL parser_get_object(parser,itemp)
         atom_info%label_molname(iatom) = namearray2(itemp)
@@ -331,57 +336,49 @@ CONTAINS
         CALL parser_get_object(parser,string)
         CALL parser_get_object(parser,itemp)
         atom_info%label_atmname(iatom) = namearray1(itemp)
-
         CALL parser_get_object(parser,atom_info%atm_mass(iatom))
         CALL parser_get_object(parser,atom_info%atm_charge(iatom))
         CALL parser_get_object(parser,itemp)
         atom_info%label_resid(iatom)=iresid
         IF(itemp==1) iresid=iresid+1
         IF(iw>0) WRITE(iw,*) "GTOP_INFO| PUT SOLUTEATOM INFO HERE!!!!"
+        !determine number of skip lines, will ignore exclude
+        CALL parser_get_object(parser,itemp)
+        itemp=(itemp-1)/6+1
+        CALL parser_get_next_line(parser,itemp,error=error)
+        !read in the 1-4 list
+        CALL parser_get_object(parser,ntype)
+       IF(ntype/=0) THEN
+        itemp=(itemp-1)/6+1
+        offset = 0
+        IF(ASSOCIATED(conn_info%onfo_a)) offset = SIZE(conn_info%onfo_a)
+        CALL reallocate(conn_info%onfo_a,1,offset+ntype)
+        CALL reallocate(conn_info%onfo_b,1,offset+ntype)
+        CALL reallocate(conn_info%onfo_type,1,offset+ntype)
+        conn_info%onfo_a(offset+1:offset+ntype)=iatom
+        DO itype=1,ntype,6
+          IF(itype==1) THEN
+            READ(parser%input_line,*) itemp,(conn_info%onfo_b(offset+i),&
+                                       i=1,MIN(6,(ntype-itype+1)))
+          ELSE
+            READ(parser%input_line,*) (conn_info%onfo_b(offset+i),&
+                                       i=1,MIN(6,(ntype-itype+1)))
+          END IF
+          CALL parser_get_next_line(parser,1,error=error)
+        END DO
+       ELSE
         CALL parser_get_next_line(parser,1,error=error)
+       END IF
       END DO
     END IF
+    nsolute = natom
     CALL parser_release(parser,error=error)
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    ! SOLVENTATOM SECTION
-    iresid=1
-    IF(iw>0) WRITE(iw,'(T2,A)') 'GTOP_INFO| Parsing the SOLVENTATOM section'    
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+
     CALL parser_create(parser,file_name,para_env=globenv%para_env)
-    label = TRIM(avail_section(20))
-    CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
-    IF(found) THEN
-      CALL parser_get_next_line(parser,1,error=error)
-      CALL parser_get_object(parser,natom)
-      offset = 0
-      IF(ASSOCIATED(atom_info%label_molname)) offset = SIZE(atom_info%label_molname)
-      CALL reallocate(atom_info%label_molname,1,offset+natom)
-      CALL reallocate(atom_info%label_resid,1,offset+natom)
-      CALL reallocate(atom_info%label_resname,1,offset+natom)
-      CALL reallocate(atom_info%label_atmname,1,offset+natom)
-      CALL reallocate(atom_info%atm_charge,1,offset+natom)
-      CALL reallocate(atom_info%atm_mass,1,offset+natom)
-      DO iatom=1,natom
-        CALL parser_get_next_line(parser,1,error=error)
-        CALL parser_get_object(parser,itemp)
-        CALL parser_get_object(parser,string)
-        CALL parser_get_object(parser,itemp)
-        atom_info%label_atmname(iatom) = namearray1(itemp)
-        atom_info%label_resname(iatom) = "SOL"
-        atom_info%label_molname(iatom) = "SOL"
-        CALL parser_get_object(parser,atom_info%atm_mass(iatom))
-        CALL parser_get_object(parser,atom_info%atm_charge(iatom))
-        IF(itemp==1) iresid=iresid+1
-        atom_info%label_resid(iatom)=iresid
-        IF(iw>0) WRITE(iw,*) "GTOP_INFO| PUT SOLUTEATOM INFO HERE!!!!"
-        CALL parser_get_next_line(parser,1,error=error)
-      END DO
-    END IF
-    CALL parser_release(parser,error=error)
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-
 
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -389,7 +386,6 @@ CONTAINS
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! BONDH SECTION
     IF(iw>0) WRITE(iw,'(T2,A)') 'GTOP_INFO| Parsing the BONDH section'    
-    CALL parser_create(parser,file_name,para_env=globenv%para_env)
     label = TRIM(avail_section(8))
     CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
     IF(found) THEN
@@ -399,10 +395,13 @@ CONTAINS
       IF(ASSOCIATED(conn_info%bond_a)) offset = SIZE(conn_info%bond_a)
       CALL reallocate(conn_info%bond_a,1,offset+ntype)
       CALL reallocate(conn_info%bond_b,1,offset+ntype)
+      CALL reallocate(conn_info%bond_type,1,offset+ntype)
       DO itype=1,ntype
         CALL parser_get_next_line(parser,1,error=error)
         CALL parser_get_object(parser,conn_info%bond_a(offset+itype))
         CALL parser_get_object(parser,conn_info%bond_b(offset+itype))
+        CALL parser_get_object(parser,itemp)
+        conn_info%bond_type(offset+itype)=itemp
         IF(iw>0) WRITE(iw,*) "GTOP_INFO| PUT BONDH INFO HERE!!!!"
       END DO
     END IF
@@ -418,14 +417,16 @@ CONTAINS
       IF(ASSOCIATED(conn_info%bond_a)) offset = SIZE(conn_info%bond_a)
       CALL reallocate(conn_info%bond_a,1,offset+ntype)
       CALL reallocate(conn_info%bond_b,1,offset+ntype)
+      CALL reallocate(conn_info%bond_type,1,offset+ntype)
       DO itype=1,ntype
         CALL parser_get_next_line(parser,1,error=error)
         CALL parser_get_object(parser,conn_info%bond_a(offset+itype))
         CALL parser_get_object(parser,conn_info%bond_b(offset+itype))
+        CALL parser_get_object(parser,itemp)
+        conn_info%bond_type(offset+itype)=itemp
         IF(iw>0) WRITE(iw,*) "GTOP_INFO| PUT BOND INFO HERE!!!!"
       END DO
     END IF
-    CALL parser_release(parser,error=error)
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -438,7 +439,6 @@ CONTAINS
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! BONDANGLEH SECTION
     IF(iw>0) WRITE(iw,'(T2,A)') 'GTOP_INFO| Parsing the BONDANGLEH section'    
-    CALL parser_create(parser,file_name,para_env=globenv%para_env)
     label = TRIM(avail_section(11))
     CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
     IF(found) THEN
@@ -449,11 +449,14 @@ CONTAINS
       CALL reallocate(conn_info%theta_a,1,offset+ntype)
       CALL reallocate(conn_info%theta_b,1,offset+ntype)
       CALL reallocate(conn_info%theta_c,1,offset+ntype)
+      CALL reallocate(conn_info%theta_type,1,offset+ntype)
       DO itype=1,ntype
         CALL parser_get_next_line(parser,1,error=error)
         CALL parser_get_object(parser,conn_info%theta_a(offset+itype))
         CALL parser_get_object(parser,conn_info%theta_b(offset+itype))
         CALL parser_get_object(parser,conn_info%theta_c(offset+itype))
+        CALL parser_get_object(parser,itemp)
+        conn_info%theta_type(offset+itype)=itemp
         IF(iw>0) WRITE(iw,*) "GTOP_INFO| PUT BONDANGLEH INFO HERE!!!!"
       END DO
     END IF
@@ -469,15 +472,17 @@ CONTAINS
       CALL reallocate(conn_info%theta_a,1,offset+ntype)
       CALL reallocate(conn_info%theta_b,1,offset+ntype)
       CALL reallocate(conn_info%theta_c,1,offset+ntype)
+      CALL reallocate(conn_info%theta_type,1,offset+ntype)
       DO itype=1,ntype
         CALL parser_get_next_line(parser,1,error=error)
         CALL parser_get_object(parser,conn_info%theta_a(offset+itype))
         CALL parser_get_object(parser,conn_info%theta_b(offset+itype))
         CALL parser_get_object(parser,conn_info%theta_c(offset+itype))
+        CALL parser_get_object(parser,itemp)
+        conn_info%theta_type(offset+itype)=itemp
         IF(iw>0) WRITE(iw,*) "GTOP_INFO| PUT BONDANGLE INFO HERE!!!!"
       END DO
     END IF
-    CALL parser_release(parser,error=error)
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -490,7 +495,6 @@ CONTAINS
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! IMPDIHEDRALH SECTION
     IF(iw>0) WRITE(iw,'(T2,A)') 'GTOP_INFO| Parsing the IMPDIHEDRALH section'    
-    CALL parser_create(parser,file_name,para_env=globenv%para_env)
     label = TRIM(avail_section(14))
     CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
     IF(found) THEN
@@ -502,19 +506,22 @@ CONTAINS
       CALL reallocate(conn_info%impr_b,1,offset+ntype)
       CALL reallocate(conn_info%impr_c,1,offset+ntype)
       CALL reallocate(conn_info%impr_d,1,offset+ntype)
+      CALL reallocate(conn_info%impr_type,1,offset+ntype)
       DO itype=1,ntype
         CALL parser_get_next_line(parser,1,error=error)
         CALL parser_get_object(parser,conn_info%impr_a(offset+itype))
         CALL parser_get_object(parser,conn_info%impr_b(offset+itype))
         CALL parser_get_object(parser,conn_info%impr_c(offset+itype))
         CALL parser_get_object(parser,conn_info%impr_d(offset+itype))
+        CALL parser_get_object(parser,itemp)
+        conn_info%impr_type(offset+itype)=itemp
         IF(iw>0) WRITE(iw,*) "GTOP_INFO| PUT IMPDIHEDRALH INFO HERE!!!!"
       END DO
     END IF
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! IMPDIHEDRAL SECTION
     IF(iw>0) WRITE(iw,'(T2,A)') 'GTOP_INFO| Parsing the IMPDIHEDRAL section'
-    label = TRIM(avail_section(12))
+    label = TRIM(avail_section(15))
     CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
     IF(found) THEN
       CALL parser_get_next_line(parser,1,error=error)
@@ -525,16 +532,18 @@ CONTAINS
       CALL reallocate(conn_info%impr_b,1,offset+ntype)
       CALL reallocate(conn_info%impr_c,1,offset+ntype)
       CALL reallocate(conn_info%impr_d,1,offset+ntype)
+      CALL reallocate(conn_info%impr_type,1,offset+ntype)
       DO itype=1,ntype
         CALL parser_get_next_line(parser,1,error=error)
         CALL parser_get_object(parser,conn_info%impr_a(offset+itype))
         CALL parser_get_object(parser,conn_info%impr_b(offset+itype))
         CALL parser_get_object(parser,conn_info%impr_c(offset+itype))
         CALL parser_get_object(parser,conn_info%impr_d(offset+itype))
+        CALL parser_get_object(parser,itemp)
+        conn_info%impr_type(offset+itype)=itemp
         IF(iw>0) WRITE(iw,*) "GTOP_INFO| PUT IMPDIHEDRAL INFO HERE!!!!"
       END DO
     END IF
-    CALL parser_release(parser,error=error)
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -547,8 +556,7 @@ CONTAINS
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! DIHEDRALH SECTION
     IF(iw>0) WRITE(iw,'(T2,A)') 'GTOP_INFO| Parsing the DIHEDRALH section'    
-    CALL parser_create(parser,file_name,para_env=globenv%para_env)
-    label = TRIM(avail_section(14))
+    label = TRIM(avail_section(17))
     CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
     IF(found) THEN
       CALL parser_get_next_line(parser,1,error=error)
@@ -559,19 +567,22 @@ CONTAINS
       CALL reallocate(conn_info%phi_b,1,offset+ntype)
       CALL reallocate(conn_info%phi_c,1,offset+ntype)
       CALL reallocate(conn_info%phi_d,1,offset+ntype)
+      CALL reallocate(conn_info%phi_type,1,offset+ntype)
       DO itype=1,ntype
         CALL parser_get_next_line(parser,1,error=error)
         CALL parser_get_object(parser,conn_info%phi_a(offset+itype))
         CALL parser_get_object(parser,conn_info%phi_b(offset+itype))
         CALL parser_get_object(parser,conn_info%phi_c(offset+itype))
         CALL parser_get_object(parser,conn_info%phi_d(offset+itype))
+        CALL parser_get_object(parser,itemp)
+        conn_info%phi_type(offset+itype)=itemp
         IF(iw>0) WRITE(iw,*) "GTOP_INFO| PUT DIHEDRALH INFO HERE!!!!"
       END DO
     END IF
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! DIHEDRAL SECTION
     IF(iw>0) WRITE(iw,'(T2,A)') 'GTOP_INFO| Parsing the DIHEDRAL section'
-    label = TRIM(avail_section(12))
+    label = TRIM(avail_section(18))
     CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
     IF(found) THEN
       CALL parser_get_next_line(parser,1,error=error)
@@ -582,22 +593,109 @@ CONTAINS
       CALL reallocate(conn_info%phi_b,1,offset+ntype)
       CALL reallocate(conn_info%phi_c,1,offset+ntype)
       CALL reallocate(conn_info%phi_d,1,offset+ntype)
+      CALL reallocate(conn_info%phi_type,1,offset+ntype)
       DO itype=1,ntype
         CALL parser_get_next_line(parser,1,error=error)
         CALL parser_get_object(parser,conn_info%phi_a(offset+itype))
         CALL parser_get_object(parser,conn_info%phi_b(offset+itype))
         CALL parser_get_object(parser,conn_info%phi_c(offset+itype))
         CALL parser_get_object(parser,conn_info%phi_d(offset+itype))
+        CALL parser_get_object(parser,itemp)
+        conn_info%phi_type(offset+itype)=itemp
         IF(iw>0) WRITE(iw,*) "GTOP_INFO| PUT DIHEDRAL INFO HERE!!!!"
       END DO
     END IF
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+
     CALL parser_release(parser,error=error)
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! SOLVENTATOM and SOLVENTCONSTR SECTION
+    IF(iw>0) WRITE(iw,'(T2,A)') 'GTOP_INFO| Parsing the SOLVENTATOM section'    
+    nsolvent=( SIZE(atom_info%r(1,:))-nsolute ) / 3
+
+    NULLIFY(na,am,ac,ba,bb)
+
+    CALL parser_create(parser,file_name,para_env=globenv%para_env)
+    label = TRIM(avail_section(20))
+    CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
+    IF(found) THEN
+      CALL parser_get_next_line(parser,1,error=error)
+      CALL parser_get_object(parser,natom)
+      CALL reallocate(na,1,natom)
+      CALL reallocate(am,1,natom)
+      CALL reallocate(ac,1,natom)
+      DO iatom=1,natom
+        CALL parser_get_next_line(parser,1,error=error)
+        CALL parser_get_object(parser,itemp)
+        CALL parser_get_object(parser,string)
+        CALL parser_get_object(parser,na(iatom))
+        CALL parser_get_object(parser,am(iatom))
+        CALL parser_get_object(parser,ac(iatom))
+        IF(iw>0) WRITE(iw,*) "GTOP_INFO| PUT SOLVENTATOM INFO HERE!!!!"
+        END DO
+    END IF
+    label = TRIM(avail_section(21))
+    CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
+    IF(found) THEN
+      CALL parser_get_next_line(parser,1,error=error)
+      CALL parser_get_object(parser,ncon)
+      CALL reallocate(ba,1,ncon)
+      CALL reallocate(bb,1,ncon)
+      DO icon=1,ncon
+        CALL parser_get_next_line(parser,1,error=error)
+        CALL parser_get_object(parser,ba(icon))
+        CALL parser_get_object(parser,bb(icon))
+      END DO
+    END IF
+    CALL parser_release(parser,error=error)
+
+    offset = 0
+    IF(ASSOCIATED(atom_info%label_molname)) offset=SIZE(atom_info%label_molname)
+    CALL reallocate(atom_info%label_molname,1,offset+nsolvent*natom)
+    CALL reallocate(atom_info%label_resid,1,offset+nsolvent*natom)
+    CALL reallocate(atom_info%label_resname,1,offset+nsolvent*natom)
+    CALL reallocate(atom_info%label_atmname,1,offset+nsolvent*natom)
+    CALL reallocate(atom_info%atm_charge,1,offset+nsolvent*natom)
+    CALL reallocate(atom_info%atm_mass,1,offset+nsolvent*natom)
+    DO isolvent=1,nsolvent
+      offset = nsolute + natom*isolvent - natom
+      DO iatom=1,natom
+        atom_info%label_atmname(offset+iatom) = namearray1(na(iatom))
+        atom_info%label_molname(offset+iatom) = "SOL"
+        atom_info%label_resname(offset+iatom) = "SOL"
+        atom_info%label_resid(offset+iatom)   = isolvent
+        atom_info%atm_mass(offset+iatom)      = am(iatom)
+        atom_info%atm_charge(offset+iatom)    = ac(iatom)
+      END DO
+    END DO
+
+    offset = 0
+    IF(ASSOCIATED(conn_info%bond_a)) offset = SIZE(conn_info%bond_a)
+    CALL reallocate(conn_info%bond_a,1,offset+ncon*nsolvent)
+    CALL reallocate(conn_info%bond_b,1,offset+ncon*nsolvent)
+    CALL reallocate(conn_info%bond_type,1,offset+ncon*nsolvent)
+    offset = offset - ncon
+    DO isolvent=1,nsolvent
+      offset = offset + ncon
+      DO icon=1,ncon
+        conn_info%bond_a(offset+icon)=nsolute+3*isolvent-3+ba(icon)
+        conn_info%bond_b(offset+icon)=nsolute+3*isolvent-3+bb(icon)
+        conn_info%bond_type(offset+icon)=offset+icon
+      END DO
+    END DO
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 
-! ikuo - Need to be debugged so that PARA_RES works...
+
+
     ! PARA_RES structure
     i = 0
     nbond_prev = 0
@@ -820,13 +918,13 @@ CONTAINS
     INTEGER, PARAMETER                       :: nblock_atom = 10000
 
     INTEGER                                  :: handle, &
-                                                iw, iatom, natom
+                                                iw, iatom, natom, itemp
     TYPE(atom_info_type), POINTER            :: atom_info
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_parser_type), POINTER            :: parser
 
     CHARACTER(LEN=default_string_length), &
-      DIMENSION(20)                          :: avail_section
+      DIMENSION(5)                           :: avail_section
 
     CHARACTER(LEN=default_string_length)     :: dummy_field, label,string
     LOGICAL                                  :: found
@@ -841,18 +939,24 @@ CONTAINS
 
 
     IF (iw>0)  WRITE(iw,*) "    Reading in G96 file ",TRIM(topology%coord_file_name)
-    CALL parser_create(parser,topology%coord_file_name,&
-         para_env=globenv%para_env,error=error)  
 
 
     avail_section( 1) = "TITLE"
     avail_section( 2) = "TIMESTEP"
     avail_section( 3) = "POSITION"
-    avail_section( 5) = "VELOCITY"
-    avail_section( 6) = "BOX"
+    avail_section( 4) = "VELOCITY"
+    avail_section( 5) = "BOX"
 
-
-
+    CALL reallocate(atom_info%label_molname,1,nblock_atom)
+    CALL reallocate(atom_info%label_resname,1,nblock_atom)
+    CALL reallocate(atom_info%label_resid,1,nblock_atom)
+    CALL reallocate(atom_info%label_atmname,1,nblock_atom)
+    CALL reallocate(atom_info%r,1,3,1,nblock_atom)
+    CALL reallocate(atom_info%atm_mass,1,nblock_atom)
+    CALL reallocate(atom_info%atm_charge,1,nblock_atom)
+    CALL reallocate(atom_info%occup,1,nblock_atom)
+    CALL reallocate(atom_info%beta,1,nblock_atom)
+    CALL reallocate(atom_info%element,1,nblock_atom)
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -865,9 +969,9 @@ CONTAINS
     IF(found) THEN
       DO 
         CALL parser_get_next_line(parser,1,error=error)
-        CALL parser_get_object(parser,string,string_length=80)
+        CALL parser_get_object(parser,string,string_length=default_string_length)
         IF(string == TRIM("END")) EXIT
-        IF(iw>0) WRITE(iw,*) "G96_INFO| ",TRIM(string)
+        IF(iw>0) WRITE(iw,*) "G96_INFO|   ",TRIM(string)
       END DO
     END IF
     CALL parser_release(parser,error=error)
@@ -883,33 +987,40 @@ CONTAINS
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! POSITION SECTION
+    natom=0
     IF(iw>0) WRITE(iw,'(T2,A)') 'G96_INFO| Parsing the POSITION section'    
     CALL parser_create(parser,topology%coord_file_name,para_env=globenv%para_env)
     label = TRIM(avail_section(3))
     CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
     IF(found) THEN
       CALL parser_get_next_line(parser,1,error=error)
-      CALL parser_get_object(parser,natom)
-      CALL reallocate(atom_info%label_molname,1,natom)
-      CALL reallocate(atom_info%label_resname,1,natom)
-      CALL reallocate(atom_info%label_resid,1,natom)
-      CALL reallocate(atom_info%label_atmname,1,natom)
-      CALL reallocate(atom_info%r,1,3,1,natom)
-      CALL reallocate(atom_info%atm_mass,1,natom)
-      CALL reallocate(atom_info%atm_charge,1,natom)
-      CALL reallocate(atom_info%occup,1,natom)
-      CALL reallocate(atom_info%beta,1,natom)
-      CALL reallocate(atom_info%element,1,natom)
-      DO iatom=1,natom
-        CALL parser_get_next_line(parser,1,error=error)
-        CALL parser_get_object(parser,atom_info%label_resid(iatom))
-        CALL parser_get_object(parser,atom_info%label_resname(iatom))
-        CALL parser_get_object(parser,atom_info%label_atmname(iatom))
-        CALL parser_get_object(parser,atom_info%r(1,iatom))
-        CALL parser_get_object(parser,atom_info%r(2,iatom))
-        CALL parser_get_object(parser,atom_info%r(3,iatom))
-        atom_info%label_molname(iatom)=atom_info%label_resname(iatom)
+      CALL parser_get_object(parser,string,string_length=default_string_length)
+      DO 
+        IF(string == TRIM("END")) EXIT
+        natom=natom+1
+        IF(natom>SIZE(atom_info%label_molname)) THEN
+          CALL reallocate(atom_info%label_molname,1,nblock_atom+natom)
+          CALL reallocate(atom_info%label_resname,1,nblock_atom+natom)
+          CALL reallocate(atom_info%label_resid,1,nblock_atom+natom)
+          CALL reallocate(atom_info%label_atmname,1,nblock_atom+natom)
+          CALL reallocate(atom_info%r,1,3,1,nblock_atom+natom)
+          CALL reallocate(atom_info%atm_mass,1,nblock_atom+natom)
+          CALL reallocate(atom_info%atm_charge,1,nblock_atom+natom)
+          CALL reallocate(atom_info%occup,1,nblock_atom+natom)
+          CALL reallocate(atom_info%beta,1,nblock_atom+natom)
+          CALL reallocate(atom_info%element,1,nblock_atom+natom)
+        END IF
+        READ (string,*) &
+          atom_info%label_resid(natom),atom_info%label_resname(natom),&
+          atom_info%label_atmname(natom),&
+          itemp, atom_info%r(1,natom), atom_info%r(2,natom), atom_info%r(3,natom)
+        atom_info%label_molname(natom)=atom_info%label_resname(natom)
+        CALL convert_to_cp2k_units("NM",length=atom_info%r(1,natom))
+        CALL convert_to_cp2k_units("NM",length=atom_info%r(2,natom))
+        CALL convert_to_cp2k_units("NM",length=atom_info%r(3,natom))
         IF(iw>0) WRITE(iw,*) "G96_INFO| PUT POSITION INFO HERE!!!!"
+        CALL parser_get_next_line(parser,1,error=error)
+        CALL parser_get_object(parser,string,string_length=default_string_length)
       END DO
     END IF
     CALL parser_release(parser,error=error)
@@ -917,6 +1028,51 @@ CONTAINS
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! VELOCITY SECTION
+! ikuo - don't have a velocity section in topology_type yet...
+!   natom=0
+!   IF(iw>0) WRITE(iw,'(T2,A)') 'G96_INFO| Parsing the VELOCITY section'    
+!   CALL parser_create(parser,topology%coord_file_name,para_env=globenv%para_env)
+!   label = TRIM(avail_section(3))
+!   CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
+!   IF(found) THEN
+!     CALL parser_get_next_line(parser,1,error=error)
+!     CALL parser_get_object(parser,string,string_length=default_string_length)
+!     DO 
+!       IF(string == TRIM("END")) EXIT
+!       natom=natom+1
+!       IF(natom>SIZE(atom_info%label_molname)) THEN
+!         CALL reallocate(atom_info%v,1,3,1,nblock_atom+natom)
+!       END IF
+!       READ (string,*) &
+!         atom_info%label_resid(natom),atom_info%label_resname(natom),&
+!         atom_info%label_atmname(natom),&
+!         itemp, atom_info%v(1,natom), atom_info%v(2,natom), atom_info%v(3,natom)
+!       atom_info%label_molname(natom)=atom_info%label_resname(natom)
+!       IF(iw>0) WRITE(iw,*) "G96_INFO| PUT VELOCITY INFO HERE!!!!"
+!       CALL parser_get_next_line(parser,1,error=error)
+!       CALL parser_get_object(parser,string,string_length=default_string_length)
+!     END DO
+!   END IF
+!   CALL parser_release(parser,error=error)
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+    CALL reallocate(atom_info%label_molname,1,natom)
+    CALL reallocate(atom_info%label_resname,1,natom)
+    CALL reallocate(atom_info%label_resid,1,natom)
+    CALL reallocate(atom_info%label_atmname,1,natom)
+    CALL reallocate(atom_info%r,1,3,1,natom)
+    CALL reallocate(atom_info%atm_mass,1,natom)
+    CALL reallocate(atom_info%atm_charge,1,natom)
+    CALL reallocate(atom_info%occup,1,natom)
+    CALL reallocate(atom_info%beta,1,natom)
+    CALL reallocate(atom_info%element,1,natom)
 
     IF(.NOT.topology%para_res) atom_info%label_resid(:) = 1
     

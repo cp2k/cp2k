@@ -334,7 +334,6 @@ CONTAINS
        IF(topology%molecules_check) &
             CALL topology_molecules_check(topology,globenv,subsys_section,error)
     CASE (do_conn_gtop)
-       STOP
        CALL pre_read_topology_gromos(topology,subsys_section,error)
        CALL read_topology_gromos(topology%conn_file_name,topology,globenv,subsys_section,error)
        CALL topology_generate_molecule(topology,my_qmmm,qmmm_env,globenv,subsys_section,error)
@@ -454,7 +453,6 @@ CONTAINS
     CALL timeset(routineN//"_READ_COORDINATE",'I','',handle2)
     SELECT CASE (topology%coord_type)
     CASE (do_coord_g96)
-       STOP
        CALL read_coordinate_g96 (topology,globenv,subsys_section,error)
        CALL read_atoms_input ( topology, globenv, overwrite=.TRUE., subsys_section=subsys_section,error=error)
     CASE (do_coord_pdb)

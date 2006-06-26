@@ -158,26 +158,15 @@ MODULE force_field_types
   END TYPE charmm_info_type
 
   TYPE gromos_info_type
-    CHARACTER (LEN=default_string_length), POINTER :: bond_a(:)
-    CHARACTER (LEN=default_string_length), POINTER :: bond_b(:)
+    REAL(KIND=dp), POINTER                         :: solvent_k(:)
+    REAL(KIND=dp), POINTER                         :: solvent_r0(:)
     REAL(KIND=dp), POINTER                         :: bond_k(:)
     REAL(KIND=dp), POINTER                         :: bond_r0(:)
-    CHARACTER (LEN=default_string_length), POINTER :: bend_a(:)
-    CHARACTER (LEN=default_string_length), POINTER :: bend_b(:)
-    CHARACTER (LEN=default_string_length), POINTER :: bend_c(:)
     REAL(KIND=dp), POINTER                         :: bend_k(:)
     REAL(KIND=dp), POINTER                         :: bend_theta0(:)
-    CHARACTER (LEN=default_string_length), POINTER :: torsion_a(:)
-    CHARACTER (LEN=default_string_length), POINTER :: torsion_b(:)
-    CHARACTER (LEN=default_string_length), POINTER :: torsion_c(:)
-    CHARACTER (LEN=default_string_length), POINTER :: torsion_d(:)
     REAL(KIND=dp), POINTER                         :: torsion_k(:)
     INTEGER, POINTER                               :: torsion_m(:)
     REAL(KIND=dp), POINTER                         :: torsion_cosphi0(:)
-    CHARACTER (LEN=default_string_length), POINTER :: impr_a(:)
-    CHARACTER (LEN=default_string_length), POINTER :: impr_b(:)
-    CHARACTER (LEN=default_string_length), POINTER :: impr_c(:)
-    CHARACTER (LEN=default_string_length), POINTER :: impr_d(:)
     REAL(KIND=dp), POINTER                         :: impr_k(:)
     REAL(KIND=dp), POINTER                         :: impr_phi0(:)
     CHARACTER (LEN=default_string_length), POINTER :: nonbond_a(:)
@@ -582,26 +571,15 @@ CONTAINS
 SUBROUTINE init_gromos_info(gro_info)
     TYPE(gromos_info_type), POINTER          :: gro_info
 
-  NULLIFY(gro_info%bond_a)
-  NULLIFY(gro_info%bond_b)
+  NULLIFY(gro_info%solvent_k)
+  NULLIFY(gro_info%solvent_r0)
   NULLIFY(gro_info%bond_k)
   NULLIFY(gro_info%bond_r0)
-  NULLIFY(gro_info%bend_a)
-  NULLIFY(gro_info%bend_b)
-  NULLIFY(gro_info%bend_c)
   NULLIFY(gro_info%bend_k)
   NULLIFY(gro_info%bend_theta0)
-  NULLIFY(gro_info%torsion_a)
-  NULLIFY(gro_info%torsion_b)
-  NULLIFY(gro_info%torsion_c)
-  NULLIFY(gro_info%torsion_d)
   NULLIFY(gro_info%torsion_k)
   NULLIFY(gro_info%torsion_m)
   NULLIFY(gro_info%torsion_cosphi0)
-  NULLIFY(gro_info%impr_a)
-  NULLIFY(gro_info%impr_b)
-  NULLIFY(gro_info%impr_c)
-  NULLIFY(gro_info%impr_d)
   NULLIFY(gro_info%impr_k)
   NULLIFY(gro_info%impr_phi0)
   NULLIFY(gro_info%nonbond_a)
@@ -826,12 +804,12 @@ SUBROUTINE deallocate_gromos_info(gro_info,error)
     LOGICAL                                  :: failure
 
   failure = .FALSE.
-  IF(ASSOCIATED(gro_info%bond_a)) THEN
-    DEALLOCATE(gro_info%bond_a,STAT=stat)
+  IF(ASSOCIATED(gro_info%solvent_k)) THEN
+    DEALLOCATE(gro_info%solvent_k,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   END IF
-  IF(ASSOCIATED(gro_info%bond_b)) THEN
-    DEALLOCATE(gro_info%bond_b,STAT=stat)
+  IF(ASSOCIATED(gro_info%solvent_r0)) THEN
+    DEALLOCATE(gro_info%solvent_r0,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   END IF
   IF(ASSOCIATED(gro_info%bond_k)) THEN
@@ -842,40 +820,12 @@ SUBROUTINE deallocate_gromos_info(gro_info,error)
     DEALLOCATE(gro_info%bond_r0,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   END IF
-  IF(ASSOCIATED(gro_info%bend_a)) THEN
-    DEALLOCATE(gro_info%bend_a,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-  END IF
-  IF(ASSOCIATED(gro_info%bend_b)) THEN
-    DEALLOCATE(gro_info%bend_b,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-  END IF
-  IF(ASSOCIATED(gro_info%bend_c)) THEN
-    DEALLOCATE(gro_info%bend_c,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-  END IF
   IF(ASSOCIATED(gro_info%bend_k)) THEN
     DEALLOCATE(gro_info%bend_k,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   END IF
   IF(ASSOCIATED(gro_info%bend_theta0)) THEN
     DEALLOCATE(gro_info%bend_theta0,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-  END IF
-  IF(ASSOCIATED(gro_info%torsion_a)) THEN
-    DEALLOCATE(gro_info%torsion_a,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-  END IF
-  IF(ASSOCIATED(gro_info%torsion_b)) THEN
-    DEALLOCATE(gro_info%torsion_b,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-  END IF
-  IF(ASSOCIATED(gro_info%torsion_c)) THEN
-    DEALLOCATE(gro_info%torsion_c,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-  END IF
-  IF(ASSOCIATED(gro_info%torsion_d)) THEN
-    DEALLOCATE(gro_info%torsion_d,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   END IF
   IF(ASSOCIATED(gro_info%torsion_k)) THEN
@@ -888,22 +838,6 @@ SUBROUTINE deallocate_gromos_info(gro_info,error)
   END IF
   IF(ASSOCIATED(gro_info%torsion_cosphi0)) THEN
     DEALLOCATE(gro_info%torsion_cosphi0,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-  END IF
-  IF(ASSOCIATED(gro_info%impr_a)) THEN
-    DEALLOCATE(gro_info%impr_a,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-  END IF
-  IF(ASSOCIATED(gro_info%impr_b)) THEN
-    DEALLOCATE(gro_info%impr_b,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-  END IF
-  IF(ASSOCIATED(gro_info%impr_c)) THEN
-    DEALLOCATE(gro_info%impr_c,STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-  END IF
-  IF(ASSOCIATED(gro_info%impr_d)) THEN
-    DEALLOCATE(gro_info%impr_d,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   END IF
   IF(ASSOCIATED(gro_info%impr_k)) THEN

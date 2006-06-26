@@ -1471,6 +1471,10 @@ CONTAINS
             usage="COORDINATE (PDB||XYZ||G96||OFF)", &
             enum_c_vals=s2a( "PDB","XYZ","G96","OFF"),&
             enum_i_vals=(/do_coord_pdb, do_coord_xyz, do_coord_g96, do_coord_off/),&
+            enum_desc=s2a("PDB BLAH.",&
+                          "XYZ BLAH.",&
+                          "G96 BLAH.",&
+                          "OFF BLAH."),&
             default_i_val=do_coord_off,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

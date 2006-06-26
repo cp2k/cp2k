@@ -43,7 +43,7 @@ MODULE topology_util
                                              set_potential
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: &
-       do_bondparm_covalent, do_bondparm_vdw, do_conn_off, do_fist, &
+       do_bondparm_covalent, do_bondparm_vdw, do_conn_off, do_conn_gtop,do_fist, &
        do_qmmm_none, do_skip_12, do_skip_13, do_skip_14
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
@@ -1855,7 +1855,11 @@ CONTAINS
                 ibond = ibond + 1
                 bond_list(ibond)%a=conn_info%bond_a(j)-first+1
                 bond_list(ibond)%b=conn_info%bond_b(j)-first+1
-                bond_list(ibond)%name="BOND"
+                IF(topology%conn_type==do_conn_gtop) THEN
+                  WRITE(bond_list(ibond)%name,*) "G96_",conn_info%bond_type(j)
+                ELSE
+                  bond_list(ibond)%name="BOND"
+                END IF
                 !point this to the right bond_kind_type if using force field
                 NULLIFY(bond_list(ibond)%bond_kind)
                 IF(iw>0) THEN
@@ -1877,7 +1881,11 @@ CONTAINS
                 IF(first<=atm_a .AND. atm_a <=last) THEN
                    bond_list(ibond)%a=conn_info%c_bond_a(j)-first+1
                    bond_list(ibond)%b=conn_info%c_bond_b(j)-first+1
-                   bond_list(ibond)%name="BOND"
+                   IF(topology%conn_type==do_conn_gtop) THEN
+                     WRITE(bond_list(ibond)%name,*) "G96_",conn_info%bond_type(j)
+                   ELSE
+                     bond_list(ibond)%name="BOND"
+                   END IF
                    !point this to the right bond_kind_type if using force field
                    NULLIFY(bond_list(ibond)%bond_kind)
                    IF(iw>0) THEN
@@ -1960,7 +1968,11 @@ CONTAINS
                 bend_list(i)%a=conn_info%theta_a(j)-first+1
                 bend_list(i)%b=conn_info%theta_b(j)-first+1
                 bend_list(i)%c=conn_info%theta_c(j)-first+1
-                bend_list(i)%name="BEND"
+                IF(topology%conn_type==do_conn_gtop) THEN
+                  WRITE(bend_list(i)%name,*) 'G96_',conn_info%theta_type(j)
+                ELSE
+                  bend_list(i)%name="BEND"
+                END IF
                 !point this to the right bend_kind_type if using force field
                 NULLIFY(bend_list(i)%bend_kind)
                 IF(iw>0) THEN
@@ -2133,7 +2145,11 @@ CONTAINS
                 torsion_list(i)%b=conn_info%phi_b(j)-first+1
                 torsion_list(i)%c=conn_info%phi_c(j)-first+1
                 torsion_list(i)%d=conn_info%phi_d(j)-first+1
-                torsion_list(i)%name="TORSION"
+                IF(topology%conn_type==do_conn_gtop) THEN
+                  WRITE(torsion_list(i)%name,*) "G96_",conn_info%phi_type(j)
+                ELSE
+                  torsion_list(i)%name="TORSION"
+                END IF
                 !point this to the right torsion_kind_type if using force field
                 NULLIFY(torsion_list(i)%torsion_kind)
                 IF(iw>0) THEN
@@ -2225,7 +2241,11 @@ CONTAINS
                 impr_list(i)%b=conn_info%impr_b(j)-first+1
                 impr_list(i)%c=conn_info%impr_c(j)-first+1
                 impr_list(i)%d=conn_info%impr_d(j)-first+1
-                impr_list(i)%name="IMPROPER"
+                IF(topology%conn_type==do_conn_gtop) THEN
+                  WRITE(impr_list(i)%name,*) "G96_",conn_info%impr_type(j)
+                ELSE
+                  impr_list(i)%name="IMPROPER"
+                END IF
                 !point this to the right impr_kind_type if using force field
                 NULLIFY(impr_list(i)%impr_kind)
                 IF(iw>0) THEN

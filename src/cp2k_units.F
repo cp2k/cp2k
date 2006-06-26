@@ -33,7 +33,7 @@ MODULE cp2k_units
 
   TYPE unit_convert_type
  !   PRIVATE  later
-     REAL (KIND=dp) :: mass, fs, kcal, kelvin, degree, bar, wavenum, angstrom, bohr, eps0, ev
+     REAL (KIND=dp) :: mass, fs, kcal, kelvin, degree, bar, wavenum, nm, angstrom, bohr, eps0, ev
      CHARACTER ( LEN = 10 ) :: e_label, l_label, vol_label,  &
                                temp_label, pres_label,       &
                                angl_label
@@ -100,6 +100,8 @@ SUBROUTINE init_cp2k_units (error)
   units % ev = 1.0_dp / evolt
 ! kelvin to energy AU
   units % kelvin = boltzmann / joule
+! nm to length AU
+  units % nm = 10.0_dp * bohr
 ! angstrom to length AU
   units % angstrom = bohr
 ! length AU to angstrom
