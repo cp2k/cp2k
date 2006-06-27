@@ -89,7 +89,7 @@ MODULE qs_scf
                                              harris_energy_correction,&
                                              harris_postprocessing
   USE input_constants,                 ONLY: &
-       core_guess, densities_guess, ot_precond_full_all, &
+       core_guess, densities_guess, restart_guess, ot_precond_full_all, &
        ot_precond_full_kinetic, ot_precond_full_single, &
        ot_precond_full_single_inverse, ot_precond_none, ot_precond_s_inverse, &
        ot_precond_sparse_diag, ot_precond_sparse_firstorder, qs_debug_run, &
@@ -2106,7 +2106,8 @@ END SUBROUTINE qs_scf_print_summary
     END IF
 
     IF ((scf_env%iter_count > 1).OR.&
-        (scf_control%density_guess == core_guess)) THEN
+        (scf_control%density_guess == core_guess).OR.&
+        (scf_control%density_guess == restart_guess)) THEN
 
       ! Transform the spin unrestricted alpha and beta Kohn-Sham matrices
       ! from AO basis to MO basis: K(MO) = C(T)*K(AO)*C
