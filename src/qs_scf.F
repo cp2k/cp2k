@@ -2099,6 +2099,7 @@ END SUBROUTINE qs_scf_print_summary
 
     IF ((scf_control%level_shift /= 0.0_dp).AND.&
         ((scf_control%density_guess == core_guess).OR.&
+         (scf_control%density_guess == restart_guess).OR.&
          (scf_env%iter_count > 1))) THEN
       level_shift_loc = scf_control%level_shift
     ELSE
