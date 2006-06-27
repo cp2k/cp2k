@@ -981,6 +981,14 @@ CONTAINS
 
       END DO
 
+      ! Skip extra MOs if there any
+
+      IF (globenv%ionode) THEN
+        DO i=nmo+1,nmo_read
+          READ (restart_unit) vecbuffer_read
+        END DO
+      END IF
+
       IF (globenv%print_level > LOW) THEN
         CALL write_mo_set(mo_array(ispin)%mo_set,atomic_kind_set,particle_set,&
                           4,6,dft_section,error=error)
