@@ -56,7 +56,7 @@ MODULE force_field_types
 
   TYPE ub_kind_type
     CHARACTER(LEN=default_string_length) :: name
-    REAL(KIND = dp)                :: k,r0
+    REAL(KIND = dp)                :: k(3),r0
     INTEGER                        :: kind_number
   END TYPE ub_kind_type
 

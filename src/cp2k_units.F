@@ -25,7 +25,7 @@ MODULE cp2k_units
   USE mathconstants,                   ONLY: twopi
   USE physcon,                         ONLY: &
        a_bohr, bohr, boltzmann, e_charge, evolt, femtoseconds, h_bar, hz, &
-       joule, kcalmol, massunit, permittivity, wavenum
+       joule, kcalmol, kjmol, massunit, permittivity, wavenum
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -33,7 +33,19 @@ MODULE cp2k_units
 
   TYPE unit_convert_type
  !   PRIVATE  later
-     REAL (KIND=dp) :: mass, fs, kcal, kelvin, degree, bar, wavenum, nm, angstrom, bohr, eps0, ev
+     REAL (KIND=dp) :: mass, &
+                       fs, &
+                       kcal, &
+                       kj, &
+                       kelvin, &
+                       degree, &
+                       bar, &
+                       wavenum, &
+                       nm, &
+                       angstrom, &
+                       bohr, &
+                       eps0, &
+                       ev
      CHARACTER ( LEN = 10 ) :: e_label, l_label, vol_label,  &
                                temp_label, pres_label,       &
                                angl_label
@@ -94,6 +106,8 @@ SUBROUTINE init_cp2k_units (error)
   units % fs = 1.0_dp/femtoseconds
 ! 1/cm to time AU
   units % wavenum =  joule * wavenum / hz / h_bar
+! kjoule/mole to energy AU
+  units % kj = 1.0_dp / kjmol
 ! kcal/mole to energy AU
   units % kcal = 1.0_dp / kcalmol
 ! EV to energy AU

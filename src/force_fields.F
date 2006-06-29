@@ -242,7 +242,7 @@ CONTAINS
        SELECT CASE (ff_type%ff_type)
        CASE ("CHM")
           CALL read_force_field_charmm(ff_type,globenv,mm_section,error)
-       CASE ("GROMOS")
+       CASE ("G87","G96")
           CALL read_force_field_gromos(ff_type,globenv,mm_section,error)
        CASE DEFAULT
           CALL stop_program ("force_field_control","force field type not implemented")
@@ -1263,6 +1263,8 @@ CONTAINS
     INTEGER:: itype,ntype,iatom,jatom,katom,latom,natom,icon,ncon
     INTEGER,POINTER:: type_conversion(:)
     REAL(KIND=dp) :: etemp
+    REAL(KIND=dp),PARAMETER :: ekt = 2.5_dp    !ikuo - Do not change
+    REAL(KIND=dp) :: cost2,sdet,csq
 
     CALL timeset(routineN,'I','',handle)
     failure = .FALSE.
@@ -1295,6 +1297,7 @@ CONTAINS
 
     gro_info => ff_type%gro_info
 
+    NULLIFY(namearray)
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -1312,7 +1315,7 @@ CONTAINS
       !CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       DO itype=1,ntype
         CALL parser_get_next_line(parser,1,error=error)
-        CALL parser_get_object(parser,namearray(itype))
+        CALL parser_get_object(parser,namearray(itype),lower_to_upper=.TRUE.)
         IF(iw>0) WRITE(iw,*) "GTOP_INFO|  ",TRIM(namearray(itype))
       END DO
     END IF
@@ -1369,6 +1372,16 @@ CONTAINS
         CALL parser_get_next_line(parser,1,error=error)
         CALL parser_get_object(parser,gro_info%bond_k(itype))
         CALL parser_get_object(parser,gro_info%bond_r0(itype))
+        IF(ff_type%ff_type=="G96") THEN
+          CALL convert_to_cp2k_units("KJ",energy=gro_info%bond_k(itype))
+          CALL convert_to_cp2k_units("NM",length=gro_info%bond_k(itype),l_power=-4)
+          CALL convert_to_cp2k_units("NM",length=gro_info%bond_r0(itype))
+        ELSE ! Assume its G87
+          gro_info%bond_k(itype) = (2.0_dp) * gro_info%bond_k(itype) * gro_info%bond_r0(itype)**2
+          CALL convert_to_cp2k_units("KJ",energy=gro_info%bond_k(itype))
+          CALL convert_to_cp2k_units("NM",length=gro_info%bond_k(itype),l_power=-2)
+          CALL convert_to_cp2k_units("NM",length=gro_info%bond_r0(itype))
+        END IF
         IF(iw>0) WRITE(iw,*) "GROMOS_FF| PUT BONDTYPE INFO HERE!!!!"
       END DO
     END IF
@@ -1394,6 +1407,25 @@ CONTAINS
         CALL parser_get_next_line(parser,1,error=error)
         CALL parser_get_object(parser,gro_info%bend_k(itype))
         CALL parser_get_object(parser,gro_info%bend_theta0(itype))
+        IF(ff_type%ff_type=="G96") THEN
+
+          CALL convert_to_cp2k_units("DEGREE",angle=gro_info%bend_theta0(itype))
+          gro_info%bend_theta0(itype) = COS(gro_info%bend_theta0(itype))
+          CALL convert_to_cp2k_units("KJ",energy=gro_info%bend_k(itype))
+
+        ELSE ! Assume its G87
+
+          CALL convert_to_cp2k_units("DEGREE",angle=gro_info%bend_theta0(itype))
+
+          cost2 = COS(gro_info%bend_theta0(itype))*COS(gro_info%bend_theta0(itype))
+          sdet = cost2*cost2 - (2.0_dp*cost2-1.0_dp)*(1.0_dp-ekt/gro_info%bend_k(itype))
+          csq = (cost2-SQRT(sdet))/(2.0_dp*cost2-1.0_dp)
+          gro_info%bend_k(itype) = ekt/ACOS(csq)**2
+
+          CALL convert_to_cp2k_units("KJ",energy=gro_info%bend_k(itype))
+
+        END IF
+
         IF(iw>0) WRITE(iw,*) "GROMOS_FF| PUT BONDANGLETYPE INFO HERE!!!!"
       END DO
     END IF
@@ -1418,7 +1450,9 @@ CONTAINS
       DO itype=1,ntype
         CALL parser_get_next_line(parser,1,error=error)
         CALL parser_get_object(parser,gro_info%impr_k(itype))
+        CALL convert_to_cp2k_units("KJ",energy=gro_info%impr_k(itype))
         CALL parser_get_object(parser,gro_info%impr_phi0(itype))
+        CALL convert_to_cp2k_units("DEGREE",angle=gro_info%impr_phi0(itype))
         IF(iw>0) WRITE(iw,*) "GROMOS_FF| PUT IMPDIHEDRALTYPE INFO HERE!!!!"
       END DO
     END IF
@@ -1446,6 +1480,10 @@ CONTAINS
         CALL parser_get_object(parser,gro_info%torsion_k(itype))
         CALL parser_get_object(parser,gro_info%torsion_cosphi0(itype))
         CALL parser_get_object(parser,gro_info%torsion_m(itype))
+
+        CALL convert_to_cp2k_units("KJ",energy=gro_info%torsion_k(itype))
+        !gro_info%torsion_cosphi0(itype)= -gro_info%torsion_cosphi0(itype)
+
         IF(iw>0) WRITE(iw,*) "GROMOS_FF| PUT DIHEDRALTYPE INFO HERE!!!!"
       END DO
     END IF
@@ -2046,7 +2084,7 @@ CONTAINS
           ALLOCATE(map_bond_kind(nbond),STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           counter=0
-         IF(ff_type%ff_type=="GROMOS") THEN
+         IF((ff_type%ff_type=="G96").OR.(ff_type%ff_type=="G87")) THEN
           DO j=1,nbond
             map_bond_kind(j)=j
           END DO
@@ -2121,7 +2159,7 @@ CONTAINS
           ALLOCATE(map_bend_kind(nbend),STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           counter=0
-         IF(ff_type%ff_type=="GROMOS") THEN
+         IF((ff_type%ff_type=="G96").OR.(ff_type%ff_type=="G87")) THEN
           DO j=1,nbend
             map_bend_kind(j)=j
           END DO
@@ -2277,7 +2315,7 @@ CONTAINS
           ALLOCATE(map_torsion_kind(ntorsion),STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           counter=0
-         IF(ff_type%ff_type=="GROMOS") THEN
+         IF((ff_type%ff_type=="G96").OR.(ff_type%ff_type=="G87")) THEN
           DO j=1,ntorsion
             map_torsion_kind(j)=j
           END DO
@@ -2379,7 +2417,7 @@ CONTAINS
           ALLOCATE(map_impr_kind(nimpr),STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           counter=0
-         IF(ff_type%ff_type=="GROMOS") THEN
+         IF((ff_type%ff_type=="G96").OR.(ff_type%ff_type=="G87")) THEN
           DO j=1,nimpr
             map_impr_kind(j)=j
           END DO
@@ -2559,15 +2597,25 @@ CONTAINS
 
           ! loop over params from gromos
           IF(ASSOCIATED(gro_info%bond_k)) THEN
+             k=SIZE(gro_info%bond_k)
              READ(bond_list(j)%name(6:80),*) itype
-             IF(itype>0) THEN
+             IF(itype<=k) THEN
                bond_list(j)%bond_kind%k(1) = gro_info%bond_k(itype)
                bond_list(j)%bond_kind%r0   = gro_info%bond_r0(itype)
-               bond_list(j)%bond_kind%name = "G96"
-               bond_list(j)%name = "BOND"
+               IF(ff_type%ff_type=="G87") bond_list(j)%bond_kind%name = "G87"
+               IF(ff_type%ff_type=="G96") bond_list(j)%bond_kind%name = "G96"
+               IF(ff_type%ff_type=="G87") bond_list(j)%name = "G87"
+               IF(ff_type%ff_type=="G96") bond_list(j)%name = "G96"
                found = .TRUE.
              ELSE
-               STOP ! Invalid itype...
+               k=SIZE(gro_info%solvent_k)
+               bond_list(j)%bond_kind%k(1) = gro_info%solvent_k(itype/k)
+               bond_list(j)%bond_kind%r0   = gro_info%solvent_r0(itype/k)
+               IF(ff_type%ff_type=="G87") bond_list(j)%bond_kind%name = "G87"
+               IF(ff_type%ff_type=="G96") bond_list(j)%bond_kind%name = "G96"
+               IF(ff_type%ff_type=="G87") bond_list(j)%name = "G87"
+               IF(ff_type%ff_type=="G96") bond_list(j)%name = "G96"
+               found = .TRUE.
              END IF
           END IF
 
@@ -2657,15 +2705,24 @@ CONTAINS
 
           ! loop over params from GROMOS
           IF(ASSOCIATED(gro_info%bend_k)) THEN
+             k=SIZE(gro_info%bend_k)
              READ(bend_list(j)%name(6:80),*) itype
              IF(itype>0) THEN
                bend_list(j)%bend_kind%k      = gro_info%bend_k(itype)
                bend_list(j)%bend_kind%theta0 = gro_info%bend_theta0(itype)
-               bend_list(j)%bend_kind%name   = "G96"
-               bend_list(j)%name   = "BEND"
+               IF(ff_type%ff_type=="G87") bend_list(j)%bend_kind%name   = "G87"
+               IF(ff_type%ff_type=="G96") bend_list(j)%bend_kind%name   = "G96"
+               IF(ff_type%ff_type=="G87") bend_list(j)%name   = "G87"
+               IF(ff_type%ff_type=="G96") bend_list(j)%name   = "G96"
                found = .TRUE.
              ELSE
-               STOP ! Invalid itype...
+               bend_list(j)%bend_kind%k      = gro_info%bend_k(itype/k)
+               bend_list(j)%bend_kind%theta0 = gro_info%bend_theta0(itype/k)
+               IF(ff_type%ff_type=="G87") bend_list(j)%bend_kind%name   = "G87"
+               IF(ff_type%ff_type=="G96") bend_list(j)%bend_kind%name   = "G96"
+               IF(ff_type%ff_type=="G87") bend_list(j)%name   = "G87"
+               IF(ff_type%ff_type=="G96") bend_list(j)%name   = "G96"
+               found = .TRUE.
              END IF
           END IF
 
@@ -2863,6 +2920,7 @@ CONTAINS
 
              ! loop over params from GROMOS
              IF(ASSOCIATED(gro_info%torsion_k)) THEN
+               k=SIZE(gro_info%torsion_k)
                READ(torsion_list(j)%name(6:80),*) itype
                IF(itype>0) THEN
                  CALL reallocate(torsion_list(j)%torsion_kind%k,1,1)
@@ -2872,13 +2930,24 @@ CONTAINS
                  torsion_list(j)%torsion_kind%m(1)   = gro_info%torsion_m(itype)
                  torsion_list(j)%torsion_kind%k(1)   = gro_info%torsion_k(itype)
                  torsion_list(j)%torsion_kind%cosphi0(1) = gro_info%torsion_cosphi0(itype)
-                 torsion_list(j)%torsion_kind%name   = "G96"
-                 ! XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-                 torsion_list(j)%torsion_kind%name   = "CHARMM"
-                 torsion_list(j)%name   = "TORSION"
+                 IF(ff_type%ff_type=="G87") torsion_list(j)%torsion_kind%name   = "G87"
+                 IF(ff_type%ff_type=="G96") torsion_list(j)%torsion_kind%name   = "G96"
+                 IF(ff_type%ff_type=="G87") torsion_list(j)%name   = "G87"
+                 IF(ff_type%ff_type=="G96") torsion_list(j)%name   = "G96"
                  found = .TRUE.
                ELSE
-                 STOP ! Invalid itype...
+                 CALL reallocate(torsion_list(j)%torsion_kind%k,1,1)
+                 CALL reallocate(torsion_list(j)%torsion_kind%m,1,1)
+                 CALL reallocate(torsion_list(j)%torsion_kind%cosphi0,1,1)
+                 torsion_list(j)%torsion_kind%nmul   = 1
+                 torsion_list(j)%torsion_kind%m(1)   = gro_info%torsion_m(itype/k)
+                 torsion_list(j)%torsion_kind%k(1)   = gro_info%torsion_k(itype/k)
+                 torsion_list(j)%torsion_kind%cosphi0(1) = gro_info%torsion_cosphi0(itype/k)
+                 IF(ff_type%ff_type=="G87") torsion_list(j)%torsion_kind%name   = "G87"
+                 IF(ff_type%ff_type=="G96") torsion_list(j)%torsion_kind%name   = "G96"
+                 IF(ff_type%ff_type=="G87") torsion_list(j)%name   = "G87"
+                 IF(ff_type%ff_type=="G96") torsion_list(j)%name   = "G96"
+                 found = .TRUE.
                END IF
              END IF
 
@@ -3526,13 +3595,17 @@ CONTAINS
              ii = 0 
              jj = 0
              DO k=1,SIZE(gro_info%nonbond_a)
+                WRITE(*,*) "ii match",TRIM(name_atm_a),TRIM(gro_info%nonbond_a(k))
                 IF(TRIM(name_atm_a)==TRIM(gro_info%nonbond_a(k))) THEN
                    ii = k
+                   EXIT
                 END IF
              END DO
              DO k=1,SIZE(gro_info%nonbond_a)
+                WRITE(*,*) "jj match",TRIM(name_atm_b),TRIM(gro_info%nonbond_a(k))
                 IF(TRIM(name_atm_b)==TRIM(gro_info%nonbond_a(k))) THEN
                    jj = k
+                   EXIT
                 END IF
              END DO
 
@@ -3554,6 +3627,8 @@ CONTAINS
                 found = .TRUE.
              END IF
           END IF
+         
+          WRITE(*,*) "ii,jj match ",ii,jj
 
           ! loop over params from CHARMM
           IF(ASSOCIATED(chm_info%nonbond_a)) THEN

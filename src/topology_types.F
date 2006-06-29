@@ -63,7 +63,7 @@ MODULE topology_types
     INTEGER, POINTER :: phi_a(:),phi_b(:),phi_c(:),phi_d(:),phi_type(:)
     INTEGER, POINTER :: impr_a(:),impr_b(:),impr_c(:),impr_d(:),impr_type(:)
     INTEGER, POINTER :: onfo_a(:),onfo_b(:),onfo_type(:)
-    INTEGER, POINTER :: c_bond_a(:),c_bond_b(:)
+    INTEGER, POINTER :: c_bond_a(:),c_bond_b(:),c_bond_type(:)
   END TYPE connectivity_info_type
 
   TYPE constraint_info_type
@@ -266,6 +266,7 @@ SUBROUTINE init_topology (topology)
   NULLIFY(topology%conn_info%onfo_type)
   NULLIFY(topology%conn_info%c_bond_a)
   NULLIFY(topology%conn_info%c_bond_b)
+  NULLIFY(topology%conn_info%c_bond_type)
 
 
   !-----------------------------------------------------------------------------
@@ -509,6 +510,10 @@ SUBROUTINE deallocate_topology (topology, error)
   IF(ASSOCIATED(topology%conn_info%c_bond_b)) THEN
     DEALLOCATE(topology%conn_info%c_bond_b,STAT=istat)
     IF (istat /= 0) CALL stop_memory('deallocate_topology','c_bond_b')
+  END IF
+  IF(ASSOCIATED(topology%conn_info%c_bond_type)) THEN
+    DEALLOCATE(topology%conn_info%c_bond_type,STAT=istat)
+    IF (istat /= 0) CALL stop_memory('deallocate_topology','c_bond_type')
   END IF
 
 

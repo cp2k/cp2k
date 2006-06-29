@@ -151,6 +151,8 @@ SUBROUTINE convert_to_cp2k_units ( unit_char, time, temperature, pressure, lengt
   IF ( PRESENT ( energy ) ) THEN
      IF ( unit_char == 'KCAL' ) THEN
        energy  = energy * units%kcal
+     ELSEIF ( unit_char == 'KJ' ) THEN
+       energy  = energy * units%kj
      ELSEIF ( unit_char == 'KELVIN' ) THEN
        energy  = energy * units%kelvin
      ELSEIF ( unit_char == 'EV' ) THEN

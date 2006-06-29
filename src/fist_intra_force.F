@@ -161,7 +161,8 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
         index_a = bond_list ( ibond ) % a + first_atom - 1
         index_b = bond_list ( ibond ) % b + first_atom - 1
         rij = particle_set ( index_a ) % r - particle_set ( index_b ) % r
-        CALL force_bonds(rij,bond_list ( ibond ) % bond_kind % r0, &
+        CALL force_bonds(bond_list(ibond)%bond_kind%name, rij, &
+                         bond_list ( ibond ) % bond_kind % r0, &
                          bond_list ( ibond ) % bond_kind % k, &
                          energy, fscalar)
         pot_bond = pot_bond + energy
@@ -196,7 +197,8 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
         index_a = ub_list ( ibend ) % a + first_atom - 1
         index_b = ub_list ( ibend ) % c + first_atom - 1
         rij = particle_set ( index_a ) % r - particle_set ( index_b ) % r
-        CALL force_bonds (rij,  ub_list ( ibend ) % ub_kind % r0, &
+        CALL force_bonds (ub_list(ibend) % ub_kind % name, rij, &
+                          ub_list ( ibend ) % ub_kind % r0, &
                           ub_list ( ibend ) % ub_kind % k, energy, fscalar)
         pot_urey_bradley = pot_urey_bradley + energy
         particle_set ( index_a )% f(1) = particle_set ( index_a ) % f(1)  - rij(1) * fscalar
@@ -239,7 +241,8 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
         IF(theta<-1.0_dp) theta=-1.0_dp
         IF(theta>+1.0_dp) theta=+1.0_dp
         theta = ACOS(theta)
-        CALL force_bends(b12,b32,d12,d32,id12,id32,dist,theta, &
+        CALL force_bends( bend_list ( ibend ) % bend_kind % name, &
+                         b12,b32,d12,d32,id12,id32,dist,theta, &
                          bend_list ( ibend ) % bend_kind % theta0, &
                          bend_list ( ibend ) % bend_kind % k, &
                          g1,g2,g3,energy,fscalar)
@@ -295,12 +298,12 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
         iw1 = 1.0_dp/w1
         iw2 = 1.0_dp/w2
         DO imul = 1, torsion_list(itorsion) % torsion_kind % nmul
-            CALL force_torsions(is32,dist1,dist2,u1,u2,iw1,iw2, &
+            CALL force_torsions(torsion_list(itorsion)%torsion_kind%name, &
+                              is32,dist1,dist2,u1,u2,iw1,iw2, &
                               torsion_list(itorsion)%torsion_kind%a, &
                               torsion_list(itorsion)%torsion_kind%k(imul), &
                               torsion_list(itorsion)%torsion_kind%cosphi0(imul), &
                               torsion_list(itorsion)%torsion_kind%m(imul), &
-                              torsion_list(itorsion)%torsion_kind%name, &
                               gt1,gt2,gt3,gt4,energy,fscalar)
             pot_torsion = pot_torsion + energy
             particle_set ( index_a )% f(1) = particle_set ( index_a ) % f(1) + gt1(1) * fscalar
@@ -367,7 +370,8 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
         is32 = 1.0_dp/s32
         dist1 = DOT_PRODUCT(t12,t32)
         dist2 = DOT_PRODUCT(t34,t32)
-        CALL force_imp_torsions(s32, is32,ism,isn,dist1,dist2,tm,tn, t12, t32, &
+        CALL force_imp_torsions( impr_list ( itorsion ) % impr_kind % name, &
+                            s32, is32,ism,isn,dist1,dist2,tm,tn, t12, t32, &
                             impr_list ( itorsion ) % impr_kind % k, &
                             impr_list ( itorsion ) % impr_kind % phi0, &
                             gt1,gt2,gt3,gt4,energy,fscalar)

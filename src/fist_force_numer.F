@@ -162,19 +162,22 @@ SUBROUTINE force_bond_numer ( molecule_set, molecule_kind_set, local_molecules, 
         index_b = bond_list ( ibond ) % b + first_atom - 1
         rij = particle_set ( index_a ) % r - particle_set ( index_b ) % r
 ! get the energy
-        CALL force_bonds ( rij, bond_list ( ibond ) % bond_kind % r0, &
-             bond_list ( ibond ) % bond_kind  % k, e0, fscalar )
+        CALL force_bonds ( bond_list(ibond)%bond_kind%name,&
+                           rij, bond_list ( ibond ) % bond_kind % r0, &
+                           bond_list ( ibond ) % bond_kind  % k, e0, fscalar )
         pot_bond = pot_bond + e0
 
 ! get the forces
         DO idim = 1, 3
            delta(idim) = numerical_shift
            rij_minus_delta = rij - delta
-           CALL force_bonds ( rij_minus_delta, bond_list ( ibond ) % bond_kind % r0, &
-             bond_list ( ibond ) % bond_kind  % k, em, fscalar )
+           CALL force_bonds ( bond_list(ibond)%bond_kind%name,&
+                              rij_minus_delta, bond_list ( ibond ) % bond_kind % r0, &
+                              bond_list ( ibond ) % bond_kind  % k, em, fscalar )
            rij_plus_delta = rij + delta
-           CALL force_bonds ( rij_plus_delta, bond_list ( ibond ) % bond_kind % r0, &
-                bond_list ( ibond ) % bond_kind % k, ep, fscalar )
+           CALL force_bonds ( bond_list(ibond)%bond_kind%name,&
+                              rij_plus_delta, bond_list ( ibond ) % bond_kind % r0, &
+                              bond_list ( ibond ) % bond_kind % k, ep, fscalar )
            f_bond_numer(idim,index_a) = f_bond_numer(idim,index_a) + (em-ep)
            f_bond_numer(idim,index_b) = f_bond_numer(idim,index_b) - (em-ep)
            delta = 0.0_dp
@@ -338,19 +341,22 @@ SUBROUTINE force_ub_numer ( molecule_set, molecule_kind_set, local_molecules, &
         index_b = ub_list ( iub ) % c + first_atom - 1
         rij = particle_set ( index_a ) % r - particle_set ( index_b ) % r
 ! get the energy
-        CALL force_bonds ( rij, ub_list ( iub ) % ub_kind % r0, &
-             ub_list ( iub ) % ub_kind  % k, e0, fscalar )
+        CALL force_bonds ( ub_list(iub)%ub_kind%name,&
+                           rij, ub_list ( iub ) % ub_kind % r0, &
+                           ub_list ( iub ) % ub_kind  % k, e0, fscalar )
         pot_ub = pot_ub + e0
 
 ! get the forces
         DO idim = 1, 3
            delta(idim) = numerical_shift
            rij_minus_delta = rij - delta
-           CALL force_bonds ( rij_minus_delta, ub_list ( iub ) % ub_kind % r0, &
-             ub_list ( iub ) % ub_kind  % k, em, fscalar )
+           CALL force_bonds ( ub_list(iub)%ub_kind%name,&
+                              rij_minus_delta, ub_list ( iub ) % ub_kind % r0, &
+                              ub_list ( iub ) % ub_kind  % k, em, fscalar )
            rij_plus_delta = rij + delta
-           CALL force_bonds ( rij_plus_delta, ub_list ( iub ) % ub_kind % r0, &
-                ub_list ( iub ) % ub_kind % k, ep, fscalar )
+           CALL force_bonds ( ub_list(iub)%ub_kind%name,&
+                              rij_plus_delta, ub_list ( iub ) % ub_kind % r0, &
+                              ub_list ( iub ) % ub_kind % k, ep, fscalar )
            f_ub_numer(idim,index_a) = f_ub_numer(idim,index_a) + (em-ep)
            f_ub_numer(idim,index_b) = f_ub_numer(idim,index_b) - (em-ep)
            delta = 0.0_dp
@@ -443,7 +449,8 @@ BEND: DO ibend = 1, nbends
         IF(theta>+1.0_dp) theta=+1.0_dp
         theta = ACOS(theta)
 ! get the energy
-        CALL force_bends ( b12, b32, d12, d32, id12, id32, dist, theta, &
+        CALL force_bends ( bend_list(ibend)%bend_kind%name,&
+                           b12, b32, d12, d32, id12, id32, dist, theta, &
                            bend_list ( ibend ) % bend_kind % theta0,  &
                            bend_list ( ibend ) % bend_kind % k, &
                            g1, g2, g3, e0, fscalar )
@@ -462,7 +469,8 @@ BEND: DO ibend = 1, nbends
            IF(theta<-1.0_dp) theta=-1.0_dp
            IF(theta>+1.0_dp) theta=+1.0_dp
            theta = ACOS(theta)
-           CALL force_bends ( b12_minus_delta, b32, d12m, d32, id12m, id32, dist, theta, &
+           CALL force_bends ( bend_list(ibend)%bend_kind%name,&
+                              b12_minus_delta, b32, d12m, d32, id12m, id32, dist, theta, &
                               bend_list ( ibend ) % bend_kind % theta0,  &
                               bend_list ( ibend ) % bend_kind % k, &
                               g1, g2, g3, em, fscalar )
@@ -475,7 +483,8 @@ BEND: DO ibend = 1, nbends
            IF(theta<-1.0_dp) theta=-1.0_dp
            IF(theta>+1.0_dp) theta=+1.0_dp
            theta = ACOS(theta)
-           CALL force_bends ( b12_plus_delta, b32, d12p, d32, id12p, id32, dist, theta, &
+           CALL force_bends ( bend_list(ibend)%bend_kind%name,&
+                              b12_plus_delta, b32, d12p, d32, id12p, id32, dist, theta, &
                               bend_list ( ibend ) % bend_kind % theta0,  &
                               bend_list ( ibend ) % bend_kind % k, &
                               g1, g2, g3, ep, fscalar )
@@ -497,7 +506,8 @@ BEND: DO ibend = 1, nbends
            IF(theta<-1.0_dp) theta=-1.0_dp
            IF(theta>+1.0_dp) theta=+1.0_dp
            theta = ACOS(theta)
-           CALL force_bends(b12,b32_minus_delta,d12,d32m,id12,id32m,dist,theta, &
+           CALL force_bends(bend_list(ibend)%bend_kind%name,&
+                            b12,b32_minus_delta,d12,d32m,id12,id32m,dist,theta, &
                             bend_list ( ibend ) % bend_kind % theta0,  &
                             bend_list ( ibend ) % bend_kind % k, &
                             g1, g2, g3, em, fscalar )
@@ -510,7 +520,8 @@ BEND: DO ibend = 1, nbends
            IF(theta<-1.0_dp) theta=-1.0_dp
            IF(theta>+1.0_dp) theta=+1.0_dp
            theta = ACOS(theta)
-           CALL force_bends ( b12, b32_plus_delta, d12, d32p, id12, id32p, dist, theta, &
+           CALL force_bends ( bend_list(ibend)%bend_kind%name,&
+                              b12, b32_plus_delta, d12, d32p, id12, id32p, dist, theta, &
                               bend_list ( ibend ) % bend_kind % theta0,  &
                               bend_list ( ibend ) % bend_kind % k, &
                               g1, g2, g3, ep, fscalar )
@@ -605,12 +616,12 @@ SUBROUTINE force_torsion_numer ( molecule_set, molecule_kind_set, local_molecule
         iw2 = 1.0_dp/w2
         ! get the energy
        DO imul = 1, torsion_list(itorsion) % torsion_kind % nmul
-        CALL force_torsions(is32,dist1,dist2,u1,u2,iw1,iw2, &
+        CALL force_torsions(torsion_list(itorsion)%torsion_kind%name, &
+                            is32,dist1,dist2,u1,u2,iw1,iw2, &
                             torsion_list(itorsion)%torsion_kind%a, &
                             torsion_list(itorsion)%torsion_kind%k(imul), &
                             torsion_list(itorsion)%torsion_kind%cosphi0(imul), &
                             torsion_list(itorsion)%torsion_kind%m(imul), &
-                            torsion_list(itorsion)%torsion_kind%name, &
                             gt1,gt2,gt3,gt4,e0,fscalar)
         pot_torsion = pot_torsion + e0
 
@@ -629,12 +640,12 @@ SUBROUTINE force_torsion_numer ( molecule_set, molecule_kind_set, local_molecule
            w2 = SQRT(DOT_PRODUCT(u2,u2))
            iw1m = 1.0_dp/w1m
            iw2 = 1.0_dp/w2
-           CALL force_torsions(is32,dist1m,dist2,u1m,u2,iw1m,iw2, &
+           CALL force_torsions(torsion_list(itorsion)%torsion_kind%name, &
+                            is32,dist1m,dist2,u1m,u2,iw1m,iw2, &
                             torsion_list(itorsion)%torsion_kind%a, &
                             torsion_list(itorsion)%torsion_kind%k(imul), &
                             torsion_list(itorsion)%torsion_kind%cosphi0(imul), &
                             torsion_list(itorsion)%torsion_kind%m(imul), &
-                            torsion_list(itorsion)%torsion_kind%name, &
                             gt1,gt2,gt3,gt4,em,fscalar)
            t12_plus_delta = t12 + delta
            s32 = SQRT(DOT_PRODUCT(t32,t32))
@@ -647,12 +658,12 @@ SUBROUTINE force_torsion_numer ( molecule_set, molecule_kind_set, local_molecule
            w2 = SQRT(DOT_PRODUCT(u2,u2))
            iw1p = 1.0_dp/w1p
            iw2 = 1.0_dp/w2
-           CALL force_torsions(is32,dist1p,dist2,u1p,u2,iw1p,iw2, &
+           CALL force_torsions(torsion_list(itorsion)%torsion_kind%name, &
+                            is32,dist1p,dist2,u1p,u2,iw1p,iw2, &
                             torsion_list(itorsion)%torsion_kind%a, &
                             torsion_list(itorsion)%torsion_kind%k(imul), &
                             torsion_list(itorsion)%torsion_kind%cosphi0(imul), &
                             torsion_list(itorsion)%torsion_kind%m(imul), &
-                            torsion_list(itorsion)%torsion_kind%name, &
                             gt1,gt2,gt3,gt4,ep,fscalar)
            f_torsion_numer(idim,index_a) = f_torsion_numer(idim,index_a) + (em-ep)
            f_torsion_numer(idim,index_b) = f_torsion_numer(idim,index_b) - (em-ep)
@@ -674,12 +685,12 @@ SUBROUTINE force_torsion_numer ( molecule_set, molecule_kind_set, local_molecule
            w2m = SQRT(DOT_PRODUCT(u2m,u2m))
            iw1m = 1.0_dp/w1m
            iw2m = 1.0_dp/w2m
-           CALL force_torsions(is32m,dist1m,dist2m,u1m,u2m,iw1m,iw2m, &
+           CALL force_torsions(torsion_list(itorsion)%torsion_kind%name, &
+                            is32m,dist1m,dist2m,u1m,u2m,iw1m,iw2m, &
                             torsion_list(itorsion)%torsion_kind%a, &
                             torsion_list(itorsion)%torsion_kind%k(imul), &
                             torsion_list(itorsion)%torsion_kind%cosphi0(imul), &
                             torsion_list(itorsion)%torsion_kind%m(imul), &
-                            torsion_list(itorsion)%torsion_kind%name, &
                              gt1,gt2,gt3,gt4,em,fscalar)
            t32_plus_delta = t32 + delta
            s32p = SQRT(DOT_PRODUCT(t32_plus_delta,t32_plus_delta))
@@ -692,12 +703,12 @@ SUBROUTINE force_torsion_numer ( molecule_set, molecule_kind_set, local_molecule
            w2p = SQRT(DOT_PRODUCT(u2p,u2p))
            iw1p = 1.0_dp/w1p
            iw2p = 1.0_dp/w2p
-           CALL force_torsions(is32p,dist1p,dist2p,u1p,u2p,iw1p,iw2p, &
+           CALL force_torsions(torsion_list(itorsion)%torsion_kind%name, &
+                            is32p,dist1p,dist2p,u1p,u2p,iw1p,iw2p, &
                             torsion_list(itorsion)%torsion_kind%a, &
                             torsion_list(itorsion)%torsion_kind%k(imul), &
                             torsion_list(itorsion)%torsion_kind%cosphi0(imul), &
                             torsion_list(itorsion)%torsion_kind%m(imul), &
-                            torsion_list(itorsion)%torsion_kind%name, &
                             gt1,gt2,gt3,gt4,ep,fscalar)
            f_torsion_numer(idim,index_c) = f_torsion_numer(idim,index_c) + (em-ep)
            f_torsion_numer(idim,index_b) = f_torsion_numer(idim,index_b) - (em-ep)
@@ -719,12 +730,12 @@ SUBROUTINE force_torsion_numer ( molecule_set, molecule_kind_set, local_molecule
            w2m = SQRT(DOT_PRODUCT(u2m,u2m))
            iw1 = 1.0_dp/w1
            iw2m = 1.0_dp/w2m
-           CALL force_torsions(is32,dist1,dist2m,u1,u2m,iw1,iw2m, &
+           CALL force_torsions(torsion_list(itorsion)%torsion_kind%name, &
+                            is32,dist1,dist2m,u1,u2m,iw1,iw2m, &
                             torsion_list(itorsion)%torsion_kind%a, &
                             torsion_list(itorsion)%torsion_kind%k(imul), &
                             torsion_list(itorsion)%torsion_kind%cosphi0(imul), &
                             torsion_list(itorsion)%torsion_kind%m(imul), &
-                            torsion_list(itorsion)%torsion_kind%name, &
                             gt1,gt2,gt3,gt4,em,fscalar)
            t43_plus_delta = t43 + delta
            s32 = SQRT(DOT_PRODUCT(t32,t32))
@@ -737,12 +748,12 @@ SUBROUTINE force_torsion_numer ( molecule_set, molecule_kind_set, local_molecule
            w2p = SQRT(DOT_PRODUCT(u2p,u2p))
            iw1 = 1.0_dp/w1
            iw2p = 1.0_dp/w2p
-           CALL force_torsions(is32,dist1,dist2p,u1,u2p,iw1,iw2p, &
+           CALL force_torsions(torsion_list(itorsion)%torsion_kind%name, &
+                            is32,dist1,dist2p,u1,u2p,iw1,iw2p, &
                             torsion_list(itorsion)%torsion_kind%a, &
                             torsion_list(itorsion)%torsion_kind%k(imul), &
                             torsion_list(itorsion)%torsion_kind%cosphi0(imul), &
                             torsion_list(itorsion)%torsion_kind%m(imul), &
-                            torsion_list(itorsion)%torsion_kind%name, &
                             gt1,gt2,gt3,gt4,ep,fscalar)
            f_torsion_numer(idim,index_d) = f_torsion_numer(idim,index_d) + (em-ep)
            f_torsion_numer(idim,index_c) = f_torsion_numer(idim,index_c) - (em-ep)
@@ -839,7 +850,8 @@ SUBROUTINE force_imptors_numer ( molecule_set, molecule_kind_set, local_molecule
         dist1 = DOT_PRODUCT(t12,t32)
         dist2 = DOT_PRODUCT(t34,t32)
         ! get the energy
-        CALL force_imp_torsions(s32, is32,ism,isn,dist1,dist2,tm,tn, t12, t32, &
+        CALL force_imp_torsions( impr_list ( itorsion ) % impr_kind % name, &
+                            s32, is32,ism,isn,dist1,dist2,tm,tn, t12, t32, &
                             impr_list ( itorsion ) % impr_kind % k, &
                             impr_list ( itorsion ) % impr_kind % phi0, &
                             gt1,gt2,gt3,gt4,e0,fscalar)
@@ -857,7 +869,8 @@ SUBROUTINE force_imptors_numer ( molecule_set, molecule_kind_set, local_molecule
            sm_m = SQRT ( DOT_PRODUCT(tm_m,tm_m) )
            ism_m = 1.0_dp/sm_m
            dist1m = DOT_PRODUCT(t12_m,t32)
-           CALL force_imp_torsions(s32, is32,ism_m,isn,dist1m,dist2,tm_m,tn,t12_m,t32, &
+           CALL force_imp_torsions( impr_list ( itorsion ) % impr_kind % name, &
+                                   s32, is32,ism_m,isn,dist1m,dist2,tm_m,tn,t12_m,t32, &
                                    impr_list ( itorsion ) % impr_kind % k, &
                                    impr_list ( itorsion ) % impr_kind % phi0, &
                                    gt1,gt2,gt3,gt4,em,fscalar)
@@ -868,7 +881,8 @@ SUBROUTINE force_imptors_numer ( molecule_set, molecule_kind_set, local_molecule
            sm_p = SQRT ( DOT_PRODUCT(tm_p,tm_p) )
            ism_p = 1.0_dp/sm_p
            dist1p = DOT_PRODUCT(t12_p,t32)
-           CALL force_imp_torsions(s32, is32,ism_p,isn,dist1p,dist2,tm_p,tn,t12_p,t32, &
+           CALL force_imp_torsions( impr_list ( itorsion ) % impr_kind % name, &
+                                   s32, is32,ism_p,isn,dist1p,dist2,tm_p,tn,t12_p,t32, &
                                    impr_list ( itorsion ) % impr_kind % k, &
                                    impr_list ( itorsion ) % impr_kind % phi0, &
                                    gt1,gt2,gt3,gt4,ep,fscalar)
@@ -899,7 +913,8 @@ SUBROUTINE force_imptors_numer ( molecule_set, molecule_kind_set, local_molecule
            ism_m = 1.0_dp/sm_m
            dist1m = DOT_PRODUCT(t12,t32_m)
            dist2m = DOT_PRODUCT(t34,t32_m)
-           CALL force_imp_torsions(s32_m, is32_m,ism_m,isn_m,dist1m,dist2m,tm_m,tn_m, t12, t32_m, &
+           CALL force_imp_torsions( impr_list ( itorsion ) % impr_kind % name, &
+                                   s32_m, is32_m,ism_m,isn_m,dist1m,dist2m,tm_m,tn_m, t12, t32_m, &
                                    impr_list ( itorsion ) % impr_kind % k, &
                                    impr_list ( itorsion ) % impr_kind % phi0, &
                                    gt1,gt2,gt3,gt4,em,fscalar)
@@ -920,7 +935,8 @@ SUBROUTINE force_imptors_numer ( molecule_set, molecule_kind_set, local_molecule
            ism_p = 1.0_dp/sm_p
            dist1p = DOT_PRODUCT(t12,t32_p)
            dist2p = DOT_PRODUCT(t34,t32_p)
-           CALL force_imp_torsions(s32_p, is32_p,ism_p,isn_p,dist1p,dist2p,tm_p,tn_p, t12, t32_p, &
+           CALL force_imp_torsions( impr_list ( itorsion ) % impr_kind % name, &
+                                   s32_p, is32_p,ism_p,isn_p,dist1p,dist2p,tm_p,tn_p, t12, t32_p, &
                                    impr_list ( itorsion ) % impr_kind % k, &
                                    impr_list ( itorsion ) % impr_kind % phi0, &
                                    gt1,gt2,gt3,gt4,ep,fscalar)
@@ -941,7 +957,8 @@ SUBROUTINE force_imptors_numer ( molecule_set, molecule_kind_set, local_molecule
            sn_m = SQRT ( DOT_PRODUCT(tn_m,tn_m) )
            isn_m= 1.0_dp/sn_m
            dist2m = DOT_PRODUCT(t34_m,t32)
-           CALL force_imp_torsions(s32, is32,ism,isn_m,dist1,dist2m,tm,tn_m,t12,t32, &
+           CALL force_imp_torsions( impr_list ( itorsion ) % impr_kind % name, &
+                                   s32, is32,ism,isn_m,dist1,dist2m,tm,tn_m,t12,t32, &
                                    impr_list ( itorsion ) % impr_kind % k, &
                                    impr_list ( itorsion ) % impr_kind % phi0, &
                                    gt1,gt2,gt3,gt4,em,fscalar)
@@ -953,7 +970,8 @@ SUBROUTINE force_imptors_numer ( molecule_set, molecule_kind_set, local_molecule
            sn_p = SQRT ( DOT_PRODUCT(tn_p,tn_p) )
            isn_p= 1.0_dp/sn_p
            dist2p = DOT_PRODUCT(t34_p,t32)
-           CALL force_imp_torsions(s32, is32,ism,isn_p,dist1,dist2p,tm,tn_p,t12,t32, &
+           CALL force_imp_torsions( impr_list ( itorsion ) % impr_kind % name, &
+                                   s32, is32,ism,isn_p,dist1,dist2p,tm,tn_p,t12,t32, &
                                    impr_list ( itorsion ) % impr_kind % k, &
                                    impr_list ( itorsion ) % impr_kind % phi0, &
                                    gt1,gt2,gt3,gt4,ep,fscalar)
@@ -1172,11 +1190,6 @@ SUBROUTINE pv_bond_numer ( molecule_set, molecule_kind_set, local_molecules, &
      END DO
   END DO
   
-  WRITE ( *, * ) 'PVTEST BOND'
-  DO i =1,3
-   WRITE ( *, * ) ( pv_test  ( i,j ), j = 1,3 ) 
-  ENDDO
-
   DEALLOCATE (s,STAT=isos)
   IF ( isos /= 0 ) CALL stop_memory ( 'pv_bond_numer', 's' )
 
@@ -2308,7 +2321,8 @@ SUBROUTINE potential_bond ( molecule_set, molecule_kind_set, local_molecules, &
         index_a = bond_list ( ibond ) % a + first_atom - 1
         index_b = bond_list ( ibond ) % b + first_atom - 1
         rij = particle_set ( index_a ) % r - particle_set ( index_b ) % r
-        CALL force_bonds(rij,bond_list ( ibond ) % bond_kind % r0, &
+        CALL force_bonds(bond_list(ibond)%bond_kind%name,&
+                         rij,bond_list ( ibond ) % bond_kind % r0, &
                          bond_list ( ibond ) % bond_kind % k, &
                          e0,fscalar)
         energy = energy + e0
@@ -2448,7 +2462,8 @@ SUBROUTINE potential_ub ( molecule_set, molecule_kind_set, local_molecules, &
         index_a = ub_list ( iub ) % a + first_atom - 1
         index_b = ub_list ( iub ) % c + first_atom - 1
         rij = particle_set ( index_a ) % r - particle_set ( index_b ) % r
-        CALL force_bonds(rij,ub_list ( iub ) % ub_kind % r0, &
+        CALL force_bonds(ub_list(ibond)%ub_kind%name,&
+                         rij,ub_list ( iub ) % ub_kind % r0, &
                          ub_list ( iub ) % ub_kind % k, &
                          e0,fscalar)
         energy = energy + e0
@@ -2529,7 +2544,8 @@ SUBROUTINE potential_bend ( molecule_set, molecule_kind_set, local_molecules, &
         IF(theta<-1.0_dp) theta=-1.0_dp
         IF(theta>+1.0_dp) theta=+1.0_dp
         theta = ACOS(theta)
-        CALL force_bends(b12,b32,d12,d32,id12,id32,dist,theta, &
+        CALL force_bends(bend_list(ibend)%bend_kind%name,&
+                         b12,b32,d12,d32,id12,id32,dist,theta, &
                          bend_list ( ibend ) % bend_kind % theta0, &
                          bend_list ( ibend ) % bend_kind % k, &
                          g1,g2,g3,e0,fscalar)
@@ -2613,12 +2629,12 @@ SUBROUTINE potential_torsion ( molecule_set, molecule_kind_set, local_molecules,
         iw1 = 1.0_dp/w1
         iw2 = 1.0_dp/w2
        DO imul = 1, torsion_list(itorsion) % torsion_kind % nmul
-        CALL force_torsions(is32,dist1,dist2,u1,u2,iw1,iw2, &
+        CALL force_torsions(torsion_list(itorsion)%torsion_kind%name, &
+                            is32,dist1,dist2,u1,u2,iw1,iw2, &
                             torsion_list(itorsion)%torsion_kind%a, &
                             torsion_list(itorsion)%torsion_kind%k(imul), &
                             torsion_list(itorsion)%torsion_kind%cosphi0(imul), &
                             torsion_list(itorsion)%torsion_kind%m(imul), &
-                            torsion_list(itorsion)%torsion_kind%name, &
                             gt1,gt2,gt3,gt4,e0,fscalar)
         energy = energy + e0
        END DO
@@ -2705,7 +2721,8 @@ SUBROUTINE potential_imptors ( molecule_set, molecule_kind_set, local_molecules,
         is32 = 1.0_dp/s32
         dist1 = DOT_PRODUCT(t12,t32)
         dist2 = DOT_PRODUCT(t34,t32)
-        CALL force_imp_torsions(s32, is32,ism,isn,dist1,dist2,tm,tn, t12, t32, &
+        CALL force_imp_torsions( impr_list ( itorsion ) % impr_kind % name, &
+                            s32, is32,ism,isn,dist1,dist2,tm,tn, t12, t32, &
                             impr_list ( itorsion ) % impr_kind % k, &
                             impr_list ( itorsion ) % impr_kind % phi0, &
                             gt1,gt2,gt3,gt4,e0,fscalar)

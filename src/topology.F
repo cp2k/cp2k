@@ -27,7 +27,8 @@ MODULE topology
                                              cp_print_key_unit_nr
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: do_conn_generate,&
-                                             do_conn_gtop,&
+                                             do_conn_g87,&
+                                             do_conn_g96,&
                                              do_conn_mol_set,&
                                              do_conn_off,&
                                              do_conn_psf,&
@@ -333,7 +334,7 @@ CONTAINS
        CALL topology_generate_molecule(topology,my_qmmm,qmmm_env,globenv,subsys_section,error)
        IF(topology%molecules_check) &
             CALL topology_molecules_check(topology,globenv,subsys_section,error)
-    CASE (do_conn_gtop)
+    CASE (do_conn_g96,do_conn_g87)
        CALL pre_read_topology_gromos(topology,subsys_section,error)
        CALL read_topology_gromos(topology%conn_file_name,topology,globenv,subsys_section,error)
        CALL topology_generate_molecule(topology,my_qmmm,qmmm_env,globenv,subsys_section,error)

@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000  CP2K developers group                                 !
+!   Copyright (C) 2000-2006  CP2K developers group                            !
 !-----------------------------------------------------------------------------!
 !!****** cp2k/mol_force [1.0] *
 !!
@@ -28,10 +28,6 @@ MODULE mol_force
   PUBLIC :: force_bonds, force_bends, force_torsions, force_imp_torsions
   PUBLIC :: get_pv_bond, get_pv_bend, get_pv_torsion
 
-  INTERFACE force_bonds
-    MODULE PROCEDURE force_bonds_1,force_bonds_3
-  END INTERFACE
-
 !!*****
 !******************************************************************************
 
@@ -52,12 +48,13 @@ CONTAINS
 !!     CJM
 !!
 !!   MODIFICATION HISTORY
-!!     none
 !!
 !!   SOURCE
 !******************************************************************************
-SUBROUTINE force_bonds_3 ( rij, r0, k, energy, fscalar )
+SUBROUTINE force_bonds ( TYPE, rij, r0, k, energy, fscalar )
 
+    CHARACTER(len=default_string_length), &
+      INTENT(IN)                             :: TYPE
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rij
     REAL(KIND=dp), INTENT(IN)                :: r0, k(3)
     REAL(KIND=dp), INTENT(OUT)               :: energy, fscalar
@@ -70,31 +67,32 @@ SUBROUTINE force_bonds_3 ( rij, r0, k, energy, fscalar )
 
 !------------------------------------------------------------------------------
 
-  dij = SQRT ( DOT_PRODUCT ( rij, rij ) )
-  disp = dij - r0
-  energy = (f12*k(1) + (f13*k(2)+f14*k(3)*disp)*disp)*disp*disp
-  fscalar = ((k(1) + (k(2) + k(3)*disp)*disp)*disp) / dij
+  SELECT CASE ( TYPE )
+  CASE ( "QUARTIC" )
+    dij = SQRT ( DOT_PRODUCT ( rij, rij ) )
+    disp = dij - r0
+    energy = (f12*k(1) + (f13*k(2)+f14*k(3)*disp)*disp)*disp*disp
+    fscalar = ((k(1) + (k(2) + k(3)*disp)*disp)*disp) / dij
+  CASE ( "G96" )
+    ! From GROMOS...
+    ! V = (1/4)*Kb*(rij**2 - bij**2)**2
+    dij = DOT_PRODUCT ( rij, rij )
+    disp = dij - r0*r0
+    energy = f14*k(1)*disp*disp
+    fscalar = k(1)*disp
+    STOP
+  CASE ( "HARMONIC","CHARMM","G87" )
+    dij = SQRT ( DOT_PRODUCT ( rij, rij ) )
+    disp = dij - r0
+    energy = f12*k(1)*disp*disp
+    fscalar = k(1)*disp / dij
+  CASE DEFAULT
+    CALL stop_program ("mol_force.F","unmatched bond kind")
+  END SELECT
+  
 
-END SUBROUTINE force_bonds_3
+END SUBROUTINE force_bonds
 
-SUBROUTINE force_bonds_1 ( rij, r0, k, energy, fscalar )
-
-
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: rij
-    REAL(KIND=dp), INTENT(IN)                :: r0, k
-    REAL(KIND=dp), INTENT(OUT)               :: energy, fscalar
-
-    REAL(KIND=dp), PARAMETER                 :: f12 = 1.0_dp/2.0_dp
-
-    REAL(KIND=dp)                            :: dij, disp
-
-!------------------------------------------------------------------------------
-
-  dij = SQRT ( DOT_PRODUCT ( rij, rij ) )
-  disp = dij - r0
-  energy = f12*k*disp*disp
-  fscalar = k*disp / dij
-END SUBROUTINE force_bonds_1
 
 !!*****
 !******************************************************************************
@@ -115,10 +113,11 @@ END SUBROUTINE force_bonds_1
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE force_bends ( b12, b32, d12, d32, id12, id32, dist, &
+SUBROUTINE force_bends ( TYPE, b12, b32, d12, d32, id12, id32, dist, &
      theta, theta0, k, g1, g2, g3, energy, fscalar )
 
-
+    CHARACTER(len=default_string_length), &
+      INTENT(IN)                             :: TYPE
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: b12, b32
     REAL(KIND=dp), INTENT(IN)                :: d12, d32, id12, id32, dist, &
                                                 theta, theta0, k
@@ -128,20 +127,27 @@ SUBROUTINE force_bends ( b12, b32, d12, d32, id12, id32, dist, &
     REAL(KIND=dp)                            :: denom
 
 !------------------------------------------------------------------------------
-! define denom
 
-  denom = id12*id12*id32*id32
-
-! compute energy
-  energy = 0.5_dp * k * ( theta - theta0 ) ** 2
-
-! compute fscalar
-  fscalar = k*(theta-theta0)/SIN(theta)
-
-! compute the gradients
-  g1 = (b32*d12*d32-dist*d32*id12*b12)*denom
-  g2 = (-(b12+b32)*d12*d32+dist*(d32*id12*b12+id32*d12*b32))*denom
-  g3 = (b12*d12*d32-dist*id32*d12*b32)*denom
+  SELECT CASE ( TYPE )
+  CASE ( "G96" )
+    denom = id12*id12*id32*id32
+    energy = 0.5_dp * k * ( COS(theta) - theta0 ) ** 2
+    fscalar = k*(theta-theta0)/SIN(theta)
+    g1 = (b32*d12*d32-dist*d32*id12*b12)*denom
+    g2 = (-(b12+b32)*d12*d32+dist*(d32*id12*b12+id32*d12*b32))*denom
+    g3 = (b12*d12*d32-dist*id32*d12*b32)*denom
+    WRITE(*,*) "Check fscalar force_bends, not done yet"
+    STOP
+  CASE ( "HARMONIC","CHARMM","G87")
+    denom = id12*id12*id32*id32
+    energy = 0.5_dp * k * ( theta - theta0 ) ** 2
+    fscalar = k*(theta-theta0)/SIN(theta)
+    g1 = (b32*d12*d32-dist*d32*id12*b12)*denom
+    g2 = (-(b12+b32)*d12*d32+dist*(d32*id12*b12+id32*d12*b32))*denom
+    g3 = (b12*d12*d32-dist*id32*d12*b32)*denom
+  CASE DEFAULT
+    CALL stop_program ("mol_force.F","unmatched bend kind")
+  END SELECT
 
 END SUBROUTINE force_bends
 
@@ -164,10 +170,12 @@ END SUBROUTINE force_bends
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE force_torsions ( is32, dist1, dist2, u1, u2, iw1, iw2, &
-           a, k, cosphi0, m, TYPE, gt1, gt2, gt3, gt4, energy, fscalar )
+SUBROUTINE force_torsions ( TYPE, is32, dist1, dist2, u1, u2, iw1, iw2, &
+           a, k, cosphi0, m, gt1, gt2, gt3, gt4, energy, fscalar )
 
 
+    CHARACTER(len=default_string_length), &
+      INTENT(IN)                             :: TYPE
     REAL(KIND=dp), INTENT(IN)                :: is32, dist1, dist2
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: u1, u2
     REAL(KIND=dp), INTENT(IN)                :: iw1, iw2
@@ -175,8 +183,6 @@ SUBROUTINE force_torsions ( is32, dist1, dist2, u1, u2, iw1, iw2, &
       INTENT(IN)                             :: a
     REAL(KIND=dp), INTENT(IN)                :: k, cosphi0
     INTEGER, INTENT(IN)                      :: m
-    CHARACTER(len=default_string_length), &
-      INTENT(IN)                             :: TYPE
     REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: gt1, gt2, gt3, gt4
     REAL(KIND=dp), INTENT(OUT)               :: energy, fscalar
 
@@ -189,7 +195,7 @@ SUBROUTINE force_torsions ( is32, dist1, dist2, u1, u2, iw1, iw2, &
 
 ! compute energy
   SELECT CASE ( TYPE )
-  CASE ( "CHARMM" )
+  CASE ( "CHARMM", "G87", "G96" )
      SELECT CASE ( m )
        CASE ( 0 )
          trig = 1.0_dp
@@ -263,9 +269,11 @@ END SUBROUTINE force_torsions
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE force_imp_torsions ( s32, is32, ism, isn,  dist1, dist2, tm, tn, t12, t32, &
+SUBROUTINE force_imp_torsions ( TYPE,s32, is32, ism, isn,  dist1, dist2, tm, tn, t12, t32, &
                                 k, phi0, gt1, gt2, gt3, gt4, energy, fscalar )
 
+    CHARACTER(len=default_string_length), &
+      INTENT(IN)                             :: TYPE
     REAL(KIND=dp), INTENT(IN)                :: s32, is32, ism, isn, dist1, &
                                                 dist2
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: tm, tn, t12, t32

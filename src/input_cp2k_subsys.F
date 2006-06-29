@@ -1483,16 +1483,17 @@ CONTAINS
             variants=(/ "CONNECTI"/),&
             description="Ways to determine and generate a molecules. "// &
             "Default is to use GENERATE",&
-            usage="CONNECTIVITY (PSF||GENERATE||OFF||MOL_SET|GTOP)", &
-            enum_c_vals=s2a("PSF","GENERATE","OFF","MOL_SET","GTOP"),&
+            usage="CONNECTIVITY (PSF||GENERATE||OFF||MOL_SET|G87||G96)", &
+            enum_c_vals=s2a("PSF","GENERATE","OFF","MOL_SET","G87","G96"),&
             enum_i_vals=(/do_conn_psf,do_conn_generate,&
                           do_conn_off,do_conn_mol_set,&
-                          do_conn_gtop/),&
+                          do_conn_g87,do_conn_g96/),&
             enum_desc=s2a("Use a PSF file for you system to determine molecules.",&
                           "Use a simple distance criteria. (Look at keyword BONDPARM)",&
                           "Do not generate molecules. (Use for QS or ill defined systems)",&
                           "Use multiple PSF (for now...) files to generate the whole sytem.",&
-                          "Use GROMOS topology file."),&
+                          "Use GROMOS G87 topology file.",&
+                          "Use GROMOS G96 topology file."),&
             default_i_val=do_conn_generate,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)

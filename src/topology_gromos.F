@@ -177,7 +177,7 @@ CONTAINS
       DIMENSION(21)                          :: avail_section
     CHARACTER(LEN=default_string_length), &
       POINTER                                :: namearray1(:),namearray2(:)
-    INTEGER:: irestyp,iatyp,iresid,itemp,offset,nsolute,isolvent,nsolvent
+    INTEGER:: irestyp,iatyp,iresid,itemp,offset,offset2,nsolute,isolvent,nsolvent
     INTEGER:: icon,ncon
 
     INTEGER, POINTER :: na(:),ba(:),bb(:)
@@ -283,8 +283,6 @@ CONTAINS
       CALL parser_get_next_line(parser,1,error=error)
       CALL parser_get_object(parser,ntype)
       CALL reallocate(namearray1,1,ntype)
-      !ALLOCATE(namearray1(ntype),stat=stat)
-      !CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       DO itype=1,ntype
         CALL parser_get_next_line(parser,1,error=error)
         CALL parser_get_object(parser,namearray1(itype))
@@ -302,8 +300,6 @@ CONTAINS
       CALL parser_get_next_line(parser,1,error=error)
       CALL parser_get_object(parser,ntype)
       CALL reallocate(namearray2,1,ntype)
-      !ALLOCATE(namearray2(ntype),stat=stat)
-      !CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       DO itype=1,ntype
         CALL parser_get_next_line(parser,1,error=error)
         CALL parser_get_object(parser,namearray2(itype))
@@ -331,6 +327,7 @@ CONTAINS
       DO iatom=1,natom
         CALL parser_get_object(parser,itemp)
         CALL parser_get_object(parser,itemp)
+        atom_info%label_resid(iatom)=itemp
         atom_info%label_molname(iatom) = namearray2(itemp)
         atom_info%label_resname(iatom) = namearray2(itemp)
         CALL parser_get_object(parser,string)
@@ -339,8 +336,8 @@ CONTAINS
         CALL parser_get_object(parser,atom_info%atm_mass(iatom))
         CALL parser_get_object(parser,atom_info%atm_charge(iatom))
         CALL parser_get_object(parser,itemp)
-        atom_info%label_resid(iatom)=iresid
-        IF(itemp==1) iresid=iresid+1
+        !atom_info%label_resid(iatom)=iresid
+        !IF(itemp==1) iresid=iresid+1
         IF(iw>0) WRITE(iw,*) "GTOP_INFO| PUT SOLUTEATOM INFO HERE!!!!"
         !determine number of skip lines, will ignore exclude
         CALL parser_get_object(parser,itemp)
@@ -677,6 +674,7 @@ CONTAINS
 
     offset = 0
     IF(ASSOCIATED(conn_info%bond_a)) offset = SIZE(conn_info%bond_a)
+    offset2= MAXVAL(conn_info%bond_type(:))
     CALL reallocate(conn_info%bond_a,1,offset+ncon*nsolvent)
     CALL reallocate(conn_info%bond_b,1,offset+ncon*nsolvent)
     CALL reallocate(conn_info%bond_type,1,offset+ncon*nsolvent)
@@ -684,9 +682,9 @@ CONTAINS
     DO isolvent=1,nsolvent
       offset = offset + ncon
       DO icon=1,ncon
-        conn_info%bond_a(offset+icon)=nsolute+3*isolvent-3+ba(icon)
-        conn_info%bond_b(offset+icon)=nsolute+3*isolvent-3+bb(icon)
-        conn_info%bond_type(offset+icon)=offset+icon
+        conn_info%bond_a(offset+icon)=nsolute+isolvent*ncon-ncon+ba(icon)
+        conn_info%bond_b(offset+icon)=nsolute+isolvent*ncon-ncon+bb(icon)
+        conn_info%bond_type(offset+icon)=offset2+isolvent*ncon-ncon+icon
       END DO
     END DO
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -708,13 +706,15 @@ CONTAINS
           IF((atom_info%label_molname(iatom)/=atom_info%label_molname(jatom)).OR.&
                (atom_info%label_resid(iatom)/=atom_info%label_resid(jatom)).OR.&
                (atom_info%label_resname(iatom)/=atom_info%label_resname(jatom)))THEN
-             IF(iw>0) WRITE(iw,'(T2,A)') "GTOP_INFO| PARA_RES, bond between molecules atom ",&
+             IF(iw>0) WRITE(iw,'(T2,A,2I3)') "GTOP_INFO| PARA_RES, bond between molecules atom ",&
                   iatom,jatom
              i = i + 1
              CALL reallocate(conn_info%c_bond_a,1,i+1)
              CALL reallocate(conn_info%c_bond_b,1,i+1)
+             CALL reallocate(conn_info%c_bond_type,1,i+1)
              conn_info%c_bond_a(i) = iatom
              conn_info%c_bond_b(i) = jatom
+             conn_info%c_bond_type(i) = conn_info%bond_type(ibond)
           END IF
        ELSE
           IF(atom_info%label_molname(iatom)/=atom_info%label_molname(jatom)) THEN

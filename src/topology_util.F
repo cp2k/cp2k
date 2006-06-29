@@ -42,9 +42,16 @@ MODULE topology_util
                                              get_potential,&
                                              set_potential
   USE global_types,                    ONLY: global_environment_type
-  USE input_constants,                 ONLY: &
-       do_bondparm_covalent, do_bondparm_vdw, do_conn_off, do_conn_gtop,do_fist, &
-       do_qmmm_none, do_skip_12, do_skip_13, do_skip_14
+  USE input_constants,                 ONLY: do_bondparm_covalent, &
+                                             do_bondparm_vdw, &
+                                             do_conn_off, &
+                                             do_conn_g87,&
+                                             do_conn_g96,&
+                                             do_fist, &
+                                             do_qmmm_none, &
+                                             do_skip_12, &
+                                             do_skip_13, &
+                                             do_skip_14
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -1818,7 +1825,7 @@ CONTAINS
        molecule => molecule_set(ikind)
        molecule_kind => molecule_set(ikind)%molecule_kind
        CALL get_molecule_kind(molecule_kind=molecule_kind,&
-            kind_number=i)
+                              kind_number=i)
        IF(counter/=i) THEN
           c_intra = 0      !number of extra connector intra-mol interactions
           counter = i
@@ -1855,10 +1862,12 @@ CONTAINS
                 ibond = ibond + 1
                 bond_list(ibond)%a=conn_info%bond_a(j)-first+1
                 bond_list(ibond)%b=conn_info%bond_b(j)-first+1
-                IF(topology%conn_type==do_conn_gtop) THEN
+                IF(topology%conn_type==do_conn_g96) THEN
                   WRITE(bond_list(ibond)%name,*) "G96_",conn_info%bond_type(j)
+                ELSE IF(topology%conn_type==do_conn_g87) THEN
+                  WRITE(bond_list(ibond)%name,*) "G87_",conn_info%bond_type(j)
                 ELSE
-                  bond_list(ibond)%name="BOND"
+                  WRITE(bond_list(ibond)%name,*) "CHARMM"
                 END IF
                 !point this to the right bond_kind_type if using force field
                 NULLIFY(bond_list(ibond)%bond_kind)
@@ -1881,10 +1890,12 @@ CONTAINS
                 IF(first<=atm_a .AND. atm_a <=last) THEN
                    bond_list(ibond)%a=conn_info%c_bond_a(j)-first+1
                    bond_list(ibond)%b=conn_info%c_bond_b(j)-first+1
-                   IF(topology%conn_type==do_conn_gtop) THEN
-                     WRITE(bond_list(ibond)%name,*) "G96_",conn_info%bond_type(j)
+                   IF(topology%conn_type==do_conn_g96) THEN
+                     WRITE(bond_list(ibond)%name,*) "G96_",conn_info%c_bond_type(j)
+                   ELSE IF(topology%conn_type==do_conn_g87) THEN
+                     WRITE(bond_list(ibond)%name,*) "G87_",conn_info%c_bond_type(j)
                    ELSE
-                     bond_list(ibond)%name="BOND"
+                     WRITE(bond_list(ibond)%name,*) "CHARMM"
                    END IF
                    !point this to the right bond_kind_type if using force field
                    NULLIFY(bond_list(ibond)%bond_kind)
@@ -1968,10 +1979,12 @@ CONTAINS
                 bend_list(i)%a=conn_info%theta_a(j)-first+1
                 bend_list(i)%b=conn_info%theta_b(j)-first+1
                 bend_list(i)%c=conn_info%theta_c(j)-first+1
-                IF(topology%conn_type==do_conn_gtop) THEN
-                  WRITE(bend_list(i)%name,*) 'G96_',conn_info%theta_type(j)
+                IF(topology%conn_type==do_conn_g96) THEN
+                  WRITE(bend_list(i)%name,*) "G96_",conn_info%theta_type(j)
+                ELSE IF(topology%conn_type==do_conn_g87) THEN
+                  WRITE(bend_list(i)%name,*) "G87_",conn_info%theta_type(j)
                 ELSE
-                  bend_list(i)%name="BEND"
+                  WRITE(bend_list(i)%name,*) "CHARMM"
                 END IF
                 !point this to the right bend_kind_type if using force field
                 NULLIFY(bend_list(i)%bend_kind)
@@ -2145,10 +2158,12 @@ CONTAINS
                 torsion_list(i)%b=conn_info%phi_b(j)-first+1
                 torsion_list(i)%c=conn_info%phi_c(j)-first+1
                 torsion_list(i)%d=conn_info%phi_d(j)-first+1
-                IF(topology%conn_type==do_conn_gtop) THEN
+                IF(topology%conn_type==do_conn_g96) THEN
                   WRITE(torsion_list(i)%name,*) "G96_",conn_info%phi_type(j)
+                ELSE IF(topology%conn_type==do_conn_g87) THEN
+                  WRITE(torsion_list(i)%name,*) "G87_",conn_info%phi_type(j)
                 ELSE
-                  torsion_list(i)%name="TORSION"
+                  WRITE(torsion_list(i)%name,*) "CHARMM"
                 END IF
                 !point this to the right torsion_kind_type if using force field
                 NULLIFY(torsion_list(i)%torsion_kind)
@@ -2241,10 +2256,12 @@ CONTAINS
                 impr_list(i)%b=conn_info%impr_b(j)-first+1
                 impr_list(i)%c=conn_info%impr_c(j)-first+1
                 impr_list(i)%d=conn_info%impr_d(j)-first+1
-                IF(topology%conn_type==do_conn_gtop) THEN
+                IF(topology%conn_type==do_conn_g96) THEN
                   WRITE(impr_list(i)%name,*) "G96_",conn_info%impr_type(j)
+                ELSE IF(topology%conn_type==do_conn_g87) THEN
+                  WRITE(impr_list(i)%name,*) "G87_",conn_info%impr_type(j)
                 ELSE
-                  impr_list(i)%name="IMPROPER"
+                  WRITE(impr_list(i)%name,*) "CHARMM"
                 END IF
                 !point this to the right impr_kind_type if using force field
                 NULLIFY(impr_list(i)%impr_kind)
@@ -2649,8 +2666,10 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ENDDO
     N = 0
-    IF(ASSOCIATED(conn_info%bond_a)) N = SIZE(conn_info%bond_a)
-    CALL reorder_structure(ex_bond_list, conn_info%bond_a, conn_info%bond_b, N, error)
+    IF(ASSOCIATED(conn_info%bond_a)) THEN
+      N = SIZE(conn_info%bond_a)
+      CALL reorder_structure(ex_bond_list, conn_info%bond_a, conn_info%bond_b, N, error)
+    END IF
     ! Reorder bends
     ALLOCATE(ex_bend_list(natom),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -2659,8 +2678,10 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ENDDO
     N = 0
-    IF(ASSOCIATED(conn_info%theta_a)) N = SIZE(conn_info%theta_a)
-    CALL reorder_structure(ex_bend_list, conn_info%theta_a, conn_info%theta_c, N, error)
+    IF(ASSOCIATED(conn_info%theta_a)) THEN
+      N = SIZE(conn_info%theta_a)
+      CALL reorder_structure(ex_bend_list, conn_info%theta_a, conn_info%theta_c, N, error)
+    END IF
     ! Reorder onfo
     ALLOCATE(ex_onfo_list(natom),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -2669,8 +2690,10 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ENDDO
     N = 0
-    IF(ASSOCIATED(conn_info%onfo_a)) N = SIZE(conn_info%onfo_a)
-    CALL reorder_structure(ex_onfo_list, conn_info%onfo_a, conn_info%onfo_b, N, error)
+    IF(ASSOCIATED(conn_info%onfo_a)) THEN
+      N = SIZE(conn_info%onfo_a)
+      CALL reorder_structure(ex_onfo_list, conn_info%onfo_a, conn_info%onfo_b, N, error)
+    END IF
     !
     DO iatom = 1, SIZE(particle_set)
        dim0 = 1 ! always exclude itself

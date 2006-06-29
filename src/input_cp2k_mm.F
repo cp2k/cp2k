@@ -268,7 +268,7 @@ CONTAINS
 
        CALL keyword_create(keyword, name="PARMTYPE",&
             description="Specifies the type of parameters file to use.",&
-            usage="PARMTYPE {OFF|CHM|GROMOS}",default_c_val="OFF",error=error)
+            usage="PARMTYPE {OFF|CHM|G87|G96}",default_c_val="OFF",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -652,7 +652,7 @@ CONTAINS
 
        CALL keyword_create(keyword, name="KIND",&
             description="kind of bond",&
-            usage="KIND {KIND1}", required=.FALSE., type_of_var=lchar_t,&
+            usage="KIND {HARMONIC,CHARMM,G87,G96,QUARTIC}", required=.FALSE., type_of_var=lchar_t,&
             default_lc_val="CHARMM",&
             n_var=1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
