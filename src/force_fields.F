@@ -113,6 +113,7 @@ MODULE force_fields
                                              pair_potential_single_type,&
                                              nn_type,&
                                              lj_type,&
+                                             lj_charmm_type,&
                                              ft_type,&
                                              wl_type,&
                                              gw_type,&
@@ -344,7 +345,7 @@ CONTAINS
           CALL section_vals_get(tmp_section2,explicit=explicit,n_repetition=nlj,error=error)
           ntot = 0
           IF (explicit) THEN
-             CALL pair_potential_reallocate(inp_info%nonbonded,1,ntot+nlj,lj=.TRUE.,error=error)
+             CALL pair_potential_reallocate(inp_info%nonbonded,1,ntot+nlj,lj_charmm=.TRUE.,error=error)
              CALL read_lj_section(inp_info%nonbonded,tmp_section2,ntot,error)
           END IF
           tmp_section2 => section_vals_get_subs_vals(tmp_section,"WILLIAMS",error=error)
@@ -390,7 +391,7 @@ CONTAINS
           CALL section_vals_get(tmp_section2,explicit=explicit,n_repetition=nlj,error=error)
           ntot = 0
           IF (explicit) THEN
-             CALL pair_potential_reallocate(inp_info%nonbonded14,1,ntot+nlj,lj=.TRUE.,error=error)
+             CALL pair_potential_reallocate(inp_info%nonbonded14,1,ntot+nlj,lj_charmm=.TRUE.,error=error)
              CALL read_lj_section(inp_info%nonbonded14,tmp_section2,ntot,error)
           END IF
           tmp_section2 => section_vals_get_subs_vals(tmp_section,"WILLIAMS",error=error)
@@ -706,6 +707,7 @@ CONTAINS
        CALL section_vals_val_get(section,"RCUT",i_rep_section=isec,r_val=rcut,error=error)
 
        nonbonded%pot(start+isec)%pot %type = lj_type
+       nonbonded%pot(start+isec)%pot %type = lj_charmm_type
        nonbonded%pot(start+isec)%pot %at1  = atm_names(1)
        nonbonded%pot(start+isec)%pot %at2  = atm_names(2)
        CALL uppercase(nonbonded%pot(start+isec)%pot %at1)
@@ -1450,9 +1452,13 @@ CONTAINS
       DO itype=1,ntype
         CALL parser_get_next_line(parser,1,error=error)
         CALL parser_get_object(parser,gro_info%impr_k(itype))
-        CALL convert_to_cp2k_units("KJ",energy=gro_info%impr_k(itype))
         CALL parser_get_object(parser,gro_info%impr_phi0(itype))
+
         CALL convert_to_cp2k_units("DEGREE",angle=gro_info%impr_phi0(itype))
+
+        CALL convert_to_cp2k_units("KJ",energy=gro_info%impr_k(itype))
+        CALL convert_to_cp2k_units("DEGREE",angle=gro_info%impr_k(itype),l_power=-2)
+
         IF(iw>0) WRITE(iw,*) "GROMOS_FF| PUT IMPDIHEDRALTYPE INFO HERE!!!!"
       END DO
     END IF
@@ -1514,16 +1520,27 @@ CONTAINS
         CALL parser_get_object(parser,jatom)
         IF(iatom==jatom) THEN
           CALL reallocate(gro_info%nonbond_a,1,offset+ntype)
-          CALL reallocate(gro_info%nonbond_eps,1,offset+ntype)
-          CALL reallocate(gro_info%nonbond_rmin2,1,offset+ntype)
+          CALL reallocate(gro_info%nonbond_c6,1,offset+ntype)
+          CALL reallocate(gro_info%nonbond_c12,1,offset+ntype)
           CALL reallocate(gro_info%nonbond_a_14,1,offset+ntype)
-          CALL reallocate(gro_info%nonbond_eps_14,1,offset+ntype)
-          CALL reallocate(gro_info%nonbond_rmin2_14,1,offset+ntype)
+          CALL reallocate(gro_info%nonbond_c6_14,1,offset+ntype)
+          CALL reallocate(gro_info%nonbond_c12_14,1,offset+ntype)
           gro_info%nonbond_a(iatom) = namearray(iatom)
-          CALL parser_get_object(parser,gro_info%nonbond_eps(iatom))
-          CALL parser_get_object(parser,gro_info%nonbond_rmin2(iatom))
-          CALL parser_get_object(parser,gro_info%nonbond_eps_14(iatom))
-          CALL parser_get_object(parser,gro_info%nonbond_rmin2_14(iatom))
+          gro_info%nonbond_a_14(iatom) = namearray(iatom)
+          CALL parser_get_object(parser,gro_info%nonbond_c12(iatom))
+          CALL parser_get_object(parser,gro_info%nonbond_c6(iatom))
+          CALL parser_get_object(parser,gro_info%nonbond_c12_14(iatom))
+          CALL parser_get_object(parser,gro_info%nonbond_c6_14(iatom))
+
+          CALL convert_to_cp2k_units("KJ",energy=gro_info%nonbond_c6(iatom))
+          CALL convert_to_cp2k_units("NM",length=gro_info%nonbond_c6(iatom),l_power=6)
+          CALL convert_to_cp2k_units("KJ",energy=gro_info%nonbond_c12(iatom))
+          CALL convert_to_cp2k_units("NM",length=gro_info%nonbond_c12(iatom),l_power=12)
+          CALL convert_to_cp2k_units("KJ",energy=gro_info%nonbond_c6_14(iatom))
+          CALL convert_to_cp2k_units("NM",length=gro_info%nonbond_c6_14(iatom),l_power=6)
+          CALL convert_to_cp2k_units("KJ",energy=gro_info%nonbond_c12_14(iatom))
+          CALL convert_to_cp2k_units("NM",length=gro_info%nonbond_c12_14(iatom),l_power=12)
+
         END IF
         IF(iw>0) WRITE(iw,*) "GROMOS_FF| PUT LJPARAMETERS INFO HERE!!!!"
       END DO
@@ -3101,15 +3118,24 @@ CONTAINS
 
           ! loop over params from GROMOS
           IF(ASSOCIATED(gro_info%impr_k)) THEN
-            READ(torsion_list(j)%name(6:80),*) itype
+            k=SIZE(gro_info%impr_k)
+            READ(impr_list(j)%name(6:80),*) itype
             IF(itype>0) THEN
               impr_list(j)%impr_kind%k    = gro_info%impr_k(itype)
               impr_list(j)%impr_kind%phi0 = gro_info%impr_phi0(itype)
-              impr_list(j)%impr_kind%name = "G96"
-              impr_list(j)%name = "IMPROPER"
+              IF(ff_type%ff_type=="G87") impr_list(j)%impr_kind%name = "G87"
+              IF(ff_type%ff_type=="G96") impr_list(j)%impr_kind%name = "G96"
+              IF(ff_type%ff_type=="G87") impr_list(j)%name = "G87"
+              IF(ff_type%ff_type=="G96") impr_list(j)%name = "G96"
               found = .TRUE.
             ELSE
-              STOP ! Invalid itype...
+              impr_list(j)%impr_kind%k    = gro_info%impr_k(itype)
+              impr_list(j)%impr_kind%phi0 = gro_info%impr_phi0(itype)
+              IF(ff_type%ff_type=="G87") impr_list(j)%impr_kind%name = "G87"
+              IF(ff_type%ff_type=="G96") impr_list(j)%impr_kind%name = "G96"
+              IF(ff_type%ff_type=="G87") impr_list(j)%name = "G87"
+              IF(ff_type%ff_type=="G96") impr_list(j)%name = "G96"
+              found = .TRUE.
             END IF
           END IF
 
@@ -3324,49 +3350,27 @@ CONTAINS
              DO k=1,SIZE(gro_info%nonbond_a_14)
                 IF(TRIM(name_atm_a)==TRIM(gro_info%nonbond_a_14(k))) THEN
                    ii = k
-                   rmin2_a = gro_info%nonbond_rmin2_14(k)
-                   epsilon_a = gro_info%nonbond_eps_14(k)
                    found_a = .TRUE.
+                   EXIT
                 END IF
              END DO
              DO k=1,SIZE(gro_info%nonbond_a_14)
                 IF(TRIM(name_atm_b)==TRIM(gro_info%nonbond_a_14(k))) THEN
                    jj = k
-                   rmin2_b   = gro_info%nonbond_rmin2_14(k)
-                   epsilon_b = gro_info%nonbond_eps_14(k)
                    found_b   = .TRUE.
+                   EXIT
                 END IF
              END DO
-          END IF
-          IF(ASSOCIATED(gro_info%nonbond_a)) THEN
-             IF(.NOT.found_a) THEN
-                DO k=1,SIZE(gro_info%nonbond_a)
-                   IF(TRIM(name_atm_a)==TRIM(gro_info%nonbond_a(k))) THEN
-                      ii = k
-                      rmin2_a   = gro_info%nonbond_rmin2(k)
-                      epsilon_a = gro_info%nonbond_eps(k)
-                   END IF
-                END DO
-             END IF
-             IF(.NOT.found_b) THEN
-                DO k=1,SIZE(gro_info%nonbond_a)
-                   IF(TRIM(name_atm_b)==TRIM(gro_info%nonbond_a(k))) THEN
-                      jj = k
-                      rmin2_b   = gro_info%nonbond_rmin2(k)
-                      epsilon_b = gro_info%nonbond_eps(k)
-                   END IF
-                END DO
-             END IF
              IF(ii/=0 .AND. jj/=0) THEN
-                rmin = rmin2_a + rmin2_b
-                epsilon = SQRT(epsilon_a*epsilon_b)
                 CALL  pair_potential_lj_create(potparm_bond%pot(i,j)%pot, error)
                 potparm_bond%pot(i,j)%pot%type       = lj_type
                 potparm_bond%pot(i,j)%pot%at1        = name_atm_a
                 potparm_bond%pot(i,j)%pot%at2        = name_atm_b
-                potparm_bond%pot(i,j)%pot%lj%epsilon = epsilon
-                potparm_bond%pot(i,j)%pot%lj%sigma6  = 0.5_dp*rmin**6
-                potparm_bond%pot(i,j)%pot%lj%sigma12 = 0.25_dp*rmin**12
+                potparm_bond%pot(i,j)%pot%lj%epsilon = 1.0_dp
+                potparm_bond%pot(i,j)%pot%lj%sigma6  = &
+                  SQRT(gro_info%nonbond_c6_14(ii)*gro_info%nonbond_c6_14(jj))
+                potparm_bond%pot(i,j)%pot%lj%sigma12 = &
+                  SQRT(gro_info%nonbond_c12_14(ii)*gro_info%nonbond_c12_14(jj))
                 potparm_bond%pot(i,j)%pot%rcutsq     = (10.0_dp*bohr)**2
                 IF (found) CALL Pwarning("Multiple Lennard-Jones declarations: "//TRIM(name_atm_a)//&
                      " and "//TRIM(name_atm_b)//" overwriting!",globenv,error)
@@ -3427,7 +3431,7 @@ CONTAINS
                 rmin = rmin2_a + rmin2_b
                 epsilon = SQRT(epsilon_a*epsilon_b)
                 CALL  pair_potential_lj_create(potparm_bond%pot(i,j)%pot, error)
-                potparm_bond%pot(i,j)%pot%type       = lj_type
+                potparm_bond%pot(i,j)%pot%type       = lj_charmm_type
                 potparm_bond%pot(i,j)%pot%at1        = name_atm_a
                 potparm_bond%pot(i,j)%pot%at2        = name_atm_b
                 potparm_bond%pot(i,j)%pot%lj%epsilon = epsilon
@@ -3610,16 +3614,15 @@ CONTAINS
              END DO
 
              IF(ii/=0 .AND. jj/=0) THEN
-                rmin = gro_info%nonbond_rmin2(ii)+gro_info%nonbond_rmin2(jj)
-                epsilon = SQRT(gro_info%nonbond_eps(ii)*&
-                     gro_info%nonbond_eps(jj))
                 CALL  pair_potential_lj_create(potparm_nonbond%pot(i,j)%pot, error)
                 potparm_nonbond%pot(i,j)%pot%type       = lj_type
                 potparm_nonbond%pot(i,j)%pot%at1        = name_atm_a
                 potparm_nonbond%pot(i,j)%pot%at2        = name_atm_b
-                potparm_nonbond%pot(i,j)%pot%lj%epsilon = epsilon
-                potparm_nonbond%pot(i,j)%pot%lj%sigma6  = 0.5_dp*rmin**6
-                potparm_nonbond%pot(i,j)%pot%lj%sigma12 = 0.25_dp*rmin**12
+                potparm_nonbond%pot(i,j)%pot%lj%epsilon = 1.0_dp
+                potparm_nonbond%pot(i,j)%pot%lj%sigma6  = &
+                  SQRT(gro_info%nonbond_c6(ii)*gro_info%nonbond_c6(jj))
+                potparm_nonbond%pot(i,j)%pot%lj%sigma12 = &
+                  SQRT(gro_info%nonbond_c12(ii)*gro_info%nonbond_c12(jj))
                 potparm_nonbond%pot(i,j)%pot%rcutsq     = (10.0_dp*bohr)**2
                 IF (found) CALL Pwarning("Multiple Lennard-Jones declarations: "//TRIM(name_atm_a)//&
                      " and "//TRIM(name_atm_b)//" overwriting!",&
@@ -3628,7 +3631,8 @@ CONTAINS
              END IF
           END IF
          
-          WRITE(*,*) "ii,jj match ",ii,jj
+
+
 
           ! loop over params from CHARMM
           IF(ASSOCIATED(chm_info%nonbond_a)) THEN
@@ -3650,7 +3654,7 @@ CONTAINS
                 epsilon = SQRT(chm_info%nonbond_eps(ii)*&
                      chm_info%nonbond_eps(jj))
                 CALL  pair_potential_lj_create(potparm_nonbond%pot(i,j)%pot, error)
-                potparm_nonbond%pot(i,j)%pot%type       = lj_type
+                potparm_nonbond%pot(i,j)%pot%type       = lj_charmm_type
                 potparm_nonbond%pot(i,j)%pot%at1        = name_atm_a
                 potparm_nonbond%pot(i,j)%pot%at2        = name_atm_b
                 potparm_nonbond%pot(i,j)%pot%lj%epsilon = epsilon

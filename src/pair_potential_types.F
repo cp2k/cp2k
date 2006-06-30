@@ -37,14 +37,16 @@ MODULE pair_potential_types
   ! used for the linear scaling screening of potential calculation
   INTEGER, PUBLIC, PARAMETER :: nn_type= 0,&
                                 lj_type= 1,&
-                                ft_type= 2,&
-                                wl_type= 3,&
-                                gw_type= 4,&
-                                ip_type= 5,&
-                                ea_type= 6  
+                                lj_charmm_type= 2,&
+                                ft_type= 3,&
+                                wl_type= 4,&
+                                gw_type= 5,&
+                                ip_type= 6,&
+                                ea_type= 7  
 
-  INTEGER, PUBLIC, PARAMETER, DIMENSION(7) :: list_pot = (/nn_type,&
+  INTEGER, PUBLIC, PARAMETER, DIMENSION(8) :: list_pot = (/nn_type,&
                                                            lj_type,&
+                                                           lj_charmm_type,&
                                                            ft_type,&
                                                            wl_type,&
                                                            gw_type,&
@@ -178,7 +180,7 @@ CONTAINS
     IF (pot1%type/=pot2%type) RETURN
 
     SELECT CASE(pot1%type)
-    CASE (lj_type)
+    CASE (lj_type,lj_charmm_type)
        IF  ((pot1%lj%epsilon==pot2%lj%epsilon).AND.&
             (pot1%lj%sigma6 ==pot2%lj%sigma6 ).AND.&
             (pot1%lj%sigma12==pot2%lj%sigma12)) compare=.TRUE.
@@ -718,10 +720,10 @@ CONTAINS
   !!
   !!   SOURCE
   !******************************************************************************
-  SUBROUTINE pair_potential_reallocate(p,lb1_new,ub1_new,lj,williams,goodwin,eam,bmhft,ipbv,error)
+  SUBROUTINE pair_potential_reallocate(p,lb1_new,ub1_new,lj,lj_charmm,williams,goodwin,eam,bmhft,ipbv,error)
     TYPE(pair_potential_p_type), POINTER     :: p
     INTEGER, INTENT(IN)                      :: lb1_new, ub1_new
-    LOGICAL, INTENT(IN), OPTIONAL            :: lj, williams, goodwin, eam, &
+    LOGICAL, INTENT(IN), OPTIONAL            :: lj, lj_charmm,williams, goodwin, eam, &
                                                 bmhft, ipbv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -731,7 +733,7 @@ CONTAINS
 
     INTEGER                                  :: i, ipot, lb1_old, ub1_old
     LOGICAL                                  :: check, failure, lbmhft, leam, &
-                                                lgoodwin, lipbv, llj, &
+                                                lgoodwin, lipbv, llj, llj_charmm,&
                                                 lwilliams
     TYPE(pair_potential_p_type), POINTER     :: work
 
@@ -739,6 +741,7 @@ CONTAINS
     failure = .FALSE.
     ipot = 0
     llj       = .FALSE. ; IF (PRESENT(lj))        llj       = lj
+    llj_charmm= .FALSE. ; IF (PRESENT(lj_charmm)) llj_charmm= lj_charmm
     lwilliams = .FALSE. ; IF (PRESENT(williams))  lwilliams = williams
     lgoodwin  = .FALSE. ; IF (PRESENT(goodwin))   lgoodwin  = goodwin
     leam      = .FALSE. ; IF (PRESENT(eam))       leam      = eam
@@ -747,32 +750,37 @@ CONTAINS
 
     IF (llj) THEN 
        ipot  = lj_type
-       check = .NOT.(lwilliams.OR.lgoodwin.OR.leam.OR.lbmhft.OR.lipbv)
+       check = .NOT.(llj_charmm.OR.lwilliams.OR.lgoodwin.OR.leam.OR.lbmhft.OR.lipbv)
+       CPPostcondition(check,cp_failure_level,routineP,error,failure)
+    END IF
+    IF (llj_charmm) THEN 
+       ipot  = lj_charmm_type
+       check = .NOT.(llj.OR.lwilliams.OR.lgoodwin.OR.leam.OR.lbmhft.OR.lipbv)
        CPPostcondition(check,cp_failure_level,routineP,error,failure)
     END IF
     IF (lwilliams) THEN
        ipot  = wl_type
-       check = .NOT.(llj.OR.lgoodwin.OR.leam.OR.lbmhft.OR.lipbv)
+       check = .NOT.(llj.OR.llj_charmm.OR.lgoodwin.OR.leam.OR.lbmhft.OR.lipbv)
        CPPostcondition(check,cp_failure_level,routineP,error,failure)
     END IF
     IF (lgoodwin) THEN
        ipot  = gw_type
-       check = .NOT.(llj.OR.lwilliams.OR.leam.OR.lbmhft.OR.lipbv)
+       check = .NOT.(llj.OR.llj_charmm.OR.lwilliams.OR.leam.OR.lbmhft.OR.lipbv)
        CPPostcondition(check,cp_failure_level,routineP,error,failure)
     END IF
     IF (leam) THEN
        ipot  = ea_type
-       check = .NOT.(llj.OR.lgoodwin.OR.lwilliams.OR.lbmhft.OR.lipbv)
+       check = .NOT.(llj.OR.llj_charmm.OR.lgoodwin.OR.lwilliams.OR.lbmhft.OR.lipbv)
        CPPostcondition(check,cp_failure_level,routineP,error,failure)
     END IF
     IF (lbmhft) THEN
        ipot  = ft_type
-       check = .NOT.(llj.OR.lgoodwin.OR.leam.OR.lwilliams.OR.lipbv)
+       check = .NOT.(llj.OR.llj_charmm.OR.lgoodwin.OR.leam.OR.lwilliams.OR.lipbv)
        CPPostcondition(check,cp_failure_level,routineP,error,failure)
     END IF
     IF (lipbv) THEN
        ipot  = ip_type
-       check = .NOT.(llj.OR.lgoodwin.OR.leam.OR.lwilliams.OR.lbmhft)
+       check = .NOT.(llj.OR.llj_charmm.OR.lgoodwin.OR.leam.OR.lwilliams.OR.lbmhft)
        CPPostcondition(check,cp_failure_level,routineP,error,failure)
     END IF
     IF (.NOT.failure) THEN
@@ -796,7 +804,7 @@ CONTAINS
           p % pot ( i ) % pot % at1   = 'NULL'
           p % pot ( i ) % pot % at2   = 'NULL'
           SELECT CASE (ipot)
-          CASE (lj_type)
+          CASE (lj_type,lj_charmm_type)
              CALL pair_potential_lj_create(p%pot(i)%pot, error=error)
           CASE (wl_type)
              CALL pair_potential_williams_create(p%pot(i)%pot, error=error)

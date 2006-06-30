@@ -353,15 +353,20 @@ CONTAINS
         CALL reallocate(conn_info%onfo_b,1,offset+ntype)
         CALL reallocate(conn_info%onfo_type,1,offset+ntype)
         conn_info%onfo_a(offset+1:offset+ntype)=iatom
-        DO itype=1,ntype,6
+        itype=1
+        DO
           IF(itype==1) THEN
             READ(parser%input_line,*) itemp,(conn_info%onfo_b(offset+i),&
                                        i=1,MIN(6,(ntype-itype+1)))
+            itype=itype+6
           ELSE
-            READ(parser%input_line,*) (conn_info%onfo_b(offset+i),&
-                                       i=1,MIN(6,(ntype-itype+1)))
+            READ(parser%input_line,*) (conn_info%onfo_b(offset+itype-1+i),&
+                                       i=1,MIN(14,(ntype-itype+1)))
+            itype=itype+14
           END IF
           CALL parser_get_next_line(parser,1,error=error)
+     
+          IF(itype>ntype) EXIT
         END DO
        ELSE
         CALL parser_get_next_line(parser,1,error=error)

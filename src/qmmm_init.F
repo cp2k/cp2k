@@ -1165,7 +1165,7 @@ CONTAINS
     CALL section_vals_get(lj_section,n_repetition=n_lj,error=error)
     np = n_lj 
     IF (n_lj /= 0) THEN 
-       CALL pair_potential_reallocate(inp_info%nonbonded,1,np,lj=.TRUE.,error=error)
+       CALL pair_potential_reallocate(inp_info%nonbonded,1,np,lj_charmm=.TRUE.,error=error)
        CALL read_lj_section(inp_info%nonbonded,lj_section, start=0,      error=error)
     END IF
     CALL section_vals_get(wl_section,n_repetition=n_wl,error=error)
@@ -1189,7 +1189,7 @@ CONTAINS
     CALL section_vals_get(lj_section,n_repetition=n_lj,error=error)
     np = n_lj
     IF (n_lj /= 0) THEN 
-       CALL pair_potential_reallocate(inp_info%nonbonded14,1,np,lj=.TRUE.,error=error)
+       CALL pair_potential_reallocate(inp_info%nonbonded14,1,np,lj_charmm=.TRUE.,error=error)
        CALL read_lj_section(inp_info%nonbonded14,lj_section, start=0,      error=error)
     END IF
     CALL section_vals_get(wl_section,n_repetition=n_wl,error=error)

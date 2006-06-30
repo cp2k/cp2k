@@ -34,6 +34,7 @@ MODULE pair_potential
                                              pair_potential_single_type,&
                                              nn_type,&
                                              lj_type,&
+                                             lj_charmm_type,&
                                              ft_type,&
                                              wl_type,&
                                              gw_type,&
@@ -92,10 +93,15 @@ CONTAINS
     INTEGER                                  :: i, index
     REAL(KIND=dp)                            :: pp, qq, scale
 
-    IF (pot%type==lj_type) THEN
+    IF (pot%type==lj_charmm_type) THEN
        ener_pot = vdw_scale14 * &
             4.0_dp*pot%lj%epsilon*(pot%lj%sigma12*r**(-12)-pot%lj% &
             sigma6*r**(-6)) - pot%energy_cutoff
+    ELSE IF (pot%type==lj_type) THEN
+       !ener_pot = vdw_scale14 * &
+       !     (pot%lj%sigma12*r**(-12)-pot%lj%sigma6*r**(-6)) - pot%energy_cutoff
+       ener_pot = vdw_scale14 * &
+            (pot%lj%sigma12*r**(-12)-pot%lj%sigma6*r**(-6))
     ELSE IF (pot%type==ip_type) THEN
        ener_pot = 0._dp
        IF ( r > pot % ipbv % rcore ) THEN
@@ -467,7 +473,7 @@ CONTAINS
        nvar = 0
        IF (my_ei_scale14 /=0.0_dp) nvar = nvar + 2
        SELECT CASE(pot_target)
-       CASE (lj_type)
+       CASE (lj_type,lj_charmm_type)
           IF (my_vdw_scale14/=0.0_dp) nvar = 3 + nvar
        CASE (wl_type)
           nvar = 3 + nvar
@@ -500,7 +506,7 @@ CONTAINS
                    nk = nk + 1
                    my_index(nk) = n
                    SELECT CASE(pot_target)
-                   CASE (lj_type)
+                   CASE (lj_type,lj_charmm_type)
                       pot_par(nk,1)  = potparm%pot(i,j)%pot%lj%epsilon
                       pot_par(nk,2)  = potparm%pot(i,j)%pot%lj%sigma6
                       pot_par(nk,3)  = potparm%pot(i,j)%pot%lj%sigma12

@@ -80,7 +80,6 @@ SUBROUTINE force_bonds ( TYPE, rij, r0, k, energy, fscalar )
     disp = dij - r0*r0
     energy = f14*k(1)*disp*disp
     fscalar = k(1)*disp
-    STOP
   CASE ( "HARMONIC","CHARMM","G87" )
     dij = SQRT ( DOT_PRODUCT ( rij, rij ) )
     disp = dij - r0
@@ -130,13 +129,13 @@ SUBROUTINE force_bends ( TYPE, b12, b32, d12, d32, id12, id32, dist, &
 
   SELECT CASE ( TYPE )
   CASE ( "G96" )
-    denom = id12*id12*id32*id32
-    energy = 0.5_dp * k * ( COS(theta) - theta0 ) ** 2
-    fscalar = k*(theta-theta0)/SIN(theta)
-    g1 = (b32*d12*d32-dist*d32*id12*b12)*denom
-    g2 = (-(b12+b32)*d12*d32+dist*(d32*id12*b12+id32*d12*b32))*denom
-    g3 = (b12*d12*d32-dist*id32*d12*b32)*denom
-    WRITE(*,*) "Check fscalar force_bends, not done yet"
+    !denom = id12*id12*id32*id32
+    !energy = 0.5_dp * k * ( COS(theta) - theta0 ) ** 2
+    !fscalar = k*(COS(theta)-theta0)*(1-COS(theta))/dij2
+    !g1 = (b32*d12*d32-dist*d32*id12*b12)*denom
+    !g2 = (-(b12+b32)*d12*d32+dist*(d32*id12*b12+id32*d12*b32))*denom
+    !g3 = (b12*d12*d32-dist*id32*d12*b32)*denom
+    !ikuo - energy is correct, need to fix fscalar
     STOP
   CASE ( "HARMONIC","CHARMM","G87")
     denom = id12*id12*id32*id32
@@ -284,24 +283,30 @@ SUBROUTINE force_imp_torsions ( TYPE,s32, is32, ism, isn,  dist1, dist2, tm, tn,
     REAL(KIND=dp)                            :: cosphi, phi
 
 !------------------------------------------------------------------------------
-! define cosphi
 
-  cosphi = DOT_PRODUCT ( tm, tn ) * ism * isn
-  IF(cosphi > 1.0_dp) cosphi = 1.0_dp
-  IF(cosphi < -1.0_dp) cosphi = -1.0_dp
-  phi = SIGN ( ACOS ( cosphi ), DOT_PRODUCT ( t12, tn ) )
-! compute energy
-  energy = 0.5_dp * k * ( phi - phi0 ) * ( phi - phi0 ) 
+  SELECT CASE ( TYPE )
+  CASE ( "HARMONIC","CHARMM","G87","G96" )
+    ! define cosphi
+    cosphi = DOT_PRODUCT ( tm, tn ) * ism * isn
+    IF(cosphi > 1.0_dp) cosphi = 1.0_dp
+    IF(cosphi < -1.0_dp) cosphi = -1.0_dp
+    phi = SIGN ( ACOS ( cosphi ), DOT_PRODUCT ( t12, tn ) )
+    ! compute energy
+    energy = 0.5_dp * k * ( phi - phi0 ) * ( phi - phi0 ) 
+  
+    ! compute fscalar
+    fscalar = - k * ( phi - phi0 ) 
+  
+    ! compute the gradients
+    gt1 = ( s32* ism * ism ) * tm
+    gt4 = -( s32 * isn * isn ) * tn
+    gt2 = ( dist1 * is32 ** 2 - 1.0_dp ) * gt1 - dist2 * is32 ** 2 * gt4
+    gt3 = ( dist2 * is32 ** 2 - 1.0_dp ) * gt4 - dist1 * is32 ** 2 * gt1
+  CASE DEFAULT
+    CALL stop_program ("mol_force.F","unmatched impr kind")
+  END SELECT
 
-! compute fscalar
-  fscalar = - k * ( phi - phi0 ) 
-
-! compute the gradients
-  gt1 = ( s32* ism * ism ) * tm
-  gt4 = -( s32 * isn * isn ) * tn
-  gt2 = ( dist1 * is32 ** 2 - 1.0_dp ) * gt1 - dist2 * is32 ** 2 * gt4
-  gt3 = ( dist2 * is32 ** 2 - 1.0_dp ) * gt4 - dist1 * is32 ** 2 * gt1
-
+  
 END SUBROUTINE force_imp_torsions
 
 !!*****

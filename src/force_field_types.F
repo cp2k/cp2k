@@ -170,11 +170,11 @@ MODULE force_field_types
     REAL(KIND=dp), POINTER                         :: impr_k(:)
     REAL(KIND=dp), POINTER                         :: impr_phi0(:)
     CHARACTER (LEN=default_string_length), POINTER :: nonbond_a(:)
-    REAL (KIND=dp), POINTER                        :: nonbond_eps(:)
-    REAL (KIND=dp), POINTER                        :: nonbond_rmin2(:)
+    REAL (KIND=dp), POINTER                        :: nonbond_c6(:)
+    REAL (KIND=dp), POINTER                        :: nonbond_c12(:)
     CHARACTER (LEN=default_string_length), POINTER :: nonbond_a_14(:)
-    REAL (KIND=dp), POINTER                        :: nonbond_eps_14(:)
-    REAL (KIND=dp), POINTER                        :: nonbond_rmin2_14(:)
+    REAL (KIND=dp), POINTER                        :: nonbond_c6_14(:)
+    REAL (KIND=dp), POINTER                        :: nonbond_c12_14(:)
   END TYPE gromos_info_type
 
   TYPE force_field_type
@@ -583,11 +583,11 @@ SUBROUTINE init_gromos_info(gro_info)
   NULLIFY(gro_info%impr_k)
   NULLIFY(gro_info%impr_phi0)
   NULLIFY(gro_info%nonbond_a)
-  NULLIFY(gro_info%nonbond_eps)
-  NULLIFY(gro_info%nonbond_rmin2)
+  NULLIFY(gro_info%nonbond_c6)
+  NULLIFY(gro_info%nonbond_c12)
   NULLIFY(gro_info%nonbond_a_14)
-  NULLIFY(gro_info%nonbond_eps_14)
-  NULLIFY(gro_info%nonbond_rmin2_14)
+  NULLIFY(gro_info%nonbond_c6_14)
+  NULLIFY(gro_info%nonbond_c12_14)
   
 END SUBROUTINE init_gromos_info
 
@@ -852,24 +852,24 @@ SUBROUTINE deallocate_gromos_info(gro_info,error)
     DEALLOCATE(gro_info%nonbond_a,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   END IF
-  IF(ASSOCIATED(gro_info%nonbond_eps)) THEN
-    DEALLOCATE(gro_info%nonbond_eps,STAT=stat)
+  IF(ASSOCIATED(gro_info%nonbond_c6)) THEN
+    DEALLOCATE(gro_info%nonbond_c6,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   END IF
-  IF(ASSOCIATED(gro_info%nonbond_rmin2)) THEN
-    DEALLOCATE(gro_info%nonbond_rmin2,STAT=stat)
+  IF(ASSOCIATED(gro_info%nonbond_c12)) THEN
+    DEALLOCATE(gro_info%nonbond_c12,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   END IF
   IF(ASSOCIATED(gro_info%nonbond_a_14)) THEN
     DEALLOCATE(gro_info%nonbond_a_14,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   END IF
-  IF(ASSOCIATED(gro_info%nonbond_eps_14)) THEN
-    DEALLOCATE(gro_info%nonbond_eps_14,STAT=stat)
+  IF(ASSOCIATED(gro_info%nonbond_c6_14)) THEN
+    DEALLOCATE(gro_info%nonbond_c6_14,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   END IF
-  IF(ASSOCIATED(gro_info%nonbond_rmin2_14)) THEN
-    DEALLOCATE(gro_info%nonbond_rmin2_14,STAT=stat)
+  IF(ASSOCIATED(gro_info%nonbond_c12_14)) THEN
+    DEALLOCATE(gro_info%nonbond_c12_14,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
   END IF
 

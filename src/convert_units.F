@@ -88,7 +88,7 @@ SUBROUTINE convert_to_cp2k_units ( unit_char, time, temperature, pressure, lengt
   IF ( PRESENT ( angle ) ) THEN
 ! convert time
      IF ( unit_char == 'DEGREE' ) &
-     angle = angle * units % degree
+     angle = angle * units % degree ** ll
   ENDIF
 
   IF ( PRESENT ( time ) ) THEN
