@@ -892,12 +892,12 @@ CONTAINS
        dft_section => section_vals_get_subs_vals(input,"DFT",error=error)
        IF (dft_control%nspins == 2) THEN
          CALL write_mo_set(mos(1)%mo_set,atomic_kind_set,particle_set,4,6,&
-                           dft_section,spin="ALPHA",error=error)
+                           dft_section,spin="ALPHA",last=.TRUE.,error=error)
          CALL write_mo_set(mos(2)%mo_set,atomic_kind_set,particle_set,4,6,&
-                           dft_section,spin="BETA",error=error)
+                           dft_section,spin="BETA",last=.TRUE.,error=error)
        ELSE
          CALL write_mo_set(mos(1)%mo_set,atomic_kind_set,particle_set,4,6,&
-                           dft_section,error=error)
+                           dft_section,last=.TRUE.,error=error)
        END IF
 
 !   *** Integrated absolute spin density and spin contamination ***

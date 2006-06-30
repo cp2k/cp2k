@@ -72,10 +72,13 @@ MODULE qs_scf
                                              cp_fm_p_type,&
                                              cp_fm_release,&
                                              cp_fm_type
-  USE cp_output_handling,              ONLY: cp_p_file,&
+  USE cp_output_handling,              ONLY: cp_add_iter_level,&
+                                             cp_iterate,&
+                                             cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
-                                             cp_print_key_unit_nr
+                                             cp_print_key_unit_nr,&
+                                             cp_rm_iter_level
   USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm,&
                                              cp_sm_fm_multiply
   USE cp_sm_pool_types,                ONLY: cp_sm_pool_p_type,&
@@ -374,7 +377,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: dft_section, input, &
                                                 scf_section
     TYPE(virial_type), POINTER               :: virial
-    INTEGER                                  :: dir
+    INTEGER                                  :: dir, iter_level
     LOGICAL                                  :: use_virial
 
     CALL timeset(routineN,"I"," ",handle)
@@ -445,16 +448,27 @@ CONTAINS
        use_jacobi = .FALSE.
        energy_only = .FALSE.
 
-       !   *** SCF loop, optimisation of the wfn coefficients
-       !   *** qs_env%rho%rho_r and qs_env%rho%rho_g should be up to date here
+       ! SCF loop, optimisation of the wfn coefficients
+       ! qs_env%rho%rho_r and qs_env%rho%rho_g should be up to date here
+
        scf_env%iter_count = 0
+
+       CALL cp_add_iter_level(logger%iter_info,"SCF",&
+                              n_rlevel_new=iter_level,&
+                              error=error)
 
        scf_loop: DO
 
           CALL timeset("scf_iter","I"," ",handle2)
+
           scf_env%iter_count = scf_env%iter_count + 1
 
           IF (output_unit > 0) CALL m_flush(output_unit)
+
+          CALL cp_iterate(logger%iter_info,&
+                          last=.FALSE.,&
+                          iter_nr=scf_env%iter_count,&
+                          error=error)
 
           CALL qs_ks_update_qs_env(ks_env,&
                                    qs_env=qs_env,&
@@ -502,12 +516,12 @@ CONTAINS
           ! another heavy weight print object, print controlled by dft_section
           IF (SIZE(mos) > 1) THEN
             CALL write_mo_set(mos(1)%mo_set,atomic_kind_set,particle_set,&
-                              4,6,dft_section,spin="ALPHA",error=error)
+                              4,6,dft_section,spin="ALPHA",last=.FALSE.,error=error)
             CALL write_mo_set(mos(2)%mo_set,atomic_kind_set,particle_set,&
-                              4,6,dft_section,spin="BETA",error=error)
+                              4,6,dft_section,spin="BETA",last=.FALSE.,error=error)
           ELSE
             CALL write_mo_set(mos(1)%mo_set,atomic_kind_set,particle_set,&
-                              4,6,dft_section,error=error)
+                              4,6,dft_section,last=.FALSE.,error=error)
           END IF
 
           ! ** calculation of the harris energy correction *** !
@@ -595,8 +609,8 @@ CONTAINS
 
        CALL cleanup_scf_loop(scf_env,error)
 
-       !   *** now, print out energies and charges corresponding to the obtained wfn
-       !   (this actually seems not 100% consistent at this point)
+       ! now, print out energies and charges corresponding to the obtained wfn
+       ! (this actually seems not 100% consistent at this point)
        CALL qs_scf_print_summary(output_unit,rho,qs_charges,energy,scf_env, &
                                  dft_control,qs_env%qmmm,gapw,gapw_xc)
 
@@ -626,6 +640,10 @@ CONTAINS
        !   *** but guarantees that rho and wfn are consistent at this point
        CALL qs_rho_update_rho(rho, qs_env=qs_env, error=error)
        CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,error=error)
+
+       CALL cp_rm_iter_level(logger%iter_info,&
+                             n_rlevel_att=iter_level,&
+                             error=error)
 
        IF (.NOT. scf_control%outer_scf%have_scf) EXIT scf_outer_loop
 

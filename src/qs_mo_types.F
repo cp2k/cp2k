@@ -46,22 +46,26 @@ MODULE qs_mo_types
                                              cp_fm_set_submatrix,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
-  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+  USE cp_output_handling,              ONLY: cp_p_file,&
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE global_types,                    ONLY: LOW,&
                                              global_environment_type
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
-  USE kinds,                           ONLY: dp,&
+  USE kinds,                           ONLY: default_string_length,&
+                                             default_path_length,&
+                                             dp,&
                                              dp_size,&
-                                             int_size,&
-                                             default_path_length
+                                             int_size
   USE message_passing,                 ONLY: mp_bcast
   USE orbital_pointers,                ONLY: nco,&
                                              nso
   USE orbital_transformation_matrices, ONLY: orbtramat
   USE output_utilities,                ONLY: print_warning
   USE particle_types,                  ONLY: particle_type
+  USE string_utilities,                ONLY: compress
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
@@ -1042,7 +1046,8 @@ CONTAINS
   ! ***************************************************************************
 
   SUBROUTINE write_mo_set_to_output_unit(mo_set,atomic_kind_set,particle_set,&
-                                         before,after,dft_section,spin,error)
+                                         before,after,dft_section,spin,last,&
+                                         error)
     
     ! Purpose: Write the MO eigenvalues, MO occupation numbers and
     !          MO mo_coeff.
@@ -1067,6 +1072,7 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: before, after
     TYPE(section_vals_type), POINTER         :: dft_section
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: spin
+    LOGICAL, INTENT(IN), OPTIONAL            :: last
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -1078,17 +1084,18 @@ CONTAINS
     CHARACTER(LEN=25)                        :: fmtstr1
     CHARACTER(LEN=38)                        :: fmtstr3
     CHARACTER(LEN=6), DIMENSION(:), POINTER  :: sgf_symbol
-    CHARACTER(LEN=80)                        :: name
+    CHARACTER(LEN=2*default_string_length)   :: name
     INTEGER :: from, iatom, icgf, ico, icol, irow, iset, isgf, ishell, iso, &
       istat, iw, jcol, left, lshell, natom, ncgf, ncol, ncol_global, &
-      nrow_global, nset, nsgf, right, to, width
+      nrow_global, nset, nsgf, right, to, width, scf_step
     INTEGER, DIMENSION(:), POINTER           :: nshell
     INTEGER, DIMENSION(:, :), POINTER        :: l
     LOGICAL                                  :: ionode, p_cart, p_eval, &
-                                                p_evec, p_occ
+                                                p_evec, p_occ, should_output
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: cmatrix, smatrix
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
+    LOGICAL                                  :: my_last
 
     ! -------------------------------------------------------------------------
 
@@ -1099,7 +1106,20 @@ CONTAINS
     CALL section_vals_val_get(dft_section,"PRINT%MO%EIGENVECTORS",l_val=p_evec,error=error)
     CALL section_vals_val_get(dft_section,"PRINT%MO%OCCUPATION_NUMBERS",l_val=p_occ,error=error)
     CALL section_vals_val_get(dft_section,"PRINT%MO%CARTESIAN",l_val=p_cart,error=error)
-    IF (.NOT.(p_eval.OR.p_evec.OR.p_occ)) RETURN
+    should_output = BTEST(cp_print_key_should_output(logger%iter_info,dft_section,&
+                          "PRINT%MO",error=error),cp_p_file)
+
+    IF (PRESENT(last)) THEN
+      my_last = last
+    ELSE
+      my_last = .FALSE.
+    END IF
+
+    should_output = (should_output.OR.my_last)
+
+    IF ((.NOT.should_output).OR.(.NOT.(p_eval.OR.p_evec.OR.p_occ))) RETURN
+
+    scf_step = logger%iter_info%iteration(logger%iter_info%n_rlevel) - 1
 
     IF (p_evec) THEN
        CALL cp_fm_get_info(mo_set%mo_coeff,&
@@ -1118,10 +1138,12 @@ CONTAINS
           END IF
        END IF
     END IF
-    iw = cp_print_key_unit_nr(logger,dft_section,&
-         "PRINT%MO",extension=".MOLog",error=error)
 
-    IF (iw>0) THEN
+    iw = cp_print_key_unit_nr(logger,dft_section,"PRINT%MO",&
+                              ignore_should_output=should_output,&
+                              extension=".MOLog",error=error)
+
+    IF (iw > 0) THEN
 
        CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
             natom=natom, ncgf=ncgf, nsgf=nsgf)
@@ -1154,8 +1176,14 @@ CONTAINS
 
           IF (p_cart) THEN
 
-             name = "MO EIGENVALUES, MO OCCUPATION NUMBERS AND "//&
-                    "CARTESIAN MO EIGENVECTORS"
+            IF (my_last) THEN
+              name = "MO EIGENVALUES, MO OCCUPATION NUMBERS, AND "//&
+                     "CARTESIAN MO EIGENVECTORS"
+            ELSE
+              WRITE (UNIT=name,FMT="(A,I6)")&
+                "MO EIGENVALUES, MO OCCUPATION NUMBERS, AND "//&
+                "CARTESIAN MO EIGENVECTORS AFTER SCF STEP",scf_step
+            END IF
 
              ALLOCATE(cmatrix(ncgf,ncgf),STAT=istat)
              IF (istat /= 0) THEN
@@ -1191,20 +1219,39 @@ CONTAINS
 
           ELSE
 
-             name = "MO EIGENVALUES, MO OCCUPATION NUMBERS AND "//&
-                    "SPHERICAL MO EIGENVECTORS"
+            IF (my_last) THEN
+              name = "MO EIGENVALUES, MO OCCUPATION NUMBERS, AND "//&
+                     "SPHERICAL MO EIGENVECTORS"
+            ELSE
+              WRITE (UNIT=name,FMT="(A,I6)")&
+                "MO EIGENVALUES, MO OCCUPATION NUMBERS, AND "//&
+                "SPHERICAL MO EIGENVECTORS AFTER SCF STEP",scf_step
+            END IF
 
           END IF
 
        ELSE IF (p_occ) THEN
 
-          name = "MO EIGENVALUES AND MO OCCUPATION NUMBERS"
+         IF (my_last) THEN
+           name = "MO EIGENVALUES AND MO OCCUPATION NUMBERS"
+         ELSE
+           WRITE (UNIT=name,FMT="(A,I6)")&
+             "MO EIGENVALUES AND MO OCCUPATION NUMBERS AFTER "//&
+             "SCF STEP",scf_step
+         END IF
 
        ELSE
 
-          name = "MO EIGENVALUES"
+         IF (my_last) THEN
+           name = "MO EIGENVALUES"
+         ELSE
+           WRITE (UNIT=name,FMT="(A,I6)")&
+             "MO EIGENVALUES AFTER SCF STEP",scf_step
+         END IF
 
        END IF
+
+       CALL compress(name)
 
        ! Print headline
 
@@ -1314,8 +1361,10 @@ CONTAINS
        END IF
 
     END IF
-    CALL cp_print_key_finished_output(iw,logger,dft_section,&
-         "PRINT%MO", error=error)
+
+    CALL cp_print_key_finished_output(iw,logger,dft_section,"PRINT%MO",&
+                                      ignore_should_output=should_output,&
+                                      error=error)
 
   END SUBROUTINE write_mo_set_to_output_unit
 
