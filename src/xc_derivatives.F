@@ -25,19 +25,19 @@ MODULE xc_derivatives
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE xc_cs1_new,                      ONLY: cs1_lda_eval,&
+  USE xc_cs1,                      ONLY: cs1_lda_eval,&
                                              cs1_lda_info,&
                                              cs1_lsd_eval,&
                                              cs1_lsd_info
   USE xc_derivative_set_types,         ONLY: xc_derivative_set_type
-  USE xc_exchange_gga_new,             ONLY: xgga_eval,&
+  USE xc_exchange_gga,             ONLY: xgga_eval,&
                                              xgga_info
   USE xc_hcth,                         ONLY: hcth_lda_eval,&
                                              hcth_lda_info
-  USE xc_ke_gga_new,                   ONLY: ke_gga_info,&
+  USE xc_ke_gga,                   ONLY: ke_gga_info,&
                                              ke_gga_lda_eval,&
                                              ke_gga_lsd_eval
-  USE xc_lyp_new,                      ONLY: lyp_lda_eval,&
+  USE xc_lyp,                      ONLY: lyp_lda_eval,&
                                              lyp_lda_info,&
                                              lyp_lsd_eval,&
                                              lyp_lsd_info
@@ -52,32 +52,32 @@ MODULE xc_derivatives
                                              pbe_lda_info,&
                                              pbe_lsd_eval,&
                                              pbe_lsd_info
-  USE xc_perdew86_new,                 ONLY: p86_lda_eval,&
+  USE xc_perdew86,                 ONLY: p86_lda_eval,&
                                              p86_lda_info
-  USE xc_perdew_wang_new,              ONLY: perdew_wang_info,&
+  USE xc_perdew_wang,              ONLY: perdew_wang_info,&
                                              perdew_wang_lda_eval,&
                                              perdew_wang_lsd_eval
-  USE xc_perdew_zunger_new,            ONLY: pz_info,&
+  USE xc_perdew_zunger,            ONLY: pz_info,&
                                              pz_lda_eval,&
                                              pz_lsd_eval
   USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_setall,&
                                              xc_rho_cflags_type
   USE xc_rho_set_types,                ONLY: xc_rho_set_get,&
                                              xc_rho_set_type
-  USE xc_tfw_new,                      ONLY: tfw_lda_eval,&
+  USE xc_tfw,                      ONLY: tfw_lda_eval,&
                                              tfw_lda_info,&
                                              tfw_lsd_eval,&
                                              tfw_lsd_info
-  USE xc_thomas_fermi_new,             ONLY: thomas_fermi_info,&
+  USE xc_thomas_fermi,             ONLY: thomas_fermi_info,&
                                              thomas_fermi_lda_eval,&
                                              thomas_fermi_lsd_eval
   USE xc_tpss,                         ONLY: tpss_lda_eval,&
                                              tpss_lda_info,&
                                              tpss_lsd_eval,&
                                              tpss_lsd_info
-  USE xc_vwn_new,                      ONLY: vwn_lda_eval,&
+  USE xc_vwn,                      ONLY: vwn_lda_eval,&
                                              vwn_lda_info
-  USE xc_xalpha_new,                   ONLY: xalpha_info,&
+  USE xc_xalpha,                   ONLY: xalpha_info,&
                                              xalpha_lda_eval,&
                                              xalpha_lsd_eval
   USE xc_xbecke88,                     ONLY: xb88_lda_eval,&
@@ -203,7 +203,10 @@ SUBROUTINE xc_functional_get_info(functional,lsd,reference,shortform,&
      CASE("PW92")
         CALL section_vals_val_get(functional,"PARAMETRIZATION",i_val=i_param,&
              error=error)
-        CALL perdew_wang_info(i_param,lsd,reference,shortform,needs,max_deriv,error=error)
+        CALL section_vals_val_get(functional,"SCALE",r_val=r_param,&
+             error=error)
+        CALL perdew_wang_info(i_param,lsd,reference,shortform,needs,max_deriv,&
+             r_param,error=error)
      CASE("PZ81")
         CALL section_vals_val_get(functional,"PARAMETRIZATION",i_val=i_param,&
              error=error)
@@ -372,10 +375,14 @@ SUBROUTINE xc_functional_eval(functional, lsd, rho_set, deriv_set, &
      CASE("PW92")
         CALL section_vals_val_get(functional,"PARAMETRIZATION",i_val=i_param,&
              error=error)
+        CALL section_vals_val_get(functional,"SCALE",r_val=r_param,&
+             error=error)
         IF (lsd) THEN
-           CALL perdew_wang_lsd_eval(i_param,rho_set,deriv_set,deriv_order,error=error)
+           CALL perdew_wang_lsd_eval(i_param,rho_set,deriv_set,deriv_order,&
+                r_param,error=error)
         ELSE
-           CALL perdew_wang_lda_eval(i_param,rho_set,deriv_set,deriv_order,error=error)
+           CALL perdew_wang_lda_eval(i_param,rho_set,deriv_set,deriv_order,&
+                r_param,error=error)
         END IF
      CASE("PZ81")
         CALL section_vals_val_get(functional,"PARAMETRIZATION",i_val=i_param,&

@@ -23,7 +23,7 @@
 !!
 !!*** *************************************************************************
 
-MODULE xc_xalpha_new
+MODULE xc_xalpha
 ! *****************************************************************************
   USE cp_array_r_utils,                ONLY: cp_3d_r_p_type
   USE kinds,                           ONLY: dp
@@ -55,7 +55,7 @@ MODULE xc_xalpha_new
 
   REAL(KIND=dp) :: xparam, flda, flsd
   REAL(KIND=dp) :: eps_rho
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_xalpha_new'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_xalpha'
 
 ! *****************************************************************************
 
@@ -511,6 +511,6 @@ ELSE
 
 ! *****************************************************************************
 
-END MODULE xc_xalpha_new
+END MODULE xc_xalpha
 
 ! *****************************************************************************

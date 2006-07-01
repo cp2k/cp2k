@@ -1622,6 +1622,11 @@ SUBROUTINE create_xc_fun_section(section,error)
           lone_keyword_l_val=.TRUE.,default_l_val=.FALSE.,error=error)
      CALL section_add_keyword(subsection,keyword,error=error)
      CALL keyword_release(keyword,error=error)
+     CALL keyword_create(keyword,"SCALE",&
+          description="Scaling of the energy functional",&
+          default_r_val=1.0_dp,error=error)
+     CALL section_add_keyword(subsection,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
      CALL keyword_create(keyword,name="PARAMETRIZATION",&
           description="Which one of parametrizations should be used",&
           usage="PARAMETRIZATION DMC",&

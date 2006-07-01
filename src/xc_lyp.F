@@ -4,10 +4,10 @@
 !-----------------------------------------------------------------------------!
 
 
-!!****h* cp2k/xc_lyp_new [1.0] *
+!!****h* cp2k/xc_lyp [1.0] *
 !!
 !!   NAME
-!!     xc_lyp_new
+!!     xc_lyp
 !!
 !!   FUNCTION
 !!     calculates the lyp correlation functional
@@ -23,7 +23,7 @@
 !!
 !!   SOURCE
 !****************************************************************************
-MODULE xc_lyp_new
+MODULE xc_lyp
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
   USE timings,                         ONLY: timeset,&
@@ -41,7 +41,7 @@ MODULE xc_lyp_new
   PRIVATE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_lyp_new'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_lyp'
   REAL(kind=dp), PARAMETER, PRIVATE :: a=0.04918_dp, b=0.132_dp,&
        c=0.2533_dp,d=0.349_dp
 
@@ -50,7 +50,7 @@ MODULE xc_lyp_new
 !****************************************************************************
 CONTAINS
 
-!!****f* xc_lyp_new/lyp_lda_info [1.0] *
+!!****f* xc_lyp/lyp_lda_info [1.0] *
 !!
 !!   NAME
 !!     lyp_lda_info
@@ -112,7 +112,7 @@ CONTAINS
   END SUBROUTINE lyp_lda_info
 !***************************************************************************
 
-!!****f* xc_lyp_new/lyp_lsd_info [1.0] *
+!!****f* xc_lyp/lyp_lsd_info [1.0] *
 !!
 !!   NAME
 !!     lyp_lsd_info
@@ -174,7 +174,7 @@ SUBROUTINE lyp_lsd_info(reference,shortform, needs, max_deriv, error)
 END SUBROUTINE lyp_lsd_info
 !***************************************************************************
 
-!!****f* xc_lyp_new/lyp_lda_eval [1.0] *
+!!****f* xc_lyp/lyp_lda_eval [1.0] *
 !!
 !!   NAME
 !!     lyp_lda_eval
@@ -328,7 +328,7 @@ SUBROUTINE lyp_lda_eval(rho_set,deriv_set,grad_deriv,error)
 END SUBROUTINE lyp_lda_eval
 !***************************************************************************
 
-!!****f* xc_lyp_new/lyp_lda_calc [1.0] *
+!!****f* xc_lyp/lyp_lda_calc [1.0] *
 !!
 !!   NAME
 !!     lyp_lda_eval
@@ -832,7 +832,7 @@ SUBROUTINE lyp_lda_calc(rho, rho_1_3, norm_drho,&
 END SUBROUTINE lyp_lda_calc
 !***************************************************************************
 
-!!****f* xc_lyp_new/lyp_lsd_eval [1.0] *
+!!****f* xc_lyp/lyp_lsd_eval [1.0] *
 !!
 !!   NAME
 !!     lyp_lsd_eval
@@ -1007,7 +1007,7 @@ SUBROUTINE lyp_lsd_eval(rho_set,deriv_set,grad_deriv,error)
 END SUBROUTINE lyp_lsd_eval
 !***************************************************************************
 
-!!****f* xc_lyp_new/lyp_lsd_calc [1.0] *
+!!****f* xc_lyp/lyp_lsd_calc [1.0] *
 !!
 !!   NAME
 !!     lyp_lsd_calc
@@ -1391,4 +1391,4 @@ END SUBROUTINE lyp_lsd_calc
 !***************************************************************************
 
 
-END MODULE xc_lyp_new
+END MODULE xc_lyp

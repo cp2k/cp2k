@@ -24,7 +24,7 @@
 !!
 !!*** *************************************************************************
 
-MODULE xc_vwn_new
+MODULE xc_vwn
 ! *****************************************************************************
   USE kinds,                           ONLY: dp
   USE timings,                         ONLY: timeset,&
@@ -57,7 +57,7 @@ MODULE xc_vwn_new
 
   PUBLIC :: vwn_lda_info, vwn_lda_eval
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_vwn_new'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_vwn'
 
   REAL(KIND=dp) :: eps_rho
 
@@ -439,6 +439,6 @@ CONTAINS
 
 ! *****************************************************************************
 
-END MODULE xc_vwn_new
+END MODULE xc_vwn
 
 ! *****************************************************************************

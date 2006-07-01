@@ -29,7 +29,7 @@
 !!
 !!****
 
-MODULE xc_perdew_zunger_new
+MODULE xc_perdew_zunger
   USE input_constants,                 ONLY: pz_dmc,&
                                              pz_orig,&
                                              pz_vmc
@@ -62,7 +62,7 @@ MODULE xc_perdew_zunger_new
   REAL(KIND=dp) :: eps_rho
 
   PUBLIC :: pz_info, pz_lda_eval, pz_lsd_eval
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_perdew_zunger_new'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_perdew_zunger'
 
 CONTAINS
 
@@ -774,4 +774,4 @@ SUBROUTINE pz_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints, order)
 
 ! *****************************************************************************
 
-END MODULE xc_perdew_zunger_new
+END MODULE xc_perdew_zunger

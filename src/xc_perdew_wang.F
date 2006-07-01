@@ -21,7 +21,7 @@
 !!
 !!****
 
-MODULE xc_perdew_wang_new
+MODULE xc_perdew_wang
   USE input_constants,                 ONLY: pw_dmc,&
                                              pw_orig,&
                                              pw_vmc
@@ -34,7 +34,7 @@ MODULE xc_perdew_wang_new
   USE xc_derivative_types,             ONLY: xc_derivative_get,&
                                              xc_derivative_type
   USE xc_functionals_utilities,        ONLY: calc_fx,&
-                                             calc_rs,&
+                                              calc_rs,&
                                              calc_z,&
                                              set_util
   USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
@@ -76,13 +76,14 @@ CONTAINS
 !!
 !!****
   SUBROUTINE perdew_wang_info ( method, lsd, reference, shortform, needs, &
-       max_deriv, error)
+       max_deriv, scale, error)
     INTEGER, INTENT(in)                      :: method
     LOGICAL, INTENT(in)                      :: lsd
     CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
     TYPE(xc_rho_cflags_type), &
       INTENT(inout), OPTIONAL                :: needs
     INTEGER, INTENT(out), OPTIONAL           :: max_deriv
+    REAL(kind=dp), intent(in) :: scale
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -106,6 +107,10 @@ CONTAINS
        reference = "J. P. Perdew and Yue Wang," &
                    //" Phys. Rev. B 45, 13244 (1992)"&
                    //"["//TRIM(p_string)//"]"
+       IF (scale/=1._dp) THEN
+          WRITE(reference(LEN_TRIM(reference):LEN(reference)),"('s=',f6.3)")&
+               scale
+       END IF
        IF (.not.lsd) THEN
           IF (LEN_TRIM(reference)+6<LEN(reference)) THEN
              reference(LEN_TRIM(reference):LEN_TRIM(reference)+6)=' {LDA}'
@@ -115,6 +120,10 @@ CONTAINS
     IF ( PRESENT ( shortform ) ) THEN
        shortform = "J. P. Perdew et al., PRB 45, 13244 (1992)"&
                    //"["//TRIM(p_string)//"]"
+       IF (scale/=1._dp) THEN
+          WRITE(shortform(LEN_TRIM(shortform):LEN(shortform)),"('s=',f6.3)")&
+               scale
+       END IF
        IF (.not.lsd) THEN
           IF (LEN_TRIM(shortform)+6<LEN(shortform)) THEN
              shortform(LEN_TRIM(shortform):LEN_TRIM(shortform)+6)=' {LDA}'
@@ -236,12 +245,13 @@ CONTAINS
 !!     that order will be calculated.
 !!
 !!****
-  SUBROUTINE perdew_wang_lda_eval( method, rho_set, deriv_set, order, error )
+  SUBROUTINE perdew_wang_lda_eval( method, rho_set, deriv_set, order, scale, error )
     
     INTEGER, INTENT(in)                      :: method
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     INTEGER, INTENT(in)                      :: order
+    REAL(kind=dp), intent(in) :: scale
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -312,7 +322,7 @@ CONTAINS
        END IF
 
        CALL perdew_wang_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, &
-            npoints, order)
+            npoints, order,scale)
 
        IF (cp_debug) THEN
           DEALLOCATE(dummy,stat=stat)
@@ -328,13 +338,14 @@ CONTAINS
 
 ! *****************************************************************************
 
-SUBROUTINE perdew_wang_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints, order)
+SUBROUTINE perdew_wang_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints, order,scale)
   !FM low level calc routine
     REAL(KIND=dp), DIMENSION(*), INTENT(in)  :: rho
     REAL(KIND=dp), DIMENSION(*), &
       INTENT(inout)                          :: e_0, e_rho, e_rho_rho, &
                                                 e_rho_rho_rho
     INTEGER, INTENT(in)                      :: npoints, order
+    REAL(kind=dp), intent(in) :: scale
 
     INTEGER                                  :: abs_order, k
     REAL(KIND=dp), DIMENSION(0:3)            :: ed
@@ -348,7 +359,8 @@ SUBROUTINE perdew_wang_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints
 !! order_ is positive as it must be in this case:
 !! ec(:,2) needs ed(:,1) for example
          CALL pw_lda_ed_loc(rho(k), ed, abs_order)
-  
+         ed=scale*ed
+
          IF (order>=0) THEN
             e_0(k) = e_0(k) + rho(k)*ed(0)
          END IF
@@ -391,11 +403,12 @@ SUBROUTINE perdew_wang_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints
 !!     that order will be calculated.
 !!
 !!****
-  SUBROUTINE perdew_wang_lsd_eval( method, rho_set, deriv_set, order, error )
+  SUBROUTINE perdew_wang_lsd_eval( method, rho_set, deriv_set, order, scale, error )
     INTEGER, INTENT(in)                      :: method
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     INTEGER, INTENT(IN), OPTIONAL            :: order
+    REAL(kind=dp), intent(in) :: scale
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -485,7 +498,7 @@ SUBROUTINE perdew_wang_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints
        END IF
        
        CALL perdew_wang_lsd_calc(a,b,e_0,ea,eb,eaa,eab,ebb,eaaa,eaab,eabb,&
-         ebbb, npoints, order)
+         ebbb, npoints, order,scale)
 
        IF (cp_debug) THEN
           DEALLOCATE(dummy,stat=stat)
@@ -500,13 +513,14 @@ SUBROUTINE perdew_wang_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints
 
   
   SUBROUTINE perdew_wang_lsd_calc(rhoa,rhob,e_0,ea,eb,eaa,eab,ebb,eaaa,eaab,eabb,&
-       ebbb, npoints, order)
+       ebbb, npoints, order,scale)
       !FM low-level computation routine
     REAL(KIND=dp), DIMENSION(*), INTENT(in)  :: rhoa, rhob
     REAL(KIND=dp), DIMENSION(*), &
       INTENT(inout)                          :: e_0, ea, eb, eaa, eab, ebb, &
                                                 eaaa, eaab, eabb, ebbb
     INTEGER, INTENT(in)                      :: npoints, order
+    REAL(kind=dp), intent(in) :: scale
 
     INTEGER                                  :: abs_order, k
     REAL(KIND=dp)                            :: rho
@@ -521,7 +535,7 @@ SUBROUTINE perdew_wang_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints
        IF ( rho > eps_rho ) THEN
 
          CALL pw_lsd_ed_loc(rhoa(k), rhob(k), ed, abs_order)
-
+         ed=ed*scale
          IF (order>=0) THEN
             e_0(k) = e_0(k) + rho*ed(0)
          END IF
@@ -862,4 +876,4 @@ SUBROUTINE pw_lda_ed_loc(rho, ed, order)
 
 ! *****************************************************************************
 
-END MODULE xc_perdew_wang_new
+END MODULE xc_perdew_wang

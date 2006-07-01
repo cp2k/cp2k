@@ -19,7 +19,7 @@
 !!
 !******************************************************************************
 
-MODULE xc_perdew86_new
+MODULE xc_perdew86
 
 ! *****************************************************************************
 
@@ -33,7 +33,7 @@ MODULE xc_perdew86_new
                                              xc_derivative_type
   USE xc_functionals_utilities,        ONLY: calc_rs_pw,&
                                              set_util
-  USE xc_perdew_zunger_new,            ONLY: pz_lda_eval
+  USE xc_perdew_zunger,            ONLY: pz_lda_eval
   USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
   USE xc_rho_set_types,                ONLY: xc_rho_set_get,&
                                              xc_rho_set_type
@@ -66,7 +66,7 @@ MODULE xc_perdew86_new
                           pc1 = 0.001667_dp, &
                           pc2 = 0.002568_dp, &
                           pci = pc1+pc2
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_perdew86_new'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_perdew86'
 
 !!***
 ! *****************************************************************************
@@ -465,6 +465,6 @@ CONTAINS
 
 ! *****************************************************************************
 
-END MODULE xc_perdew86_new
+END MODULE xc_perdew86
 
 ! *****************************************************************************

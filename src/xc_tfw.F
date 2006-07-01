@@ -2,17 +2,14 @@
 !   CP2K: A general program to perform molecular dynamics simulations         !
 !   Copyright (C) 2004  CP2K developers group                                 !
 !-----------------------------------------------------------------------------!
-!!****** cp2k/xc_thomas_fermi [1.0] *
+!!****** cp2k/xc_tfw [1.0] *
 !!
 !!   NAME
-!!     xc_thomas_fermi
+!!     xc_tfw
 !!
 !!   FUNCTION
 !!     Calculate the Thomas-Fermi kinetic energy functional
-!!
-!!   NOTES
-!!     Order of derivatives is: LDA 0; 1; 2; 3;
-!!                              LSD 0; a  b; aa bb; aaa bbb;
+!!     plus the von Weizsaecker term
 !!
 !!   AUTHOR
 !!     JGH (18.02.2002)
@@ -23,7 +20,7 @@
 !!
 !!*** *************************************************************************
 
-MODULE xc_thomas_fermi_new
+MODULE xc_tfw
 ! *****************************************************************************
   USE cp_array_r_utils,                ONLY: cp_3d_r_p_type
   USE kinds,                           ONLY: dp
@@ -51,12 +48,11 @@ MODULE xc_thomas_fermi_new
                           f43 = 4.0_dp*f13, &
                           f53 = 5.0_dp*f13
 
-  PUBLIC :: thomas_fermi_info, thomas_fermi_lda_eval, thomas_fermi_lsd_eval
+  PUBLIC :: tfw_lda_info, tfw_lda_eval, tfw_lsd_info, tfw_lsd_eval
 
-  REAL(KIND=dp) :: cf, flda, flsd
+  REAL(KIND=dp) :: cf, flda, flsd, fvw
   REAL(KIND=dp) :: eps_rho
-
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_thomas_fermi_new'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_tfw'
 
 ! *****************************************************************************
 
@@ -64,7 +60,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE thomas_fermi_init ( cutoff )
+  SUBROUTINE tfw_init ( cutoff )
 
     REAL(KIND=dp), INTENT(IN)                :: cutoff
 
@@ -74,13 +70,13 @@ CONTAINS
     cf = 0.3_dp*(3.0_dp*pi*pi)**f23
     flda = cf
     flsd = flda * 2.0_dp**f23
+    fvw  = 1.0_dp/72.0_dp
 
-  END SUBROUTINE thomas_fermi_init
+  END SUBROUTINE tfw_init
 
 ! *****************************************************************************
 
-  SUBROUTINE thomas_fermi_info ( lsd, reference, shortform, needs, max_deriv, error)
-    LOGICAL, INTENT(in)                      :: lsd
+  SUBROUTINE tfw_lda_info ( reference, shortform, needs, max_deriv, error)
     CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
     TYPE(xc_rho_cflags_type), &
       INTENT(inout), OPTIONAL                :: needs
@@ -89,53 +85,65 @@ CONTAINS
       OPTIONAL                               :: error
 
     IF ( PRESENT ( reference ) ) THEN
-      reference = "Thomas-Fermi kinetic energy functional: see Parr and Yang"
-       IF (.not.lsd) THEN
-          IF (LEN_TRIM(reference)+6<LEN(reference)) THEN
-             reference(LEN_TRIM(reference):LEN_TRIM(reference)+6)=' {LDA}'
-          END IF
-       END IF
+      reference = "Thomas-Fermi-Weizsaecker kinetic energy functional {LDA version}"
     END IF
     IF ( PRESENT ( shortform ) ) THEN
-      shortform = "Thomas-Fermi kinetic energy functional"
-       IF (.not.lsd) THEN
-          IF (LEN_TRIM(shortform)+6<LEN(shortform)) THEN
-             shortform(LEN_TRIM(shortform):LEN_TRIM(shortform)+6)=' {LDA}'
-          END IF
-       END IF
+      shortform = "TF+vW kinetic energy functional {LDA}"
     END IF
     IF (PRESENT(needs)) THEN
-       IF (lsd) THEN
-          needs%rho_spin=.TRUE.
-          needs%rho_spin_1_3=.TRUE.
-       ELSE
-          needs%rho=.TRUE.
-          needs%rho_1_3=.TRUE.
-       END IF
+       needs%rho=.TRUE.
+       needs%rho_1_3=.TRUE.
+       needs%norm_drho=.TRUE.
     END IF
     IF (PRESENT(max_deriv)) max_deriv=3
 
-  END SUBROUTINE thomas_fermi_info
+  END SUBROUTINE tfw_lda_info
 
 ! *****************************************************************************
 
-  SUBROUTINE thomas_fermi_lda_eval(rho_set,deriv_set,order,error)
+  SUBROUTINE tfw_lsd_info ( reference, shortform, needs, max_deriv, error)
+    CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: reference, shortform
+    TYPE(xc_rho_cflags_type), &
+      INTENT(inout), OPTIONAL                :: needs
+    INTEGER, INTENT(out), OPTIONAL           :: max_deriv
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    IF ( PRESENT ( reference ) ) THEN
+      reference = "Thomas-Fermi-Weizsaecker kinetic energy functional"
+    END IF
+    IF ( PRESENT ( shortform ) ) THEN
+      shortform = "TF+vW kinetic energy functional"
+    END IF
+    IF (PRESENT(needs)) THEN
+       needs%rho_spin=.TRUE.
+       needs%rho_spin_1_3=.TRUE.
+       needs%norm_drho=.TRUE.
+    END IF
+    IF (PRESENT(max_deriv)) max_deriv=3
+
+  END SUBROUTINE tfw_lsd_info
+
+! *****************************************************************************
+
+  SUBROUTINE tfw_lda_eval (rho_set,deriv_set,order,error)
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     INTEGER, INTENT(in)                      :: order
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'thomas_fermi_lda_eval', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'tfw_lda_eval', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, npoints
+    INTEGER                                  :: handle, npoints, stat
     INTEGER, DIMENSION(:, :), POINTER        :: bo
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: epsilon_rho
-    REAL(KIND=dp), DIMENSION(:, :, :), &
-      POINTER                                :: e_0, e_rho, e_rho_rho, &
-                                                e_rho_rho_rho, r13, rho
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: s
+    REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: e_0, e_ndrho, &
+      e_ndrho_ndrho, e_rho, e_rho_ndrho, e_rho_ndrho_ndrho, e_rho_rho, &
+      e_rho_rho_ndrho, e_rho_rho_rho, grho, r13, rho
     TYPE(xc_derivative_type), POINTER        :: deriv
 
     CALL timeset(routineN,"I","",handle)
@@ -148,77 +156,121 @@ CONTAINS
     CPPrecondition(deriv_set%ref_count>0,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        CALL xc_rho_set_get(rho_set,rho_1_3=r13,rho=rho,&
-            local_bounds=bo,rho_cutoff=epsilon_rho,&
+            norm_drho=grho,local_bounds=bo,rho_cutoff=epsilon_rho,&
             error=error)
        npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
-       CALL thomas_fermi_init(epsilon_rho)
+       CALL tfw_init(epsilon_rho)
+
+       ALLOCATE ( s(npoints), STAT=stat )
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       CALL calc_s(rho,grho,s, npoints)
 
        IF ( order>=0 ) THEN
           deriv => xc_dset_get_derivative(deriv_set,"",&
                allocate_deriv=.TRUE., error=error)
           CALL xc_derivative_get(deriv,deriv_data=e_0,error=error)
-          
-          CALL thomas_fermi_lda_0 ( rho, r13, e_0,npoints,error )
+
+          CALL tfw_u_0 ( rho, r13, s, e_0, npoints, error )
        END IF
        IF ( order>=1.OR.order==-1 ) THEN
           deriv => xc_dset_get_derivative(deriv_set,"(rho)",&
                allocate_deriv=.TRUE.,error=error)
           CALL xc_derivative_get(deriv,deriv_data=e_rho,error=error)
+          deriv => xc_dset_get_derivative(deriv_set,"(norm_drho)",&
+               allocate_deriv=.TRUE.,error=error)
+          CALL xc_derivative_get(deriv,deriv_data=e_ndrho,error=error)
 
-          CALL thomas_fermi_lda_1 ( rho, r13, e_rho, npoints, error )
+          CALL tfw_u_1 ( rho, grho, r13, s, e_rho, e_ndrho, npoints, error )
        END IF
        IF ( order>=2.OR.order==-2 ) THEN
           deriv => xc_dset_get_derivative(deriv_set,"(rho)(rho)",&
                allocate_deriv=.TRUE.,error=error)
           CALL xc_derivative_get(deriv,deriv_data=e_rho_rho,error=error)
+          deriv => xc_dset_get_derivative(deriv_set,"(rho)(norm_drho)",&
+               allocate_deriv=.TRUE.,error=error)
+          CALL xc_derivative_get(deriv,deriv_data=e_rho_ndrho,error=error)
+          deriv => xc_dset_get_derivative(deriv_set,&
+               "(norm_drho)(norm_drho)", allocate_deriv=.TRUE.,error=error)
+          CALL xc_derivative_get(deriv,deriv_data=e_ndrho_ndrho,error=error)
 
-          CALL thomas_fermi_lda_2 ( rho, r13, e_rho_rho, npoints, error )
+          CALL tfw_u_2 ( rho, grho, r13, s, e_rho_rho, e_rho_ndrho,&
+               e_ndrho_ndrho, npoints, error )
        END IF
        IF ( order>=3.OR.order==-3 ) THEN
           deriv => xc_dset_get_derivative(deriv_set,"(rho)(rho)(rho)",&
                allocate_deriv=.TRUE.,error=error)
           CALL xc_derivative_get(deriv,deriv_data=e_rho_rho_rho,error=error)
+          deriv => xc_dset_get_derivative(deriv_set,&
+               "(rho)(rho)(norm_drho)",allocate_deriv=.TRUE.,error=error)
+          CALL xc_derivative_get(deriv,deriv_data=e_rho_rho_ndrho,error=error)
+          deriv => xc_dset_get_derivative(deriv_set,&
+               "(rho)(norm_drho)(norm_drho)",allocate_deriv=.TRUE.,error=error)
+          CALL xc_derivative_get(deriv,deriv_data=e_rho_ndrho_ndrho,error=error)
 
-          CALL thomas_fermi_lda_3 ( rho, r13, e_rho_rho_rho, npoints,&
-               error)
+          CALL tfw_u_3 ( rho, grho, r13, s, e_rho_rho_rho, e_rho_rho_ndrho,&
+               e_rho_ndrho_ndrho, npoints, error )
        END IF
        IF ( order>3.OR.order<-3) THEN
           CALL cp_unimplemented_error(fromWhere=routineP, &
                message="derivatives bigger than 3 not implemented", &
                error=error, error_level=cp_failure_level)
        END IF
+
+       DEALLOCATE ( s, STAT=stat )
+       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
     END IF
     CALL timestop(0.0_dp,handle)
-  END SUBROUTINE thomas_fermi_lda_eval
+  END SUBROUTINE tfw_lda_eval
 
 ! *****************************************************************************
+  SUBROUTINE calc_s(rho,grho,s, npoints)
+    REAL(KIND=dp), DIMENSION(*), INTENT(in)  :: rho, grho
+    REAL(KIND=dp), DIMENSION(*), INTENT(out) :: s
+    INTEGER, INTENT(in)                      :: npoints
 
-  SUBROUTINE thomas_fermi_lsd_eval(rho_set,deriv_set,order,error)
+    INTEGER                                  :: ip
+
+    !$omp parallel do private(ip)
+    DO ip = 1, npoints
+      IF ( rho(ip) < eps_rho ) THEN
+         s(ip) = 0.0_dp
+      ELSE
+         s(ip) = grho(ip)*grho(ip) / rho(ip)
+      END IF
+    END DO
+  END SUBROUTINE calc_s
+! *****************************************************************************
+
+  SUBROUTINE tfw_lsd_eval(rho_set,deriv_set,order,error)
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     INTEGER, INTENT(in)                      :: order
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'thomas_fermi_lsd_eval', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'tfw_lsd_eval', &
       routineP = moduleN//':'//routineN
 
+    CHARACTER(len=12), DIMENSION(2) :: &
+      norm_drho_spin_name = (/"(norm_drhoa)","(norm_drhob)"/)
     CHARACTER(len=6), DIMENSION(2) :: rho_spin_name = (/"(rhoa)","(rhob)"/)
-    INTEGER                                  :: handle, i, ispin, npoints
+    INTEGER                                  :: handle, i, ispin, npoints, &
+                                                stat
     INTEGER, DIMENSION(:, :), POINTER        :: bo
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: epsilon_rho
-    REAL(KIND=dp), DIMENSION(:, :, :), &
-      POINTER                                :: e_0, e_rho, e_rho_rho, &
-                                                e_rho_rho_rho
-    TYPE(cp_3d_r_p_type), DIMENSION(2)       :: rho, rho_1_3
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: s
+    REAL(KIND=dp), DIMENSION(:, :, :), POINTER :: e_0, e_ndrho, &
+      e_ndrho_ndrho, e_rho, e_rho_ndrho, e_rho_ndrho_ndrho, e_rho_rho, &
+      e_rho_rho_ndrho, e_rho_rho_rho
+    TYPE(cp_3d_r_p_type), DIMENSION(2)       :: norm_drho, rho, rho_1_3
     TYPE(xc_derivative_type), POINTER        :: deriv
 
     CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
     NULLIFY(deriv, bo)
     DO i=1,2
-       NULLIFY(rho(i)%array, rho_1_3(i)%array)
+       NULLIFY(norm_drho(i)%array, rho(i)%array, rho_1_3(i)%array)
     END DO
 
     CPPrecondition(ASSOCIATED(rho_set),cp_failure_level,routineP,error,failure)
@@ -226,48 +278,71 @@ CONTAINS
     CPPrecondition(ASSOCIATED(deriv_set),cp_failure_level,routineP,error,failure)
     CPPrecondition(deriv_set%ref_count>0,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
- 
        CALL xc_rho_set_get(rho_set,rhoa_1_3=rho_1_3(1)%array,&
             rhob_1_3=rho_1_3(2)%array,rhoa=rho(1)%array,&
-            rhob=rho(2)%array,&
-            rho_cutoff=epsilon_rho,&
+            rhob=rho(2)%array,norm_drhoa=norm_drho(1)%array, &
+            norm_drhob=norm_drho(2)%array,rho_cutoff=epsilon_rho,&
             local_bounds=bo, error=error)
        npoints=(bo(2,1)-bo(1,1)+1)*(bo(2,2)-bo(1,2)+1)*(bo(2,3)-bo(1,3)+1)
-       CALL thomas_fermi_init(epsilon_rho)
+       CALL tfw_init(epsilon_rho)
+
+       ALLOCATE ( s(npoints), STAT=stat )
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
        DO ispin=1,2          
+          CALL calc_s(rho(ispin)%array, norm_drho(ispin)%array, s, npoints)
+
           IF ( order>=0 ) THEN
              deriv => xc_dset_get_derivative(deriv_set,"",&
                   allocate_deriv=.TRUE., error=error)
              CALL xc_derivative_get(deriv, deriv_data=e_0,error=error)
 
-             CALL thomas_fermi_lsd_0 ( rho(ispin)%array, rho_1_3(ispin)%array,&
-                  e_0, npoints, error )
+             CALL tfw_p_0 ( rho(ispin)%array, norm_drho(ispin)%array, &
+                  rho_1_3(ispin)%array, s, e_0, npoints,error )
           END IF
           IF ( order>=1.OR.order==-1 ) THEN
              deriv => xc_dset_get_derivative(deriv_set,rho_spin_name(ispin),&
                   allocate_deriv=.TRUE.,error=error)
              CALL xc_derivative_get(deriv,deriv_data=e_rho,error=error)
+             deriv => xc_dset_get_derivative(deriv_set,norm_drho_spin_name(ispin),&
+                  allocate_deriv=.TRUE.,error=error)
+             CALL xc_derivative_get(deriv,deriv_data=e_ndrho,error=error)
 
-             CALL thomas_fermi_lsd_1( rho(ispin)%array, rho_1_3(ispin)%array,&
-                  e_rho, npoints, error )
+             CALL tfw_p_1 ( rho(ispin)%array, norm_drho(ispin)%array, &
+                  rho_1_3(ispin)%array, s, e_rho, e_ndrho, npoints,error )
           END IF
           IF ( order>=2.OR.order==-2 ) THEN
              deriv => xc_dset_get_derivative(deriv_set,rho_spin_name(ispin)//&
                   rho_spin_name(ispin),allocate_deriv=.TRUE.,error=error)
              CALL xc_derivative_get(deriv,deriv_data=e_rho_rho,error=error)
-             
-             CALL thomas_fermi_lsd_2( rho(ispin)%array, rho_1_3(ispin)%array,&
-                  e_rho_rho, npoints, error )
+             deriv => xc_dset_get_derivative(deriv_set,rho_spin_name(ispin)//&
+                  norm_drho_spin_name(ispin),allocate_deriv=.TRUE.,error=error)
+             CALL xc_derivative_get(deriv,deriv_data=e_rho_ndrho,error=error)
+             deriv => xc_dset_get_derivative(deriv_set,norm_drho_spin_name(ispin)//&
+                  norm_drho_spin_name(ispin), allocate_deriv=.TRUE.,error=error)
+             CALL xc_derivative_get(deriv,deriv_data=e_ndrho_ndrho,error=error)
+
+             CALL tfw_p_2 ( rho(ispin)%array, norm_drho(ispin)%array, &
+                  rho_1_3(ispin)%array, s, e_rho_rho, e_rho_ndrho,&
+                  e_ndrho_ndrho, npoints,error )
           END IF
           IF ( order>=3 .OR. order==-3 ) THEN
              deriv => xc_dset_get_derivative(deriv_set,rho_spin_name(ispin)//&
                   rho_spin_name(ispin)//rho_spin_name(ispin),&
                   allocate_deriv=.TRUE.,error=error)
              CALL xc_derivative_get(deriv,deriv_data=e_rho_rho_rho,error=error)
+             deriv => xc_dset_get_derivative(deriv_set,rho_spin_name(ispin)//&
+                  rho_spin_name(ispin)//norm_drho_spin_name(ispin),&
+                  allocate_deriv=.TRUE.,error=error)
+             CALL xc_derivative_get(deriv,deriv_data=e_rho_rho_ndrho,error=error)
+             deriv => xc_dset_get_derivative(deriv_set,rho_spin_name(ispin)//&
+                  norm_drho_spin_name(ispin)//norm_drho_spin_name(ispin), &
+                  allocate_deriv=.TRUE.,error=error)
+             CALL xc_derivative_get(deriv,deriv_data=e_rho_ndrho_ndrho,error=error)
 
-             CALL thomas_fermi_lsd_3( rho(ispin)%array, rho_1_3(ispin)%array,&
-                  e_rho_rho_rho, npoints, error )
+             CALL tfw_p_3 ( rho(ispin)%array, norm_drho(ispin)%array, &
+                  rho_1_3(ispin)%array, s, e_rho_rho_rho, e_rho_rho_ndrho,&
+                  e_rho_ndrho_ndrho, npoints,error )
           END IF
           IF ( order>3.OR.order<-3) THEN
              CALL cp_unimplemented_error(fromWhere=routineP, &
@@ -275,15 +350,18 @@ CONTAINS
                   error=error, error_level=cp_failure_level)
           END IF
        END DO
+
+       DEALLOCATE ( s, STAT=stat )
+       CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
     END IF
     CALL timestop(0.0_dp,handle)
-  END SUBROUTINE thomas_fermi_lsd_eval
+  END SUBROUTINE tfw_lsd_eval
 
 ! *****************************************************************************
 
-  SUBROUTINE thomas_fermi_lda_0 ( rho, r13, e_0, npoints, error )
+  SUBROUTINE tfw_u_0 ( rho, r13, s, e_0, npoints, error )
 
-    REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rho, r13
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rho, r13, s
     REAL(KIND=dp), DIMENSION(*), &
       INTENT(INOUT)                          :: e_0
     INTEGER, INTENT(in)                      :: npoints
@@ -299,21 +377,21 @@ CONTAINS
 
       IF ( rho(ip) > eps_rho ) THEN
 
-         e_0(ip) = e_0(ip) + flda*r13(ip)*r13(ip)*rho(ip)
+         e_0(ip) = e_0(ip) + flda*r13(ip)*r13(ip)*rho(ip) + fvw * s(ip)
 
       END IF
 
     END DO
 
-  END SUBROUTINE thomas_fermi_lda_0
+  END SUBROUTINE tfw_u_0
 
 ! *****************************************************************************
 
-  SUBROUTINE thomas_fermi_lda_1 ( rho, r13, e_rho, npoints, error )
+  SUBROUTINE tfw_u_1 ( rho, grho, r13, s, e_rho, e_ndrho, npoints, error )
 
-    REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rho, r13
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rho, grho, r13, s
     REAL(KIND=dp), DIMENSION(*), &
-      INTENT(INOUT)                          :: e_rho
+      INTENT(INOUT)                          :: e_rho, e_ndrho
     INTEGER, INTENT(in)                      :: npoints
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -330,21 +408,24 @@ CONTAINS
 
       IF ( rho(ip) > eps_rho ) THEN
 
-         e_rho(ip) = e_rho(ip) + f * r13(ip)*r13(ip)
+         e_rho(ip) = e_rho(ip) + f * r13(ip)*r13(ip) - fvw * s(ip)/rho(ip)
+         e_ndrho(ip) = e_ndrho(ip) + 2.0_dp * fvw * grho(ip)/rho(ip)
 
       END IF
 
     END DO
 
-  END SUBROUTINE thomas_fermi_lda_1
+  END SUBROUTINE tfw_u_1
 
 ! *****************************************************************************
 
-  SUBROUTINE thomas_fermi_lda_2 ( rho, r13, e_rho_rho, npoints, error )
+  SUBROUTINE tfw_u_2 ( rho, grho, r13, s, e_rho_rho, e_rho_ndrho, e_ndrho_ndrho,&
+       npoints, error)
 
-    REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rho, r13
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rho, grho, r13, s
     REAL(KIND=dp), DIMENSION(*), &
-      INTENT(INOUT)                          :: e_rho_rho
+      INTENT(INOUT)                          :: e_rho_rho, e_rho_ndrho, &
+                                                e_ndrho_ndrho
     INTEGER, INTENT(in)                      :: npoints
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -361,21 +442,26 @@ CONTAINS
 
       IF ( rho(ip) > eps_rho ) THEN
 
-         e_rho_rho(ip) = e_rho_rho(ip) + f / r13(ip)
+         e_rho_rho(ip) = e_rho_rho(ip) + f / r13(ip) + 2.0_dp * fvw * s(ip)/(rho(ip)*rho(ip))
+         e_rho_ndrho(ip) = e_rho_ndrho(ip) - 2.0_dp * fvw * grho(ip)/(rho(ip)*rho(ip))
+         e_ndrho_ndrho(ip) = e_ndrho_ndrho(ip) + 2.0_dp * fvw / rho(ip)
 
       END IF
 
     END DO
 
-  END SUBROUTINE thomas_fermi_lda_2
+  END SUBROUTINE tfw_u_2
 
 ! *****************************************************************************
 
-  SUBROUTINE thomas_fermi_lda_3 ( rho, r13, e_rho_rho_rho, npoints, error )
+  SUBROUTINE tfw_u_3 ( rho, grho, r13, s, e_rho_rho_rho, e_rho_rho_ndrho,&
+       e_rho_ndrho_ndrho, npoints, error)
 
-    REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rho, r13
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rho, grho, r13, s
     REAL(KIND=dp), DIMENSION(*), &
-      INTENT(INOUT)                          :: e_rho_rho_rho
+      INTENT(INOUT)                          :: e_rho_rho_rho, &
+                                                e_rho_rho_ndrho, &
+                                                e_rho_ndrho_ndrho
     INTEGER, INTENT(in)                      :: npoints
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -392,19 +478,23 @@ CONTAINS
 
       IF ( rho(ip) > eps_rho ) THEN
 
-         e_rho_rho_rho(ip) = e_rho_rho_rho(ip) + f / ( r13(ip) * rho(ip) )
-
+         e_rho_rho_rho(ip) = e_rho_rho_rho(ip) + f / ( r13(ip) * rho(ip) ) &
+                     - 6.0_dp * fvw * s(ip)/(rho(ip)*rho(ip)*rho(ip))
+         e_rho_rho_ndrho(ip) = e_rho_rho_ndrho(ip)&
+              + 4.0_dp * fvw * grho(ip)/(rho(ip)*rho(ip)*rho(ip))
+         e_rho_ndrho_ndrho(ip) = e_rho_ndrho_ndrho(ip)&
+              - 2.0_dp * fvw / (rho(ip)*rho(ip))
       END IF
 
     END DO
 
-  END SUBROUTINE thomas_fermi_lda_3
+  END SUBROUTINE tfw_u_3
 
 ! *****************************************************************************
 
-  SUBROUTINE thomas_fermi_lsd_0 ( rhoa, r13a, e_0, npoints, error )
+  SUBROUTINE tfw_p_0 ( rhoa, grhoa, r13a, sa, e_0, npoints, error )
 
-    REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rhoa, r13a
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rhoa, grhoa, r13a, sa
     REAL(KIND=dp), DIMENSION(*), &
       INTENT(INOUT)                          :: e_0
     INTEGER, INTENT(in)                      :: npoints
@@ -419,20 +509,21 @@ CONTAINS
     DO ip = 1, npoints
 
       IF ( rhoa(ip) > eps_rho ) THEN
-         e_0(ip) = e_0(ip) + flsd * r13a(ip) * r13a(ip) * rhoa(ip)
+         e_0(ip) = e_0(ip) + flsd * r13a(ip) * r13a(ip) * rhoa(ip) + fvw * sa(ip)
       END IF
 
     END DO
 
-  END SUBROUTINE thomas_fermi_lsd_0
+  END SUBROUTINE tfw_p_0
 
 ! *****************************************************************************
 
-  SUBROUTINE thomas_fermi_lsd_1 ( rhoa, r13a, e_rho, npoints, error )
+  SUBROUTINE tfw_p_1 ( rhoa, grhoa, r13a, sa, e_rho, e_ndrho, npoints,&
+       error )
 
-    REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rhoa, r13a
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rhoa, grhoa, r13a, sa
     REAL(KIND=dp), DIMENSION(*), &
-      INTENT(INOUT)                          :: e_rho
+      INTENT(INOUT)                          :: e_rho, e_ndrho
     INTEGER, INTENT(in)                      :: npoints
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -448,20 +539,23 @@ CONTAINS
     DO ip = 1, npoints
 
       IF ( rhoa(ip) > eps_rho ) THEN
-         e_rho(ip) = e_rho(ip) + f * r13a(ip) * r13a(ip)
+         e_rho(ip) = e_rho(ip) + f * r13a(ip)*r13a(ip) - fvw * sa(ip)/rhoa(ip)
+         e_ndrho(ip) = e_ndrho(ip) + 2.0_dp * fvw * grhoa(ip)/rhoa(ip)
       END IF
 
     END DO
 
-  END SUBROUTINE thomas_fermi_lsd_1
+  END SUBROUTINE tfw_p_1
 
 ! *****************************************************************************
 
-  SUBROUTINE thomas_fermi_lsd_2 ( rhoa, r13a, e_rho_rho, npoints, error )
+  SUBROUTINE tfw_p_2 ( rhoa, grhoa, r13a, sa, e_rho_rho, e_rho_ndrho,&
+       e_ndrho_ndrho, npoints, error )
 
-    REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rhoa, r13a
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rhoa, grhoa, r13a, sa
     REAL(KIND=dp), DIMENSION(*), &
-      INTENT(INOUT)                          :: e_rho_rho
+      INTENT(INOUT)                          :: e_rho_rho, e_rho_ndrho, &
+                                                e_ndrho_ndrho
     INTEGER, INTENT(in)                      :: npoints
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -477,20 +571,27 @@ CONTAINS
     DO ip = 1, npoints
 
       IF ( rhoa(ip) > eps_rho ) THEN
-         e_rho_rho(ip) = e_rho_rho(ip) + f / r13a(ip)
+         e_rho_rho(ip) = e_rho_rho(ip)&
+              + f / r13a(ip) + 2.0_dp * fvw * sa(ip)/(rhoa(ip)*rhoa(ip))
+         e_rho_ndrho(ip) = e_rho_ndrho(ip)&
+              - 2.0_dp * fvw * grhoa(ip)/(rhoa(ip)*rhoa(ip))
+         e_ndrho_ndrho(ip) = e_ndrho_ndrho(ip) + 2.0_dp * fvw / rhoa(ip)
       END IF
 
     END DO
 
-  END SUBROUTINE thomas_fermi_lsd_2
+  END SUBROUTINE tfw_p_2
 
 ! *****************************************************************************
 
-  SUBROUTINE thomas_fermi_lsd_3 ( rhoa, r13a, e_rho_rho_rho, npoints, error )
+  SUBROUTINE tfw_p_3 ( rhoa, grhoa, r13a, sa, e_rho_rho_rho, e_rho_rho_ndrho,&
+       e_rho_ndrho_ndrho, npoints, error )
 
-    REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rhoa, r13a
+    REAL(KIND=dp), DIMENSION(*), INTENT(IN)  :: rhoa, grhoa, r13a, sa
     REAL(KIND=dp), DIMENSION(*), &
-      INTENT(INOUT)                          :: e_rho_rho_rho
+      INTENT(INOUT)                          :: e_rho_rho_rho, &
+                                                e_rho_rho_ndrho, &
+                                                e_rho_ndrho_ndrho
     INTEGER, INTENT(in)                      :: npoints
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -506,15 +607,21 @@ CONTAINS
     DO ip = 1, npoints
 
       IF ( rhoa(ip) > eps_rho ) THEN
-         e_rho_rho_rho(ip) = e_rho_rho_rho(ip) + f / ( r13a(ip)*rhoa(ip))
+         e_rho_rho_rho(ip) = e_rho_rho_rho(ip)&
+              + f / ( r13a(ip) * rhoa(ip) ) &
+              - 6.0_dp * fvw * sa(ip)/(rhoa(ip)*rhoa(ip)*rhoa(ip))
+         e_rho_rho_ndrho(ip) = e_rho_rho_ndrho(ip)&
+              + 4.0_dp * fvw * grhoa(ip)/(rhoa(ip)*rhoa(ip)*rhoa(ip))
+         e_rho_ndrho_ndrho(ip) = e_rho_ndrho_ndrho(ip)&
+              - 2.0_dp * fvw / (rhoa(ip)*rhoa(ip))
       END IF
 
     END DO
 
-  END SUBROUTINE thomas_fermi_lsd_3
+  END SUBROUTINE tfw_p_3
 
 ! *****************************************************************************
 
-END MODULE xc_thomas_fermi_new
+END MODULE xc_tfw
 
 ! *****************************************************************************

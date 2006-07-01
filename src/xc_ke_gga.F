@@ -20,7 +20,7 @@
 !!
 !******************************************************************************
 
-MODULE xc_ke_gga_new
+MODULE xc_ke_gga
 ! *****************************************************************************
   USE cp_array_r_utils,                ONLY: cp_3d_r_p_type
   USE input_constants,                 ONLY: &
@@ -58,7 +58,7 @@ MODULE xc_ke_gga_new
   REAL(KIND=dp) :: cf, b, b_lda, b_lsd, flda, flsd, sfac, t13
   REAL(KIND=dp) :: fact, tact
   REAL(KIND=dp) :: eps_rho
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_ke_gga_new'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_ke_gga'
 !!***
 ! *****************************************************************************
 
@@ -1366,6 +1366,6 @@ CONTAINS
 
 ! *****************************************************************************
 
-END MODULE xc_ke_gga_new
+END MODULE xc_ke_gga
 
 ! *****************************************************************************
