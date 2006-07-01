@@ -108,12 +108,12 @@ CONTAINS
                    //" Phys. Rev. B 45, 13244 (1992)"&
                    //"["//TRIM(p_string)//"]"
        IF (scale/=1._dp) THEN
-          WRITE(reference(LEN_TRIM(reference):LEN(reference)),"('s=',f6.3)")&
+          WRITE(reference(LEN_TRIM(reference)+1:LEN(reference)),"('s=',f5.3)")&
                scale
        END IF
        IF (.not.lsd) THEN
           IF (LEN_TRIM(reference)+6<LEN(reference)) THEN
-             reference(LEN_TRIM(reference):LEN_TRIM(reference)+6)=' {LDA}'
+             reference(LEN_TRIM(reference)+1:LEN_TRIM(reference)+7)=' {LDA}'
           END IF
        END IF
     END IF
@@ -121,12 +121,12 @@ CONTAINS
        shortform = "J. P. Perdew et al., PRB 45, 13244 (1992)"&
                    //"["//TRIM(p_string)//"]"
        IF (scale/=1._dp) THEN
-          WRITE(shortform(LEN_TRIM(shortform):LEN(shortform)),"('s=',f6.3)")&
+          WRITE(shortform(LEN_TRIM(shortform)+1:LEN(shortform)),"('s=',f5.3)")&
                scale
        END IF
        IF (.not.lsd) THEN
           IF (LEN_TRIM(shortform)+6<LEN(shortform)) THEN
-             shortform(LEN_TRIM(shortform):LEN_TRIM(shortform)+6)=' {LDA}'
+             shortform(LEN_TRIM(shortform)+1:LEN_TRIM(shortform)+7)=' {LDA}'
           END IF
        END IF
     END IF
