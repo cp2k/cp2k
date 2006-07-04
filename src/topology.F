@@ -484,7 +484,7 @@ CONTAINS
        ! Earn time fixing same element labels for same atoms
        DO j = 1, topology%natoms
           IF (TRIM(element0)==TRIM(topology%atom_info%element(j))) THEN
-             topology%atom_info%element(i)=my_element
+             topology%atom_info%element(j)=my_element
              elements(j)="[]"
           END IF
        END DO

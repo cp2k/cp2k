@@ -932,9 +932,14 @@ CONTAINS
     !------------------------------------------------------------------------------
     IF( (topology%bondparm_type==do_bondparm_covalent).OR.&
          (topology%bondparm_type==do_bondparm_vdw) ) THEN
-       CALL generate_particle_distances(atom_info%r,topology%cell,radius,&
-            topology%bondparm_factor,conn_info%bond_a,conn_info%bond_b,&
-            topology%bondparm_type,globenv)
+       CALL generate_particle_distances(atom_info%r,&
+            atom_info%label_molname,&
+            topology%cell,radius,&
+            topology%bondparm_factor,&
+            conn_info%bond_a,&
+            conn_info%bond_b,&
+            topology%bondparm_type,&
+            globenv)
        IF (iw>0) THEN
           WRITE(iw,'(A,I6)')"Total number of generated bonds :: ",SIZE(conn_info%bond_a)
           ! Dump info on the computed bonds
@@ -2589,8 +2594,13 @@ CONTAINS
        END DO
     END DO
     IF (ANY(kind_of==0)) THEN
-      WRITE(*,*)"Two molecules have been defined as identical molecules but atoms mismatch charges!!"
-      CPPostcondition(.false.,cp_failure_level,routineP,error,failure)
+       DO i = 1, topology%natoms
+          IF (kind_of(i)==0) THEN
+             WRITE(*,*)i,kind_of(i)
+             WRITE(*,*)"Two molecules have been defined as identical molecules but atoms mismatch charges!!"
+          END IF
+       END DO
+       CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
     END IF 
     CALL timestop(0.0_dp,handle2)
 
