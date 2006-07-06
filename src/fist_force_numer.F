@@ -2380,7 +2380,7 @@ SUBROUTINE potential_onefour ( molecule_set, molecule_kind_set, local_molecules,
                                                 ibond, ikind, imol, index_a, &
                                                 index_b, nkind, &
                                                 nmol_per_kind, nonfo
-    REAL(KIND=dp)                            :: e0, fscalar, rab2
+    REAL(KIND=dp)                            :: e0,e1,fscalar,rab2,rinv2,rinv
     REAL(KIND=dp), DIMENSION(3)              :: rij
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
@@ -2414,7 +2414,10 @@ SUBROUTINE potential_onefour ( molecule_set, molecule_kind_set, local_molecules,
         rab2 = DOT_PRODUCT ( rij, rij )
         spline_data => onfo_list ( ibond ) % onfo_kind % spline_data
         e0 = potential_s ( spline_data, rab2, fscalar )
-        energy = energy + e0
+        rinv2 = 1.0_dp/rab2
+        rinv  = SQRT(rinv2)
+        e1 = spline_data%ei_scale14 * rinv - spline_data%ei_cutoff14
+        energy = energy + e0 + e1
      END DO BOND
     END DO
   END DO MOL
