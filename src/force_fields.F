@@ -3599,14 +3599,12 @@ CONTAINS
              ii = 0 
              jj = 0
              DO k=1,SIZE(gro_info%nonbond_a)
-                WRITE(*,*) "ii match",TRIM(name_atm_a),TRIM(gro_info%nonbond_a(k))
                 IF(TRIM(name_atm_a)==TRIM(gro_info%nonbond_a(k))) THEN
                    ii = k
                    EXIT
                 END IF
              END DO
              DO k=1,SIZE(gro_info%nonbond_a)
-                WRITE(*,*) "jj match",TRIM(name_atm_b),TRIM(gro_info%nonbond_a(k))
                 IF(TRIM(name_atm_b)==TRIM(gro_info%nonbond_a(k))) THEN
                    jj = k
                    EXIT

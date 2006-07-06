@@ -81,6 +81,8 @@ MODULE fist_force_numer
                                              timestop
 #include "cp_common_uses.h"  
 
+  IMPLICIT NONE
+
   PRIVATE
   PUBLIC :: force_bond_numer, force_bend_numer, force_torsion_numer, &
             force_nonbond_numer, ewald_force_numer, force_imptors_numer
@@ -223,9 +225,9 @@ SUBROUTINE force_onefour_numer ( molecule_set, molecule_kind_set, local_molecule
 
     INTEGER :: akind, bkind, first_atom, i, ibond, idim, ikind, imol, &
       index_a, index_b, nkind, nmol_per_kind, nonfo
-    REAL(KIND=dp)                            :: e0, em, ep, fscalar, rab2, &
+    REAL(KIND=dp)                            :: e0, e1, em,em1,em2, ep,ep1,ep2, fscalar, rab2, &
                                                 rab2_minus_delta, &
-                                                rab2_plus_delta
+                                                rab2_plus_delta, rinv, rinv2
     REAL(KIND=dp), DIMENSION(3)              :: delta, rij
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
@@ -257,17 +259,31 @@ SUBROUTINE force_onefour_numer ( molecule_set, molecule_kind_set, local_molecule
         rij = particle_set ( index_b ) % r - particle_set ( index_a ) % r
 ! get the energy
         rab2 = DOT_PRODUCT ( rij, rij )
+        ! LJ contribution
         spline_data => onfo_list ( ibond ) % onfo_kind % spline_data
         e0 = potential_s ( spline_data, rab2, fscalar )
-        pot = pot + e0
+        ! EI contribution
+        rinv2 = 1.0_dp/rab2
+        rinv  = SQRT(rinv2)
+        e1 = spline_data%ei_scale14 * rinv - spline_data%ei_cutoff14
+
+        pot = pot + e0 + e1
 
 ! get the forces
         DO idim = 1, 3
            delta(idim) = numerical_shift
            rab2_minus_delta = DOT_PRODUCT ( rij - delta, rij - delta )
-           em = potential_s ( spline_data, rab2_minus_delta, fscalar )
+           em1 = potential_s ( spline_data, rab2_minus_delta, fscalar )
+           rinv2 = 1.0_dp/rab2_minus_delta
+           rinv  = SQRT(rinv2)
+           em2 = spline_data%ei_scale14 * rinv - spline_data%ei_cutoff14
+           em=em1+em2
            rab2_plus_delta = DOT_PRODUCT ( rij + delta, rij + delta )
-           ep =  potential_s ( spline_data, rab2_plus_delta, fscalar )
+           ep1 =  potential_s ( spline_data, rab2_plus_delta, fscalar )
+           rinv2 = 1.0_dp/rab2_plus_delta
+           rinv  = SQRT(rinv2)
+           ep2 = spline_data%ei_scale14 * rinv - spline_data%ei_cutoff14
+           ep=ep1+ep2
            f_numer(idim,index_a) = f_numer(idim,index_a) + (ep-em)
            f_numer(idim,index_b) = f_numer(idim,index_b) - (ep-em)
            delta = 0.0_dp
@@ -2462,7 +2478,7 @@ SUBROUTINE potential_ub ( molecule_set, molecule_kind_set, local_molecules, &
         index_a = ub_list ( iub ) % a + first_atom - 1
         index_b = ub_list ( iub ) % c + first_atom - 1
         rij = particle_set ( index_a ) % r - particle_set ( index_b ) % r
-        CALL force_bonds(ub_list(ibond)%ub_kind%name,&
+        CALL force_bonds(ub_list(iub)%ub_kind%name,&
                          rij,ub_list ( iub ) % ub_kind % r0, &
                          ub_list ( iub ) % ub_kind % k, &
                          e0,fscalar)

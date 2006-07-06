@@ -98,10 +98,8 @@ CONTAINS
             4.0_dp*pot%lj%epsilon*(pot%lj%sigma12*r**(-12)-pot%lj% &
             sigma6*r**(-6)) - pot%energy_cutoff
     ELSE IF (pot%type==lj_type) THEN
-       !ener_pot = vdw_scale14 * &
-       !     (pot%lj%sigma12*r**(-12)-pot%lj%sigma6*r**(-6)) - pot%energy_cutoff
        ener_pot = vdw_scale14 * &
-            (pot%lj%sigma12*r**(-12)-pot%lj%sigma6*r**(-6))
+            (pot%lj%sigma12*r**(-12)-pot%lj%sigma6*r**(-6)) - pot%energy_cutoff
     ELSE IF (pot%type==ip_type) THEN
        ener_pot = 0._dp
        IF ( r > pot % ipbv % rcore ) THEN
