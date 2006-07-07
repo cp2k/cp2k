@@ -90,21 +90,24 @@ SUBROUTINE destroy_gaussian_gridlevel(gridlevel_info,globenv,error)
   output_unit = cp_print_key_unit_nr(logger,gridlevel_info%print_section, &
                    "", extension=".Log",error=error)
 
-  DEALLOCATE (gridlevel_info%cutoff,STAT=istat)
-  IF (istat /= 0) CALL stop_memory(routine,"gridlevel_info%cutoff")
   CALL mp_sum(gridlevel_info%total_count,group)
   CALL mp_sum(gridlevel_info%count,group)
   IF (output_unit>0) THEN
-    WRITE(output_unit,'(/,T3,A)')         "---------------------------------------"
-    WRITE(output_unit,'(T3,A)')           "--           MULTIGRID INFO          --"
-    WRITE(output_unit,'(T3,A)')           "---------------------------------------"
+    WRITE(output_unit,'(/,T3,A,A)') "---------------------------------------",&
+                                    "---------------------------------------"
+    WRITE(output_unit,'(T3,A,T35,A,T77,A)') "----","MULTIGRID INFO","----"
+    WRITE(output_unit,'(T3,A,A)') "---------------------------------------",&
+                                    "---------------------------------------"
+    DO i=1,gridlevel_info%ngrid_levels
+      WRITE(output_unit,'(T3,A,I4,A,I14,9x,A,F12.2)') "count for grid     ",i,": ",&
+       gridlevel_info%count(i)," cutoff [a.u.]    ",gridlevel_info%cutoff(i)
+    END DO
     WRITE(output_unit,'(T3,A,I14)')        "total gridlevel count  : ",&
       gridlevel_info%total_count
-    DO i=1,gridlevel_info%ngrid_levels
-      WRITE(output_unit,'(T3,A,I4,A,I14)') "count for grid     ",i,": ",&
-       gridlevel_info%count(i)
-    END DO
   END IF
+
+  DEALLOCATE (gridlevel_info%cutoff,STAT=istat)
+  IF (istat /= 0) CALL stop_memory(routine,"gridlevel_info%cutoff")
 
   CALL cp_print_key_finished_output(output_unit,logger,gridlevel_info%print_section,&
                                     "", error=error)  
