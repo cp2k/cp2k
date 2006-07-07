@@ -98,12 +98,17 @@ SUBROUTINE destroy_gaussian_gridlevel(gridlevel_info,globenv,error)
     WRITE(output_unit,'(T3,A,T35,A,T77,A)') "----","MULTIGRID INFO","----"
     WRITE(output_unit,'(T3,A,A)') "---------------------------------------",&
                                     "---------------------------------------"
-    DO i=1,gridlevel_info%ngrid_levels
-      WRITE(output_unit,'(T3,A,I4,A,I14,9x,A,F12.2)') "count for grid     ",i,": ",&
-       gridlevel_info%count(i)," cutoff [a.u.]    ",gridlevel_info%cutoff(i)
-    END DO
-    WRITE(output_unit,'(T3,A,I14)')        "total gridlevel count  : ",&
-      gridlevel_info%total_count
+    IF ( gridlevel_info%ngrid_levels > 1 ) THEN
+      DO i=1,gridlevel_info%ngrid_levels
+        WRITE(output_unit,'(T3,A,I4,A,I14,9x,A,F12.2)') "count for grid     ",i,": ",&
+         gridlevel_info%count(i)," cutoff [a.u.]    ",gridlevel_info%cutoff(i)
+      END DO
+      WRITE(output_unit,'(T3,A,I14)')        "total gridlevel count  : ",&
+        gridlevel_info%total_count
+    ELSE
+      WRITE(output_unit,'(T3,A,I14,T51,A,F12.2)') "total grid count     :",&
+       gridlevel_info%count(1)," cutoff [a.u.]    ",gridlevel_info%cutoff(1)
+    END IF
   END IF
 
   DEALLOCATE (gridlevel_info%cutoff,STAT=istat)

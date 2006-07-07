@@ -939,7 +939,6 @@ SUBROUTINE pw_grid_setup1 ( cell, pw_grid, bounds, print_section, grid_span, &
           ELSE
              WRITE ( info, '(A,T72,A)' ) " PW_GRID: Grid span","FULLSPACE"
           END IF
-          WRITE ( info, '(/)' )
        END IF
   ELSE
 
