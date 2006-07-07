@@ -119,21 +119,21 @@ CONTAINS
           IF ( PRESENT ( reference ) ) THEN
              reference = "J.P.Perdew, K.Burke, M.Ernzerhof, "//&
                   "Phys. Rev. Letter, vol. 77, n 18, pp. 3865-3868, (1996)"//&
-                  "{LDA version}"
+                  "{spin unpolarized}"
           END IF
           IF ( PRESENT ( shortform ) ) THEN
-             shortform = "PBE Perdew-Burke-Ernzerhof xc functional (LDA)"
+             shortform = "PBE Perdew-Burke-Ernzerhof xc functional (unpolarized)"
           END IF
        ELSE
           IF ( PRESENT ( reference ) ) THEN
           WRITE (reference,"(a,a,'sx=',f5.3,'sc=',f5.3,a)")&
                "J.P.Perdew, K.Burke, M.Ernzerhof, ",&
                "Phys. Rev. Letter, vol. 77, n 18, pp. 3865-3868, (1996)",&
-               sx,sc,"{LDA version}"
+               sx,sc,"{spin unpolarized}"
           END IF
           IF ( PRESENT ( shortform ) ) THEN
              WRITE (shortform,"(a,'sx=',f5.3,'sc=',f5.3,'(LDA)')")&
-                  "PBE, Perdew-Burke-Ernzerhof xc functional ",sx,sc
+                  "PBE, Perdew-Burke-Ernzerhof xc functional (unpolarized)",sx,sc
           END IF
        END IF
     CASE(xc_rev_pbe)
@@ -141,10 +141,10 @@ CONTAINS
           IF ( PRESENT ( reference ) ) THEN
           reference = "revPBE, Yingkay Zhang and Weitao Yang,"//&
                " Phys. Rev. Letter, vol 80,n 4, p. 890, (1998)"//&
-               "{LDA version}"
+               "{spin unpolarized}"
           END IF
           IF ( PRESENT ( shortform ) ) THEN
-             shortform = "revPBE, revised Perdew-Burke-Ernzerhof exchange-correlation energy functional (LDA)"
+             shortform = "revPBE, revised PBE xc functional (unpolarized)"
           END IF
        ELSE
           IF ( PRESENT ( reference ) ) THEN
@@ -155,7 +155,7 @@ CONTAINS
           END IF
           IF ( PRESENT ( shortform ) ) THEN
              WRITE (shortform,"(a,'sx=',f5.3,'sc=',f5.3,'(LDA)')")&
-                  "revPBE, revised Perdew-Burke-Ernzerhof xc functional ",sx,sc
+                  "revPBE, revised PBE xc functional (unpolarized)",sx,sc
           END IF
        END IF
     CASE default
@@ -232,21 +232,21 @@ SUBROUTINE pbe_lsd_info(pbe_params,reference,shortform, needs, max_deriv,&
           IF ( PRESENT ( reference ) ) THEN
              reference = "J.P.Perdew, K.Burke, M.Ernzerhof, "//&
                   "Phys. Rev. Letter, vol. 77, n 18, pp. 3865-3868, (1996)"//&
-                  "{LSD version}"
+                  "{spin polarized}"
           END IF
           IF ( PRESENT ( shortform ) ) THEN
-             shortform = "PBE Perdew-Burke-Ernzerhof xc functional (LDA)"
+             shortform = "PBE xc functional (spin polarized)"
           END IF
        ELSE
           IF ( PRESENT ( reference ) ) THEN
           WRITE (reference,"(a,a,'sx=',f5.3,'sc=',f5.3,a)")&
                "J.P.Perdew, K.Burke, M.Ernzerhof, ",&
                "Phys. Rev. Letter, vol. 77, n 18, pp. 3865-3868, (1996)",&
-               sx,sc,"{LSD version}"
+               sx,sc,"{spin polarized}"
           END IF
           IF ( PRESENT ( shortform ) ) THEN
              WRITE (shortform,"(a,'sx=',f5.3,'sc=',f5.3,'(LSD)')")&
-                  "PBE, Perdew-Burke-Ernzerhof xc functional ",sx,sc
+                  "PBE xc functional (spin polarized)",sx,sc
           END IF
        END IF
     CASE(xc_rev_pbe)
@@ -254,21 +254,21 @@ SUBROUTINE pbe_lsd_info(pbe_params,reference,shortform, needs, max_deriv,&
           IF ( PRESENT ( reference ) ) THEN
              reference="revPBE, Yingkay Zhang and Weitao Yang,"//&
                " Phys. Rev. Letter, vol 80,n 4, p. 890, (1998)"//&
-               "{LSD version}"
+               "{spin polarized}"
           END IF
           IF ( PRESENT ( shortform ) ) THEN
-             shortform = "revPBE, revised Perdew-Burke-Ernzerhof exchange-correlation energy functional (LSD)"
+             shortform = "revPBE, revised PBE xc functional (spin polarized)"
           END IF
        ELSE
           IF ( PRESENT ( reference ) ) THEN
           WRITE (reference,"(a,a,'sx=',f5.3,'sc=',f5.3,a)")&
                "revPBE, Yingkay Zhang and Weitao Yang,",&
                " Phys. Rev. Letter, vol 80,n 4, p. 890, (1998)",&
-               sx,sc,"{LSD version}"
+               sx,sc,"{spin polarized}"
           END IF
           IF ( PRESENT ( shortform ) ) THEN
              WRITE (shortform,"(a,'sx=',f5.3,'sc=',f5.3,'(LSD)')")&
-                  "revPBE, revised Perdew-Burke-Ernzerhof xc functional ",sx,sc
+                  "revPBE, revised PBE xc functional (spin polarized)",sx,sc
           END IF
        END IF
     CASE default

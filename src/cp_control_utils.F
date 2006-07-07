@@ -635,7 +635,7 @@ CONTAINS
 
     CHARACTER(len=160)                       :: reference
     CHARACTER(len=20)                        :: tmpStr
-    INTEGER                                  :: ifun, output_unit
+    INTEGER                                  :: ifun, output_unit, il
     LOGICAL                                  :: failure
     REAL(kind=dp)                            :: density_cut, &
                                                 density_smooth_cut_range, &
@@ -763,8 +763,17 @@ CONTAINS
                                          error=error)
              WRITE (output_unit, fmt="(' FUNCTIONAL| ',a,':')")&
                   TRIM(xc_fun%section%name)
-             WRITE (output_unit, fmt="(' FUNCTIONAL| ',a)")&
-                  TRIM(reference)
+             il = LEN_TRIM(reference)
+             IF (il < 67) THEN
+               WRITE (output_unit, fmt="(' FUNCTIONAL| ',a)") reference(1:il)
+             ELSE IF (il < 134) THEN
+               WRITE (output_unit, fmt="(' FUNCTIONAL| ',a)") reference(1:67)
+               WRITE (output_unit, fmt="(' FUNCTIONAL| ',a)") reference(68:il)
+             ELSE
+               WRITE (output_unit, fmt="(' FUNCTIONAL| ',a)") reference(1:67)
+               WRITE (output_unit, fmt="(' FUNCTIONAL| ',a)") reference(68:134)
+               WRITE (output_unit, fmt="(' FUNCTIONAL| ',a)") reference(134:il)
+             END IF
           END DO
        END IF
     END IF
