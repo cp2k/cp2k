@@ -54,7 +54,7 @@ MODULE pw_types
   PRIVATE
   PUBLIC :: pw_type, pw_p_type
   PUBLIC :: pw_retain, pw_release, pw_create
-  PUBLIC :: pw_zero, pw_structure_factor
+  PUBLIC :: pw_zero, pw_structure_factor, pw_smoothing
   PUBLIC :: pw_copy, pw_add, pw_sumup, pw_subtract, pw_reduce, pw_transfer, pw_scale
   PUBLIC :: pw_derive, pw_dr2, pw_derive_fd, pw_sumup_square, pw_fft_wrap, pw_write
   PUBLIC :: pw_prolongate_l, pw_restrict_l, pw_compare_debug
@@ -570,14 +570,14 @@ SUBROUTINE pw_dr2 ( pw, pwdr2, i, j )
     cnt = SIZE ( pw % cc )
 
     IF ( i == j ) THEN
-!$omp parallel do private (i)
+!$omp parallel do private (ig)
       DO ig = 1, cnt
         gg = pw%pw_grid%g(i,ig)**2 - o3*pw%pw_grid%gsq(ig)
         pwdr2%cc(ig) = gg * pw%cc(ig)
       END DO
       flop = flop + 5 * cnt
     ELSE
-!$omp parallel do private (i)
+!$omp parallel do private (ig)
       DO ig = 1, cnt
         pwdr2%cc(ig) = pw%cc(ig) * (pw%pw_grid%g(i,ig)*pw%pw_grid%g(j,ig))
       END DO
@@ -594,6 +594,74 @@ SUBROUTINE pw_dr2 ( pw, pwdr2, i, j )
   CALL timestop ( flop, handle )
 
 END SUBROUTINE pw_dr2
+
+!******************************************************************************
+!!****** pw_types/pw_smoothing [1.0] *
+!!
+!!   NAME
+!!     pw_smoothing
+!!
+!!   SYNOPSIS
+!!     Subroutine pw_smoothing(pw, ecut, sigma)
+!!       Type(pw_type), Intent (INOUT)            :: pw
+!!       REAL, Intent(IN)                         :: ecut, sigma
+!!     End Subroutine pw_smoothing
+!!
+!!   FUNCTION
+!!     Multiplies a G-space function with a smoothing factor of the form
+!!     f(|G|) = exp((ecut - G^2)/sigma)/(1+exp((ecut - G^2)/sigma))
+!!
+!!   AUTHOR
+!!     JGH (09-June-2006)
+!!
+!!   MODIFICATION HISTORY
+!!     none
+!!
+!!   NOTES
+!!     PW has to be in RECIPROCALSPACE and data in use is COMPLEXDATA1D
+!!
+!!*****
+!******************************************************************************
+
+SUBROUTINE pw_smoothing ( pw, ecut, sigma )
+
+    TYPE(pw_type), INTENT(INOUT)             :: pw
+    REAL(KIND=dp), INTENT(IN)                :: ecut, sigma
+
+    INTEGER                                  :: cnt, handle, ig
+    REAL(KIND=dp)                            :: gg, f, arg, flop
+
+!------------------------------------------------------------------------------
+
+  CALL timeset ( 'pw_smooting', 'I', 'Mflops', handle )
+
+  CPPreconditionNoErr(pw%ref_count>0,cp_failure_level,"pw_dr2")
+
+  flop = 0.0_dp
+
+  IF ( pw % in_space == RECIPROCALSPACE .AND. &
+       pw % in_use == COMPLEXDATA1D ) THEN
+
+    cnt = SIZE ( pw % cc )
+
+!$omp parallel do private (ig)
+    DO ig = 1, cnt
+      arg = (ecut - pw%pw_grid%gsq(ig))/sigma
+      f = exp(arg)/(1+exp(arg))
+      pw%cc(ig) = f * pw%cc(ig)
+    END DO
+    flop = flop + 6 * cnt
+
+  ELSE
+
+    CALL stop_program ( "pw_dr2", "no suitable data field" )
+
+  END IF
+
+  flop = flop * 1.e-6_dp
+  CALL timestop ( flop, handle )
+
+END SUBROUTINE pw_smoothing
 
 !******************************************************************************
 !!****** pw_types/pw_get_left_right [1.0] *
@@ -3692,10 +3760,10 @@ SUBROUTINE pw_structure_factor ( sf, r )
 
     cnt = SIZE ( sf % cc )
 
-!$omp parallel do private (i)
+!$omp parallel do private (ig)
     DO ig = 1, cnt
       arg = DOT_PRODUCT(sf%pw_grid%g(:,ig),r)
-      sf%cc(ig)=CMPLX(COS(arg),SIN(arg),KIND=dp)
+      sf%cc(ig)=CMPLX(COS(arg),-SIN(arg),KIND=dp)
     END DO
     flop = flop + 7 * cnt
   ELSE

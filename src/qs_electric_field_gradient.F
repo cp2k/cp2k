@@ -29,16 +29,21 @@ MODULE qs_electric_field_gradient
   USE coefficient_types,               ONLY: coeff_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_para_types,                   ONLY: cp_para_env_type
-! USE cp_output_handling,              ONLY: cp_print_key_unit_nr
   USE eigenvalueproblems,              ONLY: diagonalise
-! USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-!                                            section_vals_type
+  USE input_section_types,             ONLY: section_get_ival,&
+                                             section_get_rval,&
+                                             section_get_lval,&
+                                             section_vals_get_subs_vals,&
+                                             section_vals_type,&
+                                             section_vals_val_get
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: fac,&
                                              fourpi
   USE message_passing,                 ONLY: mp_sum
   USE orbital_pointers,                ONLY: indso,&
                                              nsoset
+  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+                                             cp_print_key_unit_nr
   USE particle_types,                  ONLY: particle_type
   USE physcon,                         ONLY: a_bohr,&
                                              e_charge,&
@@ -50,11 +55,25 @@ MODULE qs_electric_field_gradient
   USE pw_pool_types,                   ONLY: pw_pool_give_back_coeff,&
                                              pw_pool_init_coeff,&
                                              pw_pool_type
+  USE pw_spline_utils,                 ONLY: Eval_Interp_Spl3_pbc,&
+                                             find_coeffs,&
+                                             pw_spline_precond_type,&
+                                             pw_spline_precond_create,&
+                                             pw_spline_precond_release,&
+                                             pw_spline_do_precond,&
+                                             pw_spline_precond_set_kind,&
+                                             spl3_pbc
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
+                                             REALDATA3D,&
                                              RECIPROCALSPACE,&
+                                             REALSPACE,&
+                                             pw_copy,&
                                              pw_dr2,&
+                                             pw_integral_aa,&
                                              pw_integral_ab,&
-                                             pw_structure_factor
+                                             pw_structure_factor,&
+                                             pw_smoothing, &
+                                             pw_transfer
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_gapw_densities,               ONLY: prepare_gapw_den
@@ -80,11 +99,9 @@ CONTAINS
 
 !*******************************************************************************
   
-  SUBROUTINE qs_efg_calc(qs_env,unit_nr,interpolation,error)
+  SUBROUTINE qs_efg_calc(qs_env,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    INTEGER, INTENT(IN)                      :: unit_nr
-    LOGICAL, INTENT(IN)                      :: interpolation
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
@@ -94,10 +111,16 @@ CONTAINS
     CHARACTER(LEN=2)                         :: element_symbol
     INTEGER                                  :: i, iat, iatom, ij, ikind, &
                                                 istat, j, m, natom, &
-                                                natomkind, nkind, nspins
+                                                natomkind, nkind, nspins, &
+                                                unit_nr, max_iter, precond_kind, &
+                                                aint_precond
     INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL                                  :: failure, gapw, paw_atom
-    REAL(KIND=dp)                            :: efg_units, ehartree, f1, f2
+    LOGICAL                                  :: failure, gapw, paw_atom, success
+    LOGICAL                                  :: efg_interpolation, smoothing
+    REAL(KIND=dp)                            :: efg_units, ehartree, f1, f2, &
+                                                efg_val, eps_r, eps_x, &
+                                                ecut, sigma
+    REAL(KIND=dp), POINTER, DIMENSION(:)     :: rvals
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: efg_diagval, vh0
     REAL(KIND=dp), ALLOCATABLE, &
@@ -109,8 +132,8 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(coeff_type)                         :: rho_tot_gspace, &
                                                 structure_factor, &
-                                                v_hartree_gspace
-    TYPE(coeff_type), DIMENSION(:), POINTER  :: dvr2
+                                                v_hartree_gspace, dvr2rs
+    TYPE(coeff_type), DIMENSION(:), POINTER  :: dvr2, dvspl
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(grid_atom_type), POINTER            :: grid_atom
@@ -122,13 +145,14 @@ CONTAINS
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(rho_atom_type), DIMENSION(:), &
       POINTER                                :: rho_atom_set
+    TYPE(pw_spline_precond_type), POINTER    :: precond
+    TYPE(section_vals_type), POINTER         :: input, dft_section, interp_section
+    TYPE(cp_logger_type), POINTER            :: logger
 
     NULLIFY(atomic_kind_set, dft_control, para_env, particle_set, rho, &
-         rho_atom_set)
+         rho_atom_set, input, dft_section, interp_section)
 
-    IF (unit_nr > 0) THEN
-      WRITE(unit_nr,"(/,A,/)") " ELECTRIC FIELD GRADIENTS [V/m^2]"
-    END IF
+    logger => cp_error_get_logger(error)
 
     efg_units = Joule/a_bohr**2/e_charge * 1.e-21_dp
     f1 = SQRT(15._dp/fourpi)
@@ -138,7 +162,57 @@ CONTAINS
                     rho=rho,atomic_kind_set=atomic_kind_set,&
                     rho_atom_set=rho_atom_set,pw_env=pw_env,&
                     particle_set=particle_set,para_env=para_env,&
-                    error=error)
+                    input=input,error=error)
+
+    dft_section => section_vals_get_subs_vals(input,"DFT",error=error)
+
+    efg_interpolation = section_get_lval(section_vals=dft_section,&
+                keyword_name="PRINT%ELECTRIC_FIELD_GRADIENT%INTERPOLATION",&
+                error=error)
+    CALL section_vals_val_get(dft_section,&
+                "PRINT%ELECTRIC_FIELD_GRADIENT%GSPACE_SMOOTHING",&
+                r_vals=rvals,error=error)
+    ecut = rvals(1)
+    sigma = rvals(2)
+    IF (ecut == 0._dp .AND. sigma <= 0._dp) THEN
+      smoothing = .FALSE.
+      ecut = 1.e10_dp   ! not used, just to have vars defined
+      sigma = 1._dp     ! not used, just to have vars defined
+    ELSEIF (ecut == -1._dp .AND. sigma == -1._dp) THEN
+      smoothing = .TRUE.
+      CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool,error=error)
+      CALL pw_pool_init_coeff(pool=auxbas_pw_pool,coeff=dvr2rs, &
+                              use_data=REALDATA3D,in_space=REALSPACE,&
+                              error=error)
+      ecut  = 2._dp * dvr2rs%pw%pw_grid%cutoff * 0.875_dp
+      sigma = 2._dp * dvr2rs%pw%pw_grid%cutoff * 0.125_dp
+      CALL pw_pool_give_back_coeff(auxbas_pw_pool,dvr2rs,error=error)
+    ELSE
+      smoothing = .TRUE.
+    END IF
+    CPPostcondition(ecut > 0._dp,cp_failure_level,routineP,error,failure)
+    CPPostcondition(sigma > 0._dp,cp_failure_level,routineP,error,failure)
+
+    unit_nr=cp_print_key_unit_nr(logger,dft_section,"PRINT%ELECTRIC_FIELD_GRADIENT",&
+               extension=".efg",log_filename=.FALSE.,error=error)
+
+    IF (unit_nr > 0) THEN
+      WRITE(unit_nr,"(/,A,/)") " ELECTRIC FIELD GRADIENTS [V/m^2]"
+      IF (efg_interpolation) THEN
+        WRITE(unit_nr,"(T16,A)") &
+            " Smooth potential contribution calculated by spline interpolation"
+      ELSE
+        WRITE(unit_nr,"(T12,A)") &
+            " Smooth potential contribution calculated by plane wave interpolation"
+      END IF
+      IF (smoothing) THEN
+        WRITE(unit_nr,"(T36,A)") &
+            " G-Space potential smoothed by Fermi function"
+        WRITE(unit_nr,"(T36,A,T71,F10.4)") " Cutoff (eV) ",ecut
+        WRITE(unit_nr,"(T36,A,T71,F10.4)") " Width (eV) ",sigma
+      END IF
+      WRITE(unit_nr,*)
+    END IF
 
     gapw = dft_control%qs_control%gapw
     nspins = dft_control%nspins
@@ -156,6 +230,8 @@ CONTAINS
     vh0 = 0._dp
 
     ALLOCATE (dvr2(6),STAT=istat )
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (dvspl(6),STAT=istat )
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     !prepare calculation
@@ -175,6 +251,9 @@ CONTAINS
     CALL pw_poisson_solve(poisson_env,rho_tot_gspace%pw,ehartree,&
                           v_hartree_gspace%pw)
 
+    ! smoothing of potential
+    IF ( smoothing ) CALL pw_smoothing(v_hartree_gspace%pw,ecut,sigma)
+
     CALL pw_pool_give_back_coeff(auxbas_pw_pool,rho_tot_gspace,error=error)
 
     DO i=1,3
@@ -186,10 +265,44 @@ CONTAINS
         CALL pw_dr2 ( v_hartree_gspace%pw, dvr2(ij)%pw, i, j )
       END DO
     END DO
-    IF ( .NOT. interpolation ) THEN
+
+    IF ( .NOT. efg_interpolation ) THEN
       CALL pw_pool_init_coeff(pool=auxbas_pw_pool,coeff=structure_factor, &
                               use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,&
                               error=error)
+    ELSE
+
+      interp_section =>  section_vals_get_subs_vals(dft_section,&
+                           "PRINT%ELECTRIC_FIELD_GRADIENT%INTERPOLATOR",error=error)
+      CALL section_vals_val_get(interp_section,"aint_precond", &
+                                i_val=aint_precond, error=error)
+      CALL section_vals_val_get(interp_section,"precond",i_val=precond_kind, error=error)
+      CALL section_vals_val_get(interp_section,"max_iter",i_val=max_iter, error=error)
+      CALL section_vals_val_get(interp_section,"eps_r",r_val=eps_r, error=error)
+      CALL section_vals_val_get(interp_section,"eps_x",r_val=eps_x, error=error)
+
+      CALL pw_pool_init_coeff(pool=auxbas_pw_pool,coeff=dvr2rs, &
+                              use_data=REALDATA3D,in_space=REALSPACE,&
+                              error=error)
+      DO i=1,6
+        CALL pw_pool_init_coeff(pool=auxbas_pw_pool,coeff=dvspl(i), &
+                            use_data=REALDATA3D,in_space=REALSPACE,&
+                            error=error)
+        CALL pw_transfer ( dvr2(i)%pw, dvr2rs%pw )
+        ! calculate spline coefficients
+        CALL pw_spline_precond_create(precond,precond_kind=aint_precond,&
+          pool=auxbas_pw_pool,pbc=.TRUE.,transpose=.FALSE.,error=error)
+        CALL pw_spline_do_precond(precond,dvr2rs%pw,dvspl(i)%pw,error=error)
+        CALL pw_spline_precond_set_kind(precond,precond_kind,error=error)
+        success=find_coeffs(values=dvr2rs%pw,coeffs=dvspl(i)%pw,&
+             linOp=spl3_pbc,preconditioner=precond,pool=auxbas_pw_pool, &
+             eps_r=eps_r,eps_x=eps_x,max_iter=max_iter, &
+             print_section=interp_section,error=error)
+        CPPostconditionNoFail(success,cp_warning_level,routineP,error)
+        CALL pw_spline_precond_release(precond,error=error)
+        CALL pw_pool_give_back_coeff(auxbas_pw_pool,dvr2(i),error=error)
+      END DO
+      CALL pw_pool_give_back_coeff(auxbas_pw_pool,dvr2rs,error=error)
     END IF
 
     nkind = SIZE(atomic_kind_set) 
@@ -199,17 +312,19 @@ CONTAINS
       NULLIFY(grid_atom,atom_list)
       CALL get_atomic_kind(atomic_kind=atomic_kind,grid_atom=grid_atom,&
                            atom_list=atom_list,natom=natomkind,paw_atom=paw_atom)
-      IF( paw_atom) THEN
-        CALL vlimit_atom(para_env,vh0,rho_atom_set,atomic_kind,&
-                         atom_list,grid_atom,natomkind,nspins,error)
-      END IF
-
       DO iat = 1,natomkind 
         iatom = atom_list(iat)
-        IF ( interpolation ) THEN
-          CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+        ra = particle_set(iatom)%r
+        IF ( efg_interpolation ) THEN
+          DO i=1,3
+            DO j=1,i
+              ij=(i*(i-1))/2+j
+              efg_val = Eval_Interp_Spl3_pbc(ra,dvspl(ij)%pw,error)
+              efg_tensor(i,j,iatom)=-efg_val
+              efg_tensor(j,i,iatom)=efg_tensor(i,j,iatom)
+            END DO
+          END DO
         ELSE
-          ra = particle_set(iatom)%r
           CALL pw_structure_factor(structure_factor%pw,ra)
           DO i=1,3
             DO j=1,i
@@ -220,9 +335,17 @@ CONTAINS
           END DO
           efg_tensor(:,:,iatom)=efg_tensor(:,:,iatom)/structure_factor%pw%pw_grid%vol
         END IF
-        IF(paw_atom) THEN
-          efg_tensor(1,1,iatom)=efg_tensor(1,1,iatom)+f1*(vh0(iatom,2))-f2*(vh0(iatom,0))
-          efg_tensor(2,2,iatom)=efg_tensor(2,2,iatom)-f1*(vh0(iatom,2))-f2*(vh0(iatom,0))
+      END DO
+
+      IF( paw_atom) THEN
+        CALL vlimit_atom(para_env,vh0,rho_atom_set,atomic_kind,&
+                         atom_list,grid_atom,natomkind,nspins,error)
+        DO iat = 1,natomkind 
+          iatom = atom_list(iat)
+          efg_tensor(1,1,iatom)=efg_tensor(1,1,iatom) &
+                                   +f1*(vh0(iatom,2))-f2*(vh0(iatom,0))
+          efg_tensor(2,2,iatom)=efg_tensor(2,2,iatom) &
+                                   -f1*(vh0(iatom,2))-f2*(vh0(iatom,0))
           efg_tensor(3,3,iatom)=efg_tensor(3,3,iatom)+2._dp*f2*(vh0(iatom,0))
           efg_tensor(1,2,iatom)=efg_tensor(1,2,iatom)+f1*(vh0(iatom,-2))
           efg_tensor(2,1,iatom)=efg_tensor(2,1,iatom)+f1*(vh0(iatom,-2))
@@ -230,10 +353,15 @@ CONTAINS
           efg_tensor(3,1,iatom)=efg_tensor(3,1,iatom)+f1*(vh0(iatom,1))
           efg_tensor(2,3,iatom)=efg_tensor(2,3,iatom)+f1*(vh0(iatom,-1))
           efg_tensor(3,2,iatom)=efg_tensor(3,2,iatom)+f1*(vh0(iatom,-1))
-        END IF
-        CALL diagonalise ( efg_tensor(:,:,iatom), 3, "UPPER", eigenvalues, eigenvectors )
+        END DO 
+      END IF
+
+      DO iat = 1,natomkind 
+        iatom = atom_list(iat)
+        CALL diagonalise ( efg_tensor(:,:,iatom), 3, "UPPER", &
+                           eigenvalues, eigenvectors )
         CALL efgsort(eigenvalues,efg_diagval(:,iatom))
-      END DO ! iat
+      END DO
     END DO ! ikind
 
     efg_tensor(:,:,:) = efg_tensor(:,:,:)*efg_units
@@ -254,13 +382,13 @@ CONTAINS
     ENDDO
 
     CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_hartree_gspace,error=error)
-    IF ( .NOT. interpolation ) THEN
+    IF ( .NOT. efg_interpolation ) THEN
       CALL pw_pool_give_back_coeff(auxbas_pw_pool,structure_factor,error=error)
+    ELSE
+      DO i=1,6
+        CALL pw_pool_give_back_coeff(auxbas_pw_pool,dvspl(i),error=error)
+      END DO
     END IF
-
-    DO i=1,6
-      CALL pw_pool_give_back_coeff(auxbas_pw_pool,dvr2(i),error=error)
-    END DO
 
     DEALLOCATE (efg_tensor,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -269,6 +397,8 @@ CONTAINS
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
     DEALLOCATE (dvr2,STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE (dvspl,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
   END SUBROUTINE qs_efg_calc
@@ -387,23 +517,23 @@ CONTAINS
                 CPC_sphere(i1:i1+size1-1,i2:i2+size2-1) = &
                   CPC_sphere(i1:i1+size1-1,i2:i2+size2-1) - &
                   coeff(iso1_first:iso1_last,iso2_first:iso2_last)
-               ENDDO ! i
+              ENDDO ! i
 
-               DO iso = 1,max_iso_not0
-                 l_iso = indso(1,iso) 
-                 m_iso = indso(2,iso) 
-                 IF ( l_iso /= 2 ) CYCLE
-                 DO icg = 1,harmonics%ncg(iso,iset1,iset2)
-                   iso1 = harmonics%ind_cg_a(icg,iso,iset1,iset2)
-                   iso2 = harmonics%ind_cg_b(icg,iso,iset1,iset2)
+              DO iso = 1,max_iso_not0
+                l_iso = indso(1,iso) 
+                m_iso = indso(2,iso) 
+                IF ( l_iso /= 2 ) CYCLE
+                DO icg = 1,harmonics%ncg(iso,iset1,iset2)
+                  iso1 = harmonics%ind_cg_a(icg,iso,iset1,iset2)
+                  iso2 = harmonics%ind_cg_b(icg,iso,iset1,iset2)
 
-                   l = indso(1,iso1) + indso(1,iso2)
-                   IF ( MOD(l,2) == 0 .AND. l > 0 ) THEN
-                     vlimit(iatom,m_iso) = vlimit(iatom,m_iso) +&
-                       vgg(l/2)*CPC_sphere(iso1,iso2)*my_CG(iso1,iso2,iso)
-                   END IF
-                 ENDDO  ! icg
-               ENDDO  ! iso 
+                  l = indso(1,iso1) + indso(1,iso2)
+                  IF ( MOD(l,2) == 0 .AND. l > 0 ) THEN
+                    vlimit(iatom,m_iso) = vlimit(iatom,m_iso) +&
+                      vgg(l/2)*CPC_sphere(iso1,iso2)*my_CG(iso1,iso2,iso)
+                  END IF
+                ENDDO  ! icg
+              ENDDO  ! iso 
 
             ENDDO  ! iat
         

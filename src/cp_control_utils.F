@@ -95,6 +95,7 @@ CONTAINS
                                                 tmp_section, &
                                                 xc_fun_section, xc_section
     TYPE(xc_rho_cflags_type)                 :: needs
+    REAL(KIND=dp), DIMENSION(:),POINTER      :: rvec
 
 !   ---------------------------------------------------------------------------
 
@@ -186,6 +187,17 @@ CONTAINS
     IF (dft_control % do_xas_calculation) THEN
       CALL read_xas_control(dft_control%xas_control,globenv,error=error)
     END IF
+
+!   *** Read the finite field input section ***
+    tmp_section => section_vals_get_subs_vals(dft_section,"field",&
+         error=error)
+    CALL section_vals_val_get(tmp_section,"ELECTRICAL_FIELD_STRENGTH",&
+         r_val=dft_control%finite_field_control%efield_strength,error=error)
+    CALL section_vals_val_get(tmp_section,"ELECTRICAL_FIELD_POLARISATION",&
+         r_vals=rvec,error=error)
+    dft_control%finite_field_control%efield_polarisation(1:3)=rvec(1:3)
+    CALL section_vals_val_get(tmp_section,"BERRY_PHASE",&
+         l_val=dft_control%finite_field_control%berry_phase,error=error)
 
   END SUBROUTINE read_dft_control
 
@@ -659,6 +671,21 @@ CONTAINS
        WRITE (UNIT=output_unit,FMT="(T2,A,T76,I5)")&
          "DFT| Number of spin states",dft_control%nspins
 
+       IF ( dft_control % finite_field_control % efield_strength /= 0._dp ) THEN
+          IF (dft_control % finite_field_control % berry_phase) THEN
+            WRITE ( output_unit, '( A, T51, A )' ) " DFT| Finite electrical field ",&
+             "Polarisation type: Berry phase"
+          ELSE
+            WRITE ( output_unit, '( A )' ) " DFT| Finite electrical field "
+          END IF
+          WRITE ( output_unit, '( A, T61, F20.5 )' ) " DFT| Field strength [a.u.]",&
+            dft_control % finite_field_control % efield_strength 
+          WRITE ( output_unit, '( A, T51, 3F10.5 )' ) " DFT| Field polarisation",&
+            dft_control % finite_field_control % efield_polarisation
+          CALL stop_program(routineN,moduleN,__LINE__,&
+                           "Finite field not operational")
+       END IF
+       
        WRITE (UNIT=output_unit,FMT="(T2,A,T76,I5)")&
          "DFT| Charge",dft_control%charge
 

@@ -192,6 +192,10 @@ CONTAINS
     CALL section_add_subsection(section, subsection, error=error)
     CALL section_release(subsection,error=error)
 
+    CALL create_field_section(subsection,error)
+    CALL section_add_subsection(section, subsection, error=error)
+    CALL section_release(subsection,error=error)
+
     CALL create_poisson_section(subsection,error)
     CALL section_add_subsection(section, subsection, error=error)
     CALL section_release(subsection,error=error)
@@ -367,6 +371,7 @@ CONTAINS
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: print_key, print_key2
+    TYPE(section_type), POINTER              :: subsection
 
     failure=.FALSE.
 
@@ -377,7 +382,7 @@ CONTAINS
             n_keywords=0, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
             error=error)
 
-       NULLIFY(print_key, keyword, print_key2)
+       NULLIFY(print_key, keyword, print_key2, subsection)
 
        CALL cp_print_key_section_create(print_key,"PROGRAM_BANNER",&
             description="Controls the printing of the banner of the MM program",&
@@ -818,6 +823,23 @@ CONTAINS
              default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword=keyword,&
+             name="GSPACE_SMOOTHING",&
+             description="Use a G-space smoothing function",&
+             usage="GSPACE_SMOOTHING cutoff {real}, width {real}", &
+             repeats=.FALSE.,&
+             required=.FALSE.,&
+             n_var=2,default_r_vals=(/-1._dp,-1._dp/),&
+             type_of_var=real_t, error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+
+       CALL create_gspace_interp_section(subsection,error=error)
+       CALL section_add_subsection(print_key, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)
 
@@ -3319,6 +3341,75 @@ SUBROUTINE create_sic_section(section,error)
 
   END IF
 END SUBROUTINE create_sic_section
+
+!!****f* input_cp2k_dft/create_field_section *
+!!
+!!   NAME
+!!     create_field_section
+!!
+!!   FUNCTION
+!!     creates the section for finite fields
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     JGH
+!!
+!!*** **********************************************************************
+SUBROUTINE create_field_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_field_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+  failure=.FALSE.
+  
+  CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
+     CALL section_create(section,"field",&
+         description="parameters for finite fields",&
+         n_keywords=6, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+         error=error)
+
+     NULLIFY(keyword)
+
+     CALL keyword_create(keyword, name="ELECTRICAL_FIELD_STRENGTH",&
+          variants=(/"EFIELD_STRENGTH"/),&
+          description="Strength of electrical field",&
+          usage="ELECTRICAL_FIELD_STRENGTH  1.0",&
+          default_r_val=0._dp,error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+
+     CALL keyword_create(keyword, name="ELECTRICAL_FIELD_POLARISATION",&
+          variants=(/"EFIELD_POLARISATION"/),&
+          description="Polarisation vector of electrical field",&
+          usage="ELECTRICAL_FIELD_POLARISIATION  0.0 0.0 1.0",&
+          repeats=.FALSE.,required=.FALSE.,n_var=2,&
+          type_of_var=real_t,default_r_vals=(/0.0_dp,0.0_dp,1.0_dp/),&
+          error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+
+     CALL keyword_create(keyword, name="BERRY_PHASE",&
+          description="Use the Berry phase definition for the polarisation",&
+          usage="BERRY_PHASE ON/OFF", default_l_val=.TRUE.,error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+
+
+  END IF
+END SUBROUTINE create_field_section
 
 !!****f* input_cp2k_dft/create_ot_section *
 !!

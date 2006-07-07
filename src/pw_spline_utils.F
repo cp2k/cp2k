@@ -3791,13 +3791,13 @@ END SUBROUTINE pw_nn_compose_r
                 IF (eps_r_att<eps_r .AND. eps_x_att<eps_x) last=.TRUE.
              END IF
              CALL cp_iterate(logger%iter_info,last=last,error=error)
-             IF (cp_print_key_should_output(logger%iter_info,&
-                  print_key,error=error)/=0.AND.&
-                  logger%para_env%mepos==logger%para_env%source) THEN
-                WRITE (unit=cp_logger_get_default_unit_nr(logger,local=.FALSE.),&
-                     fmt="(i6,' eps_x=',e12.4,' eps_r=',e12.4)")&
-                     iter,eps_x_att,eps_r_att
-             END IF
+!deb         IF (cp_print_key_should_output(logger%iter_info,&
+!deb              print_key,error=error)/=0.AND.&
+!deb              logger%para_env%mepos==logger%para_env%source) THEN
+!deb            WRITE (unit=cp_logger_get_default_unit_nr(logger,local=.FALSE.),&
+!deb                 fmt="(i6,' eps_x=',e12.4,' eps_r=',e12.4)")&
+!deb                 iter,eps_x_att,eps_r_att
+!deb         END IF
              IF (last) THEN
                 res=.TRUE.
                 EXIT ext_do

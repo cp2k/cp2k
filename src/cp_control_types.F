@@ -74,6 +74,14 @@ MODULE cp_control_types
     REAL(KIND = dp)                 :: max_rad_local
   END TYPE gapw_control_type
 
+! *** parameters for finite field calculations
+  TYPE finite_field_type
+    LOGICAL                         :: berry_phase
+    REAL(KIND = dp)                 :: efield_strength
+    REAL(KIND = dp), DIMENSION(3)   :: efield_polarisation
+  END TYPE finite_field_type
+
+
 ! *** some parameters useful for mulliken_restraints
   TYPE mulliken_restraint_type
     INTEGER                         :: ref_count
@@ -148,14 +156,7 @@ MODULE cp_control_types
     INTEGER                         :: wf_extrapolation_order
   END TYPE qs_control_type
 
-! *** Control parameters for a WAVE calculation ***
-
-  TYPE wave_control_type
-     REAL(KIND = dp) :: e_cutoff_wf
-     REAL(KIND = dp) :: e_cutoff_dual
-  END TYPE wave_control_type
-
-  ! *** Control parameters for a TIME-DEPENDENT PERTURBATION calculation ***
+! *** Control parameters for a TIME-DEPENDENT PERTURBATION calculation ***
 
 !!****s* cp_control_types/tddfpt_control_type
 !!
@@ -205,8 +206,8 @@ MODULE cp_control_types
   TYPE dft_control_type
      TYPE(qs_control_type)           :: qs_control
      TYPE(tddfpt_control_type)       :: tddfpt_control
-     TYPE(wave_control_type)         :: wave_control
      TYPE(xas_control_type), POINTER :: xas_control
+     TYPE (finite_field_type)        :: finite_field_control
      INTEGER                         :: nspins,&
                                         charge,&
                                         multiplicity,&
@@ -232,7 +233,8 @@ MODULE cp_control_types
   PUBLIC :: dft_control_type,&
             qs_control_type,&
             gapw_control_type,&
-            wave_control_type, tddfpt_control_type,&
+            tddfpt_control_type,&
+            finite_field_type,&
             pw_grid_option, mulliken_restraint_type, ddapc_restraint_type,&
             semi_empirical_control_type, s2_restraint_type
 
@@ -265,7 +267,7 @@ CONTAINS
 !!   NAME
 !!      mulliken_control_create/retain/release
 !!   FUNCTION
-!!      create retain releasethe mulliken_restraint_type
+!!      create retain release the mulliken_restraint_type
 !!   NOTES
 !!      
 !!   INPUTS
@@ -550,7 +552,6 @@ SUBROUTINE dft_control_create(dft_control, error)
      NULLIFY(dft_control%xas_control)
      CALL qs_control_init(dft_control%qs_control, error=error)
      CALL tddfpt_control_init(dft_control%tddfpt_control, error=error)
-     CALL wave_control_init(dft_control%wave_control, error=error)
      CALL xas_control_create(dft_control%xas_control,error=error)
   END IF
 END SUBROUTINE dft_control_create
@@ -639,7 +640,6 @@ SUBROUTINE dft_control_release(dft_control,error)
      IF (dft_control%ref_count==0) THEN
         CALL qs_control_dealloc_ref(dft_control%qs_control, error=error)
         CALL tddfpt_control_dealloc_ref(dft_control%tddfpt_control, error=error)
-        CALL wave_control_dealloc_ref(dft_control%wave_control, error=error)
         CALL xas_control_release(dft_control%xas_control, error=error)
         DEALLOCATE(dft_control, stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
@@ -746,19 +746,5 @@ SUBROUTINE tddfpt_control_dealloc_ref(tddfpt_control, error)
      CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
   END IF
 END SUBROUTINE tddfpt_control_dealloc_ref
-
-SUBROUTINE wave_control_init(wave_control, error)
-    TYPE(wave_control_type), INTENT(out)     :: wave_control
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-
-END SUBROUTINE wave_control_init
-
-SUBROUTINE wave_control_dealloc_ref(wave_control, error)
-    TYPE(wave_control_type), INTENT(inout)   :: wave_control
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-
-END SUBROUTINE wave_control_dealloc_ref
 
 END MODULE cp_control_types

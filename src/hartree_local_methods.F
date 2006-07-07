@@ -663,17 +663,24 @@ MODULE  hartree_local_methods
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
             "aVh1b_hh,aVh1b_ss,aVh1b_00")
     END DO  ! ikind 
-!dbg
-!  write(*,*) 'h1_tot', energy_hartree_1c
-!dbg
 
-!stop 'h1'
     CALL mp_sum(energy_hartree_1c,para_env%group)
 
-    DEALLOCATE(gexp,gsph,g0_h_w,sqrtwr,STAT=istat)
+    DEALLOCATE(gexp,STAT=istat)
     IF (istat /= 0) THEN
-       CALL stop_memory(routineN,moduleN,__LINE__,&
-            "gexp,gsph,g0_h_w,sqrtwr")
+       CALL stop_memory(routineN,moduleN,__LINE__,"gexp")
+    ENDIF
+    DEALLOCATE(gsph,STAT=istat)
+    IF (istat /= 0) THEN
+       CALL stop_memory(routineN,moduleN,__LINE__,"gsph")
+    ENDIF
+    DEALLOCATE(g0_h_w,STAT=istat)
+    IF (istat /= 0) THEN
+       CALL stop_memory(routineN,moduleN,__LINE__,"g0_h_w")
+    ENDIF
+    DEALLOCATE(sqrtwr,STAT=istat)
+    IF (istat /= 0) THEN
+       CALL stop_memory(routineN,moduleN,__LINE__,"sqrtwr")
     ENDIF
 
    CALL timestop(0.0_dp,handle)
