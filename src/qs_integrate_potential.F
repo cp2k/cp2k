@@ -68,6 +68,7 @@ MODULE qs_integrate_potential
   USE kinds,                           ONLY: dp,&
                                              int_size
   USE l_utils,                         ONLY: l_info_type,&
+                                             finish_l_info,&
                                              return_l_info
   USE memory_utilities,                ONLY: reallocate
   USE message_passing,                 ONLY: mp_max,&
@@ -255,7 +256,7 @@ CONTAINS
              eps_gvg_rspace=eps_rho_rspace,&
              calculate_forces=.TRUE.,force_a=force_a,&
              force_b=force_b,use_virial=use_virial,my_virial_a=my_virial_a,&
-             my_virial_b=my_virial_b)
+             my_virial_b=my_virial_b,error=error)
 
         force(ikind)%rho_core(:,iatom) =&
           force(ikind)%rho_core(:,iatom) + force_a(:)
@@ -966,7 +967,7 @@ CONTAINS
                           force_a=force_a,force_b=force_b,ithread=ithread,&
                           compute_tau=my_compute_tau,map_consistent=map_consistent,&
                           use_virial=use_virial,my_virial_a=my_virial_a,&
-                          my_virial_b=my_virial_b)
+                          my_virial_b=my_virial_b,error=error)
                    ELSE
                      CALL integrate_pgf_product_rspace(&
                           lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
@@ -979,7 +980,7 @@ CONTAINS
                           force_a=force_b,force_b=force_a,ithread=ithread,&
                           compute_tau=my_compute_tau,map_consistent=map_consistent,&
                           use_virial=use_virial,my_virial_a=my_virial_b,&
-                          my_virial_b=my_virial_a)
+                          my_virial_b=my_virial_a,error=error)
                    END IF
                 ELSE
                    IF (iatom <= jatom) THEN
@@ -992,7 +993,8 @@ CONTAINS
                           eps_gvg_rspace=eps_gvg_rspace,&
                           calculate_forces=calculate_forces,&
                           force_a=force_a,force_b=force_b,ithread=ithread,&
-                          compute_tau=my_compute_tau,map_consistent=map_consistent)
+                          compute_tau=my_compute_tau,&
+                          map_consistent=map_consistent,error=error)
                    ELSE
                      CALL integrate_pgf_product_rspace(&
                           lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
@@ -1003,7 +1005,8 @@ CONTAINS
                           eps_gvg_rspace=eps_gvg_rspace,&
                           calculate_forces=calculate_forces,&
                           force_a=force_b,force_b=force_a,ithread=ithread, &
-                          compute_tau=my_compute_tau,map_consistent=map_consistent)
+                          compute_tau=my_compute_tau,&
+                          map_consistent=map_consistent,error=error)
                    END IF
                 END IF
 
@@ -1111,7 +1114,7 @@ CONTAINS
                                             calculate_forces,hdab,hadb,force_a,force_b,&
                                             ithread,mytimings,compute_tau,map_consistent,&
                                             collocate_rho0,rpgf0_s,use_virial,my_virial_a,&
-                                            my_virial_b)
+                                            my_virial_b,error)
 
     INTEGER, INTENT(IN)                      :: la_max
     REAL(KIND=dp), INTENT(IN)                :: zeta
@@ -1140,6 +1143,8 @@ CONTAINS
     LOGICAL, INTENT(IN), OPTIONAL            :: compute_tau, map_consistent, &
                                                 collocate_rho0, use_virial
     REAL(dp), INTENT(IN), OPTIONAL           :: rpgf0_s
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
     INTEGER :: ax, ay, az, bx, by, bz, cmax, coef_max, gridbounds(2,3), i, &
       ico, icoef, ig, ithread_l, jco, k, l, la, la_max_l, la_min_l, lb, &
@@ -1264,9 +1269,9 @@ CONTAINS
     ENDIF
 
     CALL return_cube(cube_info,radius,lb_cube,ub_cube,sphere_bounds)
-    CALL return_l_info(l_info,la_min_l,la_max_l,lb_min_l,lb_max_l,ithread_l,lx_max,lxy_max, &
-                         lxyz_max,ly_max,lz_max,&
-                         map,polx,poly,polz,dpy,dpz,alpha,pzyx,ipzyx,cmax)
+    CALL return_l_info(l_info,la_min_l,la_max_l,lb_min_l,lb_max_l, &
+                       ithread_l,lx_max,lxy_max,lxyz_max,ly_max,lz_max,&
+                       map,polx,poly,polz,dpy,dpz,alpha,pzyx,cmax,ipzyx,error=error)
 
 !   *** properties of the grid ***
     !IF (ithread_l.eq.0) t_c_1=m_walltime()
@@ -1534,6 +1539,9 @@ CONTAINS
         END DO
       END DO
     END DO
+
+    CALL finish_l_info(polx,poly,polz,pzyx,ipzyx,error=error)
+
     !IF (ithread_l.eq.0) t_c_2=m_walltime()
     !IF (ithread_l.EQ.0) t_a_2=m_walltime()
     !IF (ithread_l.EQ.0) mytimings(1)=mytimings(1)+(t_a_2-t_a_1)

@@ -79,6 +79,7 @@ MODULE qs_collocate_density
   USE kinds,                           ONLY: dp,&
                                              dp_size
   USE l_utils,                         ONLY: l_info_type,&
+                                             finish_l_info,&
                                              return_l_info
   USE mathconstants,                   ONLY: pi,&
                                              twopi
@@ -1540,7 +1541,6 @@ CONTAINS
                                                 ub_cube
     INTEGER, DIMENSION(:), POINTER           :: ly_max, lz_max, sphere_bounds
     INTEGER, DIMENSION(:, :), POINTER        :: map
-    INTEGER, POINTER                         :: ipzyx(:,:,:,:,:,:)
     LOGICAL                                  :: failure, my_collocate_rho0, &
                                                 my_map_consistent
     REAL(KIND=dp) :: a, b, binomial_k_lxa, binomial_l_lxb, cutoff, f, pg, &
@@ -1758,9 +1758,9 @@ CONTAINS
     CALL return_cube(cube_info,radius,lb_cube,ub_cube,sphere_bounds)
 
 !   *** get the l_info logic and arrays ***
-    CALL return_l_info(l_info,la_min_local,la_max_local,lb_min_local,lb_max_local,ithread_l,lx_max, &
-                       lxy_max,lxyz_max,ly_max,lz_max, &
-                       map,polx,poly,polz,dpy,dpz,alpha,pzyx,ipzyx,cmax)
+    CALL return_l_info(l_info,la_min_local,la_max_local,lb_min_local,lb_max_local,&
+                       ithread_l,lx_max, lxy_max,lxyz_max,ly_max,lz_max, &
+                       map,polx,poly,polz,dpy,dpz,alpha,pzyx,cmax,error=error)
 
 !   *** position of the gaussian product
 !
@@ -1921,6 +1921,8 @@ CONTAINS
               lxyz_max,coef_max,cmax,ly_max(1),lz_max(1),&
               gridbounds(1,1),map(-cmax,1),sphere_bounds(1))
     END IF
+
+    CALL finish_l_info(polx,poly,polz,pzyx,error=error)
 
     IF (ga_gb_function /= FUNC_AB) THEN
        DEALLOCATE(pab_local)

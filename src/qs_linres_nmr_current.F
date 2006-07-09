@@ -77,6 +77,7 @@ MODULE qs_linres_nmr_current
                                              section_vals_type
   USE kinds,                           ONLY: dp
   USE l_utils,                         ONLY: l_info_type,&
+                                             finish_l_info,&
                                              return_l_info
   USE memory_utilities,                ONLY: reallocate
   USE orbital_pointers,                ONLY: coset,&
@@ -1371,7 +1372,6 @@ CONTAINS
                                                 ub_cube
     INTEGER, DIMENSION(:), POINTER           :: ly_max, lz_max, sphere_bounds
     INTEGER, DIMENSION(:, :), POINTER        :: map
-    INTEGER, POINTER                         :: ipzyx(:,:,:,:,:,:)
     LOGICAL                                  :: failure,my_map_consistent
     REAL(KIND=dp) :: a, b, binomial_k_lxa, binomial_l_lxb, cutoff, f, pg, &
       prefactor, radius, rpg, xrrb, ya, yap, yb, ybp, yrrb, za, zap, zb, zbp, &
@@ -1449,7 +1449,7 @@ CONTAINS
 !   *** get the l_info logic and arrays ***
     CALL return_l_info(l_info,la_min,la_max,lb_min,lb_max,ithread_l,lx_max, &
                        lxy_max,lxyz_max,ly_max,lz_max, &
-                       map,polx,poly,polz,dpy,dpz,alpha,pzyx,ipzyx,cmax)
+                       map,polx,poly,polz,dpy,dpz,alpha,pzyx,cmax,error=error)
 
 !   *** Alocate some additional arrays  ***
     len1 = SIZE(polx,1)
@@ -1680,6 +1680,8 @@ CONTAINS
               lxyz_max,coef_max,cmax,ly_max(1),lz_max(1),&
               gridbounds(1,1),map(-cmax,1),sphere_bounds(1))
     END IF
+
+    CALL finish_l_info(polx,poly,polz,pzyx,error=error)
 
 !   Deallocate temporary arrays
     DEALLOCATE(polx_ii,polx_iii,poly_ii,poly_iii,STAT=istat)
