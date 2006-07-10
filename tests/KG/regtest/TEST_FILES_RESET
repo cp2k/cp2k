@@ -25,3 +25,6 @@ nai-2.inp
 h2o_energy.inp
 #  
 kg_gpw_2H2O_llp.inp
+# new defaults for single molecule box size
+kg_gpw_1H2O_TF.inp
+kg_gpw_2H2O_llp.inp
