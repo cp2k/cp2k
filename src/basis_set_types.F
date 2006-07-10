@@ -69,6 +69,7 @@ MODULE basis_set_types
     CHARACTER(LEN=default_string_length)       :: name
     REAL(KIND = dp)                            :: kind_radius
     REAL(KIND = dp)                            :: short_kind_radius
+    REAL(KIND = dp)                            :: kg_gpw_kind_radius
     INTEGER                                    :: norm_type
     INTEGER                                    :: ncgf,nset,nsgf
     CHARACTER(LEN=12), DIMENSION(:), POINTER   :: cgf_symbol
@@ -175,6 +176,7 @@ CONTAINS
     NULLIFY (gto_basis_set%sgf_symbol)
     NULLIFY (gto_basis_set%zet)
     gto_basis_set%short_kind_radius = 0.0_dp
+    gto_basis_set%kg_gpw_kind_radius = 0.0_dp
 
   END SUBROUTINE allocate_gto_basis_set
 
@@ -308,7 +310,8 @@ CONTAINS
                     cphi,pgf_radius,sphi,zet,first_cgf,first_sgf,l,&
                     last_cgf,last_sgf,n,gcc,maxco,maxl,maxpgf,&
                     maxsgf_set,maxshell,maxso,nco_sum,npgf_sum,&
-                    nshell_sum,maxder,short_kind_radius)
+                    nshell_sum,maxder,short_kind_radius,&
+                    kg_gpw_kind_radius)
 
     ! Get informations about a Gaussian-type orbital (GTO) basis set.
 
@@ -320,6 +323,7 @@ CONTAINS
     INTEGER, INTENT(OUT), OPTIONAL           :: norm_type
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: kind_radius
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: short_kind_radius
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: kg_gpw_kind_radius
     INTEGER, INTENT(OUT), OPTIONAL           :: ncgf, nset, nsgf
     CHARACTER(LEN=12), DIMENSION(:), &
       OPTIONAL, POINTER                      :: cgf_symbol
@@ -354,6 +358,9 @@ CONTAINS
       IF (PRESENT(kind_radius)) kind_radius = gto_basis_set%kind_radius
       IF (PRESENT(short_kind_radius)) THEN
         short_kind_radius = gto_basis_set%short_kind_radius
+      END IF
+      IF (PRESENT(kg_gpw_kind_radius)) THEN
+        kg_gpw_kind_radius = gto_basis_set%kg_gpw_kind_radius
       END IF
       IF (PRESENT(ncgf)) ncgf = gto_basis_set%ncgf
       IF (PRESENT(nset)) nset = gto_basis_set%nset
@@ -1077,7 +1084,8 @@ CONTAINS
                      nset,nsgf,cgf_symbol,sgf_symbol,norm_cgf,set_radius,lmax,&
                      lmin,lx,ly,lz,m,ncgf_set,npgf,nsgf_set,nshell,&
                      cphi,pgf_radius,sphi,zet,first_cgf,first_sgf,l,&
-                     last_cgf,last_sgf,n,gcc,short_kind_radius)
+                     last_cgf,last_sgf,n,gcc,short_kind_radius,&
+                     kg_gpw_kind_radius)
 
     ! Set the components of Gaussian-type orbital (GTO) basis set data set.
 
@@ -1089,6 +1097,7 @@ CONTAINS
     INTEGER, INTENT(IN), OPTIONAL            :: norm_type
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: kind_radius
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: short_kind_radius
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: kg_gpw_kind_radius
     INTEGER, INTENT(IN), OPTIONAL            :: ncgf, nset, nsgf
     CHARACTER(LEN=12), DIMENSION(:), &
       OPTIONAL, POINTER                      :: cgf_symbol
@@ -1116,6 +1125,7 @@ CONTAINS
       IF (PRESENT(norm_type)) gto_basis_set%norm_type = norm_type
       IF (PRESENT(kind_radius)) gto_basis_set%kind_radius = kind_radius
       IF (PRESENT(short_kind_radius)) gto_basis_set%short_kind_radius = short_kind_radius
+      IF (PRESENT(kg_gpw_kind_radius)) gto_basis_set%kg_gpw_kind_radius = kg_gpw_kind_radius
       IF (PRESENT(ncgf)) gto_basis_set%ncgf = ncgf
       IF (PRESENT(nset)) gto_basis_set%nset = nset
       IF (PRESENT(nsgf)) gto_basis_set%nsgf = nsgf

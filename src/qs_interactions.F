@@ -106,7 +106,7 @@ CONTAINS
                                                 paw_atom
     REAL(KIND=dp) :: alpha_core_charge, alpha_ppl, ccore_charge, cerf_ppl, &
       core_charge_radius, eps_reduce, gcca, kind_radius, ppl_radius, &
-      ppnl_radius, rcprj,  short_radius, zeta
+      ppnl_radius, rcprj,  short_radius, kg_radius, zeta
     REAL(KIND=dp), DIMENSION(:), POINTER     :: alpha_ppl_elp, alpha_ppnl, &
                                                 cexp_ppl, set_radius
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: cexp_ppl_elp, cprj_ppnl, &
@@ -177,6 +177,7 @@ CONTAINS
 
         kind_radius = 0.0_dp
         short_radius = 0.0_dp
+        kg_radius = 0.0_dp
 
         DO iset=1,nset
           set_radius(iset) = 0.0_dp
@@ -194,6 +195,8 @@ CONTAINS
                              exp_radius(l,zeta,&
                              qs_control%eps_pgf_orb*eps_reduce,&
                              gcca))
+              kg_radius = MAX(kg_radius,&
+                              exp_radius(l,zeta,qs_control%eps_kg_gpw,gcca))
             END DO
             set_radius(iset) = MAX(set_radius(iset),pgf_radius(ipgf,iset))
           END DO
@@ -204,7 +207,8 @@ CONTAINS
                                pgf_radius=pgf_radius,&
                                set_radius=set_radius,&
                                kind_radius=kind_radius,&
-                               short_kind_radius=short_radius)
+                               short_kind_radius=short_radius,&
+                               kg_gpw_kind_radius=kg_radius)
 
       END IF
 
@@ -656,7 +660,7 @@ CONTAINS
                                                 nset, output_unit
     INTEGER, DIMENSION(:), POINTER           :: npgf
     REAL(KIND=dp)                            :: kind_radius, short_kind_radius,&
-                                                unit_of_length
+                                                kg_radius, unit_of_length
     REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pgf_radius
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -687,9 +691,9 @@ CONTAINS
     output_unit = cp_print_key_unit_nr(logger,force_env_section,&
          "SUBSYS%PRINT%RADII/KIND_RADII",extension=".Log",error=error)
     IF (output_unit>0) THEN
-      WRITE (UNIT=output_unit,FMT="(/,T2,A,T46,A,T53,A,T63,A,T75,A)")&
+      WRITE (UNIT=output_unit,FMT="(/,T2,A,T46,A,T53,A,T63,A,T72,A)")&
         "RADII: "//TRIM(bas)//" BASIS in "//TRIM(unit_of_length_name),&
-        "Kind","Label","Radius","OCE Radius"
+        "Kind","Label","Radius","OCE/KG Radius"
       DO ikind=1,nkind
         atomic_kind => atomic_kind_set(ikind)
         IF ( bas(1:3) == "ORB" ) THEN
@@ -699,7 +703,8 @@ CONTAINS
           IF(ASSOCIATED(orb_basis_set)) THEN
             CALL get_gto_basis_set(gto_basis_set=orb_basis_set,&
                                    kind_radius=kind_radius,&
-                                   short_kind_radius=short_kind_radius)
+                                   short_kind_radius=short_kind_radius,&
+                                   kg_gpw_kind_radius=kg_radius)
           END IF
         ELSE IF ( bas(1:3) == "AUX" ) THEN
           CALL get_atomic_kind(atomic_kind=atomic_kind,&
@@ -713,8 +718,9 @@ CONTAINS
           CALL stop_program("write_pgf_orb_radii","undefined basis type")
         END IF
         IF(ASSOCIATED(aux_basis_set).OR.ASSOCIATED(orb_basis_set)) THEN
-          WRITE (UNIT=output_unit,FMT="(T45,I5,T53,A5,T59,F12.6,T73,F12.6)")&
-            ikind,name,kind_radius/unit_of_length,short_kind_radius/unit_of_length
+          WRITE (UNIT=output_unit,FMT="(T45,I5,T53,A5,T59,F12.6,T73,F12.6,/,T73,F12.6)")&
+            ikind,name,kind_radius/unit_of_length,short_kind_radius/unit_of_length,&
+            kg_radius/unit_of_length
         ELSE
            WRITE (UNIT=output_unit,FMT="(T55,I5,T63,A5,T72,A9)")&
               ikind,name,"no basis"

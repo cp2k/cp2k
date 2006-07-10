@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2003, 2004 CP2K developers group                           !
+!   Copyright (C) 2000 - 2004 CP2K developers group                           !
 !-----------------------------------------------------------------------------!
 
 
@@ -13,7 +13,7 @@
 !!     Calculate the plane wave density for each molecule independently
 !!     by collocating the primitive Gaussian functions on the grids 
 !!     constructed in the molecolar box. The molecule is centered in the
-!!     small box e no PBC are used.
+!!     small box and no PBC are used.
 !!     Each molecule is handled by one processor entirely, therefore
 !!     no further distribution is allowed, unless OMP is used (if it works)
 !!
@@ -113,10 +113,11 @@ CONTAINS
 !!
 !!   NOTES
 !!     In KG_GPW a molecular pw environment is created for each molecule kind
-!!     which is based on a molecular cell box  that does not use PBC
+!!     which is based on a molecular cell box that does not use PBC
 !!     The molecule is located in the center of the bos and the coordinates passed
 !!     to this routine are internal coordinates.
-!!     At this level, it should not be necessary to have the atomic positions in the global box 
+!!     At this level, it should not be necessary to have the atomic positions 
+!!     in the global box 
 !!
 !!   INPUTS
 !!     - qs_env: the qs environment
@@ -205,7 +206,7 @@ CONTAINS
     failure=.FALSE.
 
     ! by default, do not compute the kinetic energy density (tau)
-    ! if compute_tau, all grids referening to rho are actually tau
+    ! if compute_tau, all grids referencing to rho are actually tau
     IF (PRESENT(compute_tau)) THEN 
        my_compute_tau = compute_tau
     ELSE

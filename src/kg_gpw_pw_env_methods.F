@@ -223,7 +223,7 @@ CONTAINS
 
         atom_kind => particle_set(iatom)%atomic_kind
         CALL get_atomic_kind(atomic_kind=atom_kind,orb_basis_set=basis_set)
-        CALL get_gto_basis_set(gto_basis_set=basis_set,kind_radius=rad_at)
+        CALL get_gto_basis_set(gto_basis_set=basis_set,kg_gpw_kind_radius=rad_at)
         rad_max = MAX(rad_max,rad_at)
 
         DO jat = iat+1,nat_mol
@@ -242,7 +242,7 @@ CONTAINS
 
     molbox_env%rab_max = rab_max
     molbox_env%rad_max = rad_max
-    length = rab_max + 1.5_dp*rad_max
+    length = rab_max + 2._dp*rad_max
  
     DO i = 1,3
       Li =  SQRT ( SUM ( cell_ref % hmat ( :, i ) ** 2 ) )
@@ -255,7 +255,9 @@ CONTAINS
         END IF
         length = Li
       END IF 
-!        WRITE(*,*) 'side ', i , length, Li
+!deb
+      WRITE(*,*) 'side ', i , length, Li
+!deb
     END DO
     side(1:3) = length
 

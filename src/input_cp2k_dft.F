@@ -966,6 +966,13 @@ SUBROUTINE create_qs_section(section,error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error)
 
+     CALL keyword_create(keyword, name="EPS_KG_GPW",&
+          description="Sets precision of KG_GPW single molecule density integration."//&
+          " Overrides SQRT(EPS_DEFAULT)*1000.0 value",&
+          usage="EPS_KG_GPW real", type_of_var=real_t, error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+
      CALL keyword_create(keyword, name="EPSFIT",&
           variants=(/"EPS_FIT"/),&
           description="GAPW : precision to give the extention of a hard gaussian ",&

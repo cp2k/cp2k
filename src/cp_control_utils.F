@@ -344,6 +344,7 @@ CONTAINS
     qs_control%eps_rho_gspace = value
     qs_control%eps_rho_rspace = value
     qs_control%eps_gvg_rspace = SQRT(value)       
+    qs_control%eps_kg_gpw = SQRT(value)*1000._dp
     !
     CALL section_vals_val_get(qs_section,"EPS_CORE_CHARGE",n_rep_val=n_rep,error=error)
     IF (n_rep /=0) THEN
@@ -378,6 +379,11 @@ CONTAINS
     IF (n_rep /=0) THEN    
        CALL section_vals_val_get(qs_section,"EPS_RHO_GSPACE",r_val=qs_control%eps_rho_rspace,error=error)
     END IF
+    CALL section_vals_val_get(qs_section,"EPS_KG_GPW",n_rep_val=n_rep,error=error)
+    IF (n_rep /=0) THEN    
+       CALL section_vals_val_get(qs_section,"EPS_KG_GPW",r_val=qs_control%eps_kg_gpw,error=error)
+    END IF
+
 
     ! Gapw
     CALL gapw_control_create(qs_control%gapw_control)

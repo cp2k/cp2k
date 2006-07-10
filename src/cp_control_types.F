@@ -127,6 +127,7 @@ MODULE cp_control_types
                                        eps_ppnl,&
                                        eps_rho_gspace,&
                                        eps_rho_rspace,&
+                                       eps_kg_gpw,&
                                        eps_gvg_rspace,&
                                        progression_factor,&
                                        relative_cutoff
