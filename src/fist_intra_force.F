@@ -135,6 +135,7 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
   IF ( PRESENT ( f_imptor)) f_imptor = 0.0_dp
   IF ( PRESENT ( f_ub)) f_ub = 0.0_dp
   IF ( PRESENT ( f_onef)) f_onef = 0.0_dp
+  
   pot_bond =  0.0_dp
   pot_bend =  0.0_dp
   pot_urey_bradley =  0.0_dp
@@ -145,6 +146,34 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
   nkind = SIZE ( molecule_kind_set )
   MOL: DO ikind = 1, nkind
      nmol_per_kind = local_molecules % n_el ( ikind )
+
+!$OMP parallel do default(none) &
+!$OMP shared(ikind,nmol_per_kind)&
+!$OMP shared(local_molecules,molecule_set,particle_set) &
+!$OMP shared(f_bond,pv_bond,pot_bond) &
+!$OMP shared(f_ub,pv_urey_bradley,pot_urey_bradley) &
+!$OMP shared(f_bend,pv_bend,pot_bend) &
+!$OMP shared(f_torsion,pv_torsion,pot_torsion) &
+!$OMP shared(f_imptor,pv_imp_torsion,pot_imp_torsion) &
+!$OMP shared(f_onef,pv_onef,pot_onef) &
+
+!$OMP private(imol)&
+!$OMP private(spline_data,molecule_kind,molecule,i) &
+!$OMP private(ibond,ibend,itorsion,ionef,first_atom) &
+!$OMP private(index_a,index_b,index_c,index_d) &
+!$OMP private(nbonds,bond_list)&
+!$OMP private(nub,ub_list)&
+!$OMP private(nbends,bend_list) &
+!$OMP private(ntorsions,torsion_list) &
+!$OMP private(nimptors,impr_list)&
+!$OMP private(nonefs,onef_list) &
+
+!$OMP private(b12,b32,d12,id12,d32,id32,dist,theta) &
+!$OMP private(energy,fscalar,k1,k2,k3,k4,g1,g2,g3) &
+!$OMP private(t43,u1,u2,w1,w2,iw1,iw2) &
+!$OMP private(gt1,gt2,gt3,gt4) &
+!$OMP private(t12,t32,t34,tm,tn,sm,ism,sn,isn,s32,is32,dist1,dist2) &
+!$OMP private(rij,rab2,rinv2,rinv)
      DO imol = 1, nmol_per_kind
        i = local_molecules % list ( ikind ) % array ( imol )
        molecule => molecule_set ( i )
@@ -166,6 +195,7 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
                          bond_list ( ibond ) % bond_kind % k, &
                          energy, fscalar)
         pot_bond = pot_bond + energy
+        
         particle_set ( index_a )% f(1) = particle_set ( index_a ) % f(1)  -rij(1) * fscalar
         particle_set ( index_a )% f(2) = particle_set ( index_a ) % f(2)  -rij(2) * fscalar
         particle_set ( index_a )% f(3) = particle_set ( index_a ) % f(3)  -rij(3) * fscalar

@@ -123,7 +123,25 @@ SUBROUTINE force_nonbond ( fist_nonbond_env, particle_set, cell,  &
 
 ! starting the force loop
 
+
+
     nkinds = SIZE ( potparm%pot, 1 )
+!$OMP parallel do default(none) &
+!$OMP shared(nkinds) &
+!$OMP private(ikind,jkind) &
+!$OMP private(spline_data) &
+!$OMP shared(potparm) &
+!$OMP private(is_eam,ab) &
+!$OMP private(neighbor_list_set,neighbor_list) &
+!$OMP shared(nonbonded) &
+!$OMP private(rab,rab2_max) &
+!$OMP private(ilist,nlist,atom_a,atom_b,dra,s2r,neighbor_node,inode,nnode) &
+!$OMP shared(cell) &
+!$OMP shared(pot_nonbond) &
+!$OMP private(f_eam,pot,fr,fscalar,energy) &
+!$OMP shared(f_nonbond,ptens_nonbond,r_last_update) &
+!$OMP private(drb,rab2) &
+!$OMP shared(particle_set)
     DO ikind=1,nkinds
       DO jkind=1,nkinds
 
