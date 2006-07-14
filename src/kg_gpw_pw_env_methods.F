@@ -255,9 +255,6 @@ CONTAINS
         END IF
         length = Li
       END IF 
-!deb
-      WRITE(*,*) 'side ', i , length, Li
-!deb
     END DO
     side(1:3) = length
 
