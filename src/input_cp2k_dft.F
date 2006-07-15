@@ -3402,7 +3402,7 @@ SUBROUTINE create_field_section(section,error)
           variants=(/"EFIELD_POLARISATION"/),&
           description="Polarisation vector of electrical field",&
           usage="ELECTRICAL_FIELD_POLARISIATION  0.0 0.0 1.0",&
-          repeats=.FALSE.,required=.FALSE.,n_var=2,&
+          repeats=.FALSE.,required=.FALSE.,n_var=3,&
           type_of_var=real_t,default_r_vals=(/0.0_dp,0.0_dp,1.0_dp/),&
           error=error)
      CALL section_add_keyword(section,keyword,error=error)
