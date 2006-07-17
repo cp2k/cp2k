@@ -223,7 +223,8 @@ CONTAINS
      
       CALL reallocate(rho_h,1,na,1,nspins)
       CALL reallocate(rho_s,1,na,1,nspins)
-      CALL reallocate(weight,1,na,1,nr)
+!      CALL reallocate(weight,1,na,1,nr)
+      weight => grid_atom%weight
       CALL reallocate(vxc_h,1,na,1,nr,1,nspins)
       CALL reallocate(vxc_s,1,na,1,nr,1,nspins)
   
@@ -264,12 +265,12 @@ CONTAINS
         DO ir = 1,nr
           CALL calc_rho_angular(grid_atom, harmonics, nspins, gradient_f,&
                                 ir, r_h, r_s, rho_h, rho_s, dr_h, dr_s, &
-                                r_h_d, r_s_d, drho_h, drho_s, error)
-          CALL fill_rho_set(rho_set_h,lsd,nspins,needs,rho_h,drho_h,na,ir,error)
-          CALL fill_rho_set(rho_set_s,lsd,nspins,needs,rho_s,drho_s,na,ir,error)
-          DO ia=1, na
-            weight(ia,ir) = grid_atom%wr(ir)*grid_atom%wa(ia)
-          END DO
+                                r_h_d, r_s_d, drho_h, drho_s, error=error)
+          CALL fill_rho_set(rho_set_h,lsd,nspins,needs,rho_h,drho_h,na,ir,error=error)
+          CALL fill_rho_set(rho_set_s,lsd,nspins,needs,rho_s,drho_s,na,ir,error=error)
+!          DO ia=1, na
+!            weight(ia,ir) = grid_atom%wr(ir)*grid_atom%wa(ia)
+!          END DO
         END DO
 
         !-------------------!
@@ -329,11 +330,11 @@ CONTAINS
                                         "rho_s")
     END IF
 
-    IF (ASSOCIATED(weight)) THEN
-      DEALLOCATE (weight,STAT=istat)
-      IF (istat /= 0)  CALL stop_memory(routineN,moduleN,__LINE__,&
-                                        "weight")
-    END IF
+!    IF (ASSOCIATED(weight)) THEN
+!      DEALLOCATE (weight,STAT=istat)
+!      IF (istat /= 0)  CALL stop_memory(routineN,moduleN,__LINE__,&
+!                                        "weight")
+!    END IF
 
     IF (ASSOCIATED(vxc_h)) THEN
       DEALLOCATE (vxc_h,STAT=istat)
@@ -535,8 +536,9 @@ CONTAINS
       vxc_h = 0.0_dp
       vxc_s = 0.0_dp
 
-      ALLOCATE (weight(1:na,1:nr),STAT=stat)
-      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+!      ALLOCATE (weight(1:na,1:nr),STAT=stat)
+!      CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      weight => grid_atom%weight
       
       IF (gradient_functional) THEN
          ALLOCATE(drho_h(1:4,1:na,1:nr,1:nspins), drho1_h(1:4,1:na,1:nr,1:nspins), &
@@ -598,9 +600,9 @@ CONTAINS
             CALL fill_rho_set(rho_set_s,lsd,nspins,needs,rho_s,drho_s,na,ir,error)
             CALL fill_rho_set(rho1_set_s,lsd,nspins,needs,rho1_s,drho1_s,na,ir,error)
 
-            DO ia=1, na
-               weight(ia,ir) = grid_atom%wr(ir)*grid_atom%wa(ia)
-            END DO
+!            DO ia=1, na
+!               weight(ia,ir) = grid_atom%wr(ir)*grid_atom%wa(ia)
+!            END DO
          END DO
 
          CALL xc_2nd_deriv_of_r(xc_section=xc_section, &
@@ -625,7 +627,7 @@ CONTAINS
       END DO
 
       ! some cleanup
-      DEALLOCATE(rho_h, rho_s, rho1_h, rho1_s, vxc_h, vxc_s, weight, stat=stat)
+      DEALLOCATE(rho_h, rho_s, rho1_h, rho1_s, vxc_h, vxc_s, stat=stat)
       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
       NULLIFY(rho_h, rho_s, weight)
       IF (gradient_functional) THEN
@@ -719,38 +721,44 @@ CONTAINS
                drho_h(1,ia,ir,ispin) = drho_h(1,ia,ir,ispin) + & 
                                        dr_h(ispin)%r_coef(ir,iso)*&
                                        harmonics%a(1,ia)*harmonics%slm(ia,iso) +&
-                                       urad*r_h_d(1,ispin)%r_coef(ir,iso)*&
+!                                       urad*r_h_d(1,ispin)%r_coef(ir,iso)*&
+                                       r_h_d(1,ispin)%r_coef(ir,iso)*&
                                        harmonics%slm(ia,iso)
 
                drho_h(2,ia,ir,ispin) = drho_h(2,ia,ir,ispin) + & 
                                        dr_h(ispin)%r_coef(ir,iso)*&
                                        harmonics%a(2,ia)*harmonics%slm(ia,iso) +&
-                                       urad*r_h_d(2,ispin)%r_coef(ir,iso)*&
+ !                                      urad*r_h_d(2,ispin)%r_coef(ir,iso)*&
+                                      r_h_d(2,ispin)%r_coef(ir,iso)*&
                                        harmonics%slm(ia,iso)
 
                drho_h(3,ia,ir,ispin) = drho_h(3,ia,ir,ispin) + & 
                                        dr_h(ispin)%r_coef(ir,iso)*&
                                        harmonics%a(3,ia)*harmonics%slm(ia,iso) +&
-                                       urad*r_h_d(3,ispin)%r_coef(ir,iso)*&
+ !                                      urad*r_h_d(3,ispin)%r_coef(ir,iso)*&
+                                      r_h_d(3,ispin)%r_coef(ir,iso)*&
                                        harmonics%slm(ia,iso)
 
 !              components of the gradient of rho1 soft 
                drho_s(1,ia,ir,ispin) = drho_s(1,ia,ir,ispin) + & 
                                        dr_s(ispin)%r_coef(ir,iso)*&
                                        harmonics%a(1,ia)*harmonics%slm(ia,iso) +&
-                                       urad*r_s_d(1,ispin)%r_coef(ir,iso)*&
+ !                                      urad*r_s_d(1,ispin)%r_coef(ir,iso)*&
+                                      r_s_d(1,ispin)%r_coef(ir,iso)*&
                                        harmonics%slm(ia,iso)
 
                drho_s(2,ia,ir,ispin) = drho_s(2,ia,ir,ispin) + & 
                                        dr_s(ispin)%r_coef(ir,iso)*&
                                        harmonics%a(2,ia)*harmonics%slm(ia,iso) +&
-                                       urad*r_s_d(2,ispin)%r_coef(ir,iso)*&
+ !                                      urad*r_s_d(2,ispin)%r_coef(ir,iso)*&
+                                      r_s_d(2,ispin)%r_coef(ir,iso)*&
                                        harmonics%slm(ia,iso)
 
                drho_s(3,ia,ir,ispin) = drho_s(3,ia,ir,ispin) + & 
                                        dr_s(ispin)%r_coef(ir,iso)*&
                                        harmonics%a(3,ia)*harmonics%slm(ia,iso) +&
-                                       urad*r_s_d(3,ispin)%r_coef(ir,iso)*&
+ !                                      urad*r_s_d(3,ispin)%r_coef(ir,iso)*&
+                                      r_s_d(3,ispin)%r_coef(ir,iso)*&
                                        harmonics%slm(ia,iso)
 
 
@@ -866,8 +874,8 @@ CONTAINS
             lmin12 = lmin(iset1)+lmin(iset2)
             lmax12 = lmax(iset1)+lmax(iset2)
 
-!test reduce expansion local densities
-       IF(lmin12 .LE. lmax_expansion) THEN
+            ! reduce expansion local densities
+            IF(lmin12 .LE. lmax_expansion) THEN
 
             gg = 0.0_dp
             IF (lmin12 == 0) THEN
@@ -876,7 +884,7 @@ CONTAINS
               gg(1:nr,lmin12) = grid_atom%rad2l(1:nr,lmin12)*g1(1:nr)*g2(1:nr)
             END IF
 
-!test reduce expansion local densities
+            ! limit the expansion of the local densities to a max L
             IF(lmax12 .GT. lmax_expansion) lmax12 = lmax_expansion
 
 
@@ -905,10 +913,7 @@ CONTAINS
                   iso2 = harmonics%ind_cg_b(icg,iso,iset1,iset2)
                   l = indso(1,iso1) + indso(1,iso2)
 
-!test reduce expansion local densities
-                    CPPrecondition(l<=lmax_expansion,cp_failure_level,routineN,error,failure)
-               IF(.NOT. failure) THEN
-
+                  CPPrecondition(l<=lmax_expansion,cp_failure_level,routineN,error,failure)
                   DO ia = 1,na
                     matso_h(iso1,iso2) = matso_h(iso1,iso2) + & 
                             gVg_h(ia,l)*&
@@ -919,8 +924,6 @@ CONTAINS
                             my_CG(iso1,iso2,iso)*&
                             harmonics%slm(ia,iso)
                   END DO
-!test reduce expansion local densities
-                END IF  ! failure
                 END DO
               END DO
 
@@ -936,8 +939,7 @@ CONTAINS
 
             END DO ! ispin
 
-!test reduce expansion local densities
-     END IF ! lmax_expansion
+            END IF ! lmax_expansion
 
           END DO ! ipfg2
         END DO ! ipfg1

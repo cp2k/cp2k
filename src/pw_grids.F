@@ -2627,8 +2627,11 @@ SUBROUTINE pw_grid_release(pw_grid, error)
            DEALLOCATE ( pw_grid % para % pos_of_x, STAT = stat )
            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
         END IF
-        DEALLOCATE(pw_grid, stat=stat)
-        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+
+        IF(ASSOCIATED(pw_grid)) THEN
+          DEALLOCATE(pw_grid, stat=stat)
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        END IF
      END IF
   END IF
   NULLIFY(pw_grid)

@@ -148,6 +148,17 @@ MODULE qs_rho_atom_types
               DEALLOCATE(rho_atom_set(iat)%cpc_s(i)%r_coef)
               DEALLOCATE(rho_atom_set(iat)%ga_Vlocal_gb_h(i)%r_coef)
               DEALLOCATE(rho_atom_set(iat)%ga_Vlocal_gb_s(i)%r_coef)
+            END DO
+          END IF 
+          DEALLOCATE (rho_atom_set(iat)%cpc_h)
+          DEALLOCATE (rho_atom_set(iat)%cpc_s)
+          DEALLOCATE (rho_atom_set(iat)%ga_Vlocal_gb_h)
+          DEALLOCATE (rho_atom_set(iat)%ga_Vlocal_gb_s)
+        END IF
+        IF(ASSOCIATED(rho_atom_set(iat)%drho_rad_h)) THEN
+          IF(ASSOCIATED(rho_atom_set(iat)%drho_rad_h(1)%r_coef)) THEN
+            n = SIZE(rho_atom_set(iat)%drho_rad_h,1)
+            DO i = 1,n 
               DEALLOCATE(rho_atom_set(iat)%drho_rad_h(i)%r_coef)
               DEALLOCATE(rho_atom_set(iat)%drho_rad_s(i)%r_coef)
               DO j = 1,3
@@ -156,46 +167,49 @@ MODULE qs_rho_atom_types
               END DO
             ENDDO
           END IF 
-          DEALLOCATE (rho_atom_set(iat)%cpc_h)
-          DEALLOCATE (rho_atom_set(iat)%cpc_s)
           DEALLOCATE (rho_atom_set(iat)%drho_rad_h)
           DEALLOCATE (rho_atom_set(iat)%drho_rad_s)
           DEALLOCATE (rho_atom_set(iat)%rho_rad_h_d)
           DEALLOCATE (rho_atom_set(iat)%rho_rad_s_d)
-          DEALLOCATE (rho_atom_set(iat)%ga_Vlocal_gb_h)
-          DEALLOCATE (rho_atom_set(iat)%ga_Vlocal_gb_s)
-
         ENDIF
 
         IF(ASSOCIATED(rho_atom_set(iat)%rho_rad_h)) THEN
-          n = SIZE(rho_atom_set(iat)%rho_rad_h)
-          DO i = 1,n 
-            DEALLOCATE(rho_atom_set(iat)%rho_rad_h(i)%r_coef)
-          ENDDO
+          IF(ASSOCIATED(rho_atom_set(iat)%rho_rad_h(1)%r_coef)) THEN
+            n = SIZE(rho_atom_set(iat)%rho_rad_h)
+            DO i = 1,n 
+              DEALLOCATE(rho_atom_set(iat)%rho_rad_h(i)%r_coef)
+            ENDDO
+          ENDIF
           DEALLOCATE (rho_atom_set(iat)%rho_rad_h)
         ENDIF
 
         IF(ASSOCIATED(rho_atom_set(iat)%rho_rad_s)) THEN
-          n = SIZE(rho_atom_set(iat)%rho_rad_s)
-          DO i = 1,n 
-            DEALLOCATE(rho_atom_set(iat)%rho_rad_s(i)%r_coef)
-          ENDDO
+          IF(ASSOCIATED(rho_atom_set(iat)%rho_rad_s(1)%r_coef)) THEN
+            n = SIZE(rho_atom_set(iat)%rho_rad_s)
+            DO i = 1,n 
+              DEALLOCATE(rho_atom_set(iat)%rho_rad_s(i)%r_coef)
+            ENDDO
+          ENDIF
           DEALLOCATE (rho_atom_set(iat)%rho_rad_s)
         ENDIF
 
         IF(ASSOCIATED(rho_atom_set(iat)%vrho_rad_h)) THEN
-          n = SIZE(rho_atom_set(iat)%vrho_rad_h)
-          DO i = 1,n 
-            DEALLOCATE(rho_atom_set(iat)%vrho_rad_h(i)%r_coef)
-          ENDDO
+          IF(ASSOCIATED(rho_atom_set(iat)%vrho_rad_h(1)%r_coef)) THEN
+            n = SIZE(rho_atom_set(iat)%vrho_rad_h)
+            DO i = 1,n 
+              DEALLOCATE(rho_atom_set(iat)%vrho_rad_h(i)%r_coef)
+            ENDDO
+          END IF
           DEALLOCATE (rho_atom_set(iat)%vrho_rad_h)
         ENDIF
 
         IF(ASSOCIATED(rho_atom_set(iat)%vrho_rad_s)) THEN
-          n = SIZE(rho_atom_set(iat)%vrho_rad_s)
-          DO i = 1,n 
-            DEALLOCATE(rho_atom_set(iat)%vrho_rad_s(i)%r_coef)
-          ENDDO
+          IF(ASSOCIATED(rho_atom_set(iat)%vrho_rad_s(1)%r_coef)) THEN
+            n = SIZE(rho_atom_set(iat)%vrho_rad_s)
+            DO i = 1,n 
+              DEALLOCATE(rho_atom_set(iat)%vrho_rad_s(i)%r_coef)
+            ENDDO
+          END IF
           DEALLOCATE (rho_atom_set(iat)%vrho_rad_s)
         ENDIF
 

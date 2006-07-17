@@ -1087,6 +1087,7 @@ CONTAINS
                 dist_ab,dab_local,asets,atasks,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"habt,workt,ntasks,tasks,"//&
        "tasks_local,ival,latom,dist_ab,dab_local,asets,atasks")
+
     IF ( PRESENT(p) ) THEN
       DEALLOCATE (pabt,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine,"pabt")

@@ -220,7 +220,7 @@ CONTAINS
     TYPE(gth_potential_type), POINTER   :: gth_potential
     TYPE(all_potential_type), POINTER   :: all_potential
     TYPE(gto_basis_set_type), POINTER   :: orb_basis_set
-    TYPE(qlist_type), POINTER            :: sac_ppnl_neighbor
+    TYPE(qlist_type), POINTER           :: sac_ppnl_neighbor
     TYPE(neighbor_list_type), POINTER   :: sab_orb_neighbor_list,&
                                            sab_orb_neighbor_list_local,&
                                            sac_ppl_neighbor_list,&
@@ -363,6 +363,7 @@ CONTAINS
     NULLIFY (workt)
     NULLIFY (harris_env)
     NULLIFY (para_env)
+    NULLIFY (atom_list)
 
 
 ! Default
@@ -404,7 +405,6 @@ CONTAINS
 
     IF (calculate_forces) THEN
 
-
       nder = 1
 
       ALLOCATE (atom_of_kind(natom),STAT=istat)
@@ -416,7 +416,6 @@ CONTAINS
 
       CALL get_qs_env(qs_env=qs_env,&
                       force=force,&
-                      !rho=rho,&
                       matrix_w=matrix_w)
       IF (harris_flag) THEN
         CALL get_qs_env(qs_env=qs_env, harris_env=harris_env)
@@ -791,10 +790,10 @@ CONTAINS
       DO iat = 1,nat
         iatom = atom_list(iat)
         IF(oce_present) THEN
-           CALL retrieve_sac_list(oce%voce,sac_oce,iatom,ikind,nkind,globenv)
+           CALL retrieve_sac_list(oce%voce,sac_oce,iatom,ikind,nkind, error=error)
         END IF
         IF(rho0_present) THEN
-          CALL retrieve_sac_list(VH_3c_list,sac_3c,iatom,ikind,nkind,globenv)
+          CALL retrieve_sac_list(VH_3c_list,sac_3c,iatom,ikind,nkind,error=error)
         ENDIF
       END DO
     END DO

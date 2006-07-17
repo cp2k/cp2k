@@ -630,16 +630,12 @@ CONTAINS
                                 print_subcell_grid,output_unit,&
                                 orb_present,orb_present,orb_radius,orb_radius,&
                                 name="ALL_ORBITAL ORBITAL",&
+                                l3c_oce=paw_atom_present,&
+                                l3c_rho0=rho0_present,&
                                 symmetric=.FALSE.)
       ! Put the generated neighbor lists into the QS environment
       CALL set_qs_env(qs_env=qs_env,sab_all=sab_all)
     END IF
-
-!dbg
-!     WRITE(*,*) qs_env%para_env%mepos, ASSOCIATED(qs_env%sab_all)
-!    CALL mp_sync(qs_env%para_env%group)
-!    stop 'pippo'
-!dbg
 
     ! Build orbital GTH-PPL operator overlap list
 
@@ -1340,9 +1336,6 @@ CONTAINS
                       IF ( my_mic ) rab(:) = pbc(rab(:),cell)
                       rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
                       IF (rab2 < rab2_max) THEN
-                      !dbg
-!                      write(*,*) 'included ', atom_a, atom_b
-                      !dbg
                         CALL add_neighbor_node(&
                           neighbor_list=kind_a(iatom_local)%neighbor_list,&
                           neighbor=atom_b,&

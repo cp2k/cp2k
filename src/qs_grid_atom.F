@@ -43,7 +43,7 @@ MODULE qs_grid_atom
                                         usin_theta, cos_phi, sin_phi,&
                                         theta, cotan_phi, phi
      REAL(dp), DIMENSION(:,:), &
-                             POINTER :: rad2l,oorad2l
+                             POINTER :: rad2l,oorad2l,weight
 
   END TYPE grid_atom_type
 
@@ -93,6 +93,7 @@ MODULE qs_grid_atom
     NULLIFY (grid_atom%rad2)
     NULLIFY (grid_atom%wr)
     NULLIFY (grid_atom%wa)
+    NULLIFY (grid_atom%weight)
     NULLIFY (grid_atom%cos_theta)
     NULLIFY (grid_atom%sin_theta)
     NULLIFY (grid_atom%usin_theta)
@@ -148,6 +149,12 @@ MODULE qs_grid_atom
          DEALLOCATE (grid_atom%wa,STAT=istat)
          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "grid_atom%wa")
+      END IF
+
+      IF (ASSOCIATED(grid_atom%weight)) THEN
+         DEALLOCATE (grid_atom%weight,STAT=istat)
+         IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                     "grid_atom%weight")
       END IF
 
       IF (ASSOCIATED(grid_atom%cos_theta)) THEN
@@ -243,6 +250,7 @@ MODULE qs_grid_atom
       CALL reallocate(grid_atom%rad2,1,nr)
       CALL reallocate(grid_atom%wr,1,nr)
       CALL reallocate(grid_atom%wa,1,na)
+      CALL reallocate(grid_atom%weight,1,na,1,nr)
       CALL reallocate(grid_atom%cos_theta,1,na)
       CALL reallocate(grid_atom%sin_theta,1,na)
       CALL reallocate(grid_atom%usin_theta,1,na)

@@ -89,7 +89,7 @@ MODULE qs_linres_nmr_current
                                              pw_pool_init_coeff,&
                                              pw_pool_p_type,&
                                              pw_pool_type,&
-                                            pw_pools_init_coeffs
+                                             pw_pools_init_coeffs
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              REALDATA3D,&
                                              REALSPACE,&
@@ -109,6 +109,8 @@ MODULE qs_linres_nmr_current
   USE qs_linres_nmr_shift,             ONLY: chi_soft_analytic,&
                                              interpolate_shift_pwgrid,&
                                              mult_G_ov_G2_grid
+  USE qs_linres_nmr_atom_current,      ONLY: calculate_jrho_atom_coeff,&
+                                             calculate_jrho_atom_rad
   USE qs_linres_types,                 ONLY: nmr_env_type
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
@@ -239,7 +241,8 @@ CONTAINS
       POINTER                                :: pw_pools
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(qs_rho_type), POINTER               :: rho_struct
-    TYPE(real_matrix_type), POINTER          :: density_matrix, &
+    TYPE(real_matrix_p_type), DIMENSION(:),&
+      POINTER                                :: density_matrix, &
                                                 density_matrix_ii, &
                                                 density_matrix_iii
     TYPE(realspace_grid_type), POINTER       :: rs
@@ -261,6 +264,12 @@ CONTAINS
 !    IF (ionode) output_unit= cp_logger_get_default_unit_nr(logger)
 
     nspins = SIZE(psi1,1)
+    ALLOCATE(density_matrix(nspins),density_matrix_ii(nspins),density_matrix_iii(nspins))
+    DO ispin = 1,nspins
+      NULLIFY(density_matrix(ispin)%matrix)
+      NULLIFY(density_matrix_ii(ispin)%matrix)
+      NULLIFY(density_matrix_iii(ispin)%matrix)
+    END DO
    
    
     CALL get_qs_env(qs_env=qs_env,rho=rho_struct,&
@@ -410,27 +419,27 @@ CONTAINS
           END IF
 
           ! Build the first density matrix
-          density_matrix => nmr_env%jp1_ao
-          CALL set_matrix(density_matrix,0.0_dp)
-          CALL cp_sm_plus_fm_fm_t(sparse_matrix=density_matrix,&
+          density_matrix(ispin)%matrix => nmr_env%jp1_ao
+          CALL set_matrix(density_matrix(ispin)%matrix ,0.0_dp)
+          CALL cp_sm_plus_fm_fm_t(sparse_matrix=density_matrix(ispin)%matrix ,&
                                   matrix_g=psi0_fk,&
                                   matrix_v=psi_a_iB,&
                                   ncol=homo,&
                                   alpha=alpha)
 
           ! Build the second density matrix
-          density_matrix_iii => nmr_env%jp2_ao(1)%matrix
-          CALL set_matrix(density_matrix_iii,0.0_dp)
-          CALL cp_sm_plus_fm_fm_t(sparse_matrix=density_matrix_iii,&
+          density_matrix_iii(ispin)%matrix  => nmr_env%jp2_ao(1)%matrix
+          CALL set_matrix(density_matrix_iii(ispin)%matrix ,0.0_dp)
+          CALL cp_sm_plus_fm_fm_t(sparse_matrix=density_matrix_iii(ispin)%matrix ,&
                                   matrix_g=psi0_fk,&
                                   matrix_v=nmr_env%psi1_p(ispin,iii_B)%matrix,&
                                   ncol=homo,&
                                   alpha=alpha)
 
           ! Build the third density matrix
-          density_matrix_ii => nmr_env%jp2_ao(2)%matrix
-          CALL set_matrix(density_matrix_ii,0.0_dp)
-          CALL cp_sm_plus_fm_fm_t(sparse_matrix=density_matrix_ii,&
+          density_matrix_ii(ispin)%matrix  => nmr_env%jp2_ao(2)%matrix
+          CALL set_matrix(density_matrix_ii(ispin)%matrix ,0.0_dp)
+          CALL cp_sm_plus_fm_fm_t(sparse_matrix=density_matrix_ii(ispin)%matrix ,&
                                   matrix_g=psi0_fk,&
                                   matrix_v=nmr_env%psi1_p(ispin,ii_B)%matrix,&
                                   ncol=homo,&
@@ -451,10 +460,10 @@ CONTAINS
               rho_gspace => rho_struct%rho_g(ispin)
             END IF
 
-! questo collocate non va piu' bene, tra l'altro metterei il loop su idir
-! internamente tanto le matrici densita' non  dipendono da idir
-            CALL calculate_jrho_resp(density_matrix, density_matrix_ii,&
-                 density_matrix_iii, i_B, idir, rho_rspace, rho_gspace,qs_env,&
+            CALL calculate_jrho_resp(density_matrix(ispin)%matrix , &
+                 density_matrix_ii(ispin)%matrix ,&
+                 density_matrix_iii(ispin)%matrix , &
+                 i_B, idir, rho_rspace, rho_gspace,qs_env,&
                  gapw, error=error)
 
             jrho_tot = calculate_total_rho(rho_gspace)
@@ -462,9 +471,10 @@ CONTAINS
 !           !Field gradient
             ! loop over the Gvec  components: x,y,z
             DO idir2 = 1,3
-                IF(idir /= idir2) THEN
+              IF(idir /= idir2) THEN
                   ! in reciprocal space multiply (G_idir2(i)/G(i)^2)J_(idir)(G(i))
-                  CALL mult_G_ov_G2_grid(cell,auxbas_pw_pool,rho_gspace,pw_gspace_work,idir2,error=error)
+                  CALL mult_G_ov_G2_grid(cell,auxbas_pw_pool,rho_gspace,&
+                       pw_gspace_work,idir2,error=error)
 
                   ! scale and add to the correct component of the shift column
                    CALL set_vecp_rev(idir,idir2,idir3)
@@ -474,9 +484,6 @@ CONTAINS
               END IF
             END DO
 
-            IF(gapw) THEN
-            ! compute the atomic response current densities on the spherical grids
-            END IF
           END DO  ! idir
          
 !dbg
@@ -498,6 +505,30 @@ CONTAINS
           ENDIF
         END DO  !  ispin
 
+        IF(gapw) THEN
+          DO idir = 1,3
+            ! compute the atomic response current densities on the spherical grids
+              ! First the sparse matrices are multiplied by the expansion coefficients
+              ! this is the eqiuvalent of the CPC for the charge density
+              CALL calculate_jrho_atom_coeff(qs_env,nmr_env,&
+                   density_matrix, density_matrix_ii,&
+                   density_matrix_iii, i_B, idir, error=error)
+              ! Then the radial parts are computed on the local radial grid, atom by atom
+              ! 8 functions are computed for each atom, per grid point 
+              ! and per LM angular momentum. The multiplication by the Clebsh-Gordon
+              ! coefficients or they correspondent for the derivatives, is also done here
+              CALL calculate_jrho_atom_rad(qs_env,nmr_env,I_B,idir,error=error)
+
+              ! Finally the radial functions are multiplied by the YLM and properly summed
+              ! The resulting array is J on the local grid. One array per atom.
+              ! The contribution to the shift,  at the real space positions where required,
+              ! is done immediatly after the calculation of J. Hence the current is not
+              ! farther store, unless required
+
+              
+          END DO  ! idir
+        END IF
+
         ! Tranform the column i_B of the shift tensor from reciprocal to real space
         ! get the values on the atomic positions and on the other required points (if any) 
         ! this can be done by interpolation of the values of the grid 
@@ -508,11 +539,11 @@ CONTAINS
 !dbg
         DO idir = 1,3
           CALL coeff_transform_space(shift_pw_gspace(idir),shift_pw_rspace)
-          CALL interpolate_shift_pwgrid(nmr_env,particle_set,cell,shift_pw_rspace,&
-              i_B,idir,error=error)
+          CALL interpolate_shift_pwgrid(nmr_env,pw_env,particle_set,cell,shift_pw_rspace,&
+              i_B,idir,nmr_section,error=error)
         END DO 
         IF(gapw) THEN
-          ! Add the local contributions by numerical integration over the spherical grids
+        ! Add the local contributions by numerical integration over the spherical grids
         END IF
 
         IF (BTEST(cp_print_key_should_output(logger%iter_info,nmr_section,&
@@ -572,7 +603,14 @@ CONTAINS
            error=error)
 !
 !-----------------------------------------------------------------------!
-
+      DO ispin = 1,nspins
+        NULLIFY(density_matrix(ispin)%matrix)
+        NULLIFY(density_matrix_ii(ispin)%matrix)
+        NULLIFY(density_matrix_iii(ispin)%matrix)
+      END DO
+      DEALLOCATE(density_matrix,density_matrix_ii,density_matrix_iii,STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+  
       CALL timestop(0.0_dp,handle)
     END IF  !  failure
 

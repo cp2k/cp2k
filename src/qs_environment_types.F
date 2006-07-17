@@ -485,7 +485,6 @@ CONTAINS
     failure=.FALSE.
     NULLIFY(atomic_kinds, particles, molecules_new,&
          molecule_kinds_new)
-!    CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(qs_env%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(qs_env%subsys),cp_failure_level,routineP,error,failure)
     IF (PRESENT(outer_scf_history)) outer_scf_history=>qs_env%outer_scf_history

@@ -48,15 +48,34 @@ MODULE qs_linres_nmr_shift
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply,copy_sm_to_fm 
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
+  USE input_section_types,             ONLY: section_get_ival,&
+                                             section_get_rval,&
+                                             section_get_lval,&
+                                             section_vals_get_subs_vals,&
+                                             section_vals_type,&
+                                             section_vals_val_get
   USE kinds,                           ONLY: dp
   USE particle_types,                  ONLY: particle_type
   USE pw_grid_types,                   ONLY: pw_grid_type
+  USE pw_env_types,                    ONLY: pw_env_get,&
+                                             pw_env_type
   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
+                                             pw_pool_give_back_coeff,&
                                              pw_pool_give_back_pw,&
+                                             pw_pool_init_coeff,&
                                              pw_pool_type
-  USE pw_spline_utils,                 ONLY: Eval_Interp_Spl3_pbc
+  USE pw_spline_utils,                 ONLY: Eval_Interp_Spl3_pbc,&
+                                             find_coeffs,&
+                                             pw_spline_precond_type,&
+                                             pw_spline_precond_create,&
+                                             pw_spline_precond_release,&
+                                             pw_spline_do_precond,&
+                                             pw_spline_precond_set_kind,&
+                                             spl3_pbc
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
+                                             REALDATA3D,&
                                              RECIPROCALSPACE,&
+                                             REALSPACE,&
                                              pw_transfer,&
                                              pw_type
   USE qs_environment_types,            ONLY: get_qs_env,&
@@ -159,7 +178,6 @@ CONTAINS
 !   Remember the derivatives are antisymmetric
     CALL allocate_matrix_set(op_mom_ao,9)
     CALL allocate_matrix_set(op_mom_der_ao,9,3)
-!dbg
     CALL set_up_op_sm(op_mom_ao(1)%matrix,qs_env,symmetry="none",&
           name="op_mom",error=error)    
     DO idir2=1,3
@@ -169,35 +187,21 @@ CONTAINS
             target_symmetry="none")
        CALL set_matrix(op_mom_der_ao(1,idir2)%matrix,0.0_dp)
     END DO
-!dbg
 
-!dbg
     DO idir = 2,SIZE(op_mom_ao,1)
-!    DO idir = 1,SIZE(op_mom_ao,1)
       CALL replicate_matrix_structure(op_mom_ao(1)%matrix, &
-!dbg
            op_mom_ao(idir)%matrix,&
            "op_mom_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir))),&
-!dbg
            target_symmetry="none")
-!           target_symmetry="symmetric")
-!dbg
       CALL set_matrix(op_mom_ao(idir)%matrix,0.0_dp)
       DO idir2=1,3
-!dbg
         CALL replicate_matrix_structure(op_mom_ao(1)%matrix, &
-!dbg
              op_mom_der_ao(idir,idir2)%matrix,&
              "op_mom_der_ao"//"-"//TRIM(ADJUSTL(cp_to_string(idir*idir2))),&
-!dbg
              target_symmetry="none")
-!             target_symmetry="antisymmetric")
-!dbg
         CALL set_matrix(op_mom_der_ao(idir,idir2)%matrix,0.0_dp)
       END DO
     END DO
-!dbg
-
 
 !   get iiB and iiiB
     CALL set_vecp(iB,iiB,iiiB)
@@ -289,7 +293,7 @@ CONTAINS
 !     referring to istate
 !     psi1_rxp_iB_istate
       CALL cp_fm_get_submatrix(nmr_env%psi1_rxp(ispin,iB)%matrix,&
-           vecbuf_1_rxp,1,istate,nmr_env%nao,1,transpose=.TRUE.,&
+           vecbuf_1_rxp,1,istate,nao,1,transpose=.TRUE.,&
            error=error)
 
       IF(nmr_env%full_nmr) THEN
@@ -330,13 +334,15 @@ CONTAINS
 
 !       term: 2[C0| r_ii |d_iii(C1(rxp-D))]-2[C0| r_iii |d_ii(C1(rxp-D))]
 !       the factor 2 should be already included in the matrix elements
-        CALL cp_sm_fm_multiply(op_mom_der_ao(ii,iii)%matrix,psi_rxp_istate,momxpsi_istate,ncol=1,alpha=1.d0,error=error)
+        CALL cp_sm_fm_multiply(op_mom_der_ao(ii,iii)%matrix,psi_rxp_istate,&
+             momxpsi_istate,ncol=1,alpha=1.d0,error=error)
         CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib)
         chi(idir) = chi(idir) + contrib
 !dbg
   write(*,'(2(A,I5),2f12.6)') ' first term a  r',ii,' der',iii, contrib, chi(idir)
 !dbg
-        CALL cp_sm_fm_multiply(op_mom_der_ao(iii,ii)%matrix,psi_rxp_istate,momxpsi_istate,ncol=1,alpha=1.d0,error=error)
+        CALL cp_sm_fm_multiply(op_mom_der_ao(iii,ii)%matrix,psi_rxp_istate,&
+             momxpsi_istate,ncol=1,alpha=1.d0,error=error)
         CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib)
         chi(idir) = chi(idir) - contrib
 !dbg
@@ -346,14 +352,16 @@ CONTAINS
 !       term: -2[C0| r_ii r_iiB | d_iii(C1(piiiB))] + 2[C0| r_iii r_iiB | d_ii(C1(piiiB))] 
 !       the factor 2 should be already included in the matrix elements
         idir2 = ind_m2(ii,iiB)
-        CALL cp_sm_fm_multiply(op_mom_der_ao(idir2,iii)%matrix,psi_p2_istate,momxpsi_istate,ncol=1,alpha=1.d0,error=error)
+        CALL cp_sm_fm_multiply(op_mom_der_ao(idir2,iii)%matrix,psi_p2_istate,&
+             momxpsi_istate,ncol=1,alpha=1.d0,error=error)
         CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib)
         chi(idir) = chi(idir) - contrib
 !dbg
   write(*,'(4(A,I5),2f12.6)') ' second term a  idir2 ', idir2, ' r',ii,' r',iiB,' der',iii,-contrib, chi(idir)
 !dbg
         idir2 = ind_m2(iii,iiB)
-        CALL cp_sm_fm_multiply(op_mom_der_ao(idir2,ii)%matrix,psi_p2_istate,momxpsi_istate,ncol=1,alpha=1.d0,error=error)
+        CALL cp_sm_fm_multiply(op_mom_der_ao(idir2,ii)%matrix,psi_p2_istate,&
+             momxpsi_istate,ncol=1,alpha=1.d0,error=error)
         CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib)
         chi(idir) = chi(idir) + contrib
 !dbg
@@ -363,14 +371,16 @@ CONTAINS
 !       term: 2[C0| r_ii   r_iiiB | d_iii(C1(piiB))] - 2[C0| r_iii r_iiiB | d_ii(C1(piiB))] 
 !       the factor 2 should be already included in the matrix elements
         idir2 = ind_m2(ii,iiiB)
-        CALL cp_sm_fm_multiply(op_mom_der_ao(idir2,iii)%matrix,psi_p1_istate,momxpsi_istate,ncol=1,alpha=1.d0,error=error)
+        CALL cp_sm_fm_multiply(op_mom_der_ao(idir2,iii)%matrix,psi_p1_istate,&
+             momxpsi_istate,ncol=1,alpha=1.d0,error=error)
         CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib)
         chi(idir) = chi(idir) + contrib
 !dbg
   write(*,'(4(A,I5),2f12.6)') ' third term a  idir2 ', idir2, ' r',ii,' r',iiiB,' der',iii,contrib, chi(idir)
 !dbg
         idir2 = ind_m2(iii,iiiB)
-        CALL cp_sm_fm_multiply(op_mom_der_ao(idir2,ii)%matrix,psi_p1_istate,momxpsi_istate,ncol=1,alpha=1.d0,error=error)
+        CALL cp_sm_fm_multiply(op_mom_der_ao(idir2,ii)%matrix,psi_p1_istate,&
+             momxpsi_istate,ncol=1,alpha=1.d0,error=error)
         CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib)
         chi(idir) = chi(idir) - contrib!
 !dbg
@@ -379,7 +389,8 @@ CONTAINS
 
         IF(iii==iiB) THEN
 !         term: -[C0 | r_ii | C1(piiiB)]   
-          CALL cp_sm_fm_multiply(op_mom_ao(ii)%matrix,psi_p2_istate,momxpsi_istate,ncol=1,alpha=1.d0,error=error)
+          CALL cp_sm_fm_multiply(op_mom_ao(ii)%matrix,psi_p2_istate,&
+               momxpsi_istate,ncol=1,alpha=1.d0,error=error)
           CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib)
           chi(idir) = chi(idir) - contrib
 !dbg
@@ -387,7 +398,8 @@ CONTAINS
 !dbg
         ELSEIF(iii==iiiB) THEN
 !         term: [C0| r_ii | C1(piiB)]
-          CALL cp_sm_fm_multiply(op_mom_ao(ii)%matrix,psi_p1_istate,momxpsi_istate,ncol=1,alpha=1.d0,error=error)
+          CALL cp_sm_fm_multiply(op_mom_ao(ii)%matrix,psi_p1_istate,&
+               momxpsi_istate,ncol=1,alpha=1.d0,error=error)
           CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib)
           chi(idir) = chi(idir) + contrib
 !dbg
@@ -396,7 +408,8 @@ CONTAINS
         END IF
         IF(ii==iiB) THEN
 !         term: [C0| r_iii | C1(piiiB)]
-          CALL cp_sm_fm_multiply(op_mom_ao(iii)%matrix,psi_p2_istate,momxpsi_istate,ncol=1,alpha=1.d0,error=error)
+          CALL cp_sm_fm_multiply(op_mom_ao(iii)%matrix,psi_p2_istate,&
+               momxpsi_istate,ncol=1,alpha=1.d0,error=error)
           CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib)
           chi(idir) = chi(idir) + contrib
 !dbg
@@ -404,7 +417,8 @@ CONTAINS
 !dbg
         ELSEIF(ii==iiiB) THEN
 !         term: -[C0| r_iii |C1(piiB)]
-          CALL cp_sm_fm_multiply(op_mom_ao(iii)%matrix,psi_p1_istate,momxpsi_istate,ncol=1,alpha=1.d0,error=error)
+          CALL cp_sm_fm_multiply(op_mom_ao(iii)%matrix,psi_p1_istate,&
+               momxpsi_istate,ncol=1,alpha=1.d0,error=error)
           CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib)
           chi(idir) = chi(idir) - contrib
 !dbg
@@ -442,552 +456,7 @@ CONTAINS
   END SUBROUTINE chi_soft_analytic
 
 
-  SUBROUTINE chi_old(nmr_env,qs_env,psi1,p_psi1,ispin,i_B,error)
-
-    TYPE(nmr_env_type)                       :: nmr_env
-    TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: psi1, p_psi1
-
-    INTEGER, INTENT(IN)                      :: ispin
-    INTEGER, INTENT(IN)                      :: i_B
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'chi_soft_analytic', &
-      routineP = moduleN//':'//routineN
-
-
-    INTEGER :: homo, i,j,iao, idir, idir2, idir3, ii_B, iii_B, imom, &
-               istat, istate, nao, nmo 
-    LOGICAL :: failure, gapw, uni_occ
-    REAL(dp) :: alpha, contrib,d1dk(3),d1(3), dk(3),maxocc,scale_fac
-    REAL(dp), DIMENSION(:), POINTER          :: occupation
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: d1mdk_i,d1mdk_ii
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: d1mdk
-    TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_fm_struct_type), POINTER         :: tmp_fm_struct
-    TYPE(cp_fm_type), POINTER                :: mo_coeff
-    TYPE(cp_fm_type), POINTER                :: fm_work1,fm_work2
-    TYPE(cp_fm_type), POINTER                :: fm_work3
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(linres_control_type), POINTER       :: linres_control
-    TYPE(mo_set_p_type), DIMENSION(:), &
-      POINTER                                :: mos
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s
-
-
-    failure = .FALSE.
-
-    NULLIFY(cell,dft_control,linres_control,mo_coeff,mos,occupation,para_env)
-    NULLIFY(fm_work1,fm_work2,fm_work3,matrix_s)
-
-    CALL set_vecp(i_B,ii_B,iii_B)
-
-    CALL get_qs_env(qs_env=qs_env,cell=cell,dft_control=dft_control,&
-         linres_control=linres_control,matrix_s=matrix_s,&
-         mos=mos,para_env=para_env)
-    gapw = (dft_control%qs_control%gapw .OR. dft_control%qs_control%gapw_xc)
-    CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff,&
-         occupation_numbers=occupation, homo=homo, nmo=nmo,&
-         nao=nao, uniform_occupation=uni_occ,maxocc=maxocc)
-
-    CALL cp_fm_to_fm(nmr_env%psi1_rxp(ispin,i_B)%matrix,psi1(ispin)%matrix)
-    IF(nmr_env%full_nmr) THEN
-        CALL  cp_fm_scale_and_add(1.0_dp,psi1(ispin)%matrix,&
-              -1.0_dp,nmr_env%psi1_D(ispin,i_B)%matrix,error=error)
-    END IF
-
-    IF ( .NOT. uni_occ ) THEN
-       alpha = 1.0_dp
-       CALL cp_fm_column_scale(psi1(ispin)%matrix,occupation(1:homo))
-    ELSE
-       alpha = maxocc
-    END IF
-
-!dbg
-! write(*,*) 'size ', nao, nmo, homo
-!dbg
-!dbg
-! write(*,*) 'PSI1 '
-! do i = 1,nao
-!     write(*,'(I4,4f12.6)') i,(psi1(ispin)%matrix%local_data(i,j),j=1,4)
-! enddo
-! write(*,*)
-!dbg
-    ALLOCATE(d1mdk(3,homo),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(d1mdk_i(homo),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(d1mdk_ii(homo),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-  
-    d1 = linres_control%localized_wfn_control%centers_set(1)%array(1:3,1)
-    DO istate = 1,homo
-      dk = linres_control%localized_wfn_control%centers_set(ispin)%array(1:3,istate)
-!    Be careful : if isolated system this pbc does not work
-      d1dk = pbc(dk,d1,cell)
-      d1mdk(1:3,istate) = d1dk(1:3)
-     write(*,*) 'dkd1 ', istate, d1dk(1:3)
-
-    END DO 
-
-    ! create a new matrix 
-    NULLIFY(tmp_fm_struct)
-    CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=nao,&
-           ncol_global=homo,para_env=para_env,context=mo_coeff%matrix_struct%context)
-    CALL cp_fm_create (fm_work1, tmp_fm_struct )
-    CALL cp_fm_set_all(fm_work1,0.0_dp,error=error)
-    CALL cp_fm_create (fm_work2, tmp_fm_struct )
-    CALL cp_fm_set_all(fm_work2,0.0_dp,error=error)
-    CALL cp_fm_create (fm_work3, tmp_fm_struct )
-    CALL cp_fm_set_all(fm_work3,0.0_dp,error=error)
-    CALL cp_fm_struct_release ( tmp_fm_struct )
-
-!    idir gives the component of j_rho:  compute the related contributions
-    DO idir = 1,3
-
-   ! Apply the component idir of the p operator
-       CALL cp_sm_fm_multiply(nmr_env%op_p_ao(idir)%matrix,psi1(ispin)%matrix,&
-              p_psi1(ispin)%matrix,ncol=homo,alpha=+1.0_dp,error=error)
-       ! These additional terms should give zero contribution due to
-       ! the orthogonality of the response functions with respect to the unperturbed set
-       IF(idir==ii_B) THEN
-         CALL cp_sm_fm_multiply(matrix_s(1)%matrix,&
-              nmr_env%psi1_p(ispin,iii_B)%matrix,&
-              fm_work1,ncol=homo,alpha=1.0_dp,error=error)
-         CALL  cp_fm_scale_and_add(1.0_dp,p_psi1(ispin)%matrix,-1.0_dp,&
-              fm_work1,error=error)
-!               nmr_env%psi1_p(ispin,iii_B)%matrix,error=error)
-       ELSEIF(idir==iii_B)THEN
-         CALL cp_sm_fm_multiply(matrix_s(1)%matrix,&
-              nmr_env%psi1_p(ispin,ii_B)%matrix,&
-              fm_work1,ncol=homo,alpha=1.0_dp,error=error)
-         CALL  cp_fm_scale_and_add(1.0_dp,p_psi1(ispin)%matrix,+1.0_dp,&
-              fm_work1,error=error)
-!               nmr_env%psi1_p(ispin,ii_B)%matrix,error=error)
-       END IF
-
-       IF ( .NOT. uni_occ ) THEN
-          CALL cp_fm_column_scale(p_psi1(ispin)%matrix,occupation(1:homo))
-       END IF
-
-!dbg
- write(*,*) 'J_RHO dir=', idir
-! do i = 1,nao
-!     write(*,'(I4,4f12.6)') i,(p_psi1(ispin)%matrix%local_data(i,j),j=1,4)
-! enddo
-! write(*,*)
-!dbg
-
-!      idir2 is the component of the position operator
-       DO idir2 = 1,3
-         IF(idir /= idir2) THEN
-
-!          idir3 is the component of CHI to which this term contribute
-             CALL set_vecp_rev(idir,idir2,idir3)
-             scale_fac=fac_vecp(idir3,idir2,idir)
-             d1mdk_i(1:homo) = d1mdk(idir2,1:homo)
-
-! first term ppsi0 times p1
-             CALL cp_sm_fm_multiply(nmr_env%op_mom_ao(idir2)%matrix,psi1(ispin)%matrix,&
-                  fm_work1,ncol=homo,alpha=1.0_dp,error=error)
-
-
-!             CALL cp_fm_to_fm(psi1(ispin)%matrix,fm_work2,ncol=homo)
-             CALL cp_sm_fm_multiply(matrix_s(1)%matrix,psi1(ispin)%matrix,&
-                  fm_work2,ncol=homo,alpha=1.0_dp,error=error)
-             CALL cp_fm_column_scale(fm_work2,d1mdk_i(1:homo))
-             CALL cp_fm_scale_and_add(1.0_dp,fm_work1,1.0_dp,fm_work2,error=error)
-
-             CALL cp_fm_to_fm(nmr_env%p_psi0(ispin,idir)%matrix,&
-                 fm_work3,ncol=homo)
-
-             CALL cp_fm_trace(fm_work3,fm_work1,contrib,error=error)
-
-             nmr_env%chi_tensor(i_B,idir3) = nmr_env%chi_tensor(i_B,idir3) +&
-                      scale_fac*contrib*alpha
-
-      write(*,*) "grad psi0 r psi1 ",idir3, idir2, idir, contrib 
-
-! first term psi0 times pp1
-             CALL cp_sm_fm_multiply(nmr_env%op_mom_ao(idir2)%matrix,p_psi1(ispin)%matrix,&
-                  fm_work1,ncol=homo,alpha=1.0_dp,error=error)
-
-             CALL cp_fm_to_fm(p_psi1(ispin)%matrix,fm_work2,ncol=homo)
-             CALL cp_fm_column_scale(fm_work2,d1mdk_i(1:homo))
-             CALL cp_fm_scale_and_add(1.0_dp,fm_work1,1.0_dp,fm_work2,error=error)
-
-             CALL cp_fm_to_fm(mo_coeff, fm_work3,ncol=homo)
-
-             CALL cp_fm_trace(fm_work3,fm_work1,contrib,error=error)
-
-             nmr_env%chi_tensor(i_B,idir3) = nmr_env%chi_tensor(i_B,idir3) +&
-                      scale_fac*contrib*alpha
-
-      write(*,*) " psi0 r grad psi1 ", idir3, idir2, idir, contrib 
-
-             imom = ind_m2(idir2,iii_B)
-             d1mdk_ii(1:homo) = d1mdk(iii_B,1:homo)
-
-! second term ppsi0 times p2
-             CALL cp_fm_set_all(fm_work1,0.0_dp,error=error)
-             CALL cp_fm_set_all(fm_work2,0.0_dp,error=error)
-             CALL cp_fm_set_all(fm_work3,0.0_dp,error=error)
-             CALL cp_fm_to_fm(nmr_env%psi1_p(ispin,ii_B)%matrix,fm_work2,ncol=homo)
-             IF ( .NOT. uni_occ ) THEN
-               CALL cp_fm_column_scale(fm_work2,occupation(1:homo))
-             END IF
-             CALL cp_sm_fm_multiply(nmr_env%op_mom_ao(imom)%matrix,&
-                  fm_work2,fm_work3,ncol=homo,alpha=1.0_dp,error=error)
-
-             CALL cp_fm_to_fm(fm_work2,fm_work1,ncol=homo)
-             CALL cp_fm_column_scale(fm_work1,d1mdk_i(1:homo))
-             CALL cp_fm_column_scale(fm_work1,d1mdk_ii(1:homo))
-             CALL  cp_fm_scale_and_add(1.0_dp,fm_work3,1.0_dp,fm_work1,error=error)
-
-             CALL cp_sm_fm_multiply(nmr_env%op_mom_ao(idir2)%matrix,&
-                  fm_work2,fm_work1,ncol=homo,alpha=1.0_dp,error=error)
-             CALL cp_fm_column_scale(fm_work1,d1mdk_ii(1:homo))
-             CALL  cp_fm_scale_and_add(1.0_dp,fm_work3,1.0_dp,fm_work1,error=error)
-
-             CALL cp_sm_fm_multiply(nmr_env%op_mom_ao(iii_B)%matrix,&
-                  fm_work2,fm_work1,ncol=homo,alpha=1.0_dp,error=error)
-             CALL cp_fm_column_scale(fm_work1,d1mdk_i(1:homo))
-             CALL  cp_fm_scale_and_add(1.0_dp,fm_work3,1.0_dp,fm_work1,error=error)
-
-             CALL cp_fm_to_fm(nmr_env%p_psi0(ispin,idir)%matrix,&
-                  fm_work1,ncol=homo)
-             CALL cp_fm_trace(fm_work1,fm_work3,contrib,error=error)
-             nmr_env%chi_tensor(i_B,idir3) = nmr_env%chi_tensor(i_B,idir3) +&
-                      scale_fac*contrib*alpha
-
-
-      write(*,*) idir3, idir2, idir, contrib 
-
-! second term psi0 times pp2
-             CALL cp_fm_set_all(fm_work3,0.0_dp,error=error)
-             CALL cp_sm_fm_multiply(nmr_env%op_p_ao(idir)%matrix,fm_work2,&
-                  fm_work1,ncol=homo,alpha=1.0_dp,error=error)
-             
-             CALL cp_sm_fm_multiply(nmr_env%op_mom_ao(imom)%matrix,&
-                  fm_work1,fm_work3,ncol=homo,alpha=1.0_dp,error=error)
-             
-             CALL cp_fm_to_fm(fm_work1,fm_work2,ncol=homo)
-             CALL cp_fm_column_scale(fm_work2,d1mdk_i(1:homo))
-             CALL cp_fm_column_scale(fm_work2,d1mdk_ii(1:homo))
-             CALL  cp_fm_scale_and_add(1.0_dp,fm_work3,1.0_dp,fm_work2,error=error)
-
-             CALL cp_sm_fm_multiply(nmr_env%op_mom_ao(idir2)%matrix,&
-                  fm_work1,fm_work2,ncol=homo,alpha=1.0_dp,error=error)
-             CALL cp_fm_column_scale(fm_work2,d1mdk_ii(1:homo))
-             CALL  cp_fm_scale_and_add(1.0_dp,fm_work3,+1.0_dp,fm_work2,error=error)
-
-             CALL cp_sm_fm_multiply(nmr_env%op_mom_ao(iii_B)%matrix,&
-                  fm_work1,fm_work2,ncol=homo,alpha=1.0_dp,error=error)
-             CALL cp_fm_column_scale(fm_work2,d1mdk_i(1:homo))
-             CALL cp_fm_scale_and_add(1.0_dp,fm_work3,+1.0_dp,fm_work2,error=error)
-
-             CALL cp_fm_to_fm(mo_coeff,fm_work1,ncol=homo)
-             CALL cp_fm_trace(fm_work1,fm_work3,contrib,error=error)
-             nmr_env%chi_tensor(i_B,idir3) = nmr_env%chi_tensor(i_B,idir3) +&
-                      scale_fac*contrib*alpha
-
-      write(*,*) idir3, idir2, idir, contrib 
-
-             imom = ind_m2(idir2,ii_B)
-             d1mdk_ii(1:homo) = d1mdk(ii_B,1:homo)
-! third term ppsi0 times p3
-             CALL cp_fm_set_all(fm_work1,0.0_dp,error=error)
-             CALL cp_fm_set_all(fm_work2,0.0_dp,error=error)
-             CALL cp_fm_set_all(fm_work3,0.0_dp,error=error)
-             CALL cp_fm_to_fm(nmr_env%psi1_p(ispin,iii_B)%matrix,fm_work2,ncol=homo)
-             IF ( .NOT. uni_occ ) THEN
-               CALL cp_fm_column_scale(fm_work2,occupation(1:homo))
-             END IF
-             CALL cp_sm_fm_multiply(nmr_env%op_mom_ao(imom)%matrix,&
-                  fm_work2,fm_work3,ncol=homo,alpha=-1.0_dp,error=error)
-
-             CALL cp_fm_to_fm(fm_work2,fm_work1,ncol=homo)
-             CALL cp_fm_column_scale(fm_work1,d1mdk_i(1:homo))
-             CALL cp_fm_column_scale(fm_work1,d1mdk_ii(1:homo))
-             CALL  cp_fm_scale_and_add(1.0_dp,fm_work3,-1.0_dp,fm_work1,error=error)
-
-             CALL cp_sm_fm_multiply(nmr_env%op_mom_ao(idir2)%matrix,&
-                  fm_work2,fm_work1,ncol=homo,alpha=1.0_dp,error=error)
-             CALL cp_fm_column_scale(fm_work1,d1mdk_ii(1:homo))
-             CALL  cp_fm_scale_and_add(1.0_dp,fm_work3,-1.0_dp,fm_work1,error=error)
-
-             CALL cp_sm_fm_multiply(nmr_env%op_mom_ao(ii_B)%matrix,&
-                  fm_work2,fm_work1,ncol=homo,alpha=1.0_dp,error=error)
-             CALL cp_fm_column_scale(fm_work1,d1mdk_i(1:homo))
-             CALL  cp_fm_scale_and_add(1.0_dp,fm_work3,-1.0_dp,fm_work1,error=error)
-
-             CALL cp_fm_to_fm(nmr_env%p_psi0(ispin,idir)%matrix,&
-                  fm_work1,ncol=homo)
-             CALL cp_fm_trace(fm_work1,fm_work3,contrib,error=error)
-             nmr_env%chi_tensor(i_B,idir3) = nmr_env%chi_tensor(i_B,idir3) +&
-                      scale_fac*contrib*alpha
-
-      write(*,*)  idir3, idir2, idir, contrib 
-! second term psi0 times pp3
-             CALL cp_fm_set_all(fm_work3,0.0_dp,error=error)
-             CALL cp_sm_fm_multiply(nmr_env%op_p_ao(idir)%matrix,fm_work2,&
-                  fm_work1,ncol=homo,alpha=1.0_dp,error=error)
-             
-             CALL cp_sm_fm_multiply(nmr_env%op_mom_ao(imom)%matrix,&
-                  fm_work1,fm_work3,ncol=homo,alpha=-1.0_dp,error=error)
-             
-             CALL cp_fm_to_fm(fm_work1,fm_work2,ncol=homo)
-             CALL cp_fm_column_scale(fm_work2,d1mdk_i(1:homo))
-             CALL cp_fm_column_scale(fm_work2,d1mdk_ii(1:homo))
-             CALL  cp_fm_scale_and_add(1.0_dp,fm_work3,-1.0_dp,fm_work2,error=error)
-
-             CALL cp_sm_fm_multiply(nmr_env%op_mom_ao(idir2)%matrix,&
-                  fm_work1,fm_work2,ncol=homo,alpha=1.0_dp,error=error)
-             CALL cp_fm_column_scale(fm_work2,d1mdk_ii(1:homo))
-             CALL  cp_fm_scale_and_add(1.0_dp,fm_work3,-1.0_dp,fm_work2,error=error)
-
-             CALL cp_sm_fm_multiply(nmr_env%op_mom_ao(ii_B)%matrix,&
-                  fm_work1,fm_work2,ncol=homo,alpha=1.0_dp,error=error)
-             CALL cp_fm_column_scale(fm_work2,d1mdk_i(1:homo))
-             CALL cp_fm_scale_and_add(1.0_dp,fm_work3,-1.0_dp,fm_work2,error=error)
-
-             CALL cp_fm_to_fm(mo_coeff,fm_work1,ncol=homo)
-             CALL cp_fm_trace(fm_work1,fm_work3,contrib,error=error)
-             nmr_env%chi_tensor(i_B,idir3) = nmr_env%chi_tensor(i_B,idir3) +&
-                      scale_fac*contrib*alpha
-
-      write(*,*) idir3, idir2, idir, contrib 
-
-         END IF
-       END DO  ! idir2
-
-    END DO  ! idir
-
-    write(*,*) 'chi ', nmr_env%chi_tensor(i_B,1:3)
- 
-! stop 'vediamo'
-
-
-    CALL cp_fm_release(fm_work1,error=error)
-    CALL cp_fm_release(fm_work2,error=error)
-    CALL cp_fm_release(fm_work3,error=error)
-
-    DEALLOCATE(d1mdk,d1mdk_i,d1mdk_ii,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-  
-  END SUBROUTINE chi_old
-
 !  *****************************************************************************************
-
-  SUBROUTINE chi_soft_analytic_b(nmr_env,qs_env,psi1,p_psi1,ispin,i_B,error)
-
-    TYPE(nmr_env_type)                       :: nmr_env
-    TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_fm_p_type), DIMENSION(:), &
-      POINTER                                :: psi1, p_psi1
-
-    INTEGER, INTENT(IN)                      :: ispin
-    INTEGER, INTENT(IN)                      :: i_B
-    TYPE(cp_error_type), INTENT(INOUT), &
-      OPTIONAL                               :: error
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'chi_soft_analytic', &
-      routineP = moduleN//':'//routineN
-
-
-    INTEGER :: homo, i,j,iao, idir, idir2, idir3, ii_B, iii_B, imom, &
-               istat, istate, nao, nmo 
-    LOGICAL :: failure, gapw, uni_occ
-    REAL(dp) :: alpha, contrib,d1dk(3),d1(3), dk(3),maxocc,scale_fac
-    REAL(dp), DIMENSION(:), POINTER          :: occupation
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: d1mdk_i,d1mdk_ii
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: d1mdk
-    TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_fm_struct_type), POINTER         :: tmp_fm_struct
-    TYPE(cp_fm_type), POINTER                :: mo_coeff
-    TYPE(cp_fm_type), POINTER                :: fm_work1,fm_work2
-    TYPE(cp_fm_type), POINTER                :: fm_work3
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(linres_control_type), POINTER       :: linres_control
-    TYPE(mo_set_p_type), DIMENSION(:), &
-      POINTER                                :: mos
-
-
-    failure = .FALSE.
-
-    NULLIFY(cell,dft_control,linres_control,mo_coeff,mos,occupation,para_env)
-    NULLIFY(fm_work1,fm_work2,fm_work3)
-
-    CALL set_vecp(i_B,ii_B,iii_B)
-
-    CALL get_qs_env(qs_env=qs_env,cell=cell,dft_control=dft_control,&
-         linres_control=linres_control,&
-         mos=mos,para_env=para_env)
-    gapw = (dft_control%qs_control%gapw .OR. dft_control%qs_control%gapw_xc)
-    CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff,&
-         occupation_numbers=occupation, homo=homo, nmo=nmo,&
-         nao=nao, uniform_occupation=uni_occ,maxocc=maxocc)
-
-    ALLOCATE(d1mdk(3,homo),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(d1mdk_i(homo),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE(d1mdk_ii(homo),STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-  
-    d1 = linres_control%localized_wfn_control%centers_set(1)%array(1:3,1)
-    DO istate = 1,homo
-      dk = linres_control%localized_wfn_control%centers_set(ispin)%array(1:3,istate)
-      d1dk = pbc(dk,d1,cell)
-      d1mdk(1:3,istate) = d1dk(1:3)
-    END DO 
-
-    ! create a new matrix 
-    NULLIFY(tmp_fm_struct)
-    CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=nao,&
-           ncol_global=homo,para_env=para_env,context=mo_coeff%matrix_struct%context)
-    CALL cp_fm_create (fm_work1, tmp_fm_struct )
-    CALL cp_fm_set_all(fm_work1,0.0_dp,error=error)
-!    CALL cp_fm_create (fm_work2, tmp_fm_struct )
-!    CALL cp_fm_set_all(fm_work2,0.0_dp,error=error)
-!    CALL cp_fm_create (fm_work3, tmp_fm_struct )
-!    CALL cp_fm_set_all(fm_work3,0.0_dp,error=error)
-    CALL cp_fm_struct_release ( tmp_fm_struct )
-
-! Generate right part no gradient (the left part is r x p_psi0)
-
-!   rxp term
-    CALL cp_fm_to_fm(nmr_env%psi1_rxp(ispin,i_B)%matrix,psi1(ispin)%matrix)
-!   (dl-dk)xp term
-    IF(nmr_env%full_nmr) THEN
-        CALL  cp_fm_scale_and_add(1.0_dp,psi1(ispin)%matrix,&
-              -1.0_dp,nmr_env%psi1_D(ispin,i_B)%matrix,error=error)
-    END IF
-!   (r-dk)xp term
-    CALL cp_sm_fm_multiply(nmr_env%op_mom_ao(ii_B)%matrix,&
-         nmr_env%psi1_p(ispin,iii_B)%matrix,psi1(ispin)%matrix,ncol=homo,&
-         alpha=-1.0_dp,beta=1.0_dp,error=error)
-    CALL cp_sm_fm_multiply(nmr_env%op_mom_ao(iii_B)%matrix,&
-         nmr_env%psi1_p(ispin,ii_B)%matrix,psi1(ispin)%matrix,ncol=homo,&
-         alpha=1.0_dp,beta=1.0_dp,error=error)
-    ! ii_B x iii_B component
-    d1mdk_ii(1:homo) = -d1mdk(ii_B,1:homo)
-    CALL cp_fm_to_fm(nmr_env%psi1_p(ispin,iii_B)%matrix,fm_work1,ncol=homo)
-    CALL cp_fm_column_scale(fm_work1,d1mdk_ii(1:homo))
-    CALL  cp_fm_scale_and_add(1.0_dp,psi1(ispin)%matrix,1.0_dp,fm_work1,error=error)
-    ! iii_B x ii_B component
-    d1mdk_ii(1:homo) = d1mdk(iii_B,1:homo)
-    CALL cp_fm_to_fm(nmr_env%psi1_p(ispin,ii_B)%matrix,fm_work1,ncol=homo)
-    CALL cp_fm_column_scale(fm_work1,d1mdk_ii(1:homo))
-    CALL  cp_fm_scale_and_add(1.0_dp,psi1(ispin)%matrix,1.0_dp,fm_work1,error=error)
-
-!  Right part no gradient done
-
-    IF ( .NOT. uni_occ ) THEN
-       alpha = 1.0_dp
-       CALL cp_fm_column_scale(psi1(ispin)%matrix,occupation(1:homo))
-    ELSE
-       alpha = maxocc
-    END IF
-
-
-
-!     Lets say that idir gives the j_rho component and compute the relative contributions
-    DO idir = 1,3
-
-
-! Generate right part with gradient
-       CALL cp_sm_fm_multiply(nmr_env%op_p_ao(idir)%matrix,psi1(ispin)%matrix,&
-              p_psi1(ispin)%matrix,ncol=homo,alpha=+1.0_dp,error=error)
-       ! These additional terms should give zero contribution due to
-       ! the orthogonality of the response functions with respect to the unperturbed set
-       IF(idir==ii_B) THEN
-         CALL  cp_fm_scale_and_add(1.0_dp,p_psi1(ispin)%matrix,-1.0_dp,&
-               nmr_env%psi1_p(ispin,iii_B)%matrix,error=error)
-       ELSEIF(idir==iii_B)THEN
-         CALL  cp_fm_scale_and_add(1.0_dp,p_psi1(ispin)%matrix,+1.0_dp,&
-               nmr_env%psi1_p(ispin,ii_B)%matrix,error=error)
-       END IF
-
-!  Right part with gradient done
-       IF ( .NOT. uni_occ ) THEN
-          CALL cp_fm_column_scale(p_psi1(ispin)%matrix,occupation(1:homo))
-       END IF
-
-!dbg
-! write(*,*) 'P_PSI1 dir=', idir
-! do i = 1,nao
-!     write(*,'(I4,4f12.6)') i,(p_psi1(ispin)%matrix%local_data(i,j),j=1,4)
-! enddo
-! write(*,*)
-!dbg
-
-!      idir2 is the component of the position operator
-       DO idir2 = 1,3
-         IF(idir /= idir2) THEN
-
-!          idir3 is the component of CHI to which this term contributes
-             CALL set_vecp_rev(idir,idir2,idir3)
-             scale_fac=fac_vecp(idir3,idir2,idir)
-             d1mdk_i(1:homo) = d1mdk(idir2,1:homo)
-
-! first term p_psi0 times psi1
-             CALL cp_fm_to_fm(nmr_env%p_psi0(ispin,idir)%matrix,fm_work1,ncol=homo)
-             CALL cp_fm_column_scale(fm_work1,d1mdk_i(1:homo))
-             CALL cp_sm_fm_multiply(nmr_env%op_mom_ao(idir2)%matrix,&
-                  nmr_env%p_psi0(ispin,idir)%matrix,&
-                  fm_work1,ncol=homo,alpha=+1.0_dp,beta=1.0_dp,error=error)
-!dbg
-! write(*,*) 'r PSI1 dir=', idir2
-! do i = 1,nao
-!     write(*,'(I4,4f12.6)') i,(fm_work1%local_data(i,j),j=1,4)
-! enddo
-! write(*,*)
-!dbg
-             CALL cp_fm_trace(fm_work1,psi1(ispin)%matrix,contrib,error=error)
-             nmr_env%chi_tensor(i_B,idir3) = nmr_env%chi_tensor(i_B,idir3) +&
-                      scale_fac*contrib*alpha
-
-      write(*,'(A,3I4,3f12.6)') 'r p_psi0 psi1 ', idir3, idir2 , idir, scale_fac, contrib , scale_fac*contrib*alpha
-! stop 'chi cont'
-
-
-
-! second term psi0 times p_psi1
-             CALL cp_fm_to_fm(mo_coeff,fm_work1,ncol=homo)
-             CALL cp_fm_column_scale(fm_work1,d1mdk_i(1:homo))
-             CALL cp_sm_fm_multiply(nmr_env%op_mom_ao(idir2)%matrix,&
-                  mo_coeff,&
-                  fm_work1,ncol=homo,alpha=1.0_dp,beta=1.0_dp,error=error)
-
-             CALL cp_fm_trace(fm_work1,p_psi1(ispin)%matrix,contrib,error=error)
-             nmr_env%chi_tensor(i_B,idir3) = nmr_env%chi_tensor(i_B,idir3) +&
-                      scale_fac*contrib*alpha
-
-      write(*,'(A,3I4,3f12.6)') 'r psi0 p_psi1 ', idir3, idir2 , idir, scale_fac, contrib , scale_fac*contrib*alpha
-
-         END IF
-       END DO  ! idir2
-
-    END DO  ! idir
-
-    write(*,*) 'chi ', nmr_env%chi_tensor(i_B,1:3)
- 
-! stop 'vediamo'
-
-    CALL cp_fm_release(fm_work1,error=error)
-!    CALL cp_fm_release(fm_work2,error=error)
-!    CALL cp_fm_release(fm_work3,error=error)
-
-    DEALLOCATE(d1mdk,d1mdk_i,d1mdk_ii,STAT=istat)
-    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-  
-  END SUBROUTINE chi_soft_analytic_b
 
 !!****f* qs_linres_nmr_shift%interpolate_shift_pwgrid
 !!
@@ -1013,33 +482,73 @@ CONTAINS
 !!
 !!*** **********************************************************************
 
-  SUBROUTINE interpolate_shift_pwgrid(nmr_env,particle_set,cell,shift_pw_rspace,&
-             i_B,idir,error)
+  SUBROUTINE interpolate_shift_pwgrid(nmr_env,pw_env,particle_set,cell,shift_pw_rspace,&
+             i_B,idir,nmr_section,error)
 
     TYPE(nmr_env_type)                       :: nmr_env
+    TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(cell_type), POINTER                 :: cell
     TYPE(coeff_type)                         :: shift_pw_rspace
     INTEGER, INTENT(IN)                      :: i_B, idir
+    TYPE(section_vals_type), POINTER         :: nmr_section
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'interpolate_shift_pwgrid', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: iatom, natom
-    LOGICAL                                  :: failure
-    REAL(dp)                                 :: R_iatom(3), ra(3), shift_val
+    INTEGER                                  :: aint_precond, iatom, max_iter,&
+                                                natom, precond_kind
+    LOGICAL                                  :: failure, success
+    REAL(dp)                                 :: eps_r, eps_x, R_iatom(3),&
+                                                ra(3), shift_val
+    TYPE(coeff_type),  POINTER               :: shiftspl
+    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(pw_spline_precond_type), POINTER    :: precond
+    TYPE(section_vals_type), POINTER         :: interp_section
 
     failure = .FALSE.
+    NULLIFY (interp_section)
+    NULLIFY (auxbas_pw_pool,precond,shiftspl)
+
     CPPrecondition(ASSOCIATED(shift_pw_rspace%pw),cp_failure_level,routineP,error,failure)
     IF(.NOT. failure) THEN
+
+      interp_section =>  section_vals_get_subs_vals(nmr_section,&
+                        "INTERPOLATOR",error=error)
+      CALL section_vals_val_get(interp_section,"aint_precond", &
+                                i_val=aint_precond, error=error)
+      CALL section_vals_val_get(interp_section,"precond",i_val=precond_kind, error=error)
+      CALL section_vals_val_get(interp_section,"max_iter",i_val=max_iter, error=error)
+      CALL section_vals_val_get(interp_section,"eps_r",r_val=eps_r, error=error)
+      CALL section_vals_val_get(interp_section,"eps_x",r_val=eps_x, error=error)
+
+
+      ! calculate spline coefficients
+      CALL pw_env_get(pw_env,  auxbas_pw_pool=auxbas_pw_pool)
+      CALL pw_pool_init_coeff(pool=auxbas_pw_pool,coeff=shiftspl, &
+                             use_data=REALDATA3D,in_space=REALSPACE,&
+                             error=error)
+        
+      CALL pw_spline_precond_create(precond,precond_kind=aint_precond,&
+          pool=auxbas_pw_pool,pbc=.TRUE.,transpose=.FALSE.,error=error)
+      CALL pw_spline_do_precond(precond,shift_pw_rspace%pw,shiftspl%pw,error=error)
+      CALL pw_spline_precond_set_kind(precond,precond_kind,error=error)
+      success=find_coeffs(values=shift_pw_rspace%pw,coeffs=shiftspl%pw,&
+             linOp=spl3_pbc,preconditioner=precond,pool=auxbas_pw_pool, &
+             eps_r=eps_r,eps_x=eps_x,max_iter=max_iter, &
+             print_section=interp_section,error=error)
+      CPPostconditionNoFail(success,cp_warning_level,routineP,error)
+      CALL pw_spline_precond_release(precond,error=error)
+
+
       natom = SIZE(particle_set,1)
 
       DO iatom = 1,natom
         R_iatom = pbc(particle_set(iatom)%r,cell)
-        shift_val = Eval_Interp_Spl3_pbc(R_iatom,shift_pw_rspace%pw,error)
+        shift_val = Eval_Interp_Spl3_pbc(R_iatom,shiftspl%pw,error)
         nmr_env%chemical_shift(i_B,idir,iatom)= nmr_env%chemical_shift(i_B,idir,iatom)+&
             nmr_env%shift_factor*shift_val
       END DO 
@@ -1049,12 +558,14 @@ CONTAINS
         DO iatom = 1,nmr_env%n_nics
           ra(1:3) = nmr_env%r_nics(1:3,iatom)
           R_iatom = pbc(ra,cell)
-          shift_val = Eval_Interp_Spl3_pbc(R_iatom,shift_pw_rspace%pw,error)
+          shift_val = Eval_Interp_Spl3_pbc(R_iatom,shiftspl%pw,error)
           nmr_env%chemical_shift_nics(i_B,idir,iatom) = &
              nmr_env%chemical_shift_nics(i_B,idir,iatom) + &
              nmr_env%shift_factor*shift_val
         END DO
       END IF
+
+      CALL pw_pool_give_back_coeff(auxbas_pw_pool,shiftspl,error=error)
 
     END IF
 

@@ -1629,7 +1629,7 @@ CONTAINS
     ! it's a choice to compute lX_min/max, pab here, 
     ! this way we get the same radius as we use for the corresponding density
     SELECT CASE (ga_gb_function)
-    CASE(FUNC_DADB)!IF (my_compute_tau) THEN
+    CASE(FUNC_DADB)
         la_max_local=la_max+1
         la_min_local=MAX(la_min-1,0)
         lb_max_local=lb_max+1
@@ -1659,7 +1659,7 @@ CONTAINS
         o1_local=0
         o2_local=0
         pab_local=pab_local * 0.5_dp
-    CASE(FUNC_ADBmDAB)!ELSEIF(my_compute_adb_m_dab) THEN
+    CASE(FUNC_ADBmDAB)
         CPPrecondition(PRESENT(idir),cp_failure_level,routineP,error,failure)
         la_max_local=la_max+1
         la_min_local=MAX(la_min-1,0)
@@ -1690,10 +1690,10 @@ CONTAINS
            END DO
         END DO
         END DO
-    CASE(FUNC_ARDBmDARB)!ELSEIF(my_compute_ardb_m_darb) THEN
+    CASE(FUNC_ARDBmDARB)
         CPPrecondition(PRESENT(idir),cp_failure_level,routineP,error,failure)
         CPPrecondition(PRESENT(ir),cp_failure_level,routineP,error,failure)
-        la_max_local=la_max+2
+        la_max_local=la_max+1
         la_min_local=MAX(la_min-1,0)
         lb_max_local=lb_max+2
         lb_min_local=MAX(lb_min-1,0)
@@ -1723,7 +1723,7 @@ CONTAINS
         END DO
         END DO
 
-    CASE(FUNC_AB)!ELSE
+    CASE(FUNC_AB)
         la_max_local=la_max
         la_min_local=la_min
         lb_max_local=lb_max

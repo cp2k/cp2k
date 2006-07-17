@@ -56,12 +56,14 @@ MODULE qs_linres_nmr_op
                                              particle_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
-  USE qs_linres_types,                 ONLY: linres_control_type,&
+  USE qs_linres_types,                 ONLY: get_nmr_env,&
+                                             linres_control_type,&
                                              nmr_env_type
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
   USE qs_operators_ao,                 ONLY: p_xyz_ao,&
                                              rmc_x_p_xyz_ao
+  USE sparse_matrix_types,             ONLY: real_matrix_p_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -123,11 +125,16 @@ CONTAINS
     LOGICAL                                  :: failure, ionode
     REAL(dp)                                 :: ck(3), ckdk(3), dk(3)
     REAL(dp), DIMENSION(:,:), POINTER        :: vecbuf_c0
+    REAL(dp), DIMENSION(:,:), POINTER        :: basisfun_center
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_2d_r_p_type), DIMENSION(3)       :: vecbuf_RmdC0
+    TYPE(cp_2d_r_p_type), DIMENSION(:),&
+      POINTER                                :: centers_set
     TYPE(cp_fm_struct_type), POINTER         :: tmp_fm_struct
+    TYPE(cp_fm_p_type), DIMENSION(:,:),&
+      POINTER                                :: p_psi0, rxp_psi0
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_fm_type), POINTER                :: fm_work1,fm_work2
     TYPE(cp_fm_p_type), DIMENSION(3)         :: fm_Rmd_mos
@@ -140,6 +147,8 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(section_vals_type), POINTER         :: lr_section
+    TYPE(real_matrix_p_type), DIMENSION(:),&
+      POINTER                                :: op_p_ao, op_rmd_ao
 !dbg
     integer :: i,j, k, fnum
 !dbg
@@ -150,17 +159,18 @@ CONTAINS
 
     NULLIFY(atomic_kind_set,cell,dft_control,linres_control)
     NULLIFY(logger,mos,particle_set,lr_section,fm_work1)
+    NULLIFY(basisfun_center, centers_set, p_psi0, rxp_psi0, op_p_ao, op_rmd_ao)
  
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
-    lr_section => section_vals_get_subs_vals(qs_env%input,"PROPERTIES%LINRES",error=error)
+    lr_section => section_vals_get_subs_vals(qs_env%input,&
+                  "PROPERTIES%LINRES",error=error)
 
     output_unit = cp_print_key_unit_nr(logger,lr_section,"PRINT%PROGRAM_RUN_INFO",&
-         extension=".linresLog",error=error)
+                  extension=".linresLog",error=error)
     IF (output_unit>0) THEN
       WRITE (UNIT=output_unit,FMT="(T10,A,/)")&
          "Calculation of the p and (r-d)xp operators applied to psi0"
-
     END IF
     CALL cp_print_key_finished_output(output_unit,logger,lr_section,&
          "PRINT%PROGRAM_RUN_INFO",error=error)
@@ -170,16 +180,20 @@ CONTAINS
                     mos=mos, para_env=para_env, &
                     particle_set=particle_set)
 
+    CALL get_nmr_env(nmr_env=nmr_env, nao=nao, centers_set=centers_set,&
+                     basisfun_center=basisfun_center, &
+                     p_psi0=p_psi0, rxp_psi0=rxp_psi0,&
+                     op_p_ao=op_p_ao, op_rmd_ao=op_rmd_ao)
 
     ! Calculate the px py pz operators
-    CALL p_xyz_ao(nmr_env%op_p_ao,qs_env,minimum_image=.TRUE.,error=error)
+    CALL p_xyz_ao(op_p_ao,qs_env,minimum_image=.TRUE.,error=error)
     ! Apply the p operator to the psi0
     DO idir = 1,3
       DO ispin = 1, dft_control%nspins
-         CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff, nao=nao, nmo=nmo)
-         CALL cp_fm_set_all(nmr_env%p_psi0(ispin,idir)%matrix,0.0_dp,error=error)
-         CALL cp_sm_fm_multiply(nmr_env%op_p_ao(idir)%matrix,mo_coeff,&
-                nmr_env%p_psi0(ispin,idir)%matrix,ncol=nmo,alpha=-1.0_dp,error=error)
+         CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff, nmo=nmo)
+         CALL cp_fm_set_all(p_psi0(ispin,idir)%matrix,0.0_dp,error=error)
+         CALL cp_sm_fm_multiply(op_p_ao(idir)%matrix,mo_coeff,&
+                p_psi0(ispin,idir)%matrix,ncol=nmo,alpha=-1.0_dp,error=error)
       END DO 
     END DO 
 
@@ -201,15 +215,15 @@ CONTAINS
     ! notice: (r-c) and p are operators, whereas (c-d) is a multiplicative factor
 
     !First term: operator matrix elements
-    CALL rmc_x_p_xyz_ao(nmr_env%op_rmd_ao,qs_env,minimum_image=.TRUE.,error=error)
+    CALL rmc_x_p_xyz_ao(op_rmd_ao,qs_env,minimum_image=.TRUE.,error=error)
 
     ! Apply the (r-c)xp operator to the psi0
     DO ispin = 1, dft_control%nspins
-      CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff, nao=nao, nmo=nmo, homo=homo)
+      CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff, nmo=nmo, homo=homo)
       DO idir = 1,3
-         CALL cp_fm_set_all(nmr_env%rxp_psi0(ispin,idir)%matrix,0.0_dp,error=error)
-         CALL cp_sm_fm_multiply(nmr_env%op_rmd_ao(idir)%matrix,mo_coeff,&
-                nmr_env%rxp_psi0(ispin,idir)%matrix,ncol=nmo,alpha=-1.0_dp,error=error)
+         CALL cp_fm_set_all(rxp_psi0(ispin,idir)%matrix,0.0_dp,error=error)
+         CALL cp_sm_fm_multiply(op_rmd_ao(idir)%matrix,mo_coeff,&
+                rxp_psi0(ispin,idir)%matrix,ncol=nmo,alpha=-1.0_dp,error=error)
       END DO 
     END DO 
 
@@ -238,7 +252,7 @@ CONTAINS
     
     !Calculate the second term of the operator state by state
     DO ispin = 1, dft_control%nspins
-       CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff, nao=nao, nmo=nmo,homo=homo)
+       CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff, nmo=nmo,homo=homo)
       
       !   Allocate full matrices as working storage in the calculation 
       !   of the rxp operator matrix. 3 matrices for the 3 Cartesian direction
@@ -258,7 +272,7 @@ CONTAINS
 !       CALL cp_fm_create (fm_work2,tmp_fm_struct)
 !       CALL cp_fm_struct_release ( tmp_fm_struct )
 !       DO idir =1,3
-!           CALL copy_sm_to_fm(nmr_env%op_rmd_ao(idir)%matrix,fm_work2,error=error)
+!           CALL copy_sm_to_fm(op_rmd_ao(idir)%matrix,fm_work2,error=error)
 !           fnum = 100+idir
 !           write(fnum,*) 'rmcxp_op ', idir
 !           DO  i=1,nao
@@ -272,7 +286,7 @@ CONTAINS
 !                     fm_work2%local_data(i,j)+ fm_work2%local_data(j,i)
 !              end do
 !            end do
-!           CALL copy_sm_to_fm(nmr_env%op_p_ao(idir)%matrix,fm_work2,error=error)
+!           CALL copy_sm_to_fm(op_p_ao(idir)%matrix,fm_work2,error=error)
 !           fnum = 200+idir
 !           write(fnum,*) 'p_op ', idir
 !           DO  i=1,nao
@@ -295,37 +309,38 @@ CONTAINS
 !dbg
 
    ! This part should be done better, using the full matrix distribution
-       DO istate = 1,homo
-         CALL cp_fm_get_submatrix(mo_coeff,vecbuf_c0,1,istate,nao,1,transpose=.TRUE.,error=error)
-!
-!         !center of the localized psi0 state istate 
-         dk(1:3) = linres_control%localized_wfn_control%centers_set(ispin)%array(1:3,istate)
-         DO idir = 1,3
-!!  This loop should be distributed over the processors
-           DO iao = 1,nao
-!             ck(1:3) = 0.5_dp !nmr_env%basisfun_center(1:3,iao)
-             ck(1:3) = nmr_env%basisfun_center(1:3,iao)
-             ckdk = pbc(dk,ck,cell)
-             vecbuf_Rmdc0(idir)%array(1,iao) = vecbuf_c0(1,iao)*ckdk(idir)
-           END DO ! iao
-           CALL cp_fm_set_submatrix(fm_Rmd_mos(idir)%matrix,vecbuf_Rmdc0(idir)%array,&
-                1,istate,nao,1,transpose=.TRUE.,error=error)
-!
-         END DO  ! idir
-       END DO  ! istate
+!       DO istate = 1,homo
+!         CALL cp_fm_get_submatrix(mo_coeff,vecbuf_c0,1,istate,nao,1,transpose=.TRUE.,error=error)
+!!
+!!         !center of the localized psi0 state istate 
+!         dk(1:3) = centers_set(ispin)%array(1:3,istate)
+!         DO idir = 1,3
+!!!  This loop should be distributed over the processors
+!           DO iao = 1,nao
+!!             ck(1:3) = 0.5_dp !nmr_env%basisfun_center(1:3,iao)
+!             ck(1:3) = basisfun_center(1:3,iao)
+!             ckdk = pbc(dk,ck,cell)
+!             vecbuf_Rmdc0(idir)%array(1,iao) = vecbuf_c0(1,iao)*ckdk(idir)
+!           END DO ! iao
+!           CALL cp_fm_set_submatrix(fm_Rmd_mos(idir)%matrix,vecbuf_Rmdc0(idir)%array,&
+!                1,istate,nao,1,transpose=.TRUE.,error=error)
+!!
+!         END DO  ! idir
+!       END DO  ! istate
 !dbg
-!         ck(1:3) = 0.0_dp
-!        DO idir = 1,3
-!          do i = 1,nao
-!             do j = 1,homo
-!                fm_Rmd_mos(idir)%matrix%local_data(i,j) = mo_coeff%local_data(i,j)*(ck(idir) - 1.5_dp)
-!                fm_Rmd_mos(idir)%matrix%local_data(i,j) = mo_coeff%local_data(i,j)*&
-!                    (ck(idir) - nmr_env%centers_set(ispin)%array(idir,j))
-!             end do 
-!          end do 
-!        END DO
-!        DEALLOCATE(vec_fact,STAT=istat)
 
+        DO idir = 1,3
+           do istate = 1,homo
+             dk(1:3) = centers_set(ispin)%array(1:3,istate)
+             do iao = 1,nao
+                ck(1:3) = basisfun_center(1:3,iao)
+                ckdk = pbc(dk,ck,cell)
+!                fm_Rmd_mos(idir)%matrix%local_data(iao,istate) = mo_coeff%local_data(iao,istate)*(ck(idir) - 1.5_dp)
+                fm_Rmd_mos(idir)%matrix%local_data(iao,istate) = mo_coeff%local_data(iao,istate)*&
+                    ckdk(idir)
+             end do 
+          end do 
+        END DO
 
 !dbg
 !           fnum = 300+idir
@@ -351,14 +366,14 @@ CONTAINS
 !           fnum = 410
 !           write(fnum,*) '(r-C)xp_c0 ', idir    
 !           DO  i=1,nao
-!             write(fnum,'(i5,50f10.6)') i, (nmr_env%rxp_psi0(ispin,idir)%matrix%local_data(i,j),j=1,homo)
+!             write(fnum,'(i5,50f10.6)') i, (rxp_psi0(ispin,idir)%matrix%local_data(i,j),j=1,homo)
 !           END DO
 !dbg
            !Add the second term to the idir component
            CALL cp_fm_set_all(fm_work1,0.0_dp,error=error)
-           CALL cp_sm_fm_multiply(nmr_env%op_p_ao(iii)%matrix,fm_Rmd_mos(ii)%matrix,&
+           CALL cp_sm_fm_multiply(op_p_ao(iii)%matrix,fm_Rmd_mos(ii)%matrix,&
                 fm_work1,ncol=homo,alpha=-1.0_dp,error=error)
-           CALL cp_fm_scale_and_add(1.0_dp,nmr_env%rxp_psi0(ispin,idir)%matrix,&
+           CALL cp_fm_scale_and_add(1.0_dp,rxp_psi0(ispin,idir)%matrix,&
                 1.0_dp, fm_work1,error=error)
 !dbg
 !           fnum = 420
@@ -369,9 +384,9 @@ CONTAINS
 !dbg
 
            CALL cp_fm_set_all(fm_work1,0.0_dp,error=error)
-           CALL cp_sm_fm_multiply(nmr_env%op_p_ao(ii)%matrix,fm_Rmd_mos(iii)%matrix,&
+           CALL cp_sm_fm_multiply(op_p_ao(ii)%matrix,fm_Rmd_mos(iii)%matrix,&
                 fm_work1,ncol=homo,alpha=-1.0_dp,error=error)
-           CALL cp_fm_scale_and_add(1.0_dp,nmr_env%rxp_psi0(ispin,idir)%matrix,&
+           CALL cp_fm_scale_and_add(1.0_dp,rxp_psi0(ispin,idir)%matrix,&
                 -1.0_dp, fm_work1,error=error)
 !dbg
 !           fnum = 420
@@ -382,7 +397,7 @@ CONTAINS
 !           fnum = 430
 !           write(fnum,*) '(r-d)xp_c0 ', idir    
 !           DO  i=1,nao
-!             write(fnum,'(i5,50f10.6)') i, (nmr_env%rxp_psi0(ispin,idir)%matrix%local_data(i,j),j=1,homo)
+!             write(fnum,'(i5,50f10.6)') i, (rxp_psi0(ispin,idir)%matrix%local_data(i,j),j=1,homo)
 !           END DO
 !dbg
 

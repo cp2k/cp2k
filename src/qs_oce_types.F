@@ -211,18 +211,24 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE deallocate_vtriple(vtriple)
+  SUBROUTINE deallocate_vtriple(vtriple,error)
 
     TYPE(vtriple_type), DIMENSION(:, :), &
       POINTER                                :: vtriple
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_vtriple'
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_vtriple',&
+        routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iat, icell, istat, jcell, &
                                                 kcell, kkind, natom, nkind
+    LOGICAL                                  :: failure
     TYPE(qlist_type), POINTER                :: sac_oce_neighbor
 
 ! *****************************************************************************
+
+    failure = .FALSE.
 
     IF(ASSOCIATED(vtriple)) THEN
       nkind = SIZE(vtriple,1)
@@ -241,45 +247,26 @@ CONTAINS
                                                                kcell)
                    IF (sac_oce_neighbor%n > 0) THEN
                      DEALLOCATE (sac_oce_neighbor%r2,STAT=istat)
-                     IF (istat /= 0) THEN
-                       CALL stop_memory(routineN,moduleN,__LINE__,&
-                                       "sac_oce_neighbor%r2")
-                     END IF
+                     CPPrecondition(istat==0,cp_warning_level,routineP,error,failure)
                      DEALLOCATE (sac_oce_neighbor%r,STAT=istat)
-                     IF (istat /= 0) THEN
-                       CALL stop_memory(routineN,moduleN,__LINE__,&
-                                       "sac_oce_neighbor%r")
-                     END IF
+                     CPPrecondition(istat==0,cp_warning_level,routineP,error,failure)
                      DEALLOCATE (sac_oce_neighbor%list,STAT=istat)
-                     IF (istat /= 0) THEN
-                       CALL stop_memory(routineN,moduleN,__LINE__,&
-                                       "sac_oce_neighbor%list")
-                     END IF
+                     CPPrecondition(istat==0,cp_warning_level,routineP,error,failure)
                      DEALLOCATE (sac_oce_neighbor%index_list,STAT=istat)
-                     IF (istat /= 0) THEN
-                       CALL stop_memory(routineN,moduleN,__LINE__,&
-                                       "sac_oce_neighbor%index_list")
-                     END IF
+                     CPPrecondition(istat==0,cp_warning_level,routineP,error,failure)
                    END IF
                  END DO
                END DO
              END DO
              DEALLOCATE (vtriple(kkind,iat)%neighbor,STAT=istat)
-             IF (istat /= 0) THEN
-               CALL stop_memory(routineN,moduleN,__LINE__,&
-                               "vtriple(kkind,iat)%neighbor")
-             END IF
+             CPPrecondition(istat==0,cp_warning_level,routineP,error,failure)
            END IF
          END DO
       END DO
       DEALLOCATE(vtriple,STAT=istat)
-      IF (istat /= 0) THEN
-                       CALL stop_memory(routineN,moduleN,__LINE__,&
-                       "vtriple")
-      END IF
+      CPPrecondition(istat==0,cp_warning_level,routineP,error,failure)
     ELSE
-      CALL stop_program(routineN,moduleN,__LINE__,&
-                        "The pointer vtriple is not associated")
+      CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
     ENDIF
 
   END SUBROUTINE deallocate_vtriple
@@ -405,7 +392,6 @@ CONTAINS
          OPTIONAL                            :: error
 !   *** Local parameters ***
 
-
     CHARACTER(LEN=*), PARAMETER :: routineN = 'build_reduced_3c_lists'
 
     INTEGER :: handle, i, ibc, iblock, istat, katom, kkind, kkneighbor, &
@@ -469,7 +455,6 @@ CONTAINS
        sbc_list_neighbor_node => first_node(sbc_list_neighbor_list)
 
        ! Allocate temporary arrays
-!       IF(nneighbor .GT. nneighbor_old) THEN
        IF(nneighbor > 0) THEN
          ALLOCATE(rac_tmp(3,nneighbor),STAT=istat)
          ALLOCATE(rac2_tmp(nneighbor),STAT=istat)
@@ -522,25 +507,16 @@ CONTAINS
 !  Check whether this node has to be really added to the list
            add_node = .TRUE.
            IF(pippo) THEN
-!       write(*,*) katom, iatom,jatom
               CALL check_oce_overlap(atomic_kind_set,ikind,rac,dac2,&
                    jkind,rbc,dbc2,kkind,maxab)
-!dbg
-            IF(maxab .LT. eps_rho) THEN
-              add_node = .FALSE.
-            END IF
-!            IF(maxab .GT. 10.E-12) THEN
-!              write(num,'(A,3I5,2f12.6,2(1E16.8))')' overlap ', iatom,jatom,katom,&
-!                sqrt(dac2),sqrt(dbc2),maxab
-!            END IF
-!dbg
+              IF(maxab .LT. eps_rho) THEN
+                add_node = .FALSE.
+              END IF
            END IF
            IF(.NOT. add_node) THEN
              sbc_list_neighbor_node => next(sbc_list_neighbor_node)
              CYCLE
            END IF
-!  end check
-
 
            ! add one block to the reduced list and fill in data
            nblock_kkind = nblock_kkind + 1
@@ -717,22 +693,26 @@ CONTAINS
 
 ! *****************************************************************************
  
-  SUBROUTINE retrieve_sac_list(vlist,sac_list,iatom,ikind,nkind,globenv)
+  SUBROUTINE retrieve_sac_list(vlist,sac_list,iatom,ikind,nkind,error)
 
     TYPE(vtriple_type), DIMENSION(:, :), &
       POINTER                                :: vlist
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sac_list
     INTEGER, INTENT(IN)                      :: iatom, ikind, nkind
-    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'retrieve_sac_list'
+
+    CHARACTER(LEN=*), PARAMETER   :: routineN = 'retrieve_sac_list',&
+       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, iac, icell,&
                                                 istat, jcell, &
                                                 katom, kcell, kkind, &
                                                 kneighbor, n, nneighbor
     INTEGER, DIMENSION(3)                    :: cell_c, cell_c_max, cell_c_min
+    LOGICAL                                  :: failure
     REAL(dp)                                 :: rac2
     REAL(dp), DIMENSION(3)                   :: rac
     TYPE(neighbor_list_type), POINTER        :: sac_list_neighbor_list
@@ -742,6 +722,8 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     CALL timeset(routineN,"I"," ",handle)
+
+    failure = .FALSE.
 
     IF (ASSOCIATED(sac_list)) THEN
       DO kkind=1,nkind
@@ -862,9 +844,9 @@ CONTAINS
 
       ENDDO !kkind
     ELSE
-      CALL stop_program(routineN,moduleN,__LINE__,&
-               "The pointer sac_list is not associated",&
-                globenv)
+
+     CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+
     END IF
 
     CALL timestop(0.0_dp,handle)
