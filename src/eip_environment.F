@@ -112,9 +112,10 @@ CONTAINS
 !!     03.2006 initial create [tdk]
 !!
 !!*** **********************************************************************
-  SUBROUTINE eip_init(eip_env, globenv, error)
+  SUBROUTINE eip_init(eip_env, globenv, force_env_section, error)
     TYPE(eip_environment_type), POINTER      :: eip_env
     TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
@@ -139,9 +140,7 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(section_vals_type), POINTER         :: cell_section, colvar_section, &
-                                                eip_section, force_env_section
-
-!   ------------------------------------------------------------------------
+                                                eip_section
 
     CALL timeset(routineN, "I", "", handle)
 
@@ -151,13 +150,11 @@ CONTAINS
  
     IF (.NOT. failure) THEN
       ! nullifying  pointers
-      NULLIFY(force_env_section, cell_section, colvar_section, eip_section, &
+      NULLIFY( cell_section, colvar_section, eip_section, &
               cell, cell_ref, subsystem, molecule_kind_set, molecule_set, &
               particle_set, atomic_kind_set, particles, molecules, &
               molecule_kinds, atomic_kinds)
 
-      force_env_section => section_vals_get_subs_vals(globenv%input_file, &
-                                                      "FORCE_EVAL", error=error)
       cell_section => section_vals_get_subs_vals(force_env_section,&
                                                  "SUBSYS%CELL", error=error)
       colvar_section => section_vals_get_subs_vals(force_env_section, &
@@ -180,7 +177,8 @@ CONTAINS
 
       CALL topology_control(atomic_kind_set, particle_set, &
                             molecule_kind_set, molecule_set, &
-                            subsystem%colvar_p, globenv, error=error)
+                            subsystem%colvar_p, globenv, &
+                            force_env_section=force_env_section,error=error)
 
       !CALL read_atomic_kind_set(atomic_kind_set, globenv)
 

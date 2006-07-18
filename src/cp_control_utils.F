@@ -78,8 +78,9 @@ MODULE cp_control_utils
 
 CONTAINS
 
-  SUBROUTINE read_dft_control(dft_control,globenv, error)
+  SUBROUTINE read_dft_control(dft_control,globenv, dft_section, error)
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(section_vals_type), POINTER         :: dft_section
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -91,7 +92,7 @@ CONTAINS
                                                 potential_file_name
     INTEGER                                  :: excitations, run_id
     LOGICAL                                  :: failure, l_param, was_present
-    TYPE(section_vals_type), POINTER         :: dft_section, scf_section, &
+    TYPE(section_vals_type), POINTER         :: scf_section, &
                                                 tmp_section, &
                                                 xc_fun_section, xc_section
     TYPE(xc_rho_cflags_type)                 :: needs
@@ -101,11 +102,9 @@ CONTAINS
 
     failure=.FALSE.
     was_present = .FALSE.
-    NULLIFY(dft_section,tmp_section,xc_fun_section,xc_section)
+    NULLIFY(tmp_section,xc_fun_section,xc_section)
 
     CALL dft_control_create(dft_control, error=error)
-    dft_section => section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL",error=error)
-    dft_section => section_vals_get_subs_vals(dft_section,"DFT",error=error)
     xc_section => section_vals_get_subs_vals(dft_section,"XC",error=error)
     xc_fun_section => section_vals_get_subs_vals(xc_section,"XC_FUNCTIONAL",&
                                                  error=error)
@@ -178,14 +177,13 @@ CONTAINS
          i_val=excitations,error=error)
     dft_control % do_tddfpt_calculation = (excitations==tddfpt_excitations)
 
-    xc_section => section_vals_get_subs_vals(globenv%input_file,&
-                   "FORCE_EVAL%DFT%XC", error=error)
+    xc_section => section_vals_get_subs_vals(dft_section,"XC", error=error)
     
 !   *** Read the input section ***
     CALL section_vals_val_get(dft_section,"XAS%_SECTION_PARAMETERS_",&
             l_val=dft_control%do_xas_calculation,error=error)
     IF (dft_control % do_xas_calculation) THEN
-      CALL read_xas_control(dft_control%xas_control,globenv,error=error)
+      CALL read_xas_control(dft_control%xas_control,globenv,dft_section,error=error)
     END IF
 
 !   *** Read the finite field input section ***
@@ -202,10 +200,11 @@ CONTAINS
   END SUBROUTINE read_dft_control
 
 ! *****************************************************************************
-  SUBROUTINE read_mgrid_section(qs_control,globenv,error)
+  SUBROUTINE read_mgrid_section(qs_control,globenv,dft_section,error)
 
     TYPE(qs_control_type), INTENT(INOUT)     :: qs_control
     TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(section_vals_type), POINTER         :: dft_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -222,10 +221,7 @@ CONTAINS
 
     failure=.FALSE.
     NULLIFY(interp_section,mgrid_section,cutofflist)
-    mgrid_section => section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL",error=error)
-    mgrid_section => section_vals_get_subs_vals(mgrid_section,"DFT",error=error)
-    mgrid_section => section_vals_get_subs_vals(mgrid_section,"MGRID",error=error)
-
+    mgrid_section => section_vals_get_subs_vals(dft_section,"MGRID",error=error)
 
     CALL section_vals_val_get(mgrid_section,"NGRIDS",i_val=ngrid_level,error=error)
     CALL section_vals_val_get(mgrid_section,"MULTIGRID_SET",l_val=multigrid_set,error=error)
@@ -304,10 +300,11 @@ CONTAINS
 
   END SUBROUTINE read_mgrid_section
 
-  SUBROUTINE read_qs_section(qs_control,globenv,error)
+  SUBROUTINE read_qs_section(qs_control,globenv,qs_section,error)
 
     TYPE(qs_control_type), INTENT(INOUT)     :: qs_control
     TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(section_vals_type), POINTER :: qs_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -318,17 +315,14 @@ CONTAINS
     LOGICAL                                  :: failure, was_present
     REAL(dp)                                 :: value
     TYPE(section_vals_type), POINTER :: ddapc_restraint_section, loc_section, &
-      mull_section, qs_section, s2_restraint_section, se_section
+      mull_section, s2_restraint_section, se_section
 
 !   ---------------------------------------------------------------------------
 
     failure=.FALSE.
     was_present = .FALSE.
-    NULLIFY(qs_section,loc_section,mull_section,se_section)
+    NULLIFY(loc_section,mull_section,se_section)
 
-    qs_section => section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL",error=error)
-    qs_section => section_vals_get_subs_vals(qs_section,"DFT",error=error)
-    qs_section => section_vals_get_subs_vals(qs_section,"QS",error=error)
     loc_section => section_vals_get_subs_vals(qs_section,"LOCALIZE",error=error)
     mull_section => section_vals_get_subs_vals(qs_section,"MULLIKEN_RESTRAINT", error=error)
     ddapc_restraint_section => section_vals_get_subs_vals(qs_section,"DDAPC_RESTRAINT", error=error)
@@ -548,9 +542,10 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE read_tddfpt_control(t_control,nspins,globenv, error)
+  SUBROUTINE read_tddfpt_control(t_control,nspins,globenv, dft_section,error)
     TYPE(tddfpt_control_type)                :: t_control
     INTEGER, INTENT(IN)                      :: nspins
+    TYPE(section_vals_type), POINTER         :: dft_section
     TYPE(global_environment_type)            :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -566,9 +561,7 @@ CONTAINS
     failure=.FALSE.
     kenergy_den = .FALSE.
     NULLIFY(sic_section, t_section, xc_section )
-    t_section => section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL",error=error)
-    t_section => section_vals_get_subs_vals(t_section,"DFT",error=error)
-    t_section => section_vals_get_subs_vals(t_section,"TDDFPT",error=error)
+    t_section => section_vals_get_subs_vals(dft_section,"TDDFPT",error=error)
     
     CALL section_vals_val_get(t_section,"CONVERGENCE", &
          r_val=t_control%tolerance,error=error)

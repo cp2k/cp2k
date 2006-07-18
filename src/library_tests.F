@@ -715,7 +715,6 @@ END SUBROUTINE fft_test
 SUBROUTINE pw_fft_test ( globenv )
 
     TYPE(global_environment_type), POINTER   :: globenv
-
     REAL(KIND=dp), PARAMETER                 :: toler = 1.e-11_dp
 
     INTEGER                                  :: ig, ip, iw, nn, ntim
@@ -753,7 +752,7 @@ SUBROUTINE pw_fft_test ( globenv )
   grid % bounds ( 2, : ) = ( np - 1 ) / 2
 
   print_section=>section_vals_get_subs_vals(globenv%input_file, &
-                        "FORCE_EVAL%PRINT%GRID_INFORMATION")
+                        "TEST%PRINT%GRID_INFORMATION")
   CALL pw_grid_setup ( box, grid, print_section, &
                        rs_dims=(/globenv%num_pe,1/) )
   no = grid % npts

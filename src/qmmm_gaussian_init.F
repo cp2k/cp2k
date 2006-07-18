@@ -199,7 +199,7 @@ CONTAINS
                   compatibility, num_geep_gauss, error)
           ELSE
              CALL read_mm_potential(globenv, qmmm_gaussian_fns, qm_cell_small,&
-                  compatibility, error)
+                  compatibility, qmmm_section, error)
           END IF
           !
           CALL pw_env_get(pw_env,pw_pools=pools, gridlevel_info=gridlevel_info,&

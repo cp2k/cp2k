@@ -75,6 +75,14 @@ MODULE mc_ensembles
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE input_section_types,             ONLY: section_release,&
+                                             section_type,&
+                                             section_vals_create,&
+                                             section_vals_release,&
+                                             section_vals_type,&
+                                             section_vals_write,&
+                                             section_vals_get_subs_vals,&
+                                             section_vals_get_subs_vals2
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -115,7 +123,7 @@ CONTAINS
 !!     MJM
 !!
 !!**************************************************************************
-  SUBROUTINE mc_run_ensemble ( mc_env, globenv, nboxes, error,rng_stream )
+  SUBROUTINE mc_run_ensemble ( mc_env, globenv, nboxes, error, rng_stream, force_env_section )
 
 !   ***************************************************************************
 
@@ -125,6 +133,7 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: nboxes
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
+    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(rng_stream_type), POINTER           :: rng_stream
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'mc_run_ensemble'
@@ -281,7 +290,7 @@ CONTAINS
          IF(lbias) THEN
             CALL mc_create_bias_force_env(bias_env(ibox)%force_env,&
                force_env(ibox)%force_env,&
-               globenv,TRIM(fft_lib),print_level,ionode,error)
+               globenv,TRIM(fft_lib),print_level,ionode,force_env_section,error)
             IF(nchain(ibox) .NE. 0) THEN
                CALL force_env_calc_energy_force(bias_env(ibox)%force_env,&
                   calc_force=.FALSE.,error=error)
@@ -432,7 +441,7 @@ CONTAINS
                   CALL force_env_release(bias_env(ibox)%force_env,error=error)
                   CALL mc_create_bias_force_env(bias_env(ibox)%force_env,&
                      force_env(ibox)%force_env,&
-                     globenv,TRIM(fft_lib),print_level,ionode,error)
+                     globenv,TRIM(fft_lib),print_level,ionode,force_env_section,error)
                   IF(nchain(ibox) .NE. 0) THEN
                      CALL force_env_calc_energy_force(&
                         bias_env(ibox)%force_env,&
@@ -456,7 +465,7 @@ CONTAINS
 
             CALL mc_ge_swap_move(mc_par,force_env,bias_env,moves,&
                 energy_check(:),r_old(:,:,:),old_energy(:),&
-                globenv,bias_energy(:),rng_stream,error)
+                globenv,bias_energy(:),rng_stream,force_env_section,error)
 
 ! the number of molecules may have changed
             DO ibox=1,nboxes

@@ -172,10 +172,11 @@ CONTAINS
   !!   NOTES
   !!*** ************************************************************************
 
-  SUBROUTINE read_md_section ( simpar, globenv, error)
+  SUBROUTINE read_md_section ( simpar, globenv, subsys_section, error)
     TYPE(simulation_parameters_type), &
       INTENT(OUT)                            :: simpar
     TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=default_path_length)       :: filename
@@ -197,7 +198,7 @@ CONTAINS
          "MOTION",error=error)
     md_section => section_vals_get_subs_vals(motion_section,&
          "MD",error=error)
-    CALL read_md_new_section(simpar, globenv,  md_section, error)
+    CALL read_md_new_section(simpar, globenv,  md_section, subsys_section, error)
 
     IF (globenv%ionode.AND.(globenv%print_level >= 0)) THEN
        WRITE (iw, *)
@@ -415,11 +416,11 @@ CONTAINS
   !!  
   !!
   !!*** *************************************************************************  
-  SUBROUTINE read_md_new_section(simpar, globenv, md_section, error)
+  SUBROUTINE read_md_new_section(simpar, globenv, md_section, subsys_section, error)
     TYPE(simulation_parameters_type), &
       INTENT(INOUT)                          :: simpar
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(section_vals_type), POINTER         :: md_section
+    TYPE(section_vals_type), POINTER         :: md_section, subsys_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_md_new_section', &
@@ -448,8 +449,8 @@ CONTAINS
        CALL section_vals_val_get(globenv%input_file,"MOTION%PRINT%TRAJECTORY%FORMAT", &
             i_val=simpar%output_format,error=error)
 
-       tmp_section => section_vals_get_subs_vals(globenv%input_file,&
-            "FORCE_EVAL%SUBSYS%CONSTRAINT",error=error)
+       tmp_section => section_vals_get_subs_vals(subsys_section,&
+            "CONSTRAINT",error=error)
        CALL section_vals_get(tmp_section,explicit=explicit,error=error)
        IF (explicit) THEN 
           simpar%constraint = .TRUE.

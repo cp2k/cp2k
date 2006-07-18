@@ -375,11 +375,13 @@ CONTAINS
 !!   SOURCE
 !!*** **********************************************************************
 
-  SUBROUTINE set_loc_centers(localized_wfn_control,nmoloc,nspins,globenv,error)
+  SUBROUTINE set_loc_centers(localized_wfn_control,nmoloc,nspins,globenv,&
+       force_env_section,error)
 
     TYPE(localized_wfn_control_type)         :: localized_wfn_control
     INTEGER, DIMENSION(2), INTENT(IN)        :: nmoloc
     INTEGER, INTENT(IN)                      :: nspins
+    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -420,12 +422,12 @@ CONTAINS
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     END DO
 
-    localized_wfn_control%print_centers = BTEST(cp_print_key_should_output(logger%iter_info,globenv%input_file,&
-         "FORCE_EVAL%DFT%PRINT%LOCALIZATION",error=error),cp_p_file)
-    localized_wfn_control%print_spreads = BTEST(cp_print_key_should_output(logger%iter_info,globenv%input_file,&
-         "FORCE_EVAL%DFT%PRINT%LOCALIZATION",error=error),cp_p_file)
-    localized_wfn_control%print_cubes =   BTEST(cp_print_key_should_output(logger%iter_info,globenv%input_file,&
-         "FORCE_EVAL%DFT%PRINT%LOCALIZATION%CUBES",error=error),cp_p_file)
+    localized_wfn_control%print_centers = BTEST(cp_print_key_should_output(logger%iter_info,force_env_section,&
+         "DFT%PRINT%LOCALIZATION",error=error),cp_p_file)
+    localized_wfn_control%print_spreads = BTEST(cp_print_key_should_output(logger%iter_info,force_env_section,&
+         "DFT%PRINT%LOCALIZATION",error=error),cp_p_file)
+    localized_wfn_control%print_cubes =   BTEST(cp_print_key_should_output(logger%iter_info,force_env_section,&
+         "DFT%PRINT%LOCALIZATION%CUBES",error=error),cp_p_file)
 
   END SUBROUTINE set_loc_centers
  

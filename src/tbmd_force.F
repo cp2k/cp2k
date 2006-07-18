@@ -193,8 +193,7 @@ CONTAINS
     CPPrecondition(ASSOCIATED(tbmd_env), cp_failure_level, routineP, error, failure)
  
     IF (.NOT. failure) THEN
-      force_env_section => section_vals_get_subs_vals(globenv%input_file, "FORCE_EVAL", &
-                                                      error=error)
+      force_env_section => tbmd_env%force_env_input
 
       CALL tbmd_env_get(tbmd_env=tbmd_env, tbmd_force=tbmd_force, &
                         local_particles=local_particles, particle_set=particle_set, &

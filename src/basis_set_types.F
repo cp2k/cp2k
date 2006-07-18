@@ -810,7 +810,7 @@ CONTAINS
   ! ***************************************************************************
 
   SUBROUTINE read_gto_basis_set(element_symbol,basis_set_name,gto_basis_set,&
-                                globenv,error)
+                                globenv,force_env_section,error)
 
     ! Read a Gaussian-type orbital (GTO) basis set from the database file.
 
@@ -819,6 +819,7 @@ CONTAINS
     CHARACTER(LEN=*), INTENT(IN)             :: element_symbol, basis_set_name
     TYPE(gto_basis_set_type), POINTER        :: gto_basis_set
     TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(section_vals_type),pointer          :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -851,8 +852,7 @@ CONTAINS
     bsname2 = ""
 
     gto_basis_set%name = basis_set_name
-    CALL section_vals_val_get(globenv%input_file,&
-         "FORCE_EVAL%DFT%BASIS_SET_FILE_NAME",&
+    CALL section_vals_val_get(force_env_section,"DFT%BASIS_SET_FILE_NAME",&
          c_val=basis_set_file_name)
     NULLIFY(parser)
     CALL parser_create(parser,basis_set_file_name,para_env=globenv%para_env)

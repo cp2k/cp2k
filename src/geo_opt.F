@@ -116,8 +116,7 @@ MODULE geo_opt
     NULLIFY (gopt_param,force_env_section,gopt_env,x0)
     CALL gopt_param_read(gopt_param, globenv, error=error)
 
-    force_env_section => section_vals_get_subs_vals(globenv%input_file,&
-         "FORCE_EVAL",error=error)     
+    force_env_section => force_env%force_env_section   
     CALL gopt_f_create(gopt_env, force_env=force_env, globenv=globenv)   
     CALL gopt_f_create_x0(gopt_env, x0, error=error)
 

@@ -130,10 +130,11 @@ CONTAINS
 !!
 !!   SOURCE
 !!*** **********************************************************************
-  SUBROUTINE read_xas_control(xas_control,globenv, error)
+  SUBROUTINE read_xas_control(xas_control,globenv,dft_section,error)
 
     TYPE(xas_control_type)                   :: xas_control
     TYPE(global_environment_type)            :: globenv
+    TYPE(section_vals_type), POINTER         :: dft_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -150,9 +151,7 @@ CONTAINS
     was_present = .FALSE.
 
     NULLIFY(xas_section, loc_section)
-    xas_section => section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL",error=error)
-    xas_section => section_vals_get_subs_vals(xas_section,"DFT",error=error)
-    xas_section => section_vals_get_subs_vals(xas_section,"XAS",error=error)
+    xas_section => section_vals_get_subs_vals(dft_section,"XAS",error=error)
 
     NULLIFY(bounds,list)
 

@@ -121,7 +121,7 @@ SUBROUTINE kg_energies ( kg_env, globenv, error )
 
     ELSE
 
-      CALL kg_only_energies ( kg_env, globenv, error )
+      CALL kg_only_energies ( kg_env, globenv, kg_env%input, error )
 
     END IF
 
@@ -145,9 +145,10 @@ END SUBROUTINE kg_energies
 !!
 !******************************************************************************
 
-SUBROUTINE kg_only_energies ( kg_env, globenv, error )
+SUBROUTINE kg_only_energies ( kg_env, globenv, force_env_section, error )
 
     TYPE(kg_environment_type), POINTER       :: kg_env
+    TYPE(section_vals_type), pointer         :: force_env_section
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -181,8 +182,7 @@ SUBROUTINE kg_only_energies ( kg_env, globenv, error )
   NULLIFY(energy,dft_control,cell,rho)
   NULLIFY(rspw,auxbas_pw_pool,v_gspace,poisson_env)
   NULLIFY(rho_r,rho_g,rho_core, my_vxc_r, my_vxc_tau, my_rho_g, my_tau)
-  xc_section => section_vals_get_subs_vals(globenv%input_file,&
-       "FORCE_EVAL%DFT%XC", error=error)
+  xc_section => section_vals_get_subs_vals(force_env_section,"DFT%XC", error=error)
 
   CALL get_kg_env(kg_env=kg_env,&
                     dft_control=dft_control, energy=energy, cell=cell,&
@@ -360,9 +360,9 @@ SUBROUTINE kg_std_energies ( kg_env, globenv, error )
 
   CALL diis_info_create(diis_info,scf_control%max_diis,dyn_coeff_set)
 
-  CALL init_energy_calculation(kg_env,vxc_r,globenv,error=error)
+  CALL init_energy_calculation(kg_env,vxc_r,globenv,force_env_section=kg_env%input,error=error)
 
-  CALL calc_c_gradients(kg_env,vxc_r,maxgrad,globenv,error=error)
+  CALL calc_c_gradients(kg_env,vxc_r,maxgrad,globenv,force_env_section=kg_env%input,error=error)
 
   IF (ionode) THEN
      WRITE (UNIT=output_unit,&
@@ -378,7 +378,8 @@ scf_loop: DO
     iter = iter + 1
 
     CALL do_diis_step(kg_env,diis_info,maxerr)
-    CALL calc_c_gradients(kg_env,vxc_r,maxgrad,globenv,error)
+    CALL calc_c_gradients(kg_env,vxc_r,maxgrad,globenv,force_env_section=kg_env%input,&
+         error=error)
 
     t2 = m_walltime()
 
@@ -494,11 +495,12 @@ END SUBROUTINE kg_qs_energies
 
 !------------------------------------------------------------------------------
 
-SUBROUTINE init_energy_calculation ( kg_env, vxc_r, globenv, error)
+SUBROUTINE init_energy_calculation ( kg_env, vxc_r, globenv, force_env_section, error)
   ! vxc_r is allocated here
 
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(coeff_type), POINTER                :: vxc_r
+    TYPE(section_vals_type), pointer         :: force_env_section
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -535,8 +537,7 @@ SUBROUTINE init_energy_calculation ( kg_env, vxc_r, globenv, error)
           cell,rho,rspw,scf_control,dyn_coeff_set)
   NULLIFY(rho_r,rho_g,rho_core, my_vxc_r, my_vxc_tau, my_rho_g, my_tau)
 
-  xc_section => section_vals_get_subs_vals(globenv%input_file,&
-       "FORCE_EVAL%DFT%XC",error=error)
+  xc_section => section_vals_get_subs_vals(force_env_section,"DFT%XC",error=error)
   CALL get_kg_env( kg_env=kg_env, atomic_kind_set=atomic_kind_set,&
                     dft_control=dft_control, energy=energy, cell=cell,&
                     rho=rho,rspw=rspw,dyn_coeff_set=dyn_coeff_set,&
@@ -610,11 +611,12 @@ SUBROUTINE init_energy_calculation ( kg_env, vxc_r, globenv, error)
 END SUBROUTINE init_energy_calculation 
 !------------------------------------------------------------------------------
 
-SUBROUTINE calc_c_gradients ( kg_env, vxc_r, maxgrad, globenv,error )
+SUBROUTINE calc_c_gradients ( kg_env, vxc_r, maxgrad, globenv, force_env_section, error )
 
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(coeff_type), POINTER                :: vxc_r
     REAL(KIND=dp), INTENT(inout)             :: maxgrad
+    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -659,8 +661,7 @@ SUBROUTINE calc_c_gradients ( kg_env, vxc_r, maxgrad, globenv,error )
   NULLIFY(rho_r,rho_g,rhop_r,rhop_g,rho_core,v_gspace,v_rspace,&
           v1xc_r,v2xc_r, poisson_env)
 
-  xc_section => section_vals_get_subs_vals(globenv%input_file,&
-       "FORCE_EVAL%DFT%XC", error=error)
+  xc_section => section_vals_get_subs_vals(force_env_section,"DFT%XC", error=error)
   CALL get_kg_env( kg_env=kg_env, atomic_kind_set=atomic_kind_set,&
                     dft_control=dft_control, energy=energy, cell=cell,&
                     rho=rho,rspw=rspw,dyn_coeff_set=dyn_coeff_set)

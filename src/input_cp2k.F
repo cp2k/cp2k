@@ -489,13 +489,14 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: print_key
 
     CALL section_create(section,name="test",&
          description="tests to perform",&
          n_keywords=7, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
          error=error)
 
-    NULLIFY(keyword)
+    NULLIFY(keyword, print_key)
     CALL keyword_create(keyword, name="memory",&
          description="tries to allocate the given amount of memory ",&
          usage="MEMORY <REAL>",default_r_val=256.e6_dp, error=error)
@@ -572,6 +573,14 @@ CONTAINS
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
+    CALL cp_print_key_section_create(print_key,"GRID_INFORMATION",&
+         description="Controls the printing of information regarding the PW and RS grid structures"//&
+         " (ONLY for TEST run).",&
+         print_level=medium_print_level,each=(/1/),filename="__STD_OUT__",&
+         error=error)
+    CALL section_add_subsection(section,print_key,error=error)
+    CALL section_release(print_key,error=error)    
+
   END SUBROUTINE create_test_section
 !***************************************************************************
 
@@ -612,7 +621,7 @@ CONTAINS
     CALL section_create(section,name="force_eval",&
          description="parameters needed to calculate energy and forces and"//&
          " describe the system you want to analyze.",&
-         n_keywords=0, n_subsections=9, repeats=.FALSE., required=.TRUE.,&
+         n_keywords=0, n_subsections=9, repeats=.TRUE., required=.TRUE.,&
          error=error)
 
     NULLIFY(subsection)

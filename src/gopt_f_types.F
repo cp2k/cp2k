@@ -191,8 +191,7 @@ SUBROUTINE gopt_f_create(gopt_env, force_env, globenv, error)
      CALL force_env_retain(force_env, error=error)
      gopt_env%force_env => force_env
      gopt_env%globenv => globenv
-     gopt_env%force_env_section => section_vals_get_subs_vals(globenv%input_file,&
-          "FORCE_EVAL",error=error)
+     gopt_env%force_env_section => force_env%force_env_section
   END IF
 END SUBROUTINE gopt_f_create
 !***************************************************************************

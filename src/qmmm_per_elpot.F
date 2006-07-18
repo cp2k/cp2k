@@ -234,6 +234,7 @@ CONTAINS
                                      Gmax=Gmax, Kmax=Kmax, n_rep_real=n_rep_real,&
                                      Fac=Fac, mm_atom_index=mm_atom_index, &
                                      qm_cell=qm_cell_small, mm_cell=mm_cell, globenv=globenv,&
+                                     qmmm_per_section=qmmm_periodic, print_section=print_section,&
                                      error=error)
 
        IF (BTEST(cp_print_key_should_output(logger%iter_info,print_pot,error=error),&
@@ -283,7 +284,8 @@ CONTAINS
 !!
 !!*** ********************************************************************** 
   SUBROUTINE qmmm_per_pot_type_create(Pot, LG, gx, gy, gz, GMax, Kmax, n_rep_real,&
-       Fac, mm_atom_index, qm_cell, mm_cell, globenv, error)
+       Fac, mm_atom_index, qm_cell, mm_cell, globenv, qmmm_per_section, print_section,&
+       error)
     TYPE(qmmm_per_pot_type), POINTER         :: Pot
     REAL(KIND=dp), DIMENSION(:), POINTER     :: LG, gx, gy, gz
     REAL(KIND=dp), INTENT(IN)                :: Gmax
@@ -292,6 +294,8 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: mm_atom_index
     TYPE(cell_type), POINTER                 :: qm_cell, mm_cell
     TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(section_vals_type),POINTER          :: qmmm_per_section,&
+                                                print_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -302,8 +306,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: ngrids
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: hmat(3,3)
-    TYPE(section_vals_type), POINTER         :: grid_print_section, &
-                                                param_section
+    TYPE(section_vals_type), POINTER         :: grid_print_section
 
     failure = .FALSE.
     IF (.NOT.failure) THEN
@@ -321,16 +324,14 @@ CONTAINS
        !
        NULLIFY(Pot%pw_grid)
        NULLIFY(Pot%pw_pool)
-       NULLIFY(Pot%TabLR, ngrids, param_section)
-       param_section =>  section_vals_get_subs_vals(globenv%input_file,&
-            "FORCE_EVAL%QMMM%PERIODIC",error=error)
-       CALL section_vals_val_get(param_section,"ngrids", i_vals=ngrids, error=error)       
+       NULLIFY(Pot%TabLR, ngrids)
+       CALL section_vals_val_get(qmmm_per_section,"ngrids", i_vals=ngrids, error=error)       
        npts =  ngrids
        hmat =  mm_cell%hmat
 
-       grid_print_section=> section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL%PRINT%GRID_INFORMATION",error=error)
+       grid_print_section=> section_vals_get_subs_vals(print_section,"GRID_INFORMATION",error=error)
        CALL Setup_Ewald_Spline(pw_grid=Pot%pw_grid, pw_pool=Pot%pw_pool, coeff=Pot%TabLR,&
-            LG=LG, gx=gx, gy=gy, gz=gz, hmat=hmat, npts=npts, param_section=param_section,&
+            LG=LG, gx=gx, gy=gy, gz=gz, hmat=hmat, npts=npts, param_section=qmmm_per_section,&
             tag="qmmm",para_env=globenv%para_env, print_section=grid_print_section,error=error)
 
     END IF

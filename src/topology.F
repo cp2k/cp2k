@@ -109,7 +109,8 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
   SUBROUTINE topology_control (atomic_kind_set,particle_set,&
-       molecule_kind_set,molecule_set,colvar_p,globenv, qmmm, qmmm_env, error)
+       molecule_kind_set,molecule_set,colvar_p,globenv, qmmm, qmmm_env,&
+       force_env_section,error)
 
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -121,6 +122,7 @@ CONTAINS
       POINTER                                :: molecule_set
     TYPE(colvar_p_type), DIMENSION(:), &
       POINTER                                :: colvar_p
+    TYPE(section_vals_type),POINTER          :: force_env_section
     TYPE(global_environment_type), POINTER   :: globenv
     LOGICAL, INTENT(IN), OPTIONAL            :: qmmm
     TYPE(qmmm_env_mm_type), OPTIONAL, &
@@ -147,8 +149,8 @@ CONTAINS
 
     NULLIFY(cell_section,subsys_section)
 
-    subsys_section   =>  section_vals_get_subs_vals(globenv%input_file,&
-         "FORCE_EVAL%SUBSYS",error=error)
+    subsys_section   =>  section_vals_get_subs_vals(force_env_section,&
+         "SUBSYS",error=error)
     cell_section => section_vals_get_subs_vals(subsys_section,&
          "CELL",error=error)
     constraint_section =>  section_vals_get_subs_vals(subsys_section,&
@@ -319,8 +321,8 @@ CONTAINS
     SELECT CASE (topology%conn_type)
     CASE (do_conn_mol_set)
        CALL pre_read_topology_psf(topology,subsys_section,error)
-       section => section_vals_get_subs_vals(globenv%input_file,&
-                  "FORCE_EVAL%SUBSYS%TOPOLOGY%MOL_SET",error=error)
+       section => section_vals_get_subs_vals(subsys_section,&
+                  "TOPOLOGY%MOL_SET",error=error)
        CALL section_vals_get(section,n_repetition=n_rep,error=error)
        DO i_rep=1,n_rep
          CALL section_vals_val_get(section,"NMOL",i_val=nmol,&

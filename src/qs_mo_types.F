@@ -593,7 +593,7 @@ CONTAINS
 
 ! *****************************************************************************
   SUBROUTINE write_mo_set_to_restart(mo_array,atomic_kind_set,particle_set,&
-                                     globenv,id_nr, error)
+                                     globenv,id_nr, dft_section,error)
 
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
@@ -601,6 +601,7 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(section_vals_type), POINTER         :: dft_section
     TYPE(global_environment_type), POINTER   :: globenv
     INTEGER, INTENT(in)                      :: id_nr
     TYPE(cp_error_type), INTENT(inout), &
@@ -634,19 +635,19 @@ CONTAINS
 
     IF (globenv%ionode) THEN
 
-       CALL section_vals_val_get(globenv%input_file,"FORCE_EVAL%DFT%RESTART_FILE_NAME",&
+       CALL section_vals_val_get(dft_section,"RESTART_FILE_NAME",&
             c_val=file_name,error=error)
-      IF (id_nr/=1) THEN
-        file_name(LEN_TRIM(file_name):LEN(file_name)) = "-"//&
-                    ADJUSTL(cp_to_string(id_nr))
-      END IF
-
-      CALL open_file(file_name=file_name,&
-                     file_action="WRITE",&
-                     file_form="UNFORMATTED",&
-                     file_status="REPLACE",&
-                     unit_number=restart_unit)
-
+       IF (id_nr/=1) THEN
+          file_name(LEN_TRIM(file_name):LEN(file_name)) = "-"//&
+               ADJUSTL(cp_to_string(id_nr))
+       END IF
+       
+       CALL open_file(file_name=file_name,&
+            file_action="WRITE",&
+            file_form="UNFORMATTED",&
+            file_status="REPLACE",&
+            unit_number=restart_unit)
+       
 !     *** create some info about the basis set first ***
 
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
@@ -804,7 +805,7 @@ CONTAINS
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                                natom=natom,&
                                nsgf=nsgf)
-      CALL section_vals_val_get(globenv%input_file,"FORCE_EVAL%DFT%RESTART_FILE_NAME",&
+      CALL section_vals_val_get(dft_section,"RESTART_FILE_NAME",&
            c_val=file_name,error=error)
       IF (id_nr/=1) THEN
         file_name(LEN_TRIM(file_name):LEN(file_name)) = "-"//&

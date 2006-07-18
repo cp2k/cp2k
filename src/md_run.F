@@ -185,9 +185,7 @@ CONTAINS
          work_section, atomic_kinds, local_particles, t)
     logger => cp_error_get_logger(error)
 
-    force_env_section => section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL",error=error)
     motion_section => section_vals_get_subs_vals(globenv%input_file,"MOTION",error=error)
-    subsys_section => section_vals_get_subs_vals(force_env_section,"SUBSYS",error=error)
     CPPrecondition(ASSOCIATED(globenv),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(force_env_p),cp_failure_level,routineP,error,failure)
     nbeads = SIZE ( force_env_p )
@@ -198,11 +196,12 @@ CONTAINS
     ALLOCATE (simpar,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                                      "simpar",0)
-
+    force_env_section => force_env_p(1)%force_env%force_env_section
+    subsys_section => section_vals_get_subs_vals(force_env_section,"SUBSYS",error=error)
     CALL cp_add_iter_level(logger%iter_info,"MD",n_rlevel_new=iter_level,&
          error=error)
     CALL cp_iterate(logger%iter_info,last=.FALSE.,iter_nr=0,error=error)    
-    CALL read_md_section ( simpar, globenv, error )
+    CALL read_md_section ( simpar, globenv, subsys_section, error )
     simpar%info_constraint = cp_print_key_unit_nr(logger,subsys_section,&
          "CONSTRAINT%CONSTRAINT_INFO",&
          extension=".shakeLog",log_filename=.FALSE.,error=error)
@@ -225,11 +224,14 @@ CONTAINS
        CALL force_env_get( force_env_p(ibead)%force_env, subsys=subsys, &
                           dyn_coeff_set=dyn_coeff_set,in_use=in_use,&
                           cell=cell, cell_ref = cell_ref, virial = virial,&
-                          error=error )
+                          force_env_section=force_env_section, error=error )
 
 ! Define a reference cell for compatibility with MD restarts
 
        DO isubsys=1,SIZE(subsys)
+          subsys_section => section_vals_get_subs_vals(force_env_section,"SUBSYS",i_rep_section=isubsys,&
+               error=error)
+
           CALL cp_subsys_get(subsys(isubsys)%subsys,&
               local_molecules_new=local_molecules,&
               molecule_kinds_new=molecule_kinds_new,&
@@ -284,6 +286,8 @@ CONTAINS
        ! and possibly restart them
        !
        DO isubsys=1,SIZE(subsys)
+          subsys_section => section_vals_get_subs_vals(force_env_section,"SUBSYS",i_rep_section=isubsys,&
+               error=error)
           CALL cp_subsys_get(subsys(isubsys)%subsys,&
               particles=particles,&
               error=error)
@@ -318,7 +322,7 @@ CONTAINS
 
     ! loop over number of beads
     IF (simpar%ensemble == langevin_ensemble) THEN
-      CALL create_wiener_process(md_env,subsys_section,error)
+      CALL create_wiener_process(md_env,error)
     END IF
 
     time_iter_start=m_walltime()

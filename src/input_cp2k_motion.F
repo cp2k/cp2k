@@ -1341,11 +1341,13 @@ CONTAINS
        CALL section_add_subsection(section, hmc_section, error=error)
        CALL section_release(hmc_section, error=error)
 
-
        CALL create_qs_md_section(subsection, error=error)
        CALL section_add_subsection(section, subsection, error=error)
-       CALL section_release(subsection,error=error)       
+       CALL section_release(subsection,error=error)
 
+       CALL create_respa_section(subsection, error=error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
 
        CALL section_create(subsection,name="print",&
             description="Controls the printing properties during an MD run",&
@@ -1387,6 +1389,60 @@ CONTAINS
 
     END IF
 END SUBROUTINE create_md_section
+
+!***************************************************************************
+!!****f* input_cp2k/create_respa_section *
+!!
+!!   NAME
+!!     create_respa_section
+!!
+!!   FUNCTION
+!!     Defines parameters for RESPA integration scheme
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - section: will contain the coeff section 
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!*** **********************************************************************
+
+SUBROUTINE create_respa_section(section, error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_respa_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+
+  failure=.FALSE.
+  
+  CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN  
+
+     CALL section_create(section,name="RESPA",&
+          description="RESPA specific parameters.",&
+          n_keywords=1, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+          error=error)
+       
+     NULLIFY(keyword)
+
+     CALL keyword_create(keyword, name="FREQUENCY",&
+          description="The number of reference MD steps between two RESPA corrections.",&
+          usage="FREQUENCY <INTEGER>", default_i_val=10,error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)    
+
+  END IF
+END SUBROUTINE create_respa_section
 
 !***************************************************************************
 !!****f* input_cp2k/create_qs_md_section *
@@ -1607,7 +1663,7 @@ SUBROUTINE create_barostat_section(section, error)
             description="Parameters for restarting of the barostat thermostat",&
             n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
             error=error)
-
+ 
        CALL create_coord_section(subsection,"THERMOSTAT BAROSTAT",error=error)
        CALL section_add_subsection(sub2section,subsection,error=error)
        CALL section_release(subsection,error=error)

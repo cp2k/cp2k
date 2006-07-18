@@ -585,7 +585,7 @@ CONTAINS
           IF (scf_control%write_restart_each>0.AND.&
                MODULO(scf_env%iter_count,scf_control%write_restart_each)==0) THEN
              CALL write_mo_set(mos,atomic_kind_set,particle_set,globenv,&
-                  id_nr=1)
+                  id_nr=1,dft_section=dft_section)
           END IF
 
           IF (.NOT.BTEST(cp_print_key_should_output(logger%iter_info,&
@@ -621,7 +621,7 @@ CONTAINS
        !   *** Write restart file ***
        IF (scf_control%write_restart_each>=0) THEN
           CALL write_mo_set(mos,atomic_kind_set,particle_set,globenv,&
-               id_nr=1)
+               id_nr=1,dft_section=dft_section)
        END IF
 
        !   *** mixing methods need to undo mixing of the density matrix (restore original density) ***
@@ -1239,7 +1239,7 @@ END SUBROUTINE qs_scf_print_summary
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
           ! XXX Joost XXX should disentangle reading input from this part
-          CALL ot_scf_read_input(scf_env%qs_ot_env,globenv)
+          CALL ot_scf_read_input(scf_env%qs_ot_env,globenv,scf_section)
 
           ! keep a note that we are restricted
           IF (dft_control%restricted) THEN

@@ -165,7 +165,8 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE qs_init(qs_env,globenv,subsystem,cell,cell_ref,qmmm,error)
+  SUBROUTINE qs_init(qs_env,globenv,subsystem,cell,cell_ref,qmmm,&
+       force_env_section,error)
 
 !   Purpose: Read the input and the database files for the setup of the
 !            QUICKSTEP environment.
@@ -182,6 +183,7 @@ CONTAINS
     LOGICAL, INTENT(IN), OPTIONAL            :: qmmm
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
+    TYPE(section_vals_type), POINTER         :: force_env_section
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_init', &
       routineP = moduleN//':'//routineN
@@ -204,15 +206,12 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(section_vals_type), POINTER         :: cell_section, colvar_section, &
-                                                force_env_section, &
-                                                harris_section
+                                                harris_section, kind_section
 
     NULLIFY(my_subsystem, molecule_kind_set, molecule_set, atomic_kind_set,&
          particle_set,atomic_kinds,particles,mols,mol_kinds,my_cell,my_cell_ref,&
-         cell_section, harris_section)
-    
-    force_env_section => section_vals_get_subs_vals(globenv%input_file,&
-         "FORCE_EVAL",error=error)
+         cell_section, harris_section, kind_section)
+
     cell_section => section_vals_get_subs_vals(force_env_section,&
          "SUBSYS%CELL",error=error)
     harris_section => section_vals_get_subs_vals(force_env_section, &
@@ -252,14 +251,18 @@ CONTAINS
 !   *** Print the cell parameters ***
     CALL write_cell(my_cell,force_env_section,cell_ref=my_cell_ref,error=error)
 
+!   Kind section
+    kind_section => section_vals_get_subs_vals(force_env_section,&
+            "SUBSYS%KIND",error=error)       
     IF (PRESENT(subsystem)) THEN 
        my_subsystem => subsystem
-       CALL read_atomic_kind_set(my_subsystem%atomic_kinds%els, globenv,error)
+       CALL read_atomic_kind_set(my_subsystem%atomic_kinds%els,kind_section,globenv,&
+            force_env_section,error)
     ELSE
        CALL cp_subsys_create(my_subsystem,para_env=globenv%para_env,error=error)
 
-       colvar_section => section_vals_get_subs_vals(globenv%input_file,&
-                                 "FORCE_EVAL%SUBSYS%COLVAR",error=error)
+       colvar_section => section_vals_get_subs_vals(force_env_section,&
+                                 "SUBSYS%COLVAR",error=error)
        CALL cp_subsys_read_colvar( my_subsystem, colvar_section, globenv, error=error)
 
 
@@ -267,9 +270,11 @@ CONTAINS
        !   *** the molecule kind, and the molecule data structures         ***
        CALL topology_control (atomic_kind_set,particle_set,&
                               molecule_kind_set,molecule_set,&
-                              my_subsystem%colvar_p,globenv,error=error)
-  
-       CALL read_atomic_kind_set(atomic_kind_set,globenv,error)
+                              my_subsystem%colvar_p,globenv,&
+                              force_env_section=force_env_section,error=error)
+
+       CALL read_atomic_kind_set(atomic_kind_set,kind_section,globenv,&
+            force_env_section,error)
        
        CALL num_ao_el_per_molecule(molecule_kind_set)
        
@@ -352,7 +357,7 @@ CONTAINS
     TYPE(qs_wf_history_type), POINTER        :: wf_history
     TYPE(rho0_mpole_type), POINTER           :: nddo_mpole, rho0_mpole
     TYPE(scf_control_type), POINTER          :: scf_control
-    TYPE(section_vals_type), POINTER         :: dft_section, xas_section
+    TYPE(section_vals_type), POINTER         :: dft_section, xas_section, qs_section
     TYPE(semi_empirical_control_type), &
       POINTER                                :: se_control
 
@@ -385,6 +390,7 @@ CONTAINS
     NULLIFY (localized_wfn_control)
     NULLIFY (xas_section, dft_section)
     dft_section =>  section_vals_get_subs_vals(qs_env%input,"DFT",error=error)
+    qs_section =>  section_vals_get_subs_vals(dft_section,"QS",error=error)
     particle_set => subsystem%particles%els
     atomic_kind_set => subsystem%atomic_kinds%els
     molecule_set => subsystem%molecules_new%els
@@ -399,14 +405,15 @@ CONTAINS
 
 !   *** Read the input section with the DFT control parameters ***
 
-    CALL read_dft_control(dft_control,globenv)
+    CALL read_dft_control(dft_control,globenv,dft_section)
     ! ONLY WORKS WITH NEW INPUT
-    CALL read_tddfpt_control(dft_control%tddfpt_control,dft_control%nspins,globenv)
+    CALL read_tddfpt_control(dft_control%tddfpt_control,dft_control%nspins,globenv,&
+         dft_section,error)
 
 !   *** Read the input section with the Quickstep control parameters ***
 
-    CALL read_qs_section(dft_control%qs_control,globenv,error=error)
-    CALL read_mgrid_section(dft_control%qs_control,globenv,error=error)
+    CALL read_qs_section(dft_control%qs_control,globenv,qs_section,error=error)
+    CALL read_mgrid_section(dft_control%qs_control,globenv,dft_section,error=error)
 
 !   *** Check basis and fill in missing parts ***
 
@@ -627,8 +634,8 @@ CONTAINS
     END IF
 
     ! The transition potential method to calculate XAS needs LSD
-    xas_section =>  section_vals_get_subs_vals(globenv%input_file, &
-                                                 "FORCE_EVAL%DFT%XAS")
+    xas_section =>  section_vals_get_subs_vals(qs_env%input, &
+                                                 "DFT%XAS")
     CALL section_vals_val_get(xas_section,"_SECTION_PARAMETERS_",&
          l_val=xas_calculation,error=error)
 
@@ -770,7 +777,7 @@ CONTAINS
       CALL set_loc_wfn_lists(dft_control%qs_control%localized_wfn_control,&
            nmoloc,n_mo,dft_control%nspins,error=error)
       CALL set_loc_centers(dft_control%qs_control%localized_wfn_control,nmoloc,&
-           dft_control%nspins,globenv,error=error)
+           dft_control%nspins,globenv,qs_env%input,error=error)
     END IF 
 
     ! Print the DFT control parameters

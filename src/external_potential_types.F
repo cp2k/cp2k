@@ -883,7 +883,7 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE read_all_potential(element_symbol,potential_name,potential,&
-                                zeff_correction, globenv,error)
+                                zeff_correction, globenv, dft_section, error)
 
 !   Purpose: Read an atomic all-electron potential data set.
 
@@ -894,6 +894,7 @@ CONTAINS
     CHARACTER(LEN=*), INTENT(IN)             :: element_symbol, potential_name
     TYPE(all_potential_type), POINTER        :: potential
     REAL(KIND=dp)                            :: zeff_correction
+    TYPE(section_vals_type),POINTER          :: dft_section
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -922,7 +923,7 @@ CONTAINS
 
     potential%name = potential_name
 
-    CALL section_vals_val_get(globenv%input_file,"FORCE_EVAL%DFT%POTENTIAL_FILE_NAME",&
+    CALL section_vals_val_get(dft_section,"POTENTIAL_FILE_NAME",&
          c_val=potential_file_name,error=error)
     CALL parser_create(parser,potential_file_name,&
          para_env=globenv%para_env,error=error)
@@ -1012,7 +1013,7 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE read_elp_potential(element_symbol,potential_name,potential,&
-                                globenv,error)
+                                globenv,dft_section,error)
 
 !   Purpose: Read an effective charge potential data set.
 !   History: creation 22-09-2002, GT
@@ -1021,6 +1022,7 @@ CONTAINS
 
     CHARACTER(LEN=*), INTENT(IN)             :: element_symbol, potential_name
     TYPE(elp_potential_type), POINTER        :: potential
+    TYPE(section_vals_type),POINTER          :: dft_section
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -1051,7 +1053,7 @@ CONTAINS
 
     potential%name = potential_name
 
-    CALL section_vals_val_get(globenv%input_file,"FORCE_EVAL%DFT%POTENTIAL_FILE_NAME",&
+    CALL section_vals_val_get(dft_section,"POTENTIAL_FILE_NAME",&
          c_val=potential_file_name,error=error)
     CALL parser_create(parser,potential_file_name,&
          para_env=globenv%para_env,error=error)
@@ -1158,7 +1160,7 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE read_gth_potential(element_symbol,potential_name,potential,&
-                                zeff_correction, globenv,error)
+                                zeff_correction, globenv, dft_section, error)
 
 !   Purpose: Read an atomic GTH potential data set.
 
@@ -1174,6 +1176,7 @@ CONTAINS
     CHARACTER(LEN=*), INTENT(IN)             :: element_symbol, potential_name
     TYPE(gth_potential_type), POINTER        :: potential
     REAL(KIND=dp), INTENT(IN)                :: zeff_correction
+    TYPE(section_vals_type), POINTER         :: dft_section
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -1209,7 +1212,7 @@ CONTAINS
     potential%name = potential_name
 
 
-    CALL section_vals_val_get(globenv%input_file,"FORCE_EVAL%DFT%POTENTIAL_FILE_NAME",&
+    CALL section_vals_val_get(dft_section,"POTENTIAL_FILE_NAME",&
          c_val=potential_file_name,error=error)
     CALL parser_create(parser,potential_file_name,&
          para_env=globenv%para_env,error=error)

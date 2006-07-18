@@ -123,8 +123,9 @@ CONTAINS
 !!     05.2004 created [fawzi]
 !!
 !!*** **********************************************************************
-  SUBROUTINE  qmmm_create_force_env(force_env, globenv, error)
+  SUBROUTINE  qmmm_create_force_env(force_env, globenv, force_env_section, error)
     TYPE(force_env_type), POINTER            :: force_env
+    TYPE(section_vals_type), pointer         :: force_env_section
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -161,7 +162,7 @@ CONTAINS
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env_qm
     TYPE(qmmm_links_type), POINTER           :: qmmm_links
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(section_vals_type), POINTER         :: force_env_section, print_gen, &
+    TYPE(section_vals_type), POINTER         :: print_gen, &
                                                 print_section, qmmm_periodic, &
                                                 qmmm_section
 
@@ -179,7 +180,6 @@ CONTAINS
     logger => cp_error_get_logger(error)
     IF (.NOT. failure) THEN
        ! Input section...
-       force_env_section => section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL",error=error)
        qmmm_section => section_vals_get_subs_vals(force_env_section,"QMMM",error=error)
        qmmm_periodic => section_vals_get_subs_vals(qmmm_section,"PERIODIC",error=error)
        print_section => section_vals_get_subs_vals(qmmm_section,"PRINT",error=error)
@@ -234,7 +234,8 @@ CONTAINS
        ! First Initialize Fist...
        globenv%prog_name_id=do_fist
        CALL fist_create_force_env(sub_force_env(1)%force_env, &
-            globenv, qmmm=.TRUE., qmmm_env=qmmm_env_mm, error=error)
+            globenv, qmmm=.TRUE., qmmm_env=qmmm_env_mm, force_env_section=force_env_section,&
+            error=error)
 
        CALL force_env_get(sub_force_env(1)%force_env,subsys=subsys_mm,&
             cell=mm_cell,error=error) 
@@ -323,7 +324,7 @@ CONTAINS
             sub_subsys_index=qm_subsys_index,&
             sub_atom_kind_name=qm_atom_type, globenv=globenv,force_env_section=force_env_section,error=error)
        CALL quickstep_create_force_env(sub_force_env(2)%force_env,globenv,subsystem=subsys_qm,&
-            cell=qm_cell_small, qmmm=.TRUE., error=error)
+            cell=qm_cell_small, qmmm=.TRUE., force_env_section=force_env_section, error=error)
        CALL cp_subsys_release(subsys_qm,error=error)
        CALL force_env_get(sub_force_env(2)%force_env,qs_env=qs_env,error=error)
        IF (qmmm_env_qm%periodic) THEN 
@@ -396,8 +397,8 @@ CONTAINS
 
        globenv%prog_name_id=do_qmmm
        CALL force_env_create(force_env, sub_force_env=sub_force_env,&
-            qmmm_env=qmmm_env_qm,globenv=globenv,error=error)
-
+            qmmm_env=qmmm_env_qm,globenv=globenv, force_env_section= force_env_section,&
+            error=error)
        CALL qmmm_env_qm_release(qmmm_env_qm, error)
        CALL qmmm_env_mm_release(qmmm_env_mm, error)
        DEALLOCATE(qm_atom_type,stat=stat)

@@ -81,6 +81,14 @@ MODULE mc_run
   USE physcon,                         ONLY: angstrom
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
+  USE input_section_types,             ONLY: section_release,&
+                                             section_type,&
+                                             section_vals_create,&
+                                             section_vals_release,&
+                                             section_vals_type,&
+                                             section_vals_get,&
+                                             section_vals_get_subs_vals,&
+                                             section_vals_get_subs_vals2
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -161,13 +169,14 @@ CONTAINS
     TYPE(molecule_kind_type), POINTER        :: molecule_kind, molecule_kind_2
     TYPE(rng_stream_type), POINTER           :: rng_stream
     TYPE(global_environment_type), POINTER   :: globenv_2
-
-!------------------------------------------------------------------------------
+    TYPE(section_vals_type), pointer         :: force_env_section
 
       NULLIFY(mc_env,mc_par,mc_par_2,force_env_2,rng_stream)
 
       iw = globenv % scr
-
+      force_env_section => force_env%force_env_section
+      CALL section_vals_get(force_env_section,n_repetition=isos,error=error)
+      CPPostconditionNoFail(isos==1,cp_warning_level,routineP,error)
 ! set some values...will use get_globenv if that ever comes around
       ionode=globenv % ionode
 
@@ -282,7 +291,7 @@ CONTAINS
 ! pull all the information together into one environment
          CALL set_mc_env( mc_env(1)%mc_env, &
             mc_par = mc_par, force_env=force_env)
-         CALL mc_run_ensemble(mc_env,globenv,nboxes,error,rng_stream)
+         CALL mc_run_ensemble(mc_env,globenv,nboxes,error,rng_stream,force_env_section=force_env_section)
 
       CASE("GEMC")
 
@@ -390,7 +399,7 @@ CONTAINS
             force_env=force_env_2)
 
 ! do the calculation
-         CALL mc_run_ensemble(mc_env,globenv,nboxes,error,rng_stream)
+         CALL mc_run_ensemble(mc_env,globenv,nboxes,error,rng_stream,force_env_section=force_env_section)
 
 ! clean up after ourselves
          CALL get_mc_env( mc_env(2)%mc_env,mc_par=mc_par_2,&

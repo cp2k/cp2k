@@ -71,6 +71,14 @@ MODULE mc_ge_moves
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE input_section_types,             ONLY: section_release,&
+                                             section_type,&
+                                             section_vals_create,&
+                                             section_vals_release,&
+                                             section_vals_type,&
+                                             section_vals_write,&
+                                             section_vals_get_subs_vals,&
+                                             section_vals_get_subs_vals2
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -479,7 +487,7 @@ CONTAINS
 
   SUBROUTINE mc_ge_swap_move(mc_par,force_env,bias_env,moves,&
                 energy_check,r_old,old_energy,&
-                globenv,bias_energy_old,rng_stream,error)
+                globenv,bias_energy_old,rng_stream,force_env_section,error)
 
 !   ***************************************************************************
 
@@ -499,6 +507,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(1:2), &
       INTENT(INOUT)                          :: bias_energy_old
     TYPE(rng_stream_type), POINTER           :: rng_stream
+    TYPE(section_vals_type), pointer         :: force_env_section
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 

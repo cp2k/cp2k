@@ -116,8 +116,7 @@ MODULE global_types
      TYPE(rng_stream_type), POINTER          :: gaussian_rng_stream
      CHARACTER(LEN=default_path_length)      :: input_file_name
      CHARACTER(LEN=default_string_length)    :: default_fft_library,&
-                                                project_name,&
-                                                coord_file_name
+                                                project_name
      INTEGER :: group        !! group handle for all processors
      INTEGER :: idum         !! random number seed
      INTEGER :: mepos        !! position number for local processor
@@ -197,7 +196,6 @@ CONTAINS
        globenv%project_name=""
        globenv%group=para_env%group
        globenv%idum=0                 !! random number seed
-       globenv%coord_file_name=""
        globenv%mepos=para_env%mepos
        globenv%num_pe=para_env%num_pe
        globenv%print_level=1

@@ -112,7 +112,7 @@ CONTAINS
     failure = .FALSE.
     IF (.NOT.failure) THEN
        NULLIFY(bsse_section, n_frags, Em, conf, force_env_loc)
-       bsse_section => section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL%BSSE",error=error)
+       bsse_section => section_vals_get_subs_vals(force_env%force_env_section,"BSSE",error=error)
        n_frags => section_vals_get_subs_vals(bsse_section,"FRAGMENT",error=error)
        CALL section_vals_get(n_frags,explicit=explicit,n_repetition=Num_of_Frag,error=error)
        !
@@ -134,7 +134,7 @@ CONTAINS
           CALL eval_bsse_energy(conf(i,:),Em(i),force_env,force_env_loc, n_frags, &
                globenv, error=error)
        END DO
-       CALL dump_bsse_results(conf, Em, num_of_frag, globenv, error)
+       CALL dump_bsse_results(conf, Em, num_of_frag, globenv, bsse_section, error)
        DEALLOCATE(Em,   stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DEALLOCATE(conf, stat=stat)
@@ -276,14 +276,15 @@ CONTAINS
       DIMENSION(:), POINTER                  :: subsys
     TYPE(cp_subsystem_type), POINTER         :: subsys_loc
     TYPE(particle_list_type), POINTER        :: particles
-    TYPE(section_vals_type), POINTER         :: force_env_section
+    TYPE(section_vals_type), POINTER         :: force_env_section, bsse_section
 
     failure = .FALSE.
     CALL section_vals_get(n_frags,n_repetition=num_of_frag,error=error)
     CPPostcondition(SIZE(conf)==num_of_frag,cp_failure_level,routineP,error,failure)
     NULLIFY(subsys_loc, subsys, particles, para_env, cell, atom_index, atom_type, tmplist,&
          force_env_section )
-    force_env_section => section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL",error=error)
+    CALL force_env_get(force_env, force_env_section=force_env_section, error=error)
+    bsse_section => section_vals_get_subs_vals(force_env_section,"BSSE",error=error)
     IF (.NOT.failure) THEN
        ALLOCATE(my_conf(SIZE(conf)), stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -345,7 +346,7 @@ CONTAINS
              END DO
           END IF
        END DO
-       CALL dump_bsse_info(atom_index, atom_type, conf, conf_loc, globenv, error)
+       CALL dump_bsse_info(atom_index, atom_type, conf, conf_loc, globenv, bsse_section, error)
        !
        ! Let's start setting up environments and calculations
        !
@@ -357,7 +358,8 @@ CONTAINS
                sub_subsys_index=subsys_index, sub_atom_kind_name=atom_type,&
                globenv=globenv, force_env_section=force_env_section, error=error)
 
-          CALL quickstep_create_force_env(force_env_loc,globenv,subsystem=subsys_loc,error=error)
+          CALL quickstep_create_force_env(force_env_loc,globenv,subsystem=subsys_loc,&
+               force_env_section=force_env_section, error=error)
 
           CALL cp_subsys_release(subsys_loc,error=error)
           !
@@ -404,11 +406,12 @@ CONTAINS
 !!     07.2005 created [tlaino]
 !!
 !!*** ********************************************************************** 
-  SUBROUTINE  dump_bsse_info(atom_index, atom_type, conf, conf_loc, globenv, error)
+  SUBROUTINE  dump_bsse_info(atom_index, atom_type, conf, conf_loc, globenv, bsse_section, error)
     INTEGER, DIMENSION(:), POINTER           :: atom_index
     CHARACTER(len=default_string_length), &
       DIMENSION(:), POINTER                  :: atom_type
     INTEGER, DIMENSION(:), INTENT(IN)        :: conf, conf_loc
+    TYPE(section_vals_type), POINTER         :: bsse_section
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -420,13 +423,12 @@ CONTAINS
     INTEGER                                  :: i, iw
     LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(section_vals_type), POINTER         :: bsse_section, print_info
+    TYPE(section_vals_type), POINTER         :: print_info
 
     failure = .FALSE.
-    NULLIFY(bsse_section, logger)
+    NULLIFY(logger)
     IF (.NOT.failure) THEN
        logger => cp_error_get_logger(error)
-       bsse_section => section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL%BSSE",error=error)
        print_info =>  section_vals_get_subs_vals(bsse_section,"PRINT%PROGRAM_RUN_INFO",error=error)
        IF (BTEST(cp_print_key_should_output(logger%iter_info,print_info,error=error),cp_p_file).AND.&
             logger%para_env%mepos==logger%para_env%source) THEN
@@ -449,11 +451,12 @@ CONTAINS
     END IF
   END SUBROUTINE dump_bsse_info
 
-  SUBROUTINE  dump_bsse_results(conf, Em,  num_of_frag, globenv, error)
+  SUBROUTINE  dump_bsse_results(conf, Em,  num_of_frag, globenv, bsse_section, error)
     INTEGER, DIMENSION(:, :), INTENT(IN)     :: conf
     REAL(KIND=dp), DIMENSION(:), POINTER     :: Em
     INTEGER, INTENT(IN)                      :: num_of_frag
     TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(section_vals_type), POINTER         :: bsse_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -463,13 +466,12 @@ CONTAINS
     INTEGER                                  :: i, iw
     LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(section_vals_type), POINTER         :: bsse_section, print_info
+    TYPE(section_vals_type), POINTER         :: print_info
 
     failure = .FALSE.
-    NULLIFY(bsse_section, logger)
+    NULLIFY(logger)
     IF (.NOT.failure) THEN
        logger => cp_error_get_logger(error)
-       bsse_section => section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL%BSSE",error=error)
        print_info =>  section_vals_get_subs_vals(bsse_section,"PRINT%PROGRAM_RUN_INFO",error=error)
        IF (BTEST(cp_print_key_should_output(logger%iter_info,print_info,error=error),cp_p_file).AND.&
             logger%para_env%mepos==logger%para_env%source) THEN

@@ -1454,7 +1454,8 @@ CONTAINS
        CALL keyword_create(keyword, name="COORD_FILE",&
             variants=s2a("COORD_FI", "COORD_FILE_NAME"),&
             description="Specifies the filename that contains coordinates.",&
-            usage="COORD_FILE FILENAME",required=.TRUE.,type_of_var=lchar_t,error=error)
+            usage="COORD_FILE FILENAME",required=.TRUE.,type_of_var=lchar_t,&
+            default_lc_val="UNSET",error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 

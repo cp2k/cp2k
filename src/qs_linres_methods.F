@@ -176,7 +176,7 @@ CONTAINS
     CALL set_loc_wfn_lists(localized_wfn_control,&
          nmoloc,n_mo,nspins,error=error)
     CALL set_loc_centers(localized_wfn_control,nmoloc,&
-         nspins,globenv,error=error) 
+         nspins,globenv,qs_env%input,error=error) 
     CALL qs_loc_env_create(qs_loc_env,error=error)
     CALL qs_loc_env_init(qs_loc_env,localized_wfn_control,qs_env,error=error)
     ! The localized orbitals are copied in the mos, 

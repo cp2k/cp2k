@@ -38,6 +38,7 @@ MODULE environment
                                              section_get_rval,&
                                              section_vals_get,&
                                              section_vals_get_subs_vals,&
+                                             section_vals_get_subs_vals2,&
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: default_path_length,&
@@ -65,7 +66,8 @@ MODULE environment
                                              write_rng_stream
   USE physcon,                         ONLY: write_physcon
   USE string_utilities,                ONLY: ascii_to_string,&
-                                             string_to_ascii
+                                             string_to_ascii,&
+                                             integer_to_string
   USE termination,                     ONLY: set_error_unit,&
                                              stop_memory,&
                                              stop_program
@@ -482,10 +484,13 @@ SUBROUTINE cp2k_read(globenv,error)
       start_section_label = "GLOBAL"
 
     CHARACTER(len=default_string_length) :: basis_set_file_name, &
-      mm_potential_file_name, potential_file_name, restart_file_name
-    INTEGER                                  :: num_threads, output_unit
+      mm_potential_file_name, potential_file_name, coord_file_name,&
+      restart_file_name, env_num
+    INTEGER                                  :: num_threads, output_unit, nforce_eval,&
+         iforce_eval
     LOGICAL                                  :: ata, failure, trace
-    TYPE(section_vals_type), POINTER         :: dft_section, global_section
+    TYPE(section_vals_type), POINTER         :: dft_section, global_section,&
+         force_env_section, force_env_sections
 
 !$  INTEGER :: omp_get_num_threads
 
@@ -504,19 +509,6 @@ SUBROUTINE cp2k_read(globenv,error)
     CALL section_vals_val_get(global_section,"WALLTIME",r_val=globenv%cp2k_target_time,error=error)
     CALL section_vals_val_get(global_section,"TRACE",l_val=trace,error=error)
     IF(trace) CALL trace_debug("start",groupid=globenv%group)
-
-    globenv%coord_file_name = globenv%input_file_name
-
-    dft_section => section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL%DFT",error=error)
-
-    CALL section_vals_val_get(dft_section,"BASIS_SET_FILE_NAME",&
-         c_val=basis_set_file_name , ignore_required=.TRUE., error=error)
-    CALL section_vals_val_get(dft_section,"POTENTIAL_FILE_NAME",&
-         c_val=potential_file_name , ignore_required=.TRUE., error=error)
-    CALL section_vals_val_get(dft_section,"RESTART_FILE_NAME",&
-         c_val=restart_file_name , ignore_required=.TRUE., error=error)
-    CALL section_vals_val_get(globenv%input_file,"FORCE_EVAL%QMMM%MM_POTENTIAL_FILE_NAME",&
-         c_val=mm_potential_file_name, ignore_required=.TRUE., error=error)
 
     IF (globenv%run_type_id == 0) THEN
        SELECT CASE (globenv%prog_name_id)
@@ -552,19 +544,44 @@ SUBROUTINE cp2k_read(globenv,error)
     IF (globenv%ionode.AND.(globenv%print_level > 0)) THEN
       output_unit = globenv%scr
       WRITE (UNIT=output_unit,FMT=*)
+      force_env_sections => section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL",error=error)
+      CALL section_vals_get(force_env_sections, n_repetition=nforce_eval, error=error)
+      DO iforce_eval = 1, nforce_eval
+         force_env_section => section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL",&
+              i_rep_section=iforce_eval,error=error)
+         
+         dft_section => section_vals_get_subs_vals(force_env_section,"DFT",error=error)
+         CALL section_vals_val_get(dft_section,"BASIS_SET_FILE_NAME",&
+              c_val=basis_set_file_name , ignore_required=.TRUE., error=error)
+         CALL section_vals_val_get(dft_section,"POTENTIAL_FILE_NAME",&
+              c_val=potential_file_name , ignore_required=.TRUE., error=error)
+         CALL section_vals_val_get(dft_section,"RESTART_FILE_NAME",&
+              c_val=restart_file_name , ignore_required=.TRUE., error=error)
+         CALL section_vals_val_get(force_env_section,"QMMM%MM_POTENTIAL_FILE_NAME",&
+              c_val=mm_potential_file_name, ignore_required=.TRUE., error=error)
+         CALL section_vals_val_get(force_env_section,"SUBSYS%TOPOLOGY%COORD_FILE",&
+              c_val=coord_file_name, ignore_required=.TRUE., error=error)
+         CALL integer_to_string(iforce_eval,env_num)
+
+         WRITE (UNIT=output_unit,FMT="(T2,A,T41,A)")&
+              start_section_label//"| Force Environment number",&
+              ADJUSTR(env_num(:40)),&
+              start_section_label//"| Basis set file name",&
+              ADJUSTR(basis_set_file_name(:40)),&
+              start_section_label//"| Potential file name",&
+              ADJUSTR(potential_file_name(:40)),&
+              start_section_label//"| MM Potential file name",&
+              ADJUSTR(mm_potential_file_name(:40)),&
+              start_section_label//"| Restart file name",&
+              ADJUSTR(restart_file_name(:40)),&
+              start_section_label//"| Coordinate file name",&
+              ADJUSTR(coord_file_name(:40))
+
+      END DO
+
       WRITE (UNIT=output_unit,FMT="(T2,A,T41,A)")&
         start_section_label//"| Input file name",&
         ADJUSTR(globenv%input_file_name(:40)),&
-        start_section_label//"| Basis set file name",&
-        ADJUSTR(basis_set_file_name(:40)),&
-        start_section_label//"| Potential file name",&
-        ADJUSTR(potential_file_name(:40)),&
-        start_section_label//"| MM Potential file name",&
-        ADJUSTR(mm_potential_file_name(:40)),&
-        start_section_label//"| Restart file name",&
-        ADJUSTR(restart_file_name(:40)),&
-        start_section_label//"| Coordinate file name",&
-        ADJUSTR(globenv%coord_file_name(:40)),&
         start_section_label//"| Program name",&
         ADJUSTR(program_names(globenv%prog_name_id)(:40)),&
         start_section_label//"| Project name",&

@@ -70,8 +70,9 @@ MODULE qs_ot_scf
 
 CONTAINS
 
-  SUBROUTINE ot_scf_read_input(qs_ot_env,globenv)
+  SUBROUTINE ot_scf_read_input(qs_ot_env,globenv,scf_section)
     TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
+    TYPE(section_vals_type),POINTER          :: scf_section
     TYPE(global_environment_type), POINTER   :: globenv
 
     CHARACTER(LEN=40)                        :: value
@@ -88,7 +89,7 @@ CONTAINS
     CALL qs_ot_settings_init(qs_ot_env(1)%settings)
 
     ! use ot input new style
-    ot_section=>section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL%DFT%SCF%OT")
+    ot_section=>section_vals_get_subs_vals(scf_section,"OT")
     CALL section_vals_get(ot_section,explicit=explicit)
 
        CALL section_vals_val_get(ot_section,"MINIMIZER",i_val=ot_method)

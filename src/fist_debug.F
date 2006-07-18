@@ -131,7 +131,7 @@ SUBROUTINE  debug_control ( force_env, globenv, error)
                       molecule_kind_set = molecule_kind_set, &
                       fist_nonbond_env = fist_nonbond_env, cell = cell )
   NULLIFY(force_env_section)
-  force_env_section =>section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL",error=error)
+  force_env_section => force_env%force_env_section
 
   CALL fist_nonbond_env_get ( fist_nonbond_env, potparm = potparm )
   CALL ewald_env_get ( ewald_env, ewald_type = ewald_type )
@@ -194,7 +194,8 @@ SUBROUTINE  debug_control ( force_env, globenv, error)
 
 ! Call to analytical force routine:
   CALL fist_force_control ( fist_env, force_env%virial, globenv, &
-                             debug = dbg, error=error )
+                             debug = dbg, force_env_section=force_env%force_env_section,&
+                             error=error )
 
   CALL mp_sum ( dbg % f_bond, group )
   CALL mp_sum ( dbg % f_bend, group )

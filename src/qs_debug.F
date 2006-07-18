@@ -80,8 +80,8 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(analyt_forces, numer_forces, subsys, particles)
     IF (.NOT.failure) THEN
-       harris_section => section_vals_get_subs_vals(globenv%input_file, &
-                                                    "FORCE_EVAL%DFT%QS%HARRIS")
+       harris_section => section_vals_get_subs_vals(force_env%force_env_section, &
+                                                    "DFT%QS%HARRIS")
        CALL section_vals_val_get(harris_section, "ACTIVATE", &
                                  l_val=harris_flag, error=error)
 

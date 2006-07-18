@@ -49,8 +49,10 @@ MODULE mc_control
   USE input_section_types,             ONLY: section_type,&
                                              section_vals_create,&
                                              section_vals_type,&
+                                             section_vals_get,&
                                              section_release,&
-                                             section_vals_val_get
+                                             section_vals_val_get,&
+                                             section_vals_get_subs_vals
   USE kg_main,                         ONLY: kg_create_force_env
   USE kinds,                           ONLY: dp,&
                                              dp_size
@@ -384,7 +386,7 @@ END SUBROUTINE read_mc_restart
 !!
 !!*****************************************************************************
 SUBROUTINE mc_create_force_env ( force_env, globenv_old,input_file_name,&
-     globenv_new,error )
+     globenv_new, error )
 
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(global_environment_type), POINTER   :: globenv_old
@@ -398,18 +400,19 @@ SUBROUTINE mc_create_force_env ( force_env, globenv_old,input_file_name,&
       routineP = moduleN//':'//routineN
 
     TYPE(global_environment_type), POINTER   :: globenv
-    INTEGER                                  :: i_val
+    INTEGER                                  :: i_val, nforce_eval
     LOGICAL                                  :: failure
     TYPE(cp_parser_type), POINTER            :: my_parser
     TYPE(cp_unit_set_type), POINTER          :: default_units
     TYPE(section_type), POINTER              :: input_structure
     TYPE(section_vals_type), POINTER         :: input_file
+    TYPE(section_vals_type), POINTER         :: force_env_section
 
-!***************************************************************************
-
+!**************************************************************************
+      failure= .false.
       NULLIFY(input_file,input_structure,my_parser,default_units,globenv)
 
-      NULLIFY(globenv, force_env )
+      NULLIFY(globenv, force_env, force_env_section )
 
       ! init globenv with the data
       CALL globenv_create(globenv, para_env=globenv_old%para_env,output_unit=globenv_old%scr, &
@@ -433,18 +436,20 @@ SUBROUTINE mc_create_force_env ( force_env, globenv_old,input_file_name,&
 
       CALL cp2k_read(globenv)
 
-      CALL section_vals_val_get(globenv%input_file,"GLOBAL%PROGRAM_NAME",i_val=globenv%prog_name_id)      
+      CALL section_vals_val_get(globenv%input_file,"GLOBAL%PROGRAM_NAME",i_val=globenv%prog_name_id)
+      force_env_section => section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL",error=error)
+      CALL section_vals_get(force_env_section, n_repetition=nforce_eval, error=error)
+      CPAssert(nforce_eval==1,cp_failure_level,routineP,error,failure)
       SELECT CASE ( globenv%prog_name_id )
       CASE ( do_fist )
-         CALL fist_create_force_env(force_env, globenv, error=error)
+         CALL fist_create_force_env(force_env, globenv, force_env_section=force_env_section, error=error)
       CASE ( do_qs )
-         CALL quickstep_create_force_env(force_env, globenv, error=error)
+         CALL quickstep_create_force_env(force_env, globenv, force_env_section=force_env_section, error=error)
       CASE ( do_kg )
-         CALL kg_create_force_env ( force_env, globenv, error=error)
+         CALL kg_create_force_env ( force_env, globenv, force_env_section=force_env_section, error=error)
       CASE default
          CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
       END SELECT
-
 ! release some stuff created here
       CALL section_release(input_structure)    
 
@@ -481,13 +486,14 @@ END SUBROUTINE mc_create_force_env
 !!
 !!*****************************************************************************
 SUBROUTINE mc_create_bias_force_env (bias_env,force_env,&
-            globenv,fft_lib,print_level,ionode,error)
+            globenv,fft_lib,print_level,ionode,force_env_section,error)
 
     TYPE(force_env_type), POINTER            :: bias_env, force_env
     TYPE(global_environment_type), POINTER   :: globenv
     CHARACTER(LEN=*), INTENT(IN)             :: fft_lib
     LOGICAL, INTENT(IN)                      :: ionode
     INTEGER,INTENT(IN)                       :: print_level
+    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'mc_create_bias_force_env', &

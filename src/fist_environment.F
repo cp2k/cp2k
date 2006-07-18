@@ -116,11 +116,12 @@ CONTAINS
 !!
 !!*** *************************************************************************
 
-SUBROUTINE fist_init ( fist_env, globenv, error )
+SUBROUTINE fist_init ( fist_env, globenv, force_env_section, error )
 
 
 
     TYPE(fist_environment_type), POINTER     :: fist_env
+    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -149,8 +150,7 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
       POINTER                                :: particle_set
     TYPE(qmmm_env_mm_type), POINTER          :: qmmm_env
     TYPE(section_vals_type), POINTER         :: cell_section, colvar_section, &
-                                                force_env_section, &
-                                                mm_section, poisson_section
+                                                mm_section, poisson_section, ewald_section
 
   CALL timeset(routineN,"I",'',handle)
   failure = .FALSE.
@@ -159,16 +159,16 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
 
   NULLIFY ( subsystem, molecule_kind_set, molecule_set, atomic_kind_set,&
             particle_set,atomic_kinds,particles,mols,mol_kinds,cell,cell_ref)
-  NULLIFY ( ewald_env, fist_nonbond_env, qmmm_env, cell_section, poisson_section,&
-            force_env_section)
-  force_env_section => section_vals_get_subs_vals(globenv%input_file,&
-       "FORCE_EVAL",error=error)
+  NULLIFY ( ewald_env, fist_nonbond_env, qmmm_env, cell_section, poisson_section)
+
   mm_section => section_vals_get_subs_vals(force_env_section,&
        "MM",error=error)
-  cell_section => section_vals_get_subs_vals(globenv%input_file,&
-       "FORCE_EVAL%SUBSYS%CELL",error=error)
-  poisson_section => section_vals_get_subs_vals(globenv%input_file,&
-       "FORCE_EVAL%MM%POISSON",error=error)
+  cell_section => section_vals_get_subs_vals(force_env_section,&
+       "SUBSYS%CELL",error=error)
+  poisson_section => section_vals_get_subs_vals(force_env_section,&
+       "MM%POISSON",error=error)
+  ewald_section => section_vals_get_subs_vals(force_env_section,&
+       "MM%POISSON%EWALD",error=error)
 
   CALL set_fist_env(fist_env,input=force_env_section,error=error)
 
@@ -181,8 +181,8 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
   CALL cp_subsys_create ( subsystem, para_env = globenv % para_env, error = error )
 
   ! read colvars and add to subsystem
-  colvar_section => section_vals_get_subs_vals(globenv%input_file,&
-       "FORCE_EVAL%SUBSYS%COLVAR",error=error)
+  colvar_section => section_vals_get_subs_vals(force_env_section,&
+       "SUBSYS%COLVAR",error=error)
   CALL cp_subsys_read_colvar( subsystem, colvar_section, globenv, error=error)
 
   CALL read_cell( cell, cell_ref, use_ref_cell = use_ref_cell, error=error,&
@@ -196,7 +196,7 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
   CALL ewald_env_create ( ewald_env, globenv % para_env, error )
 
 ! Read the input section and set the ewald_env ***
-  CALL read_ewald_section ( ewald_env, globenv, error )
+  CALL read_ewald_section ( ewald_env, globenv, ewald_section=ewald_section,error=error )
   CALL ewald_env_set(ewald_env, poisson_section=poisson_section, error=error)
 
 ! topology
@@ -205,7 +205,7 @@ SUBROUTINE fist_init ( fist_env, globenv, error )
   CALL topology_control ( atomic_kind_set, particle_set,&
                           molecule_kind_set, molecule_set, subsystem%colvar_p,&
                           globenv, qmmm=qmmm, qmmm_env=qmmm_env,&
-                          error=error)
+                          force_env_section=force_env_section,error=error)
 
   CALL force_field_control ( atomic_kind_set, particle_set,&
                              molecule_kind_set, molecule_set,&

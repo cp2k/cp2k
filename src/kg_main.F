@@ -32,6 +32,11 @@ MODULE kg_main
   USE kinds,                           ONLY: dp
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE input_section_types,             ONLY: section_vals_get,&
+                                             section_vals_get_subs_vals,&
+                                             section_vals_type,&
+                                             section_vals_val_get
+
 #include "cp_common_uses.h"
 
     IMPLICIT NONE
@@ -66,10 +71,11 @@ CONTAINS
 !!*****
 !******************************************************************************
 
-  SUBROUTINE kg_create_force_env(force_env,globenv,error)
+  SUBROUTINE kg_create_force_env(force_env,globenv,force_env_section,error)
 
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(section_vals_type), pointer         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -82,21 +88,18 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     CALL timeset(routineN,"I","",handle)
-!dbg
     failure=.FALSE.
-!dbg
     CALL kg_env_create(kg_env,para_env=globenv%para_env,error=error)
 !   CALL cp_error_check(error,failure)
 
-    IF (.NOT. failure) CALL kg_init( kg_env, globenv, error )
+    IF (.NOT. failure) CALL kg_init( kg_env, globenv, force_env_section,error )
 !   CALL cp_error_check(error,failure)
 
     IF (.NOT. failure) CALL force_env_create(force_env, kg_env=kg_env, &
-         globenv=globenv, error=error)
+         globenv=globenv, force_env_section=force_env_section, error=error)
 !   CALL cp_error_check(error,failure)
 
     IF (.NOT. failure) CALL kg_env_release(kg_env,error=error)
-    
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE kg_create_force_env

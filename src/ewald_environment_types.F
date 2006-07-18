@@ -403,22 +403,20 @@ END SUBROUTINE ewald_env_release
 !!I---------------------------------------------------------------------------I
 !!   SOURCE
 !******************************************************************************
-SUBROUTINE read_ewald_section ( ewald_env, globenv, error )
+SUBROUTINE read_ewald_section ( ewald_env, globenv, ewald_section, error )
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(section_vals_type), POINTER         :: ewald_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     INTEGER                                  :: iw
     REAL(KIND=dp)                            :: dummy
-    TYPE(section_vals_type), POINTER         :: ewald_section
     TYPE(unit_convert_type), POINTER         :: units
 
   iw = globenv % scr
-  NULLIFY(ewald_section, units)
+  NULLIFY( units)
   CALL get_cp2k_units ( units )
-  ewald_section => section_vals_get_subs_vals(globenv%input_file,&
-       "FORCE_EVAL%MM%POISSON%EWALD",error=error)
   CALL read_ewald_section1(ewald_env, ewald_section, error)
 
   !..end of parsing the input section

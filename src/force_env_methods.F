@@ -54,7 +54,7 @@ MODULE force_env_methods
                                              use_lenosky_eip,&
                                              qs_debug_run               
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                             section_vals_type
+                                             section_vals_type, section_vals_retain
   USE kg_energy,                       ONLY: kg_energies
   USE kg_environment_types,            ONLY: get_kg_env,&
                                              set_kg_env,&
@@ -187,7 +187,8 @@ RECURSIVE SUBROUTINE force_env_calc_energy_force ( force_env, &
      SELECT CASE ( force_env%in_use )
      CASE ( use_fist_force )
         CALL fist_force_control( force_env%fist_env,force_env%virial, &
-                                 force_env%globenv, error=error)
+                                 force_env%globenv, force_env_section=force_env%force_env_section,&
+                                 error=error)
      CASE ( use_qs_force )
         IF (.NOT.need_f) THEN
            CALL qs_energies(qs_env=force_env%qs_env, globenv=force_env%globenv, &
@@ -276,11 +277,12 @@ END SUBROUTINE force_env_calc_energy_force
 !!*** **********************************************************************
 SUBROUTINE force_env_create(force_env,globenv,fist_env,qs_env,kg_env,&
                             tbmd_env,meta_env,sub_force_env,qmmm_env,&
-                            eip_env,error)
+                            eip_env,force_env_section,error)
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(fist_environment_type), OPTIONAL, &
       POINTER                                :: fist_env
+    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(qs_environment_type), OPTIONAL, &
       POINTER                                :: qs_env
     TYPE(kg_environment_type), OPTIONAL, &
@@ -315,16 +317,19 @@ SUBROUTINE force_env_create(force_env,globenv,fist_env,qs_env,kg_env,&
                force_env%para_env, force_env%globenv, &
                force_env%dyn_coeff_set,&
                force_env%meta_env, force_env%sub_force_env, &
-               force_env%qmmm_env, force_env%fp_env )
+               force_env%qmmm_env, force_env%fp_env, force_env%force_env_section )
      last_force_env_id=last_force_env_id+1
      force_env%id_nr=last_force_env_id
      force_env%ref_count=1
      force_env%in_use=0
-
+     
      force_env%globenv => globenv
      CALL globenv_retain(force_env%globenv,error=error)
      force_env%para_env => globenv%para_env
      CALL cp_para_env_retain(force_env%para_env, error=error)
+     ! Force_env_section
+     CALL section_vals_retain(force_env_section,error=error)
+     force_env%force_env_section => force_env_section     
      IF (PRESENT(fist_env)) THEN
         IF (ASSOCIATED(fist_env)) THEN
            CPPrecondition(force_env%in_use==0,cp_failure_level,routineP,error,failure)
@@ -629,10 +634,8 @@ RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,calc_force,only_apply_tras
   logger => cp_error_get_logger(error)
   IF (PRESENT(calc_force)) need_f=calc_force
   NULLIFY(subsys_mm, subsys_qm, qm_atom_index,particles_mm,particles_qm, qm_cell, mm_cell)
-  NULLIFY(force_env_section )
-  force_env_section => &
-       section_vals_get_subs_vals(force_env%sub_force_env(qs_subsys)%force_env%globenv%input_file,&
-       "FORCE_EVAL",error=error)
+  NULLIFY(force_env_section)
+  force_env_section => force_env%sub_force_env(qs_subsys)%force_env%force_env_section
 
   CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
   CPPrecondition(force_env%ref_count>0,cp_failure_level,routineP,error,failure)

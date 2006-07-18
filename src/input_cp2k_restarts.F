@@ -57,7 +57,8 @@ MODULE input_cp2k_restarts
   USE input_section_types,             ONLY: &
        section_get_keyword_index, section_type, section_vals_add_values, &
        section_vals_get_subs_vals, section_vals_type, section_vals_val_get, &
-       section_vals_val_set, section_vals_val_unset, section_vals_write
+       section_vals_val_set, section_vals_val_unset, section_vals_write,&
+       section_vals_get_subs_vals2, section_vals_get
   USE input_val_types,                 ONLY: val_create,&
                                              val_release,&
                                              val_type
@@ -143,17 +144,20 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=256)                       :: cwd, datx
-    INTEGER                                  :: handle, ires, strend, strstart, ikey
+    INTEGER                                  :: handle, ires, strend, strstart, ikey,&
+         nforce_eval, iforce_eval
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(section_vals_type), POINTER         :: motion_section
+    TYPE(section_vals_type), POINTER         :: motion_section,&
+                                                sections, section
     CHARACTER(LEN=30), DIMENSION(2) :: keys=(/"PRINT%RESTART_HISTORY", &
                                                "PRINT%RESTART        "/)
+    LOGICAL                                  :: multiple_force_env, failure
+    TYPE(force_env_type), POINTER            :: my_force_env
 
     CALL timeset(routineN,handle)
 
-
+    failure = .FALSE.
     logger => cp_error_get_logger(error)
-
     motion_section => section_vals_get_subs_vals(globenv%input_file,"MOTION",error=error)
 
     IF (BTEST(cp_print_key_should_output(logger%iter_info,&
@@ -161,7 +165,23 @@ CONTAINS
         BTEST(cp_print_key_should_output(logger%iter_info,&
            motion_section,keys(2),error=error),cp_p_file) ) THEN
 
-       CALL update_input(md_env,force_env,kg_env,meta_env,globenv,force_env_section,error)
+       sections => section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL",error=error)
+       CALL section_vals_get(sections, n_repetition=nforce_eval, error=error)
+       IF (nforce_eval==1) THEN
+          CALL update_input(md_env,force_env,kg_env,meta_env,globenv,force_env_section,error)
+       ELSE
+          ! Update each force_env section
+          CPPrecondition(SIZE(force_env%sub_force_env)+1==nforce_eval,cp_failure_level,routineP,error,failure)
+          DO iforce_eval = 1, nforce_eval
+             section => section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL",&
+                  i_rep_section=iforce_eval,error=error)
+             IF (.NOT.ASSOCIATED(section)) EXIT
+             my_force_env => force_env
+             IF (iforce_eval/=1) my_force_env => force_env%sub_force_env(iforce_eval-1)%force_env
+             CALL update_input(force_env=my_force_env,globenv=globenv,force_env_section=section,&
+                  error=error)
+          END DO
+       END IF
        CALL m_datum(datx)
        CALL m_getcwd(cwd)
 
@@ -300,8 +320,7 @@ CONTAINS
     CALL update_motion(motion_section,md_env,my_force_env,my_kg_env,my_meta_env,&
          logger,error)
     !
-    ! Here we have to handle multiple force_env, in order to map them to the 
-    ! proper force_eval section.. To fix for the future..
+    ! Update one force_env_section per time..
     !
     IF (ASSOCIATED(my_force_env)) &
          CALL update_force_eval(force_env_section,my_force_env,logger,error)

@@ -40,7 +40,9 @@ MODULE force_env_types
                                              get_fist_env
   USE global_types,                    ONLY: global_environment_type,&
                                              globenv_release
-  USE input_section_types,             ONLY: section_vals_type
+  USE input_section_types,             ONLY: section_vals_release,&
+                                             section_vals_retain,&
+                                             section_vals_type
   USE kg_energy_types,                 ONLY: kg_energy_type
   USE kg_environment_types,            ONLY: get_kg_env,&
                                              kg_env_release,&
@@ -144,6 +146,7 @@ MODULE force_env_types
      TYPE ( force_env_p_type ), DIMENSION(:), POINTER :: sub_force_env
      TYPE ( qmmm_env_qm_type ), POINTER :: qmmm_env
      TYPE ( virial_type  ), POINTER :: virial
+     TYPE ( section_vals_type), POINTER :: force_env_section
   END TYPE force_env_type
 
 !!****s* force_env_types/force_env_p_type [1.0] *
@@ -301,6 +304,7 @@ RECURSIVE SUBROUTINE force_env_release(force_env, error)
         CALL fp_env_release(force_env%fp_env,error=error)
         CALL qmmm_env_qm_release(force_env%qmmm_env,error=error)
         CALL virial_release(force_env%virial,error=error)
+        CALL section_vals_release(force_env%force_env_section,error=error)
         force_env%ref_count=0
         DEALLOCATE(force_env,stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
@@ -337,7 +341,7 @@ END SUBROUTINE force_env_release
 RECURSIVE SUBROUTINE force_env_get(force_env, in_use, &
      fist_env, qs_env, kg_env, meta_env, fp_env, dyn_coeff_set, subsys, para_env, &
      potential_energy, kinetic_energy, cell, cell_ref, sub_force_env, qmmm_env,&
-     tbmd_env, eip_env, virial, use_ref_cell, globenv, input, error)
+     tbmd_env, eip_env, virial, use_ref_cell, globenv, input, force_env_section,error)
     TYPE(force_env_type), POINTER            :: force_env
     INTEGER, INTENT(out), OPTIONAL           :: in_use
     TYPE(fist_environment_type), OPTIONAL, &
@@ -370,7 +374,7 @@ RECURSIVE SUBROUTINE force_env_get(force_env, in_use, &
     TYPE(global_environment_type), &
       OPTIONAL, POINTER                      :: globenv
     TYPE(section_vals_type), OPTIONAL, &
-      POINTER                                :: input
+      POINTER                                :: input, force_env_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -520,6 +524,7 @@ RECURSIVE SUBROUTINE force_env_get(force_env, in_use, &
              error,failure)
      END SELECT
 
+     IF (PRESENT(force_env_section)) force_env_section => force_env%force_env_section
      IF (PRESENT(in_use)) in_use=force_env%in_use
      IF (PRESENT(fist_env)) THEN
         fist_env => force_env%fist_env
@@ -589,11 +594,12 @@ END SUBROUTINE force_env_get
 !!     09.2003 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE force_env_set(force_env, meta_env,fp_env, virial, error)
+SUBROUTINE force_env_set(force_env, meta_env,fp_env, virial, force_env_section, error)
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(meta_env_type), OPTIONAL, POINTER   :: meta_env
     TYPE(fp_type), OPTIONAL, POINTER   :: fp_env
     TYPE(virial_type), OPTIONAL, POINTER     :: virial
+    TYPE(section_vals_type), OPTIONAL, POINTER :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -626,6 +632,13 @@ SUBROUTINE force_env_set(force_env, meta_env,fp_env, virial, error)
         END IF
         CALL virial_release(force_env%virial,error=error)
         force_env%virial => virial
+     END IF
+     IF (PRESENT(force_env_section)) THEN
+        IF (ASSOCIATED(force_env_section)) THEN
+           CALL section_vals_retain(force_env_section,error=error)
+           CALL section_vals_release(force_env%force_env_section,error=error)
+           force_env%force_env_section => force_env_section
+        END IF
      END IF
   END IF
 END SUBROUTINE force_env_set

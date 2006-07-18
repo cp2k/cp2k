@@ -65,7 +65,10 @@ MODULE f77_interface
                                              section_vals_create,&
                                              section_vals_release,&
                                              section_vals_type,&
-                                             section_vals_write
+                                             section_vals_get,&
+                                             section_vals_write,&
+                                             section_vals_get_subs_vals,&
+                                             section_vals_get_subs_vals2
   USE kg_main,                         ONLY: kg_create_force_env
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: init_mathcon
@@ -545,7 +548,7 @@ END SUBROUTINE f_env_rm_defaults
     CHARACTER(len=*), PARAMETER :: routineN = 'create_force_env', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, stat, unit_nr
+    INTEGER                                  :: i, stat, unit_nr, nforce_eval, iforce_eval
     LOGICAL                                  :: failure
     TYPE(cp_error_type)                      :: error
     TYPE(cp_logger_type), POINTER            :: logger
@@ -554,11 +557,11 @@ END SUBROUTINE f_env_rm_defaults
     TYPE(cp_unit_set_type), POINTER          :: default_units
     TYPE(f_env_p_type), DIMENSION(:), &
       POINTER                                :: f_envs_old
-    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(force_env_type), POINTER            :: force_env, my_force_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(mp_perf_env_type), POINTER          :: mp_perf_env
     TYPE(section_type), POINTER              :: input_structure
-    TYPE(section_vals_type), POINTER         :: input_file
+    TYPE(section_vals_type), POINTER         :: input_file, force_env_sections, force_env_section
     TYPE(timer_env_type), POINTER            :: timer_env
 
     failure=.FALSE.
@@ -631,29 +634,45 @@ END SUBROUTINE f_env_rm_defaults
     NULLIFY(input_file)
 
     IF (.NOT.failure) THEN
-
+       
        CALL cp2k_read(globenv)
        CALL cp2k_setup(globenv,error)
-
-       ! initialize force_env
-       SELECT CASE (globenv%prog_name_id)
-       CASE (do_fist)
-          CALL fist_create_force_env ( force_env,&
-               globenv,  error = error )
-       CASE (do_kg)
-          CALL kg_create_force_env ( force_env,&
-               globenv, error=error)
-       CASE (do_qs)
-          CALL quickstep_create_force_env( force_env,&
-               globenv, error=error)
-       CASE (do_qmmm)
-          CALL qmmm_create_force_env( force_env,&
-               globenv, error=error)
-       CASE default
-          CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
+       ! Setup all possible force_env
+       force_env_sections => section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL",error=error)
+       CALL section_vals_get(force_env_sections, n_repetition=nforce_eval, error=error)
+       DO iforce_eval = 1, nforce_eval
+          force_env_section => section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL",&
+               i_rep_section=iforce_eval,error=error)
+          NULLIFY(my_force_env)
+          ! initialize force_env
+          SELECT CASE (globenv%prog_name_id)
+          CASE (do_fist)
+             CALL fist_create_force_env ( my_force_env,&
+                  globenv, force_env_section=force_env_section,  error = error )
+          CASE (do_kg)
+             CALL kg_create_force_env ( my_force_env,&
+                  globenv, force_env_section=force_env_section, error=error)
+          CASE (do_qs)
+             CALL quickstep_create_force_env( my_force_env,&
+                  globenv, force_env_section=force_env_section, error=error)
+          CASE (do_qmmm)
+             CALL qmmm_create_force_env( my_force_env,&
+                  globenv, force_env_section=force_env_section, error=error)
+          CASE default
+             CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
                "Invalid run TYPE <"//TRIM(run_type_names(globenv%run_type_id))//"> was specified, "//&
                CPSourceFileRef,error,failure)
-       END SELECT
+          END SELECT
+          IF (nforce_eval>1.AND.iforce_eval==1) THEN
+             ALLOCATE(my_force_env%sub_force_env(nforce_eval-1),stat=stat)
+             CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+          END IF
+          IF (iforce_eval==1) THEN
+             force_env => my_force_env
+          ELSE
+             force_env%sub_force_env(iforce_eval-1)%force_env => my_force_env
+          END IF
+       END DO
     END IF
     timer_env => get_timer_env()
     mp_perf_env => get_mp_perf_env()

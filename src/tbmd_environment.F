@@ -132,9 +132,10 @@ CONTAINS
 !!     01.2006 initial create [tdk]
 !!
 !!*** **********************************************************************
-  SUBROUTINE tbmd_init(tbmd_env, globenv, error)
+  SUBROUTINE tbmd_init(tbmd_env, globenv, force_env_section, error)
     TYPE(tbmd_environment_type), POINTER     :: tbmd_env
     TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
@@ -159,7 +160,6 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(section_vals_type), POINTER         :: cell_section, colvar_section, &
-                                                force_env_section, &
                                                 tbmd_section
 
 !   ------------------------------------------------------------------------
@@ -172,13 +172,11 @@ CONTAINS
  
     IF (.NOT. failure) THEN
       ! nullifying  pointers
-      NULLIFY(force_env_section, cell_section, colvar_section, tbmd_section, &
+      NULLIFY(cell_section, colvar_section, tbmd_section, &
               cell, cell_ref, subsystem, molecule_kind_set, molecule_set, &
               particle_set, atomic_kind_set, particles, molecules, &
               molecule_kinds, atomic_kinds)
 
-      force_env_section => section_vals_get_subs_vals(globenv%input_file, &
-                                                      "FORCE_EVAL", error=error)
       cell_section => section_vals_get_subs_vals(force_env_section,&
                                                  "SUBSYS%CELL", error=error)
       colvar_section => section_vals_get_subs_vals(force_env_section, &
@@ -204,7 +202,8 @@ CONTAINS
 
       CALL topology_control(atomic_kind_set, particle_set, &
                             molecule_kind_set, molecule_set, &
-                            subsystem%colvar_p,globenv, error=error)
+                            subsystem%colvar_p,globenv, &
+                            force_env_section=force_env_section,error=error)
 
       !CALL read_atomic_kind_set(atomic_kind_set, globenv)
 
@@ -452,8 +451,7 @@ CONTAINS
 
     tbmd_neighbor_list_env => tbmd_env%tbmd_neighbor_list_env
 
-    force_env_section => section_vals_get_subs_vals(globenv%input_file, &
-                                                    "FORCE_EVAL", error=error)
+    force_env_section => tbmd_env%force_env_input
     tbmd_section => section_vals_get_subs_vals(force_env_section, &
                                                "TBMD", error=error)
     tbmd_neighbor_list_section => section_vals_get_subs_vals(tbmd_section, &
@@ -531,8 +529,7 @@ CONTAINS
 
     tbmd_model => tbmd_env%tbmd_model
 
-    force_env_section => section_vals_get_subs_vals(globenv%input_file, &
-                                                    "FORCE_EVAL", error=error)
+    force_env_section => tbmd_env%force_env_input
     tbmd_section => section_vals_get_subs_vals(force_env_section, &
                                                "TBMD", error=error)
     tbmd_model_section => section_vals_get_subs_vals(tbmd_section, &

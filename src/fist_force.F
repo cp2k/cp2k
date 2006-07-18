@@ -110,11 +110,12 @@ MODULE fist_force
 !!   SOURCE
 !!******************************************************************************
 
-SUBROUTINE fist_force_control ( fist_env, virial, globenv,  debug ,error)
+SUBROUTINE fist_force_control ( fist_env, virial, globenv,  debug , force_env_section, error)
 
 
     TYPE(fist_environment_type), POINTER     :: fist_env
     TYPE(virial_type), POINTER               :: virial
+    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(debug_variables_type), &
       INTENT(INOUT), OPTIONAL                :: debug
@@ -153,7 +154,6 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv,  debug ,error)
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(section_vals_type), POINTER         :: fist_section, &
-                                                force_env_section, &
                                                 print_section
 
   CALL timeset(routineN,'I','',handle)
@@ -163,8 +163,7 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv,  debug ,error)
 
   NULLIFY(fist_section,thermo,particle_set,local_molecules,local_particles,atomic_kind_set,&
           molecule_kind_set,molecule_set,fist_nonbond_env,cell,ewald_pw,ewald_env,fist_section,print_section)
-  fist_section => section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL%MM",error=error)
-  force_env_section => section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL",error=error)
+  fist_section => section_vals_get_subs_vals(force_env_section,"MM",error=error)
 ! associcating local pointers
   iw = cp_print_key_unit_nr(logger,fist_section,"PRINT%DERIVATIVES",&
        extension=".mmLog",error=error)

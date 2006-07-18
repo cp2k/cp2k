@@ -200,7 +200,7 @@ CONTAINS
     ! in sync with read_mo_set_from_restart
     id_nr=1
     IF (scf_control%density_guess == restart_guess) THEN
-        CALL section_vals_val_get(globenv%input_file,"FORCE_EVAL%DFT%RESTART_FILE_NAME",&
+        CALL section_vals_val_get(qs_env%input,"DFT%RESTART_FILE_NAME",&
            c_val=file_name,error=error)
         IF (id_nr/=1) THEN
             file_name(LEN_TRIM(file_name):LEN(file_name)) = "-"//&

@@ -27,7 +27,8 @@ MODULE kg_gpw_fm_mol_utils
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE global_types,                    ONLY: global_environment_type
-  USE input_section_types,             ONLY: section_vals_val_get
+  USE input_section_types,             ONLY: section_vals_val_get,&
+                                             section_vals_type
   USE kg_gpw_fm_mol_types,             ONLY: fm_mol_blocks_type,&
                                              get_fm_mol_block,&
                                              get_kg_fm_mol_set,&
@@ -764,11 +765,12 @@ CONTAINS
 !!
 !!*** **********************************************************************
 
-  SUBROUTINE write_mo_mol_restart(kg_fm,globenv,nspins,id_nr, error)
+  SUBROUTINE write_mo_mol_restart(kg_fm,globenv,nspins,id_nr,force_env_section,error)
 
     TYPE(kg_fm_p_type)                       :: kg_fm
     TYPE(global_environment_type), POINTER   :: globenv
     INTEGER, INTENT(IN)                      :: nspins, id_nr
+    TYPE(section_vals_type),POINTER          :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -817,7 +819,7 @@ CONTAINS
 
     IF (globenv%ionode) THEN
 
-       CALL section_vals_val_get(globenv%input_file,"FORCE_EVAL%DFT%RESTART_FILE_NAME",&
+       CALL section_vals_val_get(force_env_section,"DFT%RESTART_FILE_NAME",&
             c_val=file_name,error=error)
       IF (id_nr/=1) THEN
         file_name(LEN_TRIM(file_name):LEN(file_name)) = "-"//&
@@ -1003,10 +1005,11 @@ CONTAINS
 !!
 !!*** **********************************************************************
 
-  SUBROUTINE read_mo_mol_restart(kg_fm,globenv,nspins,id_nr, error)
+  SUBROUTINE read_mo_mol_restart(kg_fm,globenv,nspins,id_nr,force_env_section,error)
 
     TYPE(kg_fm_p_type)                       :: kg_fm
     TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(section_vals_type),POINTER          :: force_env_section
     INTEGER, INTENT(IN)                      :: nspins, id_nr
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -1060,7 +1063,7 @@ CONTAINS
 
     IF (globenv%ionode) THEN
 
-      CALL section_vals_val_get(globenv%input_file,"FORCE_EVAL%DFT%RESTART_FILE_NAME",&
+      CALL section_vals_val_get(force_env_section,"DFT%RESTART_FILE_NAME",&
             c_val=file_name,error=error)
       IF (id_nr/=1) THEN
         file_name(LEN_TRIM(file_name):LEN(file_name)) = "-"//&

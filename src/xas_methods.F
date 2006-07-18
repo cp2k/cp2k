@@ -861,7 +861,8 @@ CONTAINS
 
       nmoloc(1:2) = my_localized_wfn_control%nloc_states(1:2)
       CALL set_loc_wfn_lists(xas_control%localized_wfn_control,nmoloc,n_mo,nspins,error=error)
-      CALL set_loc_centers(xas_control%localized_wfn_control,nmoloc,nspins,globenv,error=error)
+      CALL set_loc_centers(xas_control%localized_wfn_control,nmoloc,nspins,globenv,&
+           qs_env%input,error=error)
 
       CALL localized_wfn_control_release(my_localized_wfn_control,error=error)
 

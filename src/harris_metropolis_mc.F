@@ -89,7 +89,8 @@ MODULE harris_metropolis_mc
   USE input_cp2k_restarts,             ONLY: write_restart
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
-                                             section_vals_val_get
+                                             section_vals_val_get,&
+                                             section_vals_get
   USE kg_environment,                  ONLY: kg_init
   USE kg_environment_types,            ONLY: kg_env_create,&
                                              kg_env_release,&
@@ -208,7 +209,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, mc_prog_name_id, &
-                                                md_method, stat
+                                                md_method, stat, isos
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
     TYPE(cp_subsystem_type), POINTER         :: subsystem
@@ -220,15 +221,14 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(section_vals_type), POINTER         :: hmc_section
     TYPE(tbmd_environment_type), POINTER     :: tbmd_env
-
-!TYPE(cp_error_type)                      :: suberror
-!   ------------------------------------------------------------------------
+    TYPE(section_vals_type), POINTER         :: force_env_section
 
     NULLIFY(force_env_p, hmc_section, kg_env, qs_env, tbmd_env, eip_env, &
          subsys, subsystem, fist_env)
 
     CALL timeset(routineN, "I", "", handle)
 
+    force_env_section => force_env%force_env_section
     hmc_section => section_vals_get_subs_vals(globenv%input_file, &
          "MOTION%MD%HMC", error=error)
     CALL section_vals_val_get(hmc_section, "MD_METHOD", &
@@ -265,7 +265,7 @@ CONTAINS
         ! *** Read the input and the database files and perform further  ***
         ! *** initializations for the setup of the FIST environment ***
 
-        CALL fist_init(fist_env, globenv, error)
+        CALL fist_init(fist_env, globenv, force_env%force_env_section,error)
 
         CALL get_fist_env(fist_env=fist_env, subsys=subsystem, error=error)
         CALL cp_subsys_release(subsys=subsystem, error=error)
@@ -283,7 +283,7 @@ CONTAINS
         CALL kg_env_create(kg_env, para_env=globenv%para_env, &
                            error=error)
 
-        CALL kg_init(kg_env, globenv, error)
+        CALL kg_init(kg_env, globenv, force_env_section, error)
 
         CALL cp_subsys_release(subsys=kg_env%subsys, error=error)
 
@@ -303,7 +303,7 @@ CONTAINS
          
         !   *** Read the input and the database files and perform further  ***
         !   *** initializations for the setup of the QUICKSTEP environment ***
-        CALL qs_init(qs_env, globenv, error=error)
+        CALL qs_init(qs_env, globenv, force_env_section=force_env_section, error=error)
 
         CALL cp_subsys_release(subsys=qs_env%subsys, error=error)
 
@@ -321,7 +321,7 @@ CONTAINS
       CASE (do_tbmd)
         CALL tbmd_env_create(tbmd_env, error=error)
 
-        CALL tbmd_init(tbmd_env, globenv, error=error)
+        CALL tbmd_init(tbmd_env, globenv, force_env_section,error=error)
 
         CALL cp_subsys_release(subsys=tbmd_env%subsystem, error=error)
 
@@ -339,7 +339,7 @@ CONTAINS
       CASE (do_eip)
         CALL eip_env_create(eip_env, error=error)
 
-        CALL eip_init(eip_env, globenv, error=error)
+        CALL eip_init(eip_env, globenv, force_env_section, error=error)
 
         CALL cp_subsys_release(subsys=eip_env%subsystem, error=error)
 
@@ -517,10 +517,7 @@ CONTAINS
     CALL timeset(routineN, "I", "", handle)
     NULLIFY(force_env_section, motion_section,  subsys_section, md_approach_nr,&
             accepted_md)
-    force_env_section => section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL",error=error)
     motion_section => section_vals_get_subs_vals(globenv%input_file,"MOTION",error=error)
-    subsys_section => section_vals_get_subs_vals(force_env_section,"SUBSYS",error=error)
-
     ! will be used to stop if a maximum walltime is given
     md_run_start_time=m_walltime()
 
@@ -561,7 +558,12 @@ CONTAINS
     IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
          "simpar", 0)
 
-    CALL read_md_section(simpar, globenv, error)
+    ! Is assumed that in this place we arrive only with one force_env!
+    ! Why must we have always duplicated code around?!?!?@!!@$%@$)%*@)$%*!Q$#%*Y@!#%@!
+    ! It's a real mess everytime we need to change the structure of the code!!!!
+    force_env_section => force_env_p(1)%force_env%force_env_section
+    subsys_section => section_vals_get_subs_vals(force_env_section,"SUBSYS",error=error)
+    CALL read_md_section(simpar, globenv, subsys_section, error)
 
     tot_energy = simpar%tot_energy
     ext_temp = simpar%ext_temp
@@ -637,7 +639,10 @@ CONTAINS
        CALL force_env_get( force_env_p(ibead)%force_env, subsys=subsys, &
                           dyn_coeff_set=dyn_coeff_set,in_use=in_use,&
                           cell=cell, cell_ref = cell_ref,&
+                          force_env_section=force_env_section,&
                           error=error )
+
+       subsys_section => section_vals_get_subs_vals(force_env_section,"SUBSYS",error=error)
 
 ! Define a reference cell for compatibility with MD restarts
 
@@ -728,7 +733,7 @@ CONTAINS
     END IF
 
     IF (simpar%ensemble == langevin_ensemble) THEN
-       CALL create_wiener_process(md_env,subsys_section,error)
+       CALL create_wiener_process(md_env,error)
     END IF
 
     time_iter_start=m_walltime()

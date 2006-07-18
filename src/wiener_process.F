@@ -33,7 +33,8 @@ MODULE wiener_process
                                              force_env_p_type
   USE input_constants,                 ONLY: langevin_ensemble
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                             section_vals_type
+                                             section_vals_type,&
+                                             section_vals_get_subs_vals2
   USE kinds,                           ONLY: dp
   USE md,                              ONLY: simulation_parameters_type
   USE md_environment_types,            ONLY: get_md_env,&
@@ -63,7 +64,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE create_wiener_process(md_env,subsys_section,error)
+  SUBROUTINE create_wiener_process(md_env,error)
 
     ! Purpose: Create a Wiener process for Langevin dynamics and initialize an
     !          independent random number generator for each atom in all force
@@ -74,7 +75,6 @@ CONTAINS
     ! *************************************************************************
 
     TYPE(md_environment_type), POINTER       :: md_env
-    TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
@@ -97,6 +97,7 @@ CONTAINS
       POINTER                                :: force_env_p
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(section_vals_type), POINTER         :: work_section
+    TYPE(section_vals_type), POINTER         :: subsys_section, force_env_section
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
 
@@ -119,34 +120,38 @@ CONTAINS
 
       DO i=1,SIZE(force_env_p)
 
-        CALL force_env_get(force_env_p(i)%force_env,subsys=subsys)
+        CALL force_env_get(force_env_p(i)%force_env,force_env_section=force_env_section,&
+             subsys=subsys)
 
         DO isubsys=1,SIZE(subsys)
 
-          CALL cp_subsys_get(subsys=subsys(isubsys)%subsys,&
-                             atomic_kinds=atomic_kinds,&
-                             local_particles=local_particles,&
-                             particles=particles,&
-                             error=error)
+           subsys_section => section_vals_get_subs_vals(force_env_section,"SUBSYS",&
+                i_rep_section=isubsys,error=error)
 
-          nparticle_kind = atomic_kinds%n_els
-          nparticle = particles%n_els
+           CALL cp_subsys_get(subsys=subsys(isubsys)%subsys,&
+                              atomic_kinds=atomic_kinds,&
+                              local_particles=local_particles,&
+                              particles=particles,&
+                              error=error)
 
-          ! Allocate the (local) data structures for the Wiener process
+           nparticle_kind = atomic_kinds%n_els
+           nparticle = particles%n_els
+           
+           ! Allocate the (local) data structures for the Wiener process
+           
+           ALLOCATE(local_particles%local_particle_set(nparticle_kind),&
+                    STAT=istat)
+           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-          ALLOCATE(local_particles%local_particle_set(nparticle_kind),&
-                   STAT=istat)
-          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-
-          DO iparticle_kind=1,nparticle_kind
-            nparticle_local = local_particles%n_el(iparticle_kind)
-            ALLOCATE (local_particles%local_particle_set(iparticle_kind)%&
-                      &rng(nparticle_local),STAT=istat)
-            CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-            DO iparticle_local=1,nparticle_local
-              NULLIFY (local_particles%local_particle_set(iparticle_kind)%&
-                       &rng(iparticle_local)%stream)
-            END DO
+           DO iparticle_kind=1,nparticle_kind
+              nparticle_local = local_particles%n_el(iparticle_kind)
+              ALLOCATE (local_particles%local_particle_set(iparticle_kind)%&
+                   &rng(nparticle_local),STAT=istat)
+              CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+              DO iparticle_local=1,nparticle_local
+                 NULLIFY (local_particles%local_particle_set(iparticle_kind)%&
+                      &rng(iparticle_local)%stream)
+              END DO
           END DO
 
           ! Each process generates all seeds. The seed generation should be
@@ -197,7 +202,7 @@ CONTAINS
                                        error=error)
 
         END DO
-
+        
       END DO
 
     END IF

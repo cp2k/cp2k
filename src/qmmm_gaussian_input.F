@@ -31,7 +31,8 @@ MODULE qmmm_gaussian_input
                                              parser_release,&
                                              parser_search_string
   USE global_types,                    ONLY: global_environment_type
-  USE input_section_types,             ONLY: section_vals_val_get
+  USE input_section_types,             ONLY: section_vals_val_get,&
+                                             section_vals_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE mathconstants,                   ONLY: rootpi
@@ -76,12 +77,13 @@ CONTAINS
   !!
   !!*************************************************************************
   SUBROUTINE read_mm_potential(globenv, qmmm_gaussian_fns, qm_cell_small,&
-                               compatibility, error)
+                               compatibility, qmmm_section, error)
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(qmmm_gaussian_p_type), &
       DIMENSION(:), POINTER                  :: qmmm_gaussian_fns
     TYPE(cell_type), POINTER                 :: qm_cell_small
     LOGICAL, INTENT(IN)                      :: compatibility
+    TYPE(section_vals_type), POINTER         :: qmmm_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -99,7 +101,7 @@ CONTAINS
 
     Nval = SIZE(qmmm_gaussian_fns)
     Ival = 0
-    CALL section_vals_val_get(globenv%input_file,"FORCE_EVAL%QMMM%MM_POTENTIAL_FILE_NAME",&
+    CALL section_vals_val_get(qmmm_section,"MM_POTENTIAL_FILE_NAME",&
          c_val=mm_potential_file_name,error=error)
 
     NULLIFY(parser)

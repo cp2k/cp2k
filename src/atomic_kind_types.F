@@ -1075,7 +1075,7 @@ CONTAINS
 
   ! ***************************************************************************
 
-  SUBROUTINE read_atomic_kind(atomic_kind,globenv,error)
+  SUBROUTINE read_atomic_kind(atomic_kind,kind_section,globenv,force_env_section,error)
 
 !   Purpose: Read an atomic kind data set from the input file.
 
@@ -1085,7 +1085,9 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(section_vals_type), POINTER         :: kind_section
     TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -1100,10 +1102,8 @@ CONTAINS
                                                 norb, z
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: zeff_correction
-    TYPE(section_vals_type), POINTER         :: kind_section
     INTEGER, POINTER, DIMENSION(:)           :: elec_conf
-
-!   ---------------------------------------------------------------------------
+    TYPE(section_vals_type), POINTER         :: dft_section
 
     NULLIFY (elec_conf)
 
@@ -1116,8 +1116,6 @@ CONTAINS
     atomic_kind%mass=-1.0_dp
     zeff_correction = 0.0_dp
 
-    kind_section => section_vals_get_subs_vals(globenv%input_file,&
-         "FORCE_EVAL%SUBSYS%KIND",error=error)
     CALL section_vals_get(kind_section,n_repetition=n_rep,error=error)
     k_rep=-1
     akind_name=atomic_kind%name
@@ -1313,7 +1311,7 @@ CONTAINS
     IF (orb_basis_set_name /= '') THEN
       CALL allocate_gto_basis_set(atomic_kind%orb_basis_set)
       CALL read_gto_basis_set(atomic_kind%element_symbol,orb_basis_set_name,&
-                              atomic_kind%orb_basis_set,globenv)
+                              atomic_kind%orb_basis_set,globenv,force_env_section,error)
       CALL set_gto_basis_set(gto_basis_set=atomic_kind%orb_basis_set,&
                              norm_type=norb)
     END IF
@@ -1324,7 +1322,7 @@ CONTAINS
 
       CALL allocate_gto_basis_set(atomic_kind%aux_basis_set)
       CALL read_gto_basis_set(atomic_kind%element_symbol,aux_basis_set_name,&
-                              atomic_kind%aux_basis_set,globenv)
+                              atomic_kind%aux_basis_set,globenv,force_env_section,error)
       CALL set_gto_basis_set(gto_basis_set=atomic_kind%aux_basis_set,&
                              norm_type=naux)
     END IF
@@ -1342,12 +1340,13 @@ CONTAINS
       END IF
 
       CALL uppercase(potential_type)
-
+      dft_section => section_vals_get_subs_vals(force_env_section,"DFT",error=error)
       SELECT CASE (TRIM(potential_type))
       CASE ("ALL")
         CALL allocate_potential(atomic_kind%all_potential)
         CALL read_potential(atomic_kind%element_symbol,potential_name,&
-                            atomic_kind%all_potential,zeff_correction,globenv)
+                            atomic_kind%all_potential,zeff_correction,globenv,&
+                            dft_section,error)
         CALL set_potential(atomic_kind%all_potential,z=z)
         CALL get_atomic_kind(atomic_kind,elec_conf=elec_conf)
         IF (.NOT.ASSOCIATED(elec_conf)) THEN
@@ -1373,7 +1372,8 @@ CONTAINS
         ELSE
           CALL allocate_potential(atomic_kind%gth_potential)
           CALL read_potential(atomic_kind%element_symbol,potential_name,&
-                              atomic_kind%gth_potential,zeff_correction,globenv)
+                              atomic_kind%gth_potential,zeff_correction,globenv,&
+                              dft_section,error)
           CALL set_potential(atomic_kind%gth_potential,z=z)
           CALL get_atomic_kind(atomic_kind,elec_conf=elec_conf)
           IF (.NOT.ASSOCIATED(elec_conf)) THEN
@@ -1384,7 +1384,8 @@ CONTAINS
       CASE ("ELP")
         CALL allocate_potential(atomic_kind%elp_potential)
         CALL read_potential(atomic_kind%element_symbol,potential_name,&
-                            atomic_kind%elp_potential,globenv)
+                            atomic_kind%elp_potential,globenv,&
+                            dft_section,error)
       CASE DEFAULT
         CALL stop_program(routineN,moduleN,__LINE__,&
                           "An invalid potential type <"//&
@@ -1423,7 +1424,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE read_atomic_kind_set(atomic_kind_set,globenv,error)
+  SUBROUTINE read_atomic_kind_set(atomic_kind_set,kind_section,globenv,force_env_section,error)
 
 !   Purpose: Read an atomic kind set data set from the input file.
 
@@ -1434,6 +1435,7 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(section_vals_type), POINTER         :: kind_section, force_env_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -1450,7 +1452,7 @@ CONTAINS
 
       DO ikind=1,nkind
         atomic_kind => atomic_kind_set(ikind)
-        CALL read_atomic_kind(atomic_kind,globenv)
+        CALL read_atomic_kind(atomic_kind,kind_section,globenv,force_env_section, error)
       END DO
     ELSE
 

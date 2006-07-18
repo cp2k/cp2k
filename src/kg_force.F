@@ -246,8 +246,8 @@ SUBROUTINE kgpol_calculate_forces ( kg_env, globenv, error )
           vxc_r,v1xc_r,v2xc_r)
   NULLIFY(my_vxc_r,my_vxc_tau,my_rho_r,my_rho_g,my_tau, poisson_env)
 
-  xc_section => section_vals_get_subs_vals(globenv%input_file,&
-       "FORCE_EVAL%DFT%XC",error=error)
+  xc_section => section_vals_get_subs_vals(kg_env%input,&
+       "DFT%XC",error=error)
 
   CALL get_kg_env( kg_env=kg_env, atomic_kind_set=atomic_kind_set,&
                     dft_control=dft_control, energy=energy, cell=cell,&
@@ -560,8 +560,7 @@ SUBROUTINE kg_calculate_forces ( kg_env, globenv,error )
           rho,rspw,auxbas_pw_pool)
   NULLIFY(rho_r,rho_g,rho_core,v_gspace,v_rspace,vxc_r)
   NULLIFY(my_vxc_r,my_vxc_tau,my_rho_r,my_rho_g,my_tau)
-  xc_section => section_vals_get_subs_vals(globenv%input_file,&
-       "FORCE_EVAL%DFT%XC", error=error)
+  xc_section => section_vals_get_subs_vals(kg_env%input,"DFT%XC", error=error)
   CALL get_kg_env( kg_env=kg_env, atomic_kind_set=atomic_kind_set,&
                     dft_control=dft_control, energy=energy, cell=cell,&
                     force=force,particle_set=part,rho=rho,rspw=rspw)

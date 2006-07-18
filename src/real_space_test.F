@@ -152,7 +152,7 @@ SUBROUTINE rs_test ( globenv, error )
   grid % bounds ( 2, : ) = ( np - 1 ) / 2
 
   print_section=>section_vals_get_subs_vals(globenv%input_file, &
-                        "FORCE_EVAL%PRINT%GRID_INFORMATION",error=error)
+                        "TEST%PRINT%GRID_INFORMATION",error=error)
   CALL pw_grid_setup ( box, grid,print_section &
                        , rs_dims=(/globenv%num_pe,1/) )
 

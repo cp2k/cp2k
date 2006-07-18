@@ -1344,7 +1344,8 @@ END FUNCTION section_vals_get_subs_vals
 FUNCTION section_vals_get_subs_vals2(section_vals,i_section,&
      i_rep_section,error) RESULT(res)
     TYPE(section_vals_type), POINTER         :: section_vals
-    INTEGER, INTENT(in), OPTIONAL            :: i_section, i_rep_section
+    INTEGER, INTENT(in), OPTIONAL            :: i_rep_section
+    INTEGER, INTENT(in)                      :: i_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
     TYPE(section_vals_type), POINTER         :: res

@@ -147,10 +147,12 @@ CONTAINS
 !!****
 !!*****************************************************************************
 
-  SUBROUTINE kg_init (kg_env,globenv,error)
+  SUBROUTINE kg_init (kg_env,globenv,force_env_section,error)
 
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(section_vals_type), POINTER         :: force_env_section
+
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -182,9 +184,8 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: cell_section, colvar_section, &
-                                                dft_section, &
-                                                force_env_section, &
-                                                work_section
+                                                dft_section, qs_section,&
+                                                work_section, kind_section
 
     CALL timeset(routineN,"I",'',handle)
 
@@ -194,7 +195,7 @@ CONTAINS
     
     ! nullifying  pointers
     NULLIFY ( atomic_kind_set )
-    NULLIFY ( cell_section, force_env_section )
+    NULLIFY ( cell_section )
     NULLIFY ( cell)
     NULLIFY ( dft_control )
     NULLIFY ( dyn_coeff_set )
@@ -206,16 +207,16 @@ CONTAINS
     NULLIFY ( particle_set )
     NULLIFY ( scf_control )
     NULLIFY ( cell_ref )
-    NULLIFY ( cell_section, force_env_section )
+    NULLIFY ( cell_section, kind_section )
     NULLIFY ( logger )
 
     logger => cp_error_get_logger(error)
-    force_env_section => section_vals_get_subs_vals(globenv%input_file,&
-         "FORCE_EVAL",error=error)
     cell_section => section_vals_get_subs_vals(force_env_section,&
          "SUBSYS%CELL",error=error) 
     dft_section =>  section_vals_get_subs_vals(force_env_section,&
          "DFT",error=error)
+    qs_section =>  section_vals_get_subs_vals(dft_section,&
+         "QS",error=error)
 
     iw = cp_print_key_unit_nr(logger,dft_section,"PRINT%PROGRAM_BANNER",&
          extension=".Log",error=error)    
@@ -227,11 +228,11 @@ CONTAINS
          error=error)
 
     ! Read/write the input section with the dft and qs control parameters
-    CALL read_dft_control ( dft_control, globenv, error )
+    CALL read_dft_control ( dft_control, globenv, dft_section,error )
 
 !   *** Read the input section with the Quickstep control parameters ***
-    CALL read_qs_section(dft_control%qs_control,globenv,error=error)
-    CALL read_mgrid_section(dft_control%qs_control,globenv,error=error)
+    CALL read_qs_section(dft_control%qs_control,globenv,qs_section,error=error)
+    CALL read_mgrid_section(dft_control%qs_control,globenv,dft_section,error=error)
 
     CALL write_dft_control ( dft_control, dft_section, error)
     CALL write_qs_control ( dft_control % qs_control, dft_section, error)
@@ -252,10 +253,13 @@ CONTAINS
     ! topology
     CALL topology_control (atomic_kind_set,particle_set,&
                            molecule_kind_set,molecule_set,&
-                           kg_env%subsys%colvar_p,globenv, error=error)
+                           kg_env%subsys%colvar_p,globenv, &
+                           force_env_section=force_env_section,error=error)
 
     ! Read/write the atomic kind set
-    CALL read_atomic_kind_set(atomic_kind_set,globenv,error)
+    kind_section => section_vals_get_subs_vals(force_env_section,&
+         "SUBSYS%KIND",error=error)
+    CALL read_atomic_kind_set(atomic_kind_set,kind_section,globenv,force_env_section,error)
     CALL check_atomic_kind_set(atomic_kind_set,dft_control,globenv,&
          force_env_section=kg_env%input,error=error)
     CALL write_gto_basis_sets(atomic_kind_set,kg_env%input,error)
@@ -377,7 +381,7 @@ CONTAINS
 
     IF ( kg_gpw ) THEN
       !Sets up qs_env for subsystems             
-      CALL kg_subsys_setup(kg_env,globenv,error)
+      CALL kg_subsys_setup(kg_env,globenv,force_env_section,error)
     END IF
 
     IF (ionode) CALL m_flush(output_unit)
@@ -468,11 +472,12 @@ CONTAINS
 
 !******************************************************************************
 
-  SUBROUTINE kg_subsys_setup(kg_env,globenv,error)
+  SUBROUTINE kg_subsys_setup(kg_env,globenv,force_env_section,error)
 
 !   We generate a qs_environment for the system
 
     TYPE(kg_environment_type), POINTER       :: kg_env
+    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -513,8 +518,7 @@ CONTAINS
       POINTER                                :: qs_force
     TYPE(qs_wf_history_type), POINTER        :: wf_history
     TYPE(scf_control_type), POINTER          :: scf_control
-    TYPE(section_vals_type), POINTER         :: force_env_section, &
-                                                poisson_section
+    TYPE(section_vals_type), POINTER         :: poisson_section
 
     failure=.FALSE.
 
@@ -525,10 +529,8 @@ CONTAINS
 
     NULLIFY(distribution_1d,kg_fm,molecule_kind_set,molecule_set,particle_set)
 
-    poisson_section => section_vals_get_subs_vals(globenv%input_file,&
-         "FORCE_EVAL%DFT%POISSON",error=error)
-    force_env_section => section_vals_get_subs_vals(globenv%input_file,&
-         "FORCE_EVAL",error=error)
+    poisson_section => section_vals_get_subs_vals(force_env_section,&
+         "DFT%POISSON",error=error)
 
     CALL get_kg_env(kg_env=kg_env,&
                     dft_control=dft_control,&
@@ -627,8 +629,8 @@ CONTAINS
     
 !   *** Some options require that all MOs are computed ... ***
     nmo_eq_nao = .FALSE.
-    IF (BTEST(cp_print_key_should_output(logger%iter_info,globenv%input_file,&
-            "FORCE_EVAL%DFT%PRINT%MO",error=error),cp_p_file).OR.&
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,force_env_section,&
+            "DFT%PRINT%MO",error=error),cp_p_file).OR.&
         (scf_control%level_shift /= 0.0_dp).OR.&
         (scf_control%smear /= 0.0_dp).OR.&
         (scf_control%eps_jacobi /= 0.0_dp)) THEN

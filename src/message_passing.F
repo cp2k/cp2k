@@ -33,7 +33,8 @@ MODULE message_passing
                                              dp_size,&
                                              int_size,&
                                              sp
-  USE machine,                         ONLY: m_walltime
+  USE machine,                         ONLY: m_walltime,&
+                                             m_abort
   USE parallel_include
 
   IMPLICIT NONE
@@ -546,7 +547,7 @@ SUBROUTINE mp_abort ( )
   WRITE(*,'(/,A,T71,I10)') ' CP2K| Stopped by process number',taskid
   WRITE(*,'(A,/)')         ' CP2K| Abnormal program termination'
 
-!FM  CALL m_abort() ! uncomment if you want nice core dumps
+  CALL m_abort() ! uncomment if you want nice core dumps
 #if defined(__parallel)
   CALL mpi_abort ( MPI_COMM_WORLD, 0 )
 #else

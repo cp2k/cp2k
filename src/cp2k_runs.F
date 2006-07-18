@@ -60,7 +60,9 @@ MODULE cp2k_runs
        section_describe_html, section_describe_index_html, section_release, &
        section_type, section_typo_match, section_vals_create, &
        section_vals_get_subs_vals, section_vals_release, section_vals_type, &
-       section_vals_val_get, section_vals_write, write_section_xml
+       section_vals_val_get, section_vals_write, write_section_xml,&
+       section_vals_get_subs_vals2,&
+                                             section_vals_get
   USE kg_main,                         ONLY: kg_create_force_env
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
@@ -149,7 +151,7 @@ CONTAINS
     CHARACTER(LEN=512)                       :: unknown_string
     CHARACTER(LEN=512)                       :: matching_string(15)
     INTEGER                                  :: matching_rank(15)
-    INTEGER                                  :: mc_method, unit_nr, i
+    INTEGER                                  :: mc_method, unit_nr, i, stat
     LOGICAL                                  :: echo_input, failure, &
                                                 I_was_ionode, was_present
     TYPE(cp_error_type)                      :: error, suberror
@@ -157,13 +159,15 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_parser_type), POINTER            :: my_parser
     TYPE(cp_unit_set_type), POINTER          :: default_units
-    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(force_env_type), POINTER            :: force_env, my_force_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(meta_env_type), POINTER             :: meta_env
     TYPE(section_type), POINTER              :: input_structure
     TYPE(section_vals_type), POINTER         :: glob_section, hmc_section, &
-                                                input_file, metadyn_section, fp_section
+                                                input_file, metadyn_section, fp_section,&
+                                                force_env_sections, force_env_section
     TYPE(fp_type), POINTER                   :: fp_env
+    INTEGER :: nforce_eval, iforce_eval
 
     cp2k_run_OK = .FALSE.
     failure=.FALSE.
@@ -172,7 +176,7 @@ CONTAINS
     CALL cp_para_env_create(para_env, group=mpi_comm,&
          owns_group=.FALSE.)
 
-    NULLIFY(globenv, force_env )
+    NULLIFY(globenv, force_env, my_force_env )
 
     ! init globenv with the data
     CALL globenv_create(globenv, para_env=para_env,  output_unit=output_unit, &
@@ -294,35 +298,56 @@ CONTAINS
              CALL do_pint_run(para_env,globenv%input_file,error=suberror)
           CASE (do_farming)
              CALL farming_run ( globenv, suberror )
-          CASE (do_fist)
-             CALL fist_create_force_env ( force_env, globenv, error = suberror )
-          CASE (do_kg)
-             CALL kg_create_force_env ( force_env, globenv, error=suberror)
-          CASE (do_qmmm)
-             CALL qmmm_create_force_env(force_env, globenv, error=suberror)
-          CASE (do_qs)
-             CALL quickstep_create_force_env(force_env, globenv, error=suberror)
-          CASE (do_tbmd)
-             CALL tbmd_create_force_env(force_env, globenv, error=suberror)
-          CASE (do_eip)
-             CALL eip_create_force_env(force_env, globenv, error=suberror)
+          CASE(do_fist,do_kg,do_qmmm,do_qs,do_tbmd,do_eip)
+
+             force_env_sections => section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL",error=error)
+             CALL section_vals_get(force_env_sections, n_repetition=nforce_eval, error=error)
+             DO iforce_eval = 1, nforce_eval
+                force_env_section => section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL",&
+                     i_rep_section=iforce_eval,error=error)
+                NULLIFY(my_force_env)
+                SELECT CASE(globenv%prog_name_id)
+                CASE (do_fist)
+                   CALL fist_create_force_env ( my_force_env, globenv, force_env_section=force_env_section, error = suberror )
+                CASE (do_kg)
+                   CALL kg_create_force_env ( my_force_env, globenv, force_env_section=force_env_section, error=suberror)
+                CASE (do_qmmm)
+                   CALL qmmm_create_force_env(my_force_env, globenv, force_env_section=force_env_section, error=suberror)
+                CASE (do_qs)
+                   CALL quickstep_create_force_env(my_force_env, globenv, force_env_section=force_env_section, error=suberror)
+                CASE (do_tbmd)
+                   CALL tbmd_create_force_env(my_force_env, globenv, force_env_section=force_env_section, error=suberror)
+                CASE (do_eip)
+                   CALL eip_create_force_env(my_force_env, globenv, force_env_section=force_env_section, error=suberror)
+                END SELECT
+                NULLIFY(meta_env)
+                metadyn_section => section_vals_get_subs_vals(globenv%input_file,"MOTION%METADYN",error=suberror)
+                CALL metadyn_read(meta_env, globenv, metadyn_section, error=suberror)
+                CALL force_env_set(my_force_env,meta_env=meta_env,error=suberror)
+                CALL meta_env_release(meta_env,error=suberror)
+                NULLIFY(fp_env)
+                fp_section => section_vals_get_subs_vals(globenv%input_file,"MOTION%FLEXIBLE_PARTITIONING",error=suberror)
+                CALL fp_env_create(fp_env,error=suberror)
+                CALL fp_env_read(fp_env,fp_section,error=suberror)
+                CALL fp_env_write(fp_env,fp_section,error=suberror)
+                CALL force_env_set(my_force_env,fp_env=fp_env,error=suberror)
+                CALL fp_env_release(fp_env,error=suberror)
+
+                IF (nforce_eval>1.AND.iforce_eval==1) THEN
+                   ALLOCATE(my_force_env%sub_force_env(nforce_eval-1),stat=stat)
+                   CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
+                END IF
+                IF (iforce_eval==1) THEN
+                   force_env => my_force_env
+                ELSE
+                   force_env%sub_force_env(iforce_eval-1)%force_env => my_force_env
+                END IF
+             END DO
+
           CASE (do_test)
              CALL lib_test(globenv,suberror)
           END SELECT
-          IF (ASSOCIATED(force_env)) THEN
-             NULLIFY(meta_env)
-             metadyn_section => section_vals_get_subs_vals(globenv%input_file,"MOTION%METADYN",error=suberror)
-             CALL metadyn_read(meta_env, globenv, metadyn_section, error=suberror)
-             CALL force_env_set(force_env,meta_env=meta_env,error=suberror)
-             CALL meta_env_release(meta_env,error=suberror)
-             NULLIFY(fp_env)
-             fp_section => section_vals_get_subs_vals(globenv%input_file,"MOTION%FLEXIBLE_PARTITIONING",error=suberror)
-             CALL fp_env_create(fp_env,error=suberror)
-             CALL fp_env_read(fp_env,fp_section,error=suberror)
-             CALL fp_env_write(fp_env,fp_section,error=suberror)
-             CALL force_env_set(force_env,fp_env=fp_env,error=suberror)
-             CALL fp_env_release(fp_env,error=suberror)
-          END IF
+
 
           SELECT CASE (globenv%run_type_id)
           CASE (none_run)

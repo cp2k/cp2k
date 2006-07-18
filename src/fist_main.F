@@ -32,6 +32,14 @@ MODULE fist_main
   USE qmmm_types,                      ONLY: qmmm_env_mm_type
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE input_section_types,             ONLY: section_release,&
+                                             section_type,&
+                                             section_vals_create,&
+                                             section_vals_release,&
+                                             section_vals_type,&
+                                             section_vals_write,&
+                                             section_vals_get_subs_vals,&
+                                             section_vals_get_subs_vals2
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -80,11 +88,12 @@ CONTAINS
 !!
 !!*** *************************************************************************
 
-SUBROUTINE fist_create_force_env ( force_env, globenv, qmmm, qmmm_env, error )
+SUBROUTINE fist_create_force_env ( force_env, globenv, qmmm, qmmm_env, force_env_section,error )
 
 
 ! Argument
     TYPE(force_env_type), POINTER            :: force_env
+    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(global_environment_type), POINTER   :: globenv
     LOGICAL, OPTIONAL                        :: qmmm
     TYPE(qmmm_env_mm_type), OPTIONAL, &
@@ -118,11 +127,11 @@ SUBROUTINE fist_create_force_env ( force_env, globenv, qmmm, qmmm_env, error )
 ! *** Read the input and the database files and perform further  ***
 ! *** initializations for the setup of the FIST environment ***
 
-  CALL fist_init ( fist_env, globenv, error )
+  CALL fist_init ( fist_env, globenv, force_env_section, error )
 
   CALL force_env_create ( force_env, fist_env = fist_env, &
                           globenv = globenv, &
-                          error = error )
+                          force_env_section=force_env_section, error = error )
 
   CALL fist_env_release ( fist_env, error = error )
     
