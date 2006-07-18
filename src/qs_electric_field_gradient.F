@@ -384,6 +384,9 @@ CONTAINS
     CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_hartree_gspace,error=error)
     IF ( .NOT. efg_interpolation ) THEN
       CALL pw_pool_give_back_coeff(auxbas_pw_pool,structure_factor,error=error)
+      DO i=1,6
+        CALL pw_pool_give_back_coeff(auxbas_pw_pool,dvr2(i),error=error)
+      END DO
     ELSE
       DO i=1,6
         CALL pw_pool_give_back_coeff(auxbas_pw_pool,dvspl(i),error=error)
