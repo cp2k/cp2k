@@ -49,6 +49,12 @@ MODULE bfgs_optimizer
   USE machine,                         ONLY: m_flush
   USE mathlib,                         ONLY: diamat_all
   USE message_passing,                 ONLY: mp_bcast
+  USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
+  USE molecule_kind_types,             ONLY: fixd_constraint_type,&  
+                                             get_molecule_kind,&     
+                                             molecule_kind_type      
+  USE molecule_types_new,              ONLY: get_molecule,&
+                                             molecule_type
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type,&
                                              write_particle_coordinates,&
@@ -149,29 +155,49 @@ CONTAINS
 
     ndf = SIZE(x0)
     nfree = SIZE(particle_set)
-    ALLOCATE(hes(ndf*(ndf+1)/2))
-    ALLOCATE(xold(ndf))
-    ALLOCATE(g(ndf))
-    ALLOCATE(gold(ndf))
-    ALLOCATE(dx(ndf))
-    ALLOCATE(hes_mat(ndf,ndf))
-    ALLOCATE(dg(ndf))
-    ALLOCATE(eigval(ndf))
-    ALLOCATE(eigvec(ndf,ndf))
-    ALLOCATE(work(ndf))
-    ALLOCATE(dr(ndf))
-    xold = x0
 
-    !  Initialize hessian (hes = unitary matrix ) 
-    DO indf = 1, ndf
-       DO j = 1, indf
-          i = indf * (indf - 1)/2 + j
-          hes(i) = zero
-       END DO
-       i = indf * (indf-1)/2 + indf
-       hes(i) = one
+    ! Initialize hessian (hes = unitary matrix )
+
+    ALLOCATE(hes(ndf*(ndf+1)/2))
+
+    DO indf=1,ndf
+      DO j=1,indf
+        i = indf*(indf - 1)/2 + j
+        hes(i) = zero
+      END DO
+      i = indf*(indf-1)/2 + indf
+      hes(i) = one
     END DO
 
+    ALLOCATE(xold(ndf))
+    xold(:) = x0(:)
+
+    ALLOCATE(g(ndf))
+    g(:) = 0.0_dp
+
+    ALLOCATE(gold(ndf))
+    gold(:) = 0.0_dp
+
+    ALLOCATE(dx(ndf))
+    dx(:) = 0.0_dp
+
+    ALLOCATE(hes_mat(ndf,ndf))
+    hes_mat(:,:) = 0.0_dp
+
+    ALLOCATE(dg(ndf))
+    dg(:) = 0.0_dp
+
+    ALLOCATE(eigval(ndf))
+    eigval(:) = 0.0_dp
+
+    ALLOCATE(eigvec(ndf,ndf))
+    eigvec(:,:) = 0.0_dp
+
+    ALLOCATE(work(ndf))
+    work(:) = 0.0_dp
+
+    ALLOCATE(dr(ndf))
+    dr(:) = 0.0_dp
 
     ! Geometry optimization starts now
     IF(output_unit>0)THEN
@@ -196,6 +222,8 @@ CONTAINS
     ! Calculate Energy & Gradients
     CALL cp_eval_at(gopt_env, x0, etot, g, gopt_env%force_env%para_env%mepos,&
             gopt_env%force_env%para_env, force_env_section, error)
+    !MK Hm, it seems that here only the root process has the correct gradient for all atoms
+    CALL mp_bcast(g,globenv%source,globenv%group)
 
     ! Print info at time 0
     emin = etot
@@ -306,8 +334,10 @@ CONTAINS
        CALL geoopt_get_step(ndf,eigval,eigvec,hes_mat,dr,g)
        CALL trust_radius(ndf,nfree,step,rad,rat,dr,output_unit,output_unit>0)
 
-       !   ** Updating the present positions ** 
-       x0 = x0 + dr
+       ! Update the atomic positions
+       !MK x0 = x0 + dr
+       CALL update_positions(force_env,x0,dr)
+
        CALL energy_predict(ndf,work,hes,dr,g,output_unit>0,output_unit,conv,pred)
        IF (conv) EXIT
        eold = etot
@@ -315,6 +345,8 @@ CONTAINS
        !    ** Energy & Gradients at new step **
        CALL cp_eval_at(gopt_env, x0, etot, g, gopt_env%force_env%para_env%mepos,&
             gopt_env%force_env%para_env, force_env_section, error)
+       !MK Hm, it seems that here only the root process has the correct gradient for all atoms
+       CALL mp_bcast(g,globenv%source,globenv%group)
        ediff = etot - eold
 
        IF(output_unit>0) CALL write_cycle_infos &
@@ -931,7 +963,73 @@ CONTAINS
     END IF
 
   END SUBROUTINE check_converg
-! *****************************************************************************
 
+  ! ***************************************************************************
 
-END MODULE bfgs_optimizer 
+  SUBROUTINE update_positions(force_env,r,dr)
+
+    TYPE(force_env_type), POINTER            :: force_env
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: r
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: dr
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = "update_positions",&
+                                   routineP = moduleN//":"//routineN
+
+    INTEGER                                  :: handle, i, ifixd, &
+                                                imolecule_kind, isubsys, nfixd
+
+    TYPE(cp_subsystem_p_type), &
+      DIMENSION(:), POINTER                  :: subsys
+    TYPE(fixd_constraint_type), &
+      DIMENSION(:), POINTER                  :: fixd_list
+    TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
+    TYPE(molecule_kind_type), DIMENSION(:), &
+      POINTER                                :: molecule_kind_set
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind
+
+    ! -------------------------------------------------------------------------
+
+    CALL timeset(routineN,"I","",handle)
+
+    ! Firstly, move all atoms
+
+    r(:) = r(:) + dr(:)
+
+    ! Then undo the move for the fixed atoms
+
+    CALL force_env_get(force_env=force_env,subsys=subsys)
+
+    DO isubsys=1,SIZE(subsys) ! Well, this loop is pretty ridiculous, since the
+                              ! stuff above works only for one subsystem, currently
+
+      CALL cp_subsys_get(subsys=subsys(isubsys)%subsys,&
+                         molecule_kinds_new=molecule_kinds)
+
+      molecule_kind_set => molecule_kinds%els
+
+      DO imolecule_kind=1,molecule_kinds%n_els
+
+        molecule_kind => molecule_kind_set(imolecule_kind)
+
+        CALL get_molecule_kind(molecule_kind,&
+                               nfixd=nfixd,&
+                               fixd_list=fixd_list)
+
+        DO ifixd=1,nfixd
+          i = 3*(fixd_list(ifixd)%fixd - 1)
+          r(i+1) = r(i+1) - dr(i+1)
+          r(i+2) = r(i+2) - dr(i+2)
+          r(i+3) = r(i+3) - dr(i+3)
+        END DO
+
+      END DO ! imolecule_kind
+
+    END DO ! isubsys
+
+    CALL timestop(0.0_dp,handle)
+
+  END SUBROUTINE update_positions
+
+  ! ***************************************************************************
+
+END MODULE bfgs_optimizer
