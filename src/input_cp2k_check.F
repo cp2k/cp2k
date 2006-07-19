@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2002  CP2K developers group                                 !
+!   Copyright (C) 2002 2006 CP2K developers group                             !
 !-----------------------------------------------------------------------------!
 
 !!****h* cp2k/input_cp2k_check *
@@ -44,7 +44,8 @@ MODULE input_cp2k_check
        section_release, section_type, section_vals_create, section_vals_get, &
        section_vals_get_subs_vals, section_vals_release, &
        section_vals_set_subs_vals, section_vals_type, section_vals_val_get, &
-       section_vals_val_set
+       section_vals_val_set, section_vals_duplicate,section_vals_get_subs_vals2 ,&
+       section_vals_get_subs_vals3
   USE kinds,                           ONLY: default_string_length,&
                                              default_path_length,&
                                              dp
@@ -111,8 +112,7 @@ CONTAINS
        CALL handle_ext_restart(input_file,para_env,error)
 
        ! checks on force_eval section
-       sections => section_vals_get_subs_vals(input_file,&
-            "FORCE_EVAL",error=error)
+       sections => section_vals_get_subs_vals(input_file,"FORCE_EVAL",error=error)
        CALL section_vals_get(sections, n_repetition=nforce_eval, error=error)
        ! multiple force_eval only if present RESPA
        section2 => section_vals_get_subs_vals(input_file,&
@@ -124,28 +124,27 @@ CONTAINS
                 " force_env section.",error,failure)
        END IF
        DO iforce_eval = 1,nforce_eval
-          section => section_vals_get_subs_vals(input_file,"FORCE_EVAL",&
-               i_rep_section=iforce_eval,error=error)
+          section => section_vals_get_subs_vals3(sections,"DFT",&
+                i_rep_section=iforce_eval,error=error)
           ! xc: expand and fix default for tddfpt
-          section2 => section_vals_get_subs_vals(section,"DFT%XC%XC_FUNCTIONAL",error=error)
+          section2 => section_vals_get_subs_vals(section,"XC%XC_FUNCTIONAL",error=error)
           CALL xc_functionals_expand(section2,error=error)
-          section2 => section_vals_get_subs_vals(section,"DFT%KG%XC_FUNCTIONAL",error=error)
+          section2 => section_vals_get_subs_vals(section,"KG%XC_FUNCTIONAL",error=error)
           CALL xc_functionals_expand(section2,error=error)
-          section2 => section_vals_get_subs_vals(section,"DFT%TDDFPT%XC%XC_FUNCTIONAL",error=error)
+          section2 => section_vals_get_subs_vals(section,"TDDFPT%XC%XC_FUNCTIONAL",error=error)
           CALL section_vals_get(section2,explicit=explicit,error=error)
           IF (explicit) THEN
              CALL xc_functionals_expand(section2,error=error)
           ELSE
              section2 => section_vals_get_subs_vals(section,&
-                  "DFT%XC%XC_FUNCTIONAL",error=error)
+                  "XC%XC_FUNCTIONAL",error=error)
              CALL section_vals_set_subs_vals(section,&
-                  "DFT%TDDFPT%XC%XC_FUNCTIONAL",&
+                  "TDDFPT%XC%XC_FUNCTIONAL",&
                   section2,error=error)
           END IF
        END DO
     END IF
     CALL timestop(handle)
-
   END SUBROUTINE check_cp2k_input
 !***************************************************************************
 
@@ -284,7 +283,8 @@ SUBROUTINE handle_ext_restart(input_file,para_env,error)
     TYPE(section_type), POINTER              :: input_structure
     TYPE(section_vals_type), POINTER         :: r_section, restart_input, &
                                                 section, work_section,&
-                                                section1, section2
+                                                section1, section2,&
+                                                sections1, sections2
 
   CALL timeset(routineN,handle)
 
@@ -315,54 +315,51 @@ SUBROUTINE handle_ext_restart(input_file,para_env,error)
         CALL cp_error_dealloc_ref(sub_error)
 
         ! Restart and input files same number of force_env sections
-        section  => section_vals_get_subs_vals(restart_input,"FORCE_EVAL",error=error)
-        CALL section_vals_get(section, n_repetition=nforce_eval1, error=error)
-        section  => section_vals_get_subs_vals(input_file,"FORCE_EVAL",error=error)
-        CALL section_vals_get(section, n_repetition=nforce_eval2, error=error)
+        sections1  => section_vals_get_subs_vals(restart_input,"FORCE_EVAL",error=error)
+        CALL section_vals_get(sections1, n_repetition=nforce_eval1, error=error)
+        sections2  => section_vals_get_subs_vals(input_file,"FORCE_EVAL",error=error)
+        CALL section_vals_get(sections2, n_repetition=nforce_eval2, error=error)
         IF (nforce_eval1/=nforce_eval2) THEN
            CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
                 routineP,"Restart and input file MUST have the number of force_env sections",&
                 error,failure)
         END IF
-        CALL section_vals_val_get(r_section,"RESTART_CELL",l_val=flag,error=error)
-        IF (flag) THEN
-           DO iforce_eval = 1, nforce_eval1
-              section1  => section_vals_get_subs_vals(restart_input,"FORCE_EVAL",i_rep_section=iforce_eval,error=error)
-              section2  => section_vals_get_subs_vals(input_file,"FORCE_EVAL",i_rep_section=iforce_eval,error=error)
-              section  => section_vals_get_subs_vals(section1,"SUBSYS%CELL",error=error)
-              CALL section_vals_set_subs_vals(section2,"SUBSYS%CELL",section,error=error)
-           END DO
-        END IF
-        CALL section_vals_val_get(r_section,"RESTART_POS",l_val=flag,&
-             error=error)
-        IF (flag) THEN
-           DO iforce_eval = 1, nforce_eval1
-              section1  => section_vals_get_subs_vals(restart_input,"FORCE_EVAL",i_rep_section=iforce_eval,error=error)
-              section2  => section_vals_get_subs_vals(input_file,"FORCE_EVAL",i_rep_section=iforce_eval,error=error)
-              section => section_vals_get_subs_vals(section1,"SUBSYS%COORD",error=error)
-              CALL section_vals_set_subs_vals(section2,"SUBSYS%COORD",section,error=error)
-           END DO
-        END IF
-        CALL section_vals_val_get(r_section,"RESTART_RANDOMG",l_val=flag,&
-             error=error)
-        IF (flag) THEN
-           DO iforce_eval = 1, nforce_eval1
-              section1  => section_vals_get_subs_vals(restart_input,"FORCE_EVAL",i_rep_section=iforce_eval,error=error)
-              section2  => section_vals_get_subs_vals(input_file,"FORCE_EVAL",i_rep_section=iforce_eval,error=error)
-              section => section_vals_get_subs_vals(section1,"SUBSYS%RNG_INIT",error=error)
-              CALL section_vals_set_subs_vals(section2,"SUBSYS%RNG_INIT",section,error=error)
-           END DO
-        END IF
-        CALL section_vals_val_get(r_section,"RESTART_VEL",l_val=flag,&
-             error=error)
-        IF (flag) THEN
-           DO iforce_eval = 1, nforce_eval1
-              section1  => section_vals_get_subs_vals(restart_input,"FORCE_EVAL",i_rep_section=iforce_eval,error=error)
-              section2  => section_vals_get_subs_vals(input_file,"FORCE_EVAL",i_rep_section=iforce_eval,error=error)
-              section => section_vals_get_subs_vals(section1,"SUBSYS%VELOCITY",error=error)
-              CALL section_vals_set_subs_vals(section2,"SUBSYS%VELOCITY",section,error=error)
-           END DO
-        END IF
+
+        DO iforce_eval = 1, nforce_eval1
+           section1 => section_vals_get_subs_vals3(sections1,"SUBSYS",&
+                i_rep_section=iforce_eval,error=error)
+           section2 => section_vals_get_subs_vals3(sections2,"SUBSYS",&
+                i_rep_section=iforce_eval,error=error)
+!           WRITE(*,*)"TEO",iforce_eval,nforce_eval1,subsys_ind
+           CALL section_vals_val_get(r_section,"RESTART_CELL",l_val=flag,error=error)
+           IF (flag) THEN
+              section  => section_vals_get_subs_vals(section1,"CELL",error=error)
+              CALL section_vals_set_subs_vals(section2,"CELL",section,error=error)              
+           END IF
+
+           CALL section_vals_val_get(r_section,"RESTART_POS",l_val=flag,&
+                error=error)
+           IF (flag) THEN
+              section => section_vals_get_subs_vals(section1,"COORD",error=error)
+              CALL section_vals_set_subs_vals(section2,"COORD",section,error=error)
+           END IF
+
+           CALL section_vals_val_get(r_section,"RESTART_RANDOMG",l_val=flag,&
+                error=error)
+           IF (flag) THEN
+              section => section_vals_get_subs_vals(section1,"RNG_INIT",error=error)
+              CALL section_vals_set_subs_vals(section2,"RNG_INIT",section,error=error)
+           END IF
+
+           CALL section_vals_val_get(r_section,"RESTART_VEL",l_val=flag,&
+                error=error)
+           IF (flag) THEN
+              section => section_vals_get_subs_vals(section1,"VELOCITY",error=error)
+              CALL section_vals_set_subs_vals(section2,"VELOCITY",section,error=error)
+           END IF
+
+        END DO
+
         CALL section_vals_val_get(r_section,"RESTART_COUNTERS",l_val=flag,&
              error=error)
         IF (flag) THEN

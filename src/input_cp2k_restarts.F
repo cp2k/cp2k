@@ -58,7 +58,7 @@ MODULE input_cp2k_restarts
        section_get_keyword_index, section_type, section_vals_add_values, &
        section_vals_get_subs_vals, section_vals_type, section_vals_val_get, &
        section_vals_val_set, section_vals_val_unset, section_vals_write,&
-       section_vals_get_subs_vals2, section_vals_get
+       section_vals_get_subs_vals2, section_vals_get,section_vals_get_subs_vals3
   USE input_val_types,                 ONLY: val_create,&
                                              val_release,&
                                              val_type
@@ -167,21 +167,9 @@ CONTAINS
 
        sections => section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL",error=error)
        CALL section_vals_get(sections, n_repetition=nforce_eval, error=error)
-       IF (nforce_eval==1) THEN
-          CALL update_input(md_env,force_env,kg_env,meta_env,globenv,force_env_section,error)
-       ELSE
-          ! Update each force_env section
-          CPPrecondition(SIZE(force_env%sub_force_env)+1==nforce_eval,cp_failure_level,routineP,error,failure)
-          DO iforce_eval = 1, nforce_eval
-             section => section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL",&
-                  i_rep_section=iforce_eval,error=error)
-             IF (.NOT.ASSOCIATED(section)) EXIT
-             my_force_env => force_env
-             IF (iforce_eval/=1) my_force_env => force_env%sub_force_env(iforce_eval-1)%force_env
-             CALL update_input(force_env=my_force_env,globenv=globenv,force_env_section=section,&
-                  error=error)
-          END DO
-       END IF
+
+       CALL update_input(md_env,force_env,kg_env,meta_env,globenv,error)
+
        CALL m_datum(datx)
        CALL m_getcwd(cwd)
 
@@ -253,7 +241,7 @@ CONTAINS
 !!     01.2006 created [teo]
 !!
 !!*** **********************************************************************
-  SUBROUTINE update_input(md_env,force_env,kg_env,meta_env,globenv,force_env_section,error)
+  SUBROUTINE update_input(md_env,force_env,kg_env,meta_env,globenv,error)
     TYPE(md_environment_type), OPTIONAL, &
       POINTER                                :: md_env
     TYPE(force_env_type), OPTIONAL, POINTER  :: force_env
@@ -261,7 +249,6 @@ CONTAINS
       POINTER                                :: kg_env
     TYPE(meta_env_type), OPTIONAL, POINTER   :: meta_env
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
@@ -323,7 +310,7 @@ CONTAINS
     ! Update one force_env_section per time..
     !
     IF (ASSOCIATED(my_force_env)) &
-         CALL update_force_eval(force_env_section,my_force_env,logger,error)
+         CALL update_force_eval(force_env=my_force_env,logger=logger,globenv=globenv,error=error)
 
     CALL timestop(handle)
 
@@ -917,24 +904,33 @@ CONTAINS
 !!     01.2006 created [teo]
 !!
 !!*** **********************************************************************
-  SUBROUTINE update_force_eval(force_env_section,force_env,logger,error)
-    TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(force_env_type), POINTER            :: force_env
-    TYPE(cp_logger_type), POINTER            :: logger
+  SUBROUTINE update_force_eval(force_env,logger,globenv,error)
+    TYPE(force_env_type), POINTER              :: force_env
+    TYPE(cp_logger_type), POINTER              :: logger
+    TYPE(global_environment_type), POINTER     :: globenv
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
+    TYPE(force_env_type), POINTER              :: my_force_env
     CHARACTER(LEN=*), PARAMETER :: routineN = 'update_force_eval', &
       routineP = moduleN//':'//routineN
 
-    TYPE(section_vals_type), POINTER         :: rng_section, subsys_section
+    TYPE(section_vals_type), POINTER         :: rng_section, subsys_section, force_env_sections
+    INTEGER :: nforce_eval, iforce_eval
 
     NULLIFY(rng_section, subsys_section)
-
-    subsys_section => section_vals_get_subs_vals(force_env_section,"SUBSYS",error=error)
-    rng_section    => section_vals_get_subs_vals(subsys_section,"RNG_INIT",error=error)
-    CALL update_rng(rng_section,force_env,error)
-    CALL update_subsys(subsys_section,force_env,error)
+    
+    force_env_sections => section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL",error=error)
+    CALL section_vals_get(force_env_sections, n_repetition=nforce_eval, error=error)       
+    DO iforce_eval=1,nforce_eval
+       subsys_section => section_vals_get_subs_vals3(force_env_sections,"SUBSYS",&
+            i_rep_section=iforce_eval,error=error)
+       rng_section    => section_vals_get_subs_vals(subsys_section,"RNG_INIT",error=error)
+       my_force_env => force_env
+       IF (iforce_eval>1) my_force_env => force_env%sub_force_env(iforce_eval-1)%force_env
+       CALL update_rng(rng_section,my_force_env,error)
+       CALL update_subsys(subsys_section,my_force_env,error)
+    END DO
 
   END SUBROUTINE update_force_eval
 

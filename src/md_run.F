@@ -331,6 +331,9 @@ CONTAINS
                       t = t, used_time = used_time ) 
 
     DO ibead = 1, nbeads
+       IF (simpar%do_respa) CALL force_env_calc_energy_force ( &
+            force_env_p(ibead)%force_env%sub_force_env(1)%force_env,&
+            calc_force=.TRUE.,error=error)
        CALL force_env_calc_energy_force ( force_env_p(ibead)%force_env,&
             calc_force=.TRUE.,error=error)
 

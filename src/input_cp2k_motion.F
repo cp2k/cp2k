@@ -1435,6 +1435,13 @@ SUBROUTINE create_respa_section(section, error)
        
      NULLIFY(keyword)
 
+     CALL keyword_create(keyword, name="FORCE_EVAL_SHELLS",&
+          description='Specify the orders of the respa shells from the fastest to the slowest force evaluation.',&
+          usage="FAST_FORCE_SHELLS <INTEGER> .. <INTEGER>", type_of_var=integer_t, n_var=-1,&
+          default_i_vals=(/1/), error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+
      CALL keyword_create(keyword, name="FREQUENCY",&
           description="The number of reference MD steps between two RESPA corrections.",&
           usage="FREQUENCY <INTEGER>", default_i_val=10,error=error)

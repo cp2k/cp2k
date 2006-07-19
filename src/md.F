@@ -144,6 +144,9 @@ MODULE md
      LOGICAL        :: lpsc
      INTEGER        :: md_method
      INTEGER        :: mc_method
+     LOGICAL        :: multi_time_switch, do_respa
+     INTEGER        :: n_time_steps
+
   END TYPE simulation_parameters_type
 
   ! *** Global parameters ***
@@ -477,6 +480,13 @@ CONTAINS
        CALL section_vals_val_get(tmp_section,"YOSHIDA",i_val=simpar%nyosh,error=error)
        CALL section_vals_val_get(tmp_section,"TIMECON",r_val=simpar%tau_nhc,error=error)
        CALL section_vals_val_get(tmp_section,"MTS",i_val=simpar%nc,error=error)
+
+       tmp_section => section_vals_get_subs_vals(md_section,"RESPA",error=error)
+       CALL section_vals_get(tmp_section, explicit=simpar%do_respa, error=error)
+       CALL section_vals_val_get(tmp_section,"FREQUENCY",i_val=simpar%n_time_steps,&
+            ignore_required=.TRUE.,error=error)
+       simpar%multi_time_switch = .FALSE.
+       IF (simpar%do_respa) simpar%multi_time_switch = .TRUE.
 
        tmp_section => section_vals_get_subs_vals(md_section, "HMC", error=error)
        CALL section_vals_get(tmp_section, explicit=explicit, error=error)

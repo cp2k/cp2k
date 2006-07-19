@@ -39,8 +39,10 @@ MODULE environment
                                              section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_get_subs_vals2,&
+                                             section_vals_get_subs_vals3,&
                                              section_vals_type,&
-                                             section_vals_val_get
+                                             section_vals_val_get,&
+                                             section_vals_duplicate,section_vals_release
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp,&
@@ -490,7 +492,7 @@ SUBROUTINE cp2k_read(globenv,error)
          iforce_eval
     LOGICAL                                  :: ata, failure, trace
     TYPE(section_vals_type), POINTER         :: dft_section, global_section,&
-         force_env_section, force_env_sections
+         qmmm_section, subsys_section,force_env_sections
 
 !$  INTEGER :: omp_get_num_threads
 
@@ -547,19 +549,21 @@ SUBROUTINE cp2k_read(globenv,error)
       force_env_sections => section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL",error=error)
       CALL section_vals_get(force_env_sections, n_repetition=nforce_eval, error=error)
       DO iforce_eval = 1, nforce_eval
-         force_env_section => section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL",&
+         dft_section => section_vals_get_subs_vals3(force_env_sections,"DFT",&
               i_rep_section=iforce_eval,error=error)
-         
-         dft_section => section_vals_get_subs_vals(force_env_section,"DFT",error=error)
+         qmmm_section => section_vals_get_subs_vals3(force_env_sections,"QMMM",&
+              i_rep_section=iforce_eval,error=error)
+         subsys_section => section_vals_get_subs_vals3(force_env_sections,"SUBSYS",&
+              i_rep_section=iforce_eval,error=error)
          CALL section_vals_val_get(dft_section,"BASIS_SET_FILE_NAME",&
               c_val=basis_set_file_name , ignore_required=.TRUE., error=error)
          CALL section_vals_val_get(dft_section,"POTENTIAL_FILE_NAME",&
               c_val=potential_file_name , ignore_required=.TRUE., error=error)
          CALL section_vals_val_get(dft_section,"RESTART_FILE_NAME",&
               c_val=restart_file_name , ignore_required=.TRUE., error=error)
-         CALL section_vals_val_get(force_env_section,"QMMM%MM_POTENTIAL_FILE_NAME",&
+         CALL section_vals_val_get(qmmm_section,"MM_POTENTIAL_FILE_NAME",&
               c_val=mm_potential_file_name, ignore_required=.TRUE., error=error)
-         CALL section_vals_val_get(force_env_section,"SUBSYS%TOPOLOGY%COORD_FILE",&
+         CALL section_vals_val_get(subsys_section,"TOPOLOGY%COORD_FILE",&
               c_val=coord_file_name, ignore_required=.TRUE., error=error)
          CALL integer_to_string(iforce_eval,env_num)
 
@@ -603,6 +607,7 @@ SUBROUTINE cp2k_read(globenv,error)
                              num_threads,&
         start_section_label//"| This output is from process",globenv%mepos
       WRITE (UNIT=output_unit,FMT='()')
+
     END IF
 
   END SUBROUTINE read_global_section

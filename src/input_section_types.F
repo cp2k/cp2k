@@ -71,7 +71,7 @@ MODULE input_section_types
   PUBLIC :: section_vals_create, section_vals_retain, section_vals_release,&
        section_vals_get, section_vals_get_subs_vals, section_vals_val_get,&
        section_vals_write, section_vals_add_values, section_vals_get_subs_vals2,&
-       section_vals_val_set, section_vals_val_unset,&
+       section_vals_val_set, section_vals_val_unset, section_vals_get_subs_vals3,&
        section_vals_set_subs_vals, section_vals_duplicate
   PUBLIC :: write_section_xml
 
@@ -205,7 +205,6 @@ MODULE input_section_types
   
 CONTAINS
 
-  
 !!****f* cp_keywords/section_create *
 !!
 !!   NAME
@@ -1380,6 +1379,62 @@ FUNCTION section_vals_get_subs_vals2(section_vals,i_section,&
 END FUNCTION section_vals_get_subs_vals2
 !***************************************************************************
 
+
+!!****f* cp_keywords/section_vals_get_subs_vals3 *
+!!
+!!   NAME
+!!     section_vals_get_subs_vals3
+!!
+!!   FUNCTION
+!!     returns the values of the n-th non default subsection (null if no
+!!     such section exists (not so many non default section))
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - section_vals: the root section
+!!     - i_section: index of the section
+!!     - i_rep_section: index of the repetition of section_vals from which
+!!       you want to extract the subsection (defaults to 1)
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!*** **********************************************************************
+FUNCTION section_vals_get_subs_vals3(section_vals,subsection_name,&
+     i_rep_section,error) RESULT(res)
+    TYPE(section_vals_type), POINTER         :: section_vals
+    INTEGER, INTENT(in), OPTIONAL            :: i_rep_section
+    CHARACTER(LEN=*), INTENT(IN)             :: subsection_name
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    TYPE(section_vals_type), POINTER         :: res
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'section_vals_get_subs_vals3', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, irep, isect_att, i_section
+    LOGICAL                                  :: failure
+
+  failure=.FALSE.
+  CPPrecondition(ASSOCIATED(section_vals),cp_failure_level,routineP,error,failure)
+  CPPrecondition(section_vals%ref_count>0,cp_failure_level,routineP,error,failure)
+  NULLIFY(res)
+  IF (.NOT. failure) THEN
+     irep=1
+     IF (PRESENT(i_rep_section)) irep=i_rep_section
+     CPPrecondition(irep<=SIZE(section_vals%subs_vals,2),cp_failure_level,routineP,error,failure)
+  END IF
+  i_section = section_get_subsection_index(section_vals%section,subsection_name,error)
+  IF (.NOT.failure) THEN
+     res => section_vals%subs_vals(i_section,irep)%section_vals
+  END IF
+END FUNCTION section_vals_get_subs_vals3
+!***************************************************************************
+
 !!****f* cp_keywords/section_vals_add_values *
 !!
 !!   NAME
@@ -2354,9 +2409,10 @@ END SUBROUTINE section_vals_set_subs_vals
 !!
 !!*** **********************************************************************
 SUBROUTINE section_vals_duplicate(section_vals_in,section_vals_out,&
-     error)
+     i_rep_start, i_rep_end, error)
     TYPE(section_vals_type), POINTER         :: section_vals_in, &
                                                 section_vals_out
+    INTEGER, INTENT(IN), OPTIONAL :: i_rep_start, i_rep_end
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -2372,7 +2428,7 @@ SUBROUTINE section_vals_duplicate(section_vals_in,section_vals_out,&
   IF (.NOT.failure) THEN
      CALL section_vals_create(section_vals_out,section_vals_in%section,&
           error=error)
-     CALL section_vals_copy(section_vals_in,section_vals_out,error=error)
+     CALL section_vals_copy(section_vals_in,section_vals_out,i_rep_start,i_rep_end,error=error)
   END IF
 END SUBROUTINE section_vals_duplicate
 !***************************************************************************
@@ -2399,17 +2455,18 @@ END SUBROUTINE section_vals_duplicate
 !!
 !!*** **********************************************************************
 RECURSIVE SUBROUTINE section_vals_copy(section_vals_in,section_vals_out,&
-     error)
+     i_rep_low,i_rep_high,error)
     TYPE(section_vals_type), POINTER         :: section_vals_in, &
                                                 section_vals_out
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
+    INTEGER, INTENT(IN), OPTIONAL            :: i_rep_low, i_rep_high
 
     CHARACTER(len=*), PARAMETER :: routineN = 'section_vals_copy', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: irep, isec, ival
-    LOGICAL                                  :: failure
+    INTEGER                                  :: irep, isec, ival, istart, iend
+    LOGICAL                                  :: failure, check
     TYPE(cp_sll_val_type), POINTER           :: v1, v2
     TYPE(val_type), POINTER                  :: el
 
@@ -2418,12 +2475,16 @@ RECURSIVE SUBROUTINE section_vals_copy(section_vals_in,section_vals_out,&
   
   CPPrecondition(ASSOCIATED(section_vals_in),cp_failure_level,routineP,error,failure)
   CPPrecondition(ASSOCIATED(section_vals_out),cp_failure_level,routineP,error,failure)
-  CALL cp_assert(section_vals_in%section%id_nr==section_vals_out%section%id_nr,&
-       cp_failure_level,cp_assertion_failed,routineP,&
-       CPSourceFileRef,&
-       error,failure)
+!  CALL cp_assert(section_vals_in%section%id_nr==section_vals_out%section%id_nr,&
+!       cp_failure_level,cp_assertion_failed,routineP,&
+!       CPSourceFileRef,&
+!       error,failure)
   IF (.NOT.failure) THEN
-     DO irep=1,SIZE(section_vals_in%values,2)
+     istart = 1
+     iend   = SIZE(section_vals_in%values,2)
+     IF (PRESENT(i_rep_low)) istart=i_rep_low
+     IF (PRESENT(i_rep_high)) iend=i_rep_high
+     DO irep=istart,iend
         CALL section_vals_add_values(section_vals_out,error=error)
         DO ival=LBOUND(section_vals_in%values,1),UBOUND(section_vals_in%values,1)
            v1=>section_vals_in%values(ival,irep)%list
@@ -2431,7 +2492,7 @@ RECURSIVE SUBROUTINE section_vals_copy(section_vals_in,section_vals_out,&
               CALL val_duplicate(v1%first_el,el,error=error)
               CALL cp_sll_val_create(v2,el,error=error)
               NULLIFY(el)
-              section_vals_out%values(ival,irep)%list => v2
+              section_vals_out%values(ival,irep-istart+1)%list => v2
               DO
                  IF (.not.ASSOCIATED(v1%rest)) EXIT
                  v1 => v1%rest
@@ -2443,18 +2504,22 @@ RECURSIVE SUBROUTINE section_vals_copy(section_vals_in,section_vals_out,&
            END IF
         END DO
      END DO
-     CALL cp_assert(SIZE(section_vals_in%values,2)==SIZE(section_vals_out%values,2),&
-          cp_failure_level,cp_assertion_failed,routineP,&
-          CPSourceFileRef,&
-          error,failure)
-     CALL cp_assert(SIZE(section_vals_in%subs_vals,2)==SIZE(section_vals_out%subs_vals,2),&
-          cp_failure_level,cp_assertion_failed,routineP,&
-          CPSourceFileRef,&
-          error,failure)
-     DO irep=1,SIZE(section_vals_in%subs_vals,2)
+     IF (.NOT.PRESENT(i_rep_low).AND.(.NOT.PRESENT(i_rep_high))) THEN
+        CALL cp_assert(SIZE(section_vals_in%values,2)==SIZE(section_vals_out%values,2),&
+             cp_failure_level,cp_assertion_failed,routineP,&
+             CPSourceFileRef,&
+             error,failure)
+        CALL cp_assert(SIZE(section_vals_in%subs_vals,2)==SIZE(section_vals_out%subs_vals,2),&
+             cp_failure_level,cp_assertion_failed,routineP,&
+             CPSourceFileRef,&
+             error,failure)
+     END IF
+     iend   = SIZE(section_vals_in%subs_vals,2)
+     IF (PRESENT(i_rep_high)) iend=i_rep_high
+     DO irep=istart,iend
         DO isec=1,SIZE(section_vals_in%subs_vals,1)
            CALL section_vals_copy(section_vals_in%subs_vals(isec,irep)%section_vals,&
-                section_vals_out%subs_vals(isec,irep)%section_vals,error=error)
+                section_vals_out%subs_vals(isec,irep-istart+1)%section_vals,error=error)
         END DO
      END DO
   END IF

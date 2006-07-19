@@ -61,7 +61,7 @@ MODULE cp2k_runs
        section_type, section_typo_match, section_vals_create, &
        section_vals_get_subs_vals, section_vals_release, section_vals_type, &
        section_vals_val_get, section_vals_write, write_section_xml,&
-       section_vals_get_subs_vals2,&
+       section_vals_get_subs_vals2,section_vals_duplicate,&
                                              section_vals_get
   USE kg_main,                         ONLY: kg_create_force_env
   USE kinds,                           ONLY: default_path_length,&
@@ -168,6 +168,7 @@ CONTAINS
                                                 force_env_sections, force_env_section
     TYPE(fp_type), POINTER                   :: fp_env
     INTEGER :: nforce_eval, iforce_eval
+    INTEGER, POINTER, DIMENSION(:) :: i_force_eval
 
     cp2k_run_OK = .FALSE.
     failure=.FALSE.
@@ -302,9 +303,13 @@ CONTAINS
 
              force_env_sections => section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL",error=error)
              CALL section_vals_get(force_env_sections, n_repetition=nforce_eval, error=error)
+             CALL section_vals_val_get(globenv%input_file,"MOTION%MD%RESPA%FORCE_EVAL_SHELLS",i_vals=i_force_eval,&
+                  ignore_required=.TRUE.,error=error)
+             CPPrecondition(SIZE(i_force_eval)==nforce_eval,cp_failure_level,routineP,error,failure)
              DO iforce_eval = 1, nforce_eval
-                force_env_section => section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL",&
-                     i_rep_section=iforce_eval,error=error)
+                NULLIFY(force_env_section)
+                CALL section_vals_duplicate(force_env_sections,force_env_section,&
+                     i_force_eval(iforce_eval),i_force_eval(iforce_eval),error)
                 NULLIFY(my_force_env)
                 SELECT CASE(globenv%prog_name_id)
                 CASE (do_fist)
@@ -342,6 +347,7 @@ CONTAINS
                 ELSE
                    force_env%sub_force_env(iforce_eval-1)%force_env => my_force_env
                 END IF
+                CALL section_vals_release(force_env_section,error)
              END DO
 
           CASE (do_test)

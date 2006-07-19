@@ -335,7 +335,7 @@ CONTAINS
 
     INTEGER :: icoef, iparticle, iparticle_kind, iparticle_local, istat, &
       isubsys, mass_storage, nmolecule, nmolecule_kind, nparticle, &
-      nparticle_kind, nparticle_local
+      nparticle_kind, nparticle_local, n_time_steps
     REAL(KIND=dp)                            :: dm, dmcoef, dt, global_mass, &
                                                 mass
     REAL(KIND=dp), ALLOCATABLE, &
@@ -347,7 +347,7 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsystem_p_type), &
-      DIMENSION(:), POINTER                  :: subsys
+      DIMENSION(:), POINTER                  :: subsys, subsys_respa
     TYPE(distribution_1d_type), POINTER      :: local_molecules, &
                                                 local_particles
     TYPE(dyn_coeff_p_type), DIMENSION(:), &
@@ -365,25 +365,36 @@ CONTAINS
       POINTER                                :: molecule_kind_set
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
-    TYPE(particle_list_type), POINTER        :: particles
+    TYPE(particle_list_type), POINTER        :: particles, particles_respa
     TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set
+      POINTER                                :: particle_set, particle_set_respa
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
     TYPE(virial_type), POINTER               :: virial
+    LOGICAL                                  :: multi_time_switch,do_respa
+    INTEGER,save                             :: step_count
 
 !   ---------------------------------------------------------------------------
 
-    NULLIFY (dyn_coeff_set,coeffs_of_kind,coeffs,nhc_coef,para_env,cell)
+    NULLIFY (dyn_coeff_set,coeffs_of_kind,coeffs,nhc_coef,para_env,cell,subsys_respa)
+    NULLIFY (particles_respa, particle_set_respa)
     CALL get_md_env(md_env=md_env,simpar=simpar,force_env_p=force_env_p,&
                     nhc_coef=nhc_coef, para_env = para_env)
     dt = simpar%dt
+
+    do_respa=simpar%do_respa
+    multi_time_switch = simpar%multi_time_switch   
+    n_time_steps=simpar%n_time_steps
+
     IF (SIZE(force_env_p)/=1) THEN
        CALL stop_program("nve","integrator",__LINE__,&
        "MD_ENV with more than (or less) than one force_env not supported atm!")
     END IF
     CALL force_env_get(force_env=force_env_p(1)%force_env,subsys=subsys,&
                        dyn_coeff_set=dyn_coeff_set, virial = virial, cell=cell)
+
+    IF (do_respa) CALL force_env_get(force_env=force_env_p(1)%force_env%sub_force_env(1)%force_env,&
+         subsys=subsys_respa)
 
     DO isubsys=1,SIZE(subsys)
 
@@ -394,6 +405,11 @@ CONTAINS
                         local_molecules_new=local_molecules,&
                         molecules_new=molecules, &
                         molecule_kinds_new=molecule_kinds )
+
+      IF (do_respa) THEN
+         CALL cp_subsys_get (subsys=subsys_respa(isubsys)%subsys, particles=particles_respa)
+         particle_set_respa => particles_respa%els
+      END IF
 
       nparticle_kind = atomic_kinds%n_els
       atomic_kind_set => atomic_kinds%els
@@ -418,6 +434,27 @@ CONTAINS
 
       IF (simpar%constraint) CALL getold(local_molecules, molecule_set,  &
                                          molecule_kind_set, particle_set, cell, error)
+!     *** Multiple time step (first part)
+      IF(multi_time_switch) THEN
+        DO iparticle_kind=1,nparticle_kind
+          atomic_kind => atomic_kind_set(iparticle_kind)
+          CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+          dm = 0.5_dp * dt * n_time_steps / mass                             
+          nparticle_local = local_particles%n_el(iparticle_kind)
+          DO iparticle_local=1,nparticle_local
+            iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
+            vel (:,iparticle) = particle_set(iparticle)%v(:) +&
+                                dm * (particle_set_respa(iparticle)%f(:)-&
+                                particle_set(iparticle)%f(:))
+            WRITE(*,*)particle_set_respa(iparticle)%f(:)
+          END DO
+        END DO
+
+        CALL update_particle_set ( particle_set, para_env % group, vel = vel )
+        multi_time_switch = .FALSE.
+        step_count = 0                                                
+      ENDIF
+
 
 !     *** Velocity Verlet (first part) ***
 
@@ -443,7 +480,7 @@ CONTAINS
 !     *** Broadcast the new particle positions ***
 
       CALL update_particle_set ( particle_set, para_env % group, pos = pos )
-
+      
       DEALLOCATE (pos,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"pos")
 
@@ -505,14 +542,13 @@ CONTAINS
 
       IF (simpar%annealing)  vel(:,:)=vel(:,:)*simpar%f_annealing
 
-!     *** Broadcast the new particle velocities ***
-      CALL update_particle_set ( particle_set, para_env % group, vel = vel )
-
-      DEALLOCATE (vel,STAT=istat)
-      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"vel")
-
+      IF(do_respa) THEN 
+         step_count = step_count + 1
+         IF(step_count.eq.n_time_steps)multi_time_switch=.TRUE.
+      simpar%multi_time_switch=multi_time_switch
+       ENDIF
+      
 !     *** coefficients
-
       IF(ASSOCIATED(dyn_coeff_set)) THEN
         CALL get_dyn_coeff_set(dyn_coeff_set=dyn_coeff_set(isubsys)%dyn_coeff_set,&
                                coeffs_of_kind=coeffs_of_kind, global_mass=global_mass,&
@@ -554,6 +590,34 @@ CONTAINS
       CALL virial_evaluate ( atomic_kind_set, particle_set,  &
                              local_particles, virial, para_env % group  )
 
+
+!     *** Multiple time step (second part) ***
+      IF(multi_time_switch) THEN
+         ! Update particle position for respa subsys
+         DO iparticle = 1, SIZE(particle_set)
+            particle_set_respa(iparticle)%r = particle_set(iparticle)%r
+         END DO
+         ! Compute forces for respa force_env
+         CALL force_env_calc_energy_force(force_env_p(1)%force_env%sub_force_env(1)%force_env,error=error)
+
+         DO iparticle_kind=1,nparticle_kind
+            atomic_kind => atomic_kind_set(iparticle_kind)
+            CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
+            dm = 0.5_dp * dt * n_time_steps / mass
+            nparticle_local = local_particles%n_el(iparticle_kind)
+            DO iparticle_local=1,nparticle_local
+               iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
+               vel ( 1, iparticle) = vel ( 1, iparticle) + dm*(particle_set_respa(iparticle)%f(1)-particle_set(iparticle)%f(1))
+               vel ( 2, iparticle) = vel ( 2, iparticle) + dm*(particle_set_respa(iparticle)%f(2)-particle_set(iparticle)%f(2))
+               vel ( 3, iparticle) = vel ( 3, iparticle) + dm*(particle_set_respa(iparticle)%f(3)-particle_set(iparticle)%f(3))
+            END DO
+         END DO
+      END IF
+      !      *** Broadcast the new particle velocities ***
+      CALL update_particle_set ( particle_set, para_env % group, vel = vel )         
+
+      DEALLOCATE (vel,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"vel")      
     END DO ! next subsys or sub-system
 
   END SUBROUTINE nve
