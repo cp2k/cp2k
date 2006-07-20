@@ -856,12 +856,12 @@ CONTAINS
 !$OMP private(ijatoms,ithread,nalimit,itask,iatom,jatom,ra,brow,bcol) &
 !$OMP private(h_block,p_block,atom_a,atom_b,ijsets,iset,jset) &
 !$OMP private(ncoa,ncob,sgfa,sgfb,work,pab,hab,rab,rb,rab2) &
-!$OMP private(ipgf,jpgf,na1,na2,nb1,nb2,force_a,force_b,istat) &
+!$OMP private(ipgf,jpgf,na1,na2,nb1,nb2,force_a,force_b,istat,my_virial_a,my_virial_b,idir) &
 !$OMP shared(natom_pairs,nthread,asets,atasks,particle_set,cell,dh,p) &
 !$OMP shared(deltap,calculate_forces,atom_of_kind,ival,npgfa,npgfb,la_max,lb_max) &
 !$OMP shared(first_sgfa,first_sgfb,sphi_a,sphi_b,maxco,maxsgf_set,dab_local) &
 !$OMP shared(ncoset,zeta,zetb,la_min,lb_min,rs_v,cube_info,l_info,eps_gvg_rspace) &
-!$OMP shared(force,ikind,jkind,igrid_level,nsgfa,nsgfb,pabt,habt,workt,my_compute_tau,map_consistent)
+!$OMP shared(force,ikind,jkind,igrid_level,nsgfa,nsgfb,pabt,habt,workt,my_compute_tau,map_consistent,use_virial,virial,error)
           ithread = 0
 !$        ithread = omp_get_thread_num()
           nalimit = get_limit(natom_pairs,nthread,ithread)

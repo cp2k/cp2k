@@ -863,7 +863,7 @@ CONTAINS
 !$OMP private(ibc,sbc_ppnl_neighbor_list,nnode_c,sbc_ppnl_neighbor_node,knode) &
 !$OMP private(cell_c,h_block,p_block,w_block,j,force_a,force_b,neighbor_att) &
 !$OMP private(sab_orb_neighbor_list_local,sint,tint,vppl,vppnl,vall,ai_work,oceh,oces) &
-!$OMP private(icell,jcell,kcell,idx,n,lppnl,nppnl,cell_c_max,cell_c_min,sac_ppnl_neighbor) &
+!$OMP private(icell,jcell,kcell,idx,n,lppnl,nppnl,cell_c_max,cell_c_min,sac_ppnl_neighbor,dir) &
 !$OMP shared(sbc_ppnl,ikind,jkind,force,return_t_derivatives,return_s_derivatives) &
 !$OMP shared(lb_min,rpgfb,zetb,sphi_b,sphi_a,nsgfa,nsgfb,set_radius_b,ldai,maxlppl) &
 !$OMP shared(sab_orb,first_sgfb,lb_max,npgfb,nsetb,first_sgfa,matrix_w,globenv,matrix_p,matrix_h,matrix_t,iab) &

@@ -534,7 +534,7 @@ CONTAINS
 !$OMP default(none) &
 !$OMP private(j,iatom,atom_a,ra,ithread) &
 !$OMP shared(npme,tasks,atom_list,particle_set,cell,pab,rs_rho) &
-!$OMP shared(cube_info,l_info,eps_rho_rspace,alpha)
+!$OMP shared(cube_info,l_info,eps_rho_rspace,alpha,error)
       DO j=1,npme
 
         iatom = tasks(1,j)

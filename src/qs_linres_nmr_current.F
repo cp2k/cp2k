@@ -1112,14 +1112,14 @@ CONTAINS
 !$OMP private(ijsets,iset,jset,ncoa,ncob,sgfa,sgfb) &
 !$OMP private(work,jpab,jpab_ii,jpab_iii,istat) &
 !$OMP private(rb,rab,rab2,ipgf,jpgf,na1,na2,nb1,nb2,scale) &
-!$OMP private(jp_block,jp_block_rii,jp_block_riii) &
+!$OMP private(jp_block,jp_block_rii,jp_block_riii,iiB,iiiB) &
 !$OMP shared(maxco,maxsgf_set,natom_pairs,atasks,asets,ival,particle_set,cell) &
 !$OMP shared(deltajp,deltajp_rii,deltajp_riii,npgfa,npgfb)&
 !$OMP shared(ncoset,la_max,lb_max,first_sgfa,first_sgfb) &
 !$OMP shared(nsgfa,nsgfb,sphi_a,sphi_b,dab_local,atomic_kind)&
-!$OMP shared(la_min,lb_min,zeta,zetb,ikind,jkind,ii_B,iii_B) &
+!$OMP shared(la_min,lb_min,zeta,zetb,ikind,jkind) &
 !$OMP shared(rs_rho,igrid_level,cube_info,l_info,eps_rho_rspace,lgrid,nthread) &
-!$OMP shared(workt,jpabt,jpabt_ii,jpabt_iii,map_consistent)
+!$OMP shared(workt,jpabt,jpabt_ii,jpabt_iii,map_consistent,idir,error)
           ithread = 0
 !$        ithread = omp_get_thread_num()
           jpab => jpabt(:,:,ithread)

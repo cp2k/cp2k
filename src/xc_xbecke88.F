@@ -374,7 +374,7 @@ CONTAINS
        !$omp     e_ndrho_ndrho, e_rho_rho_rho, e_ndrho_rho_rho, e_ndrho_ndrho_rho,&
        !$omp     e_ndrho_ndrho_ndrho,c,t1,t2,t5,t7)&
        !$omp   private(x, my_rho,my_rho_1_3,&
-       !$omp       t3, t6, t10, t11, t12, t13, t17, t18, t21)
+       !$omp       t3, t6, t10, t11, t12, t13, t17, t18, t21, ii)
        DO ii=1,npoints
 
           my_rho = rho(ii)
@@ -402,7 +402,7 @@ CONTAINS
        !$omp     e_ndrho_ndrho_ndrho,c,t1,t2,t5,t7)&
        !$omp   private(x, my_rho,my_rho_1_3,&
        !$omp       t3, t6, t10, t11, t12, t13, t17, t18, t21, t23, t29, &
-       !$omp       t31, t33, t37, t39, t40, t43, t44)
+       !$omp       t31, t33, t37, t39, t40, t43, t44, ii)
        DO ii=1,npoints
 
           my_rho = rho(ii)
@@ -448,7 +448,7 @@ CONTAINS
        !$omp     e_ndrho_ndrho_ndrho,c,t1,t2,t5,t7)&
        !$omp   private(x, my_rho,my_rho_1_3,&
        !$omp       t3, t6, t10, t11, t12, t13, t17, t18, t21, t23, t29, &
-       !$omp       t31, t33, t37, t39, t40, t43, t44)
+       !$omp       t31, t33, t37, t39, t40, t43, t44, ii)
        DO ii=1,npoints
 
           my_rho = rho(ii)
@@ -492,7 +492,7 @@ CONTAINS
        !$omp   private(x, my_rho,my_rho_1_3,&
        !$omp       t3, t6, t10, t11, t12, t13, t17, t18, t21, t23, t29, &
        !$omp       t31, t33, t37, t39, t40, t43, t44, t49, t51, t54, t64, t67, t72, t74, &
-       !$omp       t75, t79, t83, t86, t90, t91, t98, t99, t100, t104)
+       !$omp       t75, t79, t83, t86, t90, t91, t98, t99, t100, t104, ii)
        DO ii=1,npoints
 
           my_rho = rho(ii)
@@ -565,7 +565,7 @@ CONTAINS
        !$omp   private(x, my_rho,my_rho_1_3,&
        !$omp       t3, t6, t10, t11, t12, t13, t17, t18, t21, t23, t29, &
        !$omp       t31, t33, t37, t39, t40, t43, t44, t49, t51, t54, t64, t67, t72, t74, &
-       !$omp       t75, t79, t83, t86, t90, t91, t98, t99, t100, t104)
+       !$omp       t75, t79, t83, t86, t90, t91, t98, t99, t100, t104, ii)
        DO ii=1,npoints
 
           my_rho = rho(ii)
@@ -631,7 +631,7 @@ CONTAINS
        !$omp       t3, t6, t10, t11, t12, t13, t17, t18, t21, t23, t29, &
        !$omp       t31, t33, t37, t39, t40, t43, t44, t49, t51, t54, t64, t67, t72, t74, &
        !$omp       t75, t79, t83, t86, t90, t91, t98, t99, t100, t104, t126, t159, t164, &
-       !$omp       t170, t176, t189)
+       !$omp       t170, t176, t189, ii)
        DO ii=1,npoints
 
           my_rho = rho(ii)

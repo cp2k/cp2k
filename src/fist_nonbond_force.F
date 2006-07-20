@@ -126,22 +126,6 @@ SUBROUTINE force_nonbond ( fist_nonbond_env, particle_set, cell,  &
 
 
     nkinds = SIZE ( potparm%pot, 1 )
-!$OMP parallel do default(none) &
-!$OMP shared(nkinds) &
-!$OMP private(ikind,jkind) &
-!$OMP private(spline_data) &
-!$OMP shared(potparm) &
-!$OMP private(is_eam,ab) &
-!$OMP private(neighbor_list_set,neighbor_list) &
-!$OMP shared(nonbonded) &
-!$OMP private(rab,rab2_max) &
-!$OMP private(ilist,nlist,atom_a,atom_b,dra,s2r,neighbor_node,inode,nnode) &
-!$OMP shared(cell) &
-!$OMP shared(pot_nonbond) &
-!$OMP private(f_eam,pot,fr,fscalar,energy) &
-!$OMP shared(f_nonbond,ptens_nonbond,r_last_update) &
-!$OMP private(drb,rab2) &
-!$OMP shared(particle_set)
     DO ikind=1,nkinds
       DO jkind=1,nkinds
 
@@ -163,15 +147,38 @@ SUBROUTINE force_nonbond ( fist_nonbond_env, particle_set, cell,  &
 
         neighbor_list => first_list(neighbor_list_set)
 
+!$OMP parallel do default(none) schedule(DYNAMIC,1) reduction(+:pot_nonbond) &
+!$OMP shared(nkinds) &
+!$OMP shared(ikind) &
+!$OMP shared(jkind) &
+!$OMP shared(spline_data) &
+!$OMP shared(potparm) &
+!$OMP shared(is_eam,ab) &
+!$OMP shared(neighbor_list_set) &
+!$OMP shared(neighbor_list) &
+!$OMP shared(nonbonded) &
+!$OMP shared(rab2_max) &
+!$OMP shared(nlist) &
+!$OMP private(ilist,atom_a,atom_b,dra,s2r,neighbor_node,inode,nnode) &
+!$OMP private(rab) &
+!$OMP shared(cell) &
+!$OMP private(f_eam,pot,fr,fscalar,energy) &
+!$OMP shared(f_nonbond,ptens_nonbond,r_last_update) &
+!$OMP private(drb,rab2) &
+!$OMP shared(particle_set)
         DO ilist=1,nlist
 
+!$OMP critical
           atom_a=neighbor_list%atom
           nnode=neighbor_list%nnode
+
+          neighbor_node => first_node(neighbor_list)
+          neighbor_list => next(neighbor_list)
+!$OMP end critical
 
           CALL scaled_to_real(s2r,r_last_update(atom_a)%r,cell)
           dra(:) = particle_set(atom_a)%r(:) - s2r
 
-          neighbor_node => first_node(neighbor_list)
 
           DO inode=1,nnode
 
@@ -237,7 +244,7 @@ SUBROUTINE force_nonbond ( fist_nonbond_env, particle_set, cell,  &
 
           END DO
 
-          neighbor_list => next(neighbor_list)
+          !neighbor_list => next(neighbor_list)
 
         END DO
 

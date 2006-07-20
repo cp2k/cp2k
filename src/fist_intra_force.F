@@ -159,7 +159,7 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
 
 !$OMP private(imol)&
 !$OMP private(spline_data,molecule_kind,molecule,i) &
-!$OMP private(ibond,ibend,itorsion,ionef,first_atom) &
+!$OMP private(ibond,ibend,itorsion,imul,ionef,first_atom) &
 !$OMP private(index_a,index_b,index_c,index_d) &
 !$OMP private(nbonds,bond_list)&
 !$OMP private(nub,ub_list)&

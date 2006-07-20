@@ -252,7 +252,7 @@ CONTAINS
 !$OMP private(last_jatom,new_atom_b,istat,sgfa,sgfb,ra,rb)&
 !$OMP private(iset,jset,ncoa,ncob,nnode,inode,irow,icol)&
 !$OMP private(op_dip,op_dip2,rab,rab2,dab,i)&
-!$OMP private(sab_orb_neighbor_node,sab_orb_neighbor_list_local)&
+!$OMP private(sab_orb_neighbor_node,sab_orb_neighbor_list_local,alpha)&
 !$OMP shared(ikind,jkind,rpgfb,zetb,sphi_b,sphi_a,nsgfa,nsgfb,set_radius_b,ldab,ldwork)&
 !$OMP shared(lb_max,npgfb,nsetb,iab,la_min,rpgfa,zeta)&
 !$OMP shared(set_radius_a,nco,ncoset,npgfa,nseta,ldsa,ldsb)&
@@ -983,7 +983,7 @@ CONTAINS
 !$OMP private(last_jatom,new_atom_b,istat,sgfa,sgfb,ra,rb,rac,rbc)&
 !$OMP private(nrow,iset,jset,ncoa,ncob,nnode,inode,irow,icol)&
 !$OMP private(op_dip,rab,rab2,dab,i)&
-!$OMP private(sab_orb_neighbor_node,sab_orb_neighbor_list_local)&
+!$OMP private(sab_orb_neighbor_node,sab_orb_neighbor_list_local,imom)&
 !$OMP shared(ikind,jkind,rpgfb,zetb,sphi_b,sphi_a,nsgfa,nsgfb,set_radius_b,ldab,ldwork)&
 !$OMP shared(lb_max,npgfb,nsetb,iab,la_min,rpgfa,zeta)&
 !$OMP shared(set_radius_a,nco,ncoset,npgfa,nseta,ldsa,ldsb)&
@@ -1388,9 +1388,9 @@ CONTAINS
 !$OMP private(ithread,mab,difmab,work,ilist,iatom,jatom)&
 !$OMP private(last_jatom,new_atom_b,istat,sgfa,sgfb,ra,rb,rac,rbc)&
 !$OMP private(iset,jset,ncoa,ncob,nnode,inode,irow,icol,imom,idir)&
-!$OMP private(lda_min,;db_min,mab_tmp,na,nda,nb,ndb,ipgf,jpgf,i,j)&
-!$OMP private(op_dip,op_dip_der,rab,rab2,dab,i)&
-!$OMP private(sab_orb_neighbor_node,sab_orb_neighbor_list_local)&
+!$OMP private(lda_min,mab_tmp,na,nda,nb,ndb,ipgf,jpgf,i,j)&
+!$OMP private(op_dip,op_dip_der,rab,rab2,dab)&
+!$OMP private(sab_orb_neighbor_node,sab_orb_neighbor_list_local,alpha,failure,ldb_min)&
 !$OMP shared(ikind,jkind,rpgfb,zetb,sphi_b,sphi_a,nsgfa,nsgfb,set_radius_b,ldab,ldwork)&
 !$OMP shared(lb_max,npgfb,nsetb,iab,la_min,rpgfa,zeta)&
 !$OMP shared(set_radius_a,nco,ncoset,npgfa,nseta,ldsa,ldsb)&
@@ -1398,7 +1398,7 @@ CONTAINS
 !$OMP shared(op_dipt,op_dip_dert,order,M_dim,rc)&
 !$OMP shared(first_sgfa,first_sgfb,sab_orb,lb_min,la_max,op_sm,op_sm_der)&
 !$OMP shared(atomic_kind_set,particle_set,cell)&
-!$OMP shared(my_minimum_image,Lxo2,Lyo2,Lzo2)
+!$OMP shared(my_minimum_image,Lxo2,Lyo2,Lzo2,alpha_der,error)
         ithread = 0
 !$      ithread = omp_get_thread_num()
 
