@@ -282,18 +282,24 @@ CONTAINS
        CALL virial_set ( virial,pv_availability=simpar%pv_availability,&
                          pv_numer=simpar%pv_numerical)
        !
-       ! Always initialize velocities 
+       ! Always initialize velocities
        ! and possibly restart them
        !
        DO isubsys=1,SIZE(subsys)
-          subsys_section => section_vals_get_subs_vals(force_env_section,"SUBSYS",i_rep_section=isubsys,&
-               error=error)
-          CALL cp_subsys_get(subsys(isubsys)%subsys,&
-              particles=particles,&
-              error=error)
-          NULLIFY(work_section)
-          work_section => section_vals_get_subs_vals(subsys_section,"VELOCITY",error=error)       
-          CALL initialize_velocities ( simpar, particles%els, globenv, work_section=work_section,error=error)
+         subsys_section => section_vals_get_subs_vals(force_env_section,"SUBSYS",&
+                                                      i_rep_section=isubsys,&
+                                                      error=error)
+         CALL cp_subsys_get(subsys(isubsys)%subsys,&
+                            molecule_kinds_new=molecule_kinds_new,&
+                            particles=particles,&
+                            error=error)
+         NULLIFY (work_section)
+         work_section => section_vals_get_subs_vals(subsys_section,"VELOCITY",error=error)
+         CALL initialize_velocities(simpar,particles%els,&
+                                    molecule_kinds=molecule_kinds_new,&
+                                    globenv=globenv,&
+                                    work_section=work_section,&
+                                    error=error)
        END DO
 
        ! Set V0 if needed

@@ -100,3 +100,5 @@ Ar-11.inp
 K2.inp
 #  
 H2.inp
+# is_fixed cleaned from particle_type
+H2O-geoopt.inp

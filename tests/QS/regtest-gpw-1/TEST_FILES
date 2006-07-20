@@ -34,4 +34,5 @@ Ar-11.inp          1
 K2.inp             1
 H2.inp             1
 # printing of structure data
-H2O-geoopt.inp     0
+H2O-geoopt.inp     1
+H2O-fixed.inp      1

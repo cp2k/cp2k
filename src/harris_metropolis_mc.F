@@ -1,9 +1,7 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000-2005  CP2K developers group                            !
+!   Copyright (C) 2000 - 2006  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
-
-
 !!****h* cp2k/harris_metropolis_mc [1.0] *
 !!
 !!   NAME
@@ -23,6 +21,7 @@
 !!
 !!   SOURCE
 !****************************************************************************
+
 MODULE harris_metropolis_mc
 
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
@@ -97,7 +96,8 @@ MODULE harris_metropolis_mc
                                              kg_env_retain,&
                                              kg_environment_type
   USE kinds,                           ONLY: dp,&
-                                             dp_size
+                                             dp_size,&
+                                             int_size
   USE machine,                         ONLY: m_flush,&
                                              m_walltime
   USE md,                              ONLY: initialize_velocities,&
@@ -115,6 +115,9 @@ MODULE harris_metropolis_mc
                                              mp_sum
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
   USE mol_new_list_types,              ONLY: mol_new_list_type
+  USE molecule_kind_types,             ONLY: fixd_constraint_type,&
+                                             get_molecule_kind,&
+                                             molecule_kind_type
   USE parallel_rng_types,              ONLY: UNIFORM,&
                                              create_rng_stream,&
                                              delete_rng_stream,&
@@ -457,7 +460,8 @@ CONTAINS
     INTEGER :: accept, atom, force_env_in_use, handle, hmc_max_scf, i, iatom, &
       ibead, ikind, in_use, iparticles, istat, istep, isubsys, iter_level, &
       iw, max_scf_aspc_tmp, max_scf_tmp, mc_method, md_method, myi, nbeads, &
-      reject, wf_interpolation_method_tmp, harris_max_scf_tmp
+      reject, wf_interpolation_method_tmp, harris_max_scf_tmp, ifixd, nfixd, &
+      natom, imolecule_kind
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     INTEGER, POINTER                         :: accepted_md, itimes, &
                                                 md_approach_nr
@@ -512,7 +516,15 @@ CONTAINS
     TYPE(tbmd_environment_type), POINTER     :: tbmd_env
     TYPE(unit_convert_type), POINTER         :: unit
 
-!   ------------------------------------------------------------------------
+    TYPE(fixd_constraint_type), &
+      DIMENSION(:), POINTER                  :: fixd_list
+    TYPE(molecule_kind_type), DIMENSION(:), &
+      POINTER                                :: molecule_kind_set
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind
+
+    LOGICAL, DIMENSION(:), ALLOCATABLE       :: is_fixed
+
+    ! -------------------------------------------------------------------------
 
     CALL timeset(routineN, "I", "", handle)
     NULLIFY(force_env_section, motion_section,  subsys_section, md_approach_nr,&
@@ -702,11 +714,16 @@ CONTAINS
        !
        DO isubsys=1,SIZE(subsys)
           CALL cp_subsys_get(subsys(isubsys)%subsys,&
-              particles=particles,&
-              error=error)
+                             molecule_kinds_new=molecule_kinds_new,&
+                             particles=particles,&
+                             error=error)
           NULLIFY(work_section)
-          work_section => section_vals_get_subs_vals(subsys_section,"VELOCITY",error=error)       
-          CALL initialize_velocities ( simpar, particles%els, globenv, work_section=work_section,error=error)
+          work_section => section_vals_get_subs_vals(subsys_section,"VELOCITY",error=error)
+          CALL initialize_velocities(simpar,particles%els,&
+                                     molecule_kinds=molecule_kinds_new,&
+                                     globenv=globenv,&
+                                     work_section=work_section,&
+                                     error=error)
        END DO
        
        DO isubsys=1,SIZE(subsys)
@@ -1297,12 +1314,32 @@ CONTAINS
        END IF
 
        IF ((.NOT. drld) .AND. (.NOT. multiple_scf)) THEN
+
          ! New maxwell distributed momenta
+
          IF (rand_vel .OR. (semi_hybrid .AND. (.NOT. accepted))) THEN         
+
+            DO isubsys=1,SIZE(subsys)
+
+              CALL cp_subsys_get(subsys(isubsys)%subsys,&
+                                 molecule_kinds_new=molecule_kinds_new,&
+                                 particles=particles,&
+                                 error=error)
+
             IF (vel_scaling) THEN
                NULLIFY(work_section)
-               CALL initialize_velocities ( simpar, particles%els, globenv, work_section=work_section,error=error)
+               CALL initialize_velocities(simpar,particles%els,&
+                                          molecule_kinds=molecule_kinds_new,&
+                                          globenv=globenv,&
+                                          work_section=work_section,&
+                                          error=error)
             ELSE
+
+               !MK BEGIN TODO
+               !MK It is pretty bad to have here this excerpt of initialize_velocities.
+               !MK A proper modularization of initialize_velocities would be the better
+               !MK solution, obviously.
+
                iw = globenv%scr
                IF (globenv%ionode .AND. globenv%print_level >= 1) THEN
                   WRITE ( iw, '( A, A, A )' ) ' **********************', &
@@ -1312,14 +1349,35 @@ CONTAINS
                CALL get_cp2k_units(unit)
 
                ! initializing the velocities
+
                IF (globenv%ionode) THEN
+
+                 ! Build a list of all fixed atoms (if there any)
+
+                 natom = SIZE(particles%els)
+                 ALLOCATE (is_fixed(natom),STAT=istat)
+                 IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                                  "is_fixed",natom*int_size)
+                 is_fixed(:) = .FALSE.
+
+                 molecule_kind_set => molecule_kinds_new%els
+
+                 DO imolecule_kind=1,molecule_kinds_new%n_els
+                   molecule_kind => molecule_kind_set(imolecule_kind)
+                   CALL get_molecule_kind(molecule_kind=molecule_kind,&
+                                          nfixd=nfixd,&
+                                          fixd_list=fixd_list)
+                   DO ifixd=1,nfixd
+                     is_fixed(fixd_list(ifixd)%fixd) = .TRUE.
+                   END DO
+                 END DO
 
                   denom = 0.0_dp
                   vcom = 0.0_dp
                   ! computing the COM velocities
-                  DO i = 1,SIZE(particles%els)
+                  DO i = 1,natom
                      CALL get_atomic_kind(atomic_kind = particles%els(i)%atomic_kind, mass=mass)
-                     IF (particles%els(i)%is_fixed) THEN
+                     IF (is_fixed(i)) THEN
                         particles%els(i)%v = 0.0_dp
                      ELSE
                         sigma = simpar%temp_ext/mass
@@ -1339,11 +1397,11 @@ CONTAINS
 
                   akin = 0.0_dp
                   vcom_new = 0.0_dp
-                  DO i = 1,SIZE(particles%els)
+                  DO i = 1,natom
                      atomic_kind => particles%els(i)%atomic_kind
                      CALL get_atomic_kind (atomic_kind = atomic_kind, mass = mass)
                      ! first subtract the COM
-                     IF (.NOT.particles%els(i)%is_fixed) THEN
+                     IF (.NOT.is_fixed(i)) THEN
                         particles%els(i)%v(:) = particles%els(i)%v(:) - vcom(:)
                         ! now compute the temp
                         akin = akin + 0.5_dp * (mass * particles%els(i)%v(1) * particles%els(i)%v(1))
@@ -1352,6 +1410,12 @@ CONTAINS
                      END IF
                      vcom_new(:) = vcom_new(:) + mass * particles%els(i)%v(:)
                   END DO
+
+                  DEALLOCATE (is_fixed,STAT=istat)
+                  IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"is_fixed")
+
+                  !MK END TODO
+
                END IF
 
 #if defined(__parallel)
@@ -1378,16 +1442,22 @@ CONTAINS
                        ' end of velocity initialization ', '************************'
                END IF
             END IF
-         ELSE
+
+            END DO ! isubsys
+
+            ELSE
+
             ! Restore old momenta if the velocities are not choosen at random.
+
          END IF ! rand_vel
+
        END IF
 
        ! Write .hmc file
        hmc = cp_print_key_unit_nr(logger,motion_section,"MD%PRINT%HMC",&
             extension=".hmc", error=error)
-       IF (hmc>0) THEN
-          WRITE(hmc,"(I6, I5, F18.9, F18.9, F18.9, F18.9, F18.9, F18.9, F18.9, F18.9, F18.9, I8, I8, F8.4)") &
+       IF (hmc > 0) THEN
+          WRITE(hmc,"(I6, I5, 9F18.9, 2I8, F8.4)") &
                md_approach_nr, accepted_md, prev_ldmc_energy, Epot_prev, Ekin_prev, new_ldmc_energy, &
                Epot_new, Ekin_new, (new_ldmc_energy-prev_ldmc_energy), prob, random_number, accept, &
                reject, acceptance_rate

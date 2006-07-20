@@ -3382,12 +3382,11 @@ CONTAINS
                   fix_atom_qmmm=.TRUE.
                 ENDIF
              ENDIF
-             DO k = first, last
-                IF  (ANY(cons_info%fixed_atoms == k) .OR. fix_atom_qmmm .OR. fix_atom_molname) THEN                     
-                      kk = kk + 1
-                      fixd_list(kk)%fixd = k
-                      particle_set(k)%is_fixed = .TRUE.
-                END IF
+             DO k=first,last
+               IF (ANY(cons_info%fixed_atoms == k).OR.fix_atom_qmmm.OR.fix_atom_molname) THEN
+                 kk = kk + 1
+                 fixd_list(kk)%fixd = k
+               END IF
              END DO
           END DO
           IF (iw>0) WRITE(iw,*)"FIXD_LIST ::",fixd_list

@@ -39,18 +39,36 @@ MODULE md
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: default_path_length,&
-                                             dp
+                                             dp,&
+                                             int_size
   USE message_passing,                 ONLY: mp_bcast
+  USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
+  USE molecule_kind_types,             ONLY: fixd_constraint_type,&
+                                             get_molecule_kind,&
+                                             molecule_kind_type
   USE parallel_rng_types,              ONLY: next_random_number
   USE particle_types,                  ONLY: particle_type
+  USE termination,                     ONLY: stop_memory
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
 
   PRIVATE
-  PUBLIC :: read_md_section, simulation_parameters_type, &
-       initialize_velocities, qs_md_parameters_type, simpar_units_type
 
+  CHARACTER(len=*), PARAMETER :: moduleN = "md"
+
+  ! Public data types
+
+  PUBLIC :: qs_md_parameters_type,&
+            simpar_units_type,&
+            simulation_parameters_type
+
+  ! Public subroutines
+
+  PUBLIC :: initialize_velocities,&
+            read_md_section
 
   !!****s* md/qs_md_parameters_type [1.0] *
   !!
@@ -148,9 +166,6 @@ MODULE md
      INTEGER        :: n_time_steps
 
   END TYPE simulation_parameters_type
-
-  ! *** Global parameters ***
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'md'
 
   !!***
   !******************************************************************************
@@ -632,10 +647,6 @@ CONTAINS
 
   END SUBROUTINE set_md_defaults
 
-
-
-
-
   !******************************************************************************
   !!****** md/initialize_velocities [1.0] *
   !!
@@ -654,35 +665,49 @@ CONTAINS
   !!     Initializes the velocities to the Maxwellian distribution
   !!
   !!   AUTHOR
-  !!     CJM
+  !!     CJM,MK
   !!
   !!   MODIFICATION HISTORY
-  !!     none
+  !!     - is_fixed removed from particle_type
   !!
   !!*** *************************************************************************
 
-  SUBROUTINE initialize_velocities ( simpar, part, globenv, work_section, error )
-
+  SUBROUTINE initialize_velocities(simpar,part,globenv,molecule_kinds,&
+                                   work_section,error)
 
     TYPE(simulation_parameters_type), &
       INTENT(INOUT)                          :: simpar
     TYPE(particle_type), DIMENSION(:), &
       INTENT(INOUT)                          :: part
     TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
     TYPE(section_vals_type), POINTER         :: work_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    INTEGER                                  :: i, iw, natoms
+    CHARACTER(LEN=*), PARAMETER :: routineN = "initialize_velocities"
+
+    INTEGER                                  :: handle, i, ifixd, &
+                                                imolecule_kind, istat, iw, &
+                                                natoms, nfixd
     LOGICAL                                  :: explicit
     REAL(KIND=dp)                            :: akin, denom, mass, mass_tot, &
                                                 sc, temp
+    LOGICAL, DIMENSION(:), ALLOCATABLE       :: is_fixed
     REAL(KIND=dp), DIMENSION(3)              :: v, vcom, vcom_new
     REAL(KIND=dp), DIMENSION(:), POINTER     :: vel
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(unit_convert_type), POINTER         :: unit
 
-!------------------------------------------------------------------------------
+    TYPE(fixd_constraint_type), &
+      DIMENSION(:), POINTER                  :: fixd_list
+    TYPE(molecule_kind_type), DIMENSION(:), &
+      POINTER                                :: molecule_kind_set
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind
+
+    ! -------------------------------------------------------------------------
+
+    CALL timeset(routineN,"I","",handle)
 
     iw = globenv % scr
     IF (iw>0) THEN
@@ -698,6 +723,27 @@ CONTAINS
     natoms = SIZE ( part )
     explicit = .FALSE.
 
+    ! Build a list of all fixed atoms (if there any)
+
+    ALLOCATE (is_fixed(natoms),STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                     "is_fixed",natoms*int_size)
+    is_fixed(:) = .FALSE.
+
+    molecule_kind_set => molecule_kinds%els
+
+    DO imolecule_kind=1,molecule_kinds%n_els
+      molecule_kind => molecule_kind_set(imolecule_kind)
+      CALL get_molecule_kind(molecule_kind=molecule_kind,&
+                             nfixd=nfixd,&
+                             fixd_list=fixd_list)
+      DO ifixd=1,nfixd
+        is_fixed(fixd_list(ifixd)%fixd) = .TRUE.
+      END DO
+    END DO
+
+    ! Read or initialize the particle velocities
+
     CALL get_cp2k_units ( unit ) 
     IF (ASSOCIATED(work_section)) &
          CALL section_vals_get(work_section,explicit=explicit,error=error)
@@ -708,7 +754,7 @@ CONTAINS
           atomic_kind => part ( i ) % atomic_kind
           CALL get_atomic_kind ( atomic_kind = atomic_kind, mass = mass )
           mass_tot = mass_tot + mass
-          IF (part(i)%is_fixed) THEN
+          IF (is_fixed(i)) THEN
              part ( i ) % v ( 1 ) = 0.0_dp
              part ( i ) % v ( 2 ) = 0.0_dp
              part ( i ) % v ( 3 ) = 0.0_dp
@@ -724,7 +770,7 @@ CONTAINS
           atomic_kind => part ( i ) % atomic_kind
           CALL get_atomic_kind ( atomic_kind = atomic_kind, mass = mass )
           ! first subtract the COM
-          IF (.NOT.part(i)%is_fixed) THEN
+          IF (.NOT.is_fixed(i)) THEN
              v = part ( i ) % v ( : ) - vcom ( : )
              ! now compute the temp
              akin = akin + 0.5_dp * mass * SUM( v * v)
@@ -743,7 +789,7 @@ CONTAINS
              atomic_kind => part ( i ) % atomic_kind
              CALL get_atomic_kind ( atomic_kind = atomic_kind, mass = mass )
              mass_tot = mass_tot + mass
-             IF (part(i)%is_fixed) THEN
+             IF (is_fixed(i)) THEN
                 part ( i ) % v ( 1 ) = 0.0_dp
                 part ( i ) % v ( 2 ) = 0.0_dp
                 part ( i ) % v ( 3 ) = 0.0_dp
@@ -764,7 +810,7 @@ CONTAINS
              atomic_kind => part ( i ) % atomic_kind
              CALL get_atomic_kind ( atomic_kind = atomic_kind, mass = mass )
              ! first subtract the COM
-             IF (.NOT.part(i)%is_fixed) THEN
+             IF (.NOT.is_fixed(i)) THEN
                 part ( i ) % v ( : ) = part ( i ) % v ( : ) - vcom ( : )
                 ! now compute the temp
                 akin = akin + 0.5_dp *  &
@@ -835,6 +881,14 @@ CONTAINS
          simpar % ensemble == nph_uniaxial_ensemble .OR.&
          simpar % ensemble == nph_uniaxial_damped_ensemble ) &
          simpar % v_shock = simpar % v_shock * SQRT ( mass_tot )
+
+    DEALLOCATE (is_fixed,STAT=istat)
+    IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"is_fixed")
+
+    CALL timestop(0.0_dp,handle)
+
   END SUBROUTINE initialize_velocities
+
+  ! ***************************************************************************
 
 END MODULE md

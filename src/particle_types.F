@@ -84,7 +84,6 @@ MODULE particle_types
                                               v           ! velocity
      ! particle dependent terms for EAM
      REAL(KIND = dp)                       :: rho, f_embed
-     LOGICAL                               :: is_fixed    ! force is set to zero
   END TYPE particle_type
 
   ! Public data types
@@ -157,7 +156,6 @@ SUBROUTINE clone_particle(p_in,p_out,nullify_non_owned_pointers,error)
   p_out%r=p_in%r
   p_out%f=p_in%f
   p_out%v=p_in%v
-  p_out%is_fixed=p_in%is_fixed
 END SUBROUTINE clone_particle
 !***************************************************************************
 
@@ -194,7 +192,6 @@ END SUBROUTINE clone_particle
       particle_set(iparticle)%f(:) = 0.0_dp
       particle_set(iparticle)%r(:) = 0.0_dp
       particle_set(iparticle)%v(:) = 0.0_dp
-      particle_set(iparticle)%is_fixed = .FALSE.
     END DO
 
   END SUBROUTINE allocate_particle_set
@@ -613,17 +610,10 @@ END SUBROUTINE clone_particle
                              name=name,&
                              mass=mass,&
                              qeff=qeff)
-        IF (particle_set(iatom)%is_fixed) THEN
-          WRITE (iw,&
-               "(T2,I5,1X,I4,3X,A4,3X,3F12.6,4X,F6.2,2X,F11.4,1X,A1)")&
-            iatom,ikind,name,&
-            particle_set(iatom)%r(1:3)/unit_of_length,qeff,mass/massunit,"!"
-        ELSE
-          WRITE (iw,&
-               "(T2,I5,1X,I4,3X,A4,3X,3F12.6,4X,F6.2,2X,F11.4)")&
-            iatom,ikind,name,&
-            particle_set(iatom)%r(1:3)/unit_of_length,qeff,mass/massunit
-        END IF
+        WRITE (UNIT=iw,&
+               FMT="(T2,I5,1X,I4,3X,A4,3X,3F12.6,4X,F6.2,2X,F11.4)")&
+          iatom,ikind,name,&
+          particle_set(iatom)%r(1:3)/unit_of_length,qeff,mass/massunit
       END DO
       WRITE (iw,'(/)')
     END IF
@@ -679,17 +669,10 @@ END SUBROUTINE clone_particle
                              mass=mass,&
                              z=z,&
                              zeff=zeff)
-        IF (particle_set(iatom)%is_fixed) THEN
-          WRITE (iw,&
-               "(T2,I5,1X,I4,3X,A2,2X,I3,3F12.6,4X,F6.2,2X,F11.4,1X,A1)")&
-            iatom,ikind,element_symbol,z,&
-            particle_set(iatom)%r(1:3)/unit_of_length,zeff,mass/massunit,"!"
-        ELSE
-          WRITE (iw,&
-               "(T2,I5,1X,I4,3X,A2,2X,I3,3F12.6,4X,F6.2,2X,F11.4)")&
-            iatom,ikind,element_symbol,z,&
-            particle_set(iatom)%r(1:3)/unit_of_length,zeff,mass/massunit
-        END IF
+        WRITE (UNIT=iw,&
+               FMT="(T2,I5,1X,I4,3X,A2,2X,I3,3F12.6,4X,F6.2,2X,F11.4)")&
+          iatom,ikind,element_symbol,z,&
+          particle_set(iatom)%r(1:3)/unit_of_length,zeff,mass/massunit
       END DO
       WRITE (iw,'(/)')
     END IF
