@@ -98,3 +98,5 @@ H2O-1.inp                 2
 h2o2_amber.inp            2
 gly_amber.inp             2
 mol_amber.inp             2
+#RESPA_TEST
+acn_respa.inp             2
