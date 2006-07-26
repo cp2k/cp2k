@@ -31,7 +31,7 @@ MODULE velocity_verlet_control
        nvt_ensemble, reftraj_ensemble
   USE integrator,                      ONLY: &
        isokin, langevin, nph_uniaxial, nph_uniaxial_damped, npt_f, npt_i, &
-       nve, nvt, reftraj
+       nve, nvt, reftraj,nve_respa
   USE mathconstants,                   ONLY: zero
   USE md,                              ONLY: simulation_parameters_type
   USE md_environment_types,            ONLY: get_md_env,&
@@ -94,7 +94,11 @@ SUBROUTINE velocity_verlet ( md_env, error )
      CASE DEFAULT
         CALL stop_program ( 'velocity_verlet','integrator not implemented')
      CASE ( nve_ensemble )
-        CALL nve ( md_env, error )
+        IF(simpar%do_respa)THEN
+           CALL nve_respa(md_env,error)
+        ELSE
+           CALL nve ( md_env, error )
+        END IF
      CASE ( nvt_ensemble )
         CALL nvt ( md_env, error  )
      CASE ( isokin_ensemble )
