@@ -1372,7 +1372,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE collocate_pgf_response_current_wrong(la_max,zeta,la_min,&
+  SUBROUTINE collocate_pgf_resp_curr_wrong(la_max,zeta,la_min,&
                                             lb_max,zetb,lb_min,&
                                             ra,rab,rab2,scale,ii,iii,&
                                             pab,pab_ii,pab_iii,&
@@ -1727,7 +1727,7 @@ CONTAINS
     DEALLOCATE(polz_ii,polz_iii,pzyx_ii,pzyx_iii,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineN,error,failure)
 
-  END SUBROUTINE  collocate_pgf_response_current_wrong
+  END SUBROUTINE  collocate_pgf_resp_curr_wrong
 
 !  *****************************************************************************************
 !dbg
