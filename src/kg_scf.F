@@ -44,7 +44,8 @@ MODULE kg_scf
                                              core_guess,&
                                              random_guess,&
                                              restart_guess
-  USE input_section_types,             ONLY: section_vals_type
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_type
   USE kahan_sum,                       ONLY: accurate_sum
   USE kg_diis_methods,                 ONLY: kg_diis_b_clear,&
                                              kg_diis_b_create,&
@@ -75,6 +76,7 @@ MODULE kg_scf
   USE kg_gpw_pw_env_types,             ONLY: kg_sub_pw_env_type
   USE kg_scf_types,                    ONLY: kg_scf_env_release,&
                                              kg_scf_env_type
+  USE kg_scf_post,                     ONLY: scf_post_calculation
   USE kinds,                           ONLY: dp,&
                                              dp_size
   USE machine,                         ONLY: m_flush,&
@@ -164,7 +166,7 @@ CONTAINS
 !!
 !!*** **********************************************************************
 
-  SUBROUTINE kg_scf_env_create(scf_env,kg_env, error)
+  SUBROUTINE kg_scf_env_create(scf_env,kg_env,error)
 
     TYPE(kg_scf_env_type), POINTER           :: scf_env
     TYPE(kg_environment_type), POINTER       :: kg_env
@@ -236,10 +238,9 @@ CONTAINS
 !!   MODIFICATION HISTORY
 !!
 !!*** **********************************************************************
-  SUBROUTINE kg_qs_scf(kg_env,globenv,scf_section,error)
+  SUBROUTINE kg_qs_scf(kg_env,globenv,error)
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(section_vals_type), POINTER         :: scf_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -263,7 +264,7 @@ CONTAINS
            CALL kg_scf_env_release(scf_env)
            CALL get_kg_env(kg_env,scf_env=scf_env,error=error)
         END IF
-        CALL scf_env_do_scf(scf_env,my_kg_env,globenv,scf_section=scf_section,error=error)
+        CALL scf_env_do_scf(scf_env,my_kg_env,globenv,error=error)
      END IF
   END SUBROUTINE kg_qs_scf
 !***************************************************************************
@@ -297,12 +298,11 @@ CONTAINS
 !!     fully activated 12-04 MI 
 !!
 !!*** **********************************************************************
-  SUBROUTINE scf_env_do_scf(scf_env,kg_env,globenv,scf_section,error)
+  SUBROUTINE scf_env_do_scf(scf_env,kg_env,globenv,error)
 
     TYPE(kg_scf_env_type), POINTER           :: scf_env
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(section_vals_type), POINTER         :: scf_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -330,11 +330,14 @@ CONTAINS
       POINTER                                :: matrix_h, matrix_ks, &
                                                 matrix_p, matrix_s
     TYPE(scf_control_type), POINTER          :: scf_control
+    TYPE(section_vals_type), POINTER         :: dft_section
+    TYPE(section_vals_type), POINTER         :: scf_section
 
 !   ---------------------------------------------------------------------------
 
     NULLIFY(dft_control,scf_control,ks_env,qs_env)
     NULLIFY(rho, matrix_h, matrix_ks, matrix_p, matrix_s, kg_fm)
+    NULLIFY(dft_section,scf_section)
     NULLIFY(logger)
 
     logger => cp_error_get_logger(error)
@@ -355,7 +358,12 @@ CONTAINS
     IF (scf_control%max_scf < 1) RETURN
 
     CALL timeset(routineN,"I"," ",handle)
+
     energy_only = .FALSE.
+
+    dft_section => section_vals_get_subs_vals(kg_env%input,"DFT",error=error)
+    scf_section => section_vals_get_subs_vals(dft_section,"SCF",error=error)
+
     output_unit = cp_print_key_unit_nr(logger,scf_section,"PRINT%PROGRAM_RUN_INFO",&
          extension=".scfLog",error=error)
 
@@ -743,6 +751,11 @@ CONTAINS
     CALL kg_rho_update_rho_mol( kg_sub_pw_env, qs_env,  kg_fm%kg_fm_mol_set , error=error)
 
     CALL qs_ks_did_change(ks_env,rho_changed=.TRUE.,error=error)
+
+! ** compute properties that depend on the converged wavefunction
+    IF ( .NOT. should_stop ) THEN
+      CALL scf_post_calculation(dft_section, kg_env, error=error)
+    END IF
 
 ! *** cleanup
     CALL kg_scf_env_cleanup(scf_env,qs_env=qs_env,error=error)

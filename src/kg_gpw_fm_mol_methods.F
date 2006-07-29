@@ -71,7 +71,8 @@ MODULE kg_gpw_fm_mol_methods
 
   PUBLIC ::  build_local_fm_mol, calculate_mol_density_matrix,&
              fm_mol_eigensolver, fm_mol_orthonormality, &
-             mol_make_basis, multiply_sparse_mol_mo
+             mol_make_basis, multiply_sparse_mol_mo, &
+             mol_density_matrix
 
 ! *****************************************************************************
 
@@ -385,6 +386,63 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE calculate_mol_density_matrix
+
+!***************************************************************************
+
+  SUBROUTINE mol_density_matrix(mo_set,pmat,error)
+
+    TYPE(mol_mo_set_type), POINTER           :: mo_set
+    REAL(KIND=dp), DIMENSION(:,:), POINTER   :: pmat
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'mol_density_matrix', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, icol, ncol, nrow, &
+                                                homo, lfomo, istat
+    LOGICAL                                  :: failure
+    REAL(dp)                                 :: maxocc
+    REAL(dp), DIMENSION(:), POINTER          :: occupation
+    REAL(dp), DIMENSION(:, :), POINTER       :: mo_coeff, fmo_coeff
+
+!   ---------------------------------------------------------------------------
+
+    CALL timeset(routineN,"I"," ",handle)
+
+    failure = .FALSE.
+    CPPrecondition(ASSOCIATED(pmat),cp_failure_level,routineP,error,failure)
+
+    NULLIFY(mo_coeff,occupation)
+    CALL get_mol_mo_set(mo_set=mo_set, mo=mo_coeff,&
+                        occupation_numbers=occupation, &
+                        maxocc=maxocc, homo=homo, lfomo=lfomo, nmo=ncol)
+
+    CPPrecondition(ASSOCIATED(mo_coeff),cp_failure_level,routineP,error,failure)
+    nrow = SIZE(mo_coeff,1)
+
+    IF(lfomo .LE. homo) THEN
+      NULLIFY(fmo_coeff)
+      ALLOCATE(fmo_coeff(nrow,ncol),STAT=istat)
+      CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+      CALL DCOPY(nrow*ncol,mo_coeff,1,fmo_coeff,1)
+      DO icol = 1,ncol
+        CALL DSCAL(nrow,occupation(icol),fmo_coeff(1,icol),1)
+      END DO
+
+      CALL DGEMM('N','T',nrow,nrow,ncol,1._dp,mo_coeff,nrow,&
+                 fmo_coeff,nrow,1._dp,pmat,SIZE(pmat,1))
+
+      DEALLOCATE(fmo_coeff,STAT=istat)
+      CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
+    ELSE
+      CALL DGEMM('N','T',nrow,nrow,homo,maxocc,mo_coeff,nrow,&
+                 mo_coeff,nrow,1._dp,pmat,SIZE(pmat,1))
+    END IF
+
+    CALL timestop(0.0_dp,handle)
+
+  END SUBROUTINE mol_density_matrix
 
 !***************************************************************************
 

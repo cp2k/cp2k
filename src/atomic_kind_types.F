@@ -305,6 +305,7 @@ CONTAINS
                              aux_basis_set,orb_basis_set,&
                              element_symbol,name,mass,kind_number,natom,&
                              atom_list,alpha_core_charge,ccore_charge,&
+                             core_charge,&
                              core_charge_radius,ncgf,nsgf,z,zeff,qeff,&
                              soft_basis_set, elec_conf,&
                              hard_basis_set,paw_proj_set,softb,&
@@ -340,6 +341,7 @@ CONTAINS
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: alpha_core_charge, &
                                                 ccore_charge, &
                                                 core_charge_radius
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: core_charge
     INTEGER, INTENT(OUT), OPTIONAL           :: ncgf, nsgf, z
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: zeff, qeff
     TYPE(gto_basis_set_type), OPTIONAL, &
@@ -429,6 +431,20 @@ CONTAINS
                              core_charge_radius=core_charge_radius)
         ELSE
           core_charge_radius = 0.0_dp
+        END IF
+      END IF
+      IF (PRESENT(core_charge)) THEN
+        IF (ASSOCIATED(atomic_kind%all_potential)) THEN
+          CALL get_potential(potential=atomic_kind%all_potential,&
+                             zeff=core_charge)
+        ELSE IF (ASSOCIATED(atomic_kind%elp_potential)) THEN
+          CALL get_potential(potential=atomic_kind%elp_potential,&
+                             qeff=core_charge)
+        ELSE IF (ASSOCIATED(atomic_kind%gth_potential)) THEN
+          CALL get_potential(potential=atomic_kind%gth_potential,&
+                             zeff=core_charge)
+        ELSE
+          core_charge = 0.0_dp
         END IF
       END IF
       IF (PRESENT(ncgf)) THEN

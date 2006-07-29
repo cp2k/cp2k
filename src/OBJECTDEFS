@@ -207,6 +207,7 @@ OBJECTS_GENERIC =\
  kg_rspw_methods.o\
  kg_rspw_types.o\
  kg_scf.o\
+ kg_scf_post.o\
  kg_scf_types.o\
  kinds.o\
  l_utils.o\
@@ -340,6 +341,7 @@ OBJECTS_GENERIC =\
  qs_mo_methods.o\
  qs_mo_types.o\
  qs_modify_pab_block.o\
+ qs_moments.o\
  qs_neighbor_list_types.o\
  qs_neighbor_lists.o\
  qs_numerical_pressure.o\

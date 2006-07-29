@@ -469,14 +469,12 @@ SUBROUTINE kg_qs_energies ( kg_env, globenv, error )
 
     INTEGER                                  :: handle
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(section_vals_type), POINTER         :: scf_section
 
     CALL timeset(routine,"I","",handle)
 
-    NULLIFY ( qs_env , scf_section)
+    NULLIFY ( qs_env )
     CALL get_kg_env(kg_env=kg_env,&
                     sub_qs_env=qs_env)
-    scf_section => section_vals_get_subs_vals(kg_env%input,"DFT%SCF",error=error)
     CALL build_qs_neighbor_lists(qs_env,globenv,.TRUE.,qs_env%input,error=error)
 
     ! Calculate the overlap and the core Hamiltonian integral matrix
@@ -487,7 +485,7 @@ SUBROUTINE kg_qs_energies ( kg_env, globenv, error )
     CALL kg_qs_env_update(kg_env,qs_env,error=error)
 
     ! Perform a SCF run
-    CALL kg_qs_scf(kg_env,globenv,scf_section=scf_section,error=error)
+    CALL kg_qs_scf(kg_env,globenv,error=error)
 
     CALL timestop(0.0_dp,handle)
 
