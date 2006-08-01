@@ -492,7 +492,7 @@ CONTAINS
 
        CALL keyword_create(keyword, name="M",&
             description="Defines the multiplicity of the potential",&
-            usage="M {real}", required=.TRUE., type_of_var=real_t,&
+            usage="M {integer}", required=.TRUE., type_of_var=integer_t,&
             n_var=1, error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
