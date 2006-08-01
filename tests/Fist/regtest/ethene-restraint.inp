@@ -1,0 +1,81 @@
+
+&FORCE_EVAL
+  &MM
+    &FORCEFIELD
+      parmfile ethene_fake.pot
+      parmtype CHM
+      &CHARGE
+        ATOM CE2
+        CHARGE -0.42
+      &END CHARGE
+      &CHARGE
+        ATOM HE2
+        CHARGE 0.21
+      &END CHARGE
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE spme
+        ALPHA .44
+        GMAX 24
+        O_SPLINE 6
+      &END EWALD
+    &END POISSON
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC 24.955 24.955 24.955
+      UNIT ANGSTROM
+    &END CELL
+    &TOPOLOGY
+      COORD_FILE ../sample_pdb/ethene.pdb
+      COORDINATE pdb
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  FFTLIB FFTW
+  PROGRAM FIST
+  PROJECT ethene
+  RUN_TYPE md
+&END GLOBAL
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 2
+    TIMESTEP 0.5
+    TEMPERATURE 298
+    &NOSE
+      LENGTH 3
+      YOSHIDA 3
+      TIMECON 1000
+      MTS 2
+    &END NOSE
+  &END MD
+  &RESTRAINT
+    &TORSION
+      ATOMS   3 1 2 4
+      K       [kcalmol] 4.90
+      PHI0    [deg] 180.00
+      M         2
+    &END TORSION
+    &TORSION
+      ATOMS   3 1 2 6
+      K       [kcalmol] 4.90
+      PHI0    [deg] 180.00
+      M         2
+    &END TORSION
+    &TORSION
+      ATOMS   5 1 2 4
+      K       [kcalmol] 4.90
+      PHI0    [deg] 180.00
+      M         2
+    &END TORSION
+    &TORSION
+      ATOMS   5 1 2 6
+      K       [kcalmol] 4.90
+      PHI0    [deg] 180.00
+      M         2
+    &END TORSION
+  &END RESTRAINT
+&END MOTION

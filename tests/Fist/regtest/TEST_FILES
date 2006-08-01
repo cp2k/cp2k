@@ -84,8 +84,15 @@ ethene_colv1.inp          2
 ethene_colv1_npt.inp      2
 ethene_colv2.inp          2
 ethene_colv2_npt.inp      2
+#
+# test restraints here
 # flexible partitioning
 H2O-32_SPME_fp.inp        2
+# dist and bend
+H2O-restraint.inp         2
+# torsion
+ethene-restraint.inp      2
+#
 # testing loops in topology
 loop.inp                  2
 pentadiene.inp            2
