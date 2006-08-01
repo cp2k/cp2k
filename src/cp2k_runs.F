@@ -79,8 +79,11 @@ MODULE cp2k_runs
   USE metadynamics,                    ONLY: metadyn_read
   USE metadynamics_types,              ONLY: meta_env_release,&
                                              meta_env_type
-  USE fp_types,                        ONLY: fp_env_create,fp_env_release, fp_type, &
-                                             fp_env_read,fp_env_write
+  USE restraint_types,                 ONLY: restraint_env_create,&
+                                             restraint_env_release,&
+                                             restraint_env_type,&
+                                             restraint_env_read,&
+                                             restraint_env_write
   USE pint_methods,                    ONLY: do_pint_run
   USE qmmm_init,                       ONLY: qmmm_create_force_env
   USE qs_debug,                        ONLY: qs_debug_energy_and_forces
@@ -164,9 +167,9 @@ CONTAINS
     TYPE(meta_env_type), POINTER             :: meta_env
     TYPE(section_type), POINTER              :: input_structure
     TYPE(section_vals_type), POINTER         :: glob_section, hmc_section, &
-                                                input_file, metadyn_section, fp_section,&
+                                                input_file, metadyn_section, restraint_section,&
                                                 force_env_sections, force_env_section
-    TYPE(fp_type), POINTER                   :: fp_env
+    TYPE(restraint_env_type), POINTER        :: restraint_env
     INTEGER :: nforce_eval, iforce_eval
     INTEGER, POINTER, DIMENSION(:) :: i_force_eval
 
@@ -330,13 +333,14 @@ CONTAINS
                 CALL metadyn_read(meta_env, globenv, metadyn_section, error=suberror)
                 CALL force_env_set(my_force_env,meta_env=meta_env,error=suberror)
                 CALL meta_env_release(meta_env,error=suberror)
-                NULLIFY(fp_env)
-                fp_section => section_vals_get_subs_vals(globenv%input_file,"MOTION%FLEXIBLE_PARTITIONING",error=suberror)
-                CALL fp_env_create(fp_env,error=suberror)
-                CALL fp_env_read(fp_env,fp_section,error=suberror)
-                CALL fp_env_write(fp_env,fp_section,error=suberror)
-                CALL force_env_set(my_force_env,fp_env=fp_env,error=suberror)
-                CALL fp_env_release(fp_env,error=suberror)
+                NULLIFY(restraint_env)
+                restraint_section => section_vals_get_subs_vals(globenv%input_file,&
+                   "MOTION%RESTRAINT",error=suberror)
+                CALL restraint_env_create(restraint_env,error=suberror)
+                CALL restraint_env_read(restraint_env,restraint_section,error=suberror)
+                CALL restraint_env_write(restraint_env,restraint_section,error=suberror)
+                CALL force_env_set(my_force_env,restraint_env=restraint_env,error=suberror)
+                CALL restraint_env_release(restraint_env,error=suberror)
 
                 IF (nforce_eval>1.AND.iforce_eval==1) THEN
                    ALLOCATE(my_force_env%sub_force_env(nforce_eval-1),stat=stat)

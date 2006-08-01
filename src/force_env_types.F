@@ -51,15 +51,15 @@ MODULE force_env_types
   USE metadynamics_types,              ONLY: meta_env_release,&
                                              meta_env_retain,&
                                              meta_env_type
-  USE fp_types,                        ONLY: fp_type, &
-                                             fp_env_release, &
-                                             fp_env_retain
   USE qmmm_types,                      ONLY: qmmm_env_qm_release,&
                                              qmmm_env_qm_type
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_env_release,&
                                              qs_environment_type
+  USE restraint_types,                 ONLY: restraint_env_type,&
+                                             restraint_env_release,&
+                                             restraint_env_retain
   USE tbmd_energy_types,               ONLY: tbmd_energy_type
   USE tbmd_environment_types,          ONLY: tbmd_env_get,&
                                              tbmd_env_release,&
@@ -75,9 +75,13 @@ MODULE force_env_types
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'force_env_types'
 
-  INTEGER, PARAMETER, PUBLIC :: use_fist_force=501, use_qs_force=502,&
-       use_kg_force=503, use_pol_force=504, use_qmmm=505, &
-       use_tbmd_force=506, use_eip_force=507
+  INTEGER, PARAMETER, PUBLIC :: use_fist_force = 501, &
+                                use_qs_force   = 502, &
+                                use_kg_force   = 503, &
+                                use_pol_force  = 504, &
+                                use_qmmm       = 505, &
+                                use_tbmd_force = 506, &
+                                use_eip_force  = 507
   PUBLIC :: force_env_type, force_env_p_type
   PUBLIC :: force_env_retain, force_env_release, force_env_set,&
        force_env_get
@@ -111,7 +115,7 @@ MODULE force_env_types
 !!       environment of the fragments
 !!     - meta_env: the metadynamics environment, allocated if there is
 !!       metadynamics
-!!     - fp_env: the flexible partitioning environment
+!!     - restraint_env: the restraint environment
 !!     read-only attributes (get them *only* through force_env_get):
 !!     - subsys: the fragments that build up the actual system.
 !!       The subsystems (and thus their para_envs) are supposed to be ordered in
@@ -131,22 +135,22 @@ MODULE force_env_types
   !***************************************************************************
   TYPE force_env_type
 !     PRIVATE
-     INTEGER :: id_nr,ref_count,in_use
-     TYPE ( fist_environment_type ), POINTER :: fist_env 
-     TYPE ( kg_environment_type ), POINTER :: kg_env
-     TYPE ( meta_env_type ), POINTER :: meta_env
-     TYPE ( fp_type ), POINTER :: fp_env
-     TYPE ( qs_environment_type ), POINTER :: qs_env
-     TYPE ( tbmd_environment_type ), POINTER :: tbmd_env
-     TYPE ( eip_environment_type ), POINTER  :: eip_env
+     INTEGER                                             :: id_nr,ref_count,in_use
+     TYPE ( fist_environment_type ), POINTER             :: fist_env 
+     TYPE ( kg_environment_type ), POINTER               :: kg_env
+     TYPE ( meta_env_type ), POINTER                     :: meta_env
+     TYPE ( restraint_env_type ), POINTER                :: restraint_env
+     TYPE ( qs_environment_type ), POINTER               :: qs_env
+     TYPE ( tbmd_environment_type ), POINTER             :: tbmd_env
+     TYPE ( eip_environment_type ), POINTER              :: eip_env
      TYPE ( cp_subsystem_p_type ), DIMENSION(:), POINTER :: subsys
      TYPE ( dyn_coeff_set_p_type ), DIMENSION(:),POINTER :: dyn_coeff_set
-     TYPE ( global_environment_type ), POINTER :: globenv
-     TYPE ( cp_para_env_type ), POINTER :: para_env
-     TYPE ( force_env_p_type ), DIMENSION(:), POINTER :: sub_force_env
-     TYPE ( qmmm_env_qm_type ), POINTER :: qmmm_env
-     TYPE ( virial_type  ), POINTER :: virial
-     TYPE ( section_vals_type), POINTER :: force_env_section
+     TYPE ( global_environment_type ), POINTER           :: globenv
+     TYPE ( cp_para_env_type ), POINTER                  :: para_env
+     TYPE ( force_env_p_type ), DIMENSION(:), POINTER    :: sub_force_env
+     TYPE ( qmmm_env_qm_type ), POINTER                  :: qmmm_env
+     TYPE ( virial_type  ), POINTER                      :: virial
+     TYPE ( section_vals_type), POINTER                  :: force_env_section
   END TYPE force_env_type
 
 !!****s* force_env_types/force_env_p_type [1.0] *
@@ -301,7 +305,7 @@ RECURSIVE SUBROUTINE force_env_release(force_env, error)
         CPAssert(.NOT.ASSOCIATED(force_env%kg_env),cp_warning_level,routineP,error,failure)
         CPAssert(.NOT.ASSOCIATED(force_env%fist_env),cp_warning_level,routineP,error,failure)
         CALL meta_env_release(force_env%meta_env,error=error)
-        CALL fp_env_release(force_env%fp_env,error=error)
+        CALL restraint_env_release(force_env%restraint_env,error=error)
         CALL qmmm_env_qm_release(force_env%qmmm_env,error=error)
         CALL virial_release(force_env%virial,error=error)
         CALL section_vals_release(force_env%force_env_section,error=error)
@@ -339,52 +343,52 @@ END SUBROUTINE force_env_release
 !!
 !!*** **********************************************************************
 RECURSIVE SUBROUTINE force_env_get(force_env, in_use, &
-     fist_env, qs_env, kg_env, meta_env, fp_env, dyn_coeff_set, subsys, para_env, &
+     fist_env, qs_env, kg_env, meta_env, restraint_env, dyn_coeff_set, subsys, para_env, &
      potential_energy, kinetic_energy, cell, cell_ref, sub_force_env, qmmm_env,&
      tbmd_env, eip_env, virial, use_ref_cell, globenv, input, force_env_section,error)
-    TYPE(force_env_type), POINTER            :: force_env
-    INTEGER, INTENT(out), OPTIONAL           :: in_use
+    TYPE(force_env_type), POINTER               :: force_env
+    INTEGER, INTENT(out), OPTIONAL              :: in_use
     TYPE(fist_environment_type), OPTIONAL, &
-      POINTER                                :: fist_env
+      POINTER                                   :: fist_env
     TYPE(qs_environment_type), OPTIONAL, &
-      POINTER                                :: qs_env
+      POINTER                                   :: qs_env
     TYPE(kg_environment_type), OPTIONAL, &
-      POINTER                                :: kg_env
-    TYPE(meta_env_type), OPTIONAL, POINTER   :: meta_env
-    TYPE(fp_type), OPTIONAL, POINTER   :: fp_env
+      POINTER                                   :: kg_env
+    TYPE(meta_env_type), OPTIONAL, POINTER      :: meta_env
+    TYPE(restraint_env_type), OPTIONAL, POINTER :: restraint_env
     TYPE(dyn_coeff_set_p_type), &
-      DIMENSION(:), OPTIONAL, POINTER        :: dyn_coeff_set
+      DIMENSION(:), OPTIONAL, POINTER           :: dyn_coeff_set
     TYPE(cp_subsystem_p_type), &
-      DIMENSION(:), OPTIONAL, POINTER        :: subsys
+      DIMENSION(:), OPTIONAL, POINTER           :: subsys
     TYPE(cp_para_env_type), OPTIONAL, &
-      POINTER                                :: para_env
-    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: potential_energy, &
+      POINTER                                   :: para_env
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL        :: potential_energy, &
                                                 kinetic_energy
-    TYPE(cell_type), OPTIONAL, POINTER       :: cell, cell_ref
+    TYPE(cell_type), OPTIONAL, POINTER          :: cell, cell_ref
     TYPE(force_env_p_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: sub_force_env
+      OPTIONAL, POINTER                         :: sub_force_env
     TYPE(qmmm_env_qm_type), OPTIONAL, &
-      POINTER                                :: qmmm_env
+      POINTER                                   :: qmmm_env
     TYPE(tbmd_environment_type), OPTIONAL, &
-      POINTER                                :: tbmd_env
+      POINTER                                   :: tbmd_env
     TYPE(eip_environment_type), OPTIONAL, &
-      POINTER                                :: eip_env
-    TYPE(virial_type), OPTIONAL, POINTER     :: virial
-    LOGICAL, INTENT(out), OPTIONAL           :: use_ref_cell
+      POINTER                                   :: eip_env
+    TYPE(virial_type), OPTIONAL, POINTER        :: virial
+    LOGICAL, INTENT(out), OPTIONAL              :: use_ref_cell
     TYPE(global_environment_type), &
-      OPTIONAL, POINTER                      :: globenv
+      OPTIONAL, POINTER                         :: globenv
     TYPE(section_vals_type), OPTIONAL, &
-      POINTER                                :: input, force_env_section
+      POINTER                                   :: input, force_env_section
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+      OPTIONAL                                  :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'force_env_get', &
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: eip_kinetic_energy, &
-                                                eip_potential_energy, kin, &
-                                                penergy_mm, penergy_qm, pot
+                                                eip_potential_energy, &
+                                                penergy_mm, penergy_qm
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(fist_energy_type), POINTER          :: thermo
     TYPE(kg_energy_type), POINTER            :: kg_energy
@@ -553,18 +557,18 @@ RECURSIVE SUBROUTINE force_env_get(force_env, in_use, &
          kinetic_energy=kinetic_energy+force_env%meta_env%ekin_s
        END IF
      END IF
-     ! adjust the total energy for the flexible partitioning
-     IF (ASSOCIATED(force_env%fp_env) .AND. PRESENT(potential_energy)) THEN
-        IF (force_env%fp_env%use_fp) THEN
-             potential_energy=potential_energy+force_env%fp_env%energy
+     ! adjust the total energy for the restraints
+     IF (ASSOCIATED(force_env%restraint_env) .AND. PRESENT(potential_energy)) THEN
+        IF (force_env%restraint_env%in_use) THEN
+             potential_energy=potential_energy+force_env%restraint_env%energy
         ENDIF
      ENDIF
-     IF (PRESENT(fp_env)) fp_env => force_env%fp_env
-     IF (PRESENT(meta_env)) meta_env => force_env%meta_env
+     IF (PRESENT(restraint_env)) restraint_env => force_env%restraint_env
+     IF (PRESENT(meta_env))      meta_env      => force_env%meta_env
      IF (PRESENT(sub_force_env)) sub_force_env => force_env%sub_force_env
-     IF (PRESENT(qmmm_env)) qmmm_env => force_env%qmmm_env
-     IF ( PRESENT ( virial ) )   virial => force_env % virial
-     IF (PRESENT(globenv)) globenv => force_env%globenv
+     IF (PRESENT(qmmm_env))      qmmm_env      => force_env%qmmm_env
+     IF (PRESENT(virial))        virial        => force_env % virial
+     IF (PRESENT(globenv))       globenv       => force_env%globenv
   END IF
 END SUBROUTINE force_env_get
 !***************************************************************************
@@ -594,12 +598,12 @@ END SUBROUTINE force_env_get
 !!     09.2003 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE force_env_set(force_env, meta_env,fp_env, virial, force_env_section, error)
-    TYPE(force_env_type), POINTER            :: force_env
-    TYPE(meta_env_type), OPTIONAL, POINTER   :: meta_env
-    TYPE(fp_type), OPTIONAL, POINTER   :: fp_env
-    TYPE(virial_type), OPTIONAL, POINTER     :: virial
-    TYPE(section_vals_type), OPTIONAL, POINTER :: force_env_section
+SUBROUTINE force_env_set(force_env, meta_env,restraint_env, virial, force_env_section, error)
+    TYPE(force_env_type), POINTER               :: force_env
+    TYPE(meta_env_type), OPTIONAL, POINTER      :: meta_env
+    TYPE(restraint_env_type), OPTIONAL, POINTER :: restraint_env
+    TYPE(virial_type), OPTIONAL, POINTER        :: virial
+    TYPE(section_vals_type), OPTIONAL, POINTER  :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -621,10 +625,10 @@ SUBROUTINE force_env_set(force_env, meta_env,fp_env, virial, force_env_section, 
         CALL meta_env_release(force_env%meta_env,error=error)
         force_env%meta_env => meta_env
      END IF
-     IF (PRESENT(fp_env)) THEN
-        CALL fp_env_retain(fp_env,error=error)
-        CALL fp_env_release(force_env%fp_env,error=error)
-        force_env%fp_env => fp_env
+     IF (PRESENT(restraint_env)) THEN
+        CALL restraint_env_retain(restraint_env,error=error)
+        CALL restraint_env_release(force_env%restraint_env,error=error)
+        force_env%restraint_env => restraint_env
      END IF
      IF (PRESENT(virial)) THEN
         IF (ASSOCIATED(virial)) THEN

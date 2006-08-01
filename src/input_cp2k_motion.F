@@ -109,14 +109,13 @@ CONTAINS
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
 
-       CALL create_fp_section(subsection,error)
+       CALL create_restraint_section(subsection,error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
        
        CALL create_mc_section(subsection, error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
-       
 
        CALL section_create(subsection,name="print",&
             description="Controls the printing properties during an MD run",&
@@ -845,6 +844,75 @@ CONTAINS
 
   END SUBROUTINE create_metadyn_section
 
+
+
+!!****f* input_cp2k/create_restraint_section *
+!!
+!!   NAME
+!!     create_restraint_section
+!!
+!!   FUNCTION
+!!     creates the restraint section
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - section: the section to be created
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     ikuo [07.2006]
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_restraint_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_restraint_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: print_key, subsection
+
+    failure=.FALSE.
+    
+    IF (.NOT.failure) THEN
+       CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+       CALL section_create(section,name="RESTRAINT",&
+            description="This section sets up restraint section",&
+            n_keywords=1, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+        
+       NULLIFY(keyword,print_key,subsection)
+
+       CALL create_fp_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+       
+       CALL create_harmonic_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL create_dist_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL create_angle_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL create_torsion_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+    END IF
+
+  END SUBROUTINE create_restraint_section
+
+
 !!****f* input_cp2k/create_fp_section *
 !!
 !!   NAME
@@ -965,6 +1033,283 @@ CONTAINS
     END IF
 
   END SUBROUTINE create_fp_section
+
+
+
+!!****f* input_cp2k/create_harmonic_section *
+!!
+!!   NAME
+!!     create_harmonic_section
+!!
+!!   FUNCTION
+!!     creates the harmonic section
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - section: the section to be created
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     ikuo [07.2006]
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_harmonic_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_harmonic_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: print_key
+
+    failure=.FALSE.
+    
+    IF (.NOT.failure) THEN
+       CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+       CALL section_create(section,name="HARMONIC",&
+            description="This section sets up harmonic restraints",&
+            n_keywords=1, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+        
+       NULLIFY(keyword,print_key)
+
+
+
+
+    END IF
+
+  END SUBROUTINE create_harmonic_section
+
+
+
+
+
+!!****f* input_cp2k/create_dist_section *
+!!
+!!   NAME
+!!     create_dist_section
+!!
+!!   FUNCTION
+!!     creates the dist section
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - section: the section to be created
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     ikuo [07.2006]
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_dist_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_dist_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: print_key
+
+    failure=.FALSE.
+    
+    IF (.NOT.failure) THEN
+       CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+       CALL section_create(section,name="DIST",&
+            description="This section sets up dist restraints",&
+            n_keywords=3, n_subsections=0, repeats=.TRUE., required=.FALSE.,&
+            error=error)
+        
+       NULLIFY(keyword,print_key)
+
+       CALL keyword_create(keyword, name="ATOMS",&
+            description="Specifies the atom indexes defining the distance.",&
+            usage="ATOMS {integer} {integer}",required=.TRUE.,&
+            n_var=2, type_of_var=integer_t, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="K",&
+            description="force constant",&
+            usage="K {real}", required=.TRUE., type_of_var=real_t,&
+            n_var=-1, unit_str="hartree*bohr^-2",error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="R0",&
+            description="distance",&
+            usage="R0 {real}", required=.TRUE., type_of_var=real_t,&
+            n_var=1, unit_str="bohr", error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+    END IF
+
+  END SUBROUTINE create_dist_section
+
+
+
+!!****f* input_cp2k/create_angle_section *
+!!
+!!   NAME
+!!     create_angle_section
+!!
+!!   FUNCTION
+!!     creates the angle section
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - section: the section to be created
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     ikuo [07.2006]
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_angle_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_angle_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: print_key
+
+    failure=.FALSE.
+    
+    IF (.NOT.failure) THEN
+       CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+       CALL section_create(section,name="ANGLE",&
+            description="This section sets up angle restraints",&
+            n_keywords=1, n_subsections=1, repeats=.TRUE., required=.FALSE.,&
+            error=error)
+        
+       NULLIFY(keyword,print_key)
+
+       CALL keyword_create(keyword, name="ATOMS",&
+            description="Specifies the atom indexes defining the angle.",&
+            usage="ATOMS {integer} {integer} {integer}",required=.TRUE.,&
+            n_var=3, type_of_var=integer_t, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="K",&
+            description="force constant",&
+            usage="K {real}", required=.TRUE., type_of_var=real_t,&
+            n_var=-1, unit_str="hartree*rad^-2",error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="THETA0",&
+            description="angle",&
+            usage="THETA0 {real}", required=.TRUE., type_of_var=real_t,&
+            n_var=1, unit_str="deg", error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+
+
+
+    END IF
+
+  END SUBROUTINE create_angle_section
+
+
+!!****f* input_cp2k/create_torsion_section *
+!!
+!!   NAME
+!!     create_torsion_section
+!!
+!!   FUNCTION
+!!     creates the torsion section
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - section: the section to be created
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     ikuo [07.2006]
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_torsion_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_torsion_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: print_key
+
+    failure=.FALSE.
+    
+    IF (.NOT.failure) THEN
+       CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+       CALL section_create(section,name="TORSION",&
+            description="This section sets up torsion restraints",&
+            n_keywords=1, n_subsections=1, repeats=.TRUE., required=.FALSE.,&
+            error=error)
+        
+       NULLIFY(keyword,print_key)
+
+       CALL keyword_create(keyword, name="ATOMS",&
+            description="Specifies the atom indexes defining the torsion.",&
+            usage="ATOMS {integer} {integer} {integer} {integer}",required=.TRUE.,&
+            n_var=4, type_of_var=integer_t, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="K",&
+            description="force constant",&
+            usage="K {real}", required=.TRUE., type_of_var=real_t,&
+            n_var=-1, unit_str="hartree*rad^-2",error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="PHI0",&
+            description="angle",&
+            usage="PHI0 {real}", required=.TRUE., type_of_var=real_t,&
+            n_var=1, unit_str="deg", error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="M",&
+            description="Defines the multiplicity of the potential",&
+            usage="M {integer}", required=.TRUE., type_of_var=integer_t,&
+            n_var=1, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+    END IF
+
+  END SUBROUTINE create_torsion_section
+
+
+
+
+
 
 !***************************************************************************
 !!****f* input_cp2k_motion/create_metadyn_history [1.0] *
