@@ -224,6 +224,7 @@ CONTAINS
             gopt_env%force_env%para_env, force_env_section, error)
     !MK Hm, it seems that here only the root process has the correct gradient for all atoms
     CALL mp_bcast(g,globenv%source,globenv%group)
+    CALL apply_fixed_atom_constraint(force_env,g)
 
     ! Print info at time 0
     emin = etot
@@ -300,7 +301,7 @@ CONTAINS
        ELSE IF( it > 1 ) THEN        
           DO indf = 1, ndf
              dx(indf) = x0(indf) - xold(indf)
-             dg(indf) =  g(indf) - gold(indf)     
+             dg(indf) =  g(indf) - gold(indf)
           END DO
 
           CALL bfgs(ndf,dx,dg,hes,work)
@@ -335,18 +336,18 @@ CONTAINS
        CALL trust_radius(ndf,nfree,step,rad,rat,dr,output_unit,output_unit>0)
 
        ! Update the atomic positions
-       !MK x0 = x0 + dr
-       CALL update_positions(force_env,x0,dr)
+       x0 = x0 + dr
 
        CALL energy_predict(ndf,work,hes,dr,g,output_unit>0,output_unit,conv,pred)
        IF (conv) EXIT
        eold = etot
 
-       !    ** Energy & Gradients at new step **
+       ! Energy & Gradients at new step
        CALL cp_eval_at(gopt_env, x0, etot, g, gopt_env%force_env%para_env%mepos,&
             gopt_env%force_env%para_env, force_env_section, error)
        !MK Hm, it seems that here only the root process has the correct gradient for all atoms
        CALL mp_bcast(g,globenv%source,globenv%group)
+       CALL apply_fixed_atom_constraint(force_env,g)
        ediff = etot - eold
 
        IF(output_unit>0) CALL write_cycle_infos &
@@ -966,13 +967,12 @@ CONTAINS
 
   ! ***************************************************************************
 
-  SUBROUTINE update_positions(force_env,r,dr)
+  SUBROUTINE apply_fixed_atom_constraint(force_env,g)
 
-    TYPE(force_env_type), POINTER            :: force_env
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: r
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: dr
+    TYPE(force_env_type), POINTER              :: force_env
+    REAL(KIND=dp), DIMENSION(:), INTENT(INOUT) :: g
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "update_positions",&
+    CHARACTER(LEN=*), PARAMETER :: routineN = "apply_fixed_atom_constraint",&
                                    routineP = moduleN//":"//routineN
 
     INTEGER                                  :: handle, i, ifixd, &
@@ -990,12 +990,6 @@ CONTAINS
     ! -------------------------------------------------------------------------
 
     CALL timeset(routineN,"I","",handle)
-
-    ! Firstly, move all atoms
-
-    r(:) = r(:) + dr(:)
-
-    ! Then undo the move for the fixed atoms
 
     CALL force_env_get(force_env=force_env,subsys=subsys)
 
@@ -1017,9 +1011,9 @@ CONTAINS
 
         DO ifixd=1,nfixd
           i = 3*(fixd_list(ifixd)%fixd - 1)
-          r(i+1) = r(i+1) - dr(i+1)
-          r(i+2) = r(i+2) - dr(i+2)
-          r(i+3) = r(i+3) - dr(i+3)
+          g(i+1) = 0.0_dp
+          g(i+2) = 0.0_dp
+          g(i+3) = 0.0_dp
         END DO
 
       END DO ! imolecule_kind
@@ -1028,7 +1022,7 @@ CONTAINS
 
     CALL timestop(0.0_dp,handle)
 
-  END SUBROUTINE update_positions
+  END SUBROUTINE apply_fixed_atom_constraint
 
   ! ***************************************************************************
 
