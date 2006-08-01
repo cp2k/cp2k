@@ -106,7 +106,7 @@ MODULE force_field_types
     CHARACTER (LEN=default_string_length), POINTER :: torsion_c(:)
     CHARACTER (LEN=default_string_length), POINTER :: torsion_d(:)
     REAL(KIND=dp), POINTER                         :: torsion_k(:)
-    REAL(KIND=dp), POINTER                         :: torsion_m(:)
+    INTEGER, POINTER                               :: torsion_m(:)
     REAL(KIND=dp), POINTER                         :: torsion_cosphi0(:)
     CHARACTER (LEN=default_string_length), POINTER :: impr_kind(:)
     CHARACTER (LEN=default_string_length), POINTER :: impr_a(:)

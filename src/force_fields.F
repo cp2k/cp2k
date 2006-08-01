@@ -1142,8 +1142,8 @@ CONTAINS
       DIMENSION(:), POINTER                  :: torsion_kind, torsion_a, &
                                                 torsion_b, torsion_c, &
                                                 torsion_d
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: torsion_k, torsion_cosphi0, &
-                                                torsion_m
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: torsion_k, torsion_cosphi0
+    INTEGER,DIMENSION(:),POINTER             :: torsion_m
     TYPE(section_vals_type), POINTER         :: section
     INTEGER, INTENT(IN)                      :: start
     TYPE(cp_error_type), INTENT(inout), &
@@ -1174,7 +1174,7 @@ CONTAINS
        CALL uppercase(torsion_d(start+isec))
        CALL section_vals_val_get(section,"K",i_rep_section=isec,r_val=torsion_k(start+isec),error=error)
        CALL section_vals_val_get(section,"PHI0",i_rep_section=isec,r_val=torsion_cosphi0(start+isec),error=error)
-       CALL section_vals_val_get(section,"M",i_rep_section=isec,r_val=torsion_m(start+isec),error=error)
+       CALL section_vals_val_get(section,"M",i_rep_section=isec,i_val=torsion_m(start+isec),error=error)
     END DO
   END SUBROUTINE read_torsions_section
 
