@@ -91,9 +91,9 @@ MODULE kg_force
                                              zero_qs_force
   USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
   USE qs_ks_types,                     ONLY: qs_ks_env_type
-  USE qs_overlap,                      ONLY: write_sparse_matrix
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE scf_control_types,               ONLY: scf_control_type
+  USE sparse_matrix_output,            ONLY: write_sparse_matrix
   USE sparse_matrix_types,             ONLY: allocate_matrix_set,&
                                              deallocate_matrix_set,&
                                              real_matrix_p_type,&

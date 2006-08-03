@@ -147,8 +147,6 @@ MODULE qs_scf
                                              outer_loop_optimize,&
                                              outer_loop_update_qs_env,&
                                              outer_loop_variables_count
-  USE qs_overlap,                      ONLY: write_fm_with_basis_info,&
-                                             write_sparse_matrix
   USE qs_rho_methods,                  ONLY: duplicate_rho_type,&
                                              qs_rho_update_rho
   USE qs_rho_types,                    ONLY: qs_rho_type
@@ -171,6 +169,8 @@ MODULE qs_scf
   USE qs_wf_history_types,             ONLY: wfi_frozen_method_nr,&
                                              wfi_use_guess_method_nr
   USE scf_control_types,               ONLY: scf_control_type
+  USE sparse_matrix_output,            ONLY: write_fm_with_basis_info,&
+                                             write_sparse_matrix
   USE sparse_matrix_types,             ONLY: real_matrix_p_type,&
                                              real_matrix_type,&
                                              transfer_matrix

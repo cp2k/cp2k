@@ -59,10 +59,10 @@ MODULE qs_force
                                              qs_ks_release
   USE qs_mo_types,                     ONLY: mo_set_p_type,&
                                              mo_set_type
-  USE qs_overlap,                      ONLY: write_sparse_matrix
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE qs_semi_empirical_hamiltonian,   ONLY: build_se_core_matrix
   USE scf_control_types,               ONLY: scf_control_type
+  USE sparse_matrix_output,            ONLY: write_sparse_matrix
   USE sparse_matrix_types,             ONLY: allocate_matrix_set,&
                                              deallocate_matrix_set,&
                                              real_matrix_p_type,&

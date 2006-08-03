@@ -132,10 +132,10 @@ MODULE qs_core_hamiltonian
        create_oce_set, deallocate_vtriple, dist_list_4oce_type,&
        oce_matrix_type, &
        prepare_oce_coeff, retrieve_sac_list, vtriple_type
-  USE qs_overlap,                      ONLY: write_matrix_distribution,&
-                                             write_sparse_matrix
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE scf_control_types,               ONLY: scf_control_type
+  USE sparse_matrix_output,            ONLY: write_matrix_distribution,&
+                                             write_sparse_matrix
   USE sparse_matrix_types,             ONLY: &
        add_block_node, add_matrices, allocate_matrix, allocate_matrix_set, &
        cp_sm_scale_and_add, deallocate_matrix_set, get_block_node, &
@@ -2046,10 +2046,6 @@ CONTAINS
       END DO ! jkind
 
     END DO ! ikind
-
-!dbg
-!  stop 'pippo'
-!dbg
 
 !   *** Put the core Hamiltonian matrix in the QS environment ***
 

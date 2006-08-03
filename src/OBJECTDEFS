@@ -389,6 +389,7 @@ OBJECTS_GENERIC =\
  semi_empirical_types.o\
  semi_empirical_utils.o\
  soft_basis_set.o\
+ sparse_matrix_output.o\
  sparse_matrix_types.o\
  spherical_harmonics.o\
  splines.o\

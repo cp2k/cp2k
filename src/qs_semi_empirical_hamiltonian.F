@@ -42,12 +42,12 @@ MODULE qs_semi_empirical_hamiltonian
        first_list, first_node, get_neighbor_list, get_neighbor_list_set, &
        get_neighbor_node, neighbor_list_set_p_type, neighbor_list_type, &
        neighbor_node_type, next
-  USE qs_overlap,                      ONLY: build_overlap_matrix,&
-                                             write_sparse_matrix
+  USE qs_overlap,                      ONLY: build_overlap_matrix
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE semi_empirical_types,            ONLY: semi_empirical_type
   USE semi_empirical_utils,            ONLY: get_se_param,&
                                              get_se_type
+  USE sparse_matrix_output,            ONLY: write_sparse_matrix
   USE sparse_matrix_types,             ONLY: allocate_matrix_set,&
                                              cp_sm_scale_and_add,&
                                              create_dbm_from_sm,&

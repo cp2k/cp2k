@@ -101,7 +101,6 @@ MODULE kg_scf
                                              qs_ks_release
   USE qs_matrix_pools,                 ONLY: mpools_get
   USE qs_ot_scf,                       ONLY: ot_scf_destroy
-  USE qs_overlap,                      ONLY: write_sparse_matrix
   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE qs_scf_methods,                  ONLY: scf_env_density_mixing
@@ -115,6 +114,7 @@ MODULE kg_scf
                                              wfi_update
   USE qs_wf_history_types,             ONLY: wfi_use_guess_method_nr
   USE scf_control_types,               ONLY: scf_control_type
+  USE sparse_matrix_output,            ONLY: write_sparse_matrix
   USE sparse_matrix_types,             ONLY: deallocate_matrix_set,&
                                              get_block_node,&
                                              get_matrix_diagonal,&
