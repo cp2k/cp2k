@@ -30,6 +30,7 @@ MODULE restraint_types
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
+  USE memory_utilities,                ONLY: reallocate
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -71,13 +72,14 @@ MODULE restraint_types
   END TYPE fp_type
 
   TYPE harmonic_type
-    LOGICAL                          :: in_use
+    LOGICAL                          :: in_use, first_time
     REAL(KIND=dp)                    :: weight, comb_weight, bias_weight
     REAL(KIND=dp)                    :: energy, bias_energy, restraint_energy
+    INTEGER                          :: nrestraint
+    INTEGER, DIMENSION(:), POINTER   :: atom_a
     REAL(KIND=dp),DIMENSION(:,:),POINTER &
                                      :: r_orig
-    REAL(KIND=dp),DIMENSION(:),POINTER &
-                                     :: k
+    REAL(KIND=dp)                    :: k
   END TYPE harmonic_type
 
   TYPE dist_type
@@ -200,8 +202,10 @@ CONTAINS
     ALLOCATE(restraint_env%harmonic_env,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     restraint_env%harmonic_env%in_use=.FALSE.
+    restraint_env%harmonic_env%first_time=.TRUE.
+    NULLIFY(restraint_env%harmonic_env%atom_a)
     NULLIFY(restraint_env%harmonic_env%r_orig)
-    NULLIFY(restraint_env%harmonic_env%k)
+    restraint_env%harmonic_env%k=0.0_dp
     restraint_env%harmonic_env%energy=0.0_dp
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -282,8 +286,9 @@ CONTAINS
        ! Deal with the harmonic_env
        IF (ASSOCIATED(restraint_env%harmonic_env)) THEN
          IF (ASSOCIATED(restraint_env%harmonic_env%r_orig)) DEALLOCATE(restraint_env%harmonic_env%r_orig)
-         IF (ASSOCIATED(restraint_env%harmonic_env%k)) DEALLOCATE(restraint_env%harmonic_env%k)
+         IF (ASSOCIATED(restraint_env%harmonic_env%atom_a)) DEALLOCATE(restraint_env%harmonic_env%atom_a)
          restraint_env%harmonic_env%in_use=.FALSE.
+         restraint_env%harmonic_env%first_time=.TRUE.
          DEALLOCATE(restraint_env%harmonic_env)
        ENDIF
 
@@ -489,9 +494,18 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'harmonic_env_read', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle
-    INTEGER, DIMENSION(:), POINTER           :: tmplist
+    INTEGER                                  :: handle,stat
     LOGICAL                                  :: failure
+    LOGICAL :: l_range,l_index
+    INTEGER :: iline,nline
+    INTEGER :: istart,istop
+    INTEGER :: ires,iires,nres
+    INTEGER,DIMENSION(:),POINTER :: tmplist
+    REAL(KIND=dp),DIMENSION(:),POINTER :: tmplist2
+
+
+    l_range = .FALSE.
+    l_index = .FALSE.
 
     CALL timeset(routineN,handle)
     failure=.FALSE.
@@ -499,9 +513,54 @@ CONTAINS
     CALL section_vals_get(harmonic_section,explicit=harmonic_env%in_use,error=error)
     IF (harmonic_env%in_use) THEN
 
+      CALL section_vals_val_get(harmonic_section,"RANGE",n_rep_val=nline,error=error)
+      IF(nline>0) l_range = .TRUE.
+      CALL section_vals_val_get(harmonic_section,"INDEX",n_rep_val=nline,error=error)
+      IF(nline>0) l_index = .TRUE.
 
+      CPPrecondition((l_range.OR.l_index),cp_failure_level,routineP,error,failure)
 
-    ENDIF
+      IF(l_range) THEN
+        CPPrecondition(.NOT.l_index,cp_failure_level,routineP,error,failure)
+        nres=0
+        CALL section_vals_val_get(harmonic_section,"RANGE",n_rep_val=nline,error=error)       
+        DO iline = 1, nline
+          CALL section_vals_val_get(harmonic_section,"RANGE",i_rep_val=iline,i_vals=tmplist,error=error)
+          istart=tmplist(1)
+          istop=tmplist(2)
+          ires = istop-istart + 1
+          CALL reallocate(harmonic_env%atom_a,1,nres+ires)
+          iires = nres+1
+          DO ires=istart,istop
+            harmonic_env%atom_a(iires) = ires
+            iires=iires+1
+          END DO
+          nres = nres + (istop-istart+1)
+        END DO            
+        harmonic_env%nrestraint = nres
+        ALLOCATE(harmonic_env%r_orig(3,nres),stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      ENDIF
+
+      IF(l_index) THEN
+        CPPrecondition(.NOT.l_range,cp_failure_level,routineP,error,failure)
+        nres=0
+        CALL section_vals_val_get(harmonic_section,"INDEX",n_rep_val=nline,error=error)       
+        DO iline = 1, nline
+          CALL section_vals_val_get(harmonic_section,"INDEX",i_rep_val=iline,i_vals=tmplist,error=error)
+          CALL reallocate(harmonic_env%atom_a,1,nres+SIZE(tmplist))
+          harmonic_env%atom_a(nres+1:nres+SIZE(tmplist)) = tmplist(:)
+          nres = nres + SIZE(tmplist)
+        END DO            
+        harmonic_env%nrestraint = nres
+        ALLOCATE(harmonic_env%r_orig(3,nres),stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      ENDIF
+
+      CALL section_vals_val_get(harmonic_section,"K",r_vals=tmplist2,error=error)
+      harmonic_env%k = tmplist2(1)
+
+    END IF
     CALL timestop(handle)
 
   END SUBROUTINE harmonic_env_read

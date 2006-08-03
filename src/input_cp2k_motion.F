@@ -1074,14 +1074,31 @@ CONTAINS
        CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
        CALL section_create(section,name="HARMONIC",&
             description="This section sets up harmonic restraints",&
-            n_keywords=1, n_subsections=1, repeats=.FALSE., required=.TRUE.,&
+            n_keywords=1, n_subsections=1, repeats=.FALSE., required=.FALSE.,&
             error=error)
         
        NULLIFY(keyword,print_key)
 
+       CALL keyword_create(keyword, name="RANGE",&
+            description="Range of atom index to apply restraint",&
+            usage="ATOMS {integer} {integer}",required=.TRUE.,&
+            n_var=2,type_of_var=integer_t,repeats=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
 
+       CALL keyword_create(keyword, name="INDEX",&
+            description="Atom index to apply restraint",&
+            usage="INDEX {many integers} ",required=.TRUE.,&
+            n_var=-1,type_of_var=integer_t,repeats=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
 
-
+       CALL keyword_create(keyword, name="K",&
+            description="force constant",&
+            usage="K {real}", required=.TRUE., type_of_var=real_t,&
+            n_var=-1, unit_str="hartree*bohr^-2",error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
     END IF
 
   END SUBROUTINE create_harmonic_section
@@ -1261,7 +1278,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-    TYPE(section_type), POINTER              :: print_key
 
     failure=.FALSE.
     
@@ -1272,7 +1288,7 @@ CONTAINS
             n_keywords=1, n_subsections=1, repeats=.TRUE., required=.FALSE.,&
             error=error)
         
-       NULLIFY(keyword,print_key)
+       NULLIFY(keyword)
 
        CALL keyword_create(keyword, name="ATOMS",&
             description="Specifies the atom indexes defining the torsion.",&

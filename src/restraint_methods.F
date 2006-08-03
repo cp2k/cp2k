@@ -368,20 +368,55 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'harmonic_eval', &
       routineP = moduleN//':'//routineN
-
     INTEGER                                  :: handle
+    CHARACTER(len=default_string_length)     :: name
+    LOGICAL                                  :: failure
+    TYPE(particle_list_type), POINTER        :: particles_list
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particles
+    INTEGER :: ires,nres,iatom
+    REAL(KIND=dp) ::rab(3),k(3),r0,energy,fscalar
+
 
     CALL timeset(routineN,handle)
 
-!   DO iatom=1,natom
-!     rab=particle_set(iatom)%r-harmonic_env%r_orig(iatom)
-!     CALL force_bonds("HARMONIC",rab,0.0_dp,harmonic_env%k(iatom),energy,fscalar)
-!     particle_set(iatom)%f(1)=particle_set(iatom)%f(1)-rab(1)*fscalar
-!     particle_set(iatom)%f(2)=particle_set(iatom)%f(2)-rab(2)*fscalar
-!     particle_set(iatom)%f(3)=particle_set(iatom)%f(3)-rab(3)*fscalar
-!   END DO
+    failure=.FALSE.
+
+    CPPrecondition(ASSOCIATED(harmonic_env),cp_failure_level,routineP,error,failure)
+    CPPrecondition(harmonic_env%in_use,cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(subsys),cp_failure_level,routineP,error,failure)
+    ! limitation can be easily removed
+    CPPrecondition(SIZE(subsys,1)==1,cp_failure_level,routineP,error,failure)
+    CALL cp_subsys_get(subsys(1)%subsys,particles=particles_list,error=error)
+    particles=>particles_list%els
+
+    nres = harmonic_env % nrestraint
+
+    IF(harmonic_env%first_time) THEN
+      DO ires=1,nres
+        iatom=harmonic_env%atom_a(ires)
+        harmonic_env%r_orig(:,ires) = particles(iatom)%r(:)
+      END DO
+      harmonic_env%first_time = .FALSE.
+    ELSE
+      name = "HARMONIC"
+      DO ires=1,nres
+        iatom=harmonic_env%atom_a(ires)
+        k(:)=0.0_dp
+        k(1)=harmonic_env%k
+        r0=0.0_dp
+        rab=particles(iatom)%r-harmonic_env%r_orig(:,iatom)
+        CALL force_bonds(name,rab,r0,k,energy,fscalar)
+        particles(iatom)%f(1)=particles(iatom)%f(1)-rab(1)*fscalar
+        particles(iatom)%f(2)=particles(iatom)%f(2)-rab(2)*fscalar
+        particles(iatom)%f(3)=particles(iatom)%f(3)-rab(3)*fscalar
+        harmonic_env%energy = harmonic_env%energy + energy
+      END DO
+    END IF
 
     CALL timestop(handle)
+
+
 
   END SUBROUTINE harmonic_eval
 
