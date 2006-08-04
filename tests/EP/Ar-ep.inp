@@ -1,0 +1,65 @@
+
+&FORCE_EVAL
+  &DFT
+    &MGRID
+      CUTOFF 200
+      REL_CUTOFF 40
+    &END MGRID
+    &QS
+      EPS_DEFAULT 1.0E-12
+      EPS_GVG 1.0E-6
+      EPS_RHO 1.0E-8
+    &END QS
+    &SCF
+      EPS_DIIS 0.1
+      EPS_SCF 1.0E-6
+      MAX_DIIS 4
+      MAX_SCF 20
+      MIXING 0.4
+      SCF_GUESS atomic
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL Pade
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 6.0 6.0 6.0
+      UNIT ANGSTROM
+    &END CELL
+    &COORD
+    Ar     0.000000  0.000000  0.000000
+    &END COORD
+    &KIND Ar
+      BASIS_SET DZVP-GTH-PADE
+      POTENTIAL GTH-PADE-q8
+    &END KIND
+  &END SUBSYS
+  &EP
+    comp_input Ar-sys.inp
+    at_per_mol 1
+  &END
+&END FORCE_EVAL
+&GLOBAL
+  FFTLIB FFTSG
+  PROGRAM  ep # Quickstep #
+  PRINT_LEVEL MEDIUM
+  RUN_TYPE  ENERGY_FORCE # PINT #
+  project main
+&END GLOBAL
+&MOTION
+  &MD
+    ENSEMBLE NVT
+    STEPS 3
+    TIMESTEP 0.1
+    TEMPERATURE 300.0
+    TEMP_TO 20.0
+    &NOSE
+      LENGTH 3
+      YOSHIDA 3
+      TIMECON 100.0
+      MTS 2
+    &END NOSE
+  &END MD
+&END MOTION
