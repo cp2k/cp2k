@@ -72,6 +72,11 @@ MODULE qs_overlap
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_overlap'
 
+! *** Global types ***
+  TYPE block_p_type
+    REAL(KIND = dp), DIMENSION(:,:), POINTER :: block
+  END TYPE block_p_type
+
 ! *** Public subroutines ***
 
   PUBLIC :: build_overlap_matrix
@@ -96,12 +101,6 @@ CONTAINS
     INTEGER, INTENT(IN), OPTIONAL            :: nderivative
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-
-!   *** Local types ***
-
-    TYPE block_p_type
-      REAL(KIND = dp), DIMENSION(:,:), POINTER :: block
-    END TYPE block_p_type
 
 !   *** Local parameters ***
 
@@ -190,8 +189,9 @@ CONTAINS
     CALL get_particle_set(particle_set=particle_set,&
                           first_sgf=first_sgf,&
                           last_sgf=last_sgf)
-   ! XXXXXXX, sparsity_id, does this result in the same overlap matrix as qs_build_core_hamiltonian
-   ! XXXXXXX, if so it is a pitty to have the code duplication,if not, this sparsity_id is wrong.
+   ! XXXXXXX, sparsity_id, does this result in the same overlap matrix 
+   ! XXXXXXX, as qs_build_core_hamiltonian, if so it is a pitty to have 
+   ! XXXXXXX, the code duplication,if not, this sparsity_id is wrong.
     CALL allocate_matrix(matrix=matrix_s(1)%matrix,&
                          nblock_row=natom,&
                          nblock_col=natom,&
@@ -476,6 +476,108 @@ CONTAINS
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE build_overlap_matrix
+
+! *****************************************************************************
+
+  SUBROUTINE atom_overlap_matrix(iatom,nseta,set_radius_a,npgfa,nsgfa,la_max,&
+                                 la_min,first_sgfa,rpgfa,zeta,sphi_a,&
+                                 jatom,nsetb,set_radius_b,npgfb,nsgfb,lb_max,&
+                                 lb_min,first_sgfb,rpgfb,zetb,sphi_b,&
+                                 rab,nder,ldai,sint,sab,work,ai_work,error)
+
+    INTEGER, INTENT(IN)                      :: iatom,nseta
+    INTEGER, DIMENSION(:),INTENT(IN)         :: npgfa,nsgfa,la_max,la_min
+    INTEGER, INTENT(IN)                      :: jatom,nsetb
+    INTEGER, DIMENSION(:),INTENT(IN)         :: npgfb,nsgfb,lb_max,lb_min
+    INTEGER, DIMENSION(:,:),INTENT(IN)       :: first_sgfa,first_sgfb
+    REAL(dp), DIMENSION(:,:),INTENT(IN)      :: rpgfa,rpgfb,zeta,zetb,&
+                                                sphi_a,sphi_b
+    REAL(dp), DIMENSION(:),INTENT(IN)        :: set_radius_a,set_radius_b
+    REAL(dp), DIMENSION(:),INTENT(IN)        :: rab
+    INTEGER, INTENT(IN)                      :: nder,ldai
+    TYPE(block_p_type), DIMENSION(:)         :: sint
+    REAL(KIND = dp), DIMENSION(:,:)          :: sab,work
+    REAL(KIND = dp), DIMENSION(:,:,:)        :: ai_work
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    REAL(dp)                                 :: rab2,dab,f
+    INTEGER                                  :: iset,ncoa,sgfa,jset,ncob,sgfb,&
+                                                i,iblock,maxder
+    LOGICAL                                  :: return_s_derivatives
+
+!-------------------------------------------------------------------------------
+
+    rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
+    dab = SQRT(rab2)
+    return_s_derivatives = (nder /= 0)
+    maxder = ncoset(nder)
+
+    DO iset=1,nseta
+
+       ncoa = npgfa(iset)*ncoset(la_max(iset))
+       sgfa = first_sgfa(1,iset)
+
+       DO jset=1,nsetb
+
+          IF (set_radius_a(iset) + set_radius_b(jset) < dab) CYCLE
+
+          ncob = npgfb(jset)*ncoset(lb_max(jset))
+          sgfb = first_sgfb(1,jset)
+
+!         *** Calculate the primitive overlap integrals ***
+
+          CALL overlap(la_max(iset),la_min(iset),npgfa(iset),&
+                       rpgfa(:,iset),zeta(:,iset),&
+                       lb_max(jset),lb_min(jset),npgfb(jset),&
+                       rpgfb(:,jset),zetb(:,jset),&
+                       rab,dab,sab,nder,return_s_derivatives,&
+                       ai_work,ldai)
+
+!         *** Contraction step (overlap matrix and its derivatives) ***
+
+          DO i=1,maxder
+
+            iblock = (i - 1)*SIZE(sab,1) + 1
+
+            CALL dgemm("N","N",ncoa,nsgfb(jset),ncob,&
+                       1.0_dp,sab(1,iblock),SIZE(sab,1),&
+                       sphi_b(1,sgfb),SIZE(sphi_b,1),&
+                       0.0_dp,work(1,1),SIZE(work,1))
+
+            IF (iatom <= jatom) THEN
+
+              CALL dgemm("T","N",nsgfa(iset),nsgfb(jset),ncoa,&
+                         1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
+                         work(1,1),SIZE(work,1),&
+                         1.0_dp,sint(i)%block(sgfa,sgfb),&
+                         SIZE(sint(i)%block,1))
+
+            ELSE
+
+!             *** The first derivatives are anti-symmetric ***
+
+              IF (i > 1) THEN
+                f = -1.0_dp
+              ELSE
+                f = 1.0_dp
+              END IF
+
+              CALL dgemm("T","N",nsgfb(jset),nsgfa(iset),ncoa,&
+                         f,work(1,1),SIZE(work,1),&
+                         sphi_a(1,sgfa),SIZE(sphi_a,1),&
+                         1.0_dp,sint(i)%block(sgfb,sgfa),&
+                         SIZE(sint(i)%block,1))
+
+            END IF
+
+          END DO
+
+       END DO
+
+    END DO
+
+  END SUBROUTINE atom_overlap_matrix
 
 ! *****************************************************************************
 
