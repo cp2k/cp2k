@@ -35,20 +35,28 @@ MODULE replica_methods
                                              cp_para_env_type
   USE f77_interface,                   ONLY: &
        calc_force, create_force_env, f_env_add_defaults, f_env_rm_defaults, &
-       f_env_type, get_force, get_natom, get_pos, set_vel
+       f_env_type, get_force, get_natom, get_pos, set_vel, destroy_force_env
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get,&
                                              section_vals_val_set,&
                                              section_vals_write
   USE kinds,                           ONLY: default_path_length,&
+                                             default_string_length,&
                                              dp
   USE message_passing,                 ONLY: MPI_COMM_NULL,&
                                              mp_cart_create,&
                                              mp_cart_sub,&
                                              mp_sum
-  USE replica_types,                   ONLY: replica_env_type
+  USE replica_types,                   ONLY: replica_env_type,&
+       rep_env_sync, rep_env_write, rep_env_create,&
+       rep_env_calc_e_f, rep_env_release, rep_envs_get_rep_env
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE cp_control_types, ONLY: dft_control_type
+  USE qs_environment_types, ONLY: qs_environment_type, get_qs_env, set_qs_env
+  USE force_env_types, ONLY: force_env_get,use_qs_force
+  USE qs_wf_history_types, ONLY: qs_wf_history_type,wfi_release,wfi_retain
+  USE qs_wf_history_methods, only: wfi_create
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -57,250 +65,131 @@ MODULE replica_methods
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'replica_methods'
 
-  INTEGER, SAVE, PRIVATE :: last_rep_env_id=0
-
-  PUBLIC :: rep_env_create, rep_env_sync, rep_env_calc_e_f
+  PUBLIC :: rep_env_init_low,rep_env_test, rep_env_calc_e_f_low
 !!***
 !****************************************************************************
 CONTAINS
 
-!!****f* replica_methods/rep_env_create *
+!!****f* replica_methods/rep_env_init_low *
 !!
 !!   NAME
-!!     rep_env_create
+!!     rep_env_init_low
 !!
 !!   FUNCTION
-!!     creates a replica environment together with its force environment
+!!     finishes the low level initialization of the replica env
 !!
 !!   NOTES
 !!     -
 !!
 !!   ARGUMENTS
-!!     - rep_env: the replica environment that will be created
-!!     - para_env: the parallel enviroment that will contain the replicas
-!!     - input: the input used to initialize the force environment
-!!     - nrep: the number of replicas to calculate
-!!     - prep: the number of processors for each replica
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - rep_env_id: id_nr of the replica environment that should be initialized
+!!     - ierr: will be non zero if there is an initialization error
 !!
 !!   AUTHOR
 !!     fawzi
 !!
 !!*** **********************************************************************
-SUBROUTINE rep_env_create(rep_env, para_env, input, nrep, prep, error)
-    TYPE(replica_env_type), POINTER          :: rep_env
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(section_vals_type), POINTER         :: input
-    INTEGER                                  :: nrep, prep
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+SUBROUTINE rep_env_init_low(rep_env_id, ierr)
+  INTEGER, INTENT(in) :: rep_env_id
+  INTEGER, intent(out) :: ierr
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'rep_env_create', &
+    TYPE(replica_env_type), POINTER          :: rep_env
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'rep_env_init_low', &
       routineP = moduleN//':'//routineN
 
     CHARACTER(len=default_path_length)       :: input_file_path, &
                                                 output_file_path
     INTEGER                                  :: comm_cart, comm_f, &
-                                                comm_inter_rep, i, i0, ierr, &
+                                                comm_inter_rep, i, i0, &
                                                 ip, ir, lp, my_prep, natom, &
-                                                new_env_id, stat, unit_nr
+                                                new_env_id, stat, unit_nr,&
+                                                in_use
     INTEGER, DIMENSION(2)                    :: dims, pos
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure,first_rep
     LOGICAL, DIMENSION(2)                    :: rdim
-    TYPE(cp_error_type)                      :: new_error
+    TYPE(cp_error_type)                      :: error
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_cart_type), POINTER         :: cart
     TYPE(cp_para_env_type), POINTER          :: para_env_f, para_env_inter_rep
     TYPE(f_env_type), POINTER                :: f_env
+    TYPE(qs_environment_type), pointer :: qs_env
+    TYPE(qs_wf_history_type), pointer :: wf_history
+    TYPE(dft_control_type), pointer :: dft_control
 
   failure=.FALSE.
-  
-  CPPrecondition(.NOT.ASSOCIATED(rep_env),cp_failure_level,routineP,error,failure)
+  rep_env => rep_envs_get_rep_env(rep_env_id)
+  CALL cp_assert(ASSOCIATED(rep_env),cp_failure_level,cp_assertion_failed,&
+       routineP,"could not find rep_env with id_nr"//cp_to_string(rep_env_id),&
+       failure=failure)
+  NULLIFY(wf_history,qs_env,dft_control)
   NULLIFY(cart,para_env_f,para_env_inter_rep, f_env)
   IF (.NOT. failure) THEN
-     logger => cp_error_get_logger(error)
-     new_env_id=-1
-     my_prep=MIN(prep,para_env%num_pe)
-     dims(1)=my_prep
-     dims(2)=para_env%num_pe/my_prep
-     IF (dims(1)*dims(2)/=para_env%num_pe) THEN
-        unit_nr=cp_logger_get_default_unit_nr(logger,local=.FALSE.)
-        WRITE(unit_nr,"(/,' WARNING',/,' number of processors not divisible in replica creation,')")
-        WRITE(unit_nr,"(' wasting ',i4,' processors')") para_env%num_pe-dims(1)*dims(2)
-     END IF
-     CALL mp_cart_create ( comm_old=para_env%group, ndims=2, dims=dims, pos=pos, comm_cart=comm_cart)
-     IF (comm_cart/=MPI_COMM_NULL) THEN
-        CALL cp_cart_create(cart,comm_cart,ndims=2,owns_group=.TRUE.,error=error)
-        rdim(1)=.TRUE.
-        rdim(2)=.FALSE.
-        CALL mp_cart_sub( comm=comm_cart, rdim=rdim , sub_comm=comm_f)
-        CALL cp_para_env_create(para_env_f,comm_f,owns_group=.TRUE.,error=error)
-        rdim(1)=.FALSE.
-        rdim(2)=.TRUE.
-        CALL mp_cart_sub( comm=comm_cart, rdim=rdim , sub_comm=comm_inter_rep)
-        CALL cp_para_env_create(para_env_inter_rep,comm_inter_rep,&
-             owns_group=.TRUE.,error=error)
-        ALLOCATE(rep_env,stat=stat)
-        CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
-     END IF
-  END IF
-  IF (.not.failure.and.ASSOCIATED(rep_env)) THEN
-     last_rep_env_id=last_rep_env_id+1
-     rep_env%id_nr=last_rep_env_id
-     rep_env%ref_count=1
-     rep_env%nrep=nrep
-     rep_env%sync_v=.TRUE.
-     
-     CALL section_vals_val_get(input,"GLOBAL%PROJECT_NAME",&
-          c_val=input_file_path,error=error)
-     lp=LEN_TRIM(input_file_path)
-     input_file_path(lp+1:LEN(input_file_path))="-r-"//&
-          ADJUSTL(cp_to_string(cart%mepos(2)))
-     lp=LEN_TRIM(input_file_path)
-     output_file_path=input_file_path(1:lp)//".out"
-     input_file_path(lp+1:LEN(input_file_path))=".inp"
-     CALL section_vals_val_set(input,"GLOBAL%OUTPUT_FILE_NAME",&
-          c_val=TRIM(output_file_path),error=error)
-     IF (para_env_f%source==para_env_f%mepos) THEN
-        CALL open_file(file_name=TRIM(input_file_path),file_status="UNKNOWN",&
-             file_form="FORMATTED",file_action="WRITE",&
-             unit_number=unit_nr)
-        CALL section_vals_write(input,unit_nr,hide_root=.TRUE.,error=error)
-        CALL close_file(unit_nr)
-     END IF
-     CALL create_force_env(new_env_id=new_env_id,&
-          input_file_path=input_file_path,&
-          output_file_path=output_file_path,mpi_comm=para_env_f%group,ierr=ierr)
-     CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
+     CALL f_env_add_defaults(f_env_id=rep_env%f_env_id,f_env=f_env,&
+          new_error=error, failure=failure)
      IF (.NOT.failure) THEN
-        CALL f_env_add_defaults(f_env_id=new_env_id,f_env=f_env,&
-             new_error=new_error, failure=failure)
-        IF (.NOT.failure) THEN
-           logger => cp_error_get_logger(new_error)
-           logger%iter_info%iteration(1)=cart%mepos(2)
-           CALL cp_add_iter_level(iteration_info=logger%iter_info,&
-                level_name="PINT_MD",error=error)
-        END IF
-        CALL f_env_rm_defaults(f_env,new_error,ierr)
-        CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
-
-        rep_env%f_env_id=new_env_id
-     END IF
-     
-     IF (.NOT.failure) THEN
-        CALL get_natom(new_env_id,natom,ierr=ierr)
-        CPPostcondition(ierr==0,cp_fatal_level,routineP,error,failure)
-        rep_env%nat=natom
-        rep_env%ndim=3*natom
-        ALLOCATE(rep_env%replica_owner(nrep),stat=stat)
-        CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
-        
-        i0=nrep/cart%num_pe(2)
-        ir=MODULO(nrep,cart%num_pe(2))
-        DO ip=1,cart%num_pe(2)
-           DO i=i0*(ip-1)+MIN(ip,ir)+1,i0*ip+MIN(ip,ir)
-              rep_env%replica_owner(i)=ip
-           END DO
-        END DO
-        
-        rep_env%cart => cart
-        rep_env%para_env => para_env
-        CALL cp_para_env_retain(rep_env%para_env,error=error)
-        rep_env%para_env_f => para_env_f
-        rep_env%para_env_inter_rep => para_env_inter_rep
-
-        ALLOCATE(rep_env%r(rep_env%ndim,nrep),rep_env%v(rep_env%ndim,nrep),&
-             rep_env%f(rep_env%ndim+1,nrep), stat=stat)
-        CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
-
-        rep_env%f=0._dp
-        rep_env%v=0._dp
-        CALL set_vel(env_id=rep_env%f_env_id, &
-             new_vel=rep_env%v(:,1), n_el=rep_env%ndim, ierr=ierr)
-        CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
-        DO i=1,nrep
-           IF (cart%mepos(2)==rep_env%replica_owner(i)) THEN
-              CALL get_pos(env_id=rep_env%f_env_id, &
-                   pos=rep_env%r(:,i), n_el=rep_env%ndim, ierr=ierr)
-              CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+        logger => cp_error_get_logger(error)
+        cart => rep_env%cart
+        para_env_f => rep_env%para_env_f
+        para_env_inter_rep => rep_env%para_env_inter_rep
+        logger%iter_info%iteration(1)=cart%mepos(2)
+        CALL cp_add_iter_level(iteration_info=logger%iter_info,&
+             level_name="REP_EVAL",error=error)
+        !wf interp
+        IF (rep_env%keep_wf_history) THEN
+           CALL force_env_get(f_env%force_env,in_use=in_use,error=error)
+           IF (in_use==use_qs_force) THEN
+              CALL force_env_get(f_env%force_env,qs_env=qs_env,&
+                   error=error)
+              CALL get_qs_env(qs_env,dft_control=dft_control,error=error)
+              ALLOCATE(rep_env%wf_history(size(rep_env%local_rep_indices)),stat=stat)
+              CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
+              DO i=1,SIZE(rep_env%wf_history)
+                 NULLIFY(rep_env%wf_history(i)%wf_history)
+                 IF (i==1) THEN
+                    CALL get_qs_env(qs_env,&
+                         wf_history=rep_env%wf_history(i)%wf_history,&
+                         error=error)
+                    CALL wfi_retain(rep_env%wf_history(i)%wf_history,&
+                         error=error)
+                 ELSE
+                    CALL wfi_create(rep_env%wf_history(i)%wf_history,&
+                         interpolation_method_nr=&
+                         dft_control%qs_control%wf_interpolation_method_nr,&
+                         extrapolation_order = dft_control%qs_control%wf_extrapolation_order,&
+                         error=error)
+                 END IF
+              END DO
+           ELSE
+              rep_env%keep_wf_history=.FALSE.
            END IF
-        END DO
+        END IF
+     END IF
+     IF (.NOT.failure) THEN
         CALL rep_env_sync(rep_env,rep_env%r,error=error)
         CALL rep_env_sync(rep_env,rep_env%v,error=error)
         CALL rep_env_sync(rep_env,rep_env%f,error=error)
      END IF
+
+     CALL f_env_rm_defaults(f_env,error,ierr)
+     CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
   END IF
-END SUBROUTINE rep_env_create
+END SUBROUTINE rep_env_init_low
 !***************************************************************************
 
-!!****f* rep_env_methods/rep_env_sync *
+
+!!****f* pint_methods/rep_env_test *
 !!
 !!   NAME
-!!     rep_env_sync
+!!     rep_env_test
 !!
 !!   FUNCTION
-!!     sends the data from each replica to all the other
-!!     on replica j/=i data from replica i overwrites val(:,i)
-!!
-!!   NOTES
-!!     could be optimized: all2all or shift vs sum
-!!
-!!   ARGUMENTS
-!!     - rep_env: replica environment
-!!     - vals: the values to synchronize (second index runs over replicas)
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     fawzi
-!!
-!!*** **********************************************************************
-SUBROUTINE rep_env_sync(rep_env,vals,error)
-    TYPE(replica_env_type), POINTER          :: rep_env
-    REAL(kind=dp), DIMENSION(:, :), &
-      INTENT(inout)                          :: vals
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'rep_env_sync', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: irep
-    LOGICAL                                  :: failure
-
-  failure=.FALSE.
-  
-  CPPrecondition(ASSOCIATED(rep_env),cp_failure_level,routineP,error,failure)
-  CPPrecondition(rep_env%ref_count>0,cp_failure_level,routineP,error,failure)
-  CPPrecondition(SIZE(vals,2)==rep_env%nrep,cp_failure_level,routineP,error,failure)
-  IF (.NOT. failure) THEN
-     DO irep=1,rep_env%nrep
-        IF (rep_env%replica_owner(irep)/=rep_env%cart%mepos(2)) THEN
-           vals(:,irep)=0._dp
-        END IF
-     END DO
-     CALL mp_sum(vals,rep_env%para_env_inter_rep%group)
-  END IF
-END SUBROUTINE rep_env_sync
-!***************************************************************************
-
-!!****f* replica_methods/rep_env_evalf *
-!!
-!!   NAME
-!!     rep_env_evalf
-!!
-!!   FUNCTION
-!!     evaluates the forces
+!!     -
 !!
 !!   NOTES
 !!     -
 !!
 !!   INPUTS
-!!     - rep_env: the replica environment on which you want to evaluate the
-!!       forces
-!!     - calc_f: if true calculates also the forces, if false only the
-!!       energy
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
 !!
@@ -308,72 +197,282 @@ END SUBROUTINE rep_env_sync
 !!     fawzi
 !!
 !!*** **********************************************************************
-SUBROUTINE rep_env_calc_e_f(rep_env,calc_f,error)
+SUBROUTINE rep_env_test(para_env,input,error)
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(section_vals_type), POINTER         :: input
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'rep_env_test', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, stat
+    LOGICAL                                  :: failure
+    REAL(kind=dp)                            :: err,max_err
+    REAL(kind=dp), DIMENSION(:), POINTER     :: e1, e2, e3
+    REAL(kind=dp), DIMENSION(:, :), POINTER  :: f1, f2, f3
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(replica_env_type), POINTER          :: rep_env
+    CHARACTER(len=default_string_length)     :: project_name
+
+  failure=.FALSE.
+
+  CPPrecondition(ASSOCIATED(para_env),cp_failure_level,routineP,error,failure)
+  CPPrecondition(ASSOCIATED(input),cp_failure_level,routineP,error,failure)
+  CPPrecondition(para_env%ref_count>0,cp_failure_level,routineP,error,failure)
+  CPPrecondition(input%ref_count>0,cp_failure_level,routineP,error,failure)
+  max_err=0._dp
+  IF (.NOT. failure) THEN
+     logger => cp_error_get_logger(error)
+     NULLIFY(rep_env,e1,e2,e3,f1,f2,f3)
+     CALL section_vals_val_get(input,"GLOBAL%PROJECT_NAME",&
+          c_val=project_name,error=error)
+
+     CALL section_vals_val_set(input,"GLOBAL%PROJECT_NAME",&
+          c_val=TRIM(project_name)//"t11",error=error)
+     CALL rep_env_create(rep_env, para_env=para_env, input=input,&
+          nrep=1,prep=1,error=error)
+     CALL rep_env_write(rep_env,cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
+          error=error)
+     IF (ASSOCIATED(rep_env)) THEN
+        CALL rep_env_calc_e_f(rep_env,error=error)
+        ALLOCATE(f1(rep_env%ndim,rep_env%nrep),e1(rep_env%nrep),stat=stat)
+        f1=rep_env%f(:rep_env%ndim,:)
+        e1=rep_env%f(rep_env%ndim+1,:)
+     END IF
+     CALL rep_env_release(rep_env,error=error)
+
+     CALL section_vals_val_set(input,"GLOBAL%PROJECT_NAME",&
+          c_val=TRIM(project_name)//"t12",error=error)
+     CALL rep_env_create(rep_env, para_env=para_env, input=input,&
+          nrep=1,prep=2,error=error)
+     CALL rep_env_write(rep_env,cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
+          error=error)
+     IF (ASSOCIATED(rep_env)) THEN
+        CALL rep_env_calc_e_f(rep_env,error=error)
+        ALLOCATE(f2(rep_env%ndim,rep_env%nrep),e2(rep_env%nrep),stat=stat)
+        f2=rep_env%f(:rep_env%ndim,:)
+        e2=rep_env%f(rep_env%ndim+1,:)
+     END IF
+     CALL rep_env_release(rep_env,error=error)
+
+     CALL section_vals_val_set(input,"GLOBAL%PROJECT_NAME",&
+          c_val=TRIM(project_name)//"t21",error=error)
+     CALL rep_env_create(rep_env, para_env=para_env, input=input,&
+          nrep=2,prep=1,error=error)
+     CALL rep_env_write(rep_env,cp_logger_get_default_unit_nr(logger,local=.TRUE.),&
+          error=error)
+     IF (ASSOCIATED(rep_env)) THEN
+        rep_env%r(:,2)=rep_env%r(:,1)+0.5_dp
+        CALL rep_env_calc_e_f(rep_env,error=error)
+        ALLOCATE(f3(rep_env%ndim,rep_env%nrep),e3(rep_env%nrep),stat=stat)
+        f3=rep_env%f(:rep_env%ndim,:)
+        e3=rep_env%f(rep_env%ndim+1,:)
+     END IF
+     CALL rep_env_release(rep_env,error=error)
+
+     CALL section_vals_val_set(input,"GLOBAL%PROJECT_NAME",&
+          c_val=TRIM(project_name),error=error)
+
+     IF (ASSOCIATED(f1).AND.ASSOCIATED(f2)) THEN
+        err=0._dp
+        DO i=1,SIZE(f1,1)
+           err=MAX(err,ABS(f1(i,1)-f2(i,1)))
+        END DO
+        CALL cp_log(logger,cp_note_level+1,routineP,"diff_f12="//cp_to_string(err),&
+             local=.FALSE.)
+        max_err=MAX(err,max_err)
+        err=ABS(e1(1)-e2(1))
+        max_err=MAX(err,max_err)
+        CALL cp_log(logger,cp_note_level+1,routineP,"diff_e12="//&
+             cp_to_string(err)//cp_to_string(e1(1))//&
+             cp_to_string(e2(1)), local=.FALSE.)
+     END IF
+     IF (ASSOCIATED(f1).AND.ASSOCIATED(f3)) THEN
+        err=0._dp
+        DO i=1,SIZE(f1,1)
+           err=MAX(err,ABS(f1(i,1)-f3(i,1)))
+        END DO
+        CALL cp_log(logger,cp_note_level+1,routineP,"diff_f13="//cp_to_string(err),&
+             local=.FALSE.)
+        max_err=MAX(err,max_err)
+        err=ABS(e1(1)-e3(1))
+        max_err=MAX(err,max_err)
+        CALL cp_log(logger,cp_note_level+1,routineP,"diff_e13="//&
+             cp_to_string(err)//cp_to_string(e1(1))//&
+             cp_to_string(e3(1)),&
+             local=.FALSE.)
+     END IF
+     IF (ASSOCIATED(f3)) THEN
+        err=0._dp
+        DO i=1,SIZE(f1,1)
+           err=MAX(err,ABS(f3(i,1)-f3(i,2)))
+        END DO
+        CALL cp_log(logger,cp_note_level+1,routineP,"diff_f33="//cp_to_string(err),&
+             local=.FALSE.)
+        max_err=MAX(err,max_err)
+        err=ABS(e3(1)-e3(2))
+        max_err=MAX(err,max_err)
+        CALL cp_log(logger,cp_note_level+1,routineP,"diff_e33="//&
+             cp_to_string(err)//cp_to_string(e3(1))//&
+             cp_to_string(e3(2)), local=.FALSE.)
+        DEALLOCATE(f3,stat=stat)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+     END IF
+     IF (ASSOCIATED(f1)) THEN
+        DEALLOCATE(f1,stat=stat)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+     END IF
+     IF (ASSOCIATED(f2)) THEN
+        DEALLOCATE(f2,stat=stat)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+     END IF
+     CALL cp_log(logger,cp_note_level+1,routineP,"CUMULATIVE ERROR"//&
+          cp_to_string(max_err), local=.FALSE.)
+     CPAssert(max_err<1.e-6,cp_failure_level,routineP,error,failure)
+  END IF
+END SUBROUTINE rep_env_test
+!****************************************************************************
+
+!!****f* replica_methods/rep_env_calc_e_f_int *
+!!
+!!   NAME
+!!     rep_env_calc_e_f_int
+!!
+!!   FUNCTION
+!!     calculates energy and force, internal private method
+!!
+!!   NOTES
+!!     this is the where the real work is done
+!!
+!!   ARGUMENTS
+!!     - rep_env: the replica env to update
+!!     - if the force should be calculated as well (defaults to true)
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!*** **********************************************************************
+SUBROUTINE rep_env_calc_e_f_int(rep_env,calc_f,error)
     TYPE(replica_env_type), POINTER          :: rep_env
     LOGICAL, OPTIONAL                        :: calc_f
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'rep_env_calc_e_f', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'rep_env_calc_e_f_int', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ierr, irep, md_iter, my_calc_f
+    INTEGER                                  :: ierr, irep, md_iter, my_calc_f,i
     LOGICAL                                  :: failure
     TYPE(cp_error_type)                      :: new_error
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(f_env_type), POINTER                :: f_env
+    TYPE(f_env_type), pointer :: f_env
+    TYPE(qs_environment_type), pointer :: qs_env
 
-  failure=.FALSE.
-  NULLIFY(f_env)
-
+  failure=.false.
+  NULLIFY(f_env,qs_env)
   CPPrecondition(ASSOCIATED(rep_env),cp_failure_level,routineP,error,failure)
   CPPrecondition(rep_env%ref_count>0,cp_failure_level,routineP,error,failure)
-  IF (.NOT.failure) THEN
+  IF (.NOT. failure) THEN
+     my_calc_f=3*rep_env%nat
+     IF (PRESENT(calc_f)) THEN
+        IF (.NOT.calc_f) my_calc_f=0
+     END IF
+     
      CALL f_env_add_defaults(f_env_id=rep_env%f_env_id,f_env=f_env,&
           new_error=new_error, failure=failure)
-  END IF
-  IF (.NOT.failure) THEN
      logger => cp_error_get_logger(new_error)
      md_iter=logger%iter_info%iteration(2)+1
-     logger%iter_info%iteration(2)=md_iter
-     CALL f_env_rm_defaults(f_env,new_error,ierr)
+     call f_env_rm_defaults(f_env,new_error,ierr)
      CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
 
-     IF (.NOT. failure) THEN
-        my_calc_f=3*rep_env%nat
-        IF (PRESENT(calc_f)) THEN
-           IF (.NOT.calc_f) my_calc_f=0
+     DO i=1,SIZE(rep_env%local_rep_indices)
+        irep=rep_env%local_rep_indices(i)
+        IF (rep_env%sync_v) THEN
+           CALL cp_set_vel(rep_env%f_env_id,rep_env%v(:,irep),&
+                3*rep_env%nat,ierr)
+           CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
+           IF (failure) EXIT
         END IF
         
-        DO irep=1,rep_env%nrep
-           IF (rep_env%replica_owner(irep)==rep_env%cart%mepos(2)) THEN
-              IF (rep_env%sync_v) THEN
-                 CALL set_vel(rep_env%f_env_id,rep_env%v(:,irep),&
-                      3*rep_env%nat,ierr=ierr)
-                 CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
-                 IF (failure) EXIT
-              END IF
-
-              logger%iter_info%iteration(1)=irep
-              logger%iter_info%iteration(2)=md_iter
-
-              CALL calc_force(rep_env%f_env_id,rep_env%r,3*rep_env%nat,&
-                   rep_env%f(3*rep_env%nat+1,irep),rep_env%f(:3*rep_env%nat,irep),&
-                   3*rep_env%nat*my_calc_f,ierr)
-              CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
-              IF (failure) EXIT
-              CALL get_force(rep_env%f_env_id,rep_env%f(:3*rep_env%nat,irep),&
-                   my_calc_f,ierr=ierr)
-              CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
-              IF (failure) EXIT
-           END IF
-        END DO
-        IF (.NOT.failure) THEN
-           CALL rep_env_sync(rep_env,rep_env%f,error=error)
+        logger%iter_info%iteration(1)=irep
+        logger%iter_info%iteration(2)=md_iter
+        
+        IF (rep_env%keep_wf_history) THEN
+           CALL f_env_add_defaults(f_env_id=rep_env%f_env_id,f_env=f_env,&
+                new_error=new_error, failure=failure)
+           CALL force_env_get(f_env%force_env,qs_env=qs_env,error=error)
+           CALL set_qs_env(qs_env,&
+                wf_history=rep_env%wf_history(i)%wf_history,&
+                error=error)
+           CALL f_env_rm_defaults(f_env,new_error,ierr)
+           CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
         END IF
+        
+        CALL cp_calc_force(rep_env%f_env_id,rep_env%r,3*rep_env%nat,&
+             rep_env%f(3*rep_env%nat+1,irep),rep_env%f(:3*rep_env%nat,irep),&
+             my_calc_f,ierr)
+        CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
+        IF (failure) EXIT
+     END DO
+     IF (.NOT.failure) THEN
+        CALL rep_env_sync(rep_env,rep_env%f,error=error)
      END IF
+     CALL cp_error_synchronize_error(error,rep_env%para_env)
   END IF
-END SUBROUTINE rep_env_calc_e_f
+     
+END SUBROUTINE rep_env_calc_e_f_int
+!***************************************************************************
+
+!!****f* replica_methods/rep_env_calc_e_f_int *
+!!
+!!   NAME
+!!     rep_env_calc_e_f_int
+!!
+!!   FUNCTION
+!!     calculates energy and force, internal private method
+!!
+!!   NOTES
+!!     low level wrapper to export this function in f77_int_low and work
+!!     around the handling of circular dependecies in fortran 
+!!
+!!   ARGUMENTS
+!!     - rep_env_id: the id if the replica environment in which energy and
+!!       forces have to be evaluated
+!!     - calc_f: if nonzero calculates also the forces along with the 
+!!       energy
+!!     - ierr: if an error happens this will be nonzero
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!*** **********************************************************************
+RECURSIVE SUBROUTINE rep_env_calc_e_f_low(rep_env_id,calc_f,ierr)
+  INTEGER, INTENT(in) :: rep_env_id, calc_f
+  INTEGER, intent(out) :: ierr
+
+  CHARACTER(len=*), PARAMETER :: routineN = 'rep_env_calc_e_f_int', &
+       routineP = moduleN//':'//routineN
+
+  logical :: failure
+  TYPE(cp_error_type)                      :: new_error
+  TYPE(cp_logger_type), POINTER            :: logger
+  TYPE(replica_env_type), pointer :: rep_env
+  TYPE(f_env_type), pointer :: f_env
+
+  failure=.false.
+  rep_env => rep_envs_get_rep_env(rep_env_id)
+  IF (ASSOCIATED(rep_env)) THEN
+     CALL f_env_add_defaults(f_env_id=rep_env%f_env_id,f_env=f_env,&
+          new_error=new_error, failure=failure)
+     CALL rep_env_calc_e_f_int(rep_env,calc_f/=0,new_error)
+     CALL f_env_rm_defaults(f_env,new_error,ierr)
+  ELSE
+     ierr=111
+  END IF
+END SUBROUTINE rep_env_calc_e_f_low
 !***************************************************************************
 
 END MODULE replica_methods

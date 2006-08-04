@@ -1029,7 +1029,7 @@ CONTAINS
     ELSE
      CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
           "QMMM section not present in input file!"//&
-          CPSourceFileRef,&
+CPSourceFileRef,&
           error,failure)
     ENDIF
     !

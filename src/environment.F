@@ -297,7 +297,11 @@ CONTAINS
 !!     read part of cp2k_init
 !!
 !!   NOTES
-!!     -
+!!     The following routines need to be synchronized wrt. adding/removing
+!!     of the default environments (logging, perormance,error):
+!!     environment:cp2k_init, environment:cp2k_finalize,
+!!     f77_interface:f_env_add_defaults, f77_interface:f_env_rm_defaults,
+!!     f77_interface:create_force_env, f77_interface:destroy_force_env
 !!
 !!   ARGUMENTS
 !!     - globenv: the globenv
@@ -688,6 +692,13 @@ SUBROUTINE cp2k_read(globenv,error)
 !!
 !!   FUNCTION
 !!     Writes final timings and banner for CP2K
+!!
+!!   NOTES
+!!     The following routines need to be synchronized wrt. adding/removing
+!!     of the default environments (logging, perormance,error):
+!!     environment:cp2k_init, environment:cp2k_finalize,
+!!     f77_interface:f_env_add_defaults, f77_interface:f_env_rm_defaults,
+!!     f77_interface:create_force_env, f77_interface:destroy_force_env
 !!
 !!   AUTHOR
 !!     JGH,MK

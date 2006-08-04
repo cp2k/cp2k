@@ -511,7 +511,7 @@ CONTAINS
           CALL cp_assert(pool%el_struct%id_nr==element%grid_id,&
             cp_failure_level, cp_assertion_failed, routineP,&
             "pool cannot reuse rs grids of another pw_grid "//&
-            CPSourceFileRef,&
+CPSourceFileRef,&
             error=error,failure=failure)
     END IF
 

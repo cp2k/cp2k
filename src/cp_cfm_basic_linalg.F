@@ -139,7 +139,7 @@ CONTAINS
             matrix_b%matrix_struct%context%group,cp_failure_level,&
             cp_assertion_failed,fromWhere=routineP,&
             message="matrixes must be in the same blacs context"//&
-            CPSourceFileRef,&
+CPSourceFileRef,&
             error=error,failure=failure)
 
        IF (cp_fm_struct_equivalent(matrix_a%matrix_struct,&

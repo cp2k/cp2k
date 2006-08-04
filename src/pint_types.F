@@ -54,9 +54,9 @@ MODULE pint_types
                                              rng_stream_type
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: write_particle_coordinates
-  USE replica_methods,                 ONLY: rep_env_calc_e_f,&
-                                             rep_env_create
-  USE replica_types,                   ONLY: rep_env_release,&
+  USE replica_types,                   ONLY: rep_env_calc_e_f,&
+                                             rep_env_release,&
+                                             rep_env_create,&
                                              replica_env_type
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -196,6 +196,8 @@ CONTAINS
     CPPrecondition(input%ref_count>0,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        NULLIFY(rep_env)
+       pint_section => section_vals_get_subs_vals(input,"MOTION%PINT",&
+            error=error)
        CALL section_vals_val_get(pint_section,"p",i_val=nrep,error=error)
        CALL rep_env_create(rep_env, para_env=para_env, input=input,&
             nrep=nrep,prep=prep,error=error)
@@ -209,8 +211,6 @@ CONTAINS
        pint_env%id_nr=last_pint_id
        pint_env%ref_count=1
        NULLIFY(pint_env%replicas,pint_env%input,pint_env%staging_env)
-       pint_section => section_vals_get_subs_vals(input,"MOTION%PINT",&
-            error=error)
        CALL section_vals_val_get(pint_section,"p",i_val=pint_env%p,error=error)
        CALL section_vals_val_get(pint_section,"proc_per_replica",&
             i_val=prep,error=error)
@@ -309,7 +309,7 @@ CONTAINS
        CALL cp_assert(logger%iter_info%iteration(2)==pint_env%iter,&
             cp_failure_level,cp_assertion_failed,routineP,&
             "md & force_eval lost sychro "//&
-            CPSourceFileRef,&
+CPSourceFileRef,&
             error,failure)
        CALL f_env_rm_defaults(f_env,new_error,ierr)
        CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
@@ -1646,7 +1646,7 @@ SUBROUTINE pint_step(pint_env,error)
         CALL cp_assert(logger%iter_info%iteration(2)==pint_env%iter,&
              cp_failure_level,cp_assertion_failed,routineP,&
              "md & force_eval lost sychro "//&
-             CPSourceFileRef,&
+CPSourceFileRef,&
              error,failure)
         CALL f_env_rm_defaults(f_env,new_error,ierr)
         pint_env%iter=pint_env%iter+1
@@ -1912,7 +1912,7 @@ SUBROUTINE pint_start(pint_env,error)
                 i_rep_val=ib,r_vals=r_vals,error=error)
            CALL cp_assert(SIZE(r_vals)==pint_env%p*pint_env%ndim*pint_env%nnos,&
                 cp_failure_level,cp_assertion_failed,"Invalid size of MOTION%PINT%NOSE%COORD "//&
-                CPSourceFileRef,&
+CPSourceFileRef,&
                 routineP,error,failure)
            ii=0
            DO idim=1,pint_env%ndim
@@ -1937,7 +1937,7 @@ SUBROUTINE pint_start(pint_env,error)
                 i_rep_val=ib,r_vals=r_vals,error=error)
            CALL cp_assert(SIZE(r_vals)==pint_env%p*pint_env%ndim*pint_env%nnos,&
                 cp_failure_level,cp_assertion_failed,"Invalid size of MOTION%PINT%NOSE%VELOCITY "//&
-                CPSourceFileRef,&
+CPSourceFileRef,&
                 routineP,error,failure)
            ii=0
            DO idim=1,pint_env%ndim
@@ -1965,7 +1965,7 @@ SUBROUTINE pint_start(pint_env,error)
                 i_rep_val=ib,r_vals=r_vals,error=error)
            CALL cp_assert(SIZE(r_vals)==pint_env%p*pint_env%ndim,cp_failure_level,&
                 cp_assertion_failed,"Invalid size of MOTION%PINT%BEADS%COORD "//&
-                CPSourceFileRef,&
+CPSourceFileRef,&
                 routineP,error,failure)
            ii=0
            DO idim=1,pint_env%ndim
@@ -1990,7 +1990,7 @@ SUBROUTINE pint_start(pint_env,error)
                 i_rep_val=ib,r_vals=r_vals,error=error)
            CALL cp_assert(SIZE(r_vals)==pint_env%p*pint_env%ndim,cp_failure_level,&
                 cp_assertion_failed,"Invalid size of MOTION%PINT%BEAD%VELOCITY "//&
-                CPSourceFileRef,&
+CPSourceFileRef,&
                 routineP,error,failure)
            ii=0
            DO idim=1,pint_env%ndim

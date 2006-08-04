@@ -128,7 +128,7 @@ CONTAINS
                          cp_warning_level, cp_assertion_failed, &
                          fromWhere=routineP, &
                          message="Bad use of routine. Call cp_fm_scale instead: "// &
-                         CPSourceFileRef, &
+CPSourceFileRef, &
                          error=error, failure=failure)
           CALL cp_fm_scale(alpha+beta, matrix_a, error=error)
           CALL timestop(0.0_dp,handle)
@@ -146,7 +146,7 @@ CONTAINS
             matrix_b%matrix_struct%context%group,cp_failure_level,&
             cp_assertion_failed,fromWhere=routineP,&
             message="matrixes must be in the same blacs context"//&
-            CPSourceFileRef,&
+CPSourceFileRef,&
             error=error,failure=failure)
 
        IF (cp_fm_struct_equivalent(matrix_a%matrix_struct,&

@@ -709,7 +709,7 @@ SUBROUTINE pw_grid_setup ( cell, pw_grid, print_section, cutoff, fft_usage, &
              cp_failure_level,cp_assertion_failed,routineP,&
              "could not build commensurate grids, probably for this fft library"//&
              "  it is not true that if n is allowed 2*n is also allowed"//&
-             CPSourceFileRef,&
+CPSourceFileRef,&
              error=error,failure=failure)
      END IF
      my_bounds=pw_grid_bounds_from_n(n)

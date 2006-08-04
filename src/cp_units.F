@@ -1251,7 +1251,7 @@ FUNCTION cp_unit_to_cp2k1(value,unit,defaults,power,error) RESULT(res)
            IF (failure) EXIT
            CALL cp_assert(ASSOCIATED(defaults%units(unit%kind_id(i_unit))%unit),&
                 cp_failure_level,cp_assertion_failed,routineP,&
-                CPSourceFileRef,&
+CPSourceFileRef,&
                 error,failure)
            IF (failure) EXIT
            my_basic_unit=defaults%units(unit%kind_id(i_unit))%unit%unit_id(1)

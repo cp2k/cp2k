@@ -38,11 +38,11 @@ MODULE input_constants
          "TEST      ",&
          "TBMD      ",&
          "EIP       ",&
-         "PINT      ",&
          "QUICKSTEP ",&
          "KIM-GORDON",&
          "KIM_GORDON",&
-         "TB-MD     "/)
+         "TB-MD     ",&
+         "EP        "/)
 
   CHARACTER (LEN=default_string_length), PARAMETER, DIMENSION(13), PUBLIC :: program_name_desc=&
        (/"Electronic structure methods (DFT, ...)",&
@@ -53,11 +53,11 @@ MODULE input_constants
          "Do some benchmarking and testing       ",&
          "Tight-Binding Molecular Dynamics       ",&
          "Empirical Interatomic Potential        ",&
-         "Path integral                          ",&
          "Electronic structure methods (DFT, ...)",&    ! Aliases to the previous unique names
          "Kim Gordon models (DFT)                ",&    !
          "Kim Gordon models (DFT)                ",&    !
-         "Tight-Binding Molecular Dynamics       "/)    !
+         "Tight-Binding Molecular Dynamics       ",&    !
+         "Non-orthogonal perturbation            "/)    !
 
   INTEGER, PARAMETER, PUBLIC :: do_qs=1,&
                                 do_fist=2,&
@@ -67,11 +67,11 @@ MODULE input_constants
                                 do_test=6,&
                                 do_tbmd=7,&
                                 do_eip=8,&
-                                do_pint=9
+                                do_ep=9
 
   INTEGER, PARAMETER, PUBLIC, DIMENSION(13) :: program_name_index=&
        (/do_qs, do_fist, do_kg, do_qmmm, do_farming, do_test, do_tbmd, &
-         do_eip, do_pint, do_qs, do_kg, do_kg, do_tbmd/)
+         do_eip, do_qs, do_kg, do_kg, do_tbmd, do_ep/)
 
   REAL(KIND=dp), PARAMETER, PUBLIC :: RADIUS_QMMM_DEFAULT = 0.80_dp,&
                                       ALPHA_IMOMM_DEFAULT = 1.38_dp,&
@@ -148,7 +148,7 @@ MODULE input_constants
                                 qs_debug_run=8,&
                                 bsse_run=9,&
                                 linear_response_run=10,&
-                                ep_run=11,&
+                                pint_run=11,&
                                 ldmc_run=12,&
                                 hmc_run=13
   
@@ -163,7 +163,7 @@ MODULE input_constants
          "DEBUG                    ",&
          "BSSE                     ",&
          "LR                       ",&
-         "EP                       ",&
+         "PINT                     ",&
          "LDMC                     ",&
          "HMC                      ",&
          "WFN_OPT                  ",&   ! Aliases to the previous unique names
@@ -187,7 +187,7 @@ MODULE input_constants
           qs_debug_run,&
           bsse_run,&
           linear_response_run,&
-          ep_run,&
+          pint_run,&
           ldmc_run,&
           hmc_run,&
           energy_run,&

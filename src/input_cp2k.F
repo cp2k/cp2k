@@ -30,7 +30,8 @@ MODULE input_cp2k
   USE input_constants
   USE input_cp2k_dft,                  ONLY: create_bsse_section,&
                                              create_dft_section,&
-                                             create_properties_section
+                                             create_properties_section,&
+                                             create_ep_section
   USE input_cp2k_eip,                  ONLY: create_eip_section
   USE input_cp2k_mm,                   ONLY: create_mm_section
   USE input_cp2k_motion,               ONLY: create_motion_section
@@ -47,7 +48,10 @@ MODULE input_cp2k
                                              section_type,&
                                              section_vals_get,&
                                              section_vals_get_subs_vals,&
-                                             section_vals_type
+                                             section_vals_type,&
+                                             section_vals_create
+  USE cp_parser, ONLY: cp_parser_type, parser_create, parser_release
+  USE input_parsing, only: section_vals_parse
   USE input_val_types,                 ONLY: char_t,&
                                              integer_t,&
                                              no_t
@@ -55,6 +59,8 @@ MODULE input_cp2k
   USE string_utilities,                ONLY: s2a
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE cp_units, only: cp_unit_set_type, cp_unit_set_create, cp_unit_set_release
+  USE cp_para_types, only: cp_para_env_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -64,10 +70,66 @@ MODULE input_cp2k
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'input_cp2k'
   
   PUBLIC :: create_cp2k_root_section, parsed_cp2k_input,&
-       create_global_section
+       create_global_section, create_cp2k_input_reading
 !!***
 !****************************************************************************
 CONTAINS
+
+
+!!****f* input_cp2k/create_cp2k_input_reading *
+!!
+!!   NAME
+!!     create_cp2k_input_reading
+!!
+!!   FUNCTION
+!!     reads the cp2k input from the given filepath and returns a section_vals
+!!     containing the input
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - file_path: path where the input should be read
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!*** **********************************************************************
+FUNCTION create_cp2k_input_reading(file_path,para_env,error) RESULT(res)
+  CHARACTER(len=*), INTENT(in) :: file_path
+  TYPE(cp_para_env_type), pointer :: para_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    TYPE(section_vals_type), pointer :: res
+    
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_cp2k_input_reading', &
+      routineP = moduleN//':'//routineN
+
+    TYPE(section_type), POINTER              :: input_structure
+    TYPE(cp_parser_type), POINTER            :: cpparser
+    TYPE(cp_unit_set_type), POINTER          :: default_units
+    INTEGER :: handle
+    LOGICAL :: failure
+
+    CALL timeset(routineN,handle)
+    failure=.FALSE.
+    NULLIFY(res)
+    NULLIFY(cpparser, input_structure, default_units)
+    CALL create_cp2k_root_section(input_structure,error=error)
+    CALL section_vals_create(res,input_structure, error=error)
+    CALL section_release(input_structure,error=error)
+    CALL parser_create(cpparser,file_name=file_path,para_env=para_env,&
+         error=error)
+    CALL cp_unit_set_create(default_units, "OUTPUT",error=error)
+    CALL section_vals_parse(res,cpparser,root_section=.FALSE.,&
+         default_units=default_units,error=error)
+    CALL cp_unit_set_release(default_units,error=error)
+    CALL parser_release(cpparser,error=error)
+    call timestop(handle)
+  END FUNCTION create_cp2k_input_reading
+!***************************************************************************
 
 !!****f* input_cp2k/create_cp2k_root_section *
 !!
@@ -625,6 +687,10 @@ CONTAINS
          error=error)
 
     NULLIFY(subsection)
+
+    CALL create_ep_section(subsection,error)
+    CALL section_add_subsection(section, subsection, error=error)
+    CALL section_release(subsection,error=error)
 
     CALL create_dft_section(subsection,error)
     CALL section_add_subsection(section, subsection, error=error)

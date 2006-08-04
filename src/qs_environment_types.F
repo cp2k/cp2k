@@ -144,6 +144,7 @@ MODULE qs_environment_types
   USE xas_env_types,                   ONLY: xas_env_release,&
                                              xas_env_retain,&
                                              xas_environment_type
+  USE ep_qs_types, ONLY: ep_qs_type, ep_qs_retain, ep_qs_release
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -208,6 +209,7 @@ MODULE qs_environment_types
 !!     - matrix_s: the overlap matrix (matrix_s(1)), if needed by the calculation also
 !!       its derivatives wrt. x,y, and z (matrix_s(2:4))
 !!     - kinetic: kinetic part of h
+!!     - matrix_dv: derivatives of the grid potentials in x-y-z direction
 !!     - rho: the (old) density, in various representations (ao+grid)
 !!     - rho_xc: the (old) soft density, used for the GAPW_XC method only
 !!     - scf_control: various parameters relevant to the scf cycle
@@ -252,6 +254,7 @@ MODULE qs_environment_types
 !!     - harris_env: The harris environment, which consist of the harris energy
 !!                   and force type and the rho structure to pass the density of
 !!                   the harris energy functional to the force calculation
+!!     - ep_qs_env: environment to perform an ep calculation
 !!     
 !!   AUTHOR
 !!     Matthias Krack & fawzi
@@ -287,7 +290,8 @@ MODULE qs_environment_types
                                                              matrix_ks,&
                                                              matrix_s,&
                                                              kinetic,&
-                                                             matrix_w
+                                                             matrix_w,&
+                                                             matrix_dv
     TYPE(qs_rho_type), POINTER                            :: rho,&
                                                              rho_buffer,&
                                                              rho_xc
@@ -316,6 +320,7 @@ MODULE qs_environment_types
     TYPE(virial_type), POINTER                            :: virial
     REAL(KIND = dp), DIMENSION(:,:), POINTER              :: outer_scf_history
     INTEGER                                               :: outer_scf_ihistory
+    TYPE(ep_qs_type), pointer :: ep_qs_env
   END TYPE qs_environment_type
 
 ! *****************************************************************************
@@ -354,7 +359,7 @@ CONTAINS
                         sac_erfc,sac_ppl,sac_ppnl,sbc_ppnl,&
                         sac_oce,sbc_oce,sab_2c,sac_3c,sbc_3c,&
                         particle_set,energy,force,harris_env,&
-                        matrix_h,matrix_ks,matrix_s,matrix_w,&
+                        matrix_h,matrix_ks,matrix_s,matrix_w,matrix_dv,&
                         rho, rho_buffer, rho_xc, pw_env, mpools,input,&
                         para_env, blacs_env, scf_control,&
                         kinetic,qs_charges, rho_core, ks_env, ks_qmmm_env,&
@@ -367,7 +372,7 @@ CONTAINS
                         requires_mo_derivs,mo_derivs,tddfpt_control, &
                         neighbor_list_id,kg_sub_pw_env,linres_control,xas_env,&
                         virial,cp_ddapc_env,cp_ddapc_ewald,outer_scf_history, &
-                        outer_scf_ihistory,error)
+                        outer_scf_ihistory,ep_qs_env,error)
 
 !   Purpose: Get the QUICKSTEP environment.
 
@@ -399,7 +404,7 @@ CONTAINS
     TYPE(harris_env_type), OPTIONAL, POINTER :: harris_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: matrix_h, matrix_ks, &
-                                                matrix_s, matrix_w
+                                                matrix_s, matrix_w, matrix_dv
     TYPE(qs_rho_type), OPTIONAL, POINTER     :: rho, rho_buffer, rho_xc
     TYPE(pw_env_type), OPTIONAL, POINTER     :: pw_env
     TYPE(qs_matrix_pools_type), OPTIONAL, &
@@ -467,6 +472,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: outer_scf_history
     INTEGER, INTENT(out), OPTIONAL           :: outer_scf_ihistory
+    TYPE(ep_qs_type), POINTER, optional :: ep_qs_env
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
@@ -518,6 +524,7 @@ CONTAINS
     IF (PRESENT(kinetic)) kinetic => qs_env%kinetic
     IF (PRESENT(matrix_s)) matrix_s => qs_env%matrix_s
     IF (PRESENT(matrix_w)) matrix_w => qs_env%matrix_w
+    IF (PRESENT(matrix_dv)) matrix_dv => qs_env%matrix_dv
     IF (PRESENT(rho)) rho => qs_env%rho
     IF (PRESENT(rho_buffer)) rho_buffer => qs_env%rho_buffer
     IF (PRESENT(rho_xc)) rho_xc => qs_env%rho_xc
@@ -587,7 +594,8 @@ CONTAINS
     IF (PRESENT(input)) input => qs_env%input
     IF (PRESENT(cp_ddapc_env)) cp_ddapc_env => qs_env%cp_ddapc_env
     IF (PRESENT(cp_ddapc_ewald)) cp_ddapc_ewald => qs_env%cp_ddapc_ewald
-
+    IF (PRESENT(ep_qs_env)) ep_qs_env => qs_env%ep_qs_env
+    
   END SUBROUTINE get_qs_env
 
 ! *****************************************************************************
@@ -632,6 +640,7 @@ CONTAINS
     NULLIFY (qs_env%kinetic)
     NULLIFY (qs_env%matrix_s)
     NULLIFY (qs_env%matrix_w)
+    NULLIFY (qs_env%matrix_dv)
     NULLIFY (qs_env%mpools)
     NULLIFY (qs_env%rho)
     NULLIFY (qs_env%rho_buffer)
@@ -658,6 +667,7 @@ CONTAINS
     NULLIFY (qs_env%cp_ddapc_env)
     NULLIFY (qs_env%cp_ddapc_ewald)
     NULLIFY (qs_env%outer_scf_history)
+    NULLIFY (qs_env%ep_qs_env)
     qs_env%outer_scf_ihistory=0
     qs_env%neighbor_list_id=-1
 
@@ -686,7 +696,7 @@ CONTAINS
                         sab_orb,sab_all,sac_erfc,sac_ppl,sac_ppnl,sbc_ppnl,&
                         sac_oce,sbc_oce,sab_2c,sac_3c,sbc_3c,&
                         energy,force,harris_env,&
-                        matrix_h,matrix_ks,matrix_s,matrix_w,&
+                        matrix_h,matrix_ks,matrix_s,matrix_w,matrix_dv,&
                         pw_env,mpools,rho,rho_buffer,rho_xc,kinetic,&
                         scf_control,qs_charges,rho_core,ks_env,ks_qmmm_env,&
                         wf_history,scf_env,use_harris,&
@@ -696,7 +706,7 @@ CONTAINS
                         requires_mo_derivs,mo_derivs,neighbor_list_id,&
                         kg_sub_pw_env,linres_control,xas_env,virial,&
                         cp_ddapc_env,cp_ddapc_ewald,outer_scf_history,&
-                        outer_scf_ihistory)
+                        outer_scf_ihistory,ep_qs_env)
 
 !   Purpose: Set the QUICKSTEP environment.
 
@@ -723,7 +733,7 @@ CONTAINS
     TYPE(harris_env_type), OPTIONAL, POINTER :: harris_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: matrix_h, matrix_ks, &
-                                                matrix_s, matrix_w
+                                                matrix_s, matrix_w,matrix_dv
     TYPE(pw_env_type), OPTIONAL, POINTER     :: pw_env
     TYPE(qs_matrix_pools_type), OPTIONAL, &
       POINTER                                :: mpools
@@ -779,6 +789,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: outer_scf_history
     INTEGER, INTENT(IN), OPTIONAL            :: outer_scf_ihistory
+    TYPE(ep_qs_type), POINTER, optional :: ep_qs_env
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_qs_env', &
       routineP = moduleN//':'//routineN
@@ -834,6 +845,7 @@ CONTAINS
     IF (PRESENT(matrix_ks)) qs_env%matrix_ks => matrix_ks
     IF (PRESENT(matrix_s)) qs_env%matrix_s => matrix_s
     IF (PRESENT(matrix_w)) qs_env%matrix_w => matrix_w
+    IF (PRESENT(matrix_dv)) qs_env%matrix_dv => matrix_dv
     IF (PRESENT(oce)) qs_env%oce => oce
     IF (PRESENT(outer_scf_history)) qs_env%outer_scf_history=>outer_scf_history
     IF (PRESENT(outer_scf_ihistory)) qs_env%outer_scf_ihistory=outer_scf_ihistory
@@ -964,6 +976,11 @@ CONTAINS
     END IF
     IF (PRESENT(cp_ddapc_ewald)) THEN
        qs_env%cp_ddapc_ewald => cp_ddapc_ewald
+    END IF
+    IF (PRESENT(ep_qs_env)) THEN
+       if (associated(ep_qs_env)) CALL ep_qs_retain(ep_qs_env,error=error)
+       CALL ep_qs_release(qs_env%ep_qs_env,error=error)
+       qs_env%ep_qs_env => ep_qs_env
     END IF
   END SUBROUTINE set_qs_env
 
@@ -1227,6 +1244,7 @@ SUBROUTINE qs_env_release(qs_env,error)
         ENDIF 
         IF (ASSOCIATED(qs_env%matrix_s)) CALL deallocate_matrix_set(qs_env%matrix_s)
         IF (ASSOCIATED(qs_env%matrix_w)) CALL deallocate_matrix_set(qs_env%matrix_w)
+        IF (ASSOCIATED(qs_env%matrix_dv)) CALL deallocate_matrix_set(qs_env%matrix_dv)
         IF (ASSOCIATED(qs_env%oce)) CALL deallocate_oce_set(qs_env%oce)
 
         IF (ASSOCIATED(qs_env%local_rho_set)) THEN 
@@ -1281,6 +1299,7 @@ SUBROUTINE qs_env_release(qs_env,error)
         CALL section_vals_release(qs_env%input,error=error)
         CALL cp_ddapc_release(qs_env%cp_ddapc_env, error=error)
         CALL cp_ddapc_ewald_release(qs_env%cp_ddapc_ewald, error=error)
+        CALL ep_qs_release(qs_env%ep_qs_env,error=error)
         DEALLOCATE(qs_env, stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
      END IF

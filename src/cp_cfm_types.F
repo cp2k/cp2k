@@ -160,7 +160,7 @@ CONTAINS
 #if defined(__parallel) && ! defined(__SCALAPACK)
      CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
      routineP,"full matrixes need scalapack for parallel runs "//&
-     CPSourceFileRef,&
+CPSourceFileRef,&
      error)
 #endif
 
@@ -655,7 +655,7 @@ CONTAINS
          SIZE(source%local_data,2)==SIZE(destination%local_data,2),cp_failure_level,&
          cp_assertion_failed, routine, &
          "internal error, local_data has different sizes"//&
-         CPSourceFileRef,&
+CPSourceFileRef,&
          error=error)
       CALL dcopy(SIZE(source%local_data,1)*SIZE(source%local_data,2)*2,&
            source%local_data(1,1),1,destination%local_data(1,1),1)
@@ -665,14 +665,14 @@ CONTAINS
            cp_failure_level,&
            cp_assertion_failed, routine, &
            "cannot copy between full matrixes of differen sizes"//&
-           CPSourceFileRef,&
+CPSourceFileRef,&
            error=error)
       CALL cp_assert(source%matrix_struct%ncol_global==&
            destination%matrix_struct%ncol_global,&
            cp_failure_level,&
            cp_assertion_failed, routine, &
            "cannot copy between full matrixes of differen sizes"//&
-           CPSourceFileRef,&
+CPSourceFileRef,&
            error=error)
 #ifdef __SCALAPACK
       CALL pzcopy(source%matrix_struct%nrow_global*&

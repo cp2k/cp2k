@@ -727,7 +727,7 @@ SUBROUTINE distribution_1d_build_gdist(distribution_1d,error)
                  CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
                       routineP,"invalid distribution, two processors have "//&
                       "the same number"//&
-                      CPSourceFileRef,&
+CPSourceFileRef,&
                       error,failure)
               END IF
            END DO
@@ -791,7 +791,7 @@ SUBROUTINE distribution_1d_build_gdist(distribution_1d,error)
                       "the same number (list="//cp_to_string(ilist)//", i="//&
                       cp_to_string(i)//",g_index="//&
                       cp_to_string(distribution_1d%list(ilist)%array(i))//")"//&
-                      CPSourceFileRef,&
+CPSourceFileRef,&
                       error,failure)
               END IF
            END DO

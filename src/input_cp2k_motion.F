@@ -116,6 +116,10 @@ CONTAINS
        CALL create_mc_section(subsection, error)
        CALL section_add_subsection(section, subsection, error=error)
        CALL section_release(subsection,error=error)
+       
+       CALL create_pint_section(subsection, error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
 
        CALL section_create(subsection,name="print",&
             description="Controls the printing properties during an MD run",&
@@ -2842,7 +2846,7 @@ SUBROUTINE create_pint_section(section,error)
        CALL keyword_create(keyword, name="nrespa",&
             description="number of respa steps for the bead for each md step",&
             repeats=.FALSE., default_i_val=5,error=error)
-       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
       
        NULLIFY(subsection,subsubsection)
@@ -2855,7 +2859,7 @@ SUBROUTINE create_pint_section(section,error)
             repeats=.FALSE., default_i_val=2,error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
-       CALL keyword_create(keyword, name="j",&
+       CALL keyword_create(keyword, name="Q_END",&
             description="Value of the nose-hoover mass for the endbead (Q_end)",&
             repeats=.FALSE., default_i_val=2,error=error)
        CALL section_add_keyword(subsection,keyword,error=error)
@@ -2937,9 +2941,11 @@ SUBROUTINE create_pint_section(section,error)
             enum_i_vals=output_name_index,&
             error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
-       CALL keyword_release(keyword,error=error)    
+       CALL keyword_release(keyword,error=error)
        CALL section_add_subsection(subsection,print_key,error=error)
        CALL section_release(print_key,error=error)        
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)        
 
     END IF
   END SUBROUTINE create_pint_section

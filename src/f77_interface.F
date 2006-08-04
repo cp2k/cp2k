@@ -40,12 +40,14 @@ MODULE f77_interface
   USE cp_units,                        ONLY: cp_unit_set_create,&
                                              cp_unit_set_release,&
                                              cp_unit_set_type
+  USE cp_output_handling,              ONLY: cp_iterate
   USE environment,                     ONLY: cp2k_finalize,&
                                              cp2k_init,&
                                              cp2k_read,&
                                              cp2k_setup
   USE fist_main,                       ONLY: fist_create_force_env
-  USE force_env_methods,               ONLY: force_env_calc_energy_force
+  USE force_env_methods,               ONLY: force_env_calc_energy_force,&
+       ep_create_force_env
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_release,&
                                              force_env_retain,&
@@ -56,8 +58,9 @@ MODULE f77_interface
                                              do_kg,&
                                              do_qmmm,&
                                              do_qs,&
+                                             do_ep,&
                                              run_type_names
-  USE input_cp2k,                      ONLY: create_cp2k_root_section
+  USE input_cp2k,                      ONLY: create_cp2k_input_reading
   USE input_cp2k_check,                ONLY: check_cp2k_input
   USE input_parsing,                   ONLY: section_vals_parse
   USE input_section_types,             ONLY: section_release,&
@@ -400,7 +403,11 @@ END SUBROUTINE f_env_create
 !!     something went wrong
 !!
 !!   NOTES
-!!     -
+!!     The following routines need to be synchronized wrt. adding/removing
+!!     of the default environments (logging, perormance,error):
+!!     environment:cp2k_init, environment:cp2k_finalize,
+!!     f77_interface:f_env_add_defaults, f77_interface:f_env_rm_defaults,
+!!     f77_interface:create_force_env, f77_interface:destroy_force_env
 !!
 !!   ARGUMENTS
 !!     - f_env_id: the f_env from where to take the defaults
@@ -460,7 +467,11 @@ END SUBROUTINE f_env_add_defaults
 !!     It also releases the error
 !!
 !!   NOTES
-!!     -
+!!     The following routines need to be synchronized wrt. adding/removing
+!!     of the default environments (logging, perormance,error):
+!!     environment:cp2k_init, environment:cp2k_finalize,
+!!     f77_interface:f_env_add_defaults, f77_interface:f_env_rm_defaults,
+!!     f77_interface:create_force_env, f77_interface:destroy_force_env
 !!
 !!   ARGUMENTS
 !!     - f_env: the f_env from where to take the defaults
@@ -521,30 +532,45 @@ END SUBROUTINE f_env_rm_defaults
   !!     create_force_env
   !!
   !!   FUNCTION
-  !!     
+  !!     creates a new force environment using the given input, and writing
+  !!     the output to the given output unit
   !!
   !!   NOTES
-  !!     -
+  !!     The following routines need to be synchronized wrt. adding/removing
+  !!     of the default environments (logging, perormance,error):
+  !!     environment:cp2k_init, environment:cp2k_finalize,
+  !!     f77_interface:f_env_add_defaults, f77_interface:f_env_rm_defaults,
+  !!     f77_interface:create_force_env, f77_interface:destroy_force_env
+  !!
   !!
   !!   INPUTS
   !!     - new_env_id: will contain the id of the newly created environment
-  !!     - input_file_path: the path of the input file
-  !!     - output_file_path: path of the output file (to which it is appended)
-  !!       if it is "__STD_OUT__" the unit 6 is used
+  !!     - input_path: where to read the input (if the input is given it can
+  !!       a virtual path)
+  !!     - output_path: filename (or name of the unit) for the output
   !!     - mpi_comm: the mpi communicator to be used for this environment
   !!       it will not be freed when you get rid of the force_env
+  !!     - output_unit: if given it should be the unit for the output
+  !!       and no file is open(should be valid on the processor with rank 0)
+  !!     - owns_out_unit: if the output unit should be closed upon destroing
+  !!       of the force_env (defaults to true if not 6)
+  !!     - input: the parsed input, if given and valid it is used 
+  !!       instead of parsing from file
   !!     - ierr: will return a number different from 0 if there was an error
   !!
   !!   AUTHOR
   !!     fawzi
   !!
   !!*** *********************************************************************
-  SUBROUTINE create_force_env(new_env_id,input_file_path,&
-       output_file_path,mpi_comm,ierr)
+  RECURSIVE SUBROUTINE create_force_env(new_env_id,input_path,&
+       output_path,mpi_comm,output_unit,owns_out_unit,input,ierr)
     INTEGER, INTENT(out)                     :: new_env_id
-    CHARACTER(len=*), INTENT(in)             :: input_file_path, &
-                                                output_file_path
+    CHARACTER(len=*), intent(in) :: input_path
+    CHARACTER(len=*), INTENT(in), OPTIONAL :: output_path
     INTEGER, INTENT(in), OPTIONAL            :: mpi_comm
+    INTEGER, INTENT(in), OPTIONAL :: output_unit
+    LOGICAL, INTENT(in), OPTIONAL :: owns_out_unit
+    TYPE(section_vals_type), POINTER,optional :: input
     INTEGER, INTENT(out), OPTIONAL           :: ierr
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_force_env', &
@@ -552,23 +578,20 @@ END SUBROUTINE f_env_rm_defaults
 
     INTEGER                                  :: i, stat, unit_nr, nforce_eval, iforce_eval
     INTEGER, POINTER, DIMENSION(:) :: i_force_eval
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure,my_owns_out_unit,my_echo
     TYPE(cp_error_type)                      :: error
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_parser_type), POINTER            :: cpparser
-    TYPE(cp_unit_set_type), POINTER          :: default_units
     TYPE(f_env_p_type), DIMENSION(:), &
       POINTER                                :: f_envs_old
     TYPE(force_env_type), POINTER            :: force_env, my_force_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(mp_perf_env_type), POINTER          :: mp_perf_env
-    TYPE(section_type), POINTER              :: input_structure
-    TYPE(section_vals_type), POINTER         :: input_file, force_env_sections, force_env_section
+    TYPE(section_vals_type), POINTER         :: input_file,force_env_sections, force_env_section
     TYPE(timer_env_type), POINTER            :: timer_env
 
     failure=.FALSE.
-
+    
     NULLIFY(para_env, force_env,timer_env,mp_perf_env, globenv)
     IF (PRESENT(mpi_comm)) THEN
        CALL cp_para_env_create(para_env, group=mpi_comm, owns_group=.FALSE.)
@@ -576,25 +599,51 @@ END SUBROUTINE f_env_rm_defaults
        para_env => default_para_env
        CALL cp_para_env_retain(para_env)
     END IF
-    IF (para_env%mepos==para_env%source) THEN
-       IF (output_file_path=="__STD_OUT__") THEN
-          unit_nr=6
-       ELSE
-          CALL open_file(file_name=output_file_path,file_status="UNKNOWN",&
-               file_action="WRITE", file_position="APPEND",&
-               unit_number=unit_nr)
-       END IF
+    IF (PRESENT(output_unit)) THEN
+       unit_nr=output_unit
     ELSE
-       unit_nr=-1
+       IF (para_env%mepos==para_env%source) THEN
+          IF (output_path=="__STD_OUT__") THEN
+             unit_nr=6
+          ELSE
+             CALL open_file(file_name=output_path,file_status="UNKNOWN",&
+                  file_action="WRITE", file_position="APPEND",&
+                  unit_number=unit_nr)
+          END IF
+       ELSE
+          unit_nr=-1
+       END IF
     END IF
+    my_owns_out_unit=unit_nr/=6
+    IF (PRESENT(owns_out_unit)) my_owns_out_unit=owns_out_unit
     CALL globenv_create(globenv, para_env=para_env,&
-         output_unit=unit_nr, input_file_name=input_file_path,&
-         close_output_unit=(unit_nr>0 .AND. unit_nr/=6))
+         output_unit=unit_nr, input_file_name=input_path,&
+         close_output_unit=my_owns_out_unit)
     CALL cp2k_init(globenv)
     logger => cp_get_default_logger()
     ! warning this is dangerous, I did not check that all the subfunctions
     ! support it, the program might crash upon error
     CALL cp_error_init(error,stop_level=cp_fatal_level,logger=logger)
+
+    nullify(input_file)
+    if (present(input)) input_file => input
+    IF (.NOT.ASSOCIATED(input_file)) THEN
+       input_file => create_cp2k_input_reading(input_path,para_env=para_env,error=error)
+    END IF
+    CALL section_vals_val_get(input_file,"GLOBAL%ECHO_INPUT",&
+         l_val=my_echo,error=error)
+    ! echo after check?
+    IF (globenv%ionode.and.my_echo) THEN
+       CALL section_vals_write(input_file,unit_nr=globenv%scr,hide_root=.TRUE.,&
+            error=error)
+    END IF
+    globenv%input_file => input_file
+    CALL cp_error_check(error,failure)
+    IF (.NOT.failure) THEN
+       CALL check_cp2k_input(input_file,para_env=para_env,error=error)
+       CALL cp_error_check(error,failure)
+    END IF
+    NULLIFY(input_file)
 
     IF (n_f_envs+1>SIZE(f_envs)) THEN
        f_envs_old => f_envs
@@ -609,32 +658,6 @@ END SUBROUTINE f_env_rm_defaults
        DEALLOCATE(f_envs_old,stat=stat)
        CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
     END IF
-
-    ! parse the input
-    NULLIFY(input_structure, default_units)
-    CALL create_cp2k_root_section(input_structure,error=error)
-    NULLIFY(input_file)
-    CALL section_vals_create(input_file,input_structure, error=error)
-    CALL section_release(input_structure,error=error)
-    NULLIFY(cpparser)
-    CALL parser_create(cpparser,file_name=input_file_path,para_env=para_env,&
-         error=error)
-    CALL cp_unit_set_create(default_units, "OUTPUT",error=error)
-    CALL section_vals_parse(input_file,cpparser,root_section=.FALSE.,&
-         default_units=default_units,error=error)
-    CALL cp_unit_set_release(default_units,error=error)
-    CALL parser_release(cpparser,error=error)
-    IF (globenv%ionode) THEN
-       CALL section_vals_write(input_file,unit_nr=globenv%scr,hide_root=.TRUE.,&
-            error=error)
-    END IF
-    globenv%input_file => input_file
-    CALL cp_error_check(error,failure)
-    IF (.NOT.failure) THEN
-       CALL check_cp2k_input(input_file,para_env=para_env,error=error)
-       CALL cp_error_check(error,failure)
-    END IF
-    NULLIFY(input_file)
 
     IF (.NOT.failure) THEN
        
@@ -653,6 +676,10 @@ END SUBROUTINE f_env_rm_defaults
           NULLIFY(my_force_env)
           ! initialize force_env
           SELECT CASE (globenv%prog_name_id)
+          CASE (do_ep)
+             ! does not support multi force_env_sections
+             CALL ep_create_force_env ( my_force_env,&
+                  globenv, error = error )
           CASE (do_fist)
              CALL fist_create_force_env ( my_force_env,&
                   globenv, force_env_section=force_env_section,  error = error )
@@ -668,7 +695,8 @@ END SUBROUTINE f_env_rm_defaults
           CASE default
              CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
                "Invalid run TYPE <"//TRIM(run_type_names(globenv%run_type_id))//"> was specified, "//&
-               CPSourceFileRef,error,failure)
+CPSourceFileRef,&
+               error,failure)
           END SELECT
           IF (nforce_eval>1.AND.iforce_eval==1) THEN
              ALLOCATE(my_force_env%sub_force_env(nforce_eval-1),stat=stat)
@@ -705,7 +733,11 @@ END SUBROUTINE f_env_rm_defaults
   !!     deallocates the force_env with the given id
   !!
   !!   NOTES
-  !!     -
+  !!     The following routines need to be synchronized wrt. adding/removing
+  !!     of the default environments (logging, perormance,error):
+  !!     environment:cp2k_init, environment:cp2k_finalize,
+  !!     f77_interface:f_env_add_defaults, f77_interface:f_env_rm_defaults,
+  !!     f77_interface:create_force_env, f77_interface:destroy_force_env
   !!
   !!   INPUTS
   !!     - env_id: the id of the force_env to remove
@@ -749,7 +781,6 @@ END SUBROUTINE f_env_rm_defaults
        END IF
        ierr=cp_error_get_level(error)
        CALL cp_error_dealloc_ref(error)
-       CALL cp_rm_default_logger()
     ELSE
        ! write out something?
        ierr=cp_failure_level
@@ -876,7 +907,7 @@ END SUBROUTINE f_env_rm_defaults
           CALL cp_assert(my_n_el==n_el,cp_failure_level,cp_assertion_failed,&
                routineP,"wrong pos size ("//cp_to_string(n_el)//" vs"//&
                cp_to_string(my_n_el)//") "//&
-               CPSourceFileRef,&
+CPSourceFileRef,&
                error,failure)
        END IF
        IF (.NOT.failure) THEN
@@ -956,7 +987,7 @@ END SUBROUTINE f_env_rm_defaults
           CALL cp_assert(my_n_el==n_el,cp_failure_level,cp_assertion_failed,&
                routineP,"wrong pos size ("//cp_to_string(n_el)//" vs"//&
                cp_to_string(my_n_el)//&
-               CPSourceFileRef,&
+CPSourceFileRef,&
                error,failure)
        END IF
        IF (.NOT.failure) THEN
@@ -1035,7 +1066,7 @@ END SUBROUTINE f_env_rm_defaults
           CALL cp_assert(my_n_el==n_el,cp_failure_level,cp_assertion_failed,&
                routineP,"wrong vel size ("//cp_to_string(n_el)//" vs"//&
                cp_to_string(my_n_el)//") "//&
-               CPSourceFileRef,&
+CPSourceFileRef,&
                error,failure)
        END IF
        IF (.NOT.failure) THEN
@@ -1115,7 +1146,7 @@ END SUBROUTINE f_env_rm_defaults
           CALL cp_assert(my_n_el==n_el,cp_failure_level,cp_assertion_failed,&
                routineP,"wrong vel size ("//cp_to_string(n_el)//" vs"//&
                cp_to_string(my_n_el)//&
-               CPSourceFileRef,&
+CPSourceFileRef,&
                error,failure)
        END IF
        IF (.NOT.failure) THEN
@@ -1196,7 +1227,7 @@ END SUBROUTINE f_env_rm_defaults
           CALL cp_assert(my_n_el==n_el,cp_failure_level,cp_assertion_failed,&
                routineP,"wrong force size ("//cp_to_string(n_el)//" vs"//&
                cp_to_string(my_n_el)//&
-               CPSourceFileRef,&
+CPSourceFileRef,&
                error,failure)
        END IF
        IF (.NOT.failure) THEN
@@ -1237,7 +1268,7 @@ END SUBROUTINE f_env_rm_defaults
   !!     fawzi
   !!
   !!*** *********************************************************************
-  SUBROUTINE calc_energy_force(env_id,calc_force,ierr)
+  RECURSIVE SUBROUTINE calc_energy_force(env_id,calc_force,ierr)
     INTEGER, INTENT(in)                      :: env_id
     LOGICAL, INTENT(in)                      :: calc_force
     INTEGER, INTENT(out)                     :: ierr
@@ -1248,12 +1279,15 @@ END SUBROUTINE f_env_rm_defaults
     LOGICAL                                  :: failure
     TYPE(cp_error_type)                      :: error
     TYPE(f_env_type), POINTER                :: f_env
+    TYPE(cp_logger_type), pointer            :: logger
 
     failure=.FALSE.
    
     NULLIFY(f_env)
     CALL f_env_add_defaults(env_id,f_env,error,failure)
     IF (.NOT.failure) THEN
+       logger => cp_error_get_logger(error)
+       CALL cp_iterate(logger%iter_info,error=error) ! add one to the iteration count
        CALL force_env_calc_energy_force(f_env%force_env,&
             calc_force=calc_force,error=error)
     END IF
@@ -1328,7 +1362,7 @@ END SUBROUTINE f_env_rm_defaults
   !!     fawzi
   !!
   !!*** *********************************************************************
-  SUBROUTINE calc_energy(env_id,pos,n_el,e_pot,ierr)
+  RECURSIVE SUBROUTINE calc_energy(env_id,pos,n_el,e_pot,ierr)
     INTEGER, INTENT(in)                      :: env_id, n_el
     REAL(kind=dp), DIMENSION(1:n_el), &
       INTENT(in)                             :: pos
@@ -1369,7 +1403,7 @@ END SUBROUTINE f_env_rm_defaults
   !!     fawzi
   !!
   !!*** *********************************************************************
-  SUBROUTINE calc_force(env_id,pos,n_el_pos,e_pot,force,n_el_force,ierr)
+  RECURSIVE SUBROUTINE calc_force(env_id,pos,n_el_pos,e_pot,force,n_el_force,ierr)
     INTEGER, INTENT(in)                      :: env_id, n_el_pos
     REAL(kind=dp), DIMENSION(1:n_el_pos), &
       INTENT(in)                             :: pos
@@ -1434,7 +1468,6 @@ END SUBROUTINE f_env_rm_defaults
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_parser_type), POINTER            :: cpparser
     TYPE(cp_unit_set_type), POINTER          :: default_units
-    TYPE(section_type), POINTER              :: input_structure
     TYPE(section_vals_type), POINTER         :: input_file
 
     failure=.FALSE.
@@ -1470,19 +1503,7 @@ END SUBROUTINE f_env_rm_defaults
     CALL cp_logger_release(logger)
     CALL cp_error_init(error,logger=logger,stop_level=cp_fatal_level)
 
-    NULLIFY(input_structure, default_units)
-    CALL create_cp2k_root_section(input_structure,error=error)
-    NULLIFY(input_file)
-    CALL section_vals_create(input_file,input_structure, error=error)
-    CALL section_release(input_structure,error=error)
-    NULLIFY(cpparser)
-    CALL parser_create(cpparser,file_name=input_file_path,para_env=para_env,&
-         error=error)
-    CALL cp_unit_set_create(default_units, "OUTPUT",error=error)
-    CALL section_vals_parse(input_file,cpparser,root_section=.FALSE.,&
-         default_units=default_units,error=error)
-    CALL cp_unit_set_release(default_units,error=error)
-    CALL parser_release(cpparser,error=error)
+    input_file => create_cp2k_input_reading(input_file_path,para_env=para_env,error=error)
     IF (my_permissive) CALL cp_error_reset(error)
     CALL cp_error_check(error,failure)
     IF (.NOT.failure) THEN

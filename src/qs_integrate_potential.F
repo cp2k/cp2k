@@ -36,7 +36,7 @@
 !***********************************************************************
 
 MODULE qs_integrate_potential
-
+  USE cp_array_r_utils, only: cp_2d_r_p_type
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
@@ -110,7 +110,9 @@ MODULE qs_integrate_potential
                                              deallocate_matrix,&
                                              get_block_node,&
                                              real_matrix_p_type,&
-                                             real_matrix_type
+                                             real_matrix_type,&
+                                             allocate_matrix_set,&
+                                             deallocate_matrix_set
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
@@ -294,7 +296,8 @@ CONTAINS
 ! ***********************************************************************
  
   SUBROUTINE integrate_v_rspace(v_rspace,&
-                                p,h,qs_env,calculate_forces,compute_tau,gapw,error)
+                                p,h,qs_env,calculate_forces,compute_tau,gapw,&
+                                matrix_dv,error)
 
     TYPE(coeff_type)                         :: v_rspace
     TYPE(real_matrix_p_type), INTENT(IN), &
@@ -303,6 +306,8 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, INTENT(IN)                      :: calculate_forces
     LOGICAL, INTENT(IN), OPTIONAL            :: compute_tau, gapw
+    TYPE(real_matrix_p_type), DIMENSION(:), OPTIONAL, TARGET :: matrix_dv
+
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -317,7 +322,7 @@ CONTAINS
       interp_kind, ipgf, iset, istat, itask, ithread, jatom, jkind, jpgf, &
       jset, maxco, maxsgf_set, n, na1, na2, nalimit(2), natom, natom_pairs, &
       nb1, nb2, ncoa, ncob, nkind, nlist, nnode, npme, nseta, nsetb, nthread, &
-      omp_get_max_threads, omp_get_thread_num, sgfa, sgfb, stat, tp, idir
+      omp_get_max_threads, omp_get_thread_num, sgfa, sgfb, stat, tp, idir,offs_dv
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
                                                 lb_min, npgfa, npgfb, nsgfa, &
@@ -341,7 +346,8 @@ CONTAINS
                                                 rpgfb, sphi_a, sphi_b, work, &
                                                 zeta, zetb
     REAL(KIND=dp), DIMENSION(:, :, :), &
-      POINTER                                :: dist_ab, habt, pabt, workt
+      POINTER                                :: dist_ab, habt, pabt, workt,hdab,hadb
+    REAL(kind=dp), DIMENSION(:,:,:,:), POINTER :: hdabt,hadbt
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -369,11 +375,13 @@ CONTAINS
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
     TYPE(real_matrix_type), POINTER          :: deltap, dh
+    TYPE(real_matrix_p_type), POINTER, dimension(:)          :: ddv
+    TYPE(cp_2d_r_p_type), DIMENSION(3)       :: dv_block
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: rs_v
     TYPE(section_vals_type), POINTER         :: input, interp_section
     TYPE(virial_type), POINTER               :: virial
-    LOGICAL                                  :: use_virial
+    LOGICAL                                  :: use_virial,has_dv
      
 
 !   ---------------------------------------------------------------------------
@@ -383,6 +391,9 @@ CONTAINS
     debug_count=debug_count+1
 
 ! default, if compute_tau is not present we assume it is false
+    has_dv=.false.
+    offs_dv=0
+    has_dv=PRESENT(matrix_dv)
     IF (PRESENT(compute_tau)) THEN
         my_compute_tau = compute_tau
     ELSE
@@ -542,6 +553,7 @@ CONTAINS
 
     h_duplicated = .FALSE.
     dh => h%matrix
+    ddv => matrix_dv
     DO igrid_level = 1, gridlevel_info%ngrid_levels
       IF ( rs_v(igrid_level)%rs_grid%direction /= 0 ) THEN
         NULLIFY ( dh )
@@ -558,6 +570,24 @@ CONTAINS
                          sparsity_id=-1, & ! unknown sparsity, as it will be modified in parallel
                          matrix_symmetry=h%matrix%symmetry)
         h_duplicated = .TRUE.
+        IF (has_dv) THEN
+           nullify(ddv)
+           CALL allocate_matrix_set(ddv,3)
+           DO idir=1,3
+              CALL allocate_matrix(matrix=ddv(idir)%matrix,&
+                         nrow=h%matrix%nrow,&
+                         ncol=h%matrix%ncol,&
+                         nblock_row=h%matrix%nblock_row,&
+                         nblock_col=h%matrix%nblock_col,&
+                         first_row=h%matrix%first_row(:),&
+                         last_row=h%matrix%last_row(:),&
+                         first_col=h%matrix%first_col(:),&
+                         last_col=h%matrix%last_col(:),&
+                         matrix_name="LocalDV"//trim(adjustl(cp_to_string(idir))),&
+                         sparsity_id=-1, & ! unknown sparsity, as it will be modified in parallel
+                         matrix_symmetry=h%matrix%symmetry)
+           END DO
+        END IF
         EXIT
       END IF
     END DO
@@ -600,6 +630,7 @@ CONTAINS
                                         "need p for forces")
     ENDIF
 
+    NULLIFY(hdabt,hadbt,hdab,hadb)
     CALL reallocate(ntasks,1,gridlevel_info%ngrid_levels)
     CALL reallocate(tasks,1,8,1,max_tasks,1,gridlevel_info%ngrid_levels)
     CALL reallocate(dist_ab,1,3,1,max_tasks,1,gridlevel_info%ngrid_levels)
@@ -609,6 +640,10 @@ CONTAINS
     CALL reallocate(dab_local,1,3,1,max_tasks)
     CALL reallocate(atasks,1,2,1,max_tasks)
     CALL reallocate(asets,1,2,1,max_tasks)
+    IF (has_dv) THEN
+       CALL reallocate(hdabt,1,3,1,maxco,1,1,0,nthread)
+       CALL reallocate(hadbt,1,3,1,maxco,1,1,0,nthread)
+    END IF
     curr_tasks = max_tasks
 
     DO ikind=1,nkind
@@ -855,9 +890,9 @@ CONTAINS
 !$OMP default(none) &
 !$OMP private(ijatoms,ithread,nalimit,itask,iatom,jatom,ra,brow,bcol) &
 !$OMP private(h_block,p_block,atom_a,atom_b,ijsets,iset,jset) &
-!$OMP private(ncoa,ncob,sgfa,sgfb,work,pab,hab,rab,rb,rab2) &
+!$OMP private(ncoa,ncob,sgfa,sgfb,work,pab,hab,rab,rb,rab2,hdab,hadb) &
 !$OMP private(ipgf,jpgf,na1,na2,nb1,nb2,force_a,force_b,istat,my_virial_a,my_virial_b,idir) &
-!$OMP shared(natom_pairs,nthread,asets,atasks,particle_set,cell,dh,p) &
+!$OMP shared(natom_pairs,nthread,asets,atasks,particle_set,cell,dh,p,hdabt,hadbt,ddv,dv_block) &
 !$OMP shared(deltap,calculate_forces,atom_of_kind,ival,npgfa,npgfb,la_max,lb_max) &
 !$OMP shared(first_sgfa,first_sgfb,sphi_a,sphi_b,maxco,maxsgf_set,dab_local) &
 !$OMP shared(ncoset,zeta,zetb,la_min,lb_min,rs_v,cube_info,l_info,eps_gvg_rspace) &
@@ -867,9 +902,17 @@ CONTAINS
           nalimit = get_limit(natom_pairs,nthread,ithread)
           work => workt(:,:,ithread)
           hab => habt(:,:,ithread)
+          IF (has_dv) THEN
+             hdab => hdabt(:,:,:,ithread)
+             hadb => hadbt(:,:,:,ithread)
+          END IF
           IF (PRESENT(p)) THEN
             pab => pabt(:,:,ithread)
           ENDIF
+          IF (has_dv) THEN
+             hdab => hdabt(:,:,:,ithread)
+             hadb => hadbt(:,:,:,ithread)
+          END IF
 !         DO ijatoms = nalimit(1),nalimit(2)
 !$OMP do
           DO ijatoms = 1,natom_pairs
@@ -890,6 +933,17 @@ CONTAINS
                                 block=h_block)
             IF (.NOT.ASSOCIATED(h_block)) &
                CALL add_block_node ( dh, brow, bcol, h_block )
+            IF (has_dv) THEN
+               DO idir=1,3
+                  CALL get_block_node(matrix=ddv(idir)%matrix,&
+                       block_row=brow,&
+                       block_col=bcol,&
+                       BLOCK=dv_block(idir)%array)
+                  IF (.NOT.ASSOCIATED(dv_block(idir)%array)) &
+                       CALL add_block_node ( ddv(idir)%matrix, brow, bcol, dv_block(idir)%array )
+               END DO
+            END IF
+
             IF (PRESENT(P)) THEN
               CALL get_block_node(matrix=deltap,&
                                   block_row=brow,&
@@ -938,6 +992,10 @@ CONTAINS
                 END IF
               END IF
               hab = 0._dp
+              IF (has_dv) THEN
+                 hdab=0._dp
+                 hadb=0._dp
+              END IF
 
               DO itask = atasks(1,ijsets),atasks(2,ijsets)
 
@@ -955,32 +1013,63 @@ CONTAINS
                 nb1 = (jpgf - 1)*ncoset(lb_max(jset)) + 1
                 nb2 = jpgf*ncoset(lb_max(jset))
                 IF (PRESENT(P)) THEN
-                   IF (iatom <= jatom) THEN
-                     CALL integrate_pgf_product_rspace(&
-                          la_max(iset),zeta(ipgf,iset),la_min(iset),&
-                          lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
-                          ra,rab,rab2,rs_v(igrid_level)%rs_grid,&
-                          cube_info(igrid_level),l_info,&
-                          hab,pab=pab,o1=na1-1,o2=nb1-1, &
-                          eps_gvg_rspace=eps_gvg_rspace,&
-                          calculate_forces=calculate_forces,&
-                          force_a=force_a,force_b=force_b,ithread=ithread,&
-                          compute_tau=my_compute_tau,map_consistent=map_consistent,&
-                          use_virial=use_virial,my_virial_a=my_virial_a,&
-                          my_virial_b=my_virial_b,error=error)
+                   IF (has_dv) THEN
+                      IF (iatom <= jatom) THEN
+                        CALL integrate_pgf_product_rspace(&
+                             la_max(iset),zeta(ipgf,iset),la_min(iset),&
+                             lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
+                             ra,rab,rab2,rs_v(igrid_level)%rs_grid,&
+                             cube_info(igrid_level),l_info,&
+                             hab,pab=pab,o1=na1-1,o2=nb1-1, &
+                             eps_gvg_rspace=eps_gvg_rspace,&
+                             calculate_forces=calculate_forces,hdab=hdab,hadb=hadb,&
+                             force_a=force_a,force_b=force_b,ithread=ithread,&
+                             compute_tau=my_compute_tau,map_consistent=map_consistent,&
+                             use_virial=use_virial,my_virial_a=my_virial_a,&
+                             my_virial_b=my_virial_b,error=error)
+                      ELSE
+                        CALL integrate_pgf_product_rspace(&
+                             lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
+                             la_max(iset),zeta(ipgf,iset),la_min(iset),&
+                             rb,-rab,rab2,rs_v(igrid_level)%rs_grid,&
+                             cube_info(igrid_level),l_info,&
+                             hab,pab=pab,o1=nb1-1,o2=na1-1, &
+                             eps_gvg_rspace=eps_gvg_rspace,&
+                             calculate_forces=calculate_forces,hdab=hadb,hadb=hdab,&
+                             force_a=force_b,force_b=force_a,ithread=ithread,&
+                             compute_tau=my_compute_tau,map_consistent=map_consistent,&
+                             use_virial=use_virial,my_virial_a=my_virial_b,&
+                             my_virial_b=my_virial_a,error=error)
+                      END IF
                    ELSE
-                     CALL integrate_pgf_product_rspace(&
-                          lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
-                          la_max(iset),zeta(ipgf,iset),la_min(iset),&
-                          rb,-rab,rab2,rs_v(igrid_level)%rs_grid,&
-                          cube_info(igrid_level),l_info,&
-                          hab,pab=pab,o1=nb1-1,o2=na1-1, &
-                          eps_gvg_rspace=eps_gvg_rspace,&
-                          calculate_forces=calculate_forces,&
-                          force_a=force_b,force_b=force_a,ithread=ithread,&
-                          compute_tau=my_compute_tau,map_consistent=map_consistent,&
-                          use_virial=use_virial,my_virial_a=my_virial_b,&
-                          my_virial_b=my_virial_a,error=error)
+   
+                      IF (iatom <= jatom) THEN
+                        CALL integrate_pgf_product_rspace(&
+                             la_max(iset),zeta(ipgf,iset),la_min(iset),&
+                             lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
+                             ra,rab,rab2,rs_v(igrid_level)%rs_grid,&
+                             cube_info(igrid_level),l_info,&
+                             hab,pab=pab,o1=na1-1,o2=nb1-1, &
+                             eps_gvg_rspace=eps_gvg_rspace,&
+                             calculate_forces=calculate_forces,&
+                             force_a=force_a,force_b=force_b,ithread=ithread,&
+                             compute_tau=my_compute_tau,map_consistent=map_consistent,&
+                             use_virial=use_virial,my_virial_a=my_virial_a,&
+                             my_virial_b=my_virial_b,error=error)
+                      ELSE
+                        CALL integrate_pgf_product_rspace(&
+                             lb_max(jset),zetb(jpgf,jset),lb_min(jset),&
+                             la_max(iset),zeta(ipgf,iset),la_min(iset),&
+                             rb,-rab,rab2,rs_v(igrid_level)%rs_grid,&
+                             cube_info(igrid_level),l_info,&
+                             hab,pab=pab,o1=nb1-1,o2=na1-1, &
+                             eps_gvg_rspace=eps_gvg_rspace,&
+                             calculate_forces=calculate_forces,&
+                             force_a=force_b,force_b=force_a,ithread=ithread,&
+                             compute_tau=my_compute_tau,map_consistent=map_consistent,&
+                             use_virial=use_virial,my_virial_a=my_virial_b,&
+                             my_virial_b=my_virial_a,error=error)
+                      END IF
                    END IF
                 ELSE
                    IF (iatom <= jatom) THEN
@@ -1021,6 +1110,18 @@ CONTAINS
                            1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
                            work(1,1),SIZE(work,1),&
                            1.0_dp,h_block(sgfa,sgfb),SIZE(h_block,1))
+                IF (has_dv) THEN
+                   DO idir=1,3
+                      CALL dgemm("N","N",ncoa,nsgfb(jset),ncob,&
+                           1.0_dp,hdab(idir,1,1),SIZE(hab,2),&
+                           sphi_b(1,sgfb),SIZE(sphi_b,1),&
+                           0.0_dp,work(1,1),SIZE(work,1))
+                      CALL dgemm("T","N",nsgfa(iset),nsgfb(jset),ncoa,&
+                           1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
+                           work(1,1),SIZE(work,1),&
+                           1.0_dp,dv_block(idir)%array(sgfa,sgfb),SIZE(h_block,1))
+                   END DO
+                END IF
               ELSE
                 CALL dgemm("N","N",ncob,nsgfa(iset),ncoa,&
                            1.0_dp,hab(1,1),SIZE(hab,1),&
@@ -1030,6 +1131,18 @@ CONTAINS
                            1.0_dp,sphi_b(1,sgfb),SIZE(sphi_b,1),&
                            work(1,1),SIZE(work,1),&
                            1.0_dp,h_block(sgfb,sgfa),SIZE(h_block,1))
+                IF (has_dv) THEN
+                   DO idir=1,3
+                      CALL dgemm("N","N",ncob,nsgfa(iset),ncoa,&
+                           1.0_dp,hadb(idir,1,1),SIZE(hadb,2),&
+                           sphi_a(1,sgfa),SIZE(sphi_a,1),&
+                           0.0_dp,work(1,1),SIZE(work,1))
+                      CALL dgemm("T","N",nsgfb(jset),nsgfa(iset),ncob,&
+                           1.0_dp,sphi_b(1,sgfb),SIZE(sphi_b,1),&
+                           work(1,1),SIZE(work,1),&
+                           1.0_dp,dv_block(idir)%array(sgfb,sgfa),SIZE(h_block,1))
+                   END DO
+                END IF
               END IF
 
             END DO
@@ -1073,8 +1186,14 @@ CONTAINS
       ! Reconstruct H matrix 
       CALL redistribute_matrix ( dh, h%matrix, para_env )
       CALL deallocate_matrix ( dh )
+      IF (has_dv) THEN
+         DO idir=1,3
+            CALL redistribute_matrix(ddv(idir)%matrix,matrix_dv(idir)%matrix,para_env)
+         END DO
+         CALL deallocate_matrix_set(ddv)
+      END IF
     ELSE
-      NULLIFY ( dh )
+      NULLIFY ( dh, ddv )
     END IF
 
     IF ( p_duplicated ) THEN

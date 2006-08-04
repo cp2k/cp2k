@@ -782,7 +782,7 @@ SUBROUTINE wfi_create(wf_history, interpolation_method_nr, extrapolation_order, 
         CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
              routineP,"Unknown interpolation method: "//&
              TRIM(ADJUSTL(cp_to_string(interpolation_method_nr)))//" in "//&
-             CPSourceFileRef,&
+CPSourceFileRef,&
              error, failure)
         wf_history%interpolation_method_nr=wfi_use_prev_rho_r_method_nr
      END SELECT
@@ -868,7 +868,7 @@ FUNCTION wfi_get_method_label(method_nr,error) RESULT(res)
              routineP,"Unknown interpolation method: "//&
              TRIM(ADJUSTL(cp_to_string(method_nr)))//&
              " in "//&
-             CPSourceFileRef,&
+CPSourceFileRef,&
              error, failure)
      END SELECT
   END IF
@@ -1419,7 +1419,7 @@ SUBROUTINE wfi_extrapolate(globenv,wf_history, qs_env, dt, extrapolation_method_
              routineP,"Unknown interpolation method: "//&
              TRIM(ADJUSTL(cp_to_string(wf_history%interpolation_method_nr)))//&
              " in "//&
-             CPSourceFileRef,&
+CPSourceFileRef,&
              error, failure)
      END SELECT
      IF (PRESENT(orthogonal_wf)) orthogonal_wf=my_orthogonal_wf
@@ -1635,7 +1635,8 @@ END SUBROUTINE wfi_update
     failure = .FALSE.
 
     CPPrecondition(ASSOCIATED(input_wf_history), cp_failure_level, routineP, error, failure)
-    CPPrecondition(input_wf_history%ref_count>0, cp_failure_level, routineP, error, failure)
+    CPPrecondition(ASSOCIATED(output_wf_history), cp_failure_level, routineP, error, failure)
+    CPPrecondition(output_wf_history%ref_count>0, cp_failure_level, routineP, error, failure)
     CPPrecondition(ASSOCIATED(qs_env), cp_failure_level, routineP, error, failure)
     CPPrecondition(qs_env%ref_count>0, cp_failure_level, routineP, error, failure)
 

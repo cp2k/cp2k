@@ -194,7 +194,7 @@ SUBROUTINE sm_struct_create(sm_struct, block_begins_at_row,&
     CHARACTER(len=*)                         :: symmetry
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(cp_sm_node_type), OPTIONAL, POINTER :: local_blocks_ptr
-    INTEGER                                  :: sparsity_id
+    INTEGER, optional                        :: sparsity_id
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -211,7 +211,11 @@ SUBROUTINE sm_struct_create(sm_struct, block_begins_at_row,&
   IF (.NOT. failure) THEN
      sm_struct%ref_count=1
      last_sm_struct_id=last_sm_struct_id+1
-     sm_struct%id_nr=sparsity_id
+     IF (PRESENT(sparsity_id)) THEN
+        sm_struct%id_nr=sparsity_id
+     ELSE
+        sm_struct%id_nr=last_sm_struct_id
+     END IF
      ALLOCATE(sm_struct%block_begins_at_row(SIZE(block_begins_at_row)), &
           sm_struct%block_begins_at_col(SIZE(block_begins_at_col)),&
           stat=stat)

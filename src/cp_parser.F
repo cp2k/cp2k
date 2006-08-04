@@ -1326,7 +1326,7 @@ END SUBROUTINE parser_next_token
           ELSE
              CALL cp_assert(PRESENT(file_name),cp_failure_level,cp_assertion_failed,&
                   routineP,"at least one of filename and unit_nr must be present"//&
-                  CPSourceFileRef,&
+CPSourceFileRef,&
                   error,failure)
              IF (.NOT.failure) THEN
                 CALL open_file(file_name=TRIM(file_name),&

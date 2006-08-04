@@ -51,10 +51,170 @@ MODULE input_cp2k_dft
 
   PUBLIC :: create_dft_section
   PUBLIC :: create_bsse_section
-  PUBLIC :: create_properties_section, create_scf_section
+  PUBLIC :: create_properties_section, create_scf_section, create_ep_section
 !***
 !****************************************************************************
 CONTAINS
+
+
+!!****f* input_cp2k_dft/create_ep_section *
+!!
+!!   NAME
+!!     create_ep_section
+!!
+!!   FUNCTION
+!!     creates an ep section
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - section: the section to be created
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_ep_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_ep_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection,print_section,print_key
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    CALL section_create(section,name="ep",&
+         description="parameter needed by an ep calculation",&
+         repeats=.FALSE., required=.TRUE.,&
+         error=error)
+
+    NULLIFY(keyword)
+    CALL keyword_create(keyword, name="COMP_INPUT",&
+         description="Path to the input to be used for the component of the main system",&
+         usage="COMP_INPUT comp.inp",&
+         default_lc_val="comp.inp",error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+    CALL keyword_create(keyword, name="AT_PER_MOL",&
+         description="Number of atoms in each molecule (at the moment only uniform system cam be handled)",&
+         usage="at_per_mol 3",&
+         default_i_val=3,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    nullify(print_section)
+    CALL section_create(print_section,name="print",&
+         description="Section of possible print options for an EP calculation.",&
+         repeats=.FALSE., required=.TRUE.,error=error)
+
+       NULLIFY(print_key)
+       CALL cp_print_key_section_create(print_key,"ENERGY",&
+            description="Controls the printing of the various energies",&
+            print_level=medium_print_level,each=(/1/),filename="",&
+            error=error)
+       CALL section_add_subsection(print_section,print_key,error=error)
+       CALL section_release(print_key,error=error)       
+
+       CALL cp_print_key_section_create(print_key,"RUN_INFO",&
+            description="Prints various informations on the progress of the ep calculation",&
+            print_level=medium_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+    CALL keyword_create(keyword, name="LIN_SOLV",&
+         description="print the linear solver progress",&
+         usage="lin_solv",&
+         default_l_val=.TRUE.,lone_keyword_l_val=.TRUE.,error=error)
+    CALL section_add_keyword(print_key,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+       CALL section_add_subsection(print_section,print_key,error=error)
+       CALL section_release(print_key,error=error)       
+
+       CALL cp_print_key_section_create(print_key,"EP_MATRIXES",&
+            description="Prints various matrixes of an ep calculation",&
+            print_level=debug_print_level,each=(/1/),filename="__STD_OUT__",&
+            error=error)
+
+    CALL keyword_create(keyword, name="psi0",&
+         description="print the value of the psi0 matrix",&
+         usage="psi0",&
+         default_l_val=.TRUE.,lone_keyword_l_val=.TRUE.,error=error)
+    CALL section_add_keyword(print_key,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="psi0_blocks",&
+         description="print the value of the blocs of the psi0 matrix",&
+         usage="psi0_blocks",&
+         default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+    CALL section_add_keyword(print_key,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="psi1",&
+         description="print the value of the psi1 matrix",&
+         usage="psi1",&
+         default_l_val=.TRUE.,lone_keyword_l_val=.TRUE.,error=error)
+    CALL section_add_keyword(print_key,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="mo_s_inv",&
+         description="print the value of the inverse of the mo overlap matrix",&
+         usage="mo_s_inv",&
+         default_l_val=.true.,lone_keyword_l_val=.TRUE.,error=error)
+    CALL section_add_keyword(print_key,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+       CALL section_add_subsection(print_section,print_key,error=error)
+       CALL section_release(print_key,error=error)       
+
+       CALL cp_print_key_section_create(print_key,"EP_RHO_CUBE",&
+            description="Prints out a cube file with the calculated rho",&
+            print_level=debug_print_level,each=(/1/),filename="EP_RHO",&
+            error=error)
+
+    CALL keyword_create(keyword, name="rho0",&
+         description="print the cube of rho0,the psi0 derived density matrix",&
+         usage="rho0 OFF",&
+         default_l_val=.TRUE.,lone_keyword_l_val=.TRUE.,error=error)
+    CALL section_add_keyword(print_key,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="rho1",&
+         description="print the value of the blocs of rho1, the psi1 (and psi0) derived density matrix",&
+         usage="rho1 F",&
+         default_l_val=.true.,lone_keyword_l_val=.TRUE.,error=error)
+    CALL section_add_keyword(print_key,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="stride",&
+         description="How many points are printed out (the bigger the smaller the cube file",&
+         usage="stride 3",&
+         default_i_val=2,error=error)
+    CALL section_add_keyword(print_key,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="mo_s_inv",&
+         description="print the value of the inverse of the mo overlap matrix",&
+         usage="mo_s_inv",&
+         default_l_val=.true.,lone_keyword_l_val=.TRUE.,error=error)
+    CALL section_add_keyword(print_key,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+       CALL section_add_subsection(print_section,print_key,error=error)
+       CALL section_release(print_key,error=error)       
+
+       CALL section_add_subsection(section,print_section,error=error)
+       CALL section_release(print_section,error=error)       
+
+  END SUBROUTINE create_ep_section
+!**************************************************************************
 
 !!****f* input_cp2k_dft/create_dft_section *
 !!

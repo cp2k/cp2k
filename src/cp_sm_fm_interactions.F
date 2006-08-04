@@ -69,9 +69,11 @@ CONTAINS
 
   ! *****************************************************************************
 
-  SUBROUTINE copy_fm_to_sm(fm,real_matrix)
+  SUBROUTINE copy_fm_to_sm(fm,real_matrix,alpha,beta)
 
     !   Purpose: Copy a BLACS matrix to a sparse matrix. 
+    !   real_matrix=beta*real_matrix+alpha*fm
+    !   beta defaults to 0, beta to 1
     !   History: - Creation (06.06.2001, Matthias Krack)
     !   08.2002 adapted to local_data, could be optimized
     !   08.2003 imported form qs_blacs
@@ -79,6 +81,7 @@ CONTAINS
 
     TYPE(cp_fm_type), POINTER          :: fm
     TYPE(real_matrix_type), POINTER    :: real_matrix
+    REAL(kind=dp), INTENT(in), OPTIONAL :: alpha,beta
 
     !   *** Local parameters ***
 
@@ -97,6 +100,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER    :: first_col,first_row,last_col,last_row
     REAL(KIND = dp), DIMENSION(:,:), POINTER :: fm_block,real_matrix_block
     TYPE(cp_blacs_env_type), POINTER  :: context
+    REAL(kind=dp) :: my_alpha,my_beta
 
 #if defined(__SCALAPACK)
     INTEGER, EXTERNAL :: indxg2l,indxg2p
@@ -105,7 +109,11 @@ CONTAINS
     !   ---------------------------------------------------------------------------
 
     CALL timeset("copy_fm_to_sm","I","",handle)
-
+    
+    my_beta=0._dp
+    my_alpha=1._dp
+    if (present(alpha)) my_alpha=alpha
+    if (present(beta)) my_beta=beta
     group = fm%matrix_struct%para_env%group
     context => fm%matrix_struct%context
 
@@ -178,8 +186,8 @@ CONTAINS
                             irow_local = indxg2l(irow_global,nrow_block,myprow,&
                                  fm%matrix_struct%first_p_pos(1),nprow)
 
-                            real_matrix_block(irow,icol) = fm_block(irow_local,&
-                                 icol_local)
+                            real_matrix_block(irow,icol) = my_beta*real_matrix_block(irow,icol)+&
+                                 my_alpha*fm_block(irow_local,icol_local)
 
                          END IF
 
@@ -230,7 +238,8 @@ CONTAINS
 
              DO irow_global=first_row(iblock_row),last_row(iblock_row)
 
-                real_matrix_block(irow,icol) = fm_block(irow_global,icol_global)
+                real_matrix_block(irow,icol) = my_beta*real_matrix_block(irow,icol)+&
+                     my_alpha*fm_block(irow_global,icol_global)
 
                 irow = irow + 1
 
@@ -692,7 +701,7 @@ CONTAINS
 #if defined(__parallel) && ! defined(__SCALAPACK)
      CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
      routineP,"cp_sm_fm_multiply would be most happy to use scalapack libraries"//&
-     CPSourceFileRef,&
+CPSourceFileRef,&
      error)
 #endif
     CPPrecondition(ASSOCIATED(sparse_matrix),cp_failure_level,routineP,error,failure)
@@ -869,7 +878,7 @@ CONTAINS
 #if defined(__parallel) && ! defined(__SCALAPACK)
      CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
      routineP,"cp_sm_plus_fm_fm_t would be most happy to use scalapack libraries"//&
-     CPSourceFileRef,&
+CPSourceFileRef,&
      error)
 #endif
     CALL timeset(routineN,"I","",handle)
@@ -1083,7 +1092,7 @@ CONTAINS
              ! possibly just OK (i.e. general matrix) just provide an empty slot
              CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
                   "wrong matrix symmetry '"//sparse_matrix%symmetry//"' specification in "//&
-                  CPSourceFileRef,&
+CPSourceFileRef,&
                   error=error,failure=failure)
           END SELECT
 !FM    CALL cp_fm_scale_and_add(alpha=1.0_dp,matrix_a=tmp_m,matrix_b=v_out,&
@@ -1288,7 +1297,7 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
     CPPrecondition(ASSOCIATED(fm_out),cp_failure_level,routineP,error,failure)
     CALL cp_assert(cp_fm_struct_compatible(fm_in%matrix_struct,fm_out%matrix_struct,error=error),&
          cp_failure_level, cp_assertion_failed, routineP, "input and output matrixes must be compatible "//&
-         CPSourceFileRef,&
+CPSourceFileRef,&
          error,failure)
 
     flops=0.0_dp
@@ -1607,12 +1616,12 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
 
     CALL cp_assert(cp_fm_struct_compatible(matrix_v%matrix_struct,my_matrix_g%matrix_struct,error=error),&
          cp_failure_level, cp_assertion_failed, routineP, "input and output matrixes must be compatible "//&
-         CPSourceFileRef,&
+CPSourceFileRef,&
          error,failure)
     
     CALL cp_assert(sm%symmetry=="none".OR.sm%symmetry=="symmetric",cp_failure_level,&
          cp_assertion_failed,routineP,"matrix symmetry incorrect in "//&
-         CPSourceFileRef,&
+CPSourceFileRef,&
          error,failure) 
 
     nprow         =matrix_v%matrix_struct%context%num_pe(1)
@@ -1651,7 +1660,7 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
          sm_last_col(SIZE(sm_last_col))==sm_last_row(SIZE(sm_last_row)).AND.&
          sm_last_row(SIZE(sm_last_row))==g_matrix_nrow_g, cp_failure_level,&
          cp_assertion_failed,routineP,"unacceptable matrix sizes in "//&
-         CPSourceFileRef,&
+CPSourceFileRef,&
          error,failure) 
 
     njunk        =lcm(nprow,npcol)
@@ -2077,7 +2086,7 @@ END SUBROUTINE cp_sm_plus_fm_fm_t
             SUM(ncol_global_of_junk(1:gindex_of_junk(ijunk)))-&
             ncol_global_of_junk(gindex_of_junk(ijunk))+1,&
             cp_failure_level,cp_assertion_failed,routineP,&
-            CPSourceFileRef,&
+CPSourceFileRef,&
             error,failure)
        bsize=fm_ncol_block-MOD(first_g_col-1,fm_ncol_block)
 #ifdef __SCALAPACK

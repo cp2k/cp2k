@@ -32,7 +32,8 @@ MODULE cp_fm_types
                                              cp_fm_struct_get,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_retain,&
-                                             cp_fm_struct_type
+                                             cp_fm_struct_type,&
+                                             cp_fm_struct_write
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
   USE kinds,                           ONLY: dp
@@ -42,6 +43,10 @@ MODULE cp_fm_types
                                              mp_sum
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE cp_array_r_utils, only: cp_2d_r_write
+  USE string_utilities, only: compress
+  USE cp_files, ONLY: open_file, close_file
+
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -66,17 +71,18 @@ MODULE cp_fm_types
             cp_fm_set_all, &           ! set all elements and diagonal
             cp_fm_set_submatrix, &     ! set a submatrix to given values
             cp_fm_get_submatrix, &     ! get a submatrix of given values
-            cp_fm_init_random, &         
+            cp_fm_init_random, &
             cp_fm_maxabsval, &         ! find the maximum absolute value
             cp_fm_maxabsrownorm, &     ! find the maximum of the sum of the abs of the elements of a row
+            cp_fm_write, &             ! writes lots of information and data (might need further development)
             cp_fm_to_fm,&              ! copy (parts of) a fm to a fm
-            cp_fm_vectorsnorm          ! compute the norm of the column-vectors      
+            cp_fm_vectorsnorm          ! compute the norm of the column-vectors
 
 
   INTERFACE cp_fm_to_fm
     MODULE PROCEDURE cp_fm_to_fm_matrix, &  ! a full matrix
                      cp_fm_to_fm_columns    ! just a number of columns
-  END INTERFACE 
+  END INTERFACE
 
 !****************************************************************************
 
@@ -164,8 +170,8 @@ CONTAINS
 !!   INPUTS
 !!     - matrix: the matrix to be created
 !!     - matrix_struct: the structure of matrix
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -194,7 +200,7 @@ CONTAINS
 #if defined(__parallel) && ! defined(__SCALAPACK)
      CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
      routineP,"full matrixes need scalapack for parallel runs "//&
-     CPSourceFileRef,&
+CPSourceFileRef,&
      error)
 #endif
 
@@ -216,7 +222,7 @@ CONTAINS
        npcol=context%num_pe(2)
        NULLIFY(matrix%local_data)
 
-       ! OK, we allocate here at least a 1 x 1 matrix 
+       ! OK, we allocate here at least a 1 x 1 matrix
        ! this must (and is) compatible with the descinit call
        ! in cp_fm_struct
        nrow_local=matrix_struct%local_leading_dimension
@@ -249,8 +255,8 @@ CONTAINS
 !!
 !!   INPUTS
 !!     - matrix: the matrix to retain
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -293,8 +299,8 @@ CONTAINS
 !!
 !!   INPUTS
 !!     - matrix: the matrix to release
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -344,7 +350,7 @@ CONTAINS
 !!     fills a matrix with random numbers
 !!
 !!   NOTES
-!!     the value of a_ij is independent of the number of cpus 
+!!     the value of a_ij is independent of the number of cpus
 !!
 !!   INPUTS
 !!     matrix :: to be initialized
@@ -396,7 +402,7 @@ CONTAINS
        IF (matrix%matrix_struct%para_env%mepos.eq.0) THEN
           CALL dlarnv(1,iseed,n,buff(1,1))
        ENDIF
-       CALL mp_bcast(buff,0,matrix%matrix_struct%para_env%group) 
+       CALL mp_bcast(buff,0,matrix%matrix_struct%para_env%group)
        ! write(6,*) buff
        CALL cp_fm_set_submatrix(matrix,buff,start_col=icol)
 
@@ -414,7 +420,7 @@ CONTAINS
 !!     cp_fm_set_all
 !!
 !!   FUNCTION
-!!     set all elements of a matrix to the same value, 
+!!     set all elements of a matrix to the same value,
 !!     and optionally the diagonal to a different one
 !!
 !!   NOTES
@@ -458,7 +464,7 @@ CONTAINS
 !!     cp_fm_get_element
 !!
 !!   FUNCTION
-!!     returns an element of a fm 
+!!     returns an element of a fm
 !!     this value is valid on every cpu
 !!     using this call is expensive
 !!
@@ -470,16 +476,16 @@ CONTAINS
 !!     - local: true if the element is on this cpu, false otherwise
 !!
 !!   NOTES
-!!     - modified semantics. now this function always returns the value 
-!!       previously the value was zero on cpus that didn't own the relevant 
+!!     - modified semantics. now this function always returns the value
+!!       previously the value was zero on cpus that didn't own the relevant
 !!       part of the matrix (Joost VandeVondele, May 2003)
 !!     - usage of the function should be avoided, as it is likely to rather slow
-!!       using row_indices/col_indices/local_data + some smart scheme normally 
+!!       using row_indices/col_indices/local_data + some smart scheme normally
 !!       yields a real parallel code
 !!
 !!****
   SUBROUTINE cp_fm_get_element(matrix,irow_global,icol_global,alpha,local)
-    
+
     IMPLICIT NONE
 
     ! arguments
@@ -520,7 +526,7 @@ CONTAINS
       IF (PRESENT(local)) local=.FALSE.
     END IF
 
-#else 
+#else
     IF (PRESENT(local)) local=.TRUE.
     alpha = matrix%local_data(irow_global,icol_global)
 #endif
@@ -596,7 +602,7 @@ CONTAINS
 !!   FUNCTION
 !!     sets a submatrix of a full matrix
 !!      fm(start_row:start_row+n_rows,start_col:start_col+n_cols)
-!!      = alpha*op(new_values)(1:n_rows,1:n_cols)+ beta 
+!!      = alpha*op(new_values)(1:n_rows,1:n_cols)+ beta
 !!      * fm(start_row:start_row+n_rows,start_col:start_col+n_cols)
 !!
 !!   NOTES
@@ -617,8 +623,8 @@ CONTAINS
 !!     - transpose: if new_values should be transposed: if true
 !!       op(new_values)=new_values^T, else op(new_values)=new_values
 !!       (defaults to false)
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -775,8 +781,8 @@ CONTAINS
 !!     - transpose: if target_m should be transposed: if true
 !!       op(target_m)=target_m^T, else op(target_m)=target_m
 !!       (defaults to false)
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
+!!     - error: variable to control error logging, stopping,...
+!!       see module cp_error_handling
 !!
 !!   AUTHOR
 !!     Fawzi Mohamed
@@ -833,7 +839,7 @@ CONTAINS
 
        full_block => fm%local_data
 #if defined(__SCALAPACK)
-       ! zero-out whole target_m 
+       ! zero-out whole target_m
        CALL dcopy(SIZE(target_m,1)*SIZE(target_m,2),0.0_dp,0,target_m(1,1),1)
 #endif
 
@@ -894,8 +900,8 @@ CONTAINS
 !!
 !!   NOTES
 !!      see also cp_fm_struct for explaination
-!!      - nrow_local, ncol_local, row_indices, col_indices, local_data are hooks for efficient 
-!!        access to the local blacs block 
+!!      - nrow_local, ncol_local, row_indices, col_indices, local_data are hooks for efficient
+!!        access to the local blacs block
 !!
 !!   INPUTS
 !!      matrix_a
@@ -1016,13 +1022,13 @@ CONTAINS
     IF(PRESENT(ir_max)) THEN
       num_pe = matrix%matrix_struct%para_env%num_pe
       mepos = matrix%matrix_struct%para_env%mepos
-      ALLOCATE(ir_max_vec(0:num_pe-1),STAT=istat) 
+      ALLOCATE(ir_max_vec(0:num_pe-1),STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       ir_max_vec(0:num_pe-1) = 0
-      ALLOCATE(ic_max_vec(0:num_pe-1),STAT=istat) 
+      ALLOCATE(ic_max_vec(0:num_pe-1),STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       ic_max_vec(0:num_pe-1) = 0
-      ALLOCATE(a_max_vec(0:num_pe-1),STAT=istat) 
+      ALLOCATE(a_max_vec(0:num_pe-1),STAT=istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       a_max_vec(0:num_pe-1) = 0.0_dp
       my_max = 0.0_dp
@@ -1035,8 +1041,8 @@ CONTAINS
               ir_max_local = j
               ic_max_local = i
             END IF
-          END DO 
-        END DO 
+          END DO
+        END DO
 
         a_max_vec(mepos) = my_max
         ir_max_vec(mepos) = row_indices(ir_max_local)
@@ -1054,7 +1060,7 @@ CONTAINS
            ir_max = ir_max_vec(i)
            ic_max = ic_max_vec(i)
         END IF
-      END DO 
+      END DO
 
       DEALLOCATE(ir_max_vec,ic_max_vec,a_max_vec, STAT = istat)
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -1075,7 +1081,7 @@ CONTAINS
 !!     cp_fm_maxabsrownorm
 !!
 !!   FUNCTION
-!!     find the maximum over the rows of the sum of the absolute values of the elements of a given row 
+!!     find the maximum over the rows of the sum of the absolute values of the elements of a given row
 !!     = || A ||_infinity
 !!
 !!   NOTES
@@ -1107,7 +1113,7 @@ CONTAINS
 
     my_block => matrix%local_data
     CALL cp_fm_get_info(matrix, row_indices=row_indices, nrow_global=nrow_global, &
-                                nrow_local=nrow_local, ncol_local=ncol_local) 
+                                nrow_local=nrow_local, ncol_local=ncol_local)
 
     ! the efficiency could be improved by making use of the row-col distribution of scalapack
     ALLOCATE(values(nrow_global))
@@ -1166,12 +1172,143 @@ CONTAINS
        ENDDO
     ENDDO
     CALL mp_sum(norm_array,matrix%matrix_struct%para_env%group)
-    norm_array = SQRT(norm_array) 
+    norm_array = SQRT(norm_array)
 
     CALL timestop(handle)
   END SUBROUTINE
 
   ! ***************************************************************************
+
+ !!****f* cp_fm_types/cp_fm_write [1.0] *
+ !!
+ !!   NAME
+ !!     cp_fm_write
+ !!
+ !!   FUNCTION
+ !!     writes out the matrix (if long description, might need some refactoring
+ !!
+ !!   NOTES
+ !!     uniquing_nr should be smartened: don't add if no file exist, else
+ !!     increase nr until no file exists
+ !!     routine to help debugging
+ !!
+ !!   INPUTS
+ !!     - matrix: the matrix to output
+ !!     - unit_nr: the unit where to output
+ !!     - long_description: if a long description should be written (is
+ !!       needed to see the content of the matrix)
+ !!       (defaults to false)
+ !!     - local: if the unit is a local unit or a global unit
+ !!       (defaults to false, i.e. global)
+ !!     - error: variable to control error logging, stopping,...
+ !!       see module cp_error_handling
+ !!
+ !!   AUTHOR
+ !!     Fawzi Mohamed
+ !!
+ !!   MODIFICATION HISTORY
+ !!     08.2002 created [fawzi]
+ !!
+ !!*** **********************************************************************
+   SUBROUTINE cp_fm_write(matrix, unit_nr, long_description, local, error)
+     TYPE(cp_fm_type), POINTER                :: matrix
+     INTEGER, INTENT(in)                      :: unit_nr
+     LOGICAL, INTENT(in), OPTIONAL            :: long_description, local
+     TYPE(cp_error_type), INTENT(inout), &
+       OPTIONAL                               :: error
+
+     CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_write', &
+       routineP = moduleN//':'//routineN
+
+     CHARACTER(len=60)                        :: filename
+     INTEGER                                  :: data_unit, desc_unit, iostat
+     LOGICAL                                  :: exists, failure, loc, &
+                                                 my_long_description
+     TYPE(cp_logger_type), POINTER            :: logger
+     TYPE(cp_para_env_type), POINTER          :: para_env
+
+     failure=.FALSE.; loc=.FALSE.; my_long_description=.FALSE.
+     filename=' '
+     
+     IF (PRESENT(local)) loc=local
+     IF (PRESENT(long_description)) my_long_description=long_description
+     logger=>cp_error_get_logger(error)
+     para_env=>logger%para_env
+     IF (ASSOCIATED(matrix)) THEN
+        data_unit=unit_nr
+        desc_unit=unit_nr
+        IF (.not.loc.and.long_description) THEN
+           matrix%print_count=matrix%print_count+1
+           IF (para_env%mepos==para_env%source) THEN
+              filename=TRIM(matrix%name)//'-'//&
+                   ADJUSTL(cp_to_string(matrix%print_count))
+              CALL compress(filename,full=.TRUE.)
+              WRITE (unit=desc_unit,&
+                   fmt="(' <cp_fm_types>:{ id_nr=',i10,' written to files ',a,'*')",&
+                   iostat=iostat) matrix%id_nr, TRIM(filename)
+           END IF
+           CALL cp_logger_generate_filename(logger=logger,res=filename,&
+                root=TRIM(matrix%name)//"-"//&
+                TRIM(ADJUSTL(cp_to_string(matrix%print_count))),&
+                postfix=".desc",local=.TRUE.)
+           INQUIRE (FILE=TRIM(filename),EXIST=exists)
+           CALL cp_assert(.NOT.exists,cp_warning_level,cp_assertion_failed,&
+                routineP,"file "//TRIM(filename)//" exists, overwriting",error)
+           CALL open_file(TRIM(filename),file_status="unknown",&
+                file_action="WRITE",&
+                unit_number=desc_unit)
+
+           CALL cp_logger_generate_filename(logger=logger,res=filename,&
+             root=TRIM(matrix%name)//"-"//&
+             TRIM(ADJUSTL(cp_to_string(matrix%print_count))),&
+             postfix=".dat",local=.TRUE.)
+           INQUIRE (FILE=TRIM(filename),EXIST=exists)
+           CALL cp_assert(.NOT.exists,cp_warning_level,cp_assertion_failed,&
+                routineP,"file "//TRIM(filename)//" exists, overwriting",error)
+9           CALL open_file(TRIM(filename),file_status="unknown",&
+                file_action="WRITE",&
+                unit_number=data_unit)
+        END IF
+
+        IF (loc .OR. para_env%mepos==para_env%source.or.long_description) THEN
+           WRITE (unit=desc_unit,&
+                fmt="(' <cp_fm_types>:{ id_nr=',i10,' ref_count=',i10,',')",&
+                iostat=iostat) matrix%id_nr, matrix%ref_count
+           WRITE (unit=desc_unit,&
+                fmt="(' name=',a,',')",&
+                iostat=iostat) matrix%name
+           WRITE(unit=desc_unit,fmt="(a)",iostat=iostat) " matrix_structure="
+           CALL cp_fm_struct_write(matrix%matrix_struct,unit_nr=desc_unit,&
+                long_description=my_long_description,error=error)
+           WRITE(unit=desc_unit,fmt="(a)",iostat=iostat) " ,"
+           IF (my_long_description) THEN
+              WRITE(unit=desc_unit,fmt="(a)",iostat=iostat) " local_data=("
+              CALL cp_2d_r_write(matrix%local_data,unit_nr=data_unit,error=error)
+              IF (desc_unit/=data_unit) THEN
+                 WRITE(unit=desc_unit,fmt="(a)",iostat=iostat) &
+                      "  written to file "//TRIM(filename)
+              END IF
+           ELSE IF (loc) THEN
+              IF (ASSOCIATED(matrix%local_data)) THEN
+                 WRITE (unit=desc_unit,&
+                      fmt="(' local_data=(REAL(wp, DIMENSION(',i8,', ',i8,'))')",&
+                      iostat=iostat) SIZE(matrix%local_data,1), SIZE(matrix%local_data,2)
+              END IF
+           END IF
+           WRITE (unit=desc_unit,fmt="(a)",iostat=iostat) " }"
+        END IF
+
+        IF (.not.loc.and.long_description) THEN
+           CALL close_file(desc_unit)
+           CALL close_file(data_unit)
+        END IF
+     ELSE
+        IF (loc .OR. para_env%mepos==para_env%source) THEN
+           WRITE (unit=unit_nr,fmt="(a)",iostat=iostat) " <cp_fm_types>:*null*"
+        END IF
+     END IF
+   END SUBROUTINE cp_fm_write
+!**************************************************************************
 
 !!****f* cp_fm_types/cp_fm_to_fm_matrix [1.0] *
 !!
@@ -1222,7 +1359,7 @@ CONTAINS
          "Cannot copy full matrix <"//TRIM(source%name)//&
          "> to full matrix <"//TRIM(destination%name)//&
          ">. The local_data blocks have different sizes."//&
-         CPSourceFileRef,&
+CPSourceFileRef,&
          error=error)
       CALL dcopy(SIZE(source%local_data,1)*SIZE(source%local_data,2),&
            source%local_data(1,1),1,destination%local_data(1,1),1)
@@ -1232,14 +1369,14 @@ CONTAINS
            cp_failure_level,&
            cp_assertion_failed, routineP, &
            "cannot copy between full matrixes of different sizes"//&
-           CPSourceFileRef,&
+CPSourceFileRef,&
            error=error)
       CALL cp_assert(source%matrix_struct%ncol_global==&
            destination%matrix_struct%ncol_global,&
            cp_failure_level,&
            cp_assertion_failed, routineP, &
            "cannot copy between full matrixes of differen sizes"//&
-           CPSourceFileRef,&
+CPSourceFileRef,&
            error=error)
 #ifdef __SCALAPACK
       CALL pdcopy(source%matrix_struct%nrow_global*&

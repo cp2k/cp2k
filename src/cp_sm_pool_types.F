@@ -573,7 +573,7 @@ CONTAINS
 !FM       CALL cp_assert(pool%matrix_struct%id_nr==matrix%matrix_struct%id_nr,&
 !FM            cp_failure_level, cp_assertion_failed, routineP,&
 !FM            "pool cannot reuse matrixes with another structure "//&
-!FM            CPSourceFileRef,&
+!FMCPSourceFileRef,&
 !FM            error=error,failure=failure)
 !FM    END IF
 

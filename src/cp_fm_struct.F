@@ -191,7 +191,7 @@ SUBROUTINE cp_fm_struct_create(fmstruct,para_env,context, nrow_global,&
 #if defined(__parallel) && ! defined(__SCALAPACK)
   CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
        routineP,"full matrixes need scalapack for parallel runs "//&
-       CPSourceFileRef,&
+CPSourceFileRef,&
        error)
 #endif
 
@@ -279,12 +279,12 @@ SUBROUTINE cp_fm_struct_create(fmstruct,para_env,context, nrow_global,&
      CALL cp_assert(SUM(fmstruct%ncol_locals).EQ.fmstruct%ncol_global,&
           cp_warning_level,cp_assertion_failed,routineP,&
           "sum of local cols not equal global cols"//&
-          CPSourceFileRef,&
+CPSourceFileRef,&
           error)
      CALL cp_assert(SUM(fmstruct%nrow_locals).EQ.fmstruct%nrow_global,&
           cp_warning_level,cp_assertion_failed,routineP,&
           "sum of local row not equal global rows"//&
-          CPSourceFileRef,&
+CPSourceFileRef,&
           error)
 #else
      ! block = full matrix
@@ -302,7 +302,7 @@ SUBROUTINE cp_fm_struct_create(fmstruct,para_env,context, nrow_global,&
              routineP,"local_leading_dimension too small ("//&
              cp_to_string(local_leading_dimension)//"<"//&
              cp_to_string(fmstruct%local_leading_dimension)//")"//&
-             CPSourceFileRef,&
+CPSourceFileRef,&
              error=error,failure=failure)
         fmstruct%local_leading_dimension=local_leading_dimension
      END IF

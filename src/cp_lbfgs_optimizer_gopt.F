@@ -597,7 +597,7 @@ END SUBROUTINE cp_opt_gopt_release
                PRESENT(upper_bound).OR.PRESENT(kind_of_bound)),&
                cp_warning_level,cp_assertion_failed,&
                routineP, "asked undefined types in "//&
-               CPSourceFileRef,&
+CPSourceFileRef,&
                error,failure)
        END IF
 
@@ -677,7 +677,7 @@ END SUBROUTINE cp_opt_gopt_release
        CALL cp_assert(.FALSE.,level=cp_warning_level,&
             error_nr=cp_assertion_failed,fromWhere=routineP,&
             message="status>=4, trying to restart in "//&
-            CPSourceFileRef,&
+CPSourceFileRef,&
             error=error)
        optimizer%status=0
        IF (is_master) THEN
@@ -743,14 +743,14 @@ END SUBROUTINE cp_opt_gopt_release
                 optimizer%status=5
                 CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,&
                      routineP,"task became stop in an unknown way in "//&
-                     CPSourceFileRef,&
+CPSourceFileRef,&
                      error)
              ELSE IF (optimizer%task(1:5)=='ERROR') THEN
                 optimizer%status=5
              ELSE
                 CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,&
                      routineP,"unknown task '"//optimizer%task//"' in "//&
-                     CPSourceFileRef,&
+CPSourceFileRef,&
                      error)
              END IF
           END IF ifMaster
@@ -847,13 +847,13 @@ END SUBROUTINE cp_opt_gopt_release
              ! deallocated
              CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
                   routineP,"step on a deallocated opt structure "//&
-                  CPSourceFileRef,&
+CPSourceFileRef,&
                   error,failure)           
           CASE default
              CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
                   routineP,"unknown status "//cp_to_string(optimizer%status)//&
                   " in "//& 
-                  CPSourceFileRef,&
+CPSourceFileRef,&
                   error,failure)
              optimizer%status=5
              EXIT

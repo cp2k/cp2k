@@ -1331,7 +1331,7 @@ SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,xc_section,&
                  CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
                       "unknown functional derivative (LSD): '"//&
                       TRIM(desc)//"' in "//&
-                      CPSourceFileRef,&
+CPSourceFileRef,&
                       error,failure)
               END SELECT
            ELSE
@@ -1345,7 +1345,7 @@ SUBROUTINE xc_vxc_pw_create(vxc_rho,vxc_tau,exc,rho_r,rho_g,tau,xc_section,&
                  CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
                       "unknown functional derivative (LDA): '"//&
                       TRIM(desc)//"' in "//&
-                      CPSourceFileRef,&
+CPSourceFileRef,&
                       error,failure)
               END SELECT
            END IF
@@ -2159,7 +2159,7 @@ SUBROUTINE xc_calc_2nd_deriv(v_xc, deriv_set, rho_set, rho1_set, &
           cp_assertion_failed,routineP,&
           "unknown functional derivative (LSD="//TRIM(cp_to_string(lsd))//&
           "): '"//TRIM(desc)//"' in "//&
-          CPSourceFileRef,&
+CPSourceFileRef,&
           error,failure)
   END DO
 
@@ -3226,7 +3226,7 @@ END SUBROUTINE xc_calc_2nd_deriv
                 CALL cp_assert(.NOT.lsd,cp_failure_level,cp_assertion_failed,routineP,&
                      "rho not handled in lsd: '"//&
                      TRIM(desc)//"' in "//&
-                     CPSourceFileRef,&
+CPSourceFileRef,&
                      error,failure)
              CASE("rhoa","rhob")
              CASE default
@@ -3234,7 +3234,7 @@ END SUBROUTINE xc_calc_2nd_deriv
                      "unhandled derivative: '"//&
                      TRIM(split_desc(idesc))//"' in '"//&
                      TRIM(desc)//"' in "//&
-                     CPSourceFileRef,&
+CPSourceFileRef,&
                      error,failure)
              END SELECT
           END DO

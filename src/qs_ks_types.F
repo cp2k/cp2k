@@ -61,7 +61,7 @@ MODULE qs_ks_types
 !!     - s_mstruct_changed: if the sparsity structure of s in qs_env where this
 !!       ks_env lives has changed
 !!     - rho_changed: if the rho stored in the qs_env has changed
-!!     - forces_up_to_date: if the 
+!!     - forces_up_to_date: if the forces are up to date
 !!     - potential_changed: if some external potentian changed (such as due to the constraint)
 !!
 !!   AUTHOR

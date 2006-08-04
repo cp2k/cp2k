@@ -61,7 +61,7 @@ SUBROUTINE cp_create_fenv_comm(new_env_id,input_file_path,output_file_path,&
   CHARACTER(len=*) :: input_file_path, output_file_path
   INTEGER :: new_env_id, mpi_comm, ierr
 
-  CALL cfe(new_env_id,input_file_path,output_file_path,ierr,mpi_comm)
+  CALL cfe(new_env_id,input_file_path,output_file_path,mpi_comm,ierr=ierr)
 END SUBROUTINE cp_create_fenv_comm
 
 SUBROUTINE cp_destroy_fenv(env_id, ierr)
@@ -81,6 +81,16 @@ SUBROUTINE cp_set_pos(env_id, new_pos, n_el, ierr)
 
   CALL sp(env_id,new_pos,n_el,ierr)
 END SUBROUTINE cp_set_pos
+
+SUBROUTINE cp_set_vel(env_id, new_vel, n_el, ierr)
+  USE kinds, ONLY: dp
+  USE f77_interface, ONLY: sv => set_vel
+  IMPLICIT NONE
+  INTEGER :: n_el, env_id, ierr
+  REAL(kind=dp), DIMENSION(1:n_el) :: new_vel
+
+  CALL sv(env_id,new_vel,n_el,ierr)
+END SUBROUTINE cp_set_vel
 
 SUBROUTINE cp_get_natom(env_id, natom, ierr)
   USE kinds, ONLY: dp
@@ -111,7 +121,7 @@ SUBROUTINE cp_get_force(env_id,force, n_el, ierr)
   CALL gf(env_id,force,n_el,ierr)
 END SUBROUTINE cp_get_force
 
-SUBROUTINE cp_get_energy(env_id, e_pot, ierr)
+RECURSIVE SUBROUTINE cp_get_energy(env_id, e_pot, ierr)
   USE kinds, ONLY: dp
   USE f77_interface, ONLY: ge => get_energy
   IMPLICIT NONE
@@ -121,7 +131,7 @@ SUBROUTINE cp_get_energy(env_id, e_pot, ierr)
   CALL ge(env_id,e_pot,ierr)
 END SUBROUTINE cp_get_energy
 
-SUBROUTINE cp_calc_energy_force(env_id,calc_force,ierr)
+RECURSIVE SUBROUTINE cp_calc_energy_force(env_id,calc_force,ierr)
   USE f77_interface, ONLY: cef => calc_energy_force
   IMPLICIT NONE
   INTEGER :: calc_force, env_id, ierr
@@ -131,7 +141,7 @@ SUBROUTINE cp_calc_energy_force(env_id,calc_force,ierr)
   CALL cef(env_id,cf,ierr)
 END SUBROUTINE cp_calc_energy_force
 
-SUBROUTINE cp_calc_energy(env_id,pos,n_el,e_pot,ierr)
+RECURSIVE SUBROUTINE cp_calc_energy(env_id,pos,n_el,e_pot,ierr)
   USE kinds, ONLY: dp
   USE f77_interface, ONLY: ce => calc_energy
   IMPLICIT NONE
@@ -151,7 +161,7 @@ SUBROUTINE cp_calc_force(env_id,pos,n_el_pos,e_pot,force,n_el_force,ierr)
   REAL(dp), DIMENSION(1:n_el_pos) :: pos
   REAL(dp), DIMENSION(1:n_el_force) :: force
 
-  CALL cf(env_id,pos,n_el,e_pot,force,n_el_force,ierr)
+  CALL cf(env_id,pos,n_el_pos,e_pot,force,n_el_force,ierr)
 END SUBROUTINE cp_calc_force
 
 SUBROUTINE cp_run_input(input_file_path,output_file_path,ierr)
@@ -163,12 +173,46 @@ SUBROUTINE cp_run_input(input_file_path,output_file_path,ierr)
   CALL rin(input_file_path,output_file_path,ierr=ierr)
 END SUBROUTINE cp_run_input
 
-SUBROUTINE cp_run_input_comm(input_file_path,output_file_path,&
+RECURSIVE SUBROUTINE cp_run_input_comm(input_file_path,output_file_path,&
      mpi_comm,ierr)
-  USE f77_interface, ONLY: rin => run_input
+  USE cp2k_runs, ONLY: rin => run_input
   IMPLICIT NONE
   CHARACTER(len=*) :: input_file_path, output_file_path
   INTEGER :: mpi_comm, ierr
 
   CALL rin(input_file_path,output_file_path,ierr,mpi_comm)
 END SUBROUTINE cp_run_input_comm
+
+RECURSIVE SUBROUTINE cp_rep_init(rep_env_id,ierr)
+  USE replica_methods, only: rpin => rep_env_init_low
+  implicit none
+  INTEGER :: rep_env_id,ierr
+  
+  CALL rpin(rep_env_id,ierr)
+END SUBROUTINE cp_rep_init
+
+RECURSIVE SUBROUTINE cp_rep_calc_e_f(rep_env_id,calc_f,ierr)
+  USE replica_methods, only: rpef => rep_env_calc_e_f_low
+  implicit none
+  INTEGER :: rep_env_id,calc_f,ierr
+  
+  CALL rpef(rep_env_id,calc_f,ierr)
+END SUBROUTINE cp_rep_calc_e_f
+
+RECURSIVE SUBROUTINE cp_ep_init(ep_env_id,ierr)
+  USE ep_methods, only: epin => ep_env_init_low
+  implicit none
+  INTEGER :: ep_env_id, ierr
+  
+  PRINT *, "start cp_ep_init"
+  CALL epin(ep_env_id, ierr)
+  PRINT *, "end cp_ep_init"
+END SUBROUTINE cp_ep_init
+
+RECURSIVE SUBROUTINE cp_ep_calc_e_f(ep_env_id,calc_f,ierr)
+  USE ep_methods, only: epef => ep_env_calc_e_f_low
+  implicit none
+  INTEGER :: ep_env_id, calc_f, ierr
+  
+  CALL epef(ep_env_id, calc_f, ierr)
+END SUBROUTINE cp_ep_calc_e_f

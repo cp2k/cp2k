@@ -1965,7 +1965,7 @@ END SUBROUTINE pw_nn_compose_r
              CALL cp_assert(.FALSE.,&
                   cp_failure_level,cp_assertion_failed,routineP,&
                   "Error calculating rcv_tot_size "//&
-                  CPSourceFileRef,&
+CPSourceFileRef,&
                   error,failure)
           END IF
           ALLOCATE(rcv_buf(0:rcv_tot_size-1),stat=stat)
@@ -3221,7 +3221,7 @@ END SUBROUTINE pw_nn_compose_r
                (coarse_bo(2,1)-coarse_bo(1,1)+1)*coarse_slice_size,&
                cp_failure_level,cp_assertion_failed,routineP,&
                "Error calculating send_tot_size "//&
-               CPSourceFileRef,&
+CPSourceFileRef,&
                error,failure)
           ALLOCATE(send_buf(0:send_tot_size-1),stat=stat)
           CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
@@ -3252,12 +3252,12 @@ END SUBROUTINE pw_nn_compose_r
           CALL cp_assert(ALL(sent_size(0:n_procs-2)==send_offset(1:n_procs-1)),&
                cp_failure_level,cp_assertion_failed,routineP,&
                "error 1 filling send buffer "//&
-               CPSourceFileRef,&
+CPSourceFileRef,&
                error,failure)
           CALL cp_assert(sent_size(n_procs-1)==send_tot_size,&
                cp_failure_level,cp_assertion_failed,routineP,&
                "error 2 filling send buffer "//&
-               CPSourceFileRef,&
+CPSourceFileRef,&
                error,failure)
           
        IF (local_data) THEN
@@ -3327,12 +3327,12 @@ END SUBROUTINE pw_nn_compose_r
           CALL cp_assert(ALL(sent_size(0:n_procs-2)==rcv_offset(1:n_procs-1)),&
                cp_failure_level,cp_assertion_failed,routineP,&
                "error 1 handling the rcv buffer "//&
-               CPSourceFileRef,&
+CPSourceFileRef,&
                error,failure)
           CALL cp_assert(sent_size(n_procs-1)==rcv_tot_size,&
                cp_failure_level,cp_assertion_failed,routineP,&
                "error 2 handling the rcv buffer "//&
-               CPSourceFileRef,&
+CPSourceFileRef,&
                error,failure)
           
           ! dealloc

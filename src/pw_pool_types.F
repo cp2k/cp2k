@@ -580,7 +580,7 @@ CONTAINS
        IF (mass_flag) THEN
           CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,&
                routineP,"mass not cached in pool"//&
-               CPSourceFileRef,&
+CPSourceFileRef,&
                error=error)
           
           IF (use_data==REALDATA1D) THEN
@@ -676,7 +676,7 @@ CONTAINS
           CALL cp_assert(my_accept_non_compatible,&
                cp_failure_level, cp_assertion_failed, routineP,&
                "pool cannot reuse pw of another grid "//&
-               CPSourceFileRef,&
+CPSourceFileRef,&
                error=error,failure=failure)
           CALL pw_release(pw,error=error)
           failure=.TRUE.
@@ -717,7 +717,7 @@ CONTAINS
           ELSE
              CALL cp_assert(max_max_cache<0,cp_warning_level,cp_assertion_failed,&
                   routineP,"hit max_cache"//&
-                  CPSourceFileRef,&
+CPSourceFileRef,&
                   error)
              CALL pw_release(pw,error=error)
           END IF
@@ -734,7 +734,7 @@ CONTAINS
              ELSE
                 CALL cp_assert(max_max_cache<0,cp_warning_level,cp_assertion_failed,&
                      routineP,"hit max_cache"//&
-                     CPSourceFileRef,&
+CPSourceFileRef,&
                      error)
                 CALL pw_release(pw,error=error)
              END IF
@@ -760,7 +760,7 @@ CONTAINS
           ELSE
              CALL cp_assert(max_max_cache<0,cp_warning_level,cp_assertion_failed,&
                   routineP,"hit max_cache"//&
-                  CPSourceFileRef,&
+CPSourceFileRef,&
                   error)
              CALL pw_release(pw,error=error)
           END IF
@@ -776,7 +776,7 @@ CONTAINS
           ELSE
              CALL cp_assert(max_max_cache<0,cp_warning_level,cp_assertion_failed,&
                   routineP,"hit max_cache"//&
-                  CPSourceFileRef,&
+CPSourceFileRef,&
                   error)
              CALL pw_release(pw,error=error)
           END IF
@@ -944,7 +944,7 @@ SUBROUTINE pw_pool_give_back_cr3d(pw_pool,cr3d,accept_non_compatible,error)
            ELSE
               CALL cp_assert(max_max_cache<0,cp_warning_level,cp_assertion_failed,&
                    routineP,"hit max_cache"//&
-                   CPSourceFileRef,&
+CPSourceFileRef,&
                    error)
               DEALLOCATE(cr3d, stat=stat)
               CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)

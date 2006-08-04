@@ -44,7 +44,7 @@ MODULE mc_control
   USE input_constants,                 ONLY: do_fist,&
                                              do_kg,&
                                              do_qs
-  USE input_cp2k,                      ONLY: create_cp2k_root_section
+  USE input_cp2k,                      ONLY: create_cp2k_input_reading
   USE input_parsing,                   ONLY: section_vals_parse
   USE input_section_types,             ONLY: section_type,&
                                              section_vals_create,&
@@ -419,18 +419,7 @@ SUBROUTINE mc_create_force_env ( force_env, globenv_old,input_file_name,&
            input_file_name=TRIM(ADJUSTL(input_file_name)), error=error)
 
     ! parse the input
-      NULLIFY(input_structure)
-      CALL create_cp2k_root_section(input_structure,error=error)
-      NULLIFY(input_file)
-      CALL section_vals_create(input_file,input_structure, error=error)
-      NULLIFY(my_parser)
-      CALL parser_create(my_parser,file_name=input_file_name,para_env=globenv%para_env,&
-           error=error)
-      CALL cp_unit_set_create(default_units, "OUTPUT",error=error)
-      CALL section_vals_parse(input_file,my_parser,root_section=.FALSE.,&
-           default_units=default_units,error=error)
-      CALL cp_unit_set_release(default_units,error=error)
-      CALL parser_release(my_parser,error=error)
+      input_file => create_cp2k_input_reading(input_file_name,para_env=globenv%para_env,error=error)
       globenv%input_file => input_file
       NULLIFY(input_file)
 

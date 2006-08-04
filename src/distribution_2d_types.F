@@ -512,7 +512,7 @@ SUBROUTINE distribution_2d_build_gdist(distribution_2d,error)
                    "the same number (list="//cp_to_string(ilist)//", i="//&
                    cp_to_string(i)//",g_index="//&
                    cp_to_string(distribution_2d%local_rows(ilist)%array(i))//")"//&
-                   CPSourceFileRef,&
+CPSourceFileRef,&
                    error,failure)
            END IF
         END DO
@@ -585,7 +585,7 @@ SUBROUTINE distribution_2d_build_gdist(distribution_2d,error)
                    "the same number (list="//cp_to_string(ilist)//", i="//&
                    cp_to_string(i)//",g_index="//&
                    cp_to_string(distribution_2d%local_cols(ilist)%array(i))//")"//&
-                   CPSourceFileRef,&
+CPSourceFileRef,&
                    error,failure)
            END IF
         END DO

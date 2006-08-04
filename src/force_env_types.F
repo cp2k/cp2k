@@ -67,6 +67,7 @@ MODULE force_env_types
   USE virial_types,                    ONLY: virial_release,&
                                              virial_retain,&
                                              virial_type
+  USE ep_types, ONLY: ep_env_type, ep_env_release, ep_env_retain
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -81,7 +82,8 @@ MODULE force_env_types
                                 use_pol_force  = 504, &
                                 use_qmmm       = 505, &
                                 use_tbmd_force = 506, &
-                                use_eip_force  = 507
+                                use_eip_force  = 507,&
+                                use_ep_force=508
   PUBLIC :: force_env_type, force_env_p_type
   PUBLIC :: force_env_retain, force_env_release, force_env_set,&
        force_env_get
@@ -122,6 +124,7 @@ MODULE force_env_types
 !!       some way, so that looping with i=1,.. and doing blocking mpi
 !!       communication in the actual subsystem on all processors should not
 !!       deadlock.
+!!     - ep_env: environment for an ep calculation
 !!     - cell: the cell of the actual system
 !!
 !!   AUTHOR
@@ -150,6 +153,7 @@ MODULE force_env_types
      TYPE ( force_env_p_type ), DIMENSION(:), POINTER    :: sub_force_env
      TYPE ( qmmm_env_qm_type ), POINTER                  :: qmmm_env
      TYPE ( virial_type  ), POINTER                      :: virial
+     TYPE ( ep_env_type ), pointer                       :: ep_env
      TYPE ( section_vals_type), POINTER                  :: force_env_section
   END TYPE force_env_type
 
@@ -276,6 +280,8 @@ RECURSIVE SUBROUTINE force_env_release(force_env, error)
           CALL tbmd_env_release(force_env%tbmd_env, error=error)
         CASE ( use_eip_force )
           CALL eip_env_release(force_env%eip_env, error=error)
+        CASE ( use_ep_force )
+          CALL ep_env_release(force_env%ep_env, error=error)
         END SELECT
         IF (ASSOCIATED(force_env%subsys)) THEN
            DO i=1,SIZE(force_env%subsys)
@@ -345,7 +351,8 @@ END SUBROUTINE force_env_release
 RECURSIVE SUBROUTINE force_env_get(force_env, in_use, &
      fist_env, qs_env, kg_env, meta_env, restraint_env, dyn_coeff_set, subsys, para_env, &
      potential_energy, kinetic_energy, cell, cell_ref, sub_force_env, qmmm_env,&
-     tbmd_env, eip_env, virial, use_ref_cell, globenv, input, force_env_section,error)
+     tbmd_env, eip_env, virial, use_ref_cell, globenv, input, ep_env,&
+          force_env_section,error)
     TYPE(force_env_type), POINTER               :: force_env
     INTEGER, INTENT(out), OPTIONAL              :: in_use
     TYPE(fist_environment_type), OPTIONAL, &
@@ -379,6 +386,7 @@ RECURSIVE SUBROUTINE force_env_get(force_env, in_use, &
       OPTIONAL, POINTER                         :: globenv
     TYPE(section_vals_type), OPTIONAL, &
       POINTER                                   :: input, force_env_section
+    TYPE(ep_env_type), POINTER, OPTIONAL        :: ep_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                                  :: error
 
@@ -403,6 +411,16 @@ RECURSIVE SUBROUTINE force_env_get(force_env, in_use, &
   IF (.NOT. failure) THEN
 
      SELECT CASE(force_env%in_use)
+     CASE(use_ep_force)
+        CPPrecondition(ASSOCIATED(force_env%ep_env),cp_failure_level,routineP,error,failure)
+        CALL get_qs_env(force_env%ep_env%main_qs_env,&
+                        cell=cell,&
+                        cell_ref=cell_ref,&
+                        use_ref_cell=use_ref_cell,&
+                        input=input,&
+                        error=error)
+        IF (PRESENT(potential_energy)) potential_energy = force_env%ep_env%energy%e_tot
+        CPPrecondition(.NOT.PRESENT(kinetic_energy),cp_failure_level,routineP,error,failure)
      CASE (use_qs_force)
         CPPrecondition(ASSOCIATED(force_env%qs_env),cp_failure_level,routineP,error,failure)
         CPPreconditionNoFail(.NOT.PRESENT(fist_env),cp_warning_level,routineP,error)
@@ -524,7 +542,7 @@ RECURSIVE SUBROUTINE force_env_get(force_env, in_use, &
      CASE DEFAULT
         CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
              routineP,"unknown in_use flag value "//&
-             CPSourceFileRef,&
+CPSourceFileRef,&
              error,failure)
      END SELECT
 
@@ -569,6 +587,7 @@ RECURSIVE SUBROUTINE force_env_get(force_env, in_use, &
      IF (PRESENT(qmmm_env))      qmmm_env      => force_env%qmmm_env
      IF (PRESENT(virial))        virial        => force_env % virial
      IF (PRESENT(globenv))       globenv       => force_env%globenv
+     IF (PRESENT(ep_env))        ep_env        => force_env%ep_env
   END IF
 END SUBROUTINE force_env_get
 !***************************************************************************

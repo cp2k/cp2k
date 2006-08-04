@@ -147,7 +147,7 @@ SUBROUTINE cp_blacs_env_create(blacs_env,para_env,error)
   CALL cp_assert(.FALSE.,cp_failure_level, cp_assertion_failed,&
        fromWhere=routineP,message="to USE the blacs environment "//&
        "you need the blacs library : recompile with -D__BLACS (and link blacs) "//&
-       CPSourceFileRef,&
+CPSourceFileRef,&
        error=error)
 #endif
 #endif

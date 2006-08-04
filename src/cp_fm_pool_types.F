@@ -528,7 +528,7 @@ CONTAINS
           CALL cp_assert(pool%el_struct%id_nr==element%matrix_struct%id_nr,&
             cp_failure_level, cp_assertion_failed, routineP,&
             "pool cannot reuse matrixes with another structure "//&
-            CPSourceFileRef,&
+CPSourceFileRef,&
             error=error,failure=failure)
     END IF
 

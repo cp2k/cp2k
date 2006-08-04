@@ -652,7 +652,7 @@ SUBROUTINE mpools_rebuild_fm_pools(mpools, mos, blacs_env, para_env,&
            CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
                 routineP,&
                 "the mo with the most orbitals must be the first "//&
-                CPSourceFileRef,&
+CPSourceFileRef,&
                 error=error,&
                 failure=failure)
         END IF
@@ -983,22 +983,22 @@ SUBROUTINE mpools_rebuild_s_sm_pools(mpools, s, nspins, particle_set, &
      CALL cp_assert(ALL(s_mstruct%block_begins_at_row(1:n_atoms)==&
           first_row),cp_failure_level,cp_assertion_failed,routineP,&
           "s has unexpected size, "//&
-          CPSourceFileRef,&
+CPSourceFileRef,&
           error)
      CALL cp_assert(ALL(s_mstruct%block_begins_at_col(1:n_atoms)==&
           first_col),cp_failure_level,cp_assertion_failed,routineP,&
           "s has unexpected size, "//&
-          CPSourceFileRef,&
+CPSourceFileRef,&
           error)
      CALL cp_assert(s_mstruct%block_begins_at_col(n_atoms+1)==&
           last_col(n_atoms)+1,cp_failure_level,cp_assertion_failed,routineP,&
           "s has unexpected size, "//&
-          CPSourceFileRef,&
+CPSourceFileRef,&
           error)
      CALL cp_assert(s_mstruct%block_begins_at_row(n_atoms+1)==&
           last_row(n_atoms)+1,cp_failure_level,cp_assertion_failed,routineP,&
           "s has unexpected size, "//&
-          CPSourceFileRef,&
+CPSourceFileRef,&
           error)
 
      ! at the moment read from s, maybe in the future s will take its structure

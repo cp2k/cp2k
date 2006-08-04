@@ -55,7 +55,7 @@ MODULE qs_wf_history_types
        wfi_ps_method_nr=7, wfi_frozen_method_nr=8, wfi_aspc=9
 
   PUBLIC :: qs_wf_snapshot_type, qs_wf_snapshot_p_type, &
-            qs_wf_history_type
+            qs_wf_history_type, qs_wf_history_p_type
   PUBLIC :: wfs_retain, wfs_release, wfi_retain, wfi_release, wfi_get_snapshot, &
             wfi_clear_history
 !!***
@@ -178,6 +178,31 @@ MODULE qs_wf_history_types
   END TYPE qs_wf_history_type
 !!***
 !****************************************************************************
+
+  !!****s* qs_wf_history_types/qs_wf_history_p_type *
+  !!
+  !!   NAME
+  !!     qs_wf_history_p_type
+  !!
+  !!   FUNCTION
+  !!     to create arrays of pointers to qs_wf_history_type
+  !!
+  !!   NOTES
+  !!     -
+  !!
+  !!   ATTRIBUTES
+  !!     - wf_hist: the pointer to the wf history
+  !!
+  !!   AUTHOR
+  !!     fawzi
+  !!
+  !!   SOURCE
+  !***************************************************************************
+  TYPE qs_wf_history_p_type
+     TYPE(qs_wf_history_type), pointer :: wf_history
+  END TYPE qs_wf_history_p_type
+  !!***
+  !****************************************************************************
 
 CONTAINS
 

@@ -100,6 +100,10 @@ OBJECTS_GENERIC =\
  eip_environment_types.o\
  eip_main.o\
  eip_silicon.o\
+ ep_methods.o\
+ ep_types.o\
+ ep_qs_methods.o\
+ ep_qs_types.o\
  ewald_environment_types.o\
  ewald_pw_methods.o\
  ewald_pw_types.o\
@@ -113,6 +117,7 @@ OBJECTS_GENERIC =\
  f77_blas_generic.o\
  f77_blas_netlib.o\
  f77_blas_poison.o\
+ f77_int_low.o\
  f77_interface.o\
  farming_methods.o\
  farming_types.o\

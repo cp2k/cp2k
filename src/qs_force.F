@@ -523,6 +523,7 @@ CONTAINS
                   iatom,ikind,"      rho_core",qs_force(ikind)%rho_core(1:3,i),&
                   iatom,ikind,"      rho_elec",qs_force(ikind)%rho_elec(1:3,i),&
                   iatom,ikind,"      ch_pulay",qs_force(ikind)%ch_pulay(1:3,i),&
+                  iatom,ikind,"         other",qs_force(ikind)%other(1:3,i),&
                   iatom,ikind,"         total",qs_force(ikind)%total(1:3,i)
              grand_total(1:3) = grand_total(1:3) + qs_force(ikind)%total(1:3,i)
           END DO

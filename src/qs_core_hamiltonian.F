@@ -98,7 +98,7 @@ MODULE qs_core_hamiltonian
                                              gth_potential_type
   USE global_types,                    ONLY: global_environment_type
   USE harris_env_types,                ONLY: harris_env_type
-  USE input_constants,                 ONLY: ep_run,&
+  USE input_constants,                 ONLY: do_ep,&
                                              linear_response_run,&
                                              lr_precond_kinetic
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
@@ -395,7 +395,7 @@ CONTAINS
                     neighbor_list_id=neighbor_list_id,&
                     scf_control=scf_control,&
                     distribution_2d=distribution_2d,&
-                    virial = virial,&
+                    virial=virial,&
                     input=input,para_env=para_env)
 
     nkind = SIZE(atomic_kind_set)
@@ -441,8 +441,8 @@ CONTAINS
 
     ELSE
 
-      IF (BTEST(cp_print_key_should_output(logger%iter_info,qs_env%input,&
-            "DFT%PRINT%AO_MATRICES/DERIVATIVES",error=error),cp_p_file).OR.&
+      IF (cp_print_key_should_output(logger%iter_info,qs_env%input,&
+            "DFT%PRINT%AO_MATRICES/DERIVATIVES",error=error)/=0.OR.&
            BTEST(cp_print_key_should_output(logger%iter_info,qs_env%input,&
             "DFT%PRINT%OPTICAL_CONDUCTIVITY",error=error),cp_p_file)) THEN
         nder = 1
@@ -452,8 +452,8 @@ CONTAINS
 
     END IF
 
-    IF ((BTEST(cp_print_key_should_output(logger%iter_info,qs_env%input,&
-            "DFT%PRINT%AO_MATRICES/OVERLAP",error=error),cp_p_file).AND.&
+    IF ((cp_print_key_should_output(logger%iter_info,qs_env%input,&
+            "DFT%PRINT%AO_MATRICES/OVERLAP",error=error)/=0.AND.&
          BTEST(cp_print_key_should_output(logger%iter_info,qs_env%input,&
             "DFT%PRINT%AO_MATRICES/DERIVATIVES",error=error),cp_p_file)).OR.&
         BTEST(cp_print_key_should_output(logger%iter_info,qs_env%input,&
@@ -495,7 +495,7 @@ CONTAINS
                          last_col=last_sgf,&
                          matrix_name="OVERLAP MATRIX",&
                          matrix_symmetry="symmetric",&
-                         sparsity_id=neighbor_list_id, &    
+                         sparsity_id=neighbor_list_id, &
                          distribution_2d=distribution_2d)
 
 !   *** Allocate the matrix of coefficients for one center expansions
@@ -552,14 +552,14 @@ CONTAINS
          qs_env%input,"DFT%PRINT%AO_MATRICES/KINETIC_ENERGY",error=error),cp_p_file).OR.&
                                     BTEST(cp_print_key_should_output(logger%iter_info,&
          qs_env%input,"DFT%PRINT%AO_MATRICES/POTENTIAL_ENERGY",error=error),cp_p_file).OR.&
-                                   globenv%run_type_id==ep_run .OR. &
+                                   globenv%prog_name_id==do_ep .OR. &
                                    lr_precond == lr_precond_kinetic .OR. xas_calculation)
     ! assume false by default
     return_t_derivatives = .FALSE.
 
     IF (build_kinetic_energy_matrix) THEN
-      IF (BTEST(cp_print_key_should_output(logger%iter_info,qs_env%input,&
-           "DFT%PRINT%AO_MATRICES/DERIVATIVES",error=error),cp_p_file)) THEN
+      IF (cp_print_key_should_output(logger%iter_info,qs_env%input,&
+           "DFT%PRINT%AO_MATRICES/DERIVATIVES",error=error)/=0) THEN
         CALL allocate_matrix_set(matrix_t,maxder)
         return_t_derivatives = .TRUE.
       ELSE

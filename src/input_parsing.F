@@ -596,7 +596,7 @@ SUBROUTINE val_create_parsing(val,type_of_var, n_var,enum,&
                     CPPrecondition(c_val(1:1)=="[",cp_failure_level,routineP,error,failure)
    CALL cp_assert(c_val(LEN_TRIM(c_val):LEN_TRIM(c_val))=="]",&
         cp_failure_level,cp_assertion_failed,routineP,&
-        CPSourceFileRef,&
+CPSourceFileRef,&
         error,failure)
                     CALL cp_unit_release(my_unit,error=error)
                     CALL cp_unit_create(my_unit,c_val(2:LEN_TRIM(c_val)-1),&
@@ -806,7 +806,7 @@ SUBROUTINE val_create_parsing(val,type_of_var, n_var,enum,&
      CASE default
         CALL cp_unimplemented_error(routineP, "type "//cp_to_string(i)//&
              "unknown to the parser"//&
-             CPSourceFileRef,&
+CPSourceFileRef,&
              error,cp_failure_level)
      END SELECT
      IF (parser_test_next_token(parser,error=error).NE."EOL") THEN

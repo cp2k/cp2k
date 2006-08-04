@@ -332,7 +332,8 @@ CONTAINS
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(qs_rho_type), POINTER               :: my_rho_xc
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_h, matrix_s
+      POINTER                                :: matrix_h, matrix_s,&
+      matrix_dv
     TYPE(section_vals_type), POINTER         :: input, scf_section
     TYPE(virial_type), POINTER               :: virial
     LOGICAL                                  :: use_virial
@@ -366,6 +367,7 @@ CONTAINS
     NULLIFY (cc_old)
     NULLIFY (g2)
     NULLIFY (rho_buffer)
+    NULLIFY (matrix_dv)
 
     IF (PRESENT(diis_step)) THEN
       my_diis_step = diis_step
@@ -383,6 +385,7 @@ CONTAINS
          input=input,&
          virial=virial,&
          rho_buffer=rho_buffer,&
+         matrix_dv=matrix_dv,&
          error=error)
 
     use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)    
@@ -595,11 +598,11 @@ CONTAINS
                       calculate_forces=calculate_forces,&
                       gapw=gapw_xc,error=error)
 
-                 !Now the Hartree potential to be integrated with the full basis
+                 ! Now the Hartree potential to be integrated with the full basis
                  v_rspace_new(ispin)%pw%cr3d  =&
                       ks_env%v_hartree_rspace%pw%cr3d
 
-                  ! add the hartree part due to v_rspace
+                 ! add the hartree part due to v_rspace
                  CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
                       p=rho%rho_ao(ispin),h=ks_matrix(ispin),&
                       qs_env=qs_env, &
@@ -632,14 +635,21 @@ CONTAINS
                   CASE ( sic_ad )
                     v_rspace_new(ispin)%pw%cr3d=v_rspace_new(ispin)%pw%cr3d-v_sic_rspace%pw%cr3d
                  END SELECT 
-
                   ! add the part due to v_rspace
-                  CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
-                       p=rho%rho_ao(ispin),h=ks_matrix(ispin),&
-                       qs_env=qs_env, &
-                       calculate_forces=calculate_forces,&
-                       gapw=gapw,error=error)
-
+                 IF (ASSOCIATED(matrix_dv)) THEN
+                    CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
+                         p=rho%rho_ao(ispin),h=ks_matrix(ispin),&
+                         qs_env=qs_env, &
+                         calculate_forces=calculate_forces,&
+                         gapw=gapw,matrix_dv=matrix_dv(3*(ispin-1)+1:3*ispin),&
+                         error=error)
+                 ELSE
+                    CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
+                         p=rho%rho_ao(ispin),h=ks_matrix(ispin),&
+                         qs_env=qs_env, &
+                         calculate_forces=calculate_forces,&
+                         gapw=gapw, error=error)
+                 END IF
                   CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_rspace_new(ispin),&
                        error=error)
                END DO
@@ -657,10 +667,18 @@ CONTAINS
              ENDIF
              DO ispin=1,nspins
                 ! add only v_hartree
-                CALL integrate_v_rspace(v_rspace=ks_env%v_hartree_rspace,&
-                     p=rho%rho_ao(ispin),h=ks_matrix(ispin), qs_env=qs_env,&
-                     calculate_forces=calculate_forces,&
-                     gapw=gapw,error=error)
+                IF (ASSOCIATED(matrix_dv)) THEN
+                   CALL integrate_v_rspace(v_rspace=ks_env%v_hartree_rspace,&
+                        p=rho%rho_ao(ispin),h=ks_matrix(ispin), qs_env=qs_env,&
+                        calculate_forces=calculate_forces,&
+                        matrix_dv=matrix_dv(3*(ispin-1)+1:3*ispin),&
+                        gapw=gapw,error=error)
+                ELSE
+                   CALL integrate_v_rspace(v_rspace=ks_env%v_hartree_rspace,&
+                        p=rho%rho_ao(ispin),h=ks_matrix(ispin), qs_env=qs_env,&
+                        calculate_forces=calculate_forces,&
+                        gapw=gapw,error=error)
+                END IF
              END DO
           END IF ! ASSOCIATED(v_rspace_new)
 
@@ -670,12 +688,21 @@ CONTAINS
                       v_tau_rspace(ispin)%pw%pw_grid%dvol*&
                       v_tau_rspace(ispin)%pw%cr3d 
 
-                 CALL integrate_v_rspace(v_rspace=v_tau_rspace(ispin),&
-                      p=rho%rho_ao(ispin),h=ks_matrix(ispin),&
-                      qs_env=qs_env,&
-                      calculate_forces=calculate_forces,compute_tau=.TRUE., &
-                      gapw=gapw,error=error)
-
+                 IF (ASSOCIATED(matrix_dv)) THEN
+                    CALL integrate_v_rspace(v_rspace=v_tau_rspace(ispin),&
+                         p=rho%rho_ao(ispin),h=ks_matrix(ispin),&
+                         qs_env=qs_env,&
+                         calculate_forces=calculate_forces,compute_tau=.TRUE., &
+                         gapw=gapw,matrix_dv=matrix_dv(3*(ispin-1)+1:3*ispin),&
+                         error=error)
+                 ELSE
+                    CALL integrate_v_rspace(v_rspace=v_tau_rspace(ispin),&
+                         p=rho%rho_ao(ispin),h=ks_matrix(ispin),&
+                         qs_env=qs_env,&
+                         calculate_forces=calculate_forces,compute_tau=.TRUE., &
+                         gapw=gapw,&
+                         error=error)
+                 END IF
                  CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_tau_rspace(ispin),&
                       error=error)                 
 
@@ -1198,7 +1225,7 @@ SUBROUTINE qs_ks_update_qs_env(ks_env,qs_env, kg_env,calculate_forces,&
         IF(.NOT.energy_only) THEN
            ks_env%rho_changed=.FALSE.
            ks_env%s_mstruct_changed=.FALSE.
-           ks_env%forces_up_to_date=.NOT.c_forces
+           ks_env%forces_up_to_date=ks_env%forces_up_to_date.or.c_forces
         END IF
      END IF
   END IF
@@ -1283,6 +1310,8 @@ SUBROUTINE qs_ks_did_change(ks_env,s_mstruct_changed,rho_changed,potential_chang
            ks_env%s_mstruct_changed=.TRUE.
         END IF
      END IF
+     IF (ks_env%s_mstruct_changed.OR.ks_env%potential_changed.or.&
+          ks_env%rho_changed) ks_env%forces_up_to_date=.false.
   END IF
 END SUBROUTINE qs_ks_did_change
 !***************************************************************************

@@ -264,7 +264,7 @@ CONTAINS
     CALL cp_assert(scale == 1.0_dp, cp_failure_level,cp_assertion_failed,&
          routineP,&
          "scale not equal 1 (scale="//cp_to_string(scale)//")"//&
-         CPSourceFileRef,&
+CPSourceFileRef,&
          error,failure)
 #else
 
@@ -317,7 +317,7 @@ CONTAINS
     CALL cp_assert(op == "SOLVE" .OR. op == "MULTIPLY",&
          cp_failure_level,cp_assertion_failed,routineP,&
          "wrong argument op"//&
-         CPSourceFileRef,&
+CPSourceFileRef,&
          error,failure)
 
     IF (PRESENT(pos)) THEN 
@@ -330,7 +330,7 @@ CONTAINS
           CALL cp_assert(.FALSE.,&
                cp_failure_level,cp_assertion_failed,routineP,&
                "wrong argument pos"//&
-               CPSourceFileRef,&
+CPSourceFileRef,&
                error,failure)
        END SELECT
     ELSE

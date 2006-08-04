@@ -247,7 +247,7 @@ SUBROUTINE xc_functional_get_info(functional,lsd,reference,shortform,&
         CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
              message="unknown functional '"//TRIM(functional%section%name)//&
              "' in "//&
-             CPSourceFileRef,&
+CPSourceFileRef,&
              error=error)
      END SELECT
   END IF
@@ -433,7 +433,7 @@ SUBROUTINE xc_functional_eval(functional, lsd, rho_set, deriv_set, &
         CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
              message="unknown functional '"//TRIM(functional%section%name)//&
              "' in "//&
-             CPSourceFileRef,&
+CPSourceFileRef,&
              error=error)
      END SELECT
   END IF
