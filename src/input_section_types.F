@@ -2478,7 +2478,7 @@ RECURSIVE SUBROUTINE section_vals_copy(section_vals_in,section_vals_out,&
   IF (section_vals_in%section%id_nr/=section_vals_out%section%id_nr) THEN
      IF (section_vals_in%section%name /= section_vals_out%section%name) THEN
         CALL cp_assert(.FALSE.,&
-             cp_failure_level,cp_assertion_failed,routineP,"section mismash "&
+             cp_failure_level,cp_assertion_failed,routineP,"section mismash ",&
 CPSourceFileRef,&
              error,failure)
      END IF
