@@ -176,8 +176,8 @@ $(PROG): $(LIB1_ARCHIVE) $(LIB2_ARCHIVE) $(OBJECTS) cp2k.o
 	$(LD) $(LDFLAGS) -o $(PROG) $(OBJECTS) cp2k.o $(LIBRARIES)
 
 
-$(LIB_CP2K_ARCHIVE): $(OBJECTS) f77_int_low.o
-	$(AR) $(LIB_CP2K_ARCHIVE) $(OBJECTS) f77_int_low.o
+$(LIB_CP2K_ARCHIVE): $(OBJECTS)
+	$(AR) $(LIB_CP2K_ARCHIVE) $(OBJECTS)
 ifneq ($(RANLIB),)
 	$(RANLIB) $(LIB_CP2K_ARCHIVE)
 endif
@@ -232,7 +232,7 @@ distclean:
 
 # lib dependencies
 mltfftsg.o: mltfftsg_tools.o
-f77_int_low.o: f77_interface.o
+f77_int_low.o: f77_interface.o cp2k_runs.o replica_methods.o ep_methods.F
 
 # to recpp environment.F whenever the CVS/Entries file is updated (and exists)
 ifneq ($(strip $(SRCENTRY)),)
