@@ -2477,10 +2477,10 @@ RECURSIVE SUBROUTINE section_vals_copy(section_vals_in,section_vals_out,&
   CPPrecondition(ASSOCIATED(section_vals_out),cp_failure_level,routineP,error,failure)
   IF (section_vals_in%section%id_nr/=section_vals_out%section%id_nr) THEN
      IF (section_vals_in%section%name /= section_vals_out%section%name) THEN
-        CALL cp_assert(.FALSE.,&
-             cp_failure_level,cp_assertion_failed,routineP,"section mismash ",&
-CPSourceFileRef,&
-             error,failure)
+     CALL cp_assert(.FALSE.,&
+          cp_failure_level,cp_assertion_failed,routineP,&
+          CPSourceFileRef,&
+          error,failure)
      END IF
   END IF
   IF (.NOT.failure) THEN
