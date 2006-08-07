@@ -405,7 +405,7 @@ CONTAINS
         k(:)=0.0_dp
         k(1)=harmonic_env%k
         r0=0.0_dp
-        rab=particles(iatom)%r-harmonic_env%r_orig(:,iatom)
+        rab=particles(iatom)%r-harmonic_env%r_orig(:,ires)
         CALL force_bonds(name,rab,r0,k,energy,fscalar)
         particles(iatom)%f(1)=particles(iatom)%f(1)-rab(1)*fscalar
         particles(iatom)%f(2)=particles(iatom)%f(2)-rab(2)*fscalar
