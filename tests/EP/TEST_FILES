@@ -5,5 +5,5 @@
 #      for details see cp2k/tools/do_regtest
 Ar-ep.inp        1
 Ar2.inp          1
-3H2O-ep.inp      1
+3H2O-ep.inp      2
 #32H2O.inp        1
