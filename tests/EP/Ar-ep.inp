@@ -1,5 +1,6 @@
 
 &FORCE_EVAL
+  METHOD ep
   &DFT
     &MGRID
       CUTOFF 200
@@ -43,7 +44,7 @@
 &END FORCE_EVAL
 &GLOBAL
   FFTLIB FFTSG
-  PROGRAM  ep # Quickstep #
+
   PRINT_LEVEL MEDIUM
   RUN_TYPE  ENERGY_FORCE # PINT #
   project main

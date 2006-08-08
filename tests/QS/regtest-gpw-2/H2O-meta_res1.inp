@@ -1,4 +1,5 @@
 &FORCE_EVAL
+  METHOD Quickstep
 
   &DFT
     &MGRID
@@ -55,7 +56,7 @@
 
 &GLOBAL
   FFTLIB FFTSG
-  PROGRAM Quickstep
+
   PROJECT H2O
   RUN_TYPE MD
   PRINT_LEVEL LOW

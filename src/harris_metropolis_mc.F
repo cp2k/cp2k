@@ -212,7 +212,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, mc_prog_name_id, &
-                                                md_method, stat, isos
+                                                md_method, stat, isos,method_name_id
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
     TYPE(cp_subsystem_type), POINTER         :: subsystem
@@ -236,31 +236,30 @@ CONTAINS
          "MOTION%MD%HMC", error=error)
     CALL section_vals_val_get(hmc_section, "MD_METHOD", &
          i_val=md_method, error=error)
-
-    mc_prog_name_id = globenv%prog_name_id
-
+    CALL section_vals_val_get(force_env_section,"METHOD",i_val=force_env%method_name_id,error=error)
+    mc_prog_name_id = force_env%method_name_id
     SELECT CASE(md_method)
     CASE(FIST_MD_method)
-      globenv%prog_name_id = do_fist
+       force_env%method_name_id = do_fist
     CASE(EIP_MD_method)
-      globenv%prog_name_id = do_eip
+       force_env%method_name_id = do_eip
     CASE(SE_MD_method)
-      globenv%prog_name_id = do_qs
+       force_env%method_name_id = do_qs
     CASE(KG_MD_method)
-      globenv%prog_name_id = do_kg
+       force_env%method_name_id = do_kg
     CASE(KG_DFT_MD_method)
-      globenv%prog_name_id = do_kg
+       force_env%method_name_id = do_kg
     CASE(QS_MD_method)
-      globenv%prog_name_id = do_qs
+       force_env%method_name_id = do_qs
     CASE(Harris_MD_method)
-      globenv%prog_name_id = do_qs
+       force_env%method_name_id = do_qs
     CASE DEFAULT
       PRINT *, "The default DFT/QS-method is used for the MC energy evaluation."
-      globenv%prog_name_id = do_qs
+     force_env%method_name_id = do_qs
     END SELECT
     
-    IF (mc_prog_name_id .NE. globenv%prog_name_id) THEN
-      SELECT CASE (globenv%prog_name_id)
+    IF (mc_prog_name_id .NE. force_env%method_name_id) THEN
+      SELECT CASE (force_env%method_name_id)
       CASE (do_fist)
         CALL fist_env_create(fist_env, para_env = globenv%para_env)
         CALL set_fist_env(fist_env, qmmm=.FALSE., error=error)
@@ -453,7 +452,7 @@ CONTAINS
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
-
+    TYPE(force_env_type), POINTER            :: force_env
     CHARACTER(LEN=*), PARAMETER :: routineN = 'harris_mc_md', &
       routineP = moduleN//':'//routineN
 
@@ -597,22 +596,22 @@ CONTAINS
     md_method = simpar%md_method
     mc_method = simpar%mc_method
     motion_section => section_vals_get_subs_vals(globenv%input_file,"MOTION",error=error)
-
+    force_env => force_env_p(1)%force_env
     SELECT CASE(mc_method)
     CASE(EIP_MC_method)
-      globenv%prog_name_id = do_eip
+      force_env%method_name_id = do_eip
     CASE(SE_MC_method)
-      globenv%prog_name_id = do_qs
+      force_env%method_name_id = do_qs
     CASE(TBMD_MC_method)
-      globenv%prog_name_id = do_tbmd
+      force_env%method_name_id = do_tbmd
     CASE(KG_DFT_MC_method)
-      globenv%prog_name_id = do_kg
+      force_env%method_name_id = do_kg
     CASE(QS_MC_method)
-      globenv%prog_name_id = do_qs
+      force_env%method_name_id = do_qs
     CASE(Harris_MC_method)
-      globenv%prog_name_id = do_qs
+      force_env%method_name_id = do_qs
     CASE DEFAULT
-      globenv%prog_name_id = do_qs
+      force_env%method_name_id = do_qs
     END SELECT
 
     CALL extended_type_init(extended_type)
@@ -628,16 +627,16 @@ CONTAINS
        CALL lnhc_init(extended_type%nhc_coef(ibead))
     ENDDO
 
-    IF (globenv%prog_name_id == do_qs) THEN
+    IF (force_env%method_name_id == do_qs) THEN
        CALL force_env_get(force_env=force_env_p(1)%force_env, in_use=force_env_in_use, qs_env=qs_env, &
             error=error)
-    ELSE IF (globenv%prog_name_id == do_kg) THEN
+    ELSE IF (force_env%method_name_id == do_kg) THEN
        CALL force_env_get(force_env=force_env_p(1)%force_env, in_use=force_env_in_use, kg_env=kg_env, &
             error=error)
-    ELSE IF (globenv%prog_name_id == do_tbmd) THEN
+    ELSE IF (force_env%method_name_id == do_tbmd) THEN
        CALL force_env_get(force_env=force_env_p(1)%force_env, in_use=force_env_in_use, tbmd_env=tbmd_env, &
             error=error)
-    ELSE IF (globenv%prog_name_id == do_eip) THEN
+    ELSE IF (force_env%method_name_id == do_eip) THEN
        CALL force_env_get(force_env=force_env_p(1)%force_env, in_use=force_env_in_use, eip_env=eip_env, &
             error=error)
     END IF
@@ -759,7 +758,7 @@ CONTAINS
          used_time = used_time, md_approach_nr = md_approach_nr, accepted_md = accepted_md)
 
     DO ibead = 1,nbeads
-       IF (start_qs .AND. (globenv%prog_name_id == do_qs)) THEN
+       IF (start_qs .AND. (force_env%method_name_id == do_qs)) THEN
           use_harris_tmp = qs_env%use_harris
           max_scf_tmp = qs_env%scf_control%max_scf
           max_scf_aspc_tmp = qs_env%scf_control%max_scf_aspc
@@ -859,7 +858,7 @@ CONTAINS
        IF ((.NOT. drld) .AND. (.NOT. multiple_scf) .AND. (.NOT. multiple_scf)) THEN
          ! previous energy
          !IF (accepted) THEN
-         IF (qs_ener .AND. (globenv%prog_name_id == do_qs)) THEN
+         IF (qs_ener .AND. (force_env%method_name_id == do_qs)) THEN
             use_harris_tmp = qs_env%use_harris
             max_scf_tmp = qs_env%scf_control%max_scf
             max_scf_aspc_tmp = qs_env%scf_control%max_scf_aspc
@@ -888,7 +887,7 @@ CONTAINS
        END IF
 
        IF ((.NOT. drld) .AND. (.NOT. always_accepted) .AND. (.NOT. multiple_scf)) THEN
-         IF (globenv%prog_name_id == do_kg) THEN
+         IF (force_env%method_name_id == do_kg) THEN
             Epot_prev = force_env_p(1)%force_env%kg_env%energy%total
             CALL compute_conserved_quantity(md_env=md_env, cons=Econs, epot=Epot_prev, ekin=Ekin_prev)
             IF (.NOT. tot_energy) THEN
@@ -896,7 +895,7 @@ CONTAINS
             ELSE
                prev_ldmc_energy = Econs
             END IF
-         ELSE IF (globenv%prog_name_id == do_qs) THEN
+         ELSE IF (force_env%method_name_id == do_qs) THEN
             IF (mc_method == Harris_MC_method) THEN
               CALL harris_env_get(harris_env=qs_env%harris_env, harris_energy=harris_energy, error=error)
               CALL harris_energy_get(harris_energy=harris_energy, Eharris=Econs, error=error)
@@ -916,7 +915,7 @@ CONTAINS
                  prev_ldmc_energy = Econs
               END IF
             END IF
-         ELSE IF (globenv%prog_name_id == do_tbmd) THEN
+         ELSE IF (force_env%method_name_id == do_tbmd) THEN
             CALL tbmd_env_get(tbmd_env=tbmd_env, tbmd_energy=tbmd_ener, error=error)
             CALL tbmd_energy_get(tbmd_energy=tbmd_ener, E_tb=Econs, E_kinetic=Ekin_prev, error=error)
             Epot_prev = Econs - Ekin_prev
@@ -925,7 +924,7 @@ CONTAINS
             ELSE
                prev_ldmc_energy = Econs
             END IF
-         ELSE IF (globenv%prog_name_id == do_eip) THEN
+         ELSE IF (force_env%method_name_id == do_eip) THEN
             CALL eip_env_get(eip_env=eip_env, eip_energy=Econs, eip_potential_energy=Epot_prev, &
                              error=error)
             IF (.NOT. tot_energy) THEN
@@ -946,28 +945,28 @@ CONTAINS
 
        SELECT CASE(md_method)
        CASE(FIST_MD_method)
-         globenv%prog_name_id = do_fist
+         force_env%method_name_id = do_fist
          force_env_p(1)%force_env%in_use=use_fist_force
        CASE(KG_MD_method)
-         globenv%prog_name_id = do_kg
+         force_env%method_name_id = do_kg
          force_env_p(1)%force_env%in_use=use_kg_force
        CASE(KG_DFT_MD_method)
-         globenv%prog_name_id = do_kg
+         force_env%method_name_id = do_kg
          force_env_p(1)%force_env%in_use=use_kg_force
        CASE(QS_MD_method)
-         globenv%prog_name_id = do_qs
+         force_env%method_name_id = do_qs
          force_env_p(1)%force_env%in_use=use_qs_force
        CASE(Harris_MD_method)
-         globenv%prog_name_id = do_qs
+         force_env%method_name_id = do_qs
          force_env_p(1)%force_env%in_use=use_qs_force
        CASE(EIP_MD_method)
-         globenv%prog_name_id = do_eip
+         force_env%method_name_id = do_eip
          force_env_p(1)%force_env%in_use=use_eip_force
        CASE(SE_MD_method)
-         globenv%prog_name_id = do_qs
+         force_env%method_name_id = do_qs
          force_env_p(1)%force_env%in_use=use_qs_force
        CASE DEFAULT
-         globenv%prog_name_id = do_qs
+         force_env%method_name_id = do_qs
          force_env_p(1)%force_env%in_use=use_qs_force
        END SELECT
 
@@ -975,29 +974,29 @@ CONTAINS
        md_approach_nr = md_approach_nr+1
        CALL harris_mc_md_approach(md_env, globenv, simpar, logger, error, &
                                   lpsc_prev_energy, lpsc_new_energy, &
-                                  lpsc_diff_energy)
+                                  lpsc_diff_energy,force_env_section)
 
        SELECT CASE(mc_method)
        CASE(EIP_MC_method)
-         globenv%prog_name_id = do_eip
+         force_env%method_name_id = do_eip
          force_env_p(1)%force_env%in_use=use_eip_force
        CASE(SE_MC_method)
-         globenv%prog_name_id = do_qs
+         force_env%method_name_id = do_qs
          force_env_p(1)%force_env%in_use=use_qs_force
        CASE(TBMD_MC_method)
-         globenv%prog_name_id = do_tbmd
+         force_env%method_name_id = do_tbmd
          force_env_p(1)%force_env%in_use=use_tbmd_force
        CASE(KG_DFT_MC_method)
-         globenv%prog_name_id = do_kg
+         force_env%method_name_id = do_kg
          force_env_p(1)%force_env%in_use=use_kg_force
        CASE(QS_MC_method)
-         globenv%prog_name_id = do_qs
+         force_env%method_name_id = do_qs
          force_env_p(1)%force_env%in_use=use_qs_force
        CASE(Harris_MC_method)
-         globenv%prog_name_id = do_qs
+         force_env%method_name_id = do_qs
          force_env_p(1)%force_env%in_use=use_qs_force
        CASE DEFAULT
-         globenv%prog_name_id = do_qs
+         force_env%method_name_id = do_qs
          force_env_p(1)%force_env%in_use=use_qs_force
        END SELECT
 
@@ -1011,7 +1010,7 @@ CONTAINS
 
        IF (.NOT. multiple_scf) THEN
          ! Compare energies
-         IF (qs_ener .AND. (globenv%prog_name_id == do_qs)) THEN
+         IF (qs_ener .AND. (force_env%method_name_id == do_qs)) THEN
             use_harris_tmp = qs_env%use_harris
             max_scf_tmp = qs_env%scf_control%max_scf
             max_scf_aspc_tmp = qs_env%scf_control%max_scf_aspc
@@ -1028,7 +1027,7 @@ CONTAINS
             qs_env%scf_control%harris_max_scf = harris_max_scf_tmp
          ELSE
             !IF (.NOT. multiple_scf) THEN
-              IF ((drld) .AND. (globenv%prog_name_id == do_qs)) THEN
+              IF ((drld) .AND. (force_env%method_name_id == do_qs)) THEN
                 max_scf_tmp = qs_env%scf_control%max_scf
                 max_scf_aspc_tmp = qs_env%scf_control%max_scf_aspc
                 harris_max_scf_tmp = qs_env%scf_control%harris_max_scf
@@ -1038,7 +1037,7 @@ CONTAINS
               END IF
               CALL force_env_calc_energy_force(force_env=force_env_p(1)%force_env, &
                    calc_force=.FALSE., error=error)
-              IF ((drld) .AND. (globenv%prog_name_id == do_qs)) THEN
+              IF ((drld) .AND. (force_env%method_name_id == do_qs)) THEN
                 qs_env%scf_control%max_scf = max_scf_tmp
                 qs_env%scf_control%max_scf_aspc = max_scf_aspc_tmp
                 qs_env%scf_control%harris_max_scf = harris_max_scf_tmp
@@ -1049,7 +1048,7 @@ CONTAINS
 
        IF ((.NOT. drld) .AND. (.NOT. always_accepted) .AND. (.NOT. multiple_scf)) THEN
          ! new energy
-         IF (globenv%prog_name_id == do_kg) THEN
+         IF (force_env%method_name_id == do_kg) THEN
             Epot_new = force_env_p(1)%force_env%kg_env%energy%total
             CALL compute_conserved_quantity(md_env=md_env, cons=Econs, epot=Epot_new, ekin=Ekin_new)
             IF (.NOT. tot_energy) THEN
@@ -1057,7 +1056,7 @@ CONTAINS
             ELSE
                new_ldmc_energy = Econs
             END IF
-         ELSE IF (globenv%prog_name_id == do_qs) THEN
+         ELSE IF (force_env%method_name_id == do_qs) THEN
             IF (mc_method == Harris_MC_method) THEN
               CALL harris_env_get(harris_env=qs_env%harris_env, harris_energy=harris_energy, error=error)
               CALL harris_energy_get(harris_energy=harris_energy, Eharris=Econs, error=error)
@@ -1077,7 +1076,7 @@ CONTAINS
                  new_ldmc_energy = Econs
               END IF
             END IF
-         ELSE IF (globenv%prog_name_id == do_tbmd) THEN
+         ELSE IF (force_env%method_name_id == do_tbmd) THEN
             CALL tbmd_env_get(tbmd_env=tbmd_env, tbmd_energy=tbmd_ener, error=error)
             CALL tbmd_energy_get(tbmd_energy=tbmd_ener, E_tb=Econs, E_kinetic=Ekin_new, error=error)
             Epot_new = Econs - Ekin_new
@@ -1086,7 +1085,7 @@ CONTAINS
             ELSE
                new_ldmc_energy = Econs
             END IF
-         ELSE IF (globenv%prog_name_id == do_eip) THEN
+         ELSE IF (force_env%method_name_id == do_eip) THEN
             CALL eip_env_get(eip_env=eip_env, eip_energy=Econs, eip_potential_energy=Epot_new, &
                              error=error)
             IF (.NOT. tot_energy) THEN
@@ -1611,7 +1610,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE harris_mc_md_approach(md_env, globenv, simpar, logger, error, &
                                    lpsc_prev_energy, lpsc_new_energy, &
-                                   lpsc_diff_energy)
+                                   lpsc_diff_energy,force_env_section)
 
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(global_environment_type), POINTER   :: globenv
@@ -1620,6 +1619,7 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
+    TYPE(section_vals_type), POINTER         :: force_env_section
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: lpsc_prev_energy, &
                                                 lpsc_new_energy, &
                                                 lpsc_diff_energy
@@ -1630,7 +1630,8 @@ CONTAINS
     INTEGER                                  :: handle, ibead, iter, iw, &
                                                 max_scf_aspc_tmp, &
                                                 max_scf_tmp, nbeads, &
-                                                harris_max_scf_tmp
+                                                harris_max_scf_tmp, &
+                                                method_name_id
     INTEGER, POINTER                         :: itimes
     LOGICAL                                  :: ionode, should_stop, &
                                                 tot_energy
@@ -1665,11 +1666,11 @@ CONTAINS
     max_scf_tmp = qs_env%scf_control%max_scf
     max_scf_aspc_tmp = qs_env%scf_control%max_scf_aspc
     harris_max_scf_tmp = qs_env%scf_control%harris_max_scf
-
+    CALL section_vals_val_get(force_env_section,"METHOD",i_val=method_name_id)
     tot_energy = simpar%tot_energy
 
     DO iter = 1, simpar%ld_steps
-      IF ((globenv%prog_name_id == do_qs) .OR. (globenv%prog_name_id == do_kg)) THEN
+      IF ((method_name_id == do_qs) .OR. (method_name_id == do_kg)) THEN
         IF (simpar%soft_start) THEN
           IF ((MIN(wf_history%memory_depth,wf_history%snapshot_count) &
               >= iter)) THEN
@@ -1719,7 +1720,7 @@ CONTAINS
 
       IF (simpar%lpsc) THEN
         IF (iter==1) THEN
-          IF (globenv%prog_name_id == do_kg) THEN
+          IF (method_name_id == do_kg) THEN
             Epot_prev = force_env_p(1)%force_env%kg_env%energy%total
             CALL compute_conserved_quantity(md_env=md_env, cons=Econs, epot=Epot_prev, ekin=Ekin_prev)
             IF (.NOT. tot_energy) THEN
@@ -1727,7 +1728,7 @@ CONTAINS
             ELSE
               prev_lpsc_energy = Econs
             END IF
-          ELSE IF (globenv%prog_name_id == do_qs) THEN
+          ELSE IF (method_name_id == do_qs) THEN
             IF (simpar%mc_method == Harris_MC_method) THEN
               CALL harris_env_get(harris_env=qs_env%harris_env, harris_energy=harris_energy, error=error)
               CALL harris_energy_get(harris_energy=harris_energy, Eharris=Econs, error=error)
@@ -1747,7 +1748,7 @@ CONTAINS
                 prev_lpsc_energy = Econs
               END IF
             END IF
-          ELSE IF (globenv%prog_name_id == do_tbmd) THEN
+          ELSE IF (method_name_id == do_tbmd) THEN
             CALL tbmd_env_get(tbmd_env=tbmd_env, tbmd_energy=tbmd_ener, error=error)
             CALL tbmd_energy_get(tbmd_energy=tbmd_ener, E_tb=Econs, E_kinetic=Ekin_prev, error=error)
             Epot_prev = Econs - Ekin_prev
@@ -1756,7 +1757,7 @@ CONTAINS
             ELSE
               prev_lpsc_energy = Econs
             END IF
-          ELSE IF (globenv%prog_name_id == do_eip) THEN
+          ELSE IF (method_name_id == do_eip) THEN
             CALL eip_env_get(eip_env=eip_env, eip_energy=Econs, eip_potential_energy=Epot_prev, &
                              error=error)
             IF (.NOT. tot_energy) THEN
@@ -1773,7 +1774,7 @@ CONTAINS
             WRITE(iw, *) "prev_lpsc_energy =", prev_lpsc_energy
           END IF
         ELSE IF (iter==simpar%ld_steps) THEN
-          IF (globenv%prog_name_id == do_kg) THEN
+          IF (method_name_id == do_kg) THEN
             Epot_new = force_env_p(1)%force_env%kg_env%energy%total
             CALL compute_conserved_quantity(md_env=md_env, cons=Econs, epot=Epot_new, ekin=Ekin_new)
             IF (.NOT. tot_energy) THEN
@@ -1781,7 +1782,7 @@ CONTAINS
             ELSE
               new_lpsc_energy = Econs
             END IF
-          ELSE IF (globenv%prog_name_id == do_qs) THEN
+          ELSE IF (method_name_id == do_qs) THEN
             IF (simpar%mc_method == Harris_MC_method) THEN
               CALL harris_env_get(harris_env=qs_env%harris_env, harris_energy=harris_energy, error=error)
               CALL harris_energy_get(harris_energy=harris_energy, Eharris=Econs, error=error)
@@ -1801,7 +1802,7 @@ CONTAINS
                 new_lpsc_energy = Econs
               END IF
             END IF
-          ELSE IF (globenv%prog_name_id == do_tbmd) THEN
+          ELSE IF (method_name_id == do_tbmd) THEN
             CALL tbmd_env_get(tbmd_env=tbmd_env, tbmd_energy=tbmd_ener, error=error)
             CALL tbmd_energy_get(tbmd_energy=tbmd_ener, E_tb=Econs, E_kinetic=Ekin_new, error=error)
             Epot_new = Econs - Ekin_new
@@ -1810,7 +1811,7 @@ CONTAINS
             ELSE
               new_lpsc_energy = Econs
             END IF
-          ELSE IF (globenv%prog_name_id == do_eip) THEN
+          ELSE IF (method_name_id == do_eip) THEN
             CALL eip_env_get(eip_env=eip_env, eip_energy=Econs, eip_potential_energy=Epot_new, &
                              error=error)
             IF (.NOT. tot_energy) THEN

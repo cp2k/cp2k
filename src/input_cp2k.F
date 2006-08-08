@@ -352,10 +352,10 @@ FUNCTION create_cp2k_input_reading(file_path,para_env,error) RESULT(res)
          enum_c_vals=program_names,&
          enum_desc=program_name_desc,&
          enum_i_vals=program_name_index,&
-         default_i_val=do_qs, error=error)
+         default_i_val=do_cp2k, error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
-
+ 
     CALL keyword_create(keyword, name="PROJECT_NAME",&
          variants=(/"PROJECT"/),&
          description="Name of the project (used to build the name of the "//&
@@ -676,17 +676,27 @@ FUNCTION create_cp2k_input_reading(file_path,para_env,error) RESULT(res)
 
     LOGICAL                                  :: failure
     TYPE(section_type), POINTER              :: subsection
-
+    TYPE(keyword_type), POINTER              :: keyword
     failure=.FALSE.
 
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     CALL section_create(section,name="force_eval",&
          description="parameters needed to calculate energy and forces and"//&
          " describe the system you want to analyze.",&
-         n_keywords=0, n_subsections=9, repeats=.TRUE., required=.TRUE.,&
+         n_keywords=1, n_subsections=9, repeats=.TRUE., required=.TRUE.,&
          error=error)
 
     NULLIFY(subsection)
+    NULLIFY(keyword)
+    CALL keyword_create(keyword, name="METHOD",&
+         description="Which method should be used to compute forces",&
+         usage="METHOD <STRING>",&
+         enum_c_vals=method_names,&
+         enum_desc=method_name_desc,&
+         enum_i_vals=method_name_index,&
+         default_i_val=do_qs, error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
 
     CALL create_ep_section(subsection,error)
     CALL section_add_subsection(section, subsection, error=error)

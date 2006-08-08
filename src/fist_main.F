@@ -88,7 +88,7 @@ CONTAINS
 !!
 !!*** *************************************************************************
 
-SUBROUTINE fist_create_force_env ( force_env, globenv, qmmm, qmmm_env, force_env_section,error )
+SUBROUTINE fist_create_force_env ( force_env, globenv, qmmm, qmmm_env, force_env_section, method_name_id,error )
 
 
 ! Argument
@@ -100,7 +100,7 @@ SUBROUTINE fist_create_force_env ( force_env, globenv, qmmm, qmmm_env, force_env
       POINTER                                :: qmmm_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-
+    INTEGER,OPTIONAL, INTENT(in)             :: method_name_id
     CHARACTER(LEN=*), PARAMETER :: routineN = 'fist_create_force_env', &
       routineP = moduleN//':'//routineN
 

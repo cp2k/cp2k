@@ -67,7 +67,8 @@ MODULE qmmm_init
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
-                                             section_vals_val_get
+                                             section_vals_val_get, &
+                                             section_vals_val_set
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE pair_potential_types,            ONLY: pair_potential_reallocate
@@ -88,6 +89,7 @@ MODULE qmmm_init
   USE qs_main,                         ONLY: quickstep_create_force_env
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE force_env_types,                  ONLY:  force_env_set
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -136,7 +138,7 @@ CONTAINS
     CHARACTER(len=default_string_length), &
       DIMENSION(:), POINTER                  :: qm_atom_type
     INTEGER                                  :: handle, isubf, iw, iw2, &
-                                                qmmm_coupl_type, stat
+                                                qmmm_coupl_type, stat,method_name_id
     INTEGER, DIMENSION(:), POINTER           :: mm_atom_index, mm_link_atoms, &
                                                 qm_atom_index, qm_subsys_index
     LOGICAL :: add_mm_charges, explicit, failure, move_mm_charges, nocenter, &
@@ -232,10 +234,11 @@ CONTAINS
        END IF
 
        ! First Initialize Fist...
-       globenv%prog_name_id=do_fist
+ 
+       CALL section_vals_val_set(force_env_section,"METHOD",i_val=do_fist)
        CALL fist_create_force_env(sub_force_env(1)%force_env, &
             globenv, qmmm=.TRUE., qmmm_env=qmmm_env_mm, force_env_section=force_env_section,&
-            error=error)
+            method_name_id=method_name_id,error=error)
 
        CALL force_env_get(sub_force_env(1)%force_env,subsys=subsys_mm,&
             cell=mm_cell,error=error) 
@@ -317,7 +320,8 @@ CONTAINS
                                mm_el_pot_radius_corr, qmmm_env_qm%added_charges,&
                                globenv, qmmm_section, nocompatibility, error)
 
-       globenv%prog_name_id=do_qs
+
+       CALL section_vals_val_set(force_env_section,"METHOD",i_val=do_qs)
        CALL create_small_subsystem(subsys_qm,&
             big_subsys=subsys_mm,small_para_env=para_env,&
             small_cell=qm_cell_small,sub_atom_index=qm_atom_index,&
@@ -395,7 +399,7 @@ CONTAINS
 
        CALL cell_release(qm_cell_small, error)                       
 
-       globenv%prog_name_id=do_qmmm
+       CALL section_vals_val_set(force_env_section,"METHOD",i_val=do_qmmm)
        CALL force_env_create(force_env, sub_force_env=sub_force_env,&
             qmmm_env=qmmm_env_qm,globenv=globenv, force_env_section= force_env_section,&
             error=error)

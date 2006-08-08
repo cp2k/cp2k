@@ -827,10 +827,10 @@ CONTAINS
 !      ELSE
 !         globenv%input_file_name=dat_file(insert_box)
 !         CALL mc_create_force_env(insert_env, globenv, &
-!            dat_file(insert_box),error=error)
+!            dat_file(insert_box),force_env_section,error=error)
 !         globenv%input_file_name=dat_file(remove_box)
 !         CALL mc_create_force_env(remove_env, globenv, &
-!            dat_file(remove_box),error=error)
+!            dat_file(remove_box),force_env_section,error=error)
 !      ENDIF
 
 ! allocate an array we'll need

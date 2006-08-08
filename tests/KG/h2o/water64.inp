@@ -1,6 +1,6 @@
 &CP2K
   PROJECT    h2o
-  PROGRAM    kg
+
   IOLEVEL    4
   RUN_TYPE   MD     
   FFTLIB     FFTSG

@@ -207,7 +207,7 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(section_vals_type), POINTER         :: cell_section, colvar_section, &
                                                 harris_section, kind_section
-
+ 
     NULLIFY(my_subsystem, molecule_kind_set, molecule_set, atomic_kind_set,&
          particle_set,atomic_kinds,particles,mols,mol_kinds,my_cell,my_cell_ref,&
          cell_section, harris_section, kind_section)
@@ -223,7 +223,6 @@ CONTAINS
     harris_flag = .FALSE.
     CALL section_vals_val_get(harris_section, "ACTIVATE", &
                               l_val=harris_flag, error=error)
-
     CALL set_qs_env(qs_env,input=force_env_section,&
          use_harris=harris_flag,error=error)
 
@@ -253,7 +252,7 @@ CONTAINS
 
 !   Kind section
     kind_section => section_vals_get_subs_vals(force_env_section,&
-            "SUBSYS%KIND",error=error)       
+            "SUBSYS%KIND",error=error)
     IF (PRESENT(subsystem)) THEN 
        my_subsystem => subsystem
        CALL read_atomic_kind_set(my_subsystem%atomic_kinds%els,kind_section,globenv,&
@@ -452,7 +451,7 @@ CONTAINS
 
 !   *** Initialise the atomic kind set ***
 
-    CALL init_atomic_kind_set(atomic_kind_set,globenv)
+    CALL init_atomic_kind_set(atomic_kind_set,globenv,qs_env%input)
 
 !   *** Initialise GAPW soft basis and projectors
 

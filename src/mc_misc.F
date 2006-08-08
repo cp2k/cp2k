@@ -705,6 +705,16 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
       WRITE(unit,10000) "&FORCE_EVAL"
       SELECT CASE ( force_env%in_use )
       CASE ( use_fist_force )
+         WRITE(unit,10000) ' METHOD      FIST'
+      CASE ( use_qs_force )
+         WRITE(unit,10000) ' METHOD      Quickstep'
+      CASE ( use_kg_force )
+         WRITE(unit,10000) ' METHOD      KG'
+      CASE default
+        CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+      END SELECT
+      SELECT CASE ( force_env%in_use )
+      CASE ( use_fist_force )
 ! grab some of the Ewald keywords
          WRITE(unit,10000) "  &MM"
          WRITE(unit,10000) "    &POISSON"
@@ -1090,17 +1100,6 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
       WRITE(unit,10000) "  &END SUBSYS"
       WRITE(unit,10000) "&END FORCE_EVAL"
       WRITE(unit,10000) "&GLOBAL"
-
-      SELECT CASE ( force_env%in_use )
-      CASE ( use_fist_force )
-         WRITE(unit,10000) ' PROGRAM      FIST'
-      CASE ( use_qs_force )
-         WRITE(unit,10000) ' PROGRAM      Quickstep'
-      CASE ( use_kg_force )
-         WRITE(unit,10000) ' PROGRAM      KG'
-      CASE default
-        CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
-      END SELECT
 
       SELECT CASE ( force_env%in_use )
       CASE ( use_fist_force )

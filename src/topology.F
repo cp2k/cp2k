@@ -224,11 +224,13 @@ CONTAINS
     IF (my_qmmm) THEN
        CALL topology_coordinate_pack(particle_set,atomic_kind_set,&
             molecule_kind_set,molecule_set,&
-            topology,globenv, my_qmmm, qmmm_env, subsys_section,error=error)
+            topology,globenv, my_qmmm, qmmm_env, subsys_section,force_env_section=force_env_section,&
+            error=error)
     ELSE 
        CALL topology_coordinate_pack(particle_set,atomic_kind_set,&
             molecule_kind_set,molecule_set,&
-            topology,globenv,subsys_section=subsys_section,error=error)
+            topology,globenv,subsys_section=subsys_section,force_env_section=force_env_section,&
+            error=error)
     END IF
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------

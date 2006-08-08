@@ -1,5 +1,6 @@
 
 &FORCE_EVAL
+  METHOD Quickstep
   &DFT
     &MGRID
       CUTOFF 200
@@ -38,7 +39,7 @@
 &END FORCE_EVAL
 &GLOBAL
   FFTLIB FFTSG
-  PROGRAM Quickstep
+
   PROJECT molecular_states
   PRINT_LEVEL MEDIUM
 &END GLOBAL

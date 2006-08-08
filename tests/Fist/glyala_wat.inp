@@ -1,5 +1,6 @@
 
 &FORCE_EVAL
+  METHOD FIST
   &MM
     &FORCEFIELD
       parmfile sample_pot/glyala_wat.pot
@@ -28,7 +29,7 @@
 &GLOBAL
   FFTLIB FFTSG
   PRINT_LEVEL LOW
-  PROGRAM FIST
+
   PROJECT glyala_wat
   RUN_TYPE debug
 &END GLOBAL

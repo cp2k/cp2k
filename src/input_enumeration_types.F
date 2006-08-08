@@ -364,6 +364,7 @@ FUNCTION enum_c2i(enum,c,error) RESULT(res)
            EXIT
         END IF
      END DO
+
      IF (.NOT.found) THEN
         CALL cp_assert(.NOT.enum%strict,cp_failure_level,cp_assertion_failed,&
              routineP,"invalid value for enumeration:"//TRIM(c),&

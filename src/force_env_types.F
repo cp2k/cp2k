@@ -138,7 +138,7 @@ MODULE force_env_types
   !***************************************************************************
   TYPE force_env_type
 !     PRIVATE
-     INTEGER                                             :: id_nr,ref_count,in_use
+     INTEGER :: id_nr,ref_count,in_use,method_name_id
      TYPE ( fist_environment_type ), POINTER             :: fist_env 
      TYPE ( kg_environment_type ), POINTER               :: kg_env
      TYPE ( meta_env_type ), POINTER                     :: meta_env
@@ -351,10 +351,10 @@ END SUBROUTINE force_env_release
 RECURSIVE SUBROUTINE force_env_get(force_env, in_use, &
      fist_env, qs_env, kg_env, meta_env, restraint_env, dyn_coeff_set, subsys, para_env, &
      potential_energy, kinetic_energy, cell, cell_ref, sub_force_env, qmmm_env,&
-     tbmd_env, eip_env, virial, use_ref_cell, globenv, input, ep_env,&
-          force_env_section,error)
-    TYPE(force_env_type), POINTER               :: force_env
-    INTEGER, INTENT(out), OPTIONAL              :: in_use
+     tbmd_env, eip_env, virial, use_ref_cell, globenv, input,ep_env,&
+          force_env_section,method_name_id,error)
+    TYPE(force_env_type), POINTER            :: force_env
+    INTEGER, INTENT(out), OPTIONAL           :: in_use,method_name_id
     TYPE(fist_environment_type), OPTIONAL, &
       POINTER                                   :: fist_env
     TYPE(qs_environment_type), OPTIONAL, &
@@ -548,6 +548,7 @@ CPSourceFileRef,&
 
      IF (PRESENT(force_env_section)) force_env_section => force_env%force_env_section
      IF (PRESENT(in_use)) in_use=force_env%in_use
+     IF (PRESENT(method_name_id))method_name_id=force_env%method_name_id
      IF (PRESENT(fist_env)) THEN
         fist_env => force_env%fist_env
      END IF
@@ -617,15 +618,15 @@ END SUBROUTINE force_env_get
 !!     09.2003 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE force_env_set(force_env, meta_env,restraint_env, virial, force_env_section, error)
-    TYPE(force_env_type), POINTER               :: force_env
-    TYPE(meta_env_type), OPTIONAL, POINTER      :: meta_env
+SUBROUTINE force_env_set(force_env, meta_env,restraint_env, virial, force_env_section,method_name_id, error)
+    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(meta_env_type), OPTIONAL, POINTER   :: meta_env
     TYPE(restraint_env_type), OPTIONAL, POINTER :: restraint_env
-    TYPE(virial_type), OPTIONAL, POINTER        :: virial
-    TYPE(section_vals_type), OPTIONAL, POINTER  :: force_env_section
+    TYPE(virial_type), OPTIONAL, POINTER     :: virial
+    TYPE(section_vals_type), OPTIONAL, POINTER :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-
+    INTEGER,OPTIONAL                         :: method_name_id
     CHARACTER(len=*), PARAMETER :: routineN = 'force_env_set', &
       routineP = moduleN//':'//routineN
 
@@ -662,6 +663,9 @@ SUBROUTINE force_env_set(force_env, meta_env,restraint_env, virial, force_env_se
            CALL section_vals_release(force_env%force_env_section,error=error)
            force_env%force_env_section => force_env_section
         END IF
+     END IF
+     IF (PRESENT(method_name_id))THEN
+        force_env%method_name_id=method_name_id
      END IF
   END IF
 END SUBROUTINE force_env_set

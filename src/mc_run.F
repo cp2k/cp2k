@@ -191,7 +191,7 @@ CONTAINS
 
 ! read the input of the Monte Carlo section
       CALL read_mc_section ( mc_par, globenv ,globenv%input_file_name,&
-           globenv%input_file,error)
+           globenv%input_file,force_env_section,error)
 
 ! if we're doing a classical simulation, figure out the largest
 ! potential cutoff and write it to the screen
@@ -205,7 +205,6 @@ CONTAINS
                'Cutoff larger than twice the boxlength')
          ENDIF
       ENDIF
-
 ! determine the total number of molecules and atoms
       CALL force_env_get(force_env,subsys=subsys,error=error)
       CALL cp_subsys_get(subsys(1)%subsys, &
@@ -265,7 +264,6 @@ CONTAINS
             error = error )
       ENDDO
 
-
 ! check for restart
       IF ( lrestart ) THEN
          CALL read_mc_restart(mc_par,force_env,iw,rng_stream)
@@ -319,7 +317,7 @@ CONTAINS
          ENDIF
          
          CALL read_mc_section ( mc_par_2, globenv ,box2_file,&
-              globenv_2%input_file,error)
+              globenv_2%input_file,force_env_section,error)
 
 ! determine the total number of molecules and atoms
          CALL force_env_get(force_env_2,subsys=subsys_2,error=error)

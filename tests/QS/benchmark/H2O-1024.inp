@@ -1,5 +1,5 @@
 &CP2K
- PROGRAM      Quickstep
+
  PROJECT      H2O-1024
  IOLEVEL      30
  FFTLIB       FFTESSL

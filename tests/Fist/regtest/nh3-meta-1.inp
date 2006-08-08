@@ -1,5 +1,6 @@
 
 &FORCE_EVAL
+  METHOD FIST
   &MM
     &FORCEFIELD
       parmfile nh3.pot
@@ -36,7 +37,7 @@
 
 &GLOBAL
   FFTLIB FFTSG
-  PROGRAM FIST
+
   PROJECT NH3
   RUN_TYPE md
 &END GLOBAL

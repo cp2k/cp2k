@@ -1,5 +1,6 @@
 
 &FORCE_EVAL
+  METHOD FIST
   &MM
     &FORCEFIELD
       parmfile h2po4.pot
@@ -29,7 +30,7 @@
 &END FORCE_EVAL
 &GLOBAL
   FFTLIB FFTSG
-  PROGRAM FIST
+
   PROJECT res_h2po4
   RUN_TYPE md
 &END GLOBAL

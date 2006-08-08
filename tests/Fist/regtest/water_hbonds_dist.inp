@@ -1,5 +1,6 @@
 
 &FORCE_EVAL
+  METHOD FIST
   &MM
     &FORCEFIELD
       parmfile ../sample_pot/water.pot
@@ -43,7 +44,7 @@
 &END FORCE_EVAL
 &GLOBAL
   FFTLIB FFTSG
-  PROGRAM FIST
+
   PROJECT water_3
   RUN_TYPE MD
 &END GLOBAL

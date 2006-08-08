@@ -474,7 +474,7 @@ CONTAINS
 !!I---------------------------------------------------------------------------I
 !!*****************************************************************************
 
-SUBROUTINE read_mc_section ( mc_par, globenv, input_file_name, input_file,&
+SUBROUTINE read_mc_section ( mc_par, globenv, input_file_name, input_file, force_env_section,&
      error )
 
 
@@ -486,8 +486,9 @@ SUBROUTINE read_mc_section ( mc_par, globenv, input_file_name, input_file,&
     CHARACTER(LEN=*),INTENT(IN)              :: input_file_name
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'read_mc_section'
+    TYPE(section_vals_type), POINTER         :: force_env_section
 
-    INTEGER                                  :: handle, ia, ie, iw, stop_num
+    INTEGER                                  :: handle, ia, ie, iw, stop_num,method_name_id
     TYPE(section_vals_type), POINTER         :: mc_section
     LOGICAL                                  :: failure
 
@@ -527,7 +528,8 @@ SUBROUTINE read_mc_section ( mc_par, globenv, input_file_name, input_file,&
       mc_par % nswapmoves = 1
       mc_par % ldiscrete = .FALSE.
       mc_par % discrete_step = 0.05d0
-      SELECT CASE (globenv%prog_name_id)
+      CALL section_vals_val_get(force_env_section,"METHOD",i_val=method_name_id,error=error)
+      SELECT CASE (method_name_id)
       CASE (do_fist)
          mc_par % iprint = 100 
       CASE (do_kg)

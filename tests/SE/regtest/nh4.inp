@@ -1,5 +1,6 @@
 
 &FORCE_EVAL
+  METHOD Quickstep
   &DFT
     CHARGE 1
     &QS
@@ -26,7 +27,7 @@
   &END SUBSYS
 &END FORCE_EVAL
 &GLOBAL
-  PROGRAM Quickstep
+
   PROJECT nh4
   RUN_TYPE GEO_OPT
 &END GLOBAL

@@ -898,7 +898,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE init_atomic_kind(atomic_kind,globenv,method)
+  SUBROUTINE init_atomic_kind(atomic_kind,globenv,force_env_section,method)
 
 !   Purpose: Initialise an atomic kind data set.
 
@@ -909,15 +909,17 @@ CONTAINS
 
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(section_vals_type), POINTER         :: force_env_section
     CHARACTER(LEN=10), INTENT(IN), OPTIONAL  :: method
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'init_atomic_kind'
+    INTEGER                                  :: method_name_id
 
 !   ---------------------------------------------------------------------------
 
     IF (ASSOCIATED(atomic_kind)) THEN
-
-      IF (globenv%prog_name_id == do_qs) THEN
+    CALL section_vals_val_get(force_env_section,"METHOD",i_val=method_name_id)
+      IF (method_name_id == do_qs) THEN
         IF (ASSOCIATED(atomic_kind%gth_potential))THEN
           CALL init_potential(atomic_kind%gth_potential)
         END IF
@@ -931,7 +933,7 @@ CONTAINS
                         atomic_kind%aux_basis_set%norm_type = 1
           CALL init_aux_basis_set(atomic_kind%aux_basis_set)
         END IF
-      ELSE IF (globenv%prog_name_id == do_kg) THEN
+      ELSE IF (method_name_id == do_kg) THEN
         IF (ASSOCIATED(atomic_kind%gth_potential).AND. PRESENT(method))THEN
           IF(method == "KG_GPW")&  
           CALL init_potential(atomic_kind%gth_potential)
@@ -956,7 +958,7 @@ CONTAINS
                         atomic_kind%aux_basis_set%norm_type = 1
           CALL init_aux_basis_set(atomic_kind%aux_basis_set)
         END IF
-      ELSE IF (globenv%prog_name_id == do_fist) THEN
+      ELSE IF (method_name_id == do_fist) THEN
         IF (ASSOCIATED(atomic_kind%elp_potential))THEN
           CALL allocate_potential(atomic_kind%elp_potential)
         END IF
@@ -966,14 +968,14 @@ CONTAINS
 
       CALL stop_program(routineN,moduleN,__LINE__,&
                         "The pointer atomic_kind is not associated",globenv)
-
-    END IF
+      
+   END IF
 
   END SUBROUTINE init_atomic_kind
 
 ! *****************************************************************************
 
-  SUBROUTINE init_atomic_kind_set(atomic_kind_set,globenv,method)
+  SUBROUTINE init_atomic_kind_set(atomic_kind_set,globenv,force_env_section,method)
 
 !   Purpose: Initialise an atomic kind set data set.
 
@@ -985,6 +987,7 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(section_vals_type), POINTER         :: force_env_section
     CHARACTER(LEN=10), INTENT(IN), OPTIONAL  :: method
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'init_atomic_kind_set'
@@ -1000,7 +1003,8 @@ CONTAINS
 
       DO ikind=1,nkind
         atomic_kind => atomic_kind_set(ikind)
-        CALL init_atomic_kind(atomic_kind,globenv,method=method)
+        CALL init_atomic_kind(atomic_kind,globenv,force_env_section=force_env_section,&
+             method=method)
       END DO
 
     ELSE
@@ -1496,7 +1500,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: name
-    INTEGER                                  :: z
+    INTEGER                                  :: z,method_name_id
     LOGICAL                                  :: defined
     REAL(dp)                                 :: mass
     TYPE(all_potential_type), POINTER        :: all_potential
@@ -1504,9 +1508,9 @@ CONTAINS
     TYPE(gth_potential_type), POINTER        :: gth_potential
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(semi_empirical_type), POINTER       :: se_parameter
-
 !   ---------------------------------------------------------------------------
 
+    CALL section_vals_val_get(force_env_section,"METHOD",i_val=method_name_id)
     NULLIFY ( orb_basis_set, all_potential, elp_potential, gth_potential )
     CALL get_atomic_kind(atomic_kind,name=name,z=z,mass=mass,&
                          orb_basis_set=orb_basis_set,&
@@ -1514,7 +1518,7 @@ CONTAINS
                          elp_potential=elp_potential,&
                          gth_potential=gth_potential)
 
-    IF (globenv%prog_name_id == do_qs) THEN
+    IF (method_name_id == do_qs) THEN
       IF (z < 0) THEN
         CALL stop_program(routineN,moduleN,__LINE__,&
                      "No valid element is assign to the atomic kind ",globenv)
@@ -1553,7 +1557,7 @@ CONTAINS
              zeff=se_parameter%zeff, zeff_correction=all_potential%zeff_correction) 
         END IF
       END IF
-    ELSE IF (globenv%prog_name_id == do_kg) THEN
+    ELSE IF (method_name_id == do_kg) THEN
       !no checks programmed yet
     END IF
 

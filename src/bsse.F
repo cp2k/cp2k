@@ -266,7 +266,7 @@ CONTAINS
       DIMENSION(:), POINTER                  :: atom_type
     INTEGER                                  :: i, isize, j, jj, k, my_targ, &
                                                 n_rep, num_of_frag, old_size, &
-                                                stat
+                                                stat,method_name_id
     INTEGER, DIMENSION(:), POINTER           :: atom_index, atom_list, &
                                                 my_conf, subsys_index, tmplist
     LOGICAL                                  :: failure
@@ -284,6 +284,7 @@ CONTAINS
     NULLIFY(subsys_loc, subsys, particles, para_env, cell, atom_index, atom_type, tmplist,&
          force_env_section )
     CALL force_env_get(force_env, force_env_section=force_env_section, error=error)
+    CALL section_vals_val_get(force_env_section,"METHOD",i_val=method_name_id,error=error)
     bsse_section => section_vals_get_subs_vals(force_env_section,"BSSE",error=error)
     IF (.NOT.failure) THEN
        ALLOCATE(my_conf(SIZE(conf)), stat=stat)
@@ -351,7 +352,8 @@ CONTAINS
        ! Let's start setting up environments and calculations
        !
        energy = 0.0_dp
-       IF (globenv%prog_name_id == do_qs) THEN          
+
+       IF (method_name_id == do_qs) THEN          
 
           CALL create_small_subsystem(subsys_loc, big_subsys=subsys,&
                small_para_env=para_env, small_cell=cell,sub_atom_index=atom_index,&

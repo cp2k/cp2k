@@ -1,5 +1,6 @@
 
 &FORCE_EVAL
+   METHOD FIST
   &MM
     &FORCEFIELD
       parmfile water_fake.pot
@@ -35,7 +36,6 @@
 &END FORCE_EVAL
 &GLOBAL
   FFTLIB FFTW
-  PROGRAM FIST
   PROJECT water_1
   RUN_TYPE md
 &END GLOBAL

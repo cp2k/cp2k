@@ -1,5 +1,6 @@
 
 &FORCE_EVAL
+  METHOD FIST
   &MM
     &FORCEFIELD
       parmfile ../sample_pot/NaCl-H2O.pot
@@ -43,7 +44,7 @@
 &END FORCE_EVAL
 &GLOBAL
   FFTLIB FFTW
-  PROGRAM FIST
+
   PROJECT MYMOL
   RUN_TYPE MD
 &END GLOBAL

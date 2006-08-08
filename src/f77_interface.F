@@ -576,7 +576,7 @@ END SUBROUTINE f_env_rm_defaults
     CHARACTER(len=*), PARAMETER :: routineN = 'create_force_env', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, stat, unit_nr, nforce_eval, iforce_eval
+    INTEGER                                  :: i, stat, unit_nr, nforce_eval, iforce_eval,method_name_id
     INTEGER, POINTER, DIMENSION(:) :: i_force_eval
     LOGICAL                                  :: failure,my_owns_out_unit,my_echo
     TYPE(cp_error_type)                      :: error
@@ -665,6 +665,7 @@ END SUBROUTINE f_env_rm_defaults
        CALL cp2k_setup(globenv,error)
        ! Setup all possible force_env
        force_env_sections => section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL",error=error)
+
        CALL section_vals_get(force_env_sections, n_repetition=nforce_eval, error=error)
        CALL section_vals_val_get(globenv%input_file,"MOTION%MD%RESPA%FORCE_EVAL_SHELLS",i_vals=i_force_eval,&
             ignore_required=.TRUE.,error=error)
@@ -675,7 +676,8 @@ END SUBROUTINE f_env_rm_defaults
                i_force_eval(iforce_eval),i_force_eval(iforce_eval),error)
           NULLIFY(my_force_env)
           ! initialize force_env
-          SELECT CASE (globenv%prog_name_id)
+       CALL section_vals_val_get(force_env_section,"METHOD",i_val=method_name_id,error=error)
+          SELECT CASE (method_name_id)
           CASE (do_ep)
              ! does not support multi force_env_sections
              CALL ep_create_force_env ( my_force_env,&

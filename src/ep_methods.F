@@ -559,7 +559,7 @@ CONTAINS
        input => ep_env%globenv%input_file
        para_env => ep_env%para_env
        ! create_main_qs_env
-       CALL section_vals_val_set(input,"GLOBAL%PROGRAM_NAME",&
+       CALL section_vals_val_set(input,"FORCE_EVAL%METHOD",&
             i_val=do_qs,error=error)
        CALL section_vals_val_get(input,"GLOBAL%PROJECT_NAME",&
             c_val=project_name,error=error)
@@ -573,7 +573,7 @@ CONTAINS
        CALL close_file(unit_nr)
        CALL section_vals_val_set(input,"GLOBAL%PROJECT_NAME",&
             c_val=project_name,error=error)
-       CALL section_vals_val_set(input,"GLOBAL%PROGRAM_NAME",&
+       CALL section_vals_val_set(input,"FORCE_EVAL%METHOD",&
             i_val=do_ep,error=error)
 
        CALL create_force_env(ep_env%f_env_id,TRIM(project_name)//"_mainQS.inp",&
@@ -790,7 +790,7 @@ CONTAINS
 
     CALL build_core_hamiltonian_matrix(qs_env=qs_env,&
          globenv=globenv,&
-         calculate_forces=.FALSE.,error=error)
+         calculate_forces=.FALSE.,my_ep=.TRUE.,error=error)
     CALL qs_env_update_s_mstruct(qs_env, error=error)
 
     !  *** init the ks_env
@@ -1924,7 +1924,7 @@ CONTAINS
 
     ! *** Calculate the overlap and the core Hamiltonian integral matrix ***
     CALL build_core_hamiltonian_matrix(qs_env=qs_env, globenv=globenv,&
-         calculate_forces=.FALSE.,error=error)
+         calculate_forces=.FALSE.,my_ep=.TRUE.,error=error)
     CALL qs_env_update_s_mstruct(qs_env)
     CALL qs_check_i_alloc(qs_env,error=error)
     CALL calculate_ecore_self(qs_env)
@@ -2132,7 +2132,7 @@ CONTAINS
     !*** compute core forces (also overwrites matrix_w) ***
     CALL build_core_hamiltonian_matrix(qs_env=qs_env,&
          globenv=globenv,&
-         calculate_forces=.TRUE.,error=error)
+         calculate_forces=.TRUE.,my_ep=.TRUE.,error=error)
     CALL calculate_ecore_self(qs_env)
     CALL calculate_ecore_overlap(qs_env, globenv, &
          calculate_forces=.TRUE.,&
@@ -2653,7 +2653,7 @@ CONTAINS
 !y       call zero_qs_force(force)
 !y       CALL build_core_hamiltonian_matrix(qs_env=sub_qs_env,&
 !y            globenv=sub_globenv,&
-!y            calculate_forces=.true.,error=error)
+!y            calculate_forces=.true.,my_ep=.true.,error=error)
 !y       atoms => ep_env%sub_proj(irep)%projection%atoms
 !y       ep_force => ep_env%force
 !y       DO iatom=1,nat

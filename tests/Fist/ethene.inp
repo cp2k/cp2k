@@ -1,5 +1,6 @@
 
 &FORCE_EVAL
+  METHOD FIST
   &MM
     &FORCEFIELD
       parmfile charmm.pot
@@ -34,7 +35,7 @@
 &END FORCE_EVAL
 &GLOBAL
   FFTLIB FFTW
-  PROGRAM FIST
+
   PROJECT ethene
   RUN_TYPE md
 &END GLOBAL

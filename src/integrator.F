@@ -184,7 +184,6 @@ CONTAINS
     NULLIFY (dyn_coeff_set, nhc_coef, para_env)
     CALL get_md_env(md_env=md_env,simpar=simpar,force_env_p=force_env_p,&
                     nhc_coef=nhc_coef, para_env = para_env)
-
     dt = simpar%dt
     gam = simpar%gamma
 
@@ -3428,6 +3427,8 @@ END SUBROUTINE update_particle_set
        END DO
        
        !      *** Broadcast the new particle velocities ***
+       CALL virial_evaluate ( atomic_kind_set, particle_set,  &
+               local_particles, virial, para_env % group  )
        CALL update_particle_set ( particle_set, para_env % group, vel = vel )         
        
        DEALLOCATE (vel,STAT=istat)

@@ -547,7 +547,6 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'get_elp_potential'
 
 !   ---------------------------------------------------------------------------
-
     IF (ASSOCIATED(potential)) THEN
 
       IF (PRESENT(name)) name = potential%name

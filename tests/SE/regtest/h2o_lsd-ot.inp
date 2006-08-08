@@ -1,5 +1,6 @@
 
 &FORCE_EVAL
+  METHOD Quickstep
   &DFT
     LSD
     &QS
@@ -27,7 +28,7 @@
   &END SUBSYS
 &END FORCE_EVAL
 &GLOBAL
-  PROGRAM Quickstep
+
   PROJECT H2O
   RUN_TYPE GEO_OPT
 &END GLOBAL

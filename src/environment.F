@@ -32,8 +32,8 @@ MODULE environment
   USE gamma,                           ONLY: deallocate_md_ftable
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: &
-       do_eip, do_farming, do_fist, do_kg, do_qs, do_tbmd, do_test, &
-       energy_run, mol_dyn_run, none_run, program_names, run_type_names
+       do_eip, do_farming, do_fist, do_kg, do_qs, do_tbmd, do_test,do_cp2k,do_ep, &
+       energy_run, mol_dyn_run, none_run, program_names, run_type_names,method_names
   USE input_section_types,             ONLY: section_get_lval,&
                                              section_get_rval,&
                                              section_vals_get,&
@@ -80,6 +80,8 @@ MODULE environment
                                              timestop,&
                                              trace_debug,&
                                              use_HPM
+  USE force_env_types,                 ONLY: force_env_type
+
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -483,6 +485,7 @@ SUBROUTINE cp2k_read(globenv,error)
   SUBROUTINE read_global_section(globenv,error)
 
     TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(force_env_type), POINTER            :: force_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -493,7 +496,7 @@ SUBROUTINE cp2k_read(globenv,error)
       mm_potential_file_name, potential_file_name, coord_file_name,&
       restart_file_name, env_num
     INTEGER                                  :: num_threads, output_unit, nforce_eval,&
-         iforce_eval
+         iforce_eval,method_name_id
     LOGICAL                                  :: ata, failure, trace
     TYPE(section_vals_type), POINTER         :: dft_section, global_section,&
          qmmm_section, subsys_section,force_env_sections
@@ -505,7 +508,6 @@ SUBROUTINE cp2k_read(globenv,error)
     NULLIFY(dft_section,global_section)
 
     global_section => section_vals_get_subs_vals(globenv%input_file,"GLOBAL",error=error)
-
     CALL section_vals_val_get(global_section,"BLACS_GRID",i_val=globenv%blacs_grid_layout,error=error)
     CALL section_vals_val_get(global_section,"FFT_LIBRARY",c_val=globenv%default_fft_library,error=error)
     CALL section_vals_val_get(global_section,"PRINT_LEVEL",i_val=globenv%print_level,error=error)
@@ -514,32 +516,44 @@ SUBROUTINE cp2k_read(globenv,error)
     CALL section_vals_val_get(global_section,"RUN_TYPE",i_val=globenv%run_type_id,error=error)
     CALL section_vals_val_get(global_section,"WALLTIME",r_val=globenv%cp2k_target_time,error=error)
     CALL section_vals_val_get(global_section,"TRACE",l_val=trace,error=error)
+    force_env_sections => section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL",error=error)
+    CALL section_vals_get(force_env_sections, n_repetition=nforce_eval, error=error)
+     
     IF(trace) CALL trace_debug("start",groupid=globenv%group)
 
     IF (globenv%run_type_id == 0) THEN
        SELECT CASE (globenv%prog_name_id)
-       CASE (do_farming)
+       CASE (do_farming, do_test)
           globenv%run_type_id = none_run
-       CASE (do_fist)
-          globenv%run_type_id = mol_dyn_run
-       CASE (do_kg)
-          globenv%run_type_id = mol_dyn_run
-       CASE (do_tbmd)
-          globenv%run_type_id = mol_dyn_run
-       CASE (do_eip)
-          globenv%run_type_id = mol_dyn_run
-       CASE (do_qs)
-          globenv%run_type_id = energy_run
-       CASE (do_test)
-          globenv%run_type_id = none_run
+       CASE (do_cp2k)
+          IF (nforce_eval /=1) THEN
+             ! multiple force_eval corresponds at the moment to RESPA calculations only
+             ! default MD
+             globenv%run_type_id = mol_dyn_run
+          ELSE
+             CALL section_vals_val_get(force_env_sections,"METHOD",i_val=method_name_id,error=error)
+             SELECT CASE (method_name_id)          
+             CASE (do_fist)
+                globenv%run_type_id = mol_dyn_run
+             CASE (do_kg)
+                globenv%run_type_id = mol_dyn_run
+             CASE (do_tbmd)
+                globenv%run_type_id = mol_dyn_run
+             CASE (do_eip)
+                globenv%run_type_id = mol_dyn_run
+             CASE (do_qs)
+                globenv%run_type_id = energy_run
+             END SELECT
+          END IF
        END SELECT
     END IF
 
-    IF(globenv%prog_name_id == do_farming .AND. globenv%run_type_id /= none_run) &
+    IF(globenv%prog_name_id == do_farming .AND. globenv%run_type_id /= none_run) THEN
        CALL stop_program(routineN,moduleN,__LINE__,&
                " FARMING program supports only NONE as run type",globenv)
+    ENDIF
 
-    IF(globenv%prog_name_id == do_test .AND. globenv%run_type_id /= none_run) &
+    IF( globenv%prog_name_id == do_test .AND. globenv%run_type_id /= none_run) &
        CALL stop_program(routineN,moduleN,__LINE__,&
                "TEST program supports only NONE as run type",globenv)
 
@@ -549,9 +563,7 @@ SUBROUTINE cp2k_read(globenv,error)
 !$omp end parallel
     IF (globenv%ionode.AND.(globenv%print_level > 0)) THEN
       output_unit = globenv%scr
-      WRITE (UNIT=output_unit,FMT=*)
-      force_env_sections => section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL",error=error)
-      CALL section_vals_get(force_env_sections, n_repetition=nforce_eval, error=error)
+      WRITE (UNIT=output_unit,FMT=*)      
       DO iforce_eval = 1, nforce_eval
          dft_section => section_vals_get_subs_vals3(force_env_sections,"DFT",&
               i_rep_section=iforce_eval,error=error)
@@ -587,10 +599,11 @@ SUBROUTINE cp2k_read(globenv,error)
 
       END DO
 
-      WRITE (UNIT=output_unit,FMT="(T2,A,T41,A)")&
+
+ WRITE (UNIT=output_unit,FMT="(T2,A,T41,A)")&
         start_section_label//"| Input file name",&
         ADJUSTR(globenv%input_file_name(:40)),&
-        start_section_label//"| Program name",&
+        start_section_label//"| Method name",&
         ADJUSTR(program_names(globenv%prog_name_id)(:40)),&
         start_section_label//"| Project name",&
         ADJUSTR(globenv%project_name(:40)),&

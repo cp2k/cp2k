@@ -1,5 +1,6 @@
 
 &FORCE_EVAL
+  METHOD Quickstep
   &DFT
     &QS
       METHOD MNDO
@@ -23,6 +24,6 @@
   &END SUBSYS
 &END FORCE_EVAL
 &GLOBAL
-  PROGRAM Quickstep
+
   PROJECT HCN
 &END GLOBAL

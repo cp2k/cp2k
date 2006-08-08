@@ -1,5 +1,6 @@
 
 &FORCE_EVAL
+  METHOD Quickstep
   &DFT
     LSD
     &MGRID
@@ -47,6 +48,6 @@
 &END FORCE_EVAL
 &GLOBAL
   FFTLIB FFTSG
-  PROGRAM Quickstep
+
   PRINT_LEVEL MEDIUM
 &END GLOBAL

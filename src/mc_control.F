@@ -400,7 +400,7 @@ SUBROUTINE mc_create_force_env ( force_env, globenv_old,input_file_name,&
       routineP = moduleN//':'//routineN
 
     TYPE(global_environment_type), POINTER   :: globenv
-    INTEGER                                  :: i_val, nforce_eval
+    INTEGER                                  :: i_val, nforce_eval,method_name_id
     LOGICAL                                  :: failure
     TYPE(cp_parser_type), POINTER            :: my_parser
     TYPE(cp_unit_set_type), POINTER          :: default_units
@@ -424,12 +424,13 @@ SUBROUTINE mc_create_force_env ( force_env, globenv_old,input_file_name,&
       NULLIFY(input_file)
 
       CALL cp2k_read(globenv)
-
-      CALL section_vals_val_get(globenv%input_file,"GLOBAL%PROGRAM_NAME",i_val=globenv%prog_name_id)
       force_env_section => section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL",error=error)
+      CALL section_vals_val_get(globenv%input_file,"GLOBAL%PROGRAM_NAME",i_val=globenv%prog_name_id)
+      CALL section_vals_val_get(force_env_section,"METHOD",i_val=method_name_id,error=error)
       CALL section_vals_get(force_env_section, n_repetition=nforce_eval, error=error)
+
       CPAssert(nforce_eval==1,cp_failure_level,routineP,error,failure)
-      SELECT CASE ( globenv%prog_name_id )
+      SELECT CASE ( method_name_id )
       CASE ( do_fist )
          CALL fist_create_force_env(force_env, globenv, force_env_section=force_env_section, error=error)
       CASE ( do_qs )
@@ -508,6 +509,7 @@ SUBROUTINE mc_create_bias_force_env (bias_env,force_env,&
 ! grab the coordinates and cell parameters of the old environment
       CALL force_env_get(force_env,subsys=subsys,cell=cell,&
          error=error)
+
       CALL get_cell(cell,abc=abc)
       CALL cp_subsys_get(subsys(1)%subsys, &
          particles=particles, error=error)
@@ -529,6 +531,7 @@ SUBROUTINE mc_create_bias_force_env (bias_env,force_env,&
 
       CALL force_env_release(bias_env,error=error)
 !      globenv%input_file_name='bias_temp.inp'
+
       CALL mc_create_force_env(bias_env, globenv, 'bias_temp.inp',error=error)
 
       DEALLOCATE(r,STAT=istat)

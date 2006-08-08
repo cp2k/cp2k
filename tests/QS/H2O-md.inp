@@ -1,5 +1,6 @@
 
 &FORCE_EVAL
+  METHOD Quickstep
   &DFT
     &MGRID
       CUTOFF 200
@@ -49,7 +50,7 @@
 &END FORCE_EVAL
 &GLOBAL
   FFTLIB FFTSG
-  PROGRAM Quickstep
+
   PROJECT H2O-md
   RUN_TYPE MD
   PRINT_LEVEL LOW

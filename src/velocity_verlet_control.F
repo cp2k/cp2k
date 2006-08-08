@@ -118,8 +118,12 @@ SUBROUTINE velocity_verlet ( md_env, error )
      END SELECT
   CASE default
     SELECT CASE (simpar%ensemble)
-    CASE (nve_ensemble)
-      CALL nve(md_env, error )
+     CASE ( nve_ensemble )
+        IF(simpar%do_respa)THEN
+           CALL nve_respa(md_env,error)
+        ELSE
+           CALL nve ( md_env, error )
+        END IF
     CASE (nvt_ensemble)
       CALL nvt(md_env, error )
     CASE (isokin_ensemble)

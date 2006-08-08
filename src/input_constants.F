@@ -29,13 +29,29 @@ MODULE input_constants
   PRIVATE
 
   ! Program Names
-  CHARACTER (LEN=default_string_length), PARAMETER, DIMENSION(13), PUBLIC :: program_names=&
+  CHARACTER (LEN=default_string_length), PARAMETER, DIMENSION(3), PUBLIC :: program_names=&
+       (/"FARMING   ",&
+         "TEST      ",&
+         "CP2K      "/)
+
+  CHARACTER (LEN=default_string_length), PARAMETER, DIMENSION(3), PUBLIC :: program_name_desc=&
+       (/"Runs N independent jobs in a single run",&
+         "Do some benchmarking and testing       ",&
+         "Runs one of the CP2K package           "/)
+         
+  INTEGER, PARAMETER, PUBLIC :: do_farming=1,&
+                                do_test=2,&
+                                do_cp2k=3
+
+  INTEGER, PARAMETER, PUBLIC, DIMENSION(3) :: program_name_index=&
+       (/do_farming, do_test, do_cp2k/)
+
+  ! Method Names
+  CHARACTER (LEN=default_string_length), PARAMETER, DIMENSION(11), PUBLIC :: method_names=&
        (/"QS        ",&
          "FIST      ",&
          "KG        ",&
          "QMMM      ",&
-         "FARMING   ",&
-         "TEST      ",&
          "TBMD      ",&
          "EIP       ",&
          "QUICKSTEP ",&
@@ -44,13 +60,11 @@ MODULE input_constants
          "TB-MD     ",&
          "EP        "/)
 
-  CHARACTER (LEN=default_string_length), PARAMETER, DIMENSION(13), PUBLIC :: program_name_desc=&
+  CHARACTER (LEN=default_string_length), PARAMETER, DIMENSION(11), PUBLIC :: method_name_desc=&
        (/"Electronic structure methods (DFT, ...)",&
          "Molecular Mechanics                    ",&
          "Kim Gordon models (DFT)                ",&
          "Hybrid quantum classical               ",&
-         "Runs N independent jobs in a single run",&
-         "Do some benchmarking and testing       ",&
          "Tight-Binding Molecular Dynamics       ",&
          "Empirical Interatomic Potential        ",&
          "Electronic structure methods (DFT, ...)",&    ! Aliases to the previous unique names
@@ -63,19 +77,21 @@ MODULE input_constants
                                 do_fist=2,&
                                 do_kg=3,&
                                 do_qmmm=4,&
-                                do_farming=5,&
-                                do_test=6,&
-                                do_tbmd=7,&
-                                do_eip=8,&
-                                do_ep=9
+                                do_tbmd=5,&
+                                do_eip=6,&
+                                do_ep=7
+                                
 
-  INTEGER, PARAMETER, PUBLIC, DIMENSION(13) :: program_name_index=&
-       (/do_qs, do_fist, do_kg, do_qmmm, do_farming, do_test, do_tbmd, &
-         do_eip, do_qs, do_kg, do_kg, do_tbmd, do_ep/)
+  INTEGER, PARAMETER, PUBLIC, DIMENSION(11) :: method_name_index=&
+       (/do_qs, do_fist, do_kg, do_qmmm, do_tbmd, &
+         do_eip, do_qs, do_kg, do_kg, do_tbmd,do_ep/)
+
 
   REAL(KIND=dp), PARAMETER, PUBLIC :: RADIUS_QMMM_DEFAULT = 0.80_dp,&
                                       ALPHA_IMOMM_DEFAULT = 1.38_dp,&
                                       CHARGE_SCALE_FACTOR = 1.00_dp
+                                      
+
   ! Blacs type of distribution 
   INTEGER, PARAMETER, PUBLIC :: blacs_square=1, blacs_row=2, blacs_col=3
 

@@ -2393,7 +2393,7 @@ CONTAINS
 
   SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
        molecule_kind_set,molecule_set,topology,globenv,qmmm,qmmm_env,&
-       subsys_section,error)
+       subsys_section,force_env_section,error)
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -2409,7 +2409,7 @@ CONTAINS
     LOGICAL, INTENT(IN), OPTIONAL            :: qmmm
     TYPE(qmmm_env_mm_type), OPTIONAL, &
       POINTER                                :: qmmm_env
-    TYPE(section_vals_type), POINTER         :: subsys_section
+    TYPE(section_vals_type), POINTER         :: subsys_section, force_env_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -2425,7 +2425,7 @@ CONTAINS
       POINTER                                :: work(:)
     INTEGER :: counter, first, first_atom, handle, i, iatom, ibend, ibond, &
       ikind, imol_now, imolecule, itorsion, iw, j, k, handle3, kk, n,&
-      last, last_atom, natom, nbend, nbond, ntorsion, position, stat, handle2
+      last, last_atom, natom, nbend, nbond, ntorsion, position, stat, handle2,method_name_id
     INTEGER :: dim0, dim1, dim2, dim3
     INTEGER, DIMENSION(:), POINTER :: atomkind, iatomlist, first_mol, kind_of, &
       last_mol, list, list2, wlist, molecule_list, natom_of_kind
@@ -2840,7 +2840,8 @@ CONTAINS
     ! 10. Set the atomic_kind_set()%elp_potentail%[qeff] (PART 1)
     !-----------------------------------------------------------------------------
     CALL timeset(routineN//'_10',handle2)
-    IF(globenv%prog_name_id == do_fist) THEN
+    CALL section_vals_val_get(force_env_section,"METHOD",i_val=method_name_id,error=error)
+    IF(method_name_id == do_fist) THEN
        DO i=1,SIZE(atomic_kind_set)
           atomic_kind => atomic_kind_set(i)
           CALL get_atomic_kind(atomic_kind=atomic_kind,name=atmname)
@@ -2881,7 +2882,7 @@ CONTAINS
           DO k=1,SIZE(atomic_kind_set)
              atomic_kind => atomic_kind_set(k)
              CALL get_atomic_kind(atomic_kind=atomic_kind,name=atmname)
-             IF(globenv%prog_name_id == do_fist) THEN
+             IF(method_name_id == do_fist) THEN
                 CALL get_atomic_kind(atomic_kind=atomic_kind,elp_potential=elp_potential)
                 CALL get_potential(potential=elp_potential,qeff=qeff)
                 IF( (atom_list(j)%name == atmname) .AND. &

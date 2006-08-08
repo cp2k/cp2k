@@ -49,10 +49,10 @@ MODULE cp2k_runs
   USE input_constants,                 ONLY: &
        EIP_MC_method, Harris_MC_method, KG_DFT_MC_method, QS_MC_method, &
        SE_MC_method, TBMD_MC_method, bsse_run, do_eip, do_farming, do_fist, &
-       do_kg, pint_run, do_qmmm, do_qs, do_tbmd, do_test, do_ep, &
+       do_kg, do_qmmm, do_qs, do_tbmd, do_test,do_cp2k,do_ep, &
        electronic_spectra_run, energy_force_run, energy_run, geo_opt_run, &
        hmc_run, ldmc_run, linear_response_run, mol_dyn_run, mon_car_run, &
-       none_run, qs_debug_run
+       none_run, qs_debug_run,pint_run
   USE input_cp2k,                      ONLY: create_cp2k_root_section,&
                                              create_global_section,&
                                              create_cp2k_input_reading
@@ -172,8 +172,8 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: glob_section, hmc_section, &
                                                 input_file, metadyn_section, restraint_section,&
                                                 force_env_sections, force_env_section
+    INTEGER :: nforce_eval, iforce_eval,method_name_id
     TYPE(restraint_env_type), POINTER        :: restraint_env
-    INTEGER :: nforce_eval, iforce_eval
     INTEGER, POINTER, DIMENSION(:) :: i_force_eval
 
     cp2k_run_OK = .FALSE.
@@ -277,39 +277,40 @@ CONTAINS
                                       i_val=mc_method, error=error)
             SELECT CASE(mc_method)
             CASE(EIP_MC_method)
-              globenv%prog_name_id = do_eip
+              method_name_id = do_eip
             CASE(SE_MC_method)
-              globenv%prog_name_id = do_qs
+              method_name_id = do_qs
             CASE(TBMD_MC_method)
-              globenv%prog_name_id = do_tbmd
+              method_name_id = do_tbmd
             CASE(KG_DFT_MC_method)
-              globenv%prog_name_id = do_kg
+              method_name_id = do_kg
             CASE(QS_MC_method)
-              globenv%prog_name_id = do_qs
+              method_name_id = do_qs
             CASE(Harris_MC_method)
-              globenv%prog_name_id = do_qs
+              method_name_id = do_qs
             CASE DEFAULT
               PRINT *, "The standard DFT/QS method is used for HMC energy evaluation."
-              globenv%prog_name_id = do_qs
+              method_name_id = do_qs
             END SELECT
           END IF
-
           SELECT CASE (globenv%prog_name_id)
           CASE (do_farming)
              CALL farming_run ( globenv, suberror )
-          CASE(do_fist,do_kg,do_qmmm,do_qs,do_tbmd,do_eip,do_ep)
-
+          CASE(do_cp2k)
              force_env_sections => section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL",error=error)
              CALL section_vals_get(force_env_sections, n_repetition=nforce_eval, error=error)
              CALL section_vals_val_get(globenv%input_file,"MOTION%MD%RESPA%FORCE_EVAL_SHELLS",i_vals=i_force_eval,&
                   ignore_required=.TRUE.,error=error)
+
              CPPrecondition(SIZE(i_force_eval)==nforce_eval,cp_failure_level,routineP,error,failure)
              DO iforce_eval = 1, nforce_eval
+
                 NULLIFY(force_env_section)
                 CALL section_vals_duplicate(force_env_sections,force_env_section,&
                      i_force_eval(iforce_eval),i_force_eval(iforce_eval),error)
                 NULLIFY(my_force_env)
-                SELECT CASE(globenv%prog_name_id)
+                CALL section_vals_val_get(force_env_section,"METHOD",i_val=method_name_id)
+                SELECT CASE(method_name_id)
                 CASE (do_ep)
                    CPAssert(nforce_eval==1,cp_failure_level,routineP,error,failure)
                    CALL ep_create_force_env( my_force_env,globenv,error=suberror)
@@ -341,7 +342,6 @@ CONTAINS
                 CALL restraint_env_write(restraint_env,restraint_section,error=suberror)
                 CALL force_env_set(my_force_env,restraint_env=restraint_env,error=suberror)
                 CALL restraint_env_release(restraint_env,error=suberror)
-
                 IF (nforce_eval>1.AND.iforce_eval==1) THEN
                    ALLOCATE(my_force_env%sub_force_env(nforce_eval-1),stat=stat)
                    CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -360,17 +360,18 @@ CONTAINS
              CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
           END SELECT
 
-
+   
           SELECT CASE (globenv%run_type_id)
           CASE (pint_run)
              CALL do_pint_run(para_env,globenv%input_file,error=suberror)
           CASE (none_run)
              ! do nothing
           CASE (energy_run, energy_force_run)
-             IF(  globenv%prog_name_id /= do_qs .AND.&
-                  globenv%prog_name_id /= do_kg .AND.&
-                  globenv%prog_name_id  /= do_qmmm .AND.&
-                  globenv%prog_name_id  /= do_ep)  &
+             IF(  method_name_id /= do_qs .AND.&
+                  method_name_id /= do_kg .AND.&
+                  method_name_id  /= do_qmmm .AND.&
+                  method_name_id  /= do_ep)  &
+
                   CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
                   "Energy run available only with QS, KG, EP and QMMM programs "//&
 CPSourceFileRef,&
@@ -393,7 +394,7 @@ CPSourceFileRef,&
           CASE (hmc_run, ldmc_run)
              CALL harris_mc_ld(force_env, globenv, error=suberror)
           CASE (electronic_spectra_run)
-             IF(globenv%prog_name_id /= do_qs) &
+             IF(method_name_id /= do_qs) &
                   CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
                   "Electron spectra available only with Quickstep program "//&
 CPSourceFileRef,&
@@ -404,7 +405,7 @@ CPSourceFileRef,&
           CASE (bsse_run)
              CALL do_bsse_calculation(force_env, globenv, error=suberror)
           CASE (linear_response_run)
-             IF(globenv%prog_name_id /= do_qs) CALL cp_assert(.FALSE.,cp_failure_level,&
+             IF(method_name_id /= do_qs) CALL cp_assert(.FALSE.,cp_failure_level,&
                   cp_assertion_failed,routineP,&
                   "Property calculations by Linear Response only within the QS program "//&
 CPSourceFileRef,&
@@ -414,14 +415,15 @@ CPSourceFileRef,&
                   error=suberror)
              CALL linres_calculation(force_env%qs_env, globenv, error=suberror)
           CASE (qs_debug_run)
-             IF( (globenv%prog_name_id == do_qs) .OR. &
-                  (globenv%prog_name_id == do_qmmm) .or.&
-                  (globenv%prog_name_id == do_ep)) THEN
-                IF (globenv%prog_name_id == do_qs) THEN
+             IF( (method_name_id == do_qs) .OR. &
+                  (method_name_id == do_qmmm) .OR. &
+                  (method_name_id == do_ep)) THEN
+                IF((.NOT. method_name_id == do_qmmm).AND.&
+                ( method_name_id == do_qs)) THEN
                   CALL qs_calc_numerical_pressure(force_env,error=error)           
                 END IF
                 CALL qs_debug_energy_and_forces(force_env, globenv, error=suberror)
-             ELSE IF(globenv%prog_name_id == do_fist) THEN
+             ELSE IF(method_name_id == do_fist) THEN
                 CALL fist_debug_control(force_env, globenv, error=suberror)
              ELSE
                 CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
@@ -487,7 +489,7 @@ CPSourceFileRef,&
     CHARACTER(LEN=default_string_length)     :: str
     INTEGER :: handle, i, i_job_to_restart, ierr, ijob, ijob_end, ijob_start, &
       iunit, n_jobs_to_run, new_group, new_rank, new_size, ngroups, &
-      output_unit, stat
+      output_unit, stat,method_name_id
     INTEGER, DIMENSION(:), POINTER           :: group_distribution
     LOGICAL                                  :: failure, found, run_OK
     TYPE(cp_parser_type), POINTER            :: my_parser
@@ -495,7 +497,7 @@ CPSourceFileRef,&
     TYPE(farming_env_type), POINTER          :: farming_env
     TYPE(section_type), POINTER              :: g_section
     TYPE(section_vals_type), POINTER         :: g_data
-
+    TYPE(section_vals_type), POINTER         :: force_env_sections
     failure=.FALSE.
     CALL timeset(routineN,'I','',handle)
     NULLIFY(my_parser,g_section,g_data,default_units)

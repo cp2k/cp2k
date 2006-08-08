@@ -1,5 +1,6 @@
 
 &FORCE_EVAL
+  METHOD Quickstep
   &DFT
     &QS
       METHOD PM3
@@ -28,7 +29,7 @@
   &END SUBSYS
 &END FORCE_EVAL
 &GLOBAL
-  PROGRAM Quickstep
+
   PROJECT ch4
   TRACE OFF
 &END GLOBAL

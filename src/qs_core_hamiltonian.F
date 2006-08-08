@@ -190,7 +190,7 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE build_core_hamiltonian_matrix(qs_env,globenv,calculate_forces,&
-                                           harris,error)
+                                           harris,my_ep,error)
 
 !   Purpose: Calculation of the overlap matrix over Cartesian Gaussian
 !            functions.
@@ -206,7 +206,7 @@ CONTAINS
     TYPE(global_environment_type), &
       POINTER                             :: globenv
     LOGICAL, INTENT(IN)                      :: calculate_forces
-    LOGICAL, INTENT(IN), OPTIONAL            :: harris
+    LOGICAL, INTENT(IN), OPTIONAL            :: harris,my_ep
     TYPE(cp_error_type), INTENT(inout), &
          OPTIONAL                               :: error
 !   *** Local parameters ***
@@ -552,7 +552,7 @@ CONTAINS
          qs_env%input,"DFT%PRINT%AO_MATRICES/KINETIC_ENERGY",error=error),cp_p_file).OR.&
                                     BTEST(cp_print_key_should_output(logger%iter_info,&
          qs_env%input,"DFT%PRINT%AO_MATRICES/POTENTIAL_ENERGY",error=error),cp_p_file).OR.&
-                                   globenv%prog_name_id==do_ep .OR. &
+                                   PRESENT(my_ep) .OR. &
                                    lr_precond == lr_precond_kinetic .OR. xas_calculation)
     ! assume false by default
     return_t_derivatives = .FALSE.

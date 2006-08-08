@@ -1,4 +1,5 @@
 &FORCE_EVAL
+  METHOD Quickstep
   &DFT
     &PRINT
       &MO_CUBES 
@@ -60,7 +61,7 @@
 &END
 &GLOBAL
   FFTLIB FFTW3
-  PROGRAM Quickstep
+
   PROJECT H2O
   PRINT_LEVEL MEDIUM
   RUN_TYPE GEO_OPT

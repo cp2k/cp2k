@@ -193,7 +193,6 @@ RECURSIVE SUBROUTINE force_env_calc_energy_force ( force_env, &
   END IF
   IF (.NOT.failure) THEN
      
-
      SELECT CASE ( force_env%in_use )
      CASE ( use_fist_force )
         CALL fist_force_control( force_env%fist_env,force_env%virial, &
@@ -343,7 +342,7 @@ SUBROUTINE force_env_create(force_env,globenv,fist_env,qs_env,kg_env,&
      CALL cp_para_env_retain(force_env%para_env, error=error)
      ! Force_env_section
      CALL section_vals_retain(force_env_section,error=error)
-     force_env%force_env_section => force_env_section     
+     force_env%force_env_section => force_env_section    
      IF (PRESENT(fist_env)) THEN
         IF (ASSOCIATED(fist_env)) THEN
            CPPrecondition(force_env%in_use==0,cp_failure_level,routineP,error,failure)

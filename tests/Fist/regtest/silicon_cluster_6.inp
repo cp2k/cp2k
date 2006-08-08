@@ -3,6 +3,7 @@
 # if this fails, also check the previous runs
 #
 &FORCE_EVAL
+  METHOD FIST
   &MM
     &FORCEFIELD
       &NONBONDED
@@ -74,7 +75,7 @@
 &GLOBAL
   FFTLIB FFTSG
   PRINT_LEVEL MEDIUM
-  PROGRAM FIST
+
   PROJECT res_silica
   RUN_TYPE MD
 &END GLOBAL

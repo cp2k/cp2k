@@ -1,5 +1,6 @@
 
 &FORCE_EVAL
+  METHOD FIST
   &MM
     &FORCEFIELD
       parmfile pot_ub.pot
@@ -28,7 +29,7 @@
 &END FORCE_EVAL
 &GLOBAL
   FFTLIB FFTW
-  PROGRAM FIST
+
   PROJECT pot_ub
   RUN_TYPE md
 &END GLOBAL

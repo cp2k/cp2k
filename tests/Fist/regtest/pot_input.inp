@@ -1,4 +1,5 @@
 &FORCE_EVAL
+  METHOD FIST
   &MM
     &FORCEFIELD
 #####################################################
@@ -268,7 +269,7 @@
 &END FORCE_EVAL
 &GLOBAL
   FFTLIB FFTSG
-  PROGRAM FIST
+
   PROJECT pot_bond
   RUN_TYPE md
 &END GLOBAL

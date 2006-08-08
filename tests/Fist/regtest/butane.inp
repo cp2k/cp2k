@@ -1,5 +1,6 @@
 
 &FORCE_EVAL
+  METHOD FIST
   &MM
     &FORCEFIELD
       parmfile ../sample_pot/butane.pot
@@ -28,7 +29,7 @@
 &END FORCE_EVAL
 &GLOBAL
   FFTLIB FFTW
-  PROGRAM FIST
+
   PROJECT butane
   RUN_TYPE md
 &END GLOBAL

@@ -32,6 +32,7 @@ MODULE md_run
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
+                                             cp_subsys_set,&
                                              cp_subsystem_p_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_initialize,&
@@ -220,12 +221,10 @@ CONTAINS
     ENDDO
 
     DO ibead = 1, nbeads
-
        CALL force_env_get( force_env_p(ibead)%force_env, subsys=subsys, &
                           dyn_coeff_set=dyn_coeff_set,in_use=in_use,&
                           cell=cell, cell_ref = cell_ref, virial = virial,&
                           force_env_section=force_env_section, error=error )
-
 ! Define a reference cell for compatibility with MD restarts
 
        DO isubsys=1,SIZE(subsys)
@@ -337,12 +336,13 @@ CONTAINS
                       t = t, used_time = used_time ) 
 
     DO ibead = 1, nbeads
-       IF (simpar%do_respa) CALL force_env_calc_energy_force ( &
-            force_env_p(ibead)%force_env%sub_force_env(1)%force_env,&
-            calc_force=.TRUE.,error=error)
        CALL force_env_calc_energy_force ( force_env_p(ibead)%force_env,&
             calc_force=.TRUE.,error=error)
-
+       IF (simpar%do_respa)THEN
+          CALL force_env_calc_energy_force ( &
+            force_env_p(ibead)%force_env%sub_force_env(1)%force_env,&
+            calc_force=.TRUE.,error=error)
+       END IF
        CALL force_env_get( force_env_p(ibead)%force_env, subsys=subsys, &
                            error=error )
 

@@ -280,7 +280,7 @@ CONTAINS
        !-----------------------------------------------------------------------------
        CALL topology_coordinate_pack(particle_set,atomic_kind_set,&
             molecule_kind_set,molecule_set,topology,globenv,subsys_section=subsys_section,&
-            error=error)
+            force_env_section=force_env_section,error=error)
 
        !-----------------------------------------------------------------------------
        !-----------------------------------------------------------------------------

@@ -1,5 +1,5 @@
 &GLOBAL
-  PROGRAM Quickstep
+
   PROJECT O2
   RUN_TYPE GEO_OPT
   PRINT_LEVEL LOW
@@ -17,6 +17,7 @@
 &END MOTION
 
 &FORCE_EVAL
+  METHOD Quickstep
   &DFT
     ROKS
     MULTIP 3

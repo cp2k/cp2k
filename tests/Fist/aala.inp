@@ -1,5 +1,6 @@
 
 &FORCE_EVAL
+  METHOD FIST
   &MM
     &FORCEFIELD
       parmfile sample_pot/aala.pot
@@ -28,7 +29,7 @@
 &GLOBAL
   FFTLIB FFTSG
   PRINT_LEVEL LOW
-  PROGRAM FIST
+
   PROJECT aala
   RUN_TYPE debug
 &END GLOBAL

@@ -1,5 +1,6 @@
 
 &FORCE_EVAL
+  METHOD FIST
   &MM
     &FORCEFIELD
       parmfile sample_pot/butane.pot
@@ -29,7 +30,7 @@
 &GLOBAL
   FFTLIB FFTSG
   PRINT_LEVEL LOW
-  PROGRAM FIST
+
   PROJECT undecane
   RUN_TYPE GEO_OPT
 &END GLOBAL

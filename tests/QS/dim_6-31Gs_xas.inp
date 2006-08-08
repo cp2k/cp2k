@@ -1,5 +1,6 @@
 
 &FORCE_EVAL
+  METHOD Quickstep
   &DFT
     LSD
     BASIS_SET_FILE_NAME /users/marcella/basis/ALL_BASIS_SETS
@@ -73,7 +74,7 @@
 &END FORCE_EVAL
 &GLOBAL
   FFTLIB FFTSG
-  PROGRAM Quickstep
+
   PROJECT xas_6-31Gs
   RUN_TYPE WFN_OPT
   PRINT_LEVEL MEDIUM

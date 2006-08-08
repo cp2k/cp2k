@@ -1306,7 +1306,7 @@ RECURSIVE FUNCTION section_vals_get_subs_vals(section_vals,subsection_name,&
        cp_assertion_failed,routineP,&
        "could not find subsection "//TRIM(subsection_name(1:my_index))//" in section "//&
        TRIM(section_vals%section%name)//" at "//&
-CPSourceFileRef,&
+       CPSourceFileRef,&
        error,failure)
   IF (is_path .AND. ASSOCIATED(res) ) THEN
      res=>section_vals_get_subs_vals(res,subsection_name(my_index+2:LEN_TRIM(subsection_name)),&
@@ -2374,7 +2374,7 @@ END SUBROUTINE section_vals_write
        cp_assertion_failed,routineP,&
        "could not find subsection "//subsection_name(my_index:LEN_TRIM(subsection_name))//" in section "//&
        TRIM(section_vals%section%name)//" at "//&
-CPSourceFileRef,&
+       CPSourceFileRef,&
        error,failure)
   END IF
   IF (.NOT.failure) THEN
@@ -2475,14 +2475,10 @@ RECURSIVE SUBROUTINE section_vals_copy(section_vals_in,section_vals_out,&
   
   CPPrecondition(ASSOCIATED(section_vals_in),cp_failure_level,routineP,error,failure)
   CPPrecondition(ASSOCIATED(section_vals_out),cp_failure_level,routineP,error,failure)
-  IF (section_vals_in%section%id_nr/=section_vals_out%section%id_nr) THEN
-     IF (section_vals_in%section%name /= section_vals_out%section%name) THEN
-     CALL cp_assert(.FALSE.,&
-          cp_failure_level,cp_assertion_failed,routineP,&
-          CPSourceFileRef,&
-          error,failure)
-     END IF
-  END IF
+!  CALL cp_assert(section_vals_in%section%id_nr==section_vals_out%section%id_nr,&
+!       cp_failure_level,cp_assertion_failed,routineP,&
+!       CPSourceFileRef,&
+!       error,failure)
   IF (.NOT.failure) THEN
      istart = 1
      iend   = SIZE(section_vals_in%values,2)
@@ -2508,15 +2504,19 @@ RECURSIVE SUBROUTINE section_vals_copy(section_vals_in,section_vals_out,&
            END IF
         END DO
      END DO
-     CALL cp_assert(SIZE(section_vals_in%values,2)==SIZE(section_vals_out%values,2),&
-          cp_failure_level,cp_assertion_failed,routineP,&
-          CPSourceFileRef,&
-          error,failure)
-     CALL cp_assert(SIZE(section_vals_in%subs_vals,2)==SIZE(section_vals_out%subs_vals,2),&
-          cp_failure_level,cp_assertion_failed,routineP,&
-          CPSourceFileRef,&
-          error,failure)
-     DO irep=1,SIZE(section_vals_in%subs_vals,2)
+     IF (.NOT.PRESENT(i_rep_low).AND.(.NOT.PRESENT(i_rep_high))) THEN
+        CALL cp_assert(SIZE(section_vals_in%values,2)==SIZE(section_vals_out%values,2),&
+             cp_failure_level,cp_assertion_failed,routineP,&
+             CPSourceFileRef,&
+             error,failure)
+        CALL cp_assert(SIZE(section_vals_in%subs_vals,2)==SIZE(section_vals_out%subs_vals,2),&
+             cp_failure_level,cp_assertion_failed,routineP,&
+             CPSourceFileRef,&
+             error,failure)
+     END IF
+     iend   = SIZE(section_vals_in%subs_vals,2)
+     IF (PRESENT(i_rep_high)) iend=i_rep_high
+     DO irep=istart,iend
         DO isec=1,SIZE(section_vals_in%subs_vals,1)
            CALL section_vals_copy(section_vals_in%subs_vals(isec,irep)%section_vals,&
                 section_vals_out%subs_vals(isec,irep-istart+1)%section_vals,error=error)

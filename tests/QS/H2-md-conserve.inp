@@ -3,6 +3,7 @@
 # for this the very small timestep is needed
 
 &FORCE_EVAL
+  METHOD Quickstep
   &DFT
     &MGRID
       CUTOFF 200
@@ -40,7 +41,7 @@
 &END FORCE_EVAL
 &GLOBAL
   FFTLIB FFTW
-  PROGRAM Quickstep
+
   PROJECT H2-md
   RUN_TYPE MD
   PRINT_LEVEL LOW

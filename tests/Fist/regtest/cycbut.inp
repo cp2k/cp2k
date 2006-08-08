@@ -1,5 +1,6 @@
 
 &FORCE_EVAL
+  METHOD FIST
   &MM
     &FORCEFIELD
       parmfile ../sample_pot/cycbut.pot
@@ -59,7 +60,7 @@
 &GLOBAL
   FFTLIB FFTSG
   PRINT_LEVEL DEBUG
-  PROGRAM FIST
+
   PROJECT mol
   RUN_TYPE md
 &END GLOBAL
