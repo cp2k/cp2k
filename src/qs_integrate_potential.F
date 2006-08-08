@@ -553,7 +553,7 @@ CONTAINS
 
     h_duplicated = .FALSE.
     dh => h%matrix
-    ddv => matrix_dv
+    NULLIFY(ddv)
     DO igrid_level = 1, gridlevel_info%ngrid_levels
       IF ( rs_v(igrid_level)%rs_grid%direction /= 0 ) THEN
         NULLIFY ( dh )
