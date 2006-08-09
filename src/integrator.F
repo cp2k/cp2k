@@ -3253,7 +3253,6 @@ END SUBROUTINE update_particle_set
        ALLOCATE (vel(3,nparticle),STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
            "vel",3*nparticle*dp_size)
-      pos(:,:) = 0.0_dp
       vel(:,:) = 0.0_dp
       
       IF (simpar%constraint) CALL getold(local_molecules, molecule_set,  &
@@ -3276,6 +3275,7 @@ END SUBROUTINE update_particle_set
 
 !     *** Velocity Verlet (first part) ***
        DO i_step=1,n_time_steps
+          pos(:,:) = 0.0_dp
           DO iparticle_kind=1,nparticle_kind
              atomic_kind => atomic_kind_set(iparticle_kind)
              CALL get_atomic_kind(atomic_kind=atomic_kind,mass=mass)
@@ -3402,7 +3402,6 @@ END SUBROUTINE update_particle_set
           
           CALL virial_evaluate ( atomic_kind_set, particle_set,  &
                local_particles, virial, para_env % group  )
-          CALL update_particle_set ( particle_set, para_env % group, vel = vel )
        END DO
           DEALLOCATE (pos,STAT=istat)
 
