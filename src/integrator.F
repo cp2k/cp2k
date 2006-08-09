@@ -3286,7 +3286,7 @@ END SUBROUTINE update_particle_set
                 vel (:,iparticle) = vel(:,iparticle) +&
                      dm * particle_set_respa(iparticle)%f(:)
                 pos (:,iparticle) = particle_set(iparticle)%r(:) +&
-                     dt * vel ( :, iparticle )
+                     (dt/n_time_steps) * vel ( :, iparticle )
              END DO
 
           END DO
@@ -3304,7 +3304,6 @@ END SUBROUTINE update_particle_set
           IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"pos")
           
           !     *** coefficients
-
           IF(ASSOCIATED(dyn_coeff_set)) THEN 
              CALL get_dyn_coeff_set(dyn_coeff_set=dyn_coeff_set(isubsys)%dyn_coeff_set,&
                   coeffs_of_kind=coeffs_of_kind, global_mass=global_mass,&
@@ -3427,8 +3426,6 @@ END SUBROUTINE update_particle_set
        END DO
        
        !      *** Broadcast the new particle velocities ***
-       CALL virial_evaluate ( atomic_kind_set, particle_set,  &
-               local_particles, virial, para_env % group  )
        CALL update_particle_set ( particle_set, para_env % group, vel = vel )         
        
        DEALLOCATE (vel,STAT=istat)

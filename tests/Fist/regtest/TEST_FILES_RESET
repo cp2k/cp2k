@@ -183,3 +183,5 @@ cycbut.inp
 loop.inp
 #conforming the input to the amber calculation
 h2o2_amber.inp
+#bug fix in respa
+acn_respa.inp
