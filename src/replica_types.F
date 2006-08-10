@@ -685,12 +685,14 @@ FUNCTION rep_envs_get_rep_env(id_nr,error) RESULT(res)
 
   nullify(res)
   IF (module_initialized) THEN
-     DO i=1,SIZE(rep_envs)
-        IF (rep_envs(i)%rep_env%id_nr==id_nr) THEN
-           res => rep_envs(i)%rep_env
-           exit
-        END IF
-     END DO
+     IF (ASSOCIATED(rep_envs)) THEN
+        DO i=1,SIZE(rep_envs)
+           IF (rep_envs(i)%rep_env%id_nr==id_nr) THEN
+              res => rep_envs(i)%rep_env
+              EXIT
+           END IF
+        END DO
+     END IF
   END IF
 END FUNCTION rep_envs_get_rep_env
 !***************************************************************************
@@ -732,16 +734,22 @@ SUBROUTINE rep_envs_add_rep_env(rep_env,error)
      rep_env2 => rep_envs_get_rep_env(rep_env%id_nr)
      IF (.NOT.ASSOCIATED(rep_env2)) THEN
         IF (module_initialized) THEN
-           ALLOCATE(new_rep_envs(SIZE(rep_envs)+1),stat=stat)
-           CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
-           DO i=1,SIZE(rep_envs)
-              new_rep_envs(i)%rep_env => rep_envs(i)%rep_env
-           END DO
-           DEALLOCATE(rep_envs,stat=stat)
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-           rep_envs => new_rep_envs
+           IF (.NOT.ASSOCIATED(rep_envs)) THEN
+              ALLOCATE(rep_envs(1),stat=stat)
+              CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+           ELSE
+              ALLOCATE(new_rep_envs(SIZE(rep_envs)+1),stat=stat)
+              CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
+              DO i=1,SIZE(rep_envs)
+                 new_rep_envs(i)%rep_env => rep_envs(i)%rep_env
+              END DO
+              DEALLOCATE(rep_envs,stat=stat)
+              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+              rep_envs => new_rep_envs
+           END IF
         ELSE
            ALLOCATE(rep_envs(1),stat=stat)
+           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
         END IF
         rep_envs(size(rep_envs))%rep_env => rep_env
         module_initialized=.true.
@@ -797,6 +805,10 @@ SUBROUTINE rep_envs_rm_rep_env(rep_env,error)
      DEALLOCATE(rep_envs,stat=stat)
      CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
      rep_envs => new_rep_envs
+     IF (SIZE(rep_envs)==0) THEN
+        DEALLOCATE(rep_envs,stat=stat)
+        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+     END IF
   END IF
 END SUBROUTINE rep_envs_rm_rep_env
 !***************************************************************************

@@ -409,6 +409,10 @@ CPSourceFileRef,&
           CALL cp_error_propagate_error(suberror,routineP,&
                "cp2k ending run", error=error,failure=failure)
           IF (prog_name_id==do_cp2k) THEN
+             f_env%force_env => force_env ! for mc
+             call globenv_retain(globenv,error=error)!mc
+             call globenv_release(force_env%globenv,error=error) !mc
+             force_env%globenv => globenv !mc
              CALL f_env_rm_defaults(f_env,error=suberror,ierr=ierr,&
                   handle=f_env_handle)
              CPAssert(ierr==0,cp_failure_level,routineP,error,failure)

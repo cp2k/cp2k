@@ -329,7 +329,7 @@ CONTAINS
 !!     fawzi
 !!
 !!*** **********************************************************************
-SUBROUTINE f_env_dealloc(f_env,error)
+RECURSIVE SUBROUTINE f_env_dealloc(f_env,error)
     TYPE(f_env_type), POINTER                :: f_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -799,7 +799,7 @@ CPSourceFileRef,&
   !!     fawzi
   !!
   !!*** **********************************************************************
-  SUBROUTINE destroy_force_env(env_id,ierr)
+  RECURSIVE SUBROUTINE destroy_force_env(env_id,ierr)
     INTEGER, INTENT(in)                      :: env_id
     INTEGER, INTENT(out)                     :: ierr
 
@@ -817,6 +817,11 @@ CPSourceFileRef,&
     CALL f_env_add_defaults(env_id,f_env,error,failure)
     IF (.not.failure) THEN
        env_pos=get_pos_of_env(env_id)
+       n_f_envs=n_f_envs-1
+       DO i=env_pos,n_f_envs
+          f_envs(i)%f_env => f_envs(i+1)%f_env
+       END DO
+       NULLIFY(f_envs(n_f_envs+1)%f_env)
 
        CALL force_env_get(f_env%force_env,globenv=globenv,&
             error=error)
@@ -826,16 +831,12 @@ CPSourceFileRef,&
        END IF
        IF (.NOT.failure) THEN
           CALL globenv_retain(globenv,error=error)
-          CALL f_env_dealloc(f_envs(env_pos)%f_env,error=error)
+          CALL f_env_dealloc(f_env,error=error)
           CALL cp2k_finalize(globenv,error)
           CALL globenv_release(globenv,error=error)
           CALL cp_error_check(error,failure)
           
-          n_f_envs=n_f_envs-1
-          DO i=env_pos,n_f_envs
-             f_envs(i)%f_env => f_envs(i+1)%f_env
-          END DO
-          DEALLOCATE(f_envs(n_f_envs+1)%f_env,stat=stat)
+          DEALLOCATE(f_env,stat=stat)
           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
        END IF
        ierr=cp_error_get_level(error)

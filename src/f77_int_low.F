@@ -64,7 +64,7 @@ SUBROUTINE cp_create_fenv_comm(new_env_id,input_file_path,output_file_path,&
   CALL cfe(new_env_id,input_file_path,output_file_path,mpi_comm,ierr=ierr)
 END SUBROUTINE cp_create_fenv_comm
 
-SUBROUTINE cp_destroy_fenv(env_id, ierr)
+RECURSIVE SUBROUTINE cp_destroy_fenv(env_id, ierr)
   USE f77_interface, ONLY: dfe => destroy_force_env
   IMPLICIT NONE
   INTEGER :: env_id, ierr
