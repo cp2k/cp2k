@@ -63,7 +63,8 @@ MODULE f77_interface
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type,&
                                              globenv_create,&
-                                             globenv_release
+                                             globenv_release,&
+                                             globenv_retain
   USE input_constants,                 ONLY: do_fist,&
                                              do_kg,&
                                              do_qmmm,&
@@ -814,8 +815,10 @@ CPSourceFileRef,&
           CPPrecondition(ASSOCIATED(globenv),cp_failure_level,routineP,error,failure)
        END IF
        IF (.NOT.failure) THEN
+          CALL globenv_retain(globenv,error=error)
           CALL f_env_dealloc(f_envs(env_pos)%f_env,error=error)
           CALL cp2k_finalize(globenv,error)
+          CALL globenv_release(globenv,error=error)
           CALL cp_error_check(error,failure)
           
           n_f_envs=n_f_envs-1
