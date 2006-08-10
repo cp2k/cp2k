@@ -65,12 +65,16 @@ MODULE f77_interface
                                              globenv_create,&
                                              globenv_release,&
                                              globenv_retain
+  USE eip_main,                        ONLY: eip_create_force_env
+  USE tbmd_main,                       ONLY: tbmd_create_force_env
   USE input_constants,                 ONLY: do_fist,&
                                              do_kg,&
                                              do_qmmm,&
                                              do_qs,&
                                              do_ep,&
-                                             run_type_names
+                                             do_eip,&
+                                             do_tbmd,&
+                                             method_names
   USE input_cp2k,                      ONLY: create_cp2k_input_reading
   USE input_cp2k_check,                ONLY: check_cp2k_input
   USE input_parsing,                   ONLY: section_vals_parse
@@ -719,9 +723,15 @@ END SUBROUTINE f_env_rm_defaults
           CASE (do_qmmm)
              CALL qmmm_create_force_env( my_force_env,&
                   globenv, force_env_section=force_env_section, error=error)
+          CASE (do_tbmd)
+             CALL tbmd_create_force_env(my_force_env, globenv, &
+                  force_env_section=force_env_section, error=error)
+          CASE (do_eip)
+             CALL eip_create_force_env(my_force_env, globenv, &
+                  force_env_section=force_env_section, error=error)
           CASE default
              CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-               "Invalid run TYPE <"//TRIM(run_type_names(globenv%run_type_id))//"> was specified, "//&
+               "Invalid METHOD <"//TRIM(method_names(method_name_id))//"> was specified, "//&
 CPSourceFileRef,&
                error,failure)
           END SELECT
