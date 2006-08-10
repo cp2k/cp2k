@@ -48,12 +48,22 @@ MODULE f77_interface
   USE fist_main,                       ONLY: fist_create_force_env
   USE force_env_methods,               ONLY: force_env_calc_energy_force,&
        ep_create_force_env
+  USE metadynamics,                    ONLY: metadyn_read
+  USE metadynamics_types,              ONLY: meta_env_release,&
+                                             meta_env_type
+  USE restraint_types,                 ONLY: restraint_env_create,&
+                                             restraint_env_release,&
+                                             restraint_env_type,&
+                                             restraint_env_read,&
+                                             restraint_env_write
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_release,&
+                                             force_env_set,&
                                              force_env_retain,&
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type,&
-                                             globenv_create
+                                             globenv_create,&
+                                             globenv_release
   USE input_constants,                 ONLY: do_fist,&
                                              do_kg,&
                                              do_qmmm,&
@@ -67,6 +77,7 @@ MODULE f77_interface
                                              section_type,&
                                              section_vals_create,&
                                              section_vals_release,&
+                                             section_vals_retain,&
                                              section_vals_type,&
                                              section_vals_get,&
                                              section_vals_val_get,&
@@ -419,11 +430,12 @@ END SUBROUTINE f_env_create
 !!     fawzi
 !!
 !!*** **********************************************************************
-SUBROUTINE f_env_add_defaults(f_env_id,f_env,new_error, failure)
+SUBROUTINE f_env_add_defaults(f_env_id,f_env,new_error, failure, handle)
     INTEGER, INTENT(in)                      :: f_env_id
     TYPE(f_env_type), POINTER                :: f_env
     TYPE(cp_error_type), INTENT(out)         :: new_error
     LOGICAL                                  :: failure
+    INTEGER, INTENT(out), optional           :: handle
 
     CHARACTER(len=*), PARAMETER :: routineN = 'f_env_add_defaults', &
       routineP = moduleN//':'//routineN
@@ -450,6 +462,7 @@ SUBROUTINE f_env_add_defaults(f_env_id,f_env,new_error, failure)
         CALL add_mp_perf_env(f_env%mp_perf_env)
         CALL add_timer_env(f_env%timer_env)
         CALL cp_add_default_logger(logger)
+        IF (PRESENT(handle)) handle=cp_default_logger_stack_size()
      END IF
      CALL cp_error_check(new_error,failure)
   END IF
@@ -483,10 +496,11 @@ END SUBROUTINE f_env_add_defaults
 !!     fawzi
 !!
 !!*** **********************************************************************
-SUBROUTINE f_env_rm_defaults(f_env,error,ierr)
+SUBROUTINE f_env_rm_defaults(f_env,error,ierr,handle)
     TYPE(f_env_type), POINTER                :: f_env
     TYPE(cp_error_type), INTENT(inout)       :: error
     INTEGER, INTENT(out), OPTIONAL           :: ierr
+    INTEGER, INTENT(in), OPTIONAL            :: handle
 
     CHARACTER(len=*), PARAMETER :: routineN = 'f_env_rm_defaults', &
       routineP = moduleN//':'//routineN
@@ -499,6 +513,10 @@ SUBROUTINE f_env_rm_defaults(f_env,error,ierr)
   failure=.FALSE.
 
   IF (ASSOCIATED(f_env)) THEN
+     IF (PRESENT(handle)) THEN
+        CPAssert(handle==cp_default_logger_stack_size(),cp_failure_level,routineP,error,failure)
+     END IF
+
      logger => cp_error_get_logger(f_env%error)
      d_logger => cp_get_default_logger()
      d_timer_env => get_timer_env()
@@ -587,12 +605,16 @@ END SUBROUTINE f_env_rm_defaults
     TYPE(force_env_type), POINTER            :: force_env, my_force_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(mp_perf_env_type), POINTER          :: mp_perf_env
-    TYPE(section_vals_type), POINTER         :: input_file,force_env_sections, force_env_section
+    TYPE(section_vals_type), POINTER         :: input_file,force_env_sections, &
+         force_env_section, metadyn_section, restraint_section
     TYPE(timer_env_type), POINTER            :: timer_env
+    TYPE(meta_env_type), POINTER             :: meta_env
+    TYPE(restraint_env_type), POINTER        :: restraint_env
 
     failure=.FALSE.
     
-    NULLIFY(para_env, force_env,timer_env,mp_perf_env, globenv)
+    NULLIFY(para_env, force_env,timer_env,mp_perf_env, globenv,meta_env,&
+         restraint_env)
     IF (PRESENT(mpi_comm)) THEN
        CALL cp_para_env_create(para_env, group=mpi_comm, owns_group=.FALSE.)
     ELSE
@@ -629,6 +651,8 @@ END SUBROUTINE f_env_rm_defaults
     if (present(input)) input_file => input
     IF (.NOT.ASSOCIATED(input_file)) THEN
        input_file => create_cp2k_input_reading(input_path,para_env=para_env,error=error)
+    ELSE
+       CALL section_vals_retain(input_file,error=error)
     END IF
     CALL section_vals_val_get(input_file,"GLOBAL%ECHO_INPUT",&
          l_val=my_echo,error=error)
@@ -700,6 +724,18 @@ END SUBROUTINE f_env_rm_defaults
 CPSourceFileRef,&
                error,failure)
           END SELECT
+          metadyn_section => section_vals_get_subs_vals(globenv%input_file,"MOTION%METADYN",error=error)
+          CALL metadyn_read(meta_env, globenv, metadyn_section, error=error)
+          CALL force_env_set(my_force_env,meta_env=meta_env,error=error)
+          CALL meta_env_release(meta_env,error=error)
+          NULLIFY(restraint_env)
+          restraint_section => section_vals_get_subs_vals(globenv%input_file,&
+               "MOTION%RESTRAINT",error=error)
+          CALL restraint_env_create(restraint_env,error=error)
+          CALL restraint_env_read(restraint_env,restraint_section,error=error)
+          CALL restraint_env_write(restraint_env,restraint_section,error=error)
+          CALL force_env_set(my_force_env,restraint_env=restraint_env,error=error)
+          CALL restraint_env_release(restraint_env,error=error)
           IF (nforce_eval>1.AND.iforce_eval==1) THEN
              ALLOCATE(my_force_env%sub_force_env(nforce_eval-1),stat=stat)
              CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -721,6 +757,9 @@ CPSourceFileRef,&
     CALL f_env_create(f_envs(n_f_envs)%f_env,template_error=error,&
          timer_env=timer_env,mp_perf_env=mp_perf_env,force_env=force_env,&
          id_nr=last_f_env_id,error=error)
+    CALL force_env_release(force_env,error=error)
+    CALL globenv_release(globenv,error=error)
+    CALL cp_para_env_release(para_env,error=error)
     CALL f_env_rm_defaults(f_envs(n_f_envs)%f_env,error=error,ierr=ierr)
 
   END SUBROUTINE create_force_env
@@ -756,7 +795,7 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'destroy_force_env', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: env_pos
+    INTEGER                                  :: env_pos,i,stat
     LOGICAL                                  :: failure
     TYPE(cp_error_type)                      :: error
     TYPE(f_env_type), POINTER                :: f_env
@@ -775,11 +814,16 @@ CPSourceFileRef,&
           CPPrecondition(ASSOCIATED(globenv),cp_failure_level,routineP,error,failure)
        END IF
        IF (.NOT.failure) THEN
-          CALL cp2k_finalize(globenv,error)
           CALL f_env_dealloc(f_envs(env_pos)%f_env,error=error)
+          CALL cp2k_finalize(globenv,error)
           CALL cp_error_check(error,failure)
-
+          
           n_f_envs=n_f_envs-1
+          DO i=env_pos,n_f_envs
+             f_envs(i)%f_env => f_envs(i+1)%f_env
+          END DO
+          DEALLOCATE(f_envs(n_f_envs+1)%f_env,stat=stat)
+          CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
        END IF
        ierr=cp_error_get_level(error)
        CALL cp_error_dealloc_ref(error)

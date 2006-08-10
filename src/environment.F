@@ -113,7 +113,6 @@ MODULE environment
 #endif
 
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'environment'
-  INTEGER :: handle = 0
 
 ! *** Public subroutines ***
 
@@ -253,7 +252,7 @@ CONTAINS
 
 !   *** Initialize timing ***
 
-    CALL timeset ("CP2K","I","",handle)
+    CALL timeset ("CP2K","I","",globenv%handle)
     output_unit=globenv%scr
 
     IF (ionode) THEN
@@ -769,7 +768,7 @@ SUBROUTINE cp2k_read(globenv,error)
     ENDIF
 #endif
 
-    CALL timestop(0.0_dp,handle) ! corresponding the "CP2K" in cp2k_init
+    CALL timestop(0.0_dp,globenv%handle) ! corresponding the "CP2K" in cp2k_init
 
     IF (.NOT. failure) THEN
        iw = cp_print_key_unit_nr(logger,globenv%input_file,"GLOBAL%TIMINGS",&

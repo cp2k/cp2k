@@ -10,7 +10,8 @@
       !  cp_logger_get_default_unit_nr, cp_logger_get_unit_nr, &
       !  cp_logger_set_log_level, cp_logger_generate_filename,&
       !  cp_to_string, cp_log, cp_iteration_info_create, cp_iteration_info_retain, &
-      !  cp_iteration_info_release, cp_iter_undefined, max_iter_r_level
+      !  cp_iteration_info_release, cp_iter_undefined, max_iter_r_level,&
+      !  cp_default_logger_stack_size
   USE cp_error_handling
       ! , only: cp_error_type, cp_debug, cp_no_error, &
       !  cp_caller_error, cp_wrong_args_error,&

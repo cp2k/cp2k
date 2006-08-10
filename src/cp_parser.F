@@ -1417,6 +1417,7 @@ CPSourceFileRef,&
        IF (.NOT.failure) THEN
           IF (at_end) THEN
              test_result = "EOF"
+             CALL cp_error_dealloc_ref(suberror)
              RETURN
           END IF
 
@@ -1427,6 +1428,7 @@ CPSourceFileRef,&
        IF (.NOT.failure) THEN
           IF (parser%icol1 > parser%icol2) THEN
              test_result = "EOL"
+             CALL cp_error_dealloc_ref(suberror)
              RETURN
           END IF
 

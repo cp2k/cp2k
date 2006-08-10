@@ -104,6 +104,7 @@ MODULE global_types
 !!     - input_file: the input file (what you need is probably 
 !!       input_file%root_vals, or a subsection, try to use that not
 !!       the whole input_file
+!!     - handle: handle with the total time of the computation
 !!
 !!     Personally I think that all the other attributes should go away
  !!     (and maybe add  a logger)[fawzi]
@@ -131,6 +132,7 @@ MODULE global_types
      REAL(KIND=dp) :: cp2k_start_time, cp2k_target_time
      TYPE(section_vals_type), POINTER :: input_file
      LOGICAL :: close_output_unit
+     integer :: handle
   END TYPE global_environment_type
 !!***
 ! *****************************************************************************

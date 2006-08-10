@@ -39,7 +39,7 @@ MODULE cp_control_utils
        xc_deriv_spline2, xc_deriv_spline2_smooth, xc_deriv_spline3, &
        xc_deriv_spline3_smooth, xc_new_f_routine, xc_old_f_routine, &
        xc_rho_nn10, xc_rho_nn50, xc_rho_no_smooth, xc_rho_spline2_smooth, &
-       xc_rho_spline3_smooth, xc_test_lsd_f_routine
+       xc_rho_spline3_smooth, xc_test_lsd_f_routine, pint_run
   USE input_cp2k_check,                ONLY: xc_functionals_expand
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
@@ -156,7 +156,7 @@ CONTAINS
     CASE (energy_run,mon_car_run,energy_force_run,electronic_spectra_run,&
           bsse_run,linear_response_run)
       dft_control%forces = .FALSE.
-    CASE (mol_dyn_run,hmc_run,ldmc_run,geo_opt_run,qs_debug_run)
+    CASE (mol_dyn_run,hmc_run,ldmc_run,geo_opt_run,qs_debug_run,pint_run)
       dft_control%forces = .TRUE.
     CASE DEFAULT
       CALL stop_program(routine,"unknown run type "//TRIM(run_type_names(globenv%run_type_id)))

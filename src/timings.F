@@ -465,6 +465,7 @@ SUBROUTINE timestop_full ( perf, handle )
    timer_env => timer_env_stack(stack_pointer)%timer_env
 
   IF ( handle /= timer_env%handle_stack (timer_env%stack_size) ) THEN
+     PRINT *, "timer_env%stack_size",timer_env%stack_size," handle ",handle," timer_env%id_nr ",timer_env%id_nr
       PRINT*,'mismatched timestop '&
         //TRIM(timer_env%routine_stack(timer_env%stack_size))//&
              ' in routine timestop'

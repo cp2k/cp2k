@@ -120,12 +120,12 @@ MODULE replica_types
   TYPE replica_env_type
      INTEGER :: ref_count, id_nr, f_env_id, nrep,nat,ndim
      REAL(kind=dp), DIMENSION(:,:), POINTER :: r,v,f     
-     INTEGER, DIMENSION(:), POINTER :: replica_owner,row_rank,col_rank
-     TYPE(cp_para_cart_type), POINTER :: cart
-     TYPE(cp_para_env_type), POINTER :: para_env, para_env_f,para_env_inter_rep
      LOGICAL :: sync_v, keep_wf_history
      TYPE(qs_wf_history_p_type), DIMENSION(:), pointer :: wf_history
      INTEGER, DIMENSION(:), POINTER :: local_rep_indices
+     INTEGER, DIMENSION(:), POINTER :: replica_owner,row_rank,col_rank
+     TYPE(cp_para_cart_type), POINTER :: cart
+     TYPE(cp_para_env_type), POINTER :: para_env, para_env_f,para_env_inter_rep
   END TYPE replica_env_type
   !!***yf
   !****************************************************************************
@@ -391,9 +391,6 @@ SUBROUTINE rep_env_release(rep_env,error)
            CALL cp_destroy_fenv(rep_env%f_env_id,ierr)
            CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
         END IF
-        CALL cp_para_env_release(rep_env%para_env,error=error)
-        CALL cp_cart_release(rep_env%cart,error=error)
-        CALL cp_para_env_release(rep_env%para_env_f,error=error)
         IF (ASSOCIATED(rep_env%r)) THEN
            DEALLOCATE(rep_env%r,stat=stat)
            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
@@ -406,10 +403,6 @@ SUBROUTINE rep_env_release(rep_env,error)
            DEALLOCATE(rep_env%f,stat=stat)
            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
         END IF
-        IF (ASSOCIATED(rep_env%replica_owner)) THEN
-           DEALLOCATE(rep_env%replica_owner,stat=stat)
-           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-        END IF
         IF (ASSOCIATED(rep_env%wf_history)) THEN
            DO i=1,SIZE(rep_env%wf_history)
               CALL wfi_release(rep_env%wf_history(i)%wf_history,error=error)
@@ -419,8 +412,16 @@ SUBROUTINE rep_env_release(rep_env,error)
         END IF
         DEALLOCATE(rep_env%local_rep_indices,stat=stat)
         CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+        IF (ASSOCIATED(rep_env%replica_owner)) THEN
+           DEALLOCATE(rep_env%replica_owner,stat=stat)
+           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        END IF
         DEALLOCATE(rep_env%col_rank,rep_env%row_rank,stat=stat)
         CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+        CALL cp_cart_release(rep_env%cart,error=error)
+        CALL cp_para_env_release(rep_env%para_env,error=error)
+        CALL cp_para_env_release(rep_env%para_env_f,error=error)
+        CALL cp_para_env_release(rep_env%para_env_inter_rep,error=error)
         CALL rep_envs_rm_rep_env(rep_env,error=error)
         DEALLOCATE(rep_env,stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)

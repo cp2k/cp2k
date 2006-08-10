@@ -557,6 +557,7 @@ CONTAINS
     IF (.NOT.failure) THEN
        PRINT *, "in ",routineP
        input => ep_env%globenv%input_file
+       PRINT *,"xxx ep_env%globenv%input_file ",ep_env%globenv%input_file%id_nr
        para_env => ep_env%para_env
        ! create_main_qs_env
        CALL section_vals_val_set(input,"FORCE_EVAL%METHOD",&
@@ -646,6 +647,7 @@ CONTAINS
        CALL section_vals_val_get(input,"FORCE_EVAL%EP%COMP_INPUT",&
             c_val=comp_path,error=error)
        comp_input => create_cp2k_input_reading(comp_path,para_env=para_env,error=error)
+       PRINT *,"xxx comp_input ",comp_input%id_nr
        call rep_env_create(ep_env%mol_envs, para_env=para_env, input=comp_input,&
             nrep=nmol, prep=1,keep_wf_history=.true.,error=error)
        CALL section_vals_release(comp_input,error=error)

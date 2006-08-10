@@ -74,7 +74,8 @@ MODULE cp_log_handling
   PUBLIC :: cp_note_level, cp_warning_level, cp_failure_level,&
        cp_fatal_level 
 ! default loggers
-  PUBLIC :: cp_get_default_logger, cp_add_default_logger, cp_rm_default_logger
+  PUBLIC :: cp_get_default_logger, cp_add_default_logger, cp_rm_default_logger,&
+       cp_default_logger_stack_size
 ! logger routines
   PUBLIC :: cp_logger_create, cp_logger_retain, cp_logger_release,&
        cp_logger_would_log, cp_logger_set,&
@@ -228,6 +229,35 @@ MODULE cp_log_handling
   INTEGER, SAVE, PRIVATE :: last_logger_id_nr=0, last_it_info_id=0
 
 CONTAINS
+
+
+!!****f* m/f *
+!!
+!!   NAME
+!!     f
+!!
+!!   FUNCTION
+!!     -
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!*** **********************************************************************
+  FUNCTION cp_default_logger_stack_size() RESULT(res)
+    CHARACTER(len=*), PARAMETER :: routineN='cp_default_logger_stack_size',&
+         routineP=moduleN//':'//routineN
+    INTEGER :: res
+    
+    res=stack_pointer
+  END FUNCTION cp_default_logger_stack_size
+!***************************************************************************
 
 !!****f* cp_log_handling/cp_add_default_logger [1.0] *
 !!

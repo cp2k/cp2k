@@ -225,6 +225,11 @@ SUBROUTINE rep_env_test(para_env,input,error)
   IF (.NOT. failure) THEN
      logger => cp_error_get_logger(error)
      NULLIFY(rep_env,e1,e2,e3,f1,f2,f3)
+!FM     CALL cp_create_fenv_comm(i,"Ar-sys.inp","Ar-sys.out",&
+!FM     0,stat)
+!FM     CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
+!FM     CALL cp_destroy_fenv(i,stat)
+!FM     CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
      CALL section_vals_val_get(input,"GLOBAL%PROJECT_NAME",&
           c_val=project_name,error=error)
 

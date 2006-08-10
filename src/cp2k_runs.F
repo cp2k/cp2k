@@ -29,7 +29,12 @@ MODULE cp2k_runs
                                              cp2k_init,&
                                              cp2k_read,&
                                              cp2k_setup
-  USE f77_interface,                   ONLY: f77_default_para_env => default_para_env
+  USE f77_interface,                   ONLY: f77_default_para_env => default_para_env,&
+       create_force_env,&
+       destroy_force_env,&
+       f_env_type,&
+       f_env_add_defaults,&
+       f_env_rm_defaults
   USE farming_methods,                 ONLY: farming_parse_input
   USE farming_types,                   ONLY: deallocate_farming_env,&
                                              farming_env_type,&
@@ -40,11 +45,13 @@ MODULE cp2k_runs
        ep_create_force_env
   USE force_env_types,                 ONLY: force_env_release,&
                                              force_env_set,&
-                                             force_env_type
+                                             force_env_type,&
+                                             force_env_get
   USE geo_opt,                         ONLY: qs_geo_opt
   USE global_types,                    ONLY: global_environment_type,&
                                              globenv_create,&
-                                             globenv_release
+                                             globenv_release,&
+                                             globenv_retain
   USE harris_metropolis_mc,            ONLY: harris_mc_ld
   USE input_constants,                 ONLY: &
        EIP_MC_method, Harris_MC_method, KG_DFT_MC_method, QS_MC_method, &
@@ -65,7 +72,7 @@ MODULE cp2k_runs
        section_vals_get_subs_vals, section_vals_release, section_vals_type, &
        section_vals_val_get, section_vals_write, write_section_xml,&
        section_vals_get_subs_vals2,section_vals_duplicate,&
-                                             section_vals_get
+       section_vals_get, section_vals_retain
   USE kg_main,                         ONLY: kg_create_force_env
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
@@ -175,28 +182,22 @@ CONTAINS
     INTEGER :: nforce_eval, iforce_eval,method_name_id
     TYPE(restraint_env_type), POINTER        :: restraint_env
     INTEGER, POINTER, DIMENSION(:) :: i_force_eval
+    INTEGER :: new_env_id,ierr,f_env_handle, prog_name_id, run_type_id
+    TYPE(f_env_type), pointer :: f_env
 
     cp2k_run_OK = .FALSE.
     failure=.FALSE.
     was_present = .FALSE.
-    NULLIFY(para_env, metadyn_section, default_units)
+    NULLIFY(para_env, metadyn_section, default_units,f_env)
     CALL cp_para_env_create(para_env, group=mpi_comm,&
          owns_group=.FALSE.)
 
     NULLIFY(globenv, force_env, my_force_env )
 
-    ! init globenv with the data
-    CALL globenv_create(globenv, para_env=para_env,  output_unit=output_unit, &
-         input_file_name=input_file_name, error=error)
-
-    ! generate all dependent info in globenv
-    CALL cp2k_init ( globenv )
     CALL cp_error_init(error, stop_level=cp_fatal_level)
 
     ! parse the input
     input_file => create_cp2k_input_reading(input_file_name,para_env=para_env,error=error)
-    globenv%input_file => input_file
-    NULLIFY(input_file)
 
     ! put failure to true if this is what happened on parsing the input
     CALL cp_error_check(error,failure)
@@ -240,16 +241,17 @@ CONTAINS
           WRITE(unit_nr,'(T15,A)') ""
        ENDIF
     ELSE
-       glob_section => section_vals_get_subs_vals(globenv%input_file,"GLOBAL",error=error)
+       glob_section => section_vals_get_subs_vals(input_file,"GLOBAL",error=error)
        CALL section_vals_val_get(glob_section,"ECHO_INPUT",l_val=echo_input,&
             error=error)
        IF (echo_input.AND.para_env%mepos==para_env%source) THEN
-          CALL section_vals_write(globenv%input_file,unit_nr=globenv%scr,&
+          CALL section_vals_write(input_file,&
+               unit_nr=cp_logger_get_default_unit_nr(logger,local=.FALSE.),&
                hide_root=.TRUE., error=error)
        END IF
 
        IF (.NOT.failure) THEN
-          CALL check_cp2k_input(globenv%input_file,para_env=para_env,error=error)
+          CALL check_cp2k_input(input_file,para_env=para_env,error=error)
        END IF
        CALL cp_error_check(error,failure)
 
@@ -264,14 +266,27 @@ CONTAINS
              WRITE(unit_nr,'(T15,A)') ""
           ENDIF
        ELSE
+          CALL section_vals_val_get(input_file,"GLOBAL%PROGRAM_NAME",&
+               i_val=prog_name_id,error=error)
+          CALL section_vals_val_get(input_file,"GLOBAL%RUN_TYPE",&
+               i_val=run_type_id,error=error)
 
-          CALL cp_error_init(suberror)
-          CALL cp2k_read(globenv)
-          CALL cp2k_setup(globenv,suberror)
+          IF (prog_name_id/=do_cp2k) THEN
+             ! initial setup (cp2k does in in the creation of the force_env)
+             CALL globenv_create(globenv, para_env=para_env,  output_unit=output_unit, &
+                  input_file_name=input_file_name, error=error)
+             globenv%input_file => input_file
+             CALL section_vals_retain(input_file,error=error)
+             ! generate all dependent info in globenv
+             CALL cp2k_init ( globenv )
+             CALL cp_error_init(suberror)
+             CALL cp2k_read(globenv)
+             CALL cp2k_setup(globenv,suberror)
+          END IF
 
-          IF ((globenv%run_type_id == hmc_run) .OR. &
-              (globenv%run_type_id == ldmc_run)) THEN
-            hmc_section => section_vals_get_subs_vals(globenv%input_file, &
+          IF ((run_type_id == hmc_run) .OR. &
+              (run_type_id == ldmc_run)) THEN
+            hmc_section => section_vals_get_subs_vals(input_file, &
                            "MOTION%MD%HMC", error=error)
             CALL section_vals_val_get(hmc_section, "MC_METHOD", &
                                       i_val=mc_method, error=error)
@@ -293,73 +308,29 @@ CONTAINS
               method_name_id = do_qs
             END SELECT
           END IF
-          SELECT CASE (globenv%prog_name_id)
+          SELECT CASE (prog_name_id)
           CASE (do_farming)
              CALL farming_run ( globenv, suberror )
           CASE(do_cp2k)
-             force_env_sections => section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL",error=error)
-             CALL section_vals_get(force_env_sections, n_repetition=nforce_eval, error=error)
-             CALL section_vals_val_get(globenv%input_file,"MOTION%MD%RESPA%FORCE_EVAL_SHELLS",i_vals=i_force_eval,&
-                  ignore_required=.TRUE.,error=error)
-
-             CPPrecondition(SIZE(i_force_eval)==nforce_eval,cp_failure_level,routineP,error,failure)
-             DO iforce_eval = 1, nforce_eval
-
-                NULLIFY(force_env_section)
-                CALL section_vals_duplicate(force_env_sections,force_env_section,&
-                     i_force_eval(iforce_eval),i_force_eval(iforce_eval),error)
-                NULLIFY(my_force_env)
-                CALL section_vals_val_get(force_env_section,"METHOD",i_val=method_name_id)
-                SELECT CASE(method_name_id)
-                CASE (do_ep)
-                   CPAssert(nforce_eval==1,cp_failure_level,routineP,error,failure)
-                   CALL ep_create_force_env( my_force_env,globenv,error=suberror)
-                CASE (do_fist)
-                   CALL fist_create_force_env ( my_force_env, globenv, force_env_section=force_env_section, error = suberror )
-                CASE (do_kg)
-                   CALL kg_create_force_env ( my_force_env, globenv, force_env_section=force_env_section, error=suberror)
-                CASE (do_qmmm)
-                   CALL qmmm_create_force_env(my_force_env, globenv, force_env_section=force_env_section, error=suberror)
-                CASE (do_qs)
-                   CALL quickstep_create_force_env(my_force_env, globenv, force_env_section=force_env_section, error=suberror)
-                CASE (do_tbmd)
-                   CALL tbmd_create_force_env(my_force_env, globenv, force_env_section=force_env_section, error=suberror)
-                CASE (do_eip)
-                   CALL eip_create_force_env(my_force_env, globenv, force_env_section=force_env_section, error=suberror)
-                CASE default
-                   CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
-                END SELECT
-                NULLIFY(meta_env)
-                metadyn_section => section_vals_get_subs_vals(globenv%input_file,"MOTION%METADYN",error=suberror)
-                CALL metadyn_read(meta_env, globenv, metadyn_section, error=suberror)
-                CALL force_env_set(my_force_env,meta_env=meta_env,error=suberror)
-                CALL meta_env_release(meta_env,error=suberror)
-                NULLIFY(restraint_env)
-                restraint_section => section_vals_get_subs_vals(globenv%input_file,&
-                   "MOTION%RESTRAINT",error=suberror)
-                CALL restraint_env_create(restraint_env,error=suberror)
-                CALL restraint_env_read(restraint_env,restraint_section,error=suberror)
-                CALL restraint_env_write(restraint_env,restraint_section,error=suberror)
-                CALL force_env_set(my_force_env,restraint_env=restraint_env,error=suberror)
-                CALL restraint_env_release(restraint_env,error=suberror)
-                IF (nforce_eval>1.AND.iforce_eval==1) THEN
-                   ALLOCATE(my_force_env%sub_force_env(nforce_eval-1),stat=stat)
-                   CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
-                END IF
-                IF (iforce_eval==1) THEN
-                   force_env => my_force_env
-                ELSE
-                   force_env%sub_force_env(iforce_eval-1)%force_env => my_force_env
-                END IF
-                CALL section_vals_release(force_env_section,error)
-             END DO
+             call create_force_env(new_env_id,input_path=input_file_name,&
+                  output_path="__STD_OUT__",mpi_comm=para_env%group,&
+                  output_unit=output_unit,&
+                  owns_out_unit=.FALSE.,&
+                  input=input_file,ierr=ierr)
+             CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
+             CALL f_env_add_defaults(new_env_id,f_env,new_error=suberror,&
+                  failure=failure,handle=f_env_handle)
+             force_env => f_env%force_env
+             CALL force_env_get(force_env,globenv=globenv,error=suberror)
+             CALL globenv_retain(globenv,error=suberror)
+             CALL section_vals_val_get(force_env%force_env_section,"METHOD",i_val=method_name_id)
 
           CASE (do_test)
              CALL lib_test(globenv,suberror)
           CASE default
-             CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
+             CPAssert(.FALSE.,cp_failure_level,routineP,suberror,failure)
           END SELECT
-
+          CALL section_vals_release(input_file,error=suberror)
    
           SELECT CASE (globenv%run_type_id)
           CASE (pint_run)
@@ -435,23 +406,30 @@ CPSourceFileRef,&
              CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
           END SELECT
 
-          CALL force_env_release(force_env, error=suberror)
-
-       END IF
-       CALL cp_error_propagate_error(suberror,routineP,&
+          CALL cp_error_propagate_error(suberror,routineP,&
                "cp2k ending run", error=error,failure=failure)
-       CALL cp_error_dealloc_ref(suberror)
+          IF (prog_name_id==do_cp2k) THEN
+             CALL f_env_rm_defaults(f_env,error=suberror,ierr=ierr,&
+                  handle=f_env_handle)
+             CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
+             CALL destroy_force_env(new_env_id,ierr=ierr)
+             CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
+             CALL globenv_release(globenv)
+          ELSE
+             CALL cp_error_dealloc_ref(suberror)
+             I_was_ionode=globenv%ionode
+             CALL cp2k_finalize(globenv,error)
+             CPPostconditionNoFail(globenv%ref_count==1,cp_failure_level,routineP,error)
+             CALL globenv_release(globenv)
+          END IF
+       END IF
 
     END IF
 
-    I_was_ionode=globenv%ionode
-    CALL cp2k_finalize(globenv,error)
-    CPPostconditionNoFail(globenv%ref_count==1,cp_failure_level,routineP,error)
     CALL cp_error_dealloc_ref(error)
-    CALL globenv_release(globenv)
     CALL cp_para_env_release(para_env)
     cp2k_run_OK = .NOT. failure
-
+    
   END FUNCTION cp2k_run
 
 !!****f* cp2k_runs/farming_run [1.0] *
