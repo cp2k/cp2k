@@ -246,7 +246,7 @@ CONTAINS
     CHARACTER(LEN=default_string_length) :: lowdin_title
     REAL(KIND = dp)           :: q_max
     REAL(KIND = dp), POINTER, DIMENSION(:,:) :: center
-    TYPE(section_vals_type), POINTER :: print_key, input
+    TYPE(section_vals_type), POINTER :: print_key, input, loc_section
     TYPE(cp_rs_pool_type), POINTER           :: auxbas_rs_pool
     TYPE(realspace_grid_type), POINTER       :: rs
     CHARACTER(len=default_string_length)     :: iter
@@ -268,7 +268,7 @@ CONTAINS
             mo_eigenvalues,unoccupied_evals,fm_struct_tmp,molecule_set,&
             center,rho_core,tddfpt_control,subsys,particles,input,print_key)
     
-    NULLIFY(qs_loc_env_new,my_localized_wfn_control)
+    NULLIFY(qs_loc_env_new,my_localized_wfn_control,loc_section)
 
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
@@ -443,7 +443,8 @@ CONTAINS
 
        IF (my_localized_wfn) THEN
 
-          CALL qs_loc_driver(qs_env,qs_loc_env_new,error=error)
+          loc_section => section_vals_get_subs_vals(dft_section,"QS%LOCALIZE",error=error)
+          CALL qs_loc_driver(qs_env,qs_loc_env_new,loc_section,error=error)
  
        ELSEIF (p_loc) THEN
           if (btest(cp_print_key_should_output(logger%iter_info,input,&

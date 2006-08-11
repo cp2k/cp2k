@@ -20,7 +20,9 @@ MODULE qs_loc_control
 
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
   USE cp_output_handling,              ONLY: cp_p_file,&
-                                             cp_print_key_should_output
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
+                                             cp_print_key_unit_nr
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: &
        do_loc_crazy, do_loc_direct, do_loc_jacobi, do_loc_max, do_loc_min, &
@@ -83,6 +85,7 @@ MODULE qs_loc_control
     LOGICAL                         :: print_centers
     LOGICAL                         :: print_spreads
     INTEGER, POINTER, DIMENSION(:)  :: loc_states
+    INTEGER, POINTER, DIMENSION(:)  :: list_cubes
     TYPE(cp_2d_r_p_type), DIMENSION(2)  :: centers_set
     CHARACTER ( LEN = default_path_length )               :: loc_rootfname
     CHARACTER ( LEN = default_path_length ),DIMENSION(2):: centers_file_name
@@ -157,6 +160,7 @@ CONTAINS
    NULLIFY(localized_wfn_control%loc_states)
    NULLIFY(localized_wfn_control%centers_set(1)%array)
    NULLIFY(localized_wfn_control%centers_set(2)%array)
+   NULLIFY(localized_wfn_control%list_cubes)
 
   END SUBROUTINE localized_wfn_control_create
 
@@ -181,6 +185,8 @@ CONTAINS
       IF (localized_wfn_control%ref_count==0) THEN
          IF (ASSOCIATED(localized_wfn_control%loc_states)) &
              DEALLOCATE(localized_wfn_control%loc_states,STAT=istat)
+         IF (ASSOCIATED(localized_wfn_control%list_cubes)) &
+             DEALLOCATE(localized_wfn_control%list_cubes,STAT=istat)
          IF (ASSOCIATED(localized_wfn_control%centers_set(1)%array)) &
              DEALLOCATE(localized_wfn_control%centers_set(1)%array,STAT=istat)
          IF (ASSOCIATED(localized_wfn_control%centers_set(2)%array)) &
@@ -236,7 +242,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_loc_section', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, istat, output_unit
+    INTEGER                                  :: i, ir, istat, n_rep, &
+                                                n_state, ncubes, output_unit
     INTEGER, DIMENSION(:), POINTER           :: bounds, list
     LOGICAL                                  :: failure, ionode
     TYPE(cp_logger_type), POINTER            :: logger
@@ -246,15 +253,10 @@ CONTAINS
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
-    IF (ionode) THEN
-      output_unit= cp_logger_get_default_unit_nr(logger)
-    ELSE
-      output_unit = -1
-    END IF
 
     IF(.NOT. failure)  THEN
 
-       NULLIFY (bounds, list ) 
+      NULLIFY (bounds, list ) 
 
       CALL section_vals_val_get(loc_section,"EACH_STEP",&
            i_val=localized_wfn_control%each_step,error=error)
@@ -273,30 +275,57 @@ CONTAINS
       IF(localized_wfn_control%set_of_states==state_loc_all) THEN
 
       ELSE IF(localized_wfn_control%set_of_states==state_loc_upton) THEN
+
          CALL section_vals_val_get(loc_section,"UP_BOUND",&
               i_val=localized_wfn_control%lu_bound_states(2,1), error=error)
          localized_wfn_control%lu_bound_states(1,1) = 1
+         n_state = localized_wfn_control%lu_bound_states(2,1)
          localized_wfn_control%nloc_states(1) = &
-                     localized_wfn_control%lu_bound_states(2,1) 
+                     localized_wfn_control%lu_bound_states(2,1)
+         IF(n_state > 0) THEN
+           ALLOCATE(localized_wfn_control%loc_states(n_state),STAT=istat)
+           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+           DO i = 1, n_state
+             localized_wfn_control%loc_states(i) = i
+           END DO
+         END IF
+ 
       ELSE IF(localized_wfn_control%set_of_states==state_loc_fromitoj) THEN
+
          CALL section_vals_val_get(loc_section,"LU_BOUNDS",&
               i_vals=bounds,error=error)
               localized_wfn_control%lu_bound_states(1,1) = bounds(1)
               localized_wfn_control%lu_bound_states(2,1) = bounds(2)
+         IF(bounds(1)>0 .AND. bounds(2)>0) THEN
+           n_state = localized_wfn_control%lu_bound_states(2,1)-&
+                     localized_wfn_control%lu_bound_states(1,1)+1
+           localized_wfn_control%nloc_states(1) = n_state
+                      
+           ALLOCATE(localized_wfn_control%loc_states(n_state),STAT=istat)
+           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+           DO i = 1, n_state
+             localized_wfn_control%loc_states(i) = bounds(1) + (i-1)
+           END DO
+         END IF
 
-         localized_wfn_control%nloc_states(1) = &
-                     localized_wfn_control%lu_bound_states(2,1)-&
-                     localized_wfn_control%lu_bound_states(1,1)+1 
       ELSE IF(localized_wfn_control%set_of_states==state_loc_list) THEN
+
          CALL section_vals_val_get(loc_section,"LISTSTATES",&
-              i_vals=list,error=error)
-         CPPrecondition(ASSOCIATED(list),cp_failure_level,routineP,error,failure)
-         localized_wfn_control%nloc_states(1) = SIZE(list,1)
-         ALLOCATE(localized_wfn_control%loc_states(SIZE(list,1)),STAT=istat)
-         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-         DO i = 1,localized_wfn_control%nloc_states(1)
-           localized_wfn_control%loc_states(i) = list(i) 
-         END DO
+              n_rep_val=n_rep,error=error)
+         n_state = 0
+         DO ir = 1,n_rep
+           NULLIFY(list)
+           CALL section_vals_val_get(loc_section,"LISTSTATES",&
+                i_rep_val=ir,i_vals=list,error=error)
+           IF(ASSOCIATED(list)) THEN
+             CALL reallocate(localized_wfn_control%loc_states,1,n_state+SIZE(list))
+             DO i = 1, SIZE(list)
+               localized_wfn_control%loc_states(n_state+i) = list(i) 
+             END DO ! i 
+             localized_wfn_control%nloc_states(1) = n_state + SIZE(list)
+             n_state = n_state +  SIZE(list)
+           END IF
+         END DO ! ir
          
       ELSE IF(localized_wfn_control%set_of_states==state_loc_none) THEN
          localized_wfn_control%nloc_states(:) = 0
@@ -305,8 +334,73 @@ CONTAINS
       CALL section_vals_val_get(loc_section,"FNAME",&
            c_val=localized_wfn_control%loc_rootfname,error=error)
 
+      localized_wfn_control%print_centers = &
+          BTEST(cp_print_key_should_output(logger%iter_info,loc_section,&
+                "PRINT%WANNIER_CENTER",error=error),cp_p_file)
+      localized_wfn_control%print_spreads = &
+          BTEST(cp_print_key_should_output(logger%iter_info,loc_section,&
+                "PRINT%WANNIER_SPREADS",error=error),cp_p_file)
+      localized_wfn_control%print_cubes = &
+          BTEST(cp_print_key_should_output(logger%iter_info,loc_section,&
+                "PRINT%WANNIER_CUBES",error=error),cp_p_file)
+
+      IF(localized_wfn_control%print_cubes) THEN
+
+        NULLIFY(bounds,list)
+        CALL section_vals_val_get(loc_section,"PRINT%WANNIER_CUBES%CUBES_LU_BOUNDS",&
+             i_vals=bounds,error=error) 
+        ncubes = bounds(2) - bounds(1)  + 1
+        IF(ncubes > 0 ) THEN
+          ALLOCATE( localized_wfn_control%list_cubes(ncubes),STAT=istat)
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+          DO ir = 1,ncubes
+            localized_wfn_control%list_cubes(ir) = bounds(1) + (ir-1)
+          END DO
+        END IF
+        IF(.NOT. ASSOCIATED(localized_wfn_control%list_cubes)) THEN
+
+          CALL section_vals_val_get(loc_section,"PRINT%WANNIER_CUBES%CUBES_LIST",&
+               n_rep_val=n_rep,error=error)
+          ncubes = 0
+          DO ir = 1,n_rep
+            NULLIFY(list)
+            CALL section_vals_val_get(loc_section,"PRINT%WNNIER_CUBES%CUBES_LIST",&
+                 i_rep_val=ir,i_vals=list,error=error)
+            IF(ASSOCIATED(list)) THEN
+              CALL reallocate(localized_wfn_control%list_cubes,1,ncubes+ SIZE(list))
+              DO i = 1, SIZE(list)
+                localized_wfn_control%list_cubes(i+ncubes) = list(i)
+              END DO
+              ncubes = ncubes + SIZE(list)
+            END IF
+          END DO  ! ir
+
+        END IF
+
+        IF(.NOT. ASSOCIATED(localized_wfn_control%list_cubes)) THEN
+          ncubes = localized_wfn_control%nloc_states(1)
+          ALLOCATE( localized_wfn_control%list_cubes(ncubes),STAT=istat)
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+
+          DO ir = 1,ncubes
+            localized_wfn_control%list_cubes(ir) = localized_wfn_control%loc_states(ir)
+          END DO
+
+        END IF
+
+        IF(ncubes==0) THEN
+          NULLIFY(localized_wfn_control%list_cubes)
+        END IF
+
+      ELSE
+        NULLIFY(localized_wfn_control%list_cubes)
+      ENDIF
+
            
-      IF(ionode) THEN
+      output_unit = cp_print_key_unit_nr(logger,loc_section,"PRINT%PROGRAM_RUN_INFO",&
+                    extension=".Log",error=error) 
+      IF(output_unit>0) THEN
 
         WRITE (UNIT=output_unit,FMT="(/,T3,A)")&
                  "Localization of a subset of KS orbitals"
@@ -354,7 +448,10 @@ CONTAINS
           "LOC|  Set of states: " , "List of ",&
           localized_wfn_control%nloc_states(1), " orbitals from input"
       END IF
-    END IF
+
+      CALL cp_print_key_finished_output(output_unit,logger,loc_section,&
+                  "PRINT%PROGRAM_RUN_INFO",error=error)
+    END IF  ! failure
 
   END SUBROUTINE read_loc_section
 
@@ -422,12 +519,12 @@ CONTAINS
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     END DO
 
-    localized_wfn_control%print_centers = BTEST(cp_print_key_should_output(logger%iter_info,force_env_section,&
-         "DFT%PRINT%LOCALIZATION",error=error),cp_p_file)
-    localized_wfn_control%print_spreads = BTEST(cp_print_key_should_output(logger%iter_info,force_env_section,&
-         "DFT%PRINT%LOCALIZATION",error=error),cp_p_file)
-    localized_wfn_control%print_cubes =   BTEST(cp_print_key_should_output(logger%iter_info,force_env_section,&
-         "DFT%PRINT%LOCALIZATION%CUBES",error=error),cp_p_file)
+!    localized_wfn_control%print_centers = BTEST(cp_print_key_should_output(logger%iter_info,force_env_section,&
+!         "DFT%PRINT%LOCALIZATION",error=error),cp_p_file)
+!    localized_wfn_control%print_spreads = BTEST(cp_print_key_should_output(logger%iter_info,force_env_section,&
+!         "DFT%PRINT%LOCALIZATION",error=error),cp_p_file)
+!    localized_wfn_control%print_cubes =   BTEST(cp_print_key_should_output(logger%iter_info,force_env_section,&
+!         "DFT%PRINT%LOCALIZATION%CUBES",error=error),cp_p_file)
 
   END SUBROUTINE set_loc_centers
  

@@ -401,13 +401,14 @@ CONTAINS
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: print_key, subsection
 
     failure=.FALSE.
 
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
 
-      NULLIFY(keyword)
+      NULLIFY(keyword, print_key, subsection)
       CALL section_create(section,name="LOCALIZE",&
            description="Use one of the available methods to define the localization "//&
            " and possibly to optimize it to a minimum or a maximum.",&
@@ -489,12 +490,73 @@ CONTAINS
       CALL section_add_keyword(section,keyword,error=error)
       CALL keyword_release(keyword,error=error)
 
-      CALL keyword_create(keyword, name="FNAME",&
-           description="Root of the file names where to store the spectra",&
-           usage="FNAME loc_orb",&
-           default_lc_val="loc_orb",error=error)
-      CALL section_add_keyword(section,keyword,error=error)
-      CALL keyword_release(keyword,error=error)
+!      CALL keyword_create(keyword, name="FNAME",&
+!           description="Root of the file names where to store the spectra",&
+!           usage="FNAME loc_orb",&
+!           default_lc_val="loc_orb",error=error)
+!      CALL section_add_keyword(section,keyword,error=error)
+!      CALL keyword_release(keyword,error=error)
+
+      CALL section_create(subsection,"PRINT",&
+           "printing of information about the localization of the orbitals",&
+           error=error,repeats=.FALSE.,required=.FALSE.)
+
+        CALL cp_print_key_section_create(print_key,"program_run_info",&
+            description="Controls the printing basic info about the method", &
+            print_level=low_print_level,each=(/1/),add_last=(/1/),filename="__STD_OUT__",&
+            error=error)
+        CALL section_add_subsection(subsection,print_key,error=error)
+        CALL section_release(print_key,error=error)
+
+        NULLIFY(print_key)
+        CALL cp_print_key_section_create(print_key,"WANNIER_CUBES",&
+              description="Controls the printing of the wannier functions ", &
+              print_level=high_print_level,each=(/1/),add_last=(/1/),filename="",&
+              error=error)
+           CALL keyword_create(keyword, name="stride",&
+                description="the stride used to write the cube file "//&
+                "(the bigger, the smaller the cube gets)",&
+                default_i_val=2, error=error)
+           CALL section_add_keyword(print_key,keyword,error=error)
+           CALL keyword_release(keyword,error=error)
+
+           CALL keyword_create(keyword,name="CUBES_LU_BOUNDS",&
+                variants=(/"CUBES_LU"/),&
+                description="The lower and upper index of the states to be printed as cube",&
+                usage="CUBES_LU_BOUNDS integer integer",&
+                n_var=2,default_i_vals=(/0,-2/), type_of_var=integer_t,error=error)
+           CALL section_add_keyword(print_key,keyword,error=error)
+           CALL keyword_release(keyword,error=error)
+
+           CALL keyword_create(keyword,name="CUBES_LIST",&
+               description="Indexes of the states to be printed as cube files"//&
+               "This keyword can be repeated several times"//&
+               "(useful if you have to specify many indexes).",&
+               usage="CUBES_LIST 1 2",&
+               n_var=-1,type_of_var=integer_t,repeats=.TRUE.,error=error)
+           CALL section_add_keyword(print_key,keyword,error=error)
+           CALL keyword_release(keyword,error=error)
+        CALL section_add_subsection(subsection,print_key,error=error)
+        CALL section_release(print_key,error=error)
+
+        NULLIFY(print_key)
+        CALL cp_print_key_section_create(print_key,"WANNIER_CENTERS",&
+              description="Controls the printing of the wannier functions ", &
+              print_level=high_print_level,each=(/1/),add_last=(/1/),filename="",&
+              error=error)
+        CALL section_add_subsection(subsection,print_key,error=error)
+        CALL section_release(print_key,error=error)
+
+        NULLIFY(print_key)
+        CALL cp_print_key_section_create(print_key,"WANNIER_SPREADS",&
+              description="Controls the printing of the wannier functions ", &
+              print_level=high_print_level,each=(/1/),add_last=(/1/),filename="",&
+              error=error)
+        CALL section_add_subsection(subsection,print_key,error=error)
+        CALL section_release(print_key,error=error)
+
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
 
     END IF
   END SUBROUTINE create_localize_section
@@ -3738,7 +3800,8 @@ END SUBROUTINE create_ot_section
 !!   NAME
 !!     create_xas_section
 !!   FUNCTION
-!!     makes the x-ray absorption section
+!!     makes the input section for core-level spectroscopy simulations
+!!
 !!   NOTES
 !!
 !!   INPUTS
@@ -3765,7 +3828,7 @@ END SUBROUTINE create_ot_section
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
       CALL section_create(section,"xas",&
-         description="Sets the method of choice to calculate the XAS. "//&
+         description="Sets the method of choice to calculate core-level excitation spectra. "//&
                      "The occupied states from  which we calculate the "//&
                      "excitation should be specified. "//&
                      "Localization of the orbitals may be useful.",&
@@ -3775,7 +3838,7 @@ END SUBROUTINE create_ot_section
       NULLIFY(keyword,subsection,print_key)
 
       CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
-          description="controls the activation of the xes/xas calculation",&
+          description="controls the activation of core-level spectroscopy simulations",&
           usage="&XAS T",&
           default_l_val=.FALSE.,&
           lone_keyword_l_val=.TRUE.,&
@@ -3786,7 +3849,7 @@ END SUBROUTINE create_ot_section
 
       CALL keyword_create(keyword, name="METHOD",&
            variants=(/"XAS_METHOD"/),&
-           description="Method to be used to calculate XAS",&
+           description="Method to be used to calculate core-level excitation spectra",&
            usage="METHOD TP_HH",&
            default_i_val=xas_none,&
            enum_c_vals=s2a( "NONE", "TP_HH", "TP_FH", "TP_VAL", "TP_XHH","TP_XFH", "TDDFT","DSCF"),&
@@ -3833,7 +3896,7 @@ END SUBROUTINE create_ot_section
       CALL keyword_release(keyword,error=error)
   
       CALL keyword_create(keyword, name="MAXSTEP",&
-           description="Max # of steps in the xas-scf for one excitation",&
+           description="Max # of steps in the cls-scf for one excitation",&
            usage="MAXSTEP 150",&
            default_i_val=150,error=error)
       CALL section_add_keyword(section,keyword,error=error)
@@ -3849,7 +3912,7 @@ END SUBROUTINE create_ot_section
  
       CALL keyword_create(keyword, name="EPS_DIIS",&
            description="treshold on the convergence to start"//&
-           " using DIAG/DIIS for the xas-scf"//&
+           " using DIAG/DIIS for the cls-scf"//&
            "if default, the scf_control value is used",&
            usage="EPS_DIIS 0.5",&
            default_r_val=-1._dp,error=error)
@@ -3913,7 +3976,6 @@ END SUBROUTINE create_ot_section
       CALL keyword_release(keyword,error=error) 
 
 
-
       CALL keyword_create(keyword,name="ATOMS_LU_BOUNDS",&
            variants=(/"AT_LU"/),&
            description="The lower and upper index of the atoms to be excited",&
@@ -3972,52 +4034,62 @@ END SUBROUTINE create_ot_section
       CALL section_add_keyword(section,keyword,error=error)
       CALL keyword_release(keyword,error=error) 
 
-      CALL keyword_create(keyword, name="CUBES",&
-           description="Print some of the wavefunctions as cube files",&
-           usage="CUBES",&
+      CALL keyword_create(keyword, name="RESTART",&
+           description="Restart the excited state if the restart file exists",&
+           usage="RESTART",&
            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
       CALL section_add_keyword(section,keyword,error=error)
       CALL keyword_release(keyword,error=error) 
 
-      CALL keyword_create(keyword,name="CUBES_LU_BOUNDS",&
-           variants=(/"CUBES_LU"/),&
-           description="The lower and upper index of the states to be printed as cube files",&
-           usage="CUBES_LU_BOUNDS integer integer",&
-           n_var=2,default_i_vals=(/0,-2/), type_of_var=integer_t,error=error)
-      CALL section_add_keyword(section,keyword,error=error)
-      CALL keyword_release(keyword,error=error)
-
-      CALL keyword_create(keyword,name="CUBES_LIST",&
-           description="Indexes of the states to be printed as cube files"//&
-           "This keyword can be repeated several times"//&
-           "(useful if you have to specify many indexes).",&
-           usage="CUBES_LIST 1 2",&
-           n_var=-1,type_of_var=integer_t,repeats=.TRUE.,error=error)
-      CALL section_add_keyword(section,keyword,error=error)
-      CALL keyword_release(keyword,error=error)
-
-      CALL keyword_create(keyword,name="CUBES_STRIDE",&
-           description="the stride used to write the cube file ",&
-           usage="CUBES_STRIDE 2",&
-           default_i_val=2,error=error)
-      CALL section_add_keyword(section,keyword,error=error)
-      CALL keyword_release(keyword,error=error)
-
+      NULLIFY(subsection)
       CALL create_localize_section(subsection,error)
       CALL section_add_subsection(section, subsection, error=error)
       CALL section_release(subsection,error=error)
 
-      CALL section_create(subsection,"PRINT","printing of information during the XAS calculation",&
+      NULLIFY(subsection)
+      CALL section_create(subsection,"PRINT",&
+           "printing of information during the core-level spectroscopy simulation",&
            error=error,repeats=.FALSE.,required=.FALSE.)
 
-       CALL cp_print_key_section_create(print_key,"program_run_info",&
-            description="Controls the printing of basic iteration information during the XAS", &
+        CALL cp_print_key_section_create(print_key,"program_run_info",&
+            description="Controls the printing of basic iteration information in CLS", &
             print_level=low_print_level,each=(/1/),add_last=(/1/),filename="__STD_OUT__",&
             error=error)
-       CALL section_add_subsection(subsection,print_key,error=error)
-       CALL section_release(print_key,error=error)
-       CALL section_add_subsection(section, subsection, error=error)
-       CALL section_release(subsection,error=error)
+        CALL section_add_subsection(subsection,print_key,error=error)
+        CALL section_release(print_key,error=error)
+
+        CALL cp_print_key_section_create(print_key,"CLS_FUNCTION_CUBES",&
+              description="Controls the printing of the relaxed orbitals ", &
+              print_level=high_print_level,each=(/1/),add_last=(/1/),filename="",&
+              error=error)
+           CALL keyword_create(keyword, name="stride",&
+                description="the stride used to write the cube file "//&
+                "(the bigger, the smaller the cube gets)",&
+                default_i_val=2, error=error)
+           CALL section_add_keyword(print_key,keyword,error=error)
+           CALL keyword_release(keyword,error=error)
+
+           CALL keyword_create(keyword,name="CUBES_LU_BOUNDS",&
+                variants=(/"CUBES_LU"/),&
+                description="The lower and upper index of the states to be printed as cube",&
+                usage="CUBES_LU_BOUNDS integer integer",&
+                n_var=2,default_i_vals=(/0,-2/), type_of_var=integer_t,error=error)
+           CALL section_add_keyword(print_key,keyword,error=error)
+           CALL keyword_release(keyword,error=error)
+
+           CALL keyword_create(keyword,name="CUBES_LIST",&
+               description="Indexes of the states to be printed as cube files"//&
+               "This keyword can be repeated several times"//&
+               "(useful if you have to specify many indexes).",&
+               usage="CUBES_LIST 1 2",&
+               n_var=-1,type_of_var=integer_t,repeats=.TRUE.,error=error)
+           CALL section_add_keyword(print_key,keyword,error=error)
+           CALL keyword_release(keyword,error=error)
+        CALL section_add_subsection(subsection,print_key,error=error)
+        CALL section_release(print_key,error=error)
+
+      CALL section_add_subsection(section, subsection, error=error)
+      CALL section_release(subsection,error=error)
 
     END IF
   END SUBROUTINE create_xas_section
@@ -4297,6 +4369,45 @@ END SUBROUTINE create_ot_section
            CALL keyword_release(keyword,error=error)
          CALL section_add_subsection(subsection,print_key,error=error)
          CALL section_release(print_key,error=error)
+
+         CALL cp_print_key_section_create(print_key,"CHI_TENSOR",&
+              description="Controls the printing of susceptibility",&
+              print_level=high_print_level,each=(/1/),add_last=(/1/),filename="",&
+              error=error)
+         CALL section_add_subsection(subsection,print_key,error=error)
+         CALL section_release(print_key,error=error)
+
+         CALL cp_print_key_section_create(print_key,"SHIELDING_TENSOR",&
+              description="Controls the printing of the chemical shift",&
+              print_level=low_print_level,each=(/1/),add_last=(/1/),filename="",&
+              error=error)
+
+           CALL keyword_create(keyword,name="ATOMS_LU_BOUNDS",&
+                variants=(/"ATOMS_LU"/),&
+                description="The lower and upper atomic index for which the tensor is printed",&
+                usage="ATOMS_LU_BOUNDS integer integer",&
+                n_var=2,default_i_vals=(/0,-2/), type_of_var=integer_t,error=error)
+           CALL section_add_keyword(print_key,keyword,error=error)
+           CALL keyword_release(keyword,error=error)
+
+           CALL keyword_create(keyword, name="ATOMS_LIST",&
+                description="list of atoms for which the shift is printed into a file ",&
+                usage="LIST_ATOMS 1 2",n_var=-1,&
+                type_of_var=integer_t,repeats=.TRUE., error=error)
+           CALL section_add_keyword(print_key,keyword,error=error)
+           CALL keyword_release(keyword,error=error)
+
+
+!           CALL keyword_create(keyword, name="NICS_LIST",&
+!                description="list of NIpoints for which the shift is printed into a file ",&
+!                usage="LIST_NICS 1 2",n_var=-1,&
+!                type_of_var=integer_t,repeats=.TRUE., error=error)
+!           CALL section_add_keyword(print_key,keyword,error=error)
+!           CALL keyword_release(keyword,error=error)
+
+         CALL section_add_subsection(subsection,print_key,error=error)
+         CALL section_release(print_key,error=error)
+
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
 

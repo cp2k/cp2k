@@ -266,140 +266,41 @@ CONTAINS
        END DO 
        CALL cp_fm_create (fm_work1,tmp_fm_struct)
        CALL cp_fm_struct_release ( tmp_fm_struct )
-!dbg
-!       CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=nao,&
-!            ncol_global=nao,para_env=para_env,context=mo_coeff%matrix_struct%context)
-!       CALL cp_fm_create (fm_work2,tmp_fm_struct)
-!       CALL cp_fm_struct_release ( tmp_fm_struct )
-!       DO idir =1,3
-!           CALL copy_sm_to_fm(op_rmd_ao(idir)%matrix,fm_work2,error=error)
-!           fnum = 100+idir
-!           write(fnum,*) 'rmcxp_op ', idir
-!           DO  i=1,nao
-!             write(fnum,'(i5,60f10.6)') i, (fm_work2%local_data(i,j),j=1,nao)
-!           END DO
-!            write(fnum,*) 'check symmetry'
-!            do i=1,nao
-!              do j = i,nao
-!                 write(fnum,'(2i4,3f16.8)') i, j,  fm_work2%local_data(i,j), &
-!                     fm_work2%local_data(j,i), &
-!                     fm_work2%local_data(i,j)+ fm_work2%local_data(j,i)
-!              end do
-!            end do
-!           CALL copy_sm_to_fm(op_p_ao(idir)%matrix,fm_work2,error=error)
-!           fnum = 200+idir
-!           write(fnum,*) 'p_op ', idir
-!           DO  i=1,nao
-!             write(fnum,'(i5,60f10.6)') i, (fm_work2%local_data(i,j),j=1,nao)
-!           END DO
-!            write(fnum,*) 'check symmetry'
-!            do i=1,nao
-!              do j = i,nao
-!                 write(fnum,'(2i4,3f16.8)') i, j,  fm_work2%local_data(i,j), &
-!                     fm_work2%local_data(j,i), &
-!                     fm_work2%local_data(i,j)+ fm_work2%local_data(j,i)
-!              end do
-!            end do
-!       END DO
-!           fnum = 400
-!           write(fnum,*) 'c0 '
-!           DO  i=1,nao
-!             write(fnum,'(i5,60f10.6)') i, (mo_coeff%local_data(i,j),j=1,homo)
-!           END DO
-!dbg
 
    ! This part should be done better, using the full matrix distribution
-!       DO istate = 1,homo
-!         CALL cp_fm_get_submatrix(mo_coeff,vecbuf_c0,1,istate,nao,1,transpose=.TRUE.,error=error)
-!!
+       DO istate = 1,homo
+         CALL cp_fm_get_submatrix(mo_coeff,vecbuf_c0,1,istate,nao,1,transpose=.TRUE.,error=error)
 !!         !center of the localized psi0 state istate 
-!         dk(1:3) = centers_set(ispin)%array(1:3,istate)
-!         DO idir = 1,3
+         dk(1:3) = centers_set(ispin)%array(1:3,istate)
+         DO idir = 1,3
 !!!  This loop should be distributed over the processors
-!           DO iao = 1,nao
+           DO iao = 1,nao
 !!             ck(1:3) = 0.5_dp !nmr_env%basisfun_center(1:3,iao)
-!             ck(1:3) = basisfun_center(1:3,iao)
-!             ckdk = pbc(dk,ck,cell)
-!             vecbuf_Rmdc0(idir)%array(1,iao) = vecbuf_c0(1,iao)*ckdk(idir)
-!           END DO ! iao
-!           CALL cp_fm_set_submatrix(fm_Rmd_mos(idir)%matrix,vecbuf_Rmdc0(idir)%array,&
-!                1,istate,nao,1,transpose=.TRUE.,error=error)
+             ck(1:3) = basisfun_center(1:3,iao)
+             ckdk = pbc(dk,ck,cell)
+             vecbuf_Rmdc0(idir)%array(1,iao) = vecbuf_c0(1,iao)*ckdk(idir)
+           END DO ! iao
+           CALL cp_fm_set_submatrix(fm_Rmd_mos(idir)%matrix,vecbuf_Rmdc0(idir)%array,&
+                1,istate,nao,1,transpose=.TRUE.,error=error)
 !!
-!         END DO  ! idir
-!       END DO  ! istate
-!dbg
+         END DO  ! idir
+       END DO  ! istate
 
-        DO idir = 1,3
-           do istate = 1,homo
-             dk(1:3) = centers_set(ispin)%array(1:3,istate)
-             do iao = 1,nao
-                ck(1:3) = basisfun_center(1:3,iao)
-                ckdk = pbc(dk,ck,cell)
-!                fm_Rmd_mos(idir)%matrix%local_data(iao,istate) = mo_coeff%local_data(iao,istate)*(ck(idir) - 1.5_dp)
-                fm_Rmd_mos(idir)%matrix%local_data(iao,istate) = mo_coeff%local_data(iao,istate)*&
-                    ckdk(idir)
-             end do 
-          end do 
-        END DO
-
-!dbg
-!           fnum = 300+idir
-!           write(fnum,*) 'cmd_c0 1'
-!           DO  i=1,nao
-!             write(fnum,'(i5,50f10.6)') i, (fm_Rmd_mos(1)%matrix%local_data(i,j),j=1,homo)
-!           END DO
-!             write(fnum,*)
-!           write(fnum,*) 'cmd_c0 2'
-!           DO  i=1,nao
-!             write(fnum,'(i5,50f10.6)') i, (fm_Rmd_mos(2)%matrix%local_data(i,j),j=1,homo)
-!           END DO
-!             write(fnum,*)
-!           write(fnum,*) 'cmd_c0 3'
-!           DO  i=1,nao
-!             write(fnum,'(i5,50f10.6)') i, (fm_Rmd_mos(3)%matrix%local_data(i,j),j=1,homo)
-!           END DO
-!dbg
        DO idir = 1,3
            CALL set_vecp(idir,ii,iii)
 
-!dbg
-!           fnum = 410
-!           write(fnum,*) '(r-C)xp_c0 ', idir    
-!           DO  i=1,nao
-!             write(fnum,'(i5,50f10.6)') i, (rxp_psi0(ispin,idir)%matrix%local_data(i,j),j=1,homo)
-!           END DO
-!dbg
            !Add the second term to the idir component
            CALL cp_fm_set_all(fm_work1,0.0_dp,error=error)
            CALL cp_sm_fm_multiply(op_p_ao(iii)%matrix,fm_Rmd_mos(ii)%matrix,&
                 fm_work1,ncol=homo,alpha=-1.0_dp,error=error)
            CALL cp_fm_scale_and_add(1.0_dp,rxp_psi0(ispin,idir)%matrix,&
                 1.0_dp, fm_work1,error=error)
-!dbg
-!           fnum = 420
-!           write(fnum,*) '(C-d)xp_c0 ', 1,idir    
-!           DO  i=1,nao
-!             write(fnum,'(i5,50f10.6)') i, (fm_work1%local_data(i,j),j=1,homo)
-!           END DO
-!dbg
 
            CALL cp_fm_set_all(fm_work1,0.0_dp,error=error)
            CALL cp_sm_fm_multiply(op_p_ao(ii)%matrix,fm_Rmd_mos(iii)%matrix,&
                 fm_work1,ncol=homo,alpha=-1.0_dp,error=error)
            CALL cp_fm_scale_and_add(1.0_dp,rxp_psi0(ispin,idir)%matrix,&
                 -1.0_dp, fm_work1,error=error)
-!dbg
-!           fnum = 420
-!           write(fnum,*) '(C-d)xp_c0 ',2, idir    
-!           DO  i=1,nao
-!             write(fnum,'(i5,50f10.6)') i, (fm_work1%local_data(i,j),j=1,homo)
-!           END DO
-!           fnum = 430
-!           write(fnum,*) '(r-d)xp_c0 ', idir    
-!           DO  i=1,nao
-!             write(fnum,'(i5,50f10.6)') i, (rxp_psi0(ispin,idir)%matrix%local_data(i,j),j=1,homo)
-!           END DO
-!dbg
 
        END DO ! idir
 
@@ -407,15 +308,8 @@ CONTAINS
          CALL cp_fm_release (fm_Rmd_mos(idir)%matrix,error=error)
        END DO
        CALL cp_fm_release (fm_work1,error=error)
-!dbg
-!       CALL cp_fm_release (fm_work2,error=error)
-!dbg
 
     END DO  ! ispin
-!dbg
-!        stop 'rxp'
-!dbg
-
 
     DEALLOCATE (first_sgf,last_sgf,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)

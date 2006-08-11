@@ -155,7 +155,8 @@ CONTAINS
 
          IF(.NOT.linres_control%localized_psi0) THEN
             CALL stop_program(routineP,&
-             "Are you sure that you want to calculate the chemical shift without localized psi0??")
+                "Are you sure that you want to calculate the chemical"//&
+                " shift without localized psi0??")
 
            CALL linres_localize(linres_control%localized_wfn_control,qs_env,&
                  dft_control%nspins,globenv,centers_only=.TRUE.,error=error)
@@ -166,7 +167,7 @@ CONTAINS
          CALL nmr_env_init(nmr_env,qs_env,error=error)
          CALL nmr_operators(nmr_env,qs_env,error=error)
          CALL nmr_do_nmr(nmr_env,p_env,qs_env,error=error)
-     WRITE(*,*) 'donmr'
+
      STOP 'lr_calculation'
          CALL nmr_env_cleanup(nmr_env,error=error)
 
@@ -272,8 +273,9 @@ CONTAINS
  
        IF(linres_control%localized_psi0) THEN
          IF(output_unit>0) THEN
-           WRITE (UNIT=output_unit,FMT="(/,T3,A)")&
-            "Localization of the ground state orbitals before starting the Linres calculation"
+           WRITE (UNIT=output_unit,FMT="(/,T3,A,A)")&
+                  "Localization of the ground state orbitals",&
+                  " before starting the linear response calculation"
          END IF
 
          loc_section =>section_vals_get_subs_vals(lr_section,"LOCALIZE",error=error)
@@ -398,6 +400,7 @@ CONTAINS
     END IF
     CALL cp_print_key_finished_output(output_unit,logger,lr_section,&
          "PRINT%PROGRAM_RUN_INFO",error=error)    
+
   END SUBROUTINE linres_init
 
 

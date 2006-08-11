@@ -87,10 +87,11 @@ MODULE qs_linres_nmr_utils
                                              qs_environment_type
   USE qs_linres_methods,               ONLY: linres_scf
   USE qs_linres_nmr_atom_current,      ONLY: calculate_jrho_atom_coeff,&
-                                             list_3c_jrho_atom
+                                            list_3c_jrho_atom
   USE qs_linres_nmr_current,           ONLY: nmr_response_current,&
                                              test_func
   USE qs_linres_nmr_op,                ONLY: set_vecp
+  USE qs_linres_nmr_shift,             ONLY: nmr_print_shift
   USE qs_linres_types,                 ONLY: deallocate_jrho_atom_set,&
                                              get_nmr_env,&
                                              init_jrho_atom_set, &
@@ -218,6 +219,9 @@ CONTAINS
 
     ! operator p
     DO idir = 1,3
+       CALL cp_fm_set_all(psi1_p(1,idir)%matrix,0.0_dp,error=error)
+    END DO 
+    DO idir = 1,-3
       IF(.NOT. nmr_env%simplenmr_done(idir)) THEN
 
          IF(output_unit>0) THEN
@@ -261,8 +265,8 @@ CONTAINS
               ncubes = SIZE(list_cubes,1)
               DO ispin = 1,dft_control%nspins
                 CALL qs_print_cubes(qs_env,psi1(ispin)%matrix,ncubes,list_cubes,&
-                     centers_set(ispin)%array,idir,ispin,ionode,'psi1_p',&
-                     stride=section_get_ival(nmr_section,&
+                     centers_set(ispin)%array,ionode,'psi1_p',&
+                     idir=idir,ispin=ispin,stride=section_get_ival(nmr_section,&
                      "PRINT%RESPONSE_FUNCTION_CUBES%STRIDE"),error=error)
               END DO  ! ispin
            END IF  ! print response functions
@@ -305,6 +309,14 @@ CONTAINS
          !DO scf cycle to optimize psi1
          DO ispin = 1,dft_control%nspins
             CALL cp_fm_to_fm(rxp_psi0(ispin,idir)%matrix, h1_psi0(ispin)%matrix)
+!dpg
+            ! print perturbation operator
+!            ncubes = SIZE(list_cubes,1)
+!            CALL qs_print_cubes(qs_env,h1_psi0(ispin)%matrix,ncubes,list_cubes,&
+!                     centers_set(ispin)%array,ionode,'pert_rxp',&
+!                     idir=idir,ispin=ispin, stride=section_get_ival(nmr_section,&
+!                     "PRINT%RESPONSE_FUNCTION_CUBES%STRIDE"),error=error)
+!dpg
          END DO
 
          ! Optimize the response wavefunctions 
@@ -327,8 +339,8 @@ CONTAINS
               ncubes = SIZE(list_cubes,1)
               DO ispin = 1,dft_control%nspins
                 CALL qs_print_cubes(qs_env,psi1(ispin)%matrix,ncubes,list_cubes,&
-                     centers_set(ispin)%array,idir,ispin,ionode,'psi1_rxp',&
-                     stride=section_get_ival(nmr_section,&
+                     centers_set(ispin)%array,ionode,'psi1_rxp',&
+                     idir=idir,ispin=ispin,stride=section_get_ival(nmr_section,&
                      "PRINT%RESPONSE_FUNCTION_CUBES%STRIDE"),error=error)
               END DO  ! ispin
            END IF  ! print response functions
@@ -345,10 +357,16 @@ CONTAINS
         END IF
      END DO ! idir
 
+
+     ! operator D
      IF(nmr_env%full_nmr) THEN
        DO ispin = 1,dft_control%nspins
          CALL cp_fm_set_all(psi1(ispin)%matrix,0.0_dp,error=error)
        END DO 
+      DO idir = 1,3
+         CALL cp_fm_set_all(psi1_D(1,idir)%matrix,0.0_dp,error=error)
+      END DO 
+
 
 !      The correction is state depedent a loop over the states is necessary
        ALLOCATE(vecbuf_dklxp0(1,nao),STAT=istat)
@@ -392,7 +410,7 @@ CONTAINS
              END DO
 
          ! First term
-             ! Rescale the ground zero orbitals by (dk-dl)_ii
+             ! Rescale the ground state orbitals by (dk-dl)_ii
              CALL cp_fm_to_fm(mo_coeff,fm_work_ii,error=error)
              CALL cp_fm_column_scale(fm_work_ii,dkl_vec_ii(1:homo)) 
              ! Apply the p_iii operator
@@ -403,7 +421,7 @@ CONTAINS
 
 
          ! Second term
-             ! Rescale the ground zero orbitals by (dk-dl)_iii
+             ! Rescale the ground state orbitals by (dk-dl)_iii
              CALL cp_fm_to_fm(mo_coeff,fm_work_iii,error=error)
              CALL cp_fm_column_scale(fm_work_iii,dkl_vec_iii(1:homo)) 
              ! Apply the p_iii operator
@@ -433,8 +451,8 @@ CONTAINS
               ncubes = SIZE(list_cubes,1)
                CALL qs_print_cubes(qs_env,psi1_D(ispin,idir)%matrix,&
                     ncubes,list_cubes,&
-                    centers_set(ispin)%array,idir,ispin,ionode,'psi1_D',&
-                    stride=section_get_ival(nmr_section,&
+                    centers_set(ispin)%array,ionode,'psi1_D',&
+                    idir=idir,ispin=ispin,stride=section_get_ival(nmr_section,&
                     "PRINT%RESPONSE_FUNCTION_CUBES%STRIDE"),error=error)
            END IF  ! print response functions
 
@@ -453,9 +471,12 @@ CONTAINS
     ! probably a lot of memory is required
     ! Better to free what is not anymore necessary in p_env
      CALL p_env_release(p_env)
-
+ 
     !Calculate current density and induced field
      CALL nmr_response_current(nmr_env,qs_env,psi1,h1_psi0,error=error)
+
+    ! Print Results
+     CALL nmr_print_shift(nmr_env,qs_env,nmr_section,error=error)
  STOP 'wait'
 
     !----------!
@@ -503,7 +524,7 @@ CONTAINS
     CHARACTER(LEN=2)                         :: label
     CHARACTER(LEN=default_string_length)     :: nics_file_name
     INTEGER :: handle, homo, i_B, icount, idir, ini, ir, ispin, istat, istate, &
-      istate2, istate_next, j, k, n_mo(2), n_rep, nao, natom, ncubes, nmoloc, &
+      istate2, istate_next, j, k, n_mo(2), n_rep, nao, natom, nat_print, ncubes, nmoloc, &
       nspins, nstates, output_unit
     INTEGER, DIMENSION(:), POINTER           :: bounds, list
     LOGICAL                                  :: failure, gapw, ionode, my_end
@@ -595,10 +616,6 @@ CONTAINS
       CALL parser_release(parser,error=error)
     END IF
 
-    ! Check if restat also psi0 should be restarted
-    IF(nmr_env%restart_nmr .AND. scf_control%density_guess/=restart_guess)THEN
-      CALL stop_program("nmr_env_init","restart_nmr requires density_guess=restart")
-    END IF
 
     CALL get_qs_env(qs_env=qs_env,&
                     atomic_kind_set=atomic_kind_set,&
@@ -611,6 +628,11 @@ CONTAINS
                     particle_set=particle_set,&
                     pw_env=pw_env,&
                     scf_control=scf_control)
+
+    ! Check if restat also psi0 should be restarted
+    IF(nmr_env%restart_nmr .AND. scf_control%density_guess/=restart_guess)THEN
+      CALL stop_program("nmr_env_init","restart_nmr requires density_guess=restart")
+    END IF
 
     ! check that the psi0 are localized and you have all the centers
      CPPrecondition(linres_control%localized_psi0,cp_warning_level,routineP,error,failure)
@@ -691,14 +713,17 @@ CONTAINS
      nmr_env%shift_factor = 1.0_dp
 !    chi_factor =  1/4 * e^2/m * a_0 ^2
      nmr_env%chi_factor = 1.9727566E-29_dp / 1.0E-30_dp ! -> displayed in 10^-30 J/T^2
-     nmr_env%shift_SI_ppm = 1.0_dp
-     nmr_env%chi_SI_ppm = 1.0_dp
+     nmr_env%shift_SI2ppm = 1.0_dp
+!    Factor to convert 10^-30 J/T^2 into ppm cgs = ppm cm^3/mol
+     nmr_env%chi_SI2ppmcgs = 6.022045_dp/1.0E+2_dp ! = 10^-30 * mu_0/4pi * N_A * 10^6 * 10^6
+                                                   ! [one 10^6 for ppm, one for m^3 -> cm^3]
 
      nmr_env%store_current = .FALSE.
      IF (BTEST(cp_print_key_should_output(logger%iter_info,nmr_section,&
                   "PRINT%RESPONSE_FUNCTION_CUBES",error=error),cp_p_file)) THEN
 
        NULLIFY(bounds,list)
+       ncubes = 0
        CALL section_vals_val_get(nmr_section,&
           "PRINT%RESPONSE_FUNCTION_CUBES%CUBES_LU_BOUNDS",&
            i_vals=bounds,error=error) 
@@ -738,6 +763,53 @@ CONTAINS
      IF (BTEST(cp_print_key_should_output(logger%iter_info,nmr_section,&
                   "PRINT%CURRENT_CUBES",error=error),cp_p_file)) THEN
        nmr_env%store_current = .TRUE.
+     END IF
+
+     IF (BTEST(cp_print_key_should_output(logger%iter_info,nmr_section,&
+                  "PRINT%SCHIELDING_TENSOR",error=error),cp_p_file)) THEN
+
+       NULLIFY(bounds,list)
+       nat_print = 0
+       CALL section_vals_val_get(nmr_section,&
+          "PRINT%SCHIELDING_TENSOR%ATOMS_LU_BOUNDS",&
+           i_vals=bounds,error=error) 
+       nat_print = bounds(2) - bounds(1)  + 1
+       IF(nat_print > 0) THEN
+         ALLOCATE(nmr_env%cs_atom_list(nat_print),STAT=istat)
+         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+         DO ir = 1,nat_print
+           nmr_env%cs_atom_list(ir) = bounds(1) + (ir-1)
+         END DO
+       END IF
+
+       IF(.NOT. ASSOCIATED(nmr_env%cs_atom_list)) THEN
+         CALL section_vals_val_get(nmr_section,"PRINT%SHIELDING_TENSOR%ATOMS_LIST",&
+             n_rep_val=n_rep,error=error)
+         nat_print = 0
+         DO ir = 1,n_rep
+          NULLIFY(list)
+          CALL section_vals_val_get(nmr_section,"PRINT%SHIELDING_TENSOR%ATOMS_LIST",&
+             i_rep_val=ir,i_vals=list,error=error)
+          IF(ASSOCIATED(list)) THEN
+            CALL reallocate(nmr_env%cs_atom_list,1,nat_print + SIZE(list))
+            DO ini = 1, SIZE(list)
+              nmr_env%cs_atom_list(ini+nat_print) = list(ini)
+            END DO
+            nat_print = nat_print + SIZE(list)
+          END IF
+         END DO  ! ir
+       END IF
+
+       IF(.NOT. ASSOCIATED(nmr_env%cs_atom_list)) THEN
+         ALLOCATE(nmr_env%cs_atom_list(natom),STAT=istat)
+         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+         DO ir = 1,natom
+           nmr_env%cs_atom_list(ir) = ir
+         END DO
+       END IF
+
+     ELSE
+        NULLIFY(nmr_env%cs_atom_list)
      END IF
 
      CALL mpools_get(qs_env%mpools, ao_mo_fm_pools=nmr_env%ao_mo_fm_pools, error=error)
@@ -1006,6 +1078,12 @@ CONTAINS
         DEALLOCATE(nmr_env%centers_set,STAT=istat)
         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
+        IF(ASSOCIATED(nmr_env%list_cubes)) THEN
+          DEALLOCATE(nmr_env%list_cubes)
+        END IF
+        IF(ASSOCIATED(nmr_env%cs_atom_list)) THEN
+          DEALLOCATE(nmr_env%cs_atom_list)
+        END IF
         !op_p_ao
         IF(ASSOCIATED(nmr_env%op_p_ao)) THEN
           CALL deallocate_matrix_set(nmr_env%op_p_ao)
@@ -1049,12 +1127,30 @@ CONTAINS
           DEALLOCATE(nmr_env%chemical_shift,STAT=istat)
           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
         END IF
+        IF(ASSOCIATED(nmr_env%chemical_shift_loc)) THEN
+          DEALLOCATE(nmr_env%chemical_shift_loc,STAT=istat)
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+        END IF
         IF(ASSOCIATED(nmr_env%basisfun_center)) THEN
           DEALLOCATE(nmr_env%basisfun_center,STAT=istat)
           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
         END IF
         IF(ASSOCIATED(nmr_env%statetrueindex)) THEN
           DEALLOCATE(nmr_env%statetrueindex,STAT=istat)
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+        END IF
+
+        ! nics
+        IF(ASSOCIATED(nmr_env%r_nics)) THEN
+          DEALLOCATE(nmr_env%r_nics,STAT=istat)
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+        END IF
+        IF(ASSOCIATED(nmr_env%chemical_shift_nics)) THEN
+          DEALLOCATE(nmr_env%chemical_shift_nics,STAT=istat)
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+        END IF
+        IF(ASSOCIATED(nmr_env%chemical_shift_loc_nics)) THEN
+          DEALLOCATE(nmr_env%chemical_shift_loc_nics,STAT=istat)
           CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
         END IF
 

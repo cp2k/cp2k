@@ -400,11 +400,6 @@ CONTAINS
 
          IF(ASSOCIATED(xas_env%ostrength_sm)) THEN
             CALL deallocate_matrix_set(xas_env%ostrength_sm)
-!           DO j = 1,SIZE(xas_env%ostrength_sm,1)
-!              CALL deallocate_matrix(xas_env%ostrength_sm(j)%matrix)
-!           END DO 
-!           DEALLOCATE(xas_env%ostrength_sm,STAT=istat)
-!           CPPostcondition(istat==0,cp_warning_level,routineP,error,failure)
          END IF
          IF(ASSOCIATED(xas_env%qs_loc_env)) THEN
             CALL qs_loc_env_release(xas_env%qs_loc_env, error=error)

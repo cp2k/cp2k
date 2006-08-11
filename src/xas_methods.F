@@ -51,7 +51,9 @@ MODULE xas_methods
                                              cp_fm_set_submatrix,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
-  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+  USE cp_output_handling,              ONLY: cp_p_file,&
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
@@ -62,7 +64,8 @@ MODULE xas_methods
        xas_scf_default, xas_scf_general, &
        xas_scf_ot, xas_tddft, xas_tp_fh, xas_tp_hh, xas_tp_xfh, xas_tp_xhh, &
        xes_tp_val
-  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+  USE input_section_types,             ONLY: section_get_ival,&
+                                             section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
@@ -218,7 +221,7 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, op_sm, ostrength_sm
     TYPE(scf_control_type), POINTER          :: scf_control
-    TYPE(section_vals_type), POINTER         :: dft_section, scf_section, &
+    TYPE(section_vals_type), POINTER         :: dft_section, loc_section,scf_section, &
                                                 xas_section
     TYPE(xas_environment_type), POINTER      :: xas_env
 
@@ -245,10 +248,11 @@ CONTAINS
     NULLIFY(excvec_coeff, state_of_atom, qs_loc_env, cell)
     NULLIFY(occupation_numbers,my_localized_wfn_control,matrix_ks)
     NULLIFY(all_vectors,state_of_atom)
-    NULLIFY(dft_section, xas_section)
+    NULLIFY(dft_section, xas_section, loc_section)
     dft_section => section_vals_get_subs_vals(qs_env%input,"DFT",error=error)
     scf_section => section_vals_get_subs_vals(dft_section,"SCF",error=error)
     xas_section => section_vals_get_subs_vals(dft_section,"XAS",error=error)
+    loc_section => section_vals_get_subs_vals(xas_section,"LOCALIZE",error=error)
 
     output_unit = cp_print_key_unit_nr(logger,xas_section,"PRINT%PROGRAM_RUN_INFO",&
          extension=".Log",error=error)
@@ -376,7 +380,7 @@ CONTAINS
       CALL qs_loc_env_init(qs_loc_env,my_localized_wfn_control,&
            qs_env,onlyspin1=.TRUE.,error=error)
     END IF
-    CALL qs_loc_driver(qs_env,qs_loc_env,onlyspin1=.TRUE.,error=error)
+    CALL qs_loc_driver(qs_env,qs_loc_env,loc_section,onlyspin1=.TRUE.,error=error)
 
     CALL cls_assign_core_states(xas_control,xas_env,my_localized_wfn_control,&
          qs_env,error=error)
@@ -405,19 +409,16 @@ CONTAINS
             nao=nao, nmo=nmo)
        CALL cp_fm_to_fm(mo_coeff,groundstate_coeff(ispin)%matrix,nmo,1,1)
       END DO
-!      IF(xas_control%dipole_form==xas_dip_len) THEN
-!        ostrength_sm =>  qs_loc_env%op_sm_set
-!      ELSE
+
       ! Calculate the operator 
-        CALL get_xas_env(xas_env=xas_env,ostrength_sm=ostrength_sm)
-        DO i = 1,3
-          NULLIFY(op_sm(i)%matrix)
+      CALL get_xas_env(xas_env=xas_env,ostrength_sm=ostrength_sm)
+      DO i = 1,3
+        NULLIFY(op_sm(i)%matrix)
           op_sm(i)%matrix => ostrength_sm(i)%matrix
-        END DO
-        IF(xas_control%dipole_form==xas_dip_vel) THEN
+      END DO
+      IF(xas_control%dipole_form==xas_dip_vel) THEN
           CALL p_xyz_ao(op_sm,qs_env,error=error)
-        END IF
-!      END IF
+      END IF
 
       ! In td-dft case the oscillator strength comes from  linear response orbitals
     END IF
@@ -478,9 +479,18 @@ CONTAINS
             ch_method_flags = .TRUE.
           END IF
 
+          ! If the restart file for this atom exists, the mos and the 
+          ! occupation numbers are overwritten
+          ! It is necessar that the restart is for the same xas method
+          ! otherwise the number of electrons and the occupation numbers 
+          ! may not correspond
+!          IF(xas_restart) THEN
+!             CALL xas_read_restart(xas_env,qs_env,iatom,nspins,error=error)
+!          END IF
+
           CALL init_scf_run(scf_env=scf_env,qs_env=qs_env,&
                   globenv=globenv, scf_section=scf_section, error=error)
-          ! this is not standing optimally here, but for he time being retains functionality
+          ! this is not standing optimally here, but for the time being retains functionality
           CALL init_scf_loop(scf_env=scf_env,qs_env=qs_env,&
                   globenv=globenv, scf_section=scf_section, error=error)
 
@@ -521,27 +531,24 @@ CONTAINS
       iter = xas_iter_count*xas_control%each_step
 
       IF(converged) THEN
-        CALL cls_calculate_spectrum(xas_control,xas_env,qs_env,iatom,iter,error=error)
+        CALL cls_calculate_spectrum(xas_control,xas_env,qs_env,xas_section,&
+             iatom,iter,error=error)
       ELSE
         IF (output_unit>0) WRITE(UNIT=output_unit,FMT='(/,/,T10,A,I6)') &
               "SCF with core hole NOT converged for ATOM ", iatom
       END IF
 
       IF(.NOT.skip_scf) THEN
+        ! Write the restart file for this excitation set up
+!        CALL xas_write_restart(xas_env,mos,nspins,iatom,error=error)
         ! Reset the initial core orbitals. 
         ! The valence orbitals are taken from the last SCF,
         ! it should be a better initial guess
-        DO ispin = 1,nspins
-         CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff,&
-              nao=nao, nmo=nmo)
-!         This initial guess seems not to work, probably 
-!         there is an orthogonalization problem
-!         IF(converged) THEN
-!           CALL cp_fm_to_fm(groundstate_coeff(ispin)%matrix,mo_coeff,nexc_search,1,1)
-!         ELSE
-           CALL cp_fm_to_fm(groundstate_coeff(ispin)%matrix,mo_coeff,nmo,1,1)
-!         END IF
-        END DO
+         DO ispin = 1,nspins
+            CALL get_mo_set(mos(ispin)%mo_set, mo_coeff=mo_coeff,&
+                 nao=nao, nmo=nmo)
+            CALL cp_fm_to_fm(groundstate_coeff(ispin)%matrix,mo_coeff,nmo,1,1)
+         END DO
       END IF
 
     END DO
@@ -1000,11 +1007,13 @@ CONTAINS
 !!
 !!***  *********************************************************************
 
-  SUBROUTINE cls_calculate_spectrum(xas_control,xas_env,qs_env,iatom,iter,error)
+  SUBROUTINE cls_calculate_spectrum(xas_control,xas_env,qs_env,xas_section,&
+             iatom,iter,error)
 
     TYPE(xas_control_type)                   :: xas_control
     TYPE(xas_environment_type), POINTER      :: xas_env
     TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(section_vals_type), POINTER         :: xas_section
     INTEGER, INTENT(IN)                      :: iatom, iter
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -1097,8 +1106,9 @@ CONTAINS
              homo, iatom, iter, ionode, length=length, error=error)
       END IF
 
-      IF( xas_control%cubes) THEN
-        CALL xas_print_cubes(xas_control,qs_env,mos,all_vectors,iter,&
+      IF(BTEST(cp_print_key_should_output(logger%iter_info,xas_section,&
+        "PRINT%CLS_FUNCTION_CUBES",error=error),cp_p_file)) THEN
+        CALL xas_print_cubes(xas_control,qs_env,xas_section,mos,all_vectors,iter,&
              iatom,ionode,error=error)
       END IF
 
@@ -1139,7 +1149,8 @@ CONTAINS
 !!
 !!***  *********************************************************************
 
-  SUBROUTINE xas_write(xas_control, spectrum, estate, homo, iatom, iter, ionode,length, error)
+  SUBROUTINE xas_write(xas_control, spectrum, estate, homo, iatom, iter,&
+             ionode,length, error)
 
     TYPE(xas_control_type)                   :: xas_control
     REAL(dp), DIMENSION(:, :), POINTER       :: spectrum
@@ -1164,7 +1175,7 @@ CONTAINS
     IF(ionode) THEN
       ! check if file exists
       CALL xstring (xas_control%xas_rootfname, ia, ie )
-      filename = xas_control%xas_rootfname(ia:ie)//'_at_'//TRIM(ADJUSTL(cp_to_string(iatom)))
+      filename = xas_control%xas_rootfname(ia:ie)//'_at'//TRIM(ADJUSTL(cp_to_string(iatom)))
 
       INQUIRE (FILE=filename,EXIST=file_exists)
 
@@ -1252,10 +1263,12 @@ CONTAINS
 !!
 !!*** **********************************************************************
 
-  SUBROUTINE  xas_print_cubes(xas_control,qs_env,mos,all_vectors,iter,iatom,ionode,error)
+  SUBROUTINE  xas_print_cubes(xas_control,qs_env,xas_section,&
+              mos,all_vectors,iter,iatom,ionode,error)
 
     TYPE(xas_control_type)                   :: xas_control
     TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(section_vals_type), POINTER         :: xas_section
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(cp_fm_type), POINTER                :: all_vectors
@@ -1268,7 +1281,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(len=50)                        :: flag
-    INTEGER                                  :: homo, istat, istate0, nspins, &
+    INTEGER                                  :: homo, ia, ie, istat, istate0, nspins, &
                                                 nstates
     LOGICAL                                  :: failure
     REAL(dp), DIMENSION(:, :), POINTER       :: centers
@@ -1277,7 +1290,8 @@ CONTAINS
 
     nspins = SIZE(mos)
 
-    flag="at_"//TRIM(ADJUSTL(cp_to_string(iatom)))
+    CALL xstring (xas_control%xas_rootfname, ia, ie )
+    flag=xas_control%xas_rootfname(ia:ie)//"_at"//TRIM(ADJUSTL(cp_to_string(iatom)))
     flag=TRIM(flag)
 
     nstates = SIZE(xas_control%list_cubes,1)
@@ -1295,8 +1309,8 @@ CONTAINS
     IF(xas_control%emission) istate0 = 0
 
     CALL qs_print_cubes(qs_env,all_vectors,nstates,xas_control%list_cubes,&
-               centers,iter,1,ionode,flag,stride=xas_control%stride,&
-               state0=istate0,error=error)
+               centers,ionode,flag,stride=section_get_ival(xas_section,&
+               "PRINT%CLS_FUNCTION_CUBES%STRIDE"),state0=istate0,error=error)
 
     DEALLOCATE(centers,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)

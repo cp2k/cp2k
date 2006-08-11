@@ -22,9 +22,7 @@ MODULE cp_control_types
   USE kinds,                           ONLY: dp
   USE qs_loc_control,                  ONLY: localized_wfn_control_create,&
                                              localized_wfn_control_release,&
-                                             localized_wfn_control_type,&
-                                             set_loc_centers,&
-                                             set_loc_wfn_lists
+                                             localized_wfn_control_type
   USE xas_control,                     ONLY: xas_control_create,&
                                              xas_control_release,&
                                              xas_control_type
@@ -246,8 +244,6 @@ MODULE cp_control_types
             dft_control_release,&
             dft_control_create,&
             gapw_control_create,&
-            set_loc_wfn_lists,&
-            set_loc_centers,&
             mulliken_control_create,&
             mulliken_control_retain,&
             mulliken_control_release,&

@@ -316,7 +316,7 @@ CONTAINS
 
        ico_l=coset(lxa,lya,lza)
        jco_l=coset(lxb,(lyb+2),lzb)
-       pab_local(ico_l,jco_l)=pab_local(ico_l,jco_l) -         lya*pab(o1+ico,o2+jco)
+       pab_local(ico_l,jco_l)=pab_local(ico_l,jco_l) - 2.0_dp*zetb*pab(o1+ico,o2+jco)
 
        ico_l=coset(lxa,MAX(lya-1,0),lza)
        jco_l=coset(lxb,(lyb+1),lzb)

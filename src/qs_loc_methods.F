@@ -41,6 +41,10 @@ MODULE qs_loc_methods
        cp_fm_create, cp_fm_get_element, cp_fm_get_info, cp_fm_get_submatrix, &
        cp_fm_p_type, cp_fm_release, cp_fm_set_all, cp_fm_set_submatrix, &
        cp_fm_to_fm, cp_fm_type
+  USE cp_output_handling,              ONLY: cp_p_file,&
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
+                                             cp_print_key_unit_nr
   USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm,&
                                              cp_sm_fm_multiply
   USE input_constants,                 ONLY: do_loc_crazy,&
@@ -51,6 +55,8 @@ MODULE qs_loc_methods
                                              op_loc_boys,&
                                              op_loc_pipek,&
                                              state_loc_list
+  USE input_section_types,             ONLY: section_get_ival,&
+                                             section_vals_type
   USE kinds,                           ONLY: dp,&
                                              default_string_length,&
                                              default_path_length
@@ -111,7 +117,7 @@ CONTAINS
 !!****f* qs_loc_methods/centers_spreads_berry
 
   SUBROUTINE centers_spreads_berry( localized_wfn_control, zij, nmoloc, &
-                                    cell, weights, ispin, ionode, error)
+                                    cell, weights, ispin, loc_section, error)
 
     TYPE(localized_wfn_control_type), &
       POINTER                                :: localized_wfn_control
@@ -120,29 +126,51 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     REAL(dp), DIMENSION(:)                   :: weights
     INTEGER, INTENT(IN)                      :: ispin
-    LOGICAL, INTENT(IN)                      :: ionode
+    TYPE(section_vals_type), POINTER         :: loc_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'centers_spreads_berry', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(len=default_path_length)       :: filename1, filename2
+    CHARACTER(len=default_path_length)       :: file_tmp
     COMPLEX(KIND=dp)                         :: almost_determinant, z
     INTEGER                                  :: idir, istate, iter, nstates, &
-                                                out_c, out_s, scr
-    LOGICAL                                  :: failure, file_exists
+                                                unit_out_c, unit_out_s, output_unit
+    LOGICAL                                  :: failure, ionode
     REAL(dp), DIMENSION(3)                   :: c, cpbc,spreadtot
     REAL(dp), DIMENSION(:, :), POINTER       :: centers
     REAL(KIND=dp)                            :: imagpart, realpart
     TYPE(cp_cfm_type), POINTER               :: complexresult
+    TYPE(cp_logger_type), POINTER            :: logger
 
+
+     NULLIFY(centers,complexresult,logger) 
      failure = .FALSE.
-     out_c = 21
-     out_s = 22
-!  It shoud be the step at which the property localization is calculated
-     file_exists = .FALSE.
- 
+     logger => cp_error_get_logger(error)
+     ionode = logger%para_env%mepos==logger%para_env%source
+     IF (ionode) THEN
+        output_unit= cp_logger_get_default_unit_nr(logger)
+     ELSE
+        output_unit = -1
+     END IF
+
+     IF (BTEST(cp_print_key_should_output(logger%iter_info,loc_section,&
+               "PRINT%WANNIER_CENTERS",error=error),cp_p_file)) THEN
+       file_tmp = "_centers_s"//TRIM(ADJUSTL(cp_to_string(ispin)))
+       unit_out_c = cp_print_key_unit_nr(logger,loc_section,"PRINT%WANNIER_CENTERS",&
+                    middle_name=file_tmp, extension=".data",log_filename=.FALSE.,error=error)
+       IF(ionode) WRITE(unit_out_c,'(i6,/,i10)') nmoloc, iter
+     END IF
+     IF (BTEST(cp_print_key_should_output(logger%iter_info,loc_section,&
+               "PRINT%WANNIER_SPREADS",error=error),cp_p_file)) THEN
+       file_tmp = "_spreads_s"//TRIM(ADJUSTL(cp_to_string(ispin)))
+       unit_out_s = cp_print_key_unit_nr(logger,loc_section,"PRINT%WANNIER_SPREADS",&
+                  middle_name=file_tmp,extension=".data",log_filename=.FALSE.,error=error)
+       IF(ionode) WRITE(unit_out_s,'(i6,/,i10)') nmoloc, iter
+     END IF
+
+!  It should be the step at which the property localization is calculated
 
      CALL  cp_fm_get_info ( zij ( 1, 1 ) % matrix, nrow_global = nstates )
      CPPrecondition(nstates>=nmoloc,cp_failure_level,routineP,error,failure)
@@ -153,70 +181,28 @@ CONTAINS
 
      iter = localized_wfn_control%iter_count
 
-     IF(ionode) THEN
-       ! check if file exists
-       filename1 = localized_wfn_control%centers_file_name(ispin)
-       filename2 = localized_wfn_control%spreads_file_name(ispin)
-       INQUIRE (FILE=filename1,EXIST=file_exists)
-
-
-       ! open file
-       IF(file_exists) THEN
-         CALL open_file(file_name=TRIM(filename1),&
-                     file_action="READWRITE",&
-                     file_form="FORMATTED",&
-                     file_position="APPEND",&
-                     file_status="OLD",&
-                     unit_number=out_c)  
-         WRITE(out_c,'(I8)') nmoloc
-         WRITE(out_c,'(A,I10)') " Iteration Step ", iter
-         
-         CALL open_file(file_name=TRIM(filename2),&
-                     file_action="READWRITE",&
-                     file_form="FORMATTED",&
-                     file_position="APPEND",&
-                     file_status="OLD",&
-                     unit_number=out_s)
-         WRITE(out_s,'(A,I10)') " Iteration Step ", iter
-       ELSE
-         CALL open_file(file_name=TRIM(filename1),&
-                     file_action="READWRITE",&
-                     file_form="FORMATTED",&
-                     file_position="REWIND",&
-                     file_status="REPLACE",&
-                     unit_number=out_c)
-         WRITE(out_c,'(I8)') nmoloc
-         WRITE(out_c,'(A,I10)') " Iteration Step ", iter
-         CALL open_file(file_name=TRIM(filename2),&
-                     file_action="READWRITE",&
-                     file_form="FORMATTED",&
-                     file_position="REWIND",&
-                     file_status="REPLACE",&
-                     unit_number=out_s)
-         WRITE(out_s,'(A,I10)') " Iteration Step ", iter
-
-       END IF 
-     END IF
 
      DO istate=1,nmoloc
        DO idir=1,3
          CALL cp_fm_get_element(zij(1,idir)%matrix,istate,istate,realpart)
          CALL cp_fm_get_element(zij(2,idir)%matrix,istate,istate,imagpart)
          z=CMPLX(realpart,imagpart,dp)
-!         centers (idir, istate )=( cell % hmat ( idir, idir ) / twopi ) * AIMAG ( LOG ( z ) )
          centers (idir+3, istate )=SQRT( -weights ( idir ) * 2.0_dp * LOG ( ABS ( Z ) ) ) / twopi
           c(idir) = ( cell % hmat ( idir, idir ) / twopi ) * AIMAG ( LOG ( z ) )
       ENDDO
       cpbc = pbc(c,cell)
       centers (1:3, istate ) = cpbc(1:3)
-      IF (ionode) THEN
-          WRITE(out_c,'(A,3F16.8)') "He ", angstrom*centers(1:3, istate)
-          WRITE(out_s,'(I6,3F16.8)') istate, angstrom*centers(4:6,istate)
+      IF (BTEST(cp_print_key_should_output(logger%iter_info,loc_section,&
+               "PRINT%WANNIER_CENTERS",error=error),cp_p_file) .AND. ionode) THEN
+          WRITE(unit_out_c,'(A,3F16.8)') "He ", angstrom*centers(1:3, istate)
+      END IF
+      IF (BTEST(cp_print_key_should_output(logger%iter_info,loc_section,&
+               "PRINT%WANNIER_SPREADS",error=error),cp_p_file) .AND. ionode) THEN
+          WRITE(unit_out_s,'(I6,3F16.8)') istate, angstrom*centers(4:6,istate)
       END IF
      ENDDO
 
 ! now, find the spread of the orbitals
-! one should consider whether this is really useful
      CALL cp_cfm_create ( complexresult, zij ( 1, 1 ) % matrix % matrix_struct )
 
      DO idir=1,3
@@ -229,16 +215,24 @@ CONTAINS
     CALL cp_cfm_release(complexresult)
 
      IF (ionode) THEN
-        scr=cp_logger_get_default_unit_nr()
           
-       WRITE(scr,'(A,3F16.10)') " Total Spread of the selected mos (Berry) x,y,z ",&
+       WRITE(output_unit,'(A,3F16.10)') " Total Spread of the selected mos (Berry) x,y,z ",&
              spreadtot(1:3)
-       WRITE(out_s,'(A,3F16.10)')  " Total ",  spreadtot(1:3) 
-
-       CLOSE(out_c)
-       CLOSE(out_s)
+       IF (BTEST(cp_print_key_should_output(logger%iter_info,loc_section,&
+               "PRINT%WANNIER_SPREADS",error=error),cp_p_file)) &
+                WRITE(unit_out_s,'(A,3F16.10)')  " Total ",  spreadtot(1:3) 
      ENDIF
 
+     IF(BTEST(cp_print_key_should_output(logger%iter_info,loc_section,&
+               "PRINT%WANNIER_SPREADS",error=error),cp_p_file)) THEN
+        CALL cp_print_key_finished_output(unit_out_c,logger,loc_section,&
+               "PRINT%WANNIER_CENTERS",error=error)
+     END IF
+     IF (BTEST(cp_print_key_should_output(logger%iter_info,loc_section,&
+               "PRINT%WANNIER_SPREADS",error=error),cp_p_file)) THEN
+       CALL cp_print_key_finished_output(unit_out_s,logger,loc_section,&
+               "PRINT%WANNIER_SPREADS",error=error)
+     END IF
   END SUBROUTINE centers_spreads_berry
 
 !******************************************************************************
@@ -282,7 +276,7 @@ CONTAINS
 !!*** **********************************************************************
 
   SUBROUTINE optimize_loc_berry( method, localized_wfn_control, vectors, op_sm_set, &
-                                 zij_fm_set, cell, weights,  ispin, ionode, error)
+                                 zij_fm_set, cell, weights,  ispin, loc_section, error)
 
     INTEGER, INTENT(IN)                      :: method
     TYPE(localized_wfn_control_type), &
@@ -295,7 +289,7 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     REAL(dp), DIMENSION(:)                   :: weights
     INTEGER, INTENT(IN)                      :: ispin
-    LOGICAL, INTENT(IN)                      :: ionode
+    TYPE(section_vals_type), POINTER         :: loc_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -303,11 +297,21 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, j, nao, nmoloc, &
-                                                scr, sweeps
-    LOGICAL                                  :: my_ionode
+                                                output_unit, sweeps
+    LOGICAL                                  :: ionode
     TYPE(cp_fm_type), POINTER                :: opvec
+    TYPE(cp_logger_type), POINTER            :: logger
+
 
     CALL timeset(routineP,"I",'',handle)
+
+    logger => cp_error_get_logger(error)
+    ionode = logger%para_env%mepos==logger%para_env%source
+    IF (ionode) THEN
+       output_unit= cp_logger_get_default_unit_nr(logger)
+    ELSE
+       output_unit = -1
+    END IF
 
     NULLIFY(opvec)
 
@@ -341,22 +345,18 @@ CONTAINS
        CALL direct_mini( weights, zij_fm_set, vectors, sweeps ) 
     CASE ( do_loc_none ) 
       IF (ionode) THEN
-          scr=cp_logger_get_default_unit_nr()
-          WRITE(scr,'(A,I6,A)') " No MOS localization applied "
+          WRITE(output_unit,'(A,I6,A)') " No MOS localization applied "
       ENDIF
     CASE DEFAULT
        CALL stop_program("qs_localization","unknown localization method")
     END SELECT
     IF (ionode) THEN
-       scr=cp_logger_get_default_unit_nr()
-       WRITE(scr,'(T15,A,I3,A,I6,A)') " Localization  for spin ",ispin ,&
+       WRITE(output_unit,'(T15,A,I3,A,I6,A)') " Localization  for spin ",ispin ,&
             " converged in ",sweeps," iterations"
     ENDIF
 
-    my_ionode = ionode .AND. localized_wfn_control%print_centers
-
     CALL centers_spreads_berry( localized_wfn_control, zij_fm_set, nmoloc, &
-           cell, weights, ispin, ionode=my_ionode, error=error ) 
+           cell, weights, ispin, loc_section, error=error ) 
 
     CALL cp_fm_release(opvec)
  
@@ -367,7 +367,7 @@ CONTAINS
 !******************************************************************************
 
   SUBROUTINE  optimize_loc_pipek(qs_env, method, localized_wfn_control,&
-              vectors, zij_fm_set,  ispin, ionode, error)
+              vectors, zij_fm_set,  ispin, loc_section, error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     INTEGER, INTENT(IN)                      :: method
@@ -377,7 +377,7 @@ CONTAINS
     TYPE(cp_fm_p_type), DIMENSION(:, :), &
       POINTER                                :: zij_fm_set
     INTEGER, INTENT(IN)                      :: ispin
-    LOGICAL, INTENT(IN)                      :: ionode
+    TYPE(section_vals_type), POINTER         :: loc_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -386,12 +386,13 @@ CONTAINS
 
     INTEGER                                  :: handle, iatom, isgf, istat, &
                                                 ldz, nao, natom, ncol, &
-                                                nmoloc, scr, sweeps
+                                                nmoloc, output_unit, sweeps
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf, last_sgf, nsgf
-    LOGICAL                                  :: failure, my_ionode
+    LOGICAL                                  :: failure, ionode
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
       POINTER                                :: ao_ao_fm_pools
     TYPE(cp_fm_type), POINTER                :: opvec, ov_fm
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(real_matrix_p_type), DIMENSION(:), &
@@ -402,8 +403,15 @@ CONTAINS
     CALL timeset(routineP,"I",'',handle)
 
     failure = .FALSE. 
-    my_ionode = .FALSE.
     
+    logger => cp_error_get_logger(error)
+    ionode = logger%para_env%mepos==logger%para_env%source
+    IF (ionode) THEN
+       output_unit= cp_logger_get_default_unit_nr(logger)
+    ELSE
+       output_unit = -1
+    END IF
+
     NULLIFY(particle_set)
     ! get rows and cols of the input
     CALL cp_fm_get_info(vectors,nrow_global=nao,ncol_global=nmoloc)
@@ -459,21 +467,18 @@ CONTAINS
 !       CALL direct_mini_pipek     ( zij_fm_set, vectors, sweeps ) 
     CASE ( do_loc_none ) 
       IF (ionode) THEN
-          scr=cp_logger_get_default_unit_nr()
-          WRITE(scr,'(A,I6,A)') " No MOS localization applied "
+          WRITE(output_unit,'(A,I6,A)') " No MOS localization applied "
       ENDIF
     CASE DEFAULT
        CALL stop_program("qs_localization","unknown localization method")
     END SELECT
     IF (ionode) THEN
-       scr=cp_logger_get_default_unit_nr()
-       WRITE(scr,'(A,I3,A,I6,A)') " Localization  for spin ",ispin ,&
+       WRITE(output_unit,'(A,I3,A,I6,A)') " Localization  for spin ",ispin ,&
             " converged in ",sweeps," iterations"
     ENDIF
 
-    my_ionode = ionode .AND. localized_wfn_control%print_centers
     CALL centers_spreads_pipek( localized_wfn_control, zij_fm_set,&
-           particle_set, ispin, ionode=my_ionode, error=error ) 
+           particle_set, ispin, loc_section, error=error ) 
 
 
     DEALLOCATE (first_sgf, last_sgf, nsgf, STAT=istat)
@@ -508,7 +513,8 @@ CONTAINS
 !!   SOURCE
 !!*** **********************************************************************
 
-  SUBROUTINE centers_spreads_pipek(localized_wfn_control,zij_fm_set,particle_set,ispin,ionode,error)
+  SUBROUTINE centers_spreads_pipek(localized_wfn_control,zij_fm_set,&
+             particle_set,ispin,loc_section,error)
 
     TYPE(localized_wfn_control_type), &
       POINTER                                :: localized_wfn_control
@@ -517,7 +523,7 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     INTEGER, INTENT(IN)                      :: ispin
-    LOGICAL, INTENT(IN)                      :: ionode
+    TYPE(section_vals_type), POINTER         :: loc_section  
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -526,15 +532,26 @@ CONTAINS
 
     CHARACTER(len=default_path_length)       :: filename1, filename2
     INTEGER                                  :: iatom, istat, istate, iter, &
-                                                natom, nstate, out_c, out_s
+                                                natom, nstate, out_c, out_s, output_unit
     INTEGER, DIMENSION(:), POINTER           :: atom_of_state
-    LOGICAL                                  :: failure, file_exists
+    LOGICAL                                  :: failure, ionode, file_exists
     REAL(dp)                                 :: r(3)
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: Qii, ziimax
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: diag
     REAL(dp), DIMENSION(:, :), POINTER       :: centers
+    TYPE(cp_logger_type), POINTER            :: logger
 
-    failure =.FALSE. 
+
+    NULLIFY(centers,logger) 
+    failure = .FALSE.
+    logger => cp_error_get_logger(error)
+    ionode = logger%para_env%mepos==logger%para_env%source
+    IF (ionode) THEN
+        output_unit= cp_logger_get_default_unit_nr(logger)
+    ELSE
+        output_unit = -1
+    END IF
+
     file_exists = .FALSE.
 
     CALL cp_fm_get_info ( zij_fm_set(1,1)%matrix, nrow_global = nstate)
@@ -657,10 +674,11 @@ CONTAINS
 !!
 !!*** **********************************************************************
 
-  SUBROUTINE qs_loc_driver(qs_env,qs_loc_env,onlyspin1,error)
+  SUBROUTINE qs_loc_driver(qs_env,qs_loc_env,loc_section,onlyspin1,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
+    TYPE(section_vals_type), POINTER         :: loc_section
     LOGICAL, INTENT(IN), OPTIONAL            :: onlyspin1
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -669,8 +687,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, imo, imoloc, ispin, istat, &
-                                                istate, iter, lb, loc_method, &
-                                                my_nspins, nao, nmosub, ub
+                                                istate, iter, j, jstate, lb, loc_method, &
+                                                my_nspins, nao, ncubes, nmo, nmosub, ub
     INTEGER, DIMENSION(:), POINTER           :: state_list
     LOGICAL                                  :: failure, ionode, my_one_spin
     REAL(dp), DIMENSION(6)                   :: weights
@@ -719,17 +737,17 @@ CONTAINS
        CASE(op_loc_berry)
          CALL optimize_loc_berry(loc_method, localized_wfn_control, &
               moloc_coeff(ispin)%matrix, op_sm_set, &
-              op_fm_set, cell, weights, ispin, ionode, error=error)
+              op_fm_set, cell, weights, ispin, loc_section, error=error)
  
        CASE(op_loc_boys) 
 
        CASE(op_loc_pipek)
          CALL  optimize_loc_pipek(qs_env, loc_method, localized_wfn_control,&
-               moloc_coeff(ispin)%matrix, op_fm_set,  ispin, ionode, error=error)
+               moloc_coeff(ispin)%matrix, op_fm_set,  ispin, loc_section, error=error)
        END SELECT 
 
        ! give back the localized orbitals
-       CALL get_mo_set(mo_set=mos(ispin)%mo_set, nao=nao, mo_coeff=mo_coeff)
+       CALL get_mo_set(mo_set=mos(ispin)%mo_set, nao=nao, mo_coeff=mo_coeff, nmo=nmo)
 
        lb = localized_wfn_control%lu_bound_states(1,ispin)
        ub = localized_wfn_control%lu_bound_states(2,ispin)
@@ -763,23 +781,29 @@ CONTAINS
        ! Write cube files if required
        IF(localized_wfn_control%print_cubes) THEN
 
-         centers => localized_wfn_control%centers_set(ispin)%array
          iter = localized_wfn_control%iter_count*localized_wfn_control%each_step
-         ALLOCATE(state_list(localized_wfn_control%nloc_states(ispin)),STAT=istat)
+         ncubes = SIZE(localized_wfn_control%list_cubes,1)
+         ncubes = MIN(ncubes,nmo)
+         ALLOCATE(centers(6,ncubes),STAT=istat)
          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-         DO istate = 1,localized_wfn_control%nloc_states(ispin)
-           IF(localized_wfn_control%set_of_states == state_loc_list)THEN 
-               state_list(istate) = localized_wfn_control%loc_states(istate)
-           ELSE
-               state_list(istate) = localized_wfn_control%lu_bound_states(1,ispin)+istate-1
-           END IF
+         DO i = 1, ncubes
+           istate = localized_wfn_control%list_cubes(i)
+           DO j = 1,localized_wfn_control%nloc_states(ispin)
+             jstate = localized_wfn_control%loc_states(j)
+             IF(istate==jstate) THEN
+               centers(1:6,i) = localized_wfn_control%centers_set(ispin)%array(1:6,j)
+               EXIT
+             ENDIF
+             centers(1:6,i) = 0.0_dp
+           END DO
          
-         END DO 
+         END DO ! ncubes 
          CALL qs_print_cubes(qs_env,moloc_coeff(ispin)%matrix,&
-              localized_wfn_control%nloc_states(ispin),state_list,&
-              centers,iter,ispin,ionode,"loc",error=error)
+              ncubes,localized_wfn_control%list_cubes,&
+              centers,ionode,"loc",stride=section_get_ival(loc_section,&
+              "PRINT%WANNIER_CUBES%STRIDE"),iter=iter,ispin=ispin,error=error)
 
-         DEALLOCATE(state_list,STAT=istat)
+         DEALLOCATE(centers,STAT=istat)
          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        END IF
        
@@ -819,16 +843,16 @@ CONTAINS
 !!*** **********************************************************************
 
   SUBROUTINE qs_print_cubes(qs_env,mo_coeff,nstates,state_list,centers,&
-             iter,ispin,ionode,root,stride,state0,error)
+             ionode,root,iter,ispin,idir,stride,state0,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     INTEGER, INTENT(IN)                      :: nstates
     INTEGER, DIMENSION(:), POINTER           :: state_list
     REAL(dp), DIMENSION(:, :), POINTER       :: centers
-    INTEGER, INTENT(IN)                      :: iter, ispin
     LOGICAL, INTENT(IN)                      :: ionode
     CHARACTER(LEN=*)                         :: root
+    INTEGER, INTENT(IN), OPTIONAL            :: iter, ispin, idir
     INTEGER, OPTIONAL                        :: stride, state0
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -836,11 +860,14 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_print_cubes', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=default_path_length)       :: filename
+    CHARACTER(LEN=default_path_length)       :: file_tmp,filename
     CHARACTER(LEN=default_string_length)     :: title
+    CHARACTER, DIMENSION(3)                  :: labels
+    CHARACTER                                :: label
+    DATA labels /'x','y','z'/
     INTEGER                                  :: ia, ie, istate, ivector, &
-                                                my_state0, my_stride
-    LOGICAL                                  :: failure
+                                                my_ispin, my_state0, my_stride
+    LOGICAL                                  :: add_iter, add_idir, add_spin, failure
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
@@ -855,6 +882,7 @@ CONTAINS
     NULLIFY(auxbas_pw_pool, pw_env)
     CALL get_qs_env(qs_env=qs_env,pw_env=pw_env)
     CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
+
     CALL pw_pool_init_coeff(auxbas_pw_pool,wf_r,&
          use_data = REALDATA3D,&
          in_space = REALSPACE, error=error)
@@ -866,10 +894,22 @@ CONTAINS
     IF(PRESENT(state0)) my_state0 = state0
     my_stride = 2
     IF(PRESENT(stride)) my_stride = stride
+    add_iter = .FALSE.
+    IF(PRESENT(iter)) add_iter=.TRUE.
+    add_spin = .FALSE.
+    my_ispin = 1
+    IF(PRESENT(ispin)) THEN
+      add_spin=.TRUE.
+      my_ispin=ispin
+    END IF
+    add_idir = .FALSE.
+    IF(PRESENT(idir)) THEN
+      add_idir = .TRUE.
+      label=labels(idir)
+    END IF
 
     DO istate = 1,nstates
       ivector = state_list(istate) - my_state0
-
       CALL get_qs_env(qs_env=qs_env,&
                           atomic_kind_set=atomic_kind_set,&
                           cell=cell,&
@@ -878,17 +918,38 @@ CONTAINS
                           pw_env=pw_env)
 
       CALL calculate_wavefunction(mo_coeff, ivector,&
-                wf_r, wf_g, atomic_kind_set,cell,dft_control,particle_set, &
-                   pw_env, error=error)
+           wf_r, wf_g, atomic_kind_set,cell,dft_control,particle_set, &
+           pw_env, error=error)
 
       ivector = state_list(istate)
       CALL xstring (root,ia,ie)
-      filename=root(ia:ie)//"_w_"//TRIM(ADJUSTL(cp_to_string(ivector)))//&
-               "_s"//TRIM(ADJUSTL(cp_to_string(ispin)))//"_i"//TRIM(ADJUSTL(cp_to_string(iter)))//&
-                   ".cube"
+      IF(add_idir) THEN
+         filename=root(ia:ie)//"_"//label//"_w"//TRIM(ADJUSTL(cp_to_string(ivector)))
+      ELSE
+         filename=root(ia:ie)//"_w"//TRIM(ADJUSTL(cp_to_string(ivector)))
+      END IF
+      IF(add_spin) THEN
+         file_tmp=filename
+         CALL xstring (file_tmp,ia,ie)
+         filename=file_tmp(ia:ie)//"_s"//TRIM(ADJUSTL(cp_to_string(ispin)))
+      END IF
+      IF(add_iter) THEN
+         file_tmp=filename
+         CALL xstring (file_tmp,ia,ie)
+         filename=file_tmp(ia:ie)//"_i"//TRIM(ADJUSTL(cp_to_string(iter)))
+      END IF
+      file_tmp=filename
+      CALL xstring (file_tmp,ia,ie)
+      filename=file_tmp(ia:ie)//".cube"
+
       IF (ionode) OPEN(UNIT=21,FILE=filename)
-      WRITE(title,'(A7,I5.5,A1,I1.1,A1,6G10.4)') "WFN ",ivector,"_s",ispin," ",&
-            centers(1:3,istate)*angstrom, centers(4:6,istate)*angstrom
+      IF(SIZE(centers,1)==6) THEN
+        WRITE(title,'(A7,I5.5,A1,I1.1,A1,6G10.4)') "WFN ",ivector,"_s",my_ispin," ",&
+              centers(1:3,istate)*angstrom, centers(4:6,istate)*angstrom
+      ELSE
+        WRITE(title,'(A7,I5.5,A1,I1.1,A1,3G10.4)') "WFN ",ivector,"_s",my_ispin," ",&
+              centers(1:3,istate)*angstrom
+      END IF
       CALL rs_pw_to_cube(wf_r%pw,21,ionode,title,stride=my_stride,error=error)
       IF (ionode) CLOSE(21)
     END DO 

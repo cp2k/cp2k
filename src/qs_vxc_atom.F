@@ -721,43 +721,37 @@ CONTAINS
                drho_h(1,ia,ir,ispin) = drho_h(1,ia,ir,ispin) + & 
                                        dr_h(ispin)%r_coef(ir,iso)*&
                                        harmonics%a(1,ia)*harmonics%slm(ia,iso) +&
-!                                       urad*r_h_d(1,ispin)%r_coef(ir,iso)*&
                                        r_h_d(1,ispin)%r_coef(ir,iso)*&
                                        harmonics%slm(ia,iso)
 
                drho_h(2,ia,ir,ispin) = drho_h(2,ia,ir,ispin) + & 
                                        dr_h(ispin)%r_coef(ir,iso)*&
                                        harmonics%a(2,ia)*harmonics%slm(ia,iso) +&
- !                                      urad*r_h_d(2,ispin)%r_coef(ir,iso)*&
-                                      r_h_d(2,ispin)%r_coef(ir,iso)*&
+                                       r_h_d(2,ispin)%r_coef(ir,iso)*&
                                        harmonics%slm(ia,iso)
 
                drho_h(3,ia,ir,ispin) = drho_h(3,ia,ir,ispin) + & 
                                        dr_h(ispin)%r_coef(ir,iso)*&
                                        harmonics%a(3,ia)*harmonics%slm(ia,iso) +&
- !                                      urad*r_h_d(3,ispin)%r_coef(ir,iso)*&
-                                      r_h_d(3,ispin)%r_coef(ir,iso)*&
+                                       r_h_d(3,ispin)%r_coef(ir,iso)*&
                                        harmonics%slm(ia,iso)
 
 !              components of the gradient of rho1 soft 
                drho_s(1,ia,ir,ispin) = drho_s(1,ia,ir,ispin) + & 
                                        dr_s(ispin)%r_coef(ir,iso)*&
                                        harmonics%a(1,ia)*harmonics%slm(ia,iso) +&
- !                                      urad*r_s_d(1,ispin)%r_coef(ir,iso)*&
-                                      r_s_d(1,ispin)%r_coef(ir,iso)*&
+                                       r_s_d(1,ispin)%r_coef(ir,iso)*&
                                        harmonics%slm(ia,iso)
 
                drho_s(2,ia,ir,ispin) = drho_s(2,ia,ir,ispin) + & 
                                        dr_s(ispin)%r_coef(ir,iso)*&
                                        harmonics%a(2,ia)*harmonics%slm(ia,iso) +&
- !                                      urad*r_s_d(2,ispin)%r_coef(ir,iso)*&
-                                      r_s_d(2,ispin)%r_coef(ir,iso)*&
+                                       r_s_d(2,ispin)%r_coef(ir,iso)*&
                                        harmonics%slm(ia,iso)
 
                drho_s(3,ia,ir,ispin) = drho_s(3,ia,ir,ispin) + & 
                                        dr_s(ispin)%r_coef(ir,iso)*&
                                        harmonics%a(3,ia)*harmonics%slm(ia,iso) +&
- !                                      urad*r_s_d(3,ispin)%r_coef(ir,iso)*&
                                       r_s_d(3,ispin)%r_coef(ir,iso)*&
                                        harmonics%slm(ia,iso)
 

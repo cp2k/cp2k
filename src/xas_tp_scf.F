@@ -731,12 +731,13 @@ CONTAINS
     TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_h, matrix_ks, matrix_s
+    TYPE(section_vals_type), POINTER         :: input, loc_section
 
     CALL timeset(routineN,"I"," ",handle)
 
     NULLIFY(atomic_kind,dft_control,matrix_h,matrix_s,matrix_ks)
     NULLIFY(cell,particle_set,preconditioner,vecbuffer,vecbuffer2)
-    NULLIFY(dft_control,mos,mo_coeff,eigenvalues)
+    NULLIFY(dft_control,input,loc_section,mos,mo_coeff,eigenvalues)
     NULLIFY(centers_wfn,mykind_of_kind,qs_loc_env,localized_wfn_control,stogto_overlap)
     NULLIFY(all_evals,all_vectors,excvec_coeff,excvec_overlap,uno_evals)
 
@@ -745,7 +746,8 @@ CONTAINS
     CPPrecondition(ASSOCIATED(xas_env),cp_failure_level,routineP,error,failure)
 
     CALL get_qs_env(qs_env=qs_env,&
-         cell=cell,dft_control=dft_control,matrix_h=matrix_h,&
+         cell=cell,dft_control=dft_control,&
+         input=input,matrix_h=matrix_h,&
          matrix_ks=matrix_ks, matrix_s=matrix_s,mos=mos,&
          particle_set=particle_set)
 
@@ -781,7 +783,8 @@ CONTAINS
             stogto_overlap=stogto_overlap)
       CALL get_qs_loc_env(qs_loc_env=qs_loc_env,&
             localized_wfn_control=localized_wfn_control)
-      CALL qs_loc_driver(qs_env,qs_loc_env,onlyspin1=.TRUE.,error=error)
+      loc_section => section_vals_get_subs_vals(input,"DFT%XAS%LOCALIZE",error=error)
+      CALL qs_loc_driver(qs_env,qs_loc_env,loc_section,onlyspin1=.TRUE.,error=error)
       ra(1:3) = particle_set(iatom)%r(1:3)
 
       NULLIFY(atomic_kind)

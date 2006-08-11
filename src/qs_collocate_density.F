@@ -1571,30 +1571,12 @@ CONTAINS
     ENDIF
 
 
-!    IF (PRESENT(compute_tau)) THEN
-!       my_compute_tau=compute_tau
-!    ELSE
-!       my_compute_tau=.FALSE.
-!    ENDIF
-
     IF (PRESENT(collocate_rho0).AND.PRESENT(rpgf0_s)) THEN
        my_collocate_rho0=collocate_rho0
     ELSE
        my_collocate_rho0=.FALSE.
     END IF
     
-!    IF (PRESENT(compute_adb_m_dab)) THEN
-!       my_compute_adb_m_dab=compute_adb_m_dab
-!    ELSE
-!       my_compute_adb_m_dab=.FALSE.
-!    ENDIF
-
-!    IF (PRESENT(compute_ardb_m_darb)) THEN
-!       my_compute_ardb_m_darb=compute_ardb_m_darb
-!    ELSE
-!       my_compute_ardb_m_darb=.FALSE.
-!    ENDIF
-
     zetp      = zeta + zetb
     f         = zetb/zetp
     rap(:)    = f*rab(:)
@@ -1606,7 +1588,8 @@ CONTAINS
        cutoff    = 1.0_dp
        prefactor = EXP(-zeta*f*rab2)
        radius=exp_radius_very_extended(la_min,la_max,lb_min,lb_max,ra=ra,rb=rb,rp=rp,&
-                                       zetp=zetp,eps=eps_rho_rspace,prefactor=prefactor,cutoff=cutoff)
+                                       zetp=zetp,eps=eps_rho_rspace,&
+                                       prefactor=prefactor,cutoff=cutoff)
        prefactor = scale*EXP(-zeta*f*rab2)
     ELSE IF (my_collocate_rho0) THEN
        cutoff    = 0.0_dp
@@ -1680,7 +1663,6 @@ CONTAINS
            DO lyb=0,lb_max-lxb
               DO lza=MAX(la_min-lxa-lya,0),la_max-lxa-lya
               DO lzb=MAX(lb_min-lxb-lyb,0),lb_max-lxb-lyb
-
                  ! this element of pab results in 4 elements of pab_local
                  CALL prepare_adb_m_dab(pab_local,pab,idir,&
                       lxa,lya,lza,lxb,lyb,lzb,o1,o2,zeta,zetb)
@@ -1690,6 +1672,8 @@ CONTAINS
            END DO
         END DO
         END DO
+        o1_local=0
+        o2_local=0
     CASE(FUNC_ARDBmDARB)
         CPPrecondition(PRESENT(idir),cp_failure_level,routineP,error,failure)
         CPPrecondition(PRESENT(ir),cp_failure_level,routineP,error,failure)
@@ -1722,7 +1706,8 @@ CONTAINS
            END DO
         END DO
         END DO
-
+        o1_local=0
+        o2_local=0
     CASE(FUNC_AB)
         la_max_local=la_max
         la_min_local=la_min
@@ -1733,7 +1718,7 @@ CONTAINS
         o2_local=o2
     CASE DEFAULT
         CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
-    END SELECT!ENDIF
+    END SELECT
 
     coef_max=la_max_local+lb_max_local+1
    

@@ -211,6 +211,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=80)                        :: ext, filename
+    CHARACTER                                :: label
+    CHARACTER, DIMENSION(3)                  :: labels
+    DATA labels /'x','y','z'/
     INTEGER :: handle, homo, i_B, iao, iatom, idir, idir2, idir3, ii_B, &
       iii_B, ispin, istat, istate, nao, natom, nmo, nspins, unit_nr
     LOGICAL                                  :: failure, gapw, ionode, uni_occ
@@ -223,7 +226,8 @@ CONTAINS
     TYPE(coeff_type)                         :: pw_gspace_work, &
                                                 shift_pw_rspace
     TYPE(coeff_type), DIMENSION(:), POINTER  :: shift_pw_gspace
-    TYPE(coeff_type), POINTER                :: rho_gspace, rho_rspace, wf_r
+    TYPE(coeff_type), POINTER                :: rho_gspace, rho_rspace
+    TYPE(coeff_type)                         :: wf_r
     TYPE(cp_2d_r_p_type), DIMENSION(3)       :: vecbuf
     TYPE(cp_fm_struct_type), POINTER         :: tmp_fm_struct
     TYPE(cp_fm_type), POINTER                :: fm_work1, mo_coeff, &
@@ -247,7 +251,8 @@ CONTAINS
                                                 density_matrix_iii
     TYPE(realspace_grid_type), POINTER       :: rs
     TYPE(section_vals_type), POINTER         :: nmr_section
-
+!dbg
+    INTEGER :: num
 !   ---------------------------------------------------------------------------
 
     failure = .FALSE.
@@ -255,7 +260,7 @@ CONTAINS
     NULLIFY(rho_rspace,rho_gspace,logger,nmr_section)
     NULLIFY(density_matrix,density_matrix_ii,density_matrix_iii)
     NULLIFY(cell,dft_control,mos,rho_struct,particle_set,pw_env)
-    NULLIFY(auxbas_rs_pool,auxbas_pw_pool,pw_pools,wf_r)
+    NULLIFY(auxbas_rs_pool,auxbas_pw_pool,pw_pools)
     NULLIFY(shift_pw_gspace,para_env)
     NULLIFY(mo_coeff,psi0_fk,fm_work1,psi_a_iB)
 
@@ -306,12 +311,15 @@ CONTAINS
         CALL pw_pool_init_coeff(auxbas_pw_pool,shift_pw_gspace(idir), &
              use_data = COMPLEXDATA1D,&
              in_space = RECIPROCALSPACE, error=error)
+        CALL coeff_zero(shift_pw_gspace(idir))
       END DO
       CALL pw_pool_init_coeff(auxbas_pw_pool,shift_pw_rspace,&
            use_data=REALDATA3D, in_space=REALSPACE, error=error)
+      CALL coeff_zero(shift_pw_rspace)
       CALL pw_pool_init_coeff(auxbas_pw_pool,pw_gspace_work,&
            use_data = COMPLEXDATA1D,&
            in_space = RECIPROCALSPACE,error=error)
+      CALL coeff_zero(pw_gspace_work)
 !
 !-----------------------------------------------------------------------!
 
@@ -369,7 +377,6 @@ CONTAINS
           
 ! First compute the contribution to the CHI tensor coming from the soft density
           CALL chi_soft_analytic(nmr_env,qs_env,ispin,i_B,error=error)
-  IF(.FALSE.) THEN
 
           ! Construct the 3 density matrices for the field in direction i_B
 
@@ -381,13 +388,13 @@ CONTAINS
           ! contributions from the response psi1_p_ii and psi1_p_iii
           DO istate = 1,nmr_env%nstates(ispin)
             CALL cp_fm_get_submatrix(nmr_env%psi1_p(ispin,ii_B)%matrix,&
-                 vecbuf(ii_B)%array,1,istate,nmr_env%nao,1,transpose=.TRUE.,&
+                 vecbuf(ii_B)%array,1,istate,nao,1,transpose=.TRUE.,&
                  error=error)
             CALL cp_fm_get_submatrix(nmr_env%psi1_p(ispin,iii_B)%matrix,&
-                 vecbuf(iii_B)%array,1,istate,nmr_env%nao,1,transpose=.TRUE.,&
+                 vecbuf(iii_B)%array,1,istate,nao,1,transpose=.TRUE.,&
                  error=error)
             dk(1:3) = nmr_env%centers_set(ispin)%array(1:3,istate)
-            DO iao = 1,nmr_env%nao
+            DO iao = 1,nao
                Rmu(1:3) =  nmr_env%basisfun_center(1:3,iao)
                Rmu_dk = pbc(dk,Rmu,cell)
                vecbuf_psi1(1,iao) = Rmu_dk(ii_B)*vecbuf(iii_B)%array(1,iao)-&
@@ -395,7 +402,7 @@ CONTAINS
             END DO  ! iao
             ! Copy the vector in the full matrix psi1
             CALL cp_fm_set_submatrix(psi1(ispin)%matrix,vecbuf_psi1,&
-                 1,istate,nmr_env%nao,1,transpose=.TRUE.,error=error)
+                 1,istate,nao,1,transpose=.TRUE.,error=error)
           END DO  ! istate
 
 
@@ -422,8 +429,8 @@ CONTAINS
           density_matrix(ispin)%matrix => nmr_env%jp1_ao
           CALL set_matrix(density_matrix(ispin)%matrix ,0.0_dp)
           CALL cp_sm_plus_fm_fm_t(sparse_matrix=density_matrix(ispin)%matrix ,&
-                                  matrix_g=psi0_fk,&
-                                  matrix_v=psi_a_iB,&
+                                  matrix_v=psi0_fk,&
+                                  matrix_g=psi_a_iB,&
                                   ncol=homo,&
                                   alpha=alpha)
 
@@ -431,8 +438,8 @@ CONTAINS
           density_matrix_iii(ispin)%matrix  => nmr_env%jp2_ao(1)%matrix
           CALL set_matrix(density_matrix_iii(ispin)%matrix ,0.0_dp)
           CALL cp_sm_plus_fm_fm_t(sparse_matrix=density_matrix_iii(ispin)%matrix ,&
-                                  matrix_g=psi0_fk,&
-                                  matrix_v=nmr_env%psi1_p(ispin,iii_B)%matrix,&
+                                  matrix_v=psi0_fk,&
+                                  matrix_g=nmr_env%psi1_p(ispin,iii_B)%matrix,&
                                   ncol=homo,&
                                   alpha=alpha)
 
@@ -440,8 +447,8 @@ CONTAINS
           density_matrix_ii(ispin)%matrix  => nmr_env%jp2_ao(2)%matrix
           CALL set_matrix(density_matrix_ii(ispin)%matrix ,0.0_dp)
           CALL cp_sm_plus_fm_fm_t(sparse_matrix=density_matrix_ii(ispin)%matrix ,&
-                                  matrix_g=psi0_fk,&
-                                  matrix_v=nmr_env%psi1_p(ispin,ii_B)%matrix,&
+                                  matrix_v=psi0_fk,&
+                                  matrix_g=nmr_env%psi1_p(ispin,ii_B)%matrix,&
                                   ncol=homo,&
                                   alpha=alpha)
 
@@ -468,6 +475,7 @@ CONTAINS
 
             jrho_tot = calculate_total_rho(rho_gspace)
 
+!  IF(.FALSE.,) THEN
 !           !Field gradient
             ! loop over the Gvec  components: x,y,z
             DO idir2 = 1,3
@@ -484,10 +492,13 @@ CONTAINS
               END IF
             END DO
 
+!dbg
+!   END IF  !false
+!dbg
           END DO  ! idir
          
 !dbg
-   END IF  !false
+!   END IF  !false
 !dbg
           ! Deallocate buffer vectors
           DO idir = 1,3
@@ -535,7 +546,7 @@ CONTAINS
         ! on the required positions in real space
 
 !dbg
-  IF(.FALSE.) THEN
+!  IF(.FALSE.) THEN
 !dbg
         DO idir = 1,3
           CALL coeff_transform_space(shift_pw_gspace(idir),shift_pw_rspace)
@@ -546,11 +557,18 @@ CONTAINS
         ! Add the local contributions by numerical integration over the spherical grids
         END IF
 
+!dbg
+!  ENDIF  !FALSE
+!dbg
         IF (BTEST(cp_print_key_should_output(logger%iter_info,nmr_section,&
                   "PRINT%CURRENT_CUBES",error=error),cp_p_file)) THEN
 
            DO idir = 1,3
              CALL coeff_zero(wf_r)
+!!WARNING 
+! if nspins=2 here ist should be add instead of copy, or separated cubefiles
+! for the different spin should be written
+!!WARNING
              DO ispin =1 ,nspins
                CALL coeff_copy(nmr_env%jrho1_set(idir,i_B)%rho%rho_r(ispin),wf_r)
              END DO 
@@ -564,23 +582,24 @@ CONTAINS
              END IF
              filename="jresp"
              WRITE(ext,'(a2,I1,a2,I1,a5)')  "iB",i_B,"_d",idir,".cube"
+             WRITE(ext,'(a2,a1,a2,a1,a5)')  "iB",labels(i_B),"_d",labels(idir),".cube"
              unit_nr=cp_print_key_unit_nr(logger,nmr_section,"PRINT%CURRENT_CUBES",&
                      extension=TRIM(ext),middle_name=TRIM(filename),&
-                     log_filename=.FALSE.,error=error)
+                     log_filename=.FALSE.,file_position="REWIND",error=error)
+
              CALL rs_pw_to_cube(wf_r%pw,unit_nr,ionode,"RESPONSE CURRENT DENSITY ",&
-                     rs,stride=section_get_ival(nmr_section,"PRINT%CURRENT_CUBE%STRIDE"),&
+!                     rs,stride=section_get_ival(nmr_section,"PRINT%CURRENT_CUBES%STRIDE"),&
+                     stride=section_get_ival(nmr_section,"PRINT%CURRENT_CUBES%STRIDE"),&
                      error=error)
              CALL cp_print_key_finished_output(unit_nr,logger,nmr_section,&
                      "PRINT%CURRENT_CUBES",error=error)
            END DO 
 
         END IF
-!dbg
-  ENDIF  !FALSE
-!dbg
       END DO  ! i_B
 
  stop 'chi all'
+
 
       IF (BTEST(cp_print_key_should_output(logger%iter_info,nmr_section,&
                   "PRINT%CURRENT_CUBES",error=error),cp_p_file)) THEN
@@ -684,10 +703,11 @@ CONTAINS
     INTEGER, DIMENSION(:, :, :), POINTER     :: tasks
     LOGICAL                                  :: distributed_rs_grids, &
                                                 failure, map_consistent, &
-                                                my_soft
+                                                my_minimum_image, my_soft
     REAL(KIND=dp)                            :: dab, eps_rho_rspace, &
                                                 kind_radius_a, kind_radius_b, &
                                                 rab2, scale, zetp
+    REAL(KIND=dp)                            :: Lxo2, Lyo2, Lzo2
     REAL(KIND=dp), DIMENSION(3)              :: ra, rab, rb, rp
     REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a, set_radius_b
     REAL(KIND=dp), DIMENSION(:, :), POINTER :: dab_local, jp_block, &
@@ -742,8 +762,6 @@ CONTAINS
 
 !    debug_count=debug_count+1
 
-    my_soft=.FALSE.
-    IF (PRESENT(soft_valid)) my_soft = soft_valid
 
     CALL timeset("calculate_jrho_resp","I"," ",handle)
 
@@ -797,6 +815,16 @@ CONTAINS
                              maxco=maxco,&
                              maxsgf=maxsgf,&
                              maxsgf_set=maxsgf_set)
+    my_minimum_image = .TRUE.
+!    IF(PRESENT(minimum_image)) THEN
+!       my_minimum_image=minimum_image
+       Lxo2 = SQRT ( SUM ( cell % hmat ( :, 1 ) ** 2 ) )/2.0_dp 
+       Lyo2 = SQRT ( SUM ( cell % hmat ( :, 2 ) ** 2 ) )/2.0_dp
+       Lzo2 = SQRT ( SUM ( cell % hmat ( :, 3 ) ** 2 ) )/2.0_dp
+!    END IF
+
+    my_soft=.FALSE.
+    IF (PRESENT(soft_valid)) my_soft = soft_valid
 
     IF ( nthread > 1 ) THEN
       n=0
@@ -867,8 +895,8 @@ CONTAINS
                          matrix_symmetry=mat_jp%symmetry)
     ELSE
         deltajp=>mat_jp
-        deltajp_rii=>mat_jp
-        deltajp_riii=>mat_jp
+        deltajp_rii=>mat_jp_rii
+        deltajp_riii=>mat_jp_riii
     ENDIF
 
     DO ikind=1,nkind
@@ -947,6 +975,14 @@ CONTAINS
                                    neighbor=jatom,&
                                    r=rab(:))
 
+
+            IF(my_minimum_image) THEN
+              IF(ABS(rab(1)) > Lxo2 .OR. ABS(rab(2)) > Lyo2 .OR. ABS(rab(3)) > Lzo2) THEN
+                sab_orb_neighbor_node => next(sab_orb_neighbor_node)
+                CYCLE
+              END IF
+            END IF
+
             brow = iatom
             bcol = jatom
 
@@ -967,6 +1003,8 @@ CONTAINS
                sab_orb_neighbor_node => next(sab_orb_neighbor_node)
                CYCLE
              END IF
+
+  write(*,*) ' pair ', iatom, jatom, size(jp_block,1), size(jp_block,2)
 
              IF (distributed_rs_grids) THEN
                  NULLIFY (jpblock,jpblock_rii,jp_block_riii )
@@ -1275,7 +1313,10 @@ CONTAINS
       ! The last term if idir=iiB or idir=iiiB
       ! Either the decontracted mat_jp_rii{ab} or the decontracted mat_jp_riii{ab}
       ! is multiplied by f_{ab} = g_{a} g_{b} (mind the sign)
-                IF(idir==iiiB) THEN
+!dbg
+ !               IF(idir==iiiB) THEN
+  IF(.FALSE.) THEN
+!dbg
                   scale = 1.0_dp
                   IF ( nthread > 1 ) THEN
                      CALL collocate_pgf_product_rspace(la_max(iset),zeta(ipgf,iset),&
@@ -1295,7 +1336,10 @@ CONTAINS
                           ga_gb_function=FUNC_AB,&
                           map_consistent=map_consistent,error=error)
                   END IF
-                ELSEIF(idir==iiB) THEN
+!dbg
+   ELSEIF(.FALSE.) THEN
+ !               ELSEIF(idir==iiB) THEN
+!dbg
                   scale = -1.0_dp
                   IF ( nthread > 1 ) THEN
                      CALL collocate_pgf_product_rspace(la_max(iset),zeta(ipgf,iset),&
@@ -1316,7 +1360,7 @@ CONTAINS
                           map_consistent=map_consistent,error=error)
                   END IF
 
-                END IF
+                END IF   ! idir = iiB or iiiB
 
              END DO
 
@@ -1363,7 +1407,8 @@ CONTAINS
     IF (istat /= 0) CALL stop_memory(routineP,"jpabt,workt,ntasks,"//&
         "tasks,tasks_local,ival,latom,dist_ab,dab_local,asets,atasks")
 
-    CALL density_on_full_grid(pw_env,rs_rho,rho_rs,rho_gs,interp_section=interp_section,error=error)
+    CALL density_on_full_grid(pw_env,rs_rho,rho_rs,rho_gs,&
+         interp_section=interp_section,error=error)
 
     CALL timestop(0.0_dp,handle)
 

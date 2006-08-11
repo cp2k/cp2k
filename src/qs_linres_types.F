@@ -133,14 +133,15 @@ MODULE qs_linres_types
   TYPE nmr_env_type
      INTEGER                                     :: ref_count, n_nics, nao, nstates(2)
      INTEGER, DIMENSION(:), POINTER              :: list_cubes
+     INTEGER, DIMENSION(:), POINTER              :: cs_atom_list
      INTEGER, DIMENSION(:,:), POINTER            :: statetrueindex
      LOGICAL                                     :: current_density, do_nics,&
                                                     full_nmr,simplenmr_done(6),&
                                                     simplenmr_converged(6),&
                                                     store_current,restart_nmr
-     LOGICAL,DIMENSION(:,:), POINTER             :: fullnmr_done
+     LOGICAL, DIMENSION(:,:), POINTER            :: fullnmr_done
      REAL(dp)                                    :: shift_factor, chi_factor
-     REAL(dp)                                    :: shift_SI_ppm, chi_SI_ppm
+     REAL(dp)                                    :: shift_SI2ppm, chi_SI2ppmcgs
      REAL(dp)                                    :: chi_tensor(3,3)
      REAL(dp)                                    :: chi_tensor_loc(3,3)
      REAL(dp), DIMENSION(:,:), POINTER           :: basisfun_center
@@ -335,6 +336,7 @@ CONTAINS
        NULLIFY(nmr_env%r_nics)
        NULLIFY(nmr_env%statetrueindex)
        NULLIFY(nmr_env%list_cubes)
+       NULLIFY(nmr_env%cs_atom_list)
      END IF 
 
 
@@ -343,9 +345,9 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE get_nmr_env(nmr_env,n_nics, nao, nstates,&
-             chi_tensor,list_cubes, statetrueindex, &
-             chi_tensor_loc,r_nics, chemical_shift,&
+  SUBROUTINE get_nmr_env(nmr_env, n_nics, nao, nstates,&
+             chi_tensor,list_cubes, cs_atom_list, statetrueindex, &
+             chi_tensor_loc, r_nics, chemical_shift,&
              chemical_shift_loc, chemical_shift_loc_nics, chemical_shift_nics,&
              basisfun_center, centers_set,&
              psi1_p, psi1_rxp, psi1_D, p_psi0, rxp_psi0,&
@@ -355,6 +357,7 @@ CONTAINS
     TYPE(nmr_env_type)                           :: nmr_env
     INTEGER, INTENT(OUT), OPTIONAL               :: n_nics, nao, nstates(2)
     INTEGER, DIMENSION(:), OPTIONAL, POINTER     :: list_cubes
+    INTEGER, DIMENSION(:), OPTIONAL, POINTER     :: cs_atom_list
     INTEGER, DIMENSION(:,:), OPTIONAL, POINTER   :: statetrueindex
 
     REAL(dp), INTENT(out), OPTIONAL              :: chi_tensor(3,3)
@@ -405,6 +408,7 @@ CONTAINS
      IF(PRESENT(nao)) nao=nmr_env%nao
      IF(PRESENT(nstates)) nstates(1:2)=nmr_env%nstates(1:2)
      IF(PRESENT(list_cubes)) list_cubes => nmr_env%list_cubes
+     IF(PRESENT(cs_atom_list)) cs_atom_list => nmr_env%cs_atom_list
      IF(PRESENT(statetrueindex)) statetrueindex => nmr_env%statetrueindex
      IF(PRESENT(centers_set)) centers_set => nmr_env%centers_set
      IF(PRESENT(chi_tensor)) chi_tensor = nmr_env%chi_tensor
@@ -427,12 +431,12 @@ CONTAINS
      
   END SUBROUTINE get_nmr_env
 
-  SUBROUTINE set_nmr_env(nmr_env,shift_factor,chi_factor,shift_SI_ppm,chi_SI_ppm,&
+  SUBROUTINE set_nmr_env(nmr_env,shift_factor,chi_factor,shift_SI2ppm,chi_SI2ppmcgs,&
              chi_tensor,chi_tensor_loc,jrho1_atom_set,jrho1_set,error)
 
     TYPE(nmr_env_type)                           :: nmr_env
     REAL(dp), INTENT(IN),OPTIONAL                :: shift_factor, chi_factor
-    REAL(dp), INTENT(IN),OPTIONAL                :: shift_SI_ppm, chi_SI_ppm
+    REAL(dp), INTENT(IN),OPTIONAL                :: shift_SI2ppm, chi_SI2ppmcgs
     REAL(dp), INTENT(IN),OPTIONAL                :: chi_tensor(3,3)
     REAL(dp), INTENT(IN),OPTIONAL                :: chi_tensor_loc(3,3)
      TYPE(jrho_atom_type),DIMENSION(:), OPTIONAL,&
@@ -454,8 +458,8 @@ CONTAINS
 
      IF(PRESENT(shift_factor)) nmr_env%chi_factor=chi_factor
      IF(PRESENT(shift_factor)) nmr_env%chi_factor=chi_factor
-     IF(PRESENT(shift_SI_ppm)) nmr_env%shift_SI_ppm=shift_SI_ppm
-     IF(PRESENT(chi_SI_ppm))   nmr_env%chi_SI_ppm=chi_SI_ppm
+     IF(PRESENT(shift_SI2ppm)) nmr_env%shift_SI2ppm=shift_SI2ppm
+     IF(PRESENT(chi_SI2ppmcgs))   nmr_env%chi_SI2ppmcgs=chi_SI2ppmcgs
      IF(PRESENT(chi_tensor))   THEN
        DO iB=1,3
        DO idir=1,3

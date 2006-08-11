@@ -728,8 +728,10 @@ CONTAINS
                   rac(1:3) = -rab(1:3)
                   rbc(1:3) = 0.0_dp
 !                  rc(1:3) = 0.5_dp
-!                  rac(1:3) = ra(1:3)-0.5_dp
-!                  rbc(1:3) = rb(1:3)-0.5_dp
+!                  rac = pbc(rc,ra,cell)
+!!                  rac(1:3) = ra(1:3)-0.5_dp
+!                  rbc = pbc(rc,rb,cell)
+!!                  rbc(1:3) = rb(1:3)-0.5_dp
 
                   CALL angmom(la_max(iset),npgfa(iset),zeta(:,iset),&
                         rpgfa(:,iset),la_min(iset), lb_max(jset),npgfb(jset),&
