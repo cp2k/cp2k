@@ -24,10 +24,9 @@ MODULE fist_neighbor_list_control
 
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE cell_types,                      ONLY: cell_type,&
-                                             real_to_scaled,&
-                                             scaled_to_real
+       cell_create, cell_release, cell_clone, pbc
   USE distribution_1d_types,           ONLY: distribution_1d_type
-  USE fist_neighbor_list_types,        ONLY: neighbor_list_set_p_type
+  USE fist_neighbor_list_types,        ONLY: fist_neighbor_type
   USE fist_neighbor_lists,             ONLY: build_fist_neighbor_lists
   USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_get,&
                                              fist_nonbond_env_set,&
@@ -66,33 +65,31 @@ CONTAINS
 SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
                           cell, fist_nonbond_env, globenv, force_env_section, error)
 
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
-    TYPE(particle_type), POINTER             :: particle_set( : )
-    TYPE(distribution_1d_type), POINTER      :: local_particles
-    TYPE(cell_type), POINTER                 :: cell
-    TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
-    TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'list_control'
-
-    INTEGER :: counter, handle, i, iparticle, iparticle_kind, &
-      iparticle_local, istat, last_update, nparticle, nparticle_kind, &
-      nparticle_local, num_update
-    LOGICAL                                  :: build_from_scratch, &
-                                                update_neighbor_lists
-    REAL(KIND=dp)                            :: aup, dr2, dr2_max, lup, &
-                                                verlet_skin
-    REAL(KIND=dp), DIMENSION(3)              :: dr,s2r
-    TYPE(pos_type), DIMENSION(:), POINTER :: r_last_update
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rlist_cutsq, rlist_lowsq
-    TYPE(neighbor_list_set_p_type), &
-      DIMENSION(:), POINTER                  :: nonbonded
-
-!------------------------------------------------------------------------------
-
+  TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
+  TYPE(particle_type), POINTER             :: particle_set( : )
+  TYPE(distribution_1d_type), POINTER      :: local_particles
+  TYPE(cell_type), POINTER                 :: cell
+  TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
+  TYPE(global_environment_type), POINTER   :: globenv
+  TYPE(section_vals_type), POINTER         :: force_env_section
+  TYPE(cp_error_type), INTENT(inout), &
+       OPTIONAL                               :: error
+  
+  CHARACTER(LEN=*), PARAMETER              :: routineN = 'list_control'
+  
+  INTEGER :: counter, handle, i, iparticle, iparticle_kind, &
+       iparticle_local, istat, last_update, nparticle, nparticle_kind, &
+       nparticle_local, num_update
+  LOGICAL                                  :: build_from_scratch, &
+                                              update_neighbor_lists
+  REAL(KIND=dp)                            :: aup, dr2, dr2_max, lup, &
+                                              verlet_skin
+  REAL(KIND=dp), DIMENSION(3)              :: dr,s2r,rab,s
+  TYPE(pos_type), DIMENSION(:), POINTER :: r_last_update, r_last_update_pbc
+  TYPE(cell_type), POINTER                 :: cell_last_update
+  REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rlist_cutsq, rlist_lowsq
+  TYPE(fist_neighbor_type), POINTER        :: nonbonded
+  
   CALL timeset(routineN,"I"," ",handle )
 
 ! *** Assigning local pointers ***
@@ -105,6 +102,8 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
                             lup=lup, &
                             counter=counter,&
                             r_last_update=r_last_update,&
+                            r_last_update_pbc=r_last_update_pbc,&
+                            cell_last_update=cell_last_update,&
                             num_update=num_update,&
                             verlet_skin=verlet_skin,&
                             last_update=last_update)
@@ -125,7 +124,7 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
       nparticle_local = local_particles%n_el(iparticle_kind)
       DO iparticle_local=1,nparticle_local
         iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
-        CALL scaled_to_real(s2r,r_last_update(iparticle)%r,cell)
+        s2r = r_last_update(iparticle)%r
         dr(:) = s2r - particle_set(iparticle)%r(:)
         dr2 = dr(1)*dr(1) + dr(2)*dr(2) + dr(3)*dr(3)
         dr2_max = MAX(dr2_max,dr2)
@@ -137,13 +136,10 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
 #endif
 
     IF (dr2_max > 0.25_dp*verlet_skin**2) THEN
-
-      DO iparticle=1,nparticle
-        CALL real_to_scaled(r_last_update(iparticle )%r,particle_set(iparticle)%r(:),cell)
+     DO iparticle=1,nparticle
+        r_last_update(iparticle )%r=particle_set(iparticle)%r(:)
       END DO
-
       update_neighbor_lists = .TRUE.
-
     END IF
 
   ELSE
@@ -153,9 +149,8 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
       CALL stop_memory(routineN,moduleN,__LINE__,"r_last_update",&
                        3*nparticle*dp_size)
     END IF
-
     DO iparticle=1,nparticle
-      CALL real_to_scaled(r_last_update(iparticle )%r,particle_set(iparticle)%r(:),cell)
+       r_last_update(iparticle )%r=particle_set(iparticle)%r(:)
     END DO
 
     update_neighbor_lists = .TRUE.
@@ -163,6 +158,16 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
 
   END IF
 
+  ! Update the rlast_update_pbc
+  IF (.NOT.ASSOCIATED(r_last_update_pbc)) THEN
+     ALLOCATE (r_last_update_pbc(nparticle),STAT=istat)
+     IF (istat /= 0) THEN
+        CALL stop_memory(routineN,moduleN,__LINE__,"r_last_update_pbc",&
+             3*nparticle*dp_size)
+     END IF
+  END IF
+  
+  ! update the neighbor lists
   IF (update_neighbor_lists) THEN
 
     CALL build_fist_neighbor_lists(atomic_kind_set,particle_set,&
@@ -170,6 +175,10 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
                                    nonbonded,globenv,&
                                    build_from_scratch=build_from_scratch,&
                                    force_env_section=force_env_section,error=error)
+
+    CALL cell_release(cell_last_update,error=error)
+    CALL cell_create(cell_last_update,error=error)
+    CALL cell_clone(cell,cell_last_update,error)
 
     IF ( counter > 0 ) THEN
       num_update = num_update + 1
@@ -187,9 +196,11 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
                               lup=lup,&
                               aup=aup,&
                               r_last_update=r_last_update,&
+                              r_last_update_pbc=r_last_update_pbc,&
                               nonbonded=nonbonded,&
                               num_update=num_update,&
-                              last_update=last_update)
+                              last_update=last_update,&
+                              cell_last_update=cell_last_update)
 
     IF ((globenv%print_level >= 2).AND.(globenv%ionode)) THEN
       WRITE (UNIT=globenv%scr,&
@@ -199,6 +210,29 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
     END IF
 
   END IF
+
+  DO iparticle=1,nparticle
+     rab = r_last_update(iparticle)%r
+     IF (cell%orthorhombic) THEN
+        rab(1) = rab(1) - cell%hmat(1,1)*cell%perd(1)*ANINT(cell_last_update%h_inv(1,1)*rab(1))
+        rab(2) = rab(2) - cell%hmat(2,2)*cell%perd(2)*ANINT(cell_last_update%h_inv(2,2)*rab(2))
+        rab(3) = rab(3) - cell%hmat(3,3)*cell%perd(3)*ANINT(cell_last_update%h_inv(3,3)*rab(3))
+     ELSE
+        s(1) = cell_last_update%h_inv(1,1)*rab(1) + cell_last_update%h_inv(1,2)*rab(2) +&
+             cell_last_update%h_inv(1,3)*rab(3)
+        s(2) = cell_last_update%h_inv(2,1)*rab(1) + cell_last_update%h_inv(2,2)*rab(2) +&
+             cell_last_update%h_inv(2,3)*rab(3)
+        s(3) = cell_last_update%h_inv(3,1)*rab(1) + cell_last_update%h_inv(3,2)*rab(2) +&
+             cell_last_update%h_inv(3,3)*rab(3)
+        s(1) = - cell%perd(1)*ANINT(s(1))
+        s(2) = - cell%perd(2)*ANINT(s(2))
+        s(3) = - cell%perd(3)*ANINT(s(3))
+        rab(1) = rab(1) + cell%hmat(1,1)*s(1) + cell%hmat(1,2)*s(2) + cell%hmat(1,3)*s(3)
+        rab(2) = rab(2) + cell%hmat(2,1)*s(1) + cell%hmat(2,2)*s(2) + cell%hmat(2,3)*s(3)
+        rab(3) = rab(3) + cell%hmat(3,1)*s(1) + cell%hmat(3,2)*s(2) + cell%hmat(3,3)*s(3)
+     END IF
+     r_last_update_pbc(iparticle )%r=rab
+  END DO
 
   counter = counter + 1
   CALL fist_nonbond_env_set(fist_nonbond_env,counter=counter)

@@ -3,7 +3,7 @@
   METHOD FIST
   &MM
     &FORCEFIELD
-      parmfile sample_pot/par_all27_prot_lipid.inp
+      parmfile ../sample_pot/par_all27_prot_lipid.inp
       parmtype CHM
       &spline
        rcut_nb 9.0
@@ -17,11 +17,6 @@
         O_SPLINE 4
       &END EWALD
     &END POISSON
-    &PRINT
-      &FF_INFO
-        SPLINE_INFO
-      &END
-    &END
   &END MM
   &SUBSYS
     &CELL
@@ -31,28 +26,22 @@
     &TOPOLOGY
       CONN_FILE 5dhfr_cube.psf
       CONNECTIVITY PSF
-      COORD_FILE sample_pdb/5dhfr_cube.pdb
+      COORD_FILE ../sample_pdb/5dhfr_cube.pdb
       COORDINATE PDB
       PARA_RES
     &END TOPOLOGY
-    &PRINT
-      &SUBCELL OFF
-      &END
-    &END 
   &END SUBSYS
 &END FORCE_EVAL
 &GLOBAL
   FFTLIB FFTSG
   PRINT_LEVEL LOW
-
   PROJECT dhfr
   RUN_TYPE md
-  TRACE
 &END GLOBAL
 &MOTION
   &MD
     ENSEMBLE NVE
-    STEPS 50
+    STEPS 10
     TIMESTEP 0.5
     TEMPERATURE 298
   &END MD

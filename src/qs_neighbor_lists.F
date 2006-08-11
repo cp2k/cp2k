@@ -95,8 +95,9 @@ MODULE qs_neighbor_lists
 
   TYPE subcell_type
     INTEGER                        :: natom
-    REAL(dp), DIMENSION(3)         :: s_max,s_min
+    REAL(KIND=dp), DIMENSION(3)    :: s_max,s_min
     INTEGER, DIMENSION(:), POINTER :: atom_list
+    REAL(KIND=dp), DIMENSION(3,8)  :: corners
   END TYPE subcell_type
 
   ! Global parameters
@@ -2643,7 +2644,7 @@ CONTAINS
 
   ! ***************************************************************************
 
-  SUBROUTINE allocate_subcell(subcell,nsubcell,maxatom)
+  SUBROUTINE allocate_subcell(subcell,nsubcell,maxatom,cell)
 
     ! Purpose: Allocate and initialize a subcell grid structure for the atomic
     !          neighbor search.
@@ -2655,8 +2656,8 @@ CONTAINS
     TYPE(subcell_type), DIMENSION(:, :, :), &
       POINTER                                :: subcell
     INTEGER, DIMENSION(3), INTENT(IN)        :: nsubcell
-    INTEGER, INTENT(IN)                      :: maxatom
-
+    INTEGER, INTENT(IN),OPTIONAL             :: maxatom
+    TYPE(cell_type), POINTER,OPTIONAL        :: cell
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'allocate_subcell'
 
     INTEGER                                  :: i, istat, j, k, na, nb, nc,handle
@@ -2695,10 +2696,22 @@ CONTAINS
           subcell(i,j,k)%s_max(2) = b_max
           subcell(i,j,k)%s_max(3) = c_max
           subcell(i,j,k)%natom = 0
-          ALLOCATE (subcell(i,j,k)%atom_list(maxatom),STAT=istat)
-          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                           "subcell(i,j,k)%atom_list",&
-                                           maxatom*int_size)
+          IF (PRESENT(cell)) THEN
+             CALL scaled_to_real(subcell(i,j,k)%corners(:,1),(/a_min,b_min,c_min/),cell)
+             CALL scaled_to_real(subcell(i,j,k)%corners(:,2),(/a_max,b_min,c_min/),cell)
+             CALL scaled_to_real(subcell(i,j,k)%corners(:,3),(/a_min,b_max,c_min/),cell)
+             CALL scaled_to_real(subcell(i,j,k)%corners(:,4),(/a_max,b_max,c_min/),cell)
+             CALL scaled_to_real(subcell(i,j,k)%corners(:,5),(/a_min,b_min,c_max/),cell)
+             CALL scaled_to_real(subcell(i,j,k)%corners(:,6),(/a_max,b_min,c_max/),cell)
+             CALL scaled_to_real(subcell(i,j,k)%corners(:,7),(/a_min,b_max,c_max/),cell)
+             CALL scaled_to_real(subcell(i,j,k)%corners(:,8),(/a_max,b_max,c_max/),cell)
+          END IF
+          IF (PRESENT(maxatom)) THEN
+             ALLOCATE (subcell(i,j,k)%atom_list(maxatom),STAT=istat)
+             IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                                              "subcell(i,j,k)%atom_list",&
+                                              maxatom*int_size)
+          END IF
           a_min = a_max
         END DO
         b_min = b_max

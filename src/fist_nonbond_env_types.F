@@ -20,12 +20,13 @@
 
 MODULE fist_nonbond_env_types
   USE convert_units,                   ONLY: convert_to_cp2k_units
-  USE fist_neighbor_list_types,        ONLY: deallocate_neighbor_list_set,&
-                                             neighbor_list_set_p_type
+  USE fist_neighbor_list_types,        ONLY: fist_neighbor_deallocate,&
+                                             fist_neighbor_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE pair_potential_types,            ONLY: pair_potential_pp_release,&
                                              pair_potential_pp_type
+  USE cell_types,                      ONLY: cell_type, cell_release
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -44,13 +45,14 @@ MODULE fist_nonbond_env_types
   TYPE fist_nonbond_env_type
     INTEGER :: ref_count, id_nr, natom_types
     CHARACTER ( len = default_string_length ) :: unit_type
-    TYPE ( neighbor_list_set_p_type ), DIMENSION ( : ), POINTER :: nonbonded
+    TYPE ( fist_neighbor_type ), POINTER :: nonbonded
     TYPE ( pair_potential_pp_type ), POINTER :: potparm
     INTEGER :: counter, last_update, num_update
     REAL (KIND=dp), DIMENSION ( :, : ), POINTER :: rlist_cutsq, rlist_lowsq
     REAL (KIND=dp) :: verlet_skin
     REAL (KIND=dp) :: lup, aup
-    TYPE(pos_type), DIMENSION(:), POINTER :: r_last_update
+    TYPE(cell_type), POINTER :: cell_last_update
+    TYPE(pos_type), DIMENSION(:), POINTER :: r_last_update, r_last_update_pbc
     REAL (KIND=dp) :: long_range_correction
   END TYPE fist_nonbond_env_type
 
@@ -89,18 +91,19 @@ MODULE fist_nonbond_env_types
 !*** **********************************************************************
 SUBROUTINE fist_nonbond_env_get (fist_nonbond_env, potparm, &
                                  nonbonded, rlist_cutsq, rlist_lowsq, verlet_skin,  &
-                                 aup, lup, r_last_update, num_update,  &
+                                 aup, lup, r_last_update, r_last_update_pbc, &
+                                 cell_last_update,num_update,  &
                                  last_update, counter, natom_types,    &
                                  long_range_correction, error )
     TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
     TYPE(pair_potential_pp_type), OPTIONAL, &
       POINTER                                :: potparm
-    TYPE(neighbor_list_set_p_type), &
-      DIMENSION(:), OPTIONAL, POINTER        :: nonbonded
+    TYPE(fist_neighbor_type), POINTER, OPTIONAL  :: nonbonded
     REAL(KIND=dp), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: rlist_cutsq, rlist_lowsq
     REAL(KIND=dp), OPTIONAL                  :: verlet_skin, aup, lup
-    TYPE(pos_type), DIMENSION(:), OPTIONAL, POINTER :: r_last_update
+    TYPE(pos_type), DIMENSION(:), OPTIONAL, POINTER :: r_last_update, r_last_update_pbc
+    TYPE(cell_type), POINTER, OPTIONAL       :: cell_last_update
     INTEGER, OPTIONAL                        :: num_update, last_update, &
                                                 counter, natom_types
     REAL(KIND=dp), OPTIONAL                  :: long_range_correction
@@ -114,6 +117,10 @@ SUBROUTINE fist_nonbond_env_get (fist_nonbond_env, potparm, &
   IF ( PRESENT ( nonbonded ) ) nonbonded => fist_nonbond_env % nonbonded
   IF ( PRESENT ( r_last_update ) ) &
       r_last_update => fist_nonbond_env % r_last_update
+  IF ( PRESENT ( r_last_update_pbc ) ) &
+      r_last_update_pbc => fist_nonbond_env % r_last_update_pbc
+  IF ( PRESENT ( cell_last_update ) ) &
+      cell_last_update => fist_nonbond_env % cell_last_update
   IF ( PRESENT ( lup ) ) lup = fist_nonbond_env % lup 
   IF ( PRESENT ( aup ) ) aup = fist_nonbond_env % aup
   IF ( PRESENT ( natom_types ) ) natom_types = fist_nonbond_env % natom_types
@@ -153,7 +160,8 @@ END SUBROUTINE fist_nonbond_env_get
 !*** **********************************************************************
 SUBROUTINE fist_nonbond_env_set ( fist_nonbond_env,  potparm, &
                                   rlist_cutsq, rlist_lowsq, verlet_skin, nonbonded, &
-                                  aup, lup, r_last_update, num_update, &
+                                  aup, lup, r_last_update, r_last_update_pbc,&
+                                  cell_last_update, num_update, &
                                   last_update, counter, natom_types, &
                                   long_range_correction, error )
     TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
@@ -162,10 +170,10 @@ SUBROUTINE fist_nonbond_env_set ( fist_nonbond_env,  potparm, &
     REAL(KIND=dp), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: rlist_cutsq, rlist_lowsq
     REAL(KIND=dp), OPTIONAL                  :: verlet_skin
-    TYPE(neighbor_list_set_p_type), &
-      DIMENSION(:), OPTIONAL, POINTER        :: nonbonded
+    TYPE(fist_neighbor_type), OPTIONAL, POINTER        :: nonbonded
     REAL(KIND=dp), OPTIONAL                  :: aup, lup
-    TYPE(pos_type), DIMENSION(:), OPTIONAL, POINTER :: r_last_update
+    TYPE(pos_type), DIMENSION(:), OPTIONAL, POINTER :: r_last_update, r_last_update_pbc
+    TYPE(cell_type), POINTER, optional       :: cell_last_update
     INTEGER, OPTIONAL                        :: num_update, last_update, &
                                                 counter, natom_types
     REAL(KIND=dp), OPTIONAL                  :: long_range_correction
@@ -181,6 +189,10 @@ SUBROUTINE fist_nonbond_env_set ( fist_nonbond_env,  potparm, &
   IF ( PRESENT ( nonbonded ) ) fist_nonbond_env % nonbonded => nonbonded
   IF ( PRESENT ( r_last_update ) ) &
       fist_nonbond_env % r_last_update => r_last_update
+  IF ( PRESENT ( r_last_update_pbc ) ) &
+      fist_nonbond_env % r_last_update_pbc => r_last_update_pbc
+  IF ( PRESENT ( cell_last_update ) ) &
+      fist_nonbond_env % cell_last_update => cell_last_update
   IF ( PRESENT ( lup ) ) fist_nonbond_env % lup = lup
   IF ( PRESENT ( aup ) ) fist_nonbond_env % aup = aup
   IF ( PRESENT ( natom_types ) ) fist_nonbond_env % natom_types = natom_types
@@ -262,6 +274,8 @@ END SUBROUTINE fist_nonbond_env_create
 
     NULLIFY (fist_nonbond_env%nonbonded)
     NULLIFY (fist_nonbond_env%r_last_update)
+    NULLIFY (fist_nonbond_env%r_last_update_pbc)
+    NULLIFY (fist_nonbond_env%cell_last_update)
     NULLIFY (fist_nonbond_env% rlist_cutsq )
     NULLIFY (fist_nonbond_env% rlist_lowsq )
     fist_nonbond_env % unit_type = "ANGSTROM"
@@ -393,13 +407,8 @@ SUBROUTINE fist_nonbond_env_release(fist_nonbond_env,error)
      fist_nonbond_env%ref_count=fist_nonbond_env%ref_count-1
      IF (fist_nonbond_env%ref_count<1) THEN
         IF (ASSOCIATED(fist_nonbond_env % nonbonded)) THEN
-          DO iab=1,SIZE(fist_nonbond_env % nonbonded)
-            CALL deallocate_neighbor_list_set (fist_nonbond_env % nonbonded(iab)%neighbor_list_set)
-          END DO
-          DEALLOCATE (fist_nonbond_env % nonbonded,STAT=stat)
-          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+           CALL fist_neighbor_deallocate (fist_nonbond_env % nonbonded, error )
         END IF
-        NULLIFY (fist_nonbond_env%nonbonded)
 ! release potparm
         CALL pair_potential_pp_release ( fist_nonbond_env % potparm, error )
         IF (ASSOCIATED(fist_nonbond_env % r_last_update)) THEN
@@ -407,6 +416,15 @@ SUBROUTINE fist_nonbond_env_release(fist_nonbond_env,error)
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
         ENDIF
         NULLIFY (fist_nonbond_env%r_last_update)
+        IF (ASSOCIATED(fist_nonbond_env % r_last_update_pbc)) THEN
+          DEALLOCATE (fist_nonbond_env % r_last_update_pbc,STAT=stat)
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+        ENDIF
+        NULLIFY (fist_nonbond_env%r_last_update_pbc)
+        IF (ASSOCIATED(fist_nonbond_env % cell_last_update)) THEN
+           CALL cell_release(fist_nonbond_env % cell_last_update,error)
+        ENDIF
+        NULLIFY (fist_nonbond_env%cell_last_update)
         IF (ASSOCIATED(fist_nonbond_env % rlist_cutsq)) THEN
           DEALLOCATE (fist_nonbond_env % rlist_cutsq,STAT=stat)
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)

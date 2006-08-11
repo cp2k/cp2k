@@ -126,6 +126,7 @@ CONTAINS
     cell_out%hmat =                cell_in%hmat
     cell_out%h_inv =               cell_in%h_inv
     cell_out%orthorhombic =        cell_in%orthorhombic
+    cell_out%scaled_coordinates=   cell_in%scaled_coordinates
     cell_out%ref_count = 1
     last_cell_id = last_cell_id + 1
     cell_out%id_nr = last_cell_id

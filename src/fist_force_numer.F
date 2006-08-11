@@ -26,16 +26,14 @@ MODULE fist_force_numer
                                              get_atomic_kind_set
   USE cell_types,                      ONLY: &
        cell_create, cell_release, cell_retain, cell_type, get_cell, get_hinv, &
-       pbc, plane_distance, real_to_scaled, scaled_to_real
+       pbc, plane_distance, real_to_scaled, scaled_to_real, pbc
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE ewald_environment_types,         ONLY: ewald_env_get,&
                                              ewald_environment_type
   USE ewald_pw_types,                  ONLY: ewald_pw_get,&
                                              ewald_pw_type
-  USE fist_neighbor_list_types,        ONLY: &
-       first_list, first_node, get_neighbor_list, get_neighbor_list_set, &
-       get_neighbor_node, neighbor_list_set_p_type, neighbor_list_set_type, &
-       neighbor_list_type, neighbor_node_type, next
+  USE fist_neighbor_list_types,        ONLY: neighbor_kind_pairs_type,&
+                                             fist_neighbor_type
   USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_get,&
                                              fist_nonbond_env_type, pos_type
   USE global_types,                    ONLY: global_environment_type
@@ -79,6 +77,7 @@ MODULE fist_force_numer
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE util, ONLY: matvec_3x3
 #include "cp_common_uses.h"  
 
   IMPLICIT NONE
@@ -2785,101 +2784,58 @@ SUBROUTINE potential_nonbond ( fist_nonbond_env, particle_set, atomic_kind_set, 
 
     INTEGER                                  :: ab, atom_a, atom_b, ikind, &
                                                 ilist, inode, jkind, nkinds, &
-                                                nlist, nnode
+                                                nlist, nnode, ipair
     REAL(KIND=dp)                            :: energy, qi, qj, rab2, rab2_max
-    REAL(KIND=dp), DIMENSION(3)              :: dra, drb, rab,s2r,r2s
-    TYPE(pos_type), DIMENSION(:), POINTER :: r_last_update
+    REAL(KIND=dp), DIMENSION(3)              :: dra, drb, rab,s2r,r2s, cell_v
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(neighbor_list_set_p_type), &
-      DIMENSION(:), POINTER                  :: nonbonded
-    TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set
-    TYPE(neighbor_list_type), POINTER        :: neighbor_list
-    TYPE(neighbor_node_type), POINTER        :: neighbor_node
+    TYPE(neighbor_kind_pairs_type), POINTER  :: neighbor_kind_pair
+    TYPE(fist_neighbor_type), POINTER        :: nonbonded
     TYPE(pair_potential_pp_type), POINTER    :: potparm
 
 !------------------------------------------------------------------------------
 
   CALL fist_nonbond_env_get ( fist_nonbond_env, nonbonded = nonbonded, &
-                              r_last_update = r_last_update,            &
                               potparm = potparm )
 !
 ! initializing the potential energy
 !
-    vnb = 0.0_dp
-
+  vnb = 0.0_dp
 !
 ! starting the force loop
 !
-    nkinds = SIZE ( potparm%pot, 1 )
-    DO ikind=1,nkinds
-      DO jkind=1,nkinds
-
-        ab = ikind + nkinds*(jkind - 1)
-
-        neighbor_list_set => nonbonded(ab)%neighbor_list_set
-
-        IF (.NOT.ASSOCIATED(neighbor_list_set)) CYCLE
-! obtain charges
-        atomic_kind => atomic_kind_set ( ikind )
-        CALL get_atomic_kind ( atomic_kind, qeff = qi )
-        atomic_kind => atomic_kind_set ( jkind )
-        CALL get_atomic_kind ( atomic_kind, qeff = qj )
-
-        rab2_max = potparm %pot( ikind, jkind )%pot % rcutsq 
-
-        CALL get_neighbor_list_set(neighbor_list_set=neighbor_list_set,&
-                                   nlist=nlist)
-
-        neighbor_list => first_list(neighbor_list_set)
-
-        DO ilist=1,nlist
-
-          CALL get_neighbor_list(neighbor_list=neighbor_list,&
-                                 atom=atom_a,&
-                                 nnode=nnode)
-          CALL scaled_to_real(s2r,r_last_update(atom_a)%r,cell)
-          dra(:) = particle_set(atom_a)%r(:) - s2r
-
-          neighbor_node => first_node(neighbor_list)
-
-          DO inode=1,nnode
-
-            CALL get_neighbor_node(neighbor_node=neighbor_node,&
-                                   neighbor=atom_b,&
-                                   r=rab)
-
-            CALL scaled_to_real(s2r,r_last_update(atom_b)%r,cell)
-            drb(:) = particle_set(atom_b)%r(:) - s2r
-            CALL scaled_to_real(s2r,rab(:),cell)
-            rab(:) = s2r - dra(:) + drb(:)
-            rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
-
-            IF (rab2 <= rab2_max) THEN
-              IF (qi==0.AND.qj==0) THEN
-                CALL potential_f ( rab2, potparm, qi, qj, &
-                                   ikind, jkind, energy )
-              ELSE
-                CALL potential_f ( rab2, potparm, qi, qj, &
-                          ikind, jkind, energy, ewald_env )
-              ENDIF
-!
-! summing up the potential energy
-!
-                 vnb = vnb + energy
-            END IF
-
-            neighbor_node => next(neighbor_node)
-
-          END DO
-
-          neighbor_list => next(neighbor_list)
-
-        END DO
-
-      END DO
-
-    END DO
-
+  nkinds = SIZE ( potparm%pot, 1 )
+  DO ilist=1,nonbonded%nlists
+     neighbor_kind_pair => nonbonded%neighbor_kind_pairs(ilist)
+     ikind = neighbor_kind_pair%ikind
+     jkind = neighbor_kind_pair%jkind
+     atomic_kind => atomic_kind_set ( ikind )
+     CALL get_atomic_kind ( atomic_kind, qeff = qi )
+     atomic_kind => atomic_kind_set ( jkind )
+     CALL get_atomic_kind ( atomic_kind, qeff = qj )
+     rab2_max = potparm%pot(ikind,jkind)%pot%rcutsq
+     cell_v = matvec_3x3(cell%hmat,REAL(neighbor_kind_pair%cell_vector,KIND=dp))
+     DO ipair = 1, neighbor_kind_pair%npairs
+        atom_a = neighbor_kind_pair%list(1,ipair)
+        atom_b = neighbor_kind_pair%list(2,ipair)
+        rab    = pbc(particle_set(atom_b)%r-particle_set(atom_a)%r,cell)+cell_v
+        rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
+        
+        IF (rab2 <= rab2_max) THEN
+           IF (qi==0.AND.qj==0) THEN
+              CALL potential_f ( rab2, potparm, qi, qj, &
+                   ikind, jkind, energy )
+           ELSE
+              CALL potential_f ( rab2, potparm, qi, qj, &
+                   ikind, jkind, energy, ewald_env )
+           ENDIF
+           !
+           ! summing up the potential energy
+           !
+           vnb = vnb + energy
+        END IF
+     END DO
+  END DO
+  
 END SUBROUTINE potential_nonbond
 
 ! *****************************************************************************
