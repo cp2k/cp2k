@@ -523,7 +523,7 @@ SUBROUTINE cp_cart_release(cart,error)
         IF (cart%owns_group) THEN
             CALL mp_comm_free(cart%group)
          END IF
-        DEALLOCATE(cart%source,cart%periodic,cart%mepos,stat=stat)
+        DEALLOCATE(cart%source,cart%periodic,cart%mepos,cart%num_pe,stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
         DEALLOCATE(cart,stat=stat)
      END IF

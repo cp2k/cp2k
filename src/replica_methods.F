@@ -209,7 +209,7 @@ SUBROUTINE rep_env_test(para_env,input,error)
     INTEGER                                  :: i, stat
     LOGICAL                                  :: failure
     REAL(kind=dp)                            :: err,max_err
-    REAL(kind=dp), DIMENSION(:), POINTER     :: e1, e2, e3
+    REAL(kind=dp), DIMENSION(:), allocatable :: e1, e2, e3
     REAL(kind=dp), DIMENSION(:, :), POINTER  :: f1, f2, f3
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(replica_env_type), POINTER          :: rep_env
@@ -224,7 +224,7 @@ SUBROUTINE rep_env_test(para_env,input,error)
   max_err=0._dp
   IF (.NOT. failure) THEN
      logger => cp_error_get_logger(error)
-     NULLIFY(rep_env,e1,e2,e3,f1,f2,f3)
+     NULLIFY(rep_env,f1,f2,f3)
 !FM     CALL cp_create_fenv_comm(i,"Ar-sys.inp","Ar-sys.out",&
 !FM     0,stat)
 !FM     CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
@@ -321,15 +321,15 @@ SUBROUTINE rep_env_test(para_env,input,error)
         CALL cp_log(logger,cp_note_level+1,routineP,"diff_e33="//&
              cp_to_string(err)//cp_to_string(e3(1))//&
              cp_to_string(e3(2)), local=.FALSE.)
-        DEALLOCATE(f3,stat=stat)
+        DEALLOCATE(f3,e3,stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
      END IF
      IF (ASSOCIATED(f1)) THEN
-        DEALLOCATE(f1,stat=stat)
+        DEALLOCATE(f1,e1,stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
      END IF
      IF (ASSOCIATED(f2)) THEN
-        DEALLOCATE(f2,stat=stat)
+        DEALLOCATE(f2,e2,stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
      END IF
      CALL cp_log(logger,cp_note_level+1,routineP,"CUMULATIVE ERROR"//&

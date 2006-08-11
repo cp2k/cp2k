@@ -799,8 +799,9 @@ CONTAINS
 
     CALL get_qs_env(qs_env, ks_env=ks_env)
     IF (.not.ASSOCIATED(ks_env)) THEN
-       CALL qs_ks_create(ks_env,qs_env=qs_env)
-       CALL set_qs_env(qs_env, ks_env=ks_env)
+       CALL qs_ks_create(ks_env,qs_env=qs_env,error=error)
+       CALL set_qs_env(qs_env, ks_env=ks_env,error=error)
+       CALL qs_ks_release(ks_env,error=error)
     END IF
 
     !   *** Initializes the MOs ***
@@ -1857,7 +1858,7 @@ CONTAINS
     TYPE(replica_env_type), pointer :: rep_env
     real(dp) :: maxocc
     TYPE(cp_fm_p_type), DIMENSION(:), &
-         POINTER                                :: psi0
+         allocatable                         :: psi0
     TYPE(cp_para_env_type), pointer :: para_env
     TYPE(cp_blacs_env_type), pointer :: blacs_env
     type(cp_error_type) :: suberror

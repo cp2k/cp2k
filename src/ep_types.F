@@ -562,12 +562,14 @@ CONTAINS
 
     nullify(res)
     IF (module_initialized) THEN
-       DO i=1,SIZE(ep_envs)
-          IF (ep_envs(i)%ep_env%id_nr==id_nr) THEN
-             res => ep_envs(i)%ep_env
-             exit
-          END IF
-       END DO
+       IF (ASSOCIATED(ep_envs)) THEN
+          DO i=1,SIZE(ep_envs)
+             IF (ep_envs(i)%ep_env%id_nr==id_nr) THEN
+                res => ep_envs(i)%ep_env
+                EXIT
+             END IF
+          END DO
+       END IF
     END IF
   END FUNCTION ep_envs_get_ep_env
   !***************************************************************************
@@ -609,14 +611,19 @@ CONTAINS
        ep_env2 => ep_envs_get_ep_env(ep_env%id_nr)
        IF (.NOT.ASSOCIATED(ep_env2)) THEN
           IF (module_initialized) THEN
-             ALLOCATE(new_ep_envs(SIZE(ep_envs)+1),stat=stat)
-             CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
-             DO i=1,SIZE(ep_envs)
-                new_ep_envs(i)%ep_env => ep_envs(i)%ep_env
-             END DO
-             DEALLOCATE(ep_envs,stat=stat)
-             CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
-             ep_envs => new_ep_envs
+             IF (ASSOCIATED(ep_envs)) THEN
+                ALLOCATE(new_ep_envs(SIZE(ep_envs)+1),stat=stat)
+                CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
+                DO i=1,SIZE(ep_envs)
+                   new_ep_envs(i)%ep_env => ep_envs(i)%ep_env
+                END DO
+                DEALLOCATE(ep_envs,stat=stat)
+                CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+                ep_envs => new_ep_envs
+             ELSE
+                ALLOCATE(ep_envs(1),stat=stat)
+                CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
+             END IF
           ELSE
              ALLOCATE(ep_envs(1),stat=stat)
              CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
@@ -675,6 +682,10 @@ CONTAINS
        DEALLOCATE(ep_envs,stat=stat)
        CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
        ep_envs => new_ep_envs
+       IF (SIZE(ep_envs)==0) THEN
+          DEALLOCATE(ep_envs,stat=stat)
+          CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+       END IF
     END IF
   END SUBROUTINE ep_envs_rm_ep_env
   !***************************************************************************
