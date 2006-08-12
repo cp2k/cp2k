@@ -2427,9 +2427,9 @@ END SUBROUTINE deallocate_old
             DO iparticle_local=1,nparticle_local
               iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
 ! Transform positions and velocities and forces
-              ur = MATVEC_3X3 ( TRANSPOSE_3D ( u ), particle_set ( iparticle ) % r ( : ) )
-              uv = MATVEC_3X3 ( TRANSPOSE_3D ( u ), particle_set ( iparticle ) % v ( : ) )
-              uf = MATVEC_3X3 ( TRANSPOSE_3D ( u ), particle_set ( iparticle ) % f ( : ) )
+              CALL matvec_3x3 (ur, TRANSPOSE_3D ( u ), particle_set ( iparticle ) % r ( : ) )
+              CALL matvec_3x3 (uv, TRANSPOSE_3D ( u ), particle_set ( iparticle ) % v ( : ) )
+              CALL matvec_3x3 (uf, TRANSPOSE_3D ( u ), particle_set ( iparticle ) % f ( : ) )
 !
               uv(1) = uv(1)*scale_v(1)*scale_v(1) + uf(1)*scale_v(1)*poly_v(1)*dm
               uv(2) = uv(2)*scale_v(2)*scale_v(2) + uf(2)*scale_v(2)*poly_v(2)*dm
@@ -2442,8 +2442,8 @@ END SUBROUTINE deallocate_old
               ur(3) = ur(3)*scale_r(3)*scale_r(3) +  &
                       uv(3)*scale_r(3)*poly_r(3)*dt
 !
-              pos ( :, iparticle ) = MATVEC_3x3 ( u, ur )
-              vel ( :, iparticle ) = MATVEC_3x3 ( u, uv )
+              CALL MATVEC_3x3 (pos ( :, iparticle ), u, ur )
+              CALL MATVEC_3x3 (vel ( :, iparticle ), u, uv )
             END DO
           END DO
 
@@ -2490,12 +2490,12 @@ END SUBROUTINE deallocate_old
          nparticle_local = local_particles%n_el(iparticle_kind)
          DO iparticle_local=1,nparticle_local
            iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
-           uv = MATVEC_3X3 ( TRANSPOSE_3D ( u ), vel ( :, iparticle ) )
-           uf = MATVEC_3x3 ( TRANSPOSE_3D ( u ), particle_set ( iparticle ) % f ( : ) )
+           CALL matvec_3x3 (uv, TRANSPOSE_3D ( u ), vel ( :, iparticle ) )
+           CALL MATVEC_3x3 (uf, TRANSPOSE_3D ( u ), particle_set ( iparticle ) % f ( : ) )
            uv(1) = uv(1)*scale_v(1)*scale_v(1) + uf(1)*scale_v(1)*poly_v(1)*dm
            uv(2) = uv(2)*scale_v(2)*scale_v(2) + uf(2)*scale_v(2)*poly_v(2)*dm
            uv(3) = uv(3)*scale_v(3)*scale_v(3) + uf(3)*scale_v(3)*poly_v(3)*dm
-           vel ( :, iparticle ) = MATVEC_3x3(u,uv)
+           CALL MATVEC_3x3(vel ( :, iparticle ),u,uv)
          END DO
        END DO
        roll_tol = -1.E10_dp

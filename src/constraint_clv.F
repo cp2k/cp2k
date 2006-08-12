@@ -588,7 +588,7 @@ CONTAINS
           !
           IF (my_roll) THEN
              ! If ROLL rotate forces
-             f_roll = MATVEC_3X3 ( rmat, lcolv % colvar_old % dsdr(:,iatm)  )
+             CALL matvec_3x3 (f_roll, rmat, lcolv % colvar_old % dsdr(:,iatm)  )
           ELSE
              f_roll = lcolv % colvar_old % dsdr(:,iatm)
           END IF
@@ -628,7 +628,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'eval_Jac_colvar', &
          routineP = moduleN//':'//routineN
     REAL(KIND=dp), DIMENSION(:), POINTER  :: wrk1, wrk2
-    REAL(KIND=dp), DIMENSION(3) :: tmp1, tmp2
+    REAL(KIND=dp), DIMENSION(3) :: tmp1, tmp2, tmp3
     INTEGER :: stat, i, ind, iatom
     LOGICAL :: failure, my_roll
     REAL(KIND=dp)                            :: mass
@@ -647,9 +647,11 @@ CONTAINS
     DO i = 1, SIZE(colvar%i_atom)
        iatom = colvar%i_atom(i)
        tmp1 = colvar%dsdr(1:3,i)
-       tmp2 = colvar_old%dsdr(1:3,i)
        IF (my_roll) THEN          
-          tmp2 =  MATVEC_3X3 ( rmat, tmp2 )
+          tmp3 = colvar_old%dsdr(1:3,i)
+          CALL  matvec_3x3 (tmp2, rmat, tmp3 )
+       ELSE
+          tmp2 = colvar_old%dsdr(1:3,i)
        END IF
        res = res + DOT_PRODUCT(tmp1,tmp2)*imass(iatom)
     END DO
@@ -682,7 +684,7 @@ CONTAINS
          OPTIONAL               :: particles
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-    REAL(KIND=dp)               :: res
+    REAL(KIND=dp)               :: res, tmp(3)
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rattle_con_eval', &
          routineP = moduleN//':'//routineN
@@ -705,8 +707,9 @@ CONTAINS
        ind = colvar % i_atom (iatm)
        IF (my_roll) THEN
           pos    = particles ( ind ) % r
-          f_roll = MATVEC_3x3 ( rmat, colvar % dsdr(:,iatm) )
-          v_roll = vel(:,ind) + MATVEC_3X3 ( veps, pos )
+          CALL MATVEC_3x3 (f_roll, rmat, colvar % dsdr(:,iatm) )
+          CALL matvec_3x3 (tmp, veps, pos )
+          v_roll = vel(:,ind) + tmp
        ELSE          
           f_roll = colvar % dsdr(:,iatm)
           v_roll = vel(:,ind)

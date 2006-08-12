@@ -794,7 +794,7 @@ CONTAINS
     nneighbor = 0
     DO iab=1,SIZE(nonbonded%neighbor_kind_pairs)
        neighbor_kind_pair => nonbonded%neighbor_kind_pairs(iab)
-       cell_v = matvec_3x3(cell%hmat,REAL(neighbor_kind_pair%cell_vector,KIND=dp))
+       CALL matvec_3x3(cell_v, cell%hmat,REAL(neighbor_kind_pair%cell_vector,KIND=dp))
        DO ilist=1,neighbor_kind_pair%npairs
           nneighbor = nneighbor + 1
           IF (output_unit > 0) THEN             

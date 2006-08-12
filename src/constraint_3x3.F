@@ -268,9 +268,9 @@ CONTAINS
        lg3x3 ( iconst ) % fc = -2.0_dp*( lg3x3 ( iconst ) % rb_old - &
             lg3x3 ( iconst ) % rc_old )
        ! rotate fconst:
-       f_roll1 = matvec_3x3 ( r_shake, lg3x3 ( iconst ) % fa )
-       f_roll2 = matvec_3x3 ( r_shake, lg3x3 ( iconst ) % fb )
-       f_roll3 = matvec_3x3 ( r_shake, lg3x3 ( iconst ) % fc )
+       CALL matvec_3x3 (f_roll1, r_shake, lg3x3 ( iconst ) % fa )
+       CALL matvec_3x3 (f_roll2, r_shake, lg3x3 ( iconst ) % fb )
+       CALL matvec_3x3 (f_roll3, r_shake, lg3x3 ( iconst ) % fc )
 
        ! construct matrix
        amat(1,1)=(imass1+imass2)*DOTPROD_3D(r0_12,f_roll1 )
@@ -316,12 +316,18 @@ CONTAINS
                lg3x3 ( iconst ) % lambda ( 3 ) * lg3x3 ( iconst ) % fc
           fc3=-lg3x3 ( iconst ) % lambda ( 2 ) * lg3x3 ( iconst ) % fb - &
                lg3x3 ( iconst ) % lambda ( 3 ) * lg3x3 ( iconst ) % fc
-          r1 ( : ) = pos ( :, index_a ) + imass1*dtsqby2*MATVEC_3x3 ( r_shake, fc1 )
-          r2 ( : ) = pos ( :, index_b ) + imass2*dtsqby2*MATVEC_3x3 ( r_shake, fc2 )
-          r3 ( : ) = pos ( :, index_c ) + imass3*dtsqby2*MATVEC_3x3 ( r_shake, fc3 )
-          v1 ( : ) = vel ( :, index_a ) + imass1*dtby2*MATVEC_3x3 ( v_shake, fc1 )
-          v2 ( : ) = vel ( :, index_b ) + imass2*dtby2*MATVEC_3x3 ( v_shake, fc2 )
-          v3 ( : ) = vel ( :, index_c ) + imass3*dtby2*MATVEC_3x3 ( v_shake, fc3 )
+          CALL MATVEC_3x3 (vec, r_shake, fc1 )
+          r1 ( : ) = pos ( :, index_a ) + imass1*dtsqby2*vec
+          CALL MATVEC_3x3 (vec, r_shake, fc2 )
+          r2 ( : ) = pos ( :, index_b ) + imass2*dtsqby2*vec
+          CALL MATVEC_3x3 (vec, r_shake, fc3 )
+          r3 ( : ) = pos ( :, index_c ) + imass3*dtsqby2*vec
+          CALL MATVEC_3x3 (vec, v_shake, fc1 )
+          v1 ( : ) = vel ( :, index_a ) + imass1*dtby2*vec
+          CALL MATVEC_3x3 (vec, v_shake, fc2 )
+          v2 ( : ) = vel ( :, index_b ) + imass2*dtby2*vec
+          CALL MATVEC_3x3 (vec, v_shake, fc3 )
+          v3 ( : ) = vel ( :, index_c ) + imass3*dtby2*vec
           r12=r1-r2
           r13=r1-r3
           r23=r2-r3
@@ -384,7 +390,7 @@ CONTAINS
                                                 imass3, mass
     REAL(KIND=dp), DIMENSION(3)              :: f_roll1, f_roll2, f_roll3, &
                                                 fc1, fc2, fc3, lambda, r12, &
-                                                r13, r23, v12, v13, v23
+                                                r13, r23, v12, v13, v23, vec
     REAL(KIND=dp), DIMENSION(3, 1)           :: bvec
     REAL(KIND=dp), DIMENSION(3, 3)           :: amat
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -422,9 +428,9 @@ CONTAINS
        lg3x3 ( iconst ) % fc = -2.0_dp* r23
 
        ! roll the fc
-       f_roll1 = MATVEC_3x3 ( r_rattle, lg3x3 ( iconst ) % fa )
-       f_roll2 = MATVEC_3x3 ( r_rattle, lg3x3 ( iconst ) % fb )
-       f_roll3 = MATVEC_3x3 ( r_rattle, lg3x3 ( iconst ) % fc )
+       CALL MATVEC_3x3 (f_roll1, r_rattle, lg3x3 ( iconst ) % fa )
+       CALL MATVEC_3x3 (f_roll2, r_rattle, lg3x3 ( iconst ) % fb )
+       CALL MATVEC_3x3 (f_roll3, r_rattle, lg3x3 ( iconst ) % fc )
 
        ! construct matrix
        amat(1,1)=(imass1+imass2)*DOTPROD_3D(r12, f_roll1 )
@@ -438,9 +444,12 @@ CONTAINS
        amat(3,3)=(imass2+imass3)*DOTPROD_3D(r23, f_roll3 )
 
        ! construct solution vector
-       bvec ( 1, 1 ) = DOTPROD_3D ( r12, v12 + MATVEC_3X3 ( veps, r12 ) )
-       bvec ( 2, 1 ) = DOTPROD_3D ( r13, v13 + MATVEC_3X3 ( veps, r13 ) )
-       bvec ( 3, 1 ) = DOTPROD_3D ( r23, v23 + MATVEC_3X3 ( veps, r23 ) )
+       CALL matvec_3x3 (vec, veps, r12 )
+       bvec ( 1, 1 ) = DOTPROD_3D ( r12, v12 + vec )
+       CALL matvec_3x3 (vec, veps, r13 )
+       bvec ( 2, 1 ) = DOTPROD_3D ( r13, v13 + vec )
+       CALL matvec_3x3 (vec, veps, r23 )
+       bvec ( 3, 1 ) = DOTPROD_3D ( r23, v23 + vec )
        bvec = -bvec * 2.0_dp * idt
 
        ! get lambda

@@ -140,7 +140,7 @@ CONTAINS
        spline_data => potparm % pot( ikind, jkind ) %pot % pair_spline_data
        is_eam=(potparm %pot( ikind, jkind ) %pot % TYPE == ea_type)
        rab2_max = potparm%pot(ikind,jkind)%pot%rcutsq
-       cell_v = matvec_3x3(cell%hmat,REAL(neighbor_kind_pair%cell_vector,KIND=dp))
+       CALL matvec_3x3(cell_v, cell%hmat,REAL(neighbor_kind_pair%cell_vector,KIND=dp))
        DO ipair = 1, neighbor_kind_pair%npairs
           atom_a = neighbor_kind_pair%list(1,ipair)
           atom_b = neighbor_kind_pair%list(2,ipair)
@@ -245,7 +245,7 @@ CONTAINS
           CASE ( ea_type)
              spline_data => potparm % pot( ikind, jkind ) %pot % rho_spline_data
              rab2_max = potparm%pot(ikind,jkind)%pot%rcutsq
-             cell_v = matvec_3x3(cell%hmat,REAL(neighbor_kind_pair%cell_vector,KIND=dp))
+             CALL matvec_3x3(cell_v, cell%hmat,REAL(neighbor_kind_pair%cell_vector,KIND=dp))
              DO ipair = 1, neighbor_kind_pair%npairs
                 atom_a = neighbor_kind_pair%list(1,ipair)
                 atom_b = neighbor_kind_pair%list(2,ipair)

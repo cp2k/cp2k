@@ -163,7 +163,7 @@ SUBROUTINE ewald_evaluate (ewald_env, ewald_pw, cell, atomic_kind_set, particle_
         node = node + 1
         charge ( node ) = q
         iparticle = local_particles%list(iparticle_kind)%array(iparticle_local)
-        vec = matvec_3x3 ( cell % h_inv, particle_set ( iparticle ) % r )
+        CALL matvec_3x3 (vec, cell % h_inv, particle_set ( iparticle ) % r )
         CALL structure_factor_evaluate ( vec, pw_grid % npts, exp_igr % lb, &
         exp_igr % ex(:,node), exp_igr % ey(:,node), exp_igr % ez(:,node) )
      END DO

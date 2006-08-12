@@ -472,22 +472,22 @@ END SUBROUTINE getinv3x3
 
 !******************************************************************************
 
-FUNCTION matvec_3x3 ( mat, vec )
+SUBROUTINE matvec_3x3 (res, mat, vec )
 
 
 ! Return value
     REAL(KIND=dp), DIMENSION(3, 3), &
       INTENT(IN)                             :: mat
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: vec
-    REAL(KIND=dp), DIMENSION(3)              :: matvec_3x3
+    REAL(KIND=dp), DIMENSION(3), INTENT(OUT) :: res
 
 !------------------------------------------------------------------------------
 
-  matvec_3x3(1)=mat(1,1)*vec(1)+mat(1,2)*vec(2)+mat(1,3)*vec(3)
-  matvec_3x3(2)=mat(2,1)*vec(1)+mat(2,2)*vec(2)+mat(2,3)*vec(3)
-  matvec_3x3(3)=mat(3,1)*vec(1)+mat(3,2)*vec(2)+mat(3,3)*vec(3)
+  res(1)=mat(1,1)*vec(1)+mat(1,2)*vec(2)+mat(1,3)*vec(3)
+  res(2)=mat(2,1)*vec(1)+mat(2,2)*vec(2)+mat(2,3)*vec(3)
+  res(3)=mat(3,1)*vec(1)+mat(3,2)*vec(2)+mat(3,3)*vec(3)
 
-END FUNCTION matvec_3x3
+END SUBROUTINE matvec_3x3
 
 !******************************************************************************
 

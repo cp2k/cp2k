@@ -1549,7 +1549,7 @@ SUBROUTINE pw_grid_count ( h_inv, pw_grid, cutoff, yz_mask )
            END IF
 
            gi ( 1 ) = REAL(l,dp)
-           ggi = MATMUL ( gmat, gi )
+           CALL matvec_3x3(ggi, gmat, gi )
            length = twopi * twopi * DOT_PRODUCT ( ggi , gi )
            IF ( 0.5_dp * length <= cutoff ) THEN
              gpt = gpt + 1
@@ -2403,7 +2403,7 @@ SUBROUTINE pw_find_cutoff_qs ( bounds, h_inv, cutoff, error )
    eig = twopi * SQRT ( eig )
    gmat_inv = inv_3x3 ( gmat )
    vec1(:)=REAL ( bounds(2,:), dp )
-   vec(:) = MATVEC_3x3 ( gmat_inv (:,:), vec1( : ) )
+   CALL MATVEC_3x3 (vec, gmat_inv (:,:), vec1( : ) )
    length = vec ( 1 ) * eig ( 1 )
    length = CEILING ( length * length * 0.5_dp )
    gcut = length 
