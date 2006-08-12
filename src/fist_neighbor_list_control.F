@@ -214,9 +214,9 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
   DO iparticle=1,nparticle
      rab = r_last_update(iparticle)%r
      IF (cell%orthorhombic) THEN
-        rab(1) = rab(1) - cell%hmat(1,1)*cell%perd(1)*ANINT(cell_last_update%h_inv(1,1)*rab(1))
-        rab(2) = rab(2) - cell%hmat(2,2)*cell%perd(2)*ANINT(cell_last_update%h_inv(2,2)*rab(2))
-        rab(3) = rab(3) - cell%hmat(3,3)*cell%perd(3)*ANINT(cell_last_update%h_inv(3,3)*rab(3))
+        rab(1) = - cell%hmat(1,1)*cell%perd(1)*ANINT(cell_last_update%h_inv(1,1)*rab(1))
+        rab(2) = - cell%hmat(2,2)*cell%perd(2)*ANINT(cell_last_update%h_inv(2,2)*rab(2))
+        rab(3) = - cell%hmat(3,3)*cell%perd(3)*ANINT(cell_last_update%h_inv(3,3)*rab(3))
      ELSE
         s(1) = cell_last_update%h_inv(1,1)*rab(1) + cell_last_update%h_inv(1,2)*rab(2) +&
              cell_last_update%h_inv(1,3)*rab(3)
@@ -227,9 +227,9 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
         s(1) = - cell%perd(1)*ANINT(s(1))
         s(2) = - cell%perd(2)*ANINT(s(2))
         s(3) = - cell%perd(3)*ANINT(s(3))
-        rab(1) = rab(1) + cell%hmat(1,1)*s(1) + cell%hmat(1,2)*s(2) + cell%hmat(1,3)*s(3)
-        rab(2) = rab(2) + cell%hmat(2,1)*s(1) + cell%hmat(2,2)*s(2) + cell%hmat(2,3)*s(3)
-        rab(3) = rab(3) + cell%hmat(3,1)*s(1) + cell%hmat(3,2)*s(2) + cell%hmat(3,3)*s(3)
+        rab(1) = + cell%hmat(1,1)*s(1) + cell%hmat(1,2)*s(2) + cell%hmat(1,3)*s(3)
+        rab(2) = + cell%hmat(2,1)*s(1) + cell%hmat(2,2)*s(2) + cell%hmat(2,3)*s(3)
+        rab(3) = + cell%hmat(3,1)*s(1) + cell%hmat(3,2)*s(2) + cell%hmat(3,3)*s(3)
      END IF
      r_last_update_pbc(iparticle )%r=rab
   END DO

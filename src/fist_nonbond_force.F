@@ -145,8 +145,8 @@ CONTAINS
           atom_a = neighbor_kind_pair%list(1,ipair)
           atom_b = neighbor_kind_pair%list(2,ipair)
           !
-          rab = r_last_update_pbc(atom_b)%r-r_last_update_pbc(atom_a)%r
-          drab = particle_set(atom_b)%r-r_last_update(atom_b)%r-particle_set(atom_a)%r+r_last_update(atom_a)%r
+          rab = particle_set(atom_b)%r-particle_set(atom_a)%r 
+          drab = r_last_update_pbc(atom_b)%r-r_last_update_pbc(atom_a)%r
           rab = rab+cell_v+drab
           rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
           IF (rab2 <= rab2_max) THEN
@@ -249,9 +249,8 @@ CONTAINS
              DO ipair = 1, neighbor_kind_pair%npairs
                 atom_a = neighbor_kind_pair%list(1,ipair)
                 atom_b = neighbor_kind_pair%list(2,ipair)
-                rab = r_last_update_pbc(atom_b)%r-r_last_update_pbc(atom_a)%r
-                drab = particle_set(atom_b)%r-r_last_update(atom_b)%r-&
-                       particle_set(atom_a)%r+r_last_update(atom_a)%r
+                rab = particle_set(atom_b)%r-particle_set(atom_a)%r 
+                drab = r_last_update_pbc(atom_b)%r-r_last_update_pbc(atom_a)%r
                 rab = rab+cell_v+drab
                 rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
                 IF (rab2 <= rab2_max) THEN
