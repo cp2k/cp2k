@@ -16,7 +16,7 @@
 !!   MODIFICATION HISTORY
 !!     Adapted from qs_scf_post
 !!
-!!   SOURCE
+!!*** 
 !******************************************************************************
 
 MODULE kg_scf_post
@@ -218,7 +218,7 @@ CONTAINS
         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
         DO imol_local = 1, nmol_local
           jmol = local_molecule%list(imol_kind)%array(imol_local)
-          mol_block => fm_mol_blocks(jmol)
+          mol_block => fm_mol_blocks(imol_local)
           CALL get_fm_mol_block(fm_mol_block=mol_block,&
                                 work=work, mos=mos)
           pmat = 0._dp
