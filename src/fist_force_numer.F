@@ -26,7 +26,7 @@ MODULE fist_force_numer
                                              get_atomic_kind_set
   USE cell_types,                      ONLY: &
        cell_create, cell_release, cell_retain, cell_type, get_cell, get_hinv, &
-       pbc, plane_distance, real_to_scaled, scaled_to_real, pbc
+       plane_distance, real_to_scaled, scaled_to_real, pbc
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE ewald_environment_types,         ONLY: ewald_env_get,&
                                              ewald_environment_type
