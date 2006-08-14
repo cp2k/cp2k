@@ -185,3 +185,28 @@ loop.inp
 h2o2_amber.inp
 #bug fix in respa
 acn_respa.inp
+#bug fix for neighbor lists generation (do not exclude excluded atoms belonging to different periodic images..)
+water32_hbonds_2.inp.out
+H2O-32_ewald.inp.out
+H2O-32_PME.inp.out
+H2O-32_SPME.inp.out
+H2O-32_SPME_res_1.inp.out
+H2O-32_SPME_res_2.inp.out
+H2O-32_SPME_res_3.inp.out
+H2O-32_SPME_res_4.inp.out
+H2O-32_NPT.inp.out
+H2O-32_NPT_res_1.inp.out
+H2O-32_NPT_res_2.inp.out
+H2O-32_NPT_res_3.inp.out
+H2O-32_NPT_res_4.inp.out
+silicon_cluster.inp.out
+silicon_cluster_2.inp.out
+silicon_cluster_3.inp.out
+silicon_cluster_4.inp.out
+silicon_cluster_5.inp.out
+silicon_cluster_6.inp.out
+NaCl-H2O.inp.out
+nh3-meta-1.inp.out
+nh3-meta-2.inp.out
+H2O-32_SPME_fp.inp.out
+H2O-1.inp.out

@@ -590,7 +590,7 @@ CONTAINS
                 rab(1) = coord(1,atom_b)-coord(1,atom_a)+cell_v(1)
                 rab(2) = coord(2,atom_b)-coord(2,atom_a)+cell_v(2)
                 rab(3) = coord(3,atom_b)-coord(3,atom_a)+cell_v(3)
-                rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
+                rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)                
                 rab_max  = r_max(ikind,jkind)
                 rab2_max = rab_max*rab_max
                 IF (rab2 < rab2_max) THEN
@@ -605,7 +605,10 @@ CONTAINS
                         atom_a,&
                         atom_b,&
                         exclusion_list = particle_set(atom_a)%list_exclude_vdw,&
-                        added=added)
+                        particle_set=particle_set,&
+                        rab=rab,&
+                        added=added,&
+                        error=error)
                    ! Really add the pair
                    IF (added) THEN
                       rab2_min = r_minsq(ikind,jkind)

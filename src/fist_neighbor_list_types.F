@@ -24,6 +24,7 @@ MODULE fist_neighbor_list_types
   USE kinds,                           ONLY: dp
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
+  USE particle_types,                  ONLY: particle_type
 
 #include "cp_common_uses.h"
 
@@ -203,9 +204,13 @@ CONTAINS
 !!     08.2006 created [tlaino]
 !!
 !!*** **********************************************************************
-  SUBROUTINE fist_neighbor_add(neighbor_kind_pair, atom_a, atom_b, exclusion_list, added,error)
+  SUBROUTINE fist_neighbor_add(neighbor_kind_pair, atom_a, atom_b, exclusion_list,&
+       particle_set, rab, added, error)
     TYPE(neighbor_kind_pairs_type), POINTER  :: neighbor_kind_pair
-    INTEGER, INTENT(IN) :: atom_a,atom_b
+    TYPE(particle_type), DIMENSION(:), &
+         POINTER                                :: particle_set
+    INTEGER, INTENT(IN)                      :: atom_a, atom_b
+    REAL(KIND=dp), DIMENSION(3)              :: rab
     LOGICAL, INTENT(OUT)                     :: added
     INTEGER, DIMENSION(:), POINTER           :: exclusion_list
     TYPE(cp_error_type), INTENT(inout), &
@@ -216,10 +221,16 @@ CONTAINS
     LOGICAL :: failure 
     INTEGER :: old_size,new_size,stat
     INTEGER, POINTER, DIMENSION(:,:)         :: new_list
-    
+    REAL(KIND=dp), DIMENSION(3)              :: rabc
+    REAL(KIND=dp), PARAMETER                 :: eps_default=EPSILON(0.0_dp)*1.0E4_dp
+
     IF (ANY(exclusion_list==atom_b)) THEN
-       added = .FALSE.
-       RETURN
+       ! Only atoms really connected (not the periodic images) need to be excluded..
+       rabc  = particle_set(atom_b)%r - particle_set(atom_a)%r 
+       IF (ALL(ABS(rab-rabc)<eps_default)) THEN
+          added = .FALSE.
+          RETURN
+       END IF
     END IF
     added = .TRUE.
     old_size=SIZE(neighbor_kind_pair%list,2)
