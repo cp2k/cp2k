@@ -153,8 +153,8 @@ CONTAINS
          "SUBSYS",error=error)
     cell_section => section_vals_get_subs_vals(subsys_section,&
          "CELL",error=error)
-    constraint_section =>  section_vals_get_subs_vals(subsys_section,&
-         "CONSTRAINT",error=error)
+    constraint_section =>  section_vals_get_subs_vals(globenv%input_file,&
+         "MOTION%CONSTRAINT",error=error)
     topology_section   =>  section_vals_get_subs_vals(subsys_section,&
          "TOPOLOGY",error=error)
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO",&

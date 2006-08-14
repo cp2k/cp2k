@@ -22,9 +22,6 @@ METHOD EP
  ABC          9.8528  9.8528  9.8528
       UNIT ANGSTROM
     &END CELL
-    &CONSTRAINT
-      SHAKE 1.0E-10
-    &END CONSTRAINT
     &COORD
 O       2.280398       9.146539       5.088696
 H       1.762019       9.820429       5.528454

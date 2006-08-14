@@ -2928,7 +2928,7 @@ CONTAINS
 !!*** *************************************************************************
 
   SUBROUTINE topology_constraint_pack ( molecule_kind_set,molecule_set,&
-                                      topology,qmmm_env,particle_set,globenv,subsys_section,error)
+       topology,qmmm_env,particle_set,globenv,subsys_section,error)
     TYPE(molecule_kind_type), DIMENSION(:), &
       POINTER                                :: molecule_kind_set
     TYPE(molecule_type), DIMENSION(:), &
@@ -2997,7 +2997,8 @@ CONTAINS
     CALL timeset(routineN,'I','',handle)
     
     cons_info => topology%cons_info
-    hbonds_section => section_vals_get_subs_vals(subsys_section,"CONSTRAINT%HBONDS",error=error)
+    hbonds_section => section_vals_get_subs_vals(globenv%input_file,&
+         "MOTION%CONSTRAINT%HBONDS",error=error)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 1. NULLIFY the molecule_set(imol)%lci via set_molecule_set

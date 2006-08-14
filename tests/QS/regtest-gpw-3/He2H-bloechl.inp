@@ -32,9 +32,6 @@
       ABC 10.0 10.0 10.0
       UNIT ANGSTROM
     &END CELL
-    &CONSTRAINT
-      SHAKE 1.0E-10
-    &END CONSTRAINT
     &COORD
     H   3.0000  3.0000  3.0000
     He  3.0000  3.0000  7.0000

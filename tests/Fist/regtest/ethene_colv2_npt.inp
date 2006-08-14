@@ -32,18 +32,6 @@
       COORD_FILE ../sample_pdb/ethene.pdb
       COORDINATE pdb
     &END TOPOLOGY
-    &CONSTRAINT
-      &COLLECTIVE
-        TARGET 0.34905
-        MOLECULE 1
-        COLVAR 1
-      &END COLLECTIVE
-      &COLLECTIVE
-        TARGET 2.09433
-        MOLECULE 1
-        COLVAR 2
-      &END COLLECTIVE
-    &END CONSTRAINT
     &COLVAR
       &TORSION
         ATOMS 3 2 1 4
@@ -63,6 +51,18 @@
   RUN_TYPE md
 &END GLOBAL
 &MOTION
+  &CONSTRAINT
+    &COLLECTIVE
+      TARGET 0.34905
+      MOLECULE 1
+      COLVAR 1
+    &END COLLECTIVE
+    &COLLECTIVE
+      TARGET 2.09433
+      MOLECULE 1
+      COLVAR 2
+    &END COLLECTIVE
+  &END CONSTRAINT
   &MD
     ENSEMBLE NPT_I
     STEPS 50

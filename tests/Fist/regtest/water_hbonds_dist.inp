@@ -27,10 +27,6 @@
       ABC 24.955 24.955 24.955
       UNIT ANGSTROM
     &END CELL
-    &CONSTRAINT
-      &HBONDS
-      &END
-    &END CONSTRAINT
     &TOPOLOGY
       COORD_FILE ../sample_pdb/water_2.pdb
       COORDINATE pdb
@@ -49,6 +45,10 @@
   RUN_TYPE MD
 &END GLOBAL
 &MOTION
+  &CONSTRAINT
+    &HBONDS
+    &END
+  &END CONSTRAINT
   &MD
     ENSEMBLE NVE
     STEPS 10

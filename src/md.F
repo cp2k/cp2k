@@ -467,8 +467,8 @@ CONTAINS
        CALL section_vals_val_get(globenv%input_file,"MOTION%PRINT%TRAJECTORY%FORMAT", &
             i_val=simpar%output_format,error=error)
 
-       tmp_section => section_vals_get_subs_vals(subsys_section,&
-            "CONSTRAINT",error=error)
+       tmp_section => section_vals_get_subs_vals(globenv%input_file,&
+            "MOTION%CONSTRAINT",error=error)
        CALL section_vals_get(tmp_section,explicit=explicit,error=error)
        IF (explicit) THEN 
           simpar%constraint = .TRUE.

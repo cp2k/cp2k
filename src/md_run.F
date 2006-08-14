@@ -203,8 +203,8 @@ CONTAINS
          error=error)
     CALL cp_iterate(logger%iter_info,last=.FALSE.,iter_nr=0,error=error)    
     CALL read_md_section ( simpar, globenv, subsys_section, error )
-    simpar%info_constraint = cp_print_key_unit_nr(logger,subsys_section,&
-         "CONSTRAINT%CONSTRAINT_INFO",&
+    simpar%info_constraint = cp_print_key_unit_nr(logger,globenv%input_file,&
+         "MOTION%CONSTRAINT%CONSTRAINT_INFO",&
          extension=".shakeLog",log_filename=.FALSE.,error=error)
 
     CALL extended_type_init(extended_type)
@@ -393,7 +393,7 @@ CONTAINS
     CALL lnhc_dealloc(extended_type%nhc_coef)
     CALL npt_dealloc(extended_type%npt_info)
     CALL cp_print_key_finished_output(simpar%info_constraint, logger,&
-         subsys_section,"CONSTRAINT%CONSTRAINT_INFO",error=error)
+         globenv%input_file,"MOTION%CONSTRAINT%CONSTRAINT_INFO",error=error)
     DEALLOCATE(simpar,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 

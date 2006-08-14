@@ -32,16 +32,6 @@
       COORD_FILE ../sample_pdb/ethene.pdb
       COORDINATE pdb
     &END TOPOLOGY
-    &CONSTRAINT
-      &COLLECTIVE
-        MOLECULE 1
-        COLVAR 1
-      &END COLLECTIVE
-      &COLLECTIVE
-        MOLECULE 1
-        COLVAR 2
-      &END COLLECTIVE
-    &END CONSTRAINT
     &COLVAR
       &ANGLE
         ATOMS 6 2 4
@@ -61,6 +51,16 @@
   RUN_TYPE md
 &END GLOBAL
 &MOTION
+  &CONSTRAINT
+    &COLLECTIVE
+      MOLECULE 1
+      COLVAR 1
+    &END COLLECTIVE
+    &COLLECTIVE
+      MOLECULE 1
+      COLVAR 2
+    &END COLLECTIVE
+  &END CONSTRAINT
   &MD
     ENSEMBLE NVE
     STEPS 50

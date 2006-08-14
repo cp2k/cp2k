@@ -51,11 +51,6 @@
       ABC 5.0 5.0 5.0
       UNIT ANGSTROM
     &END CELL
-    &CONSTRAINT
-      SHAKE 1.0E-10
-    &END CONSTRAINT
-  # CELL_REF
-  # END
     &COORD
     O   2.500000    2.500000    1.934413
     H   2.500000    1.742864    2.520545

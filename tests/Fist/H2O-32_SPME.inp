@@ -56,13 +56,6 @@
       ABC 9.865 9.865 9.865
       UNIT ANGSTROM
     &END CELL
-    &CONSTRAINT
-      &G3X3
-        DISTANCES 1.8897268 1.8897268 3.0859239
-        MOLECULE 1
-        ATOMS 1 2 3
-      &END G3X3
-    &END CONSTRAINT
     &COORD
     O                  -4.583   5.333   1.560   H2O
     H                  -3.777   5.331   0.943   H2O
@@ -172,6 +165,13 @@
   RUN_TYPE MD
 &END GLOBAL
 &MOTION
+  &CONSTRAINT
+    &G3X3
+      DISTANCES 1.8897268 1.8897268 3.0859239
+      MOLECULE 1
+      ATOMS 1 2 3
+    &END G3X3
+  &END CONSTRAINT
   &MD
     ENSEMBLE NVT
     STEPS 10000

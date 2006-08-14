@@ -27,9 +27,6 @@
       ABC 6.0 6.0 6.0
       UNIT ANGSTROM
     &END CELL
-    &CONSTRAINT
-      SHAKE 1.0E-10
-    &END CONSTRAINT
     &COORD
    O     0.000000     0.000000     0.000000    H2O1
    H     0.000000     0.000000     1.000000    H2O1

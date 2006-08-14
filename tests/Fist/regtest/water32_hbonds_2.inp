@@ -56,12 +56,6 @@
       ABC 9.865 9.865 9.865
       UNIT ANGSTROM
     &END CELL
-    &CONSTRAINT
-      &HBONDS
-        ATOM_TYPE O
-        TARGETS 2.2
-      &END
-    &END CONSTRAINT
     &COORD
     O                  -4.583   5.333   1.560   H2O
     H                  -3.777   5.331   0.943   H2O
@@ -169,6 +163,12 @@
   RUN_TYPE MD
 &END GLOBAL
 &MOTION
+  &CONSTRAINT
+    &HBONDS
+      ATOM_TYPE O
+      TARGETS 2.2
+    &END
+  &END CONSTRAINT
   &MD
     ENSEMBLE NVE
     STEPS 10

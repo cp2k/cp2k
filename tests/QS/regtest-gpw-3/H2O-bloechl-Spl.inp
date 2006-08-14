@@ -30,9 +30,6 @@
       ABC 8.0 8.0 8.0
       UNIT ANGSTROM
     &END CELL
-    &CONSTRAINT
-      SHAKE 1.0E-10
-    &END CONSTRAINT
     &COORD
     O   4.000000    4.000000    4.000000
     H   4.000000    3.250000    4.520000

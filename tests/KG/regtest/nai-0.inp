@@ -37,9 +37,6 @@
       ABC 7.940 7.940 7.940
       UNIT ANGSTROM
     &END CELL
-    &CONSTRAINT
-      SHAKE 1.E-10
-    &END CONSTRAINT
     &COORD
        I      0.05444808     -0.15740044      0.24414683
       Na      3.31665718     -0.15142475     -0.25449516
