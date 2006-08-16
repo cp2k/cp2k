@@ -60,7 +60,7 @@ MODULE cp_units
   INTEGER, PARAMETER, PUBLIC :: cp_ukind_none=0, cp_ukind_energy=1, &
        cp_ukind_length=2, cp_ukind_temperature=3, cp_ukind_angle=4, &
        cp_ukind_pressure=5, cp_ukind_time=6, cp_ukind_mass=7,&
-       cp_ukind_max=7
+       cp_ukind_undef=8, cp_ukind_max=8
 
   INTEGER, PARAMETER, PUBLIC ::  cp_units_none=0,cp_units_au=11
   INTEGER, PARAMETER, PUBLIC :: cp_units_m_e=100,cp_units_amu=101, cp_units_kg=102
@@ -72,7 +72,7 @@ MODULE cp_units
   INTEGER, PARAMETER, PUBLIC ::  cp_units_bar=161
   INTEGER, PARAMETER, PUBLIC ::  cp_units_rad=170, cp_units_deg=171
   INTEGER, PARAMETER, PUBLIC ::  cp_units_fs=180, cp_units_s=181, cp_units_wn=182
-  
+
   INTEGER, PARAMETER, PUBLIC :: cp_unit_max_kinds=8, &
        cp_unit_basic_desc_length=15, &
        cp_unit_desc_length=cp_unit_max_kinds*cp_unit_basic_desc_length
@@ -236,6 +236,9 @@ CONTAINS
        END IF
        ! read unit
        SELECT CASE(string(i_low:i_high-1))
+       CASE("internal_cp2k")
+          unit_id(i_unit)=cp_units_none
+          kind_id(i_unit)=cp_ukind_undef
        CASE("hartree")
           unit_id(i_unit)=cp_units_hartree
           kind_id(i_unit)=cp_ukind_energy
@@ -679,6 +682,14 @@ FUNCTION cp_basic_unit_check(basic_kind,basic_unit,error_level,error)&
 
   IF (.NOT. failure) THEN
      SELECT CASE(basic_kind)
+     CASE(cp_ukind_undef)
+        SELECT CASE (basic_unit)
+        CASE(cp_units_none)
+        CASE default
+           CALL cp_assert(.FALSE.,my_error_level,cp_assertion_failed,&
+                routineP,"unknown undef unit:"//TRIM(cp_to_string(basic_unit)),&
+                error,failure)
+        END SELECT
      CASE(cp_ukind_energy)
         SELECT CASE (basic_unit)
         CASE(cp_units_hartree, cp_units_wavenum, cp_units_joule, cp_units_kcalmol,&
@@ -795,7 +806,7 @@ FUNCTION cp_basic_unit_to_cp2k(value,basic_kind,basic_unit,power,error)&
   failure=.FALSE.
   my_power=1
   IF (PRESENT(power)) my_power=power
-  IF (basic_unit==cp_units_none) THEN
+  IF (basic_unit==cp_units_none.AND.basic_kind/=cp_ukind_undef) THEN
      CALL cp_assert(basic_kind==cp_units_none,my_error_level,&
           cp_assertion_failed,routineP,&
           "unit not yet fully specified, unit of kind "//&
@@ -803,6 +814,15 @@ FUNCTION cp_basic_unit_to_cp2k(value,basic_kind,basic_unit,power,error)&
   END IF
   IF (.NOT.failure) THEN
      SELECT CASE(basic_kind)
+     CASE(cp_ukind_undef)
+        SELECT CASE (basic_unit)
+        CASE(cp_units_none)
+           res = value
+        CASE default
+           CALL cp_assert(.FALSE.,my_error_level,cp_assertion_failed,&
+                routineP,"unknown energy unit:"//TRIM(cp_to_string(basic_unit)),&
+                error,failure)
+        END SELECT
      CASE(cp_ukind_energy)
         SELECT CASE (basic_unit)
         CASE(cp_units_hartree,cp_units_au)
@@ -968,6 +988,16 @@ FUNCTION cp_basic_unit_desc(basic_kind,basic_unit,power,&
   END IF
   IF (.NOT.failure) THEN
      SELECT CASE(basic_kind)
+     CASE(cp_ukind_undef)
+        SELECT CASE (basic_unit)
+        CASE(cp_units_none)
+           res="undef"
+        CASE DEFAULT
+           CALL cp_assert(.FALSE.,my_error_level,&
+                cp_assertion_failed,routineP,&
+                "unit not yet fully specified, unit of kind "//&
+                TRIM(res),error,failure)
+        END SELECT
      CASE(cp_ukind_energy)
         SELECT CASE (basic_unit)
         CASE(cp_units_hartree,cp_units_au)
@@ -1182,7 +1212,7 @@ FUNCTION cp_unit_desc(unit,defaults,accept_undefined,error)&
            IF (has_defaults) THEN
               my_unit=defaults%units(unit%kind_id(i))%unit%unit_id(1)
            ELSE
-              CPPrecondition(my_accept_undefined,cp_failure_level,routineP,error,failure)
+  CPPrecondition(my_accept_undefined.OR.unit%kind_id(i)/=0,cp_failure_level,routineP,error,failure)
            END IF
         END IF
         res(pos:)=TRIM(cp_basic_unit_desc(basic_kind=unit%kind_id(i),&
@@ -1244,7 +1274,7 @@ FUNCTION cp_unit_to_cp2k1(value,unit,defaults,power,error) RESULT(res)
      DO i_unit=1,unit%n_kinds
         CPPrecondition(unit%kind_id(i_unit)>0,cp_failure_level,routineP,error,failure)
         my_basic_unit=unit%unit_id(i_unit)
-        IF (my_basic_unit==0) THEN
+        IF (my_basic_unit==0.AND.unit%kind_id(i_unit)/=cp_ukind_undef) THEN
            CPPrecondition(PRESENT(defaults),cp_failure_level,routineP,error,failure)
            IF (failure) EXIT
            CPPrecondition(ASSOCIATED(defaults),cp_failure_level,routineP,error,failure)
