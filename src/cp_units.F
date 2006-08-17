@@ -550,7 +550,6 @@ SUBROUTINE cp_unit_create2(unit, kind_id, unit_id, power, error)
      failure=failure.OR..NOT.cp_basic_unit_check(basic_kind=unit%kind_id(i),&
           basic_unit=unit%unit_id(i),error=error)
   END DO
-
 END SUBROUTINE cp_unit_create2
 !***************************************************************************
 
@@ -991,7 +990,7 @@ FUNCTION cp_basic_unit_desc(basic_kind,basic_unit,power,&
      CASE(cp_ukind_undef)
         SELECT CASE (basic_unit)
         CASE(cp_units_none)
-           res="undef"
+           res="internal_cp2k"
         CASE DEFAULT
            CALL cp_assert(.FALSE.,my_error_level,&
                 cp_assertion_failed,routineP,&
@@ -1394,7 +1393,6 @@ FUNCTION cp_unit_to_cp2k(value,unit_str,defaults,power,error) RESULT(res)
      res=cp_unit_to_cp2k1(value=value,unit=my_unit,power=power,error=error)
   END IF
   CALL cp_unit_release(my_unit,error=error)
-  
 END FUNCTION cp_unit_to_cp2k
 !***************************************************************************
 
@@ -1446,7 +1444,6 @@ FUNCTION cp_unit_from_cp2k(value,unit_str,defaults,power,error) RESULT(res)
      res=cp_unit_from_cp2k1(value=value,unit=my_unit,power=power,error=error)
   END IF
   CALL cp_unit_release(my_unit,error=error)
-  
 END FUNCTION cp_unit_from_cp2k
 !***************************************************************************
 
@@ -1607,6 +1604,9 @@ SUBROUTINE cp_unit_set_create(unit_set,name,error)
            END IF
         CASE('OUTPUT')
            SELECT CASE(i)
+           CASE(cp_ukind_undef)
+              CALL cp_unit_create2(unit_set%units(i)%unit, kind_id=(/i/), unit_id=(/cp_units_none/),&
+                   power=(/1/), error=error)
            CASE(cp_ukind_energy)
               CALL cp_unit_create2(unit_set%units(i)%unit, kind_id=(/i/), unit_id=(/cp_units_hartree/),&
                    power=(/1/), error=error)
