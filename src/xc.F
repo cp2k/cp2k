@@ -41,8 +41,8 @@ MODULE xc
                                              section_vals_type,&
                                              section_vals_val_get
   USE kahan_sum,                       ONLY: accurate_sum
-  USE kinds,                           ONLY: dp,&
-                                             default_string_length
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp
   USE message_passing,                 ONLY: mp_sum
   USE pw_grid_types,                   ONLY: PW_MODE_DISTRIBUTED,&
                                              pw_grid_type

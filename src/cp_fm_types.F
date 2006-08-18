@@ -26,8 +26,11 @@
 
 MODULE cp_fm_types
 
+  USE cp_array_r_utils,                ONLY: cp_2d_r_write
   USE cp_blacs_calls,                  ONLY: cp_blacs_dgebr2d,&
                                              cp_blacs_dgebs2d
+  USE cp_files,                        ONLY: close_file,&
+                                             open_file
   USE cp_fm_struct,                    ONLY: cp_fm_struct_equivalent,&
                                              cp_fm_struct_get,&
                                              cp_fm_struct_release,&
@@ -41,19 +44,16 @@ MODULE cp_fm_types
                                              mp_bcast,&
                                              mp_max,&
                                              mp_sum
+  USE string_utilities,                ONLY: compress
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE cp_array_r_utils, only: cp_2d_r_write
-  USE string_utilities, only: compress
-  USE cp_files, ONLY: open_file, close_file
-
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
 
   PRIVATE
 
-  CHARACTER(LEN=*), PARAMETER :: moduleN = "cp_fm_types"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_fm_types'
   LOGICAL, PARAMETER          :: debug_this_module = .TRUE.
 
   INTEGER, SAVE :: last_fm_id_nr = 0
@@ -1211,21 +1211,21 @@ CPSourceFileRef,&
  !!
  !!*** **********************************************************************
    SUBROUTINE cp_fm_write(matrix, unit_nr, long_description, local, error)
-     TYPE(cp_fm_type), POINTER                :: matrix
-     INTEGER, INTENT(in)                      :: unit_nr
-     LOGICAL, INTENT(in), OPTIONAL            :: long_description, local
-     TYPE(cp_error_type), INTENT(inout), &
-       OPTIONAL                               :: error
+    TYPE(cp_fm_type), POINTER                :: matrix
+    INTEGER, INTENT(in)                      :: unit_nr
+    LOGICAL, INTENT(in), OPTIONAL            :: long_description, local
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-     CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_write', &
-       routineP = moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_write', &
+      routineP = moduleN//':'//routineN
 
-     CHARACTER(len=60)                        :: filename
-     INTEGER                                  :: data_unit, desc_unit, iostat
-     LOGICAL                                  :: exists, failure, loc, &
-                                                 my_long_description
-     TYPE(cp_logger_type), POINTER            :: logger
-     TYPE(cp_para_env_type), POINTER          :: para_env
+    CHARACTER(len=60)                        :: filename
+    INTEGER                                  :: data_unit, desc_unit, iostat
+    LOGICAL                                  :: exists, failure, loc, &
+                                                my_long_description
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
 
      failure=.FALSE.; loc=.FALSE.; my_long_description=.FALSE.
      filename=' '
@@ -1335,8 +1335,8 @@ CPSourceFileRef,&
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "cp_fm_to_fm_matrix", &
-                                   routineP = moduleN//":"//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_fm_to_fm_matrix', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, npcol, nprow
     LOGICAL                                  :: failure
@@ -1419,17 +1419,16 @@ CPSourceFileRef,&
     INTEGER, INTENT(IN)                      :: ncol
     INTEGER, INTENT(IN), OPTIONAL            :: source_start, target_start
 
-    INTEGER                                  :: i, mypcol, myprow, n, ss, ts
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_fm_to_fm_columns', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, i, mypcol, myprow, n, &
+                                                ss, ts
     INTEGER, DIMENSION(9)                    :: desca, descb
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a, b
     TYPE(cp_blacs_env_type), POINTER         :: context
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "cp_fm_to_fm_columns", &
-                                   routineP = moduleN//":"//routineN
-
-    INTEGER :: handle
-
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     CALL timeset(routineN,"I","",handle)
 
@@ -1476,18 +1475,18 @@ CPSourceFileRef,&
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "cp_fm_add_to_element", &
-                                   routineP = moduleN//":"//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_fm_add_to_element', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: icol_local, ipcol, iprow, &
                                                 irow_local, mypcol, myprow, &
                                                 npcol, nprow
-    LOGICAL                                  :: failure
     INTEGER, DIMENSION(9)                    :: desca
+    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a
     TYPE(cp_blacs_env_type), POINTER         :: context
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     failure = .FALSE.
 

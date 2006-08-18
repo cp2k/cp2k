@@ -25,6 +25,7 @@ MODULE kg_main
   USE force_env_methods,               ONLY: force_env_create
   USE force_env_types,                 ONLY: force_env_type
   USE global_types,                    ONLY: global_environment_type
+  USE input_section_types,             ONLY: section_vals_type
   USE kg_environment,                  ONLY: kg_init
   USE kg_environment_types,            ONLY: kg_env_create,&
                                              kg_env_release,&
@@ -32,11 +33,6 @@ MODULE kg_main
   USE kinds,                           ONLY: dp
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE input_section_types,             ONLY: section_vals_get,&
-                                             section_vals_get_subs_vals,&
-                                             section_vals_type,&
-                                             section_vals_val_get
-
 #include "cp_common_uses.h"
 
     IMPLICIT NONE
@@ -75,7 +71,7 @@ CONTAINS
 
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(section_vals_type), pointer         :: force_env_section
+    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 

@@ -25,11 +25,11 @@
 
 MODULE mc_ge_moves
   USE atomic_kind_types,               ONLY: get_atomic_kind
-  USE cell_types,                      ONLY: cell_p_type,&
-                                             cell_type,&
+  USE cell_types,                      ONLY: cell_clone,&
                                              cell_create,&
+                                             cell_p_type,&
                                              cell_release,&
-                                             cell_clone,&
+                                             cell_type,&
                                              get_cell
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsys_set,&
@@ -43,6 +43,7 @@ MODULE mc_ge_moves
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: dump_xmol
+  USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp,&
                                              dp_size
   USE mc_control,                      ONLY: mc_create_force_env
@@ -71,14 +72,6 @@ MODULE mc_ge_moves
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE input_section_types,             ONLY: section_release,&
-                                             section_type,&
-                                             section_vals_create,&
-                                             section_vals_release,&
-                                             section_vals_type,&
-                                             section_vals_write,&
-                                             section_vals_get_subs_vals,&
-                                             section_vals_get_subs_vals2
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -507,7 +500,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(1:2), &
       INTENT(INOUT)                          :: bias_energy_old
     TYPE(rng_stream_type), POINTER           :: rng_stream
-    TYPE(section_vals_type), pointer         :: force_env_section
+    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
@@ -516,8 +509,8 @@ CONTAINS
     CHARACTER(LEN=200)                       :: fft_lib
     CHARACTER(LEN=40), DIMENSION(1:2)        :: dat_file
     INTEGER :: group, handle, i, iatom, ibox, ii, imolecule, ins_atoms, &
-      insert_box, ipart, istat, natom, nswapmoves, rem_atoms, remove_box, &
-      source,print_level
+      insert_box, ipart, istat, natom, nswapmoves, print_level, rem_atoms, &
+      remove_box, source
     INTEGER, DIMENSION(1:2)                  :: nchain, nunits_tot
     LOGICAL                                  :: ionode, lbias, loverlap, &
                                                 loverlap_ins, loverlap_rem
@@ -1234,10 +1227,8 @@ CONTAINS
 
     CHARACTER(LEN=200)                       :: fft_lib
     CHARACTER(LEN=40), DIMENSION(1:2)        :: dat_file
-    INTEGER                                  :: all_atoms, cl, group, handle, &
-                                                iatom, ibox, iside, istat, &
-                                                j, jatom, natoms, nunits, &
-                                                source,print_level
+    INTEGER :: all_atoms, cl, group, handle, iatom, ibox, iside, istat, j, &
+      jatom, natoms, nunits, print_level, source
     INTEGER, DIMENSION(1:2)                  :: nchain, nunits_tot
     LOGICAL                                  :: ionode
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: loverlap
@@ -1251,10 +1242,10 @@ CONTAINS
                                                 volume_old
     REAL(KIND=dp), DIMENSION(1:3)            :: center_of_mass, &
                                                 center_of_mass_new, diff
-    REAL(KIND=dp), DIMENSION(1:3, 1:3, 1:2)  :: hmat_test
     REAL(KIND=dp), DIMENSION(1:3, 1:2)       :: abc, new_cell_length, &
                                                 old_cell_length
-    TYPE(cell_p_type), DIMENSION(:), POINTER :: cell_old,cell,cell_test
+    REAL(KIND=dp), DIMENSION(1:3, 1:3, 1:2)  :: hmat_test
+    TYPE(cell_p_type), DIMENSION(:), POINTER :: cell, cell_old, cell_test
     TYPE(cp_subsystem_pp_type), &
       DIMENSION(:), POINTER                  :: oldsys
     TYPE(mol_kind_new_list_p_type), &

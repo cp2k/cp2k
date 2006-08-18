@@ -87,19 +87,18 @@ MODULE qs_core_hamiltonian
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
-  USE cp_para_types,                   ONLY: cp_para_env_type 
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE external_potential_types,        ONLY: all_potential_type,&
                                              get_potential,&
                                              gth_potential_type
   USE global_types,                    ONLY: global_environment_type
   USE harris_env_types,                ONLY: harris_env_type
-  USE input_constants,                 ONLY: do_ep,&
-                                             linear_response_run,&
+  USE input_constants,                 ONLY: linear_response_run,&
                                              lr_precond_kinetic
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -129,9 +128,8 @@ MODULE qs_core_hamiltonian
   USE qs_oce_methods,                  ONLY: set_up_oce
   USE qs_oce_types,                    ONLY: &
        allocate_oce_set, allocate_vtriple, build_reduced_3c_lists, &
-       create_oce_set, deallocate_vtriple, dist_list_4oce_type,&
-       oce_matrix_type, &
-       prepare_oce_coeff, retrieve_sac_list, vtriple_type
+       create_oce_set, deallocate_vtriple, dist_list_4oce_type, &
+       oce_matrix_type, prepare_oce_coeff, retrieve_sac_list, vtriple_type
   USE qs_rho_types,                    ONLY: qs_rho_type
   USE scf_control_types,               ONLY: scf_control_type
   USE sparse_matrix_output,            ONLY: write_matrix_distribution,&

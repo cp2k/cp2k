@@ -594,10 +594,10 @@ CONTAINS
 
     INTEGER                                  :: ig, nt
     LOGICAL                                  :: si, sj
-    REAL(dp) :: a, alpi, alpj, ax, cppp1, cppp2, cpps1, cpps2, csp1, csp2, &
-      css1, css2, rij, scale, ssss, xx11, xx21, xx22, xx31, xx32, xx33, yy11, &
-      yy21, yy22, yyzz11, yyzz21, yyzz22, zz, zz11, zz21, zz22, zz31, zz32, &
-      zz33, qcorr, zaf, zbf, pai, pbi, paj, pbj, dai, dbi, daj, dbj, apdg
+    REAL(dp) :: a, alpi, alpj, apdg, ax, cppp1, cppp2, cpps1, cpps2, csp1, &
+      csp2, css1, css2, dai, daj, dbi, dbj, pai, paj, pbi, pbj, qcorr, rij, &
+      scale, ssss, xx11, xx21, xx22, xx31, xx32, xx33, yy11, yy21, yy22, &
+      yyzz11, yyzz21, yyzz22, zaf, zbf, zz, zz11, zz21, zz22, zz31, zz32, zz33
     REAL(dp), DIMENSION(3)                   :: x, y, z
     REAL(dp), DIMENSION(4)                   :: fni1, fni2, fni3, fnj1, fnj2, &
                                                 fnj3
@@ -776,10 +776,10 @@ CONTAINS
            daj=sepj%d(1)
            dbj=sepj%d(2)
            apdg=10._dp*0.5291772083_dp*0.5291772083_dp
-           qcorr = (zaf*pai+zbf*paj)*exp(-apdg*(rij-dai-daj)**2)+ &
-                   (zaf*pai+zbf*pbj)*exp(-apdg*(rij-dai-dbj)**2)+ &
-                   (zaf*pbi+zbf*paj)*exp(-apdg*(rij-dbi-daj)**2)+ &
-                   (zaf*pbi+zbf*pbj)*exp(-apdg*(rij-dbi-dbj)**2)
+           qcorr = (zaf*pai+zbf*paj)*EXP(-apdg*(rij-dai-daj)**2)+ &
+                   (zaf*pai+zbf*pbj)*EXP(-apdg*(rij-dai-dbj)**2)+ &
+                   (zaf*pbi+zbf*paj)*EXP(-apdg*(rij-dbi-daj)**2)+ &
+                   (zaf*pbi+zbf*pbj)*EXP(-apdg*(rij-dbi-dbj)**2)
          ELSE
            qcorr = 0._dp
          END IF
@@ -1446,7 +1446,7 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: rij
     REAL(KIND=dp)                            :: ft
 
-    REAL(KIND=dp)                            :: ep, dr
+    REAL(KIND=dp)                            :: dr, ep
 
     dr = -al*(rij-r0)
     IF ( taper_fn_init .AND. dr < 20._dp ) THEN

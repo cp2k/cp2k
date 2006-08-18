@@ -212,17 +212,16 @@ CONTAINS
     TYPE(mc_simulation_parameters_type), &
       POINTER                                :: mc_par
     INTEGER, INTENT(OUT), OPTIONAL :: nstep, iuptrans, iupvolume, nchain, &
-      nunits, nunits_tot, nmoves, nswapmoves, rm, cl, diff, &
-      nstart, source, group
+      nunits, nunits_tot, nmoves, nswapmoves, rm, cl, diff, nstart, source, &
+      group
     LOGICAL, INTENT(OUT), OPTIONAL           :: lbias, ionode, lrestart, lstop
     REAL(KIND=dp), INTENT(OUT), OPTIONAL :: rmvolume, rmbond, rmangle, rmrot, &
       rmtrans, temp, pressure, BETA, pmswap, pmvolume, pmtraion, pmtrans
     CHARACTER(LEN=*), INTENT(OUT), OPTIONAL :: ensemble, PROGRAM, &
       restart_file_name, molecules_file, moves_file, coords_file, &
       energy_file, displacement_file, cell_file, dat_file, data_file, &
-      box2_file
-    CHARACTER(LEN=*), INTENT(OUT), OPTIONAL  :: fft_lib
-    INTEGER, INTENT(OUT), OPTIONAL           :: iprint,print_level
+      box2_file, fft_lib
+    INTEGER, INTENT(OUT), OPTIONAL           :: iprint
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: rcut
     LOGICAL, INTENT(OUT), OPTIONAL           :: ldiscrete
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: discrete_step
@@ -232,8 +231,9 @@ CONTAINS
     INTEGER, INTENT(OUT), OPTIONAL           :: avbmc_atom
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: avbmc_rmin, avbmc_rmax, &
                                                 rmdihedral
-     TYPE(section_vals_type), POINTER, &
-          OPTIONAL                           :: input_file
+    INTEGER, INTENT(OUT), OPTIONAL           :: print_level
+    TYPE(section_vals_type), OPTIONAL, &
+      POINTER                                :: input_file
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_mc_par', &
       routineP = moduleN//':'//routineN
@@ -481,16 +481,16 @@ SUBROUTINE read_mc_section ( mc_par, globenv, input_file_name, input_file, force
     TYPE(mc_simulation_parameters_type), &
       INTENT(OUT)                            :: mc_par
     TYPE(global_environment_type), POINTER   :: globenv
+    CHARACTER(LEN=*), INTENT(IN)             :: input_file_name
+    TYPE(section_vals_type), POINTER         :: input_file, force_env_section
     TYPE(cp_error_type), INTENT(inout)       :: error
-    TYPE(section_vals_type), POINTER         :: input_file
-    CHARACTER(LEN=*),INTENT(IN)              :: input_file_name
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'read_mc_section'
-    TYPE(section_vals_type), POINTER         :: force_env_section
 
-    INTEGER                                  :: handle, ia, ie, iw, stop_num,method_name_id
-    TYPE(section_vals_type), POINTER         :: mc_section
+    INTEGER                                  :: handle, ia, ie, iw, &
+                                                method_name_id, stop_num
     LOGICAL                                  :: failure
+    TYPE(section_vals_type), POINTER         :: mc_section
 
 !------------------------------------------------------------------------------
 ! begin the timing of the subroutine

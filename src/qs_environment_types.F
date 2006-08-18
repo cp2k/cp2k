@@ -59,6 +59,9 @@ MODULE qs_environment_types
   USE distribution_2d_types,           ONLY: distribution_2d_release,&
                                              distribution_2d_retain,&
                                              distribution_2d_type
+  USE ep_qs_types,                     ONLY: ep_qs_release,&
+                                             ep_qs_retain,&
+                                             ep_qs_type
   USE harris_env_types,                ONLY: harris_env_release,&
                                              harris_env_type
   USE hartree_local_types,             ONLY: ecoul_1center_type,&
@@ -144,7 +147,6 @@ MODULE qs_environment_types
   USE xas_env_types,                   ONLY: xas_env_release,&
                                              xas_env_retain,&
                                              xas_environment_type
-  USE ep_qs_types, ONLY: ep_qs_type, ep_qs_retain, ep_qs_release
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -320,7 +322,7 @@ MODULE qs_environment_types
     TYPE(virial_type), POINTER                            :: virial
     REAL(KIND = dp), DIMENSION(:,:), POINTER              :: outer_scf_history
     INTEGER                                               :: outer_scf_ihistory
-    TYPE(ep_qs_type), pointer :: ep_qs_env
+    TYPE(ep_qs_type), POINTER :: ep_qs_env
   END TYPE qs_environment_type
 
 ! *****************************************************************************
@@ -390,12 +392,12 @@ CONTAINS
     TYPE(mo_set_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: mos
     TYPE(neighbor_list_set_p_type), &
-      DIMENSION(:), OPTIONAL, POINTER        :: sab_orb
+      DIMENSION(:), OPTIONAL, POINTER        :: sab_orb, sab_all
     LOGICAL, OPTIONAL                        :: qmmm, qmmm_periodic
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), OPTIONAL, POINTER        :: sac_erfc, sac_ppl, sac_ppnl, &
                                                 sbc_ppnl, sac_oce, sbc_oce, &
-                                                sab_2c, sac_3c, sbc_3c,sab_all
+                                                sab_2c, sac_3c, sbc_3c
     TYPE(particle_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: particle_set
     TYPE(qs_energy_type), OPTIONAL, POINTER  :: energy
@@ -472,7 +474,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: outer_scf_history
     INTEGER, INTENT(out), OPTIONAL           :: outer_scf_ihistory
-    TYPE(ep_qs_type), POINTER, optional :: ep_qs_env
+    TYPE(ep_qs_type), OPTIONAL, POINTER      :: ep_qs_env
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
@@ -722,18 +724,16 @@ CONTAINS
     TYPE(mo_set_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: mos
     LOGICAL, OPTIONAL                        :: qmmm, qmmm_periodic
-    TYPE(neighbor_list_set_p_type), &
-      DIMENSION(:), OPTIONAL, POINTER        :: sab_orb, sac_erfc, sac_ppl, &
-                                                sac_ppnl, sbc_ppnl, sac_oce, &
-                                                sbc_oce, sab_2c, sac_3c, &
-                                                sbc_3c,sab_all
+    TYPE(neighbor_list_set_p_type), DIMENSION(:), OPTIONAL, POINTER :: &
+      sab_orb, sab_all, sac_erfc, sac_ppl, sac_ppnl, sbc_ppnl, sac_oce, &
+      sbc_oce, sab_2c, sac_3c, sbc_3c
     TYPE(qs_energy_type), OPTIONAL, POINTER  :: energy
     TYPE(qs_force_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: force
     TYPE(harris_env_type), OPTIONAL, POINTER :: harris_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: matrix_h, matrix_ks, &
-                                                matrix_s, matrix_w,matrix_dv
+                                                matrix_s, matrix_w, matrix_dv
     TYPE(pw_env_type), OPTIONAL, POINTER     :: pw_env
     TYPE(qs_matrix_pools_type), OPTIONAL, &
       POINTER                                :: mpools
@@ -789,7 +789,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: outer_scf_history
     INTEGER, INTENT(IN), OPTIONAL            :: outer_scf_ihistory
-    TYPE(ep_qs_type), POINTER, optional :: ep_qs_env
+    TYPE(ep_qs_type), OPTIONAL, POINTER      :: ep_qs_env
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_qs_env', &
       routineP = moduleN//':'//routineN
@@ -978,7 +978,7 @@ CONTAINS
        qs_env%cp_ddapc_ewald => cp_ddapc_ewald
     END IF
     IF (PRESENT(ep_qs_env)) THEN
-       if (associated(ep_qs_env)) CALL ep_qs_retain(ep_qs_env,error=error)
+       IF (ASSOCIATED(ep_qs_env)) CALL ep_qs_retain(ep_qs_env,error=error)
        CALL ep_qs_release(qs_env%ep_qs_env,error=error)
        qs_env%ep_qs_env => ep_qs_env
     END IF

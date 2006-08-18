@@ -22,10 +22,7 @@
 MODULE fist_neighbor_list_types
 
   USE kinds,                           ONLY: dp
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
   USE particle_types,                  ONLY: particle_type
-
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -76,15 +73,15 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE fist_neighbor_deallocate(fist_neighbor,error)
-    TYPE(fist_neighbor_type), POINTER :: fist_neighbor
+    TYPE(fist_neighbor_type), POINTER        :: fist_neighbor
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-   
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'fist_neighbor_deallocate',&
-         routineP = moduleN//':'//routineN
-    LOGICAL :: failure 
-    INTEGER :: i, stat
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'fist_neighbor_deallocate', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, stat
+    LOGICAL                                  :: failure
 
     failure = .FALSE.
     IF (ASSOCIATED(fist_neighbor)) THEN
@@ -127,16 +124,18 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE fist_neighbor_init(fist_neighbor, nkind, ncell, error)
-    TYPE(fist_neighbor_type), POINTER :: fist_neighbor
-    INTEGER, INTENT(IN)               :: nkind, ncell(3)
+    TYPE(fist_neighbor_type), POINTER        :: fist_neighbor
+    INTEGER, INTENT(IN)                      :: nkind, ncell(3)
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-    
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'fist_neighbor_init',&
-         routineP = moduleN//':'//routineN
-    LOGICAL :: failure 
-    INTEGER :: i, stat, nlistmin
-    TYPE(neighbor_kind_pairs_type), DIMENSION(:), POINTER :: new_pairs
+
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'fist_neighbor_init', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, nlistmin, stat
+    LOGICAL                                  :: failure
+    TYPE(neighbor_kind_pairs_type), &
+      DIMENSION(:), POINTER                  :: new_pairs
 
     failure=.FALSE.
 
@@ -207,22 +206,23 @@ CONTAINS
   SUBROUTINE fist_neighbor_add(neighbor_kind_pair, atom_a, atom_b, exclusion_list,&
        particle_set, rab, added, error)
     TYPE(neighbor_kind_pairs_type), POINTER  :: neighbor_kind_pair
-    TYPE(particle_type), DIMENSION(:), &
-         POINTER                                :: particle_set
     INTEGER, INTENT(IN)                      :: atom_a, atom_b
+    INTEGER, DIMENSION(:), POINTER           :: exclusion_list
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
     REAL(KIND=dp), DIMENSION(3)              :: rab
     LOGICAL, INTENT(OUT)                     :: added
-    INTEGER, DIMENSION(:), POINTER           :: exclusion_list
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error    
+      OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'fist_neighbor_add',&
-         routineP = moduleN//':'//routineN
-    LOGICAL :: failure 
-    INTEGER :: old_size,new_size,stat
-    INTEGER, POINTER, DIMENSION(:,:)         :: new_list
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'fist_neighbor_add', &
+      routineP = moduleN//':'//routineN
+    REAL(KIND=dp), PARAMETER :: eps_default = EPSILON(0.0_dp)*1.0E4_dp
+
+    INTEGER                                  :: new_size, old_size, stat
+    INTEGER, DIMENSION(:, :), POINTER        :: new_list
+    LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(3)              :: rabc
-    REAL(KIND=dp), PARAMETER                 :: eps_default=EPSILON(0.0_dp)*1.0E4_dp
 
     IF (ANY(exclusion_list==atom_b)) THEN
        ! Only atoms really connected (not the periodic images) need to be excluded..

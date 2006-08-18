@@ -28,8 +28,7 @@ MODULE topology_xyz
                                              parser_release
   USE global_types,                    ONLY: global_environment_type
   USE input_section_types,             ONLY: section_vals_type
-  USE kinds,                           ONLY: default_string_length,&
-                                             dp
+  USE kinds,                           ONLY: dp
   USE memory_utilities,                ONLY: reallocate
   USE string_utilities,                ONLY: uppercase
   USE termination,                     ONLY: stop_program
@@ -78,8 +77,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: nblock_atom = 1000
 
-    INTEGER                                  :: frame, handle, i, &
-                                                iw, j, natom
+    INTEGER                                  :: frame, handle, i, iw, j, natom
     LOGICAL                                  :: my_end
     TYPE(atom_info_type), POINTER            :: atom_info
     TYPE(cp_logger_type), POINTER            :: logger

@@ -32,8 +32,8 @@ MODULE qs_ot_scf
        ot_ls_2pnt, ot_ls_3pnt, ot_ls_gold, ot_ls_none, ot_mini_cg, &
        ot_mini_diis, ot_mini_sd, ot_precond_full_all, &
        ot_precond_full_kinetic, ot_precond_full_single, &
-       ot_precond_full_single_inverse, ot_precond_none, &
-       ot_precond_s_inverse, ot_precond_sparse_diag
+       ot_precond_full_single_inverse, ot_precond_none, ot_precond_s_inverse, &
+       ot_precond_sparse_diag
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -72,8 +72,8 @@ CONTAINS
 
   SUBROUTINE ot_scf_read_input(qs_ot_env,globenv,scf_section)
     TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
-    TYPE(section_vals_type),POINTER          :: scf_section
     TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(section_vals_type), POINTER         :: scf_section
 
     CHARACTER(LEN=40)                        :: value
     INTEGER                                  :: handle, ispin, ls_method, &

@@ -55,8 +55,8 @@ MODULE pint_types
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: write_particle_coordinates
   USE replica_types,                   ONLY: rep_env_calc_e_f,&
-                                             rep_env_release,&
                                              rep_env_create,&
+                                             rep_env_release,&
                                              replica_env_type
   USE timings,                         ONLY: timeset,&
                                              timestop

@@ -123,7 +123,7 @@ MODULE pair_potential_types
      REAL (KIND=dp) :: energy_cutoff
      REAL (KIND=dp) :: e_cutoff_coul
      LOGICAL        :: undef
-     INTEGER        :: type
+     INTEGER        :: TYPE
      CHARACTER ( LEN = default_string_length ) :: at1
      CHARACTER ( LEN = default_string_length ) :: at2
      TYPE ( ipbv_pot_type ),     POINTER :: ipbv
@@ -167,15 +167,15 @@ CONTAINS
   !!   SOURCE
   !******************************************************************************
   SUBROUTINE compare_pot(pot1, pot2, compare, error)
-    IMPLICIT NONE
-    TYPE(pair_potential_single_type) , POINTER :: pot1, pot2
-    LOGICAL, INTENT(OUT)                       :: compare
+    TYPE(pair_potential_single_type), &
+      POINTER                                :: pot1, pot2
+    LOGICAL, INTENT(OUT)                     :: compare
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                              :: error
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'compare_pot', &
-      routineP = moduleN//':'//routineN    
-    
+      routineP = moduleN//':'//routineN
+
     compare=.FALSE.
     IF (pot1%type/=pot2%type) RETURN
 
@@ -723,8 +723,8 @@ CONTAINS
   SUBROUTINE pair_potential_reallocate(p,lb1_new,ub1_new,lj,lj_charmm,williams,goodwin,eam,bmhft,ipbv,error)
     TYPE(pair_potential_p_type), POINTER     :: p
     INTEGER, INTENT(IN)                      :: lb1_new, ub1_new
-    LOGICAL, INTENT(IN), OPTIONAL            :: lj, lj_charmm,williams, goodwin, eam, &
-                                                bmhft, ipbv
+    LOGICAL, INTENT(IN), OPTIONAL            :: lj, lj_charmm, williams, &
+                                                goodwin, eam, bmhft, ipbv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -733,8 +733,8 @@ CONTAINS
 
     INTEGER                                  :: i, ipot, lb1_old, ub1_old
     LOGICAL                                  :: check, failure, lbmhft, leam, &
-                                                lgoodwin, lipbv, llj, llj_charmm,&
-                                                lwilliams
+                                                lgoodwin, lipbv, llj, &
+                                                llj_charmm, lwilliams
     TYPE(pair_potential_p_type), POINTER     :: work
 
     NULLIFY(work)

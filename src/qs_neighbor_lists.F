@@ -52,7 +52,7 @@ MODULE qs_neighbor_lists
                                              dp,&
                                              dp_size,&
                                              int_size
-  USE message_passing,                 ONLY: mp_sum,mp_sync
+  USE message_passing,                 ONLY: mp_sum
   USE molecule_types_new,              ONLY: molecule_type
   USE particle_types,                  ONLY: particle_type
   USE paw_proj_set_types,              ONLY: get_paw_proj_set,&
@@ -153,17 +153,15 @@ CONTAINS
       output_unit
     INTEGER, DIMENSION(:), POINTER           :: local_cols_array, &
                                                 local_rows_array
-    LOGICAL :: all_pairs_list, all_potential_present, cls, gth_potential_present, &
-      molecule_only, paw_atom, paw_atom_present, print_subcell_grid, &
-      rho0_present, mic, nmr
-    LOGICAL, ALLOCATABLE, DIMENSION(:)       :: all_present, oce_present, &
-                                                orb_present, ppl_present, &
-                                                ppnl_present, Qlm_present, &
-                                                semi_present
+    LOGICAL :: all_pairs_list, all_potential_present, cls, &
+      gth_potential_present, mic, molecule_only, nmr, paw_atom, &
+      paw_atom_present, print_subcell_grid, rho0_present
+    LOGICAL, ALLOCATABLE, DIMENSION(:) :: all_present, oce_present, &
+      orb_present, ppl_present, ppnl_present, Qlm_present, semi_present
     REAL(dp)                                 :: r_skin, rcprj
-    REAL(dp), ALLOCATABLE, DIMENSION(:) :: all_pot_rad, oce_radius, &
-      orb_rad_3c, orb_radius, ppl_radius, ppnl_radius, short_orb_radius,&
-       V0hmv0s_radius, c_radius
+    REAL(dp), ALLOCATABLE, DIMENSION(:) :: all_pot_rad, c_radius, oce_radius, &
+      orb_rad_3c, orb_radius, ppl_radius, ppnl_radius, short_orb_radius, &
+      V0hmv0s_radius
     REAL(dp), DIMENSION(3)                   :: r_pbc
     TYPE(all_potential_type), POINTER        :: all_potential
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -180,9 +178,10 @@ CONTAINS
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
     TYPE(neighbor_list_set_p_type), &
-      DIMENSION(:), POINTER                  :: sab_2c, sab_all, sab_orb, sac_3c, &
-                                                sac_oce, sac_ppl, sac_ppnl, &
-                                                sbc_3c, sbc_oce, sbc_ppnl
+      DIMENSION(:), POINTER                  :: sab_2c, sab_all, sab_orb, &
+                                                sac_3c, sac_oce, sac_ppl, &
+                                                sac_ppnl, sbc_3c, sbc_oce, &
+                                                sbc_ppnl
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(paw_proj_set_type), POINTER         :: paw_proj
@@ -1139,8 +1138,8 @@ CONTAINS
     LOGICAL, DIMENSION(:), INTENT(IN)        :: present_a, present_b
     REAL(dp), DIMENSION(:), INTENT(IN)       :: radius_a, radius_b
     CHARACTER(LEN=*), INTENT(IN)             :: name
-    LOGICAL, INTENT(IN), OPTIONAL            :: l3c_oce, l3c_rho0, mic
-    LOGICAL, INTENT(IN), OPTIONAL            :: symmetric
+    LOGICAL, INTENT(IN), OPTIONAL            :: l3c_oce, l3c_rho0, mic, &
+                                                symmetric
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'build_neighbor_lists'
 
@@ -1151,7 +1150,8 @@ CONTAINS
     INTEGER, DIMENSION(3)                    :: cell_a, cell_b, ncell, &
                                                 nsubcell, periodic
     LOGICAL                                  :: include_ab, my_l3c_oce, &
-                                                my_l3c_rho0, my_mic, my_symmetric
+                                                my_l3c_rho0, my_mic, &
+                                                my_symmetric
     REAL(dp)                                 :: rab2, rab2_max, rab_max, &
                                                 subcells, unit_of_length
     REAL(dp), DIMENSION(3)                   :: r, rab, rb, s, sab_max, sb, &
@@ -1809,8 +1809,8 @@ CONTAINS
 
     CHARACTER(LEN=8)                         :: unit_of_length_name
     INTEGER :: atom_a, atom_c, handle, i, iac, iatom, iatom_local, &
-      iatom_subcell, icell, iexl, ikind, istat, j, jcell, jkind, k, katom, &
-      kcell, kkind, natom_c, natom_local_a, nexl, nkind
+      iatom_subcell, icell, ikind, istat, j, jcell, k, katom, kcell, kkind, &
+      natom_c, natom_local_a, nkind
     INTEGER, DIMENSION(3)                    :: cell_a, cell_c, ncell, &
                                                 nsubcell, periodic
     INTEGER, DIMENSION(:), POINTER           :: list
@@ -2188,9 +2188,9 @@ CONTAINS
                                                 nsubcell, periodic
     REAL(dp)                                 :: rac2, rac2_max, rac_max, &
                                                 subcells, unit_of_length
-    REAL(dp), DIMENSION(3)                   :: r, rac, rc, s, s_max, s_min, &
-                                                sac_max, sc, sc_max, sc_min, &
-                                                sc_pbc, s2r
+    REAL(dp), DIMENSION(3)                   :: r, rac, rc, s, s2r, s_max, &
+                                                s_min, sac_max, sc, sc_max, &
+                                                sc_min, sc_pbc
     TYPE(neighbor_list_p_type), &
       DIMENSION(maxatom_local)               :: kind_a, kind_b
     TYPE(neighbor_list_set_type), POINTER    :: ac_neighbor_list_set, &
@@ -2656,11 +2656,12 @@ CONTAINS
     TYPE(subcell_type), DIMENSION(:, :, :), &
       POINTER                                :: subcell
     INTEGER, DIMENSION(3), INTENT(IN)        :: nsubcell
-    INTEGER, INTENT(IN),OPTIONAL             :: maxatom
-    TYPE(cell_type), POINTER,OPTIONAL        :: cell
+    INTEGER, INTENT(IN), OPTIONAL            :: maxatom
+    TYPE(cell_type), OPTIONAL, POINTER       :: cell
+
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'allocate_subcell'
 
-    INTEGER                                  :: i, istat, j, k, na, nb, nc,handle
+    INTEGER                                  :: i, istat, j, k, na, nb, nc
     REAL(dp)                                 :: a_max, a_min, b_max, b_min, &
                                                 c_max, c_min, delta_a, &
                                                 delta_b, delta_c

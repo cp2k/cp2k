@@ -337,15 +337,16 @@ CONTAINS
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: mass
     INTEGER, INTENT(OUT), OPTIONAL           :: kind_number, natom
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: atom_list
-    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: elec_conf
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: alpha_core_charge, &
-                                                ccore_charge, &
+                                                ccore_charge, core_charge, &
                                                 core_charge_radius
-    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: core_charge
     INTEGER, INTENT(OUT), OPTIONAL           :: ncgf, nsgf, z
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: zeff, qeff
     TYPE(gto_basis_set_type), OPTIONAL, &
-      POINTER                                :: soft_basis_set, hard_basis_set
+      POINTER                                :: soft_basis_set
+    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: elec_conf
+    TYPE(gto_basis_set_type), OPTIONAL, &
+      POINTER                                :: hard_basis_set
     TYPE(paw_proj_set_type), OPTIONAL, &
       POINTER                                :: paw_proj_set
     LOGICAL, INTENT(IN), OPTIONAL            :: softb
@@ -913,6 +914,7 @@ CONTAINS
     CHARACTER(LEN=10), INTENT(IN), OPTIONAL  :: method
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'init_atomic_kind'
+
     INTEGER                                  :: method_name_id
 
 !   ---------------------------------------------------------------------------
@@ -1029,7 +1031,7 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "init_gapw_basis_set"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'init_gapw_basis_set'
 
     INTEGER                                  :: ikind, nkind
     LOGICAL                                  :: gpw, paw_atom
@@ -1038,7 +1040,7 @@ CONTAINS
     TYPE(gto_basis_set_type), POINTER        :: orb_basis
     TYPE(paw_proj_set_type), POINTER         :: paw_proj
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     IF (ASSOCIATED(atomic_kind_set)) THEN
 
@@ -1120,9 +1122,9 @@ CONTAINS
     INTEGER                                  :: i, i_rep, ipos, k_rep, n_rep, &
                                                 naux, ngrid_ang, ngrid_rad, &
                                                 norb, z
+    INTEGER, DIMENSION(:), POINTER           :: elec_conf
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: zeff_correction
-    INTEGER, POINTER, DIMENSION(:)           :: elec_conf
     TYPE(section_vals_type), POINTER         :: dft_section
 
     NULLIFY (elec_conf)
@@ -1454,8 +1456,9 @@ CONTAINS
 
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(section_vals_type), POINTER         :: kind_section
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(section_vals_type), POINTER         :: kind_section, force_env_section
+    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -1500,7 +1503,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: name
-    INTEGER                                  :: z,method_name_id
+    INTEGER                                  :: method_name_id, z
     LOGICAL                                  :: defined
     REAL(dp)                                 :: mass
     TYPE(all_potential_type), POINTER        :: all_potential
@@ -1508,6 +1511,7 @@ CONTAINS
     TYPE(gth_potential_type), POINTER        :: gth_potential
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(semi_empirical_type), POINTER       :: se_parameter
+
 !   ---------------------------------------------------------------------------
 
     CALL section_vals_val_get(force_env_section,"METHOD",i_val=method_name_id)
@@ -1711,11 +1715,11 @@ CONTAINS
       OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'write_atomic_kind', &
-                                   routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     failure = .FALSE.
 
@@ -1789,7 +1793,7 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_logger_type), POINTER            :: logger
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     failure = .FALSE.
 
@@ -1837,14 +1841,14 @@ CONTAINS
       OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_gto_basis_sets', &
-                                   routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ikind, nkind, output_unit
     LOGICAL                                  :: failure
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_logger_type), POINTER            :: logger
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     failure = .FALSE.
 

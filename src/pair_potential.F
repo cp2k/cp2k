@@ -30,26 +30,15 @@ MODULE pair_potential
   USE input_constants,                 ONLY: do_ewald_none
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
-  USE pair_potential_types,            ONLY: pair_potential_pp_type,&
-                                             pair_potential_single_type,&
-                                             nn_type,&
-                                             lj_type,&
-                                             lj_charmm_type,&
-                                             ft_type,&
-                                             wl_type,&
-                                             gw_type,&
-                                             ip_type,&
-                                             ea_type,&
-                                             compare_pot,&
-                                             list_pot
+  USE pair_potential_types,            ONLY: &
+       compare_pot, ea_type, ft_type, gw_type, ip_type, list_pot, &
+       lj_charmm_type, lj_type, nn_type, pair_potential_pp_type, &
+       pair_potential_single_type, wl_type
   USE splines,                         ONLY: init_spline,&
                                              init_splinexy,&
-                                             spline_data_type,&
-                                             spline_environment_type,&
                                              potential_s,&
-                                             spline_data_release,&
-                                             spline_data_create,&
-                                             spline_env_create
+                                             spline_env_create,&
+                                             spline_environment_type
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: sort
@@ -85,10 +74,9 @@ CONTAINS
   !******************************************************************************
   FUNCTION ener_pot ( pot, qi, qj, r, vdw_scale14 )
     TYPE(pair_potential_single_type), &
-         POINTER                                :: pot
+      POINTER                                :: pot
     REAL(KIND=dp), INTENT(IN)                :: qi, qj, r
-    REAL(KIND=dp)                            :: vdw_scale14
-    REAL(KIND=dp)                            :: ener_pot
+    REAL(KIND=dp)                            :: vdw_scale14, ener_pot
 
     INTEGER                                  :: i, index
     REAL(KIND=dp)                            :: pp, qq, scale
@@ -159,12 +147,12 @@ CONTAINS
   FUNCTION ener_coul ( pot, qi, qj, r, ewald_env, ei_scale14, my_do_14 )
 
     TYPE(pair_potential_single_type), &
-         POINTER                                :: pot
+      POINTER                                :: pot
     REAL(KIND=dp), INTENT(IN)                :: qi, qj, r
-    TYPE(ewald_environment_type),POINTER     :: ewald_env
+    TYPE(ewald_environment_type), POINTER    :: ewald_env
     REAL(KIND=dp)                            :: ei_scale14
-    REAL(KIND=dp)                            :: ener_coul
     LOGICAL, INTENT(IN)                      :: my_do_14
+    REAL(KIND=dp)                            :: ener_coul
 
     INTEGER                                  :: ewald_type
     REAL(KIND=dp)                            :: alpha, eps0
@@ -214,29 +202,28 @@ CONTAINS
     TYPE(spline_environment_type), POINTER   :: spline_env
     TYPE(pair_potential_pp_type), POINTER    :: potparm
     TYPE(atomic_kind_type), DIMENSION(:), &
-         POINTER                             :: atomic_kind_set
+      POINTER                                :: atomic_kind_set
     TYPE(ewald_environment_type), OPTIONAL, &
-         POINTER                             :: ewald_env
+      POINTER                                :: ewald_env
     REAL(KIND=dp), OPTIONAL                  :: ei_scale14, vdw_scale14
-    REAL(KIND=dp), INTENT(IN)                :: eps_spline, max_energy, rlow_nb,&
-         emax_spline
+    REAL(KIND=dp), INTENT(IN)                :: eps_spline, max_energy, &
+                                                rlow_nb, emax_spline
     INTEGER, INTENT(IN)                      :: iw, iw2, iw3
-    LOGICAL, INTENT(IN),OPTIONAL             :: do_14
+    LOGICAL, INTENT(IN), OPTIONAL            :: do_14
     LOGICAL, INTENT(IN)                      :: scale_cutoff
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'spline_nonbond_control', &
-         routineP = moduleN//':'//routineN
-    INTEGER                                  :: i, j, jx, n, npoints, ntype, handle
-    INTEGER                                  :: nsize, nkx, kx, ncount
-    REAL(KIND=dp)                            :: dx2, e, &
-         hicut, locut, qi, qj, x, x2,&
-         xdum,diffmax, xdum1, xsav, ediff
-    REAL(KIND=dp):: my_ei_scale14, my_vdw_scale14, eps0, myfac1, myfac2
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, i, j, jx, n, ncount, &
+                                                npoints, ntype
+    LOGICAL                                  :: failure, my_do_14
+    REAL(KIND=dp) :: diffmax, dx2, e, eps0, hicut, locut, my_ei_scale14, &
+      my_vdw_scale14, myfac1, myfac2, qi, qj, x, x2, xdum, xdum1, xsav
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    LOGICAL                                  :: failure, check_bounds, my_do_14
-    
+
     failure     = .FALSE.
     n      = 0
     ncount = 0
@@ -405,29 +392,29 @@ CONTAINS
   SUBROUTINE get_nonbond_storage ( spline_env, potparm, atomic_kind_set, &
        ei_scale14, vdw_scale14, error)
 
-    TYPE(spline_environment_type), POINTER     :: spline_env
-    TYPE(pair_potential_pp_type), POINTER      :: potparm
+    TYPE(spline_environment_type), POINTER   :: spline_env
+    TYPE(pair_potential_pp_type), POINTER    :: potparm
     TYPE(atomic_kind_type), DIMENSION(:), &
-         POINTER                               :: atomic_kind_set
-    REAL(KIND=dp), OPTIONAL                    :: ei_scale14, vdw_scale14
+      POINTER                                :: atomic_kind_set
+    REAL(KIND=dp), OPTIONAL                  :: ei_scale14, vdw_scale14
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                              :: error
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_nonbond_storage', &
-         routineP = moduleN//':'//routineN
-    INTEGER                                    :: n, ntype, handle
-    INTEGER                                    :: stat, nk, kk
-    REAL(KIND=dp)                              :: qi, qj, my_ei_scale14, my_vdw_scale14
-    TYPE(atomic_kind_type), POINTER            :: atomic_kind
-    LOGICAL                                    :: failure, check
-    INTEGER, DIMENSION(:,:), ALLOCATABLE       :: tmp_index
+      routineP = moduleN//':'//routineN
 
-    INTEGER, DIMENSION(:), ALLOCATABLE         :: my_index, Iwork1, Iwork2
-    REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE :: pot_par
-    REAL(KIND=dp), DIMENSION(:),   ALLOCATABLE :: Rwork, Cwork, wtmp
-    INTEGER                                    :: pot_target, nvar, istart, iend, i, j, k, nunique
-    INTEGER                                    :: ndim, idim, tmpij(2), tmpij0(2), min_val, locij
-    LOGICAL                                    :: at_least_one, first_val
+    INTEGER :: handle, i, idim, iend, istart, j, k, locij, min_val, n, ndim, &
+      nk, ntype, nunique, nvar, pot_target, stat, tmpij(2), tmpij0(2)
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: Iwork1, Iwork2, my_index
+    INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: tmp_index
+    LOGICAL                                  :: at_least_one, check, failure, &
+                                                first_val
+    REAL(KIND=dp)                            :: my_ei_scale14, &
+                                                my_vdw_scale14, qi, qj
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: Cwork, Rwork, wtmp
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: pot_par
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
 
     failure     = .FALSE.
     CALL timeset(routineN,'I','',handle)
@@ -704,12 +691,11 @@ CONTAINS
   !!   SOURCE
   !******************************************************************************
   SUBROUTINE get_indexes(Inind, ndim, ij)
-    IMPLICIT NONE
-    INTEGER, INTENT(IN)                :: Inind, ndim
-    INTEGER, DIMENSION(2), INTENT(OUT) :: ij
-    
-    INTEGER :: i, tmp
-    
+    INTEGER, INTENT(IN)                      :: Inind, ndim
+    INTEGER, DIMENSION(2), INTENT(OUT)       :: ij
+
+    INTEGER                                  :: i, tmp
+
     tmp = 0
     ij  = HUGE(0)
     DO i = 1, ndim       
@@ -747,7 +733,7 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: iatom, jatom
     REAL(KIND=dp), INTENT(OUT)               :: energy
     TYPE(ewald_environment_type), OPTIONAL, &
-         POINTER                                :: ewald_env
+      POINTER                                :: ewald_env
 
     REAL(KIND=dp)                            :: rij
 

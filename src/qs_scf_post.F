@@ -61,8 +61,8 @@ MODULE qs_scf_post
   USE input_constants,                 ONLY: do_loc_none,&
                                              ot_precond_full_all
   USE input_section_types,             ONLY: section_get_ival,&
-                                             section_get_rval,&
                                              section_get_lval,&
+                                             section_get_rval,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -96,11 +96,11 @@ MODULE qs_scf_post
   USE qs_collocate_density,            ONLY: calculate_total_abs_rho,&
                                              calculate_wavefunction
   USE qs_conductivity,                 ONLY: optical_conductivity
+  USE qs_electric_field_gradient,      ONLY: qs_efg_calc
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_ks_methods,                   ONLY: qs_ks_did_change,&
                                              qs_ks_update_qs_env
-  USE qs_electric_field_gradient,      ONLY: qs_efg_calc
   USE qs_loc_control,                  ONLY: localized_wfn_control_release,&
                                              localized_wfn_control_retain,&
                                              localized_wfn_control_type
@@ -125,16 +125,10 @@ MODULE qs_scf_post
   USE s_square_methods,                ONLY: compute_s_square
   USE scf_control_types,               ONLY: scf_control_type
   USE sparse_matrix_output,            ONLY: write_sparse_matrix
-  USE sparse_matrix_types,             ONLY: deallocate_matrix,&
-                                             real_matrix_p_type,&
-                                             real_matrix_type,&
-                                             replicate_matrix
+  USE sparse_matrix_types,             ONLY: real_matrix_p_type
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE external_potential_types,        ONLY: gth_potential_type, &
-                                             get_potential
-  USE mathconstants, only: twopi
   USE xray_diffraction,                ONLY: xray_diffraction_spectrum
 #include "cp_common_uses.h"
 
@@ -196,9 +190,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'scf_post_calculation', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure, ionode, &
+    LOGICAL                                  :: failure, first_time, ionode, &
                                                 my_localized_wfn, p_loc, &
-                                                p_molstates, first_time
+                                                p_molstates
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -208,7 +202,8 @@ CONTAINS
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: unoccupied_orbs
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
-    TYPE(cp_fm_type), POINTER                :: mo_coeff, mo_localized, mo_coeff_deriv
+    TYPE(cp_fm_type), POINTER                :: mo_coeff, mo_coeff_deriv, &
+                                                mo_localized
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(localized_wfn_control_type), &
@@ -447,14 +442,14 @@ CONTAINS
           CALL qs_loc_driver(qs_env,qs_loc_env_new,loc_section,error=error)
  
        ELSEIF (p_loc) THEN
-          if (btest(cp_print_key_should_output(logger%iter_info,input,&
+          IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
                "DFT%PRINT%LOCALIZATION/TOTAL_DIPOLE",&
-               error=error),cp_p_file)) then
+               error=error),cp_p_file)) THEN
              
-             nullify(gth_potential)
+             NULLIFY(gth_potential)
              dipole=0.0_dp
              ! charges of the atoms involved
-             DO i=1,size(particle_set)
+             DO i=1,SIZE(particle_set)
                 CALL get_atomic_kind(particle_set(i)%atomic_kind,gth_potential=gth_potential)
                 CALL get_potential(gth_potential,zeff=zeff)
                 CPPrecondition(cell%orthorhombic,cp_failure_level,routineP,error,failure)
@@ -463,7 +458,7 @@ CONTAINS
                 END DO
                 dipole=dipole + zeff*r_pbc
              END DO
-          end if
+          END IF
           DO ispin=1,dft_control%nspins
              CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff, &
                                               eigenvalues=mo_eigenvalues,homo=homo,nmo=nmo)
@@ -496,21 +491,21 @@ CONTAINS
              IF (ionode) WRITE(output_unit,*) "Computing localization properties"
              unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%LOCALIZATION",&
                   extension=".data",middle_name=TRIM(filename),&
-                  log_filename=.FALSE.,on_file=.true.,error=error)
+                  log_filename=.FALSE.,on_file=.TRUE.,error=error)
              CALL qs_loc_compute_properties(qs_loc_env,molecule_set,mo_localized,center,ionode,unit_nr)
              CALL cp_print_key_finished_output(unit_nr,logger,input,&
-                  "DFT%PRINT%LOCALIZATION",on_file=.true.,error=error)
+                  "DFT%PRINT%LOCALIZATION",on_file=.TRUE.,error=error)
              IF (ionode) WRITE(output_unit,*) "Results in ",filename
 
-             if (btest(cp_print_key_should_output(logger%iter_info,input,&
+             IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
                   "DFT%PRINT%LOCALIZATION/TOTAL_DIPOLE",&
-                  error=error),cp_p_file)) then
+                  error=error),cp_p_file)) THEN
                 ! charges of the wfc involved
                 DO i=1,SIZE(center,1)
                    r_pbc = center(i,1:3)
-                   dipole=dipole - (3.0_dp-real(dft_control%nspins,dp)) * r_pbc
+                   dipole=dipole - (3.0_dp-REAL(dft_control%nspins,dp)) * r_pbc
                 ENDDO
-             end if
+             END IF
 
              ! write the wannier functions to cubes
              IF (BTEST(cp_print_key_should_output(logger%iter_info,dft_section,"PRINT%LOCALIZATION%CUBES",&
@@ -560,27 +555,27 @@ CONTAINS
              DEALLOCATE(center)
           ENDDO
 
-          if (btest(cp_print_key_should_output(logger%iter_info,input,&
+          IF (BTEST(cp_print_key_should_output(logger%iter_info,input,&
                "DFT%PRINT%LOCALIZATION/TOTAL_DIPOLE",&
-               first_time=first_time,error=error),cp_p_file)) then
+               first_time=first_time,error=error),cp_p_file)) THEN
              dipole=pbc(dipole,cell)
              unit_nr=cp_print_key_unit_nr(logger,input,"DFT%PRINT%LOCALIZATION",&
-                  extension=".newDipole",log_filename=.FALSE.,on_file=.true.,&
+                  extension=".newDipole",log_filename=.FALSE.,on_file=.TRUE.,&
                   error=error)
              IF (unit_nr>0) THEN
-                if (first_time) then
+                IF (first_time) THEN
                    WRITE(unit=unit_nr,fmt="(a)")&
                         "# iter_level    dipole(x,y,z)[au] delta_dipole(x,y,z)[au]"
-                end if
+                END IF
                 iter=cp_iter_string(logger%iter_info,error=error)
                 WRITE(unit=unit_nr,fmt="(a,6(es18.8))")&
                      iter(1:15),&
                      dipole,pbc(dipole-old_dipole,cell)
              END IF
              CALL cp_print_key_finished_output(unit_nr,logger,input,&
-                  "DFT%PRINT%LOCALIZATION",on_file=.true.,error=error)
+                  "DFT%PRINT%LOCALIZATION",on_file=.TRUE.,error=error)
              old_dipole=dipole
-          end if
+          END IF
 
        ENDIF
 
@@ -824,7 +819,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'write_available_results', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure, ionode,first_time
+    LOGICAL                                  :: failure, first_time, ionode
     REAL(KIND=dp)                            :: total_abs_spin_dens
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -1086,14 +1081,13 @@ SUBROUTINE calc_stupid_dipole(subsystem, rho_r, rho_core_g,aux_bas_pool,&
       routineP = moduleN//':'//routineN
 
     CHARACTER(len=default_string_length)     :: iter
-    COMPLEX(kind=dp), DIMENSION(3)           :: cdip, cr
     INTEGER                                  :: i, ip, j, k, np(3)
     INTEGER, DIMENSION(2, 3)                 :: bo, gbo
     LOGICAL                                  :: failure, my_print_header
-    REAL(kind=dp)                            :: mass, tot_m, dvol, arg
+    REAL(kind=dp)                            :: dvol, mass, tot_m
     REAL(kind=dp), DIMENSION(3)              :: com, dipole_center, &
-                                                dipole_com, dr, r, r_com,&
-                                                shift, bdipole
+                                                dipole_com, dr, r, r_com, &
+                                                shift
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(pw_type), POINTER                   :: total_charge

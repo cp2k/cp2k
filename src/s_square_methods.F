@@ -102,9 +102,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'compute_s_square', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, j, na, nb, &
-                                                ncol_local, nrow, nrow_local, &
-                                                nalpha, nbeta
+    INTEGER                                  :: handle, i, j, na, nalpha, nb, &
+                                                nbeta, ncol_local, nrow, &
+                                                nrow_local
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: tmp
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: local_data

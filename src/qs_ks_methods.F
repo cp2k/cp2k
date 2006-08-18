@@ -98,8 +98,7 @@ MODULE qs_ks_methods
                                              pw_p_type,&
                                              pw_release,&
                                              pw_transfer,&
-                                             pw_type,&
-                                             pw_zero  
+                                             pw_type
   USE qs_charges_types,                ONLY: qs_charges_type
   USE qs_collocate_density,            ONLY: calculate_total_rho
   USE qs_core_energies,                ONLY: calculate_ecore
@@ -301,18 +300,22 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "qs_ks_build_kohn_sham_matrix", &
-                                   routineP = moduleN//":"//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_ks_build_kohn_sham_matrix', &
+      routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ispin, k, k2, n, &
-                                                nspins, output_unit, stat, dir
+    COMPLEX(KIND=dp), DIMENSION(:), POINTER  :: cc_new, cc_old
+    INTEGER                                  :: dir, handle, ig, ispin, k, &
+                                                k2, n, nspins, output_unit, &
+                                                stat
     LOGICAL                                  :: failure, gapw, gapw_xc, &
-                                                ionode, my_kg_gpw
-    REAL(KIND=dp)                            :: ddapc_order_p, &
-                                                mulliken_order_p, s2_order_p
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: occupation_numbers, &
-                                                scaling_factor
+                                                ionode, my_diis_step, &
+                                                my_kg_gpw, use_virial
+    REAL(KIND=dp)                            :: a_mix, b_mix, ddapc_order_p, &
+                                                f_mix, mulliken_order_p, &
+                                                s2_order_p
     REAL(KIND=dp), DIMENSION(3, 3)           :: h_stress
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: g2, occupation_numbers, &
+                                                scaling_factor
     TYPE(cell_type), POINTER                 :: cell
     TYPE(coeff_type)                         :: rho_tot_gspace, &
                                                 v_hartree_gspace, v_sic_rspace
@@ -330,20 +333,11 @@ CONTAINS
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
-    TYPE(qs_rho_type), POINTER               :: my_rho_xc
+    TYPE(qs_rho_type), POINTER               :: my_rho_xc, rho_buffer
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_h, matrix_s,&
-      matrix_dv
+      POINTER                                :: matrix_dv, matrix_h, matrix_s
     TYPE(section_vals_type), POINTER         :: input, scf_section
     TYPE(virial_type), POINTER               :: virial
-    LOGICAL                                  :: use_virial
-
-    TYPE(qs_rho_type), POINTER              :: rho_buffer
-    INTEGER                                 :: ig
-    LOGICAL                                 :: my_diis_step
-    REAL(KIND=dp)                           :: a_mix,b_mix,f_mix
-    REAL(KIND=dp), DIMENSION(:), POINTER    :: g2
-    COMPLEX(KIND=dp), DIMENSION(:), POINTER :: cc_new,cc_old
 
     failure=.FALSE.
     NULLIFY(matrix_h,matrix_s,dft_control,auxbas_pw_pool, pw_pools,&
@@ -1016,7 +1010,7 @@ CONTAINS
       OPTIONAL                               :: error
 
     INTEGER                                  :: ispin, n_electrons
-    REAL(dp)                                 :: tot1_h, tot1_s,tot_rho_r
+    REAL(dp)                                 :: tot1_h, tot1_s, tot_rho_r
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
@@ -1134,13 +1128,12 @@ SUBROUTINE qs_ks_update_qs_env(ks_env,qs_env, kg_env,calculate_forces,&
     TYPE(kg_environment_type), OPTIONAL, &
       POINTER                                :: kg_env
     LOGICAL, INTENT(IN), OPTIONAL            :: calculate_forces, &
-                                                diis_step, &
-                                                just_energy
+                                                just_energy, diis_step
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "qs_ks_update_qs_env", &
-                                   routineP = moduleN//":"//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_ks_update_qs_env', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, ispin
     LOGICAL                                  :: c_forces, did_update, &
@@ -1311,7 +1304,7 @@ SUBROUTINE qs_ks_did_change(ks_env,s_mstruct_changed,rho_changed,potential_chang
         END IF
      END IF
      IF (ks_env%s_mstruct_changed.OR.ks_env%potential_changed.or.&
-          ks_env%rho_changed) ks_env%forces_up_to_date=.false.
+          ks_env%rho_changed) ks_env%forces_up_to_date=.FALSE.
   END IF
 END SUBROUTINE qs_ks_did_change
 !***************************************************************************
@@ -2062,19 +2055,19 @@ END SUBROUTINE qs_vxc_create
     ! - Creation (04.05.06,MK)
 
     TYPE(mo_set_type), POINTER               :: mo_set
-    TYPE(real_matrix_type), POINTER          :: matrix_ks,matrix_p,matrix_w
+    TYPE(real_matrix_type), POINTER          :: matrix_ks, matrix_p, matrix_w
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "calculate_w_matrix_roks"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_w_matrix_roks'
 
+    INTEGER                                  :: handle, nao
     TYPE(cp_blacs_env_type), POINTER         :: context
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct
-    TYPE(cp_fm_type), POINTER                :: c,ks,p,work
+    TYPE(cp_fm_type), POINTER                :: c, ks, p, work
     TYPE(cp_para_env_type), POINTER          :: para_env
-    INTEGER                                  :: handle,nao
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     CALL timeset(routineN,"I","",handle)
 

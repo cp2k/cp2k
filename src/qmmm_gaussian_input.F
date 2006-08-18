@@ -31,8 +31,8 @@ MODULE qmmm_gaussian_input
                                              parser_release,&
                                              parser_search_string
   USE global_types,                    ONLY: global_environment_type
-  USE input_section_types,             ONLY: section_vals_val_get,&
-                                             section_vals_type
+  USE input_section_types,             ONLY: section_vals_type,&
+                                             section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE mathconstants,                   ONLY: rootpi

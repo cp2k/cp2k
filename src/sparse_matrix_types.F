@@ -869,15 +869,14 @@ END SUBROUTINE cp_sm_scale_and_add
 
 !   ***************************************************************************
 
-    TYPE(real_matrix_p_type), DIMENSION(:,:), &
-      POINTER                                :: matrix_set
-    INTEGER, INTENT(IN)                      :: nmatrix
-    INTEGER, INTENT(IN)                      :: mmatrix
+    TYPE(real_matrix_p_type), &
+      DIMENSION(:, :), POINTER               :: matrix_set
+    INTEGER, INTENT(IN)                      :: nmatrix, mmatrix
 
     CHARACTER(LEN=*), PARAMETER :: routine = &
       "SUBROUTINE allocate_real_matrix_set (MODULE sparse_matrix_types)"
 
-    INTEGER                                  :: imatrix, istat,jmatrix
+    INTEGER                                  :: imatrix, istat, jmatrix
 
 !   ---------------------------------------------------------------------------
 
@@ -1436,8 +1435,8 @@ END SUBROUTINE cp_sm_scale_and_add
 
 !   ***************************************************************************
 
-    TYPE(real_matrix_p_type), DIMENSION(:,:), &
-      POINTER                                :: matrix_set
+    TYPE(real_matrix_p_type), &
+      DIMENSION(:, :), POINTER               :: matrix_set
 
     CHARACTER(LEN=*), PARAMETER :: routine = &
       "SUBROUTINE deallocate_real_matrix_set (MODULE sparse_matrix_types)"

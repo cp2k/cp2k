@@ -33,39 +33,31 @@ MODULE qs_linres_nmr_shift
   USE coefficient_types,               ONLY: coeff_type
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
-                                             cp_fm_scale_and_add,&
-                                             cp_fm_trace
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_trace
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_get_submatrix,&
-                                             cp_fm_p_type,&
                                              cp_fm_release,&
-                                             cp_fm_set_all,&
                                              cp_fm_set_submatrix,&
-                                             cp_fm_to_fm,&
                                              cp_fm_type
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply,&
-                                             copy_sm_to_fm 
-  USE input_section_types,             ONLY: section_get_ival,&
-                                             section_get_rval,&
-                                             section_get_lval,&
-                                             section_vals_get_subs_vals,&
+  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
-  USE kinds,                           ONLY: default_string_length, dp
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp
   USE mathlib,                         ONLY: diamat_all
   USE particle_types,                  ONLY: particle_type
-  USE pw_grid_types,                   ONLY: pw_grid_type
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
+  USE pw_grid_types,                   ONLY: pw_grid_type
   USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                              pw_pool_give_back_coeff,&
                                              pw_pool_give_back_pw,&
@@ -73,30 +65,28 @@ MODULE qs_linres_nmr_shift
                                              pw_pool_type
   USE pw_spline_utils,                 ONLY: Eval_Interp_Spl3_pbc,&
                                              find_coeffs,&
-                                             pw_spline_precond_type,&
+                                             pw_spline_do_precond,&
                                              pw_spline_precond_create,&
                                              pw_spline_precond_release,&
-                                             pw_spline_do_precond,&
                                              pw_spline_precond_set_kind,&
+                                             pw_spline_precond_type,&
                                              spl3_pbc
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              REALDATA3D,&
-                                             RECIPROCALSPACE,&
                                              REALSPACE,&
+                                             RECIPROCALSPACE,&
                                              pw_transfer,&
                                              pw_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
-  USE qs_linres_nmr_op,                ONLY: fac_vecp,&
-                                             ind_m2,&
-                                             set_vecp,&
-                                             set_vecp_rev
+  USE qs_linres_nmr_op,                ONLY: ind_m2,&
+                                             set_vecp
   USE qs_linres_types,                 ONLY: get_nmr_env,&
-                                             linres_control_type,&
                                              nmr_env_type
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
-  USE qs_operators_ao,                 ONLY: rRc_xyz_der_ao,set_up_op_sm
+  USE qs_operators_ao,                 ONLY: rRc_xyz_der_ao,&
+                                             set_up_op_sm
   USE sparse_matrix_types,             ONLY: allocate_matrix_set,&
                                              deallocate_matrix_set,&
                                              real_matrix_p_type,&
@@ -104,7 +94,6 @@ MODULE qs_linres_nmr_shift
                                              set_matrix
   USE timings,                         ONLY: timeset,&
                                              timestop
-
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -126,45 +115,36 @@ CONTAINS
 
     TYPE(nmr_env_type)                       :: nmr_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    INTEGER, INTENT(IN)                      :: ispin
-    INTEGER, INTENT(IN)                      :: iB
+    INTEGER, INTENT(IN)                      :: ispin, iB
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'chi_soft_analytic', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, idir, idir2, ii, iiB, iii, iiiB, istat, istate, nao
-              
-    LOGICAL :: failure, gapw
-    REAL(dp)      :: chi(3), contrib, dk(3)
+    INTEGER                                  :: handle, i, idir, idir2, ii, &
+                                                iiB, iii, iiiB, istat, &
+                                                istate, nao
+    LOGICAL                                  :: failure, gapw
+    REAL(dp)                                 :: chi(3), contrib, dk(3)
     REAL(dp), DIMENSION(:), POINTER          :: occupation
-    REAL(dp), DIMENSION(:,:), POINTER        :: vecbuf_0
-    REAL(dp), DIMENSION(:,:), POINTER        :: vecbuf_1_rxp
-    REAL(dp), DIMENSION(:,:), POINTER        :: vecbuf_1_d
+    REAL(dp), DIMENSION(:, :), POINTER       :: vecbuf_0, vecbuf_1_d, &
+                                                vecbuf_1_rxp
     TYPE(cp_2d_r_p_type)                     :: vecbuf_1_p(3)
     TYPE(cp_fm_struct_type), POINTER         :: tmp_fm_struct
-    TYPE(cp_fm_type), POINTER                :: mo_coeff
-    TYPE(cp_fm_type), POINTER                :: psi0_istate
-    TYPE(cp_fm_type), POINTER                :: psi_rxp_istate
-    TYPE(cp_fm_type), POINTER                :: psi_p1_istate
-    TYPE(cp_fm_type), POINTER                :: psi_p2_istate
-    TYPE(cp_fm_type), POINTER                :: momxpsi_istate
+    TYPE(cp_fm_type), POINTER :: fm_work2, mo_coeff, momxpsi_istate, &
+      psi0_istate, psi_p1_istate, psi_p2_istate, psi_rxp_istate
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: op_mom_ao
-    TYPE(real_matrix_p_type), DIMENSION(:,:), &
-      POINTER                                :: op_mom_der_ao
+      POINTER                                :: matrix_s, op_mom_ao
+    TYPE(real_matrix_p_type), &
+      DIMENSION(:, :), POINTER               :: op_mom_der_ao
+
 !dbg
-     INTEGER :: fnum, i, j
-     TYPE(cp_fm_type), POINTER :: fm_work2
 !dbg
- 
 
     CALL timeset(routineN,"I"," ",handle)
 
@@ -335,7 +315,7 @@ CONTAINS
 !     only one column of the chi tensor is computed here 
       DO idir = 1,3
 !dbg
-   write(*,*) 'istate = ', istate, ' idir =', idir 
+   WRITE(*,*) 'istate = ', istate, ' idir =', idir 
   !     get ii and iii
         CALL set_vecp(idir,ii,iii)
 
@@ -346,14 +326,14 @@ CONTAINS
         CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib)
         chi(idir) = chi(idir) + contrib
 !dbg
-  write(*,'(2(A,I5),2f12.6)') ' first term a  r',ii,' der',iii, contrib, chi(idir)
+  WRITE(*,'(2(A,I5),2f12.6)') ' first term a  r',ii,' der',iii, contrib, chi(idir)
 !dbg
         CALL cp_sm_fm_multiply(op_mom_der_ao(iii,ii)%matrix,psi_rxp_istate,&
              momxpsi_istate,ncol=1,alpha=1.d0,error=error)
         CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib)
         chi(idir) = chi(idir) - contrib
 !dbg
-  write(*,'(2(A,I5),2f12.6)') ' first term b  r',iii,' der',ii,-contrib, chi(idir)
+  WRITE(*,'(2(A,I5),2f12.6)') ' first term b  r',iii,' der',ii,-contrib, chi(idir)
 !dbg
 
 !       term: -2[C0| r_ii r_iiB | d_iii(C1(piiiB))] + 2[C0| r_iii r_iiB | d_ii(C1(piiiB))] 
@@ -364,7 +344,7 @@ CONTAINS
         CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib)
         chi(idir) = chi(idir) - contrib
 !dbg
-  write(*,'(4(A,I5),2f12.6)') ' second term a  idir2 ', idir2, ' r',ii,' r',iiB,' der',iii,-contrib, chi(idir)
+  WRITE(*,'(4(A,I5),2f12.6)') ' second term a  idir2 ', idir2, ' r',ii,' r',iiB,' der',iii,-contrib, chi(idir)
 !dbg
         idir2 = ind_m2(iii,iiB)
         CALL cp_sm_fm_multiply(op_mom_der_ao(idir2,ii)%matrix,psi_p2_istate,&
@@ -372,7 +352,7 @@ CONTAINS
         CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib)
         chi(idir) = chi(idir) + contrib
 !dbg
-  write(*,'(4(A,I5),2f12.6)') ' second term b  idir2 ', idir2, ' r',iii,' r',iiB,' der',ii,contrib, chi(idir)
+  WRITE(*,'(4(A,I5),2f12.6)') ' second term b  idir2 ', idir2, ' r',iii,' r',iiB,' der',ii,contrib, chi(idir)
 !dbg
 
 !       term: 2[C0| r_ii   r_iiiB | d_iii(C1(piiB))] - 2[C0| r_iii r_iiiB | d_ii(C1(piiB))] 
@@ -383,7 +363,7 @@ CONTAINS
         CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib)
         chi(idir) = chi(idir) + contrib
 !dbg
-  write(*,'(4(A,I5),2f12.6)') ' third term a  idir2 ', idir2, ' r',ii,' r',iiiB,' der',iii,contrib, chi(idir)
+  WRITE(*,'(4(A,I5),2f12.6)') ' third term a  idir2 ', idir2, ' r',ii,' r',iiiB,' der',iii,contrib, chi(idir)
 !dbg
         idir2 = ind_m2(iii,iiiB)
         CALL cp_sm_fm_multiply(op_mom_der_ao(idir2,ii)%matrix,psi_p1_istate,&
@@ -391,7 +371,7 @@ CONTAINS
         CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib)
         chi(idir) = chi(idir) - contrib!
 !dbg
-  write(*,'(4(A,I5),2f12.6)') ' third term b  idir2 ', idir2, ' r',iii,' r',iiiB,' der',ii,-contrib, chi(idir)
+  WRITE(*,'(4(A,I5),2f12.6)') ' third term b  idir2 ', idir2, ' r',iii,' r',iiiB,' der',ii,-contrib, chi(idir)
 !dbg
 !dbgdbgdbgdbgdbgdbgdbgdbgdbgdbgdbgdbgdbgdbgdbgdbgdbgdbgdbgdbgdbgdbg
 !   IF(.FALSE.) THEN
@@ -402,7 +382,7 @@ CONTAINS
           CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib)
           chi(idir) = chi(idir) - contrib
 !dbg
-  write(*,'(2(A,I5),2f12.6)') ' fourth term iii=iiB,  r',ii,' C',iiiB,-contrib, chi(idir)
+  WRITE(*,'(2(A,I5),2f12.6)') ' fourth term iii=iiB,  r',ii,' C',iiiB,-contrib, chi(idir)
 !dbg
         ELSEIF(iii==iiiB) THEN
 !         term: [C0| r_ii | C1(piiB)]
@@ -411,7 +391,7 @@ CONTAINS
           CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib)
           chi(idir) = chi(idir) + contrib
 !dbg
-  write(*,'(2(A,I5),2f12.6)') ' fourth term iii=iiiB,  r',ii,' C',iiB,contrib,chi(idir) 
+  WRITE(*,'(2(A,I5),2f12.6)') ' fourth term iii=iiiB,  r',ii,' C',iiB,contrib,chi(idir) 
 !dbg
         END IF
         IF(ii==iiB) THEN
@@ -421,7 +401,7 @@ CONTAINS
           CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib)
           chi(idir) = chi(idir) + contrib
 !dbg
-  write(*,'(2(A,I5),2f12.6)') ' fourth term ii=iiB,  r',iii,' C',iiiB,contrib, chi(idir)
+  WRITE(*,'(2(A,I5),2f12.6)') ' fourth term ii=iiB,  r',iii,' C',iiiB,contrib, chi(idir)
 !dbg
         ELSEIF(ii==iiiB) THEN
 !         term: -[C0| r_iii |C1(piiB)]
@@ -430,7 +410,7 @@ CONTAINS
           CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib)
           chi(idir) = chi(idir) - contrib
 !dbg
-  write(*,'(2(A,I5),2f12.6)') ' fourth term ii=iiiB, r',iii,' C',iiB,-contrib, chi(idir)
+  WRITE(*,'(2(A,I5),2f12.6)') ' fourth term ii=iiiB, r',iii,' C',iiB,-contrib, chi(idir)
 !dbg
         END IF
 !   END IF
@@ -439,11 +419,11 @@ CONTAINS
 
 
     END DO  ! istate
-    write(*,*) "CHI TENSOR : iB =", iB 
+    WRITE(*,*) "CHI TENSOR : iB =", iB 
     DO idir = 1,3
       nmr_env%chi_tensor(idir,iB) =  nmr_env%chi_tensor(idir,iB)+&
                                      chi(idir)*nmr_env%chi_factor
-      write(*,*)  idir, nmr_env%chi_tensor(idir,iB)
+      WRITE(*,*)  idir, nmr_env%chi_tensor(idir,iB)
     END DO 
 
 !   deallocate the sparse matrices
@@ -509,15 +489,16 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'interpolate_shift_pwgrid', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: aint_precond, iatom, max_iter,&
-                                                n_nics, natom, precond_kind
+    INTEGER                                  :: aint_precond, iatom, &
+                                                max_iter, n_nics, natom, &
+                                                precond_kind
     LOGICAL                                  :: failure, success
-    REAL(dp)                                 :: eps_r, eps_x, R_iatom(3),&
+    REAL(dp)                                 :: eps_r, eps_x, R_iatom(3), &
                                                 ra(3), shift_val
-    REAL(dp), DIMENSION(:,:), POINTER        :: r_nics
-    REAL(dp), DIMENSION(:,:,:), POINTER      :: chemical_shift
-    REAL(dp), DIMENSION(:,:,:), POINTER      :: chemical_shift_nics
-    TYPE(coeff_type),  POINTER               :: shiftspl
+    REAL(dp), DIMENSION(:, :), POINTER       :: r_nics
+    REAL(dp), DIMENSION(:, :, :), POINTER    :: chemical_shift, &
+                                                chemical_shift_nics
+    TYPE(coeff_type), POINTER                :: shiftspl
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(pw_spline_precond_type), POINTER    :: precond
     TYPE(section_vals_type), POINTER         :: interp_section
@@ -694,25 +675,24 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=2)                         :: element_symbol
-    CHARACTER(LEN=default_string_length)     :: name
-    CHARACTER(LEN=default_string_length)     :: title
-    INTEGER :: i, iatom, ir, j, n_nics, nat_print, natom, unit_atoms, unit_nics
-    LOGICAL :: failure, gapw
+    CHARACTER(LEN=default_string_length)     :: name, title
+    INTEGER                                  :: i, iatom, ir, j, n_nics, &
+                                                nat_print, natom, unit_atoms, &
+                                                unit_nics
     INTEGER, DIMENSION(:), POINTER           :: cs_atom_list
-    REAL(dp) :: chi_iso, chi_aniso
-    REAL(dp) :: chi_tensor(3,3), chi_tensor_loc(3,3), rpos(3)
-    REAL(dp) :: chi_sym(3,3),chi_tmp(3,3), eigenv(3)
-    REAL(dp), DIMENSION(:,:), POINTER        :: r_nics
-    REAL(dp), DIMENSION(:,:,:), POINTER      :: chemical_shift
-    REAL(dp), DIMENSION(:,:,:), POINTER      :: chemical_shift_loc
-    REAL(dp), DIMENSION(:,:,:), POINTER      :: chemical_shift_nics
-    REAL(dp), DIMENSION(:,:,:), POINTER      :: chemical_shift_loc_nics
+    LOGICAL                                  :: gapw
+    REAL(dp) :: chi_aniso, chi_iso, chi_sym(3,3), chi_tensor(3,3), &
+      chi_tensor_loc(3,3), chi_tmp(3,3), eigenv(3), rpos(3)
+    REAL(dp), DIMENSION(:, :), POINTER       :: r_nics
+    REAL(dp), DIMENSION(:, :, :), POINTER    :: chemical_shift, &
+                                                chemical_shift_loc, &
+                                                chemical_shift_loc_nics, &
+                                                chemical_shift_nics
     TYPE(atomic_kind_type), POINTER          :: atom_kind
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(particle_type), DIMENSION(:), & 
+    TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-
 
     NULLIFY (chemical_shift, chemical_shift_nics, r_nics)
     NULLIFY (logger, particle_set)
@@ -862,12 +842,12 @@ CONTAINS
 
         chi_iso   = (eigenv(1)+ eigenv(2)+eigenv(3))/3.d0
         chi_aniso =  eigenv(3)-(eigenv(2)+eigenv(1))/2.d0
-        write (unit_atoms,'(/T2,3(A,F15.5))')' PV1=',eigenv(1),&
+        WRITE (unit_atoms,'(/T2,3(A,F15.5))')' PV1=',eigenv(1),&
                  ' PV2=',eigenv(2),' PV3=',eigenv(3)
-        write (unit_atoms,'(T2,A,F15.5,10X,A,F15.5)')&
+        WRITE (unit_atoms,'(T2,A,F15.5,10X,A,F15.5)')&
                  '  iso=',chi_iso,  'aniso=',chi_aniso
 
-        call dscal(3*3,nmr_env%chi_SI2ppmcgs,chi_sym,1)
+        CALL dscal(3*3,nmr_env%chi_SI2ppmcgs,chi_sym,1)
         WRITE(unit_atoms,'(T30,A)') " Total CHI in ppm-cgs units"
         WRITE(unit_atoms,'(3(A,f15.6))')' XX=',chi_sym(1,1),&
                  ' XY=',chi_sym(1,2),' XZ=',chi_sym(1,3)
@@ -875,7 +855,7 @@ CONTAINS
                  ' YY=',chi_sym(2,2),' YZ=',chi_sym(2,3)
         WRITE(unit_atoms,'(3(A,f15.6))')' ZX=',chi_sym(3,1),&
                  ' ZY=',chi_sym(3,2),' ZZ=',chi_sym(3,3)
-        write (unit_atoms, '(/T2,3(A,F15.5))') &
+        WRITE (unit_atoms, '(/T2,3(A,F15.5))') &
                  ' PV1=',nmr_env%chi_SI2ppmcgs*eigenv(1),&
                  ' PV2=',nmr_env%chi_SI2ppmcgs*eigenv(2),&
                  ' PV3=',nmr_env%chi_SI2ppmcgs*eigenv(3)

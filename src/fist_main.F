@@ -28,18 +28,11 @@ MODULE fist_main
   USE force_env_methods,               ONLY: force_env_create
   USE force_env_types,                 ONLY: force_env_type
   USE global_types,                    ONLY: global_environment_type
+  USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
   USE qmmm_types,                      ONLY: qmmm_env_mm_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE input_section_types,             ONLY: section_release,&
-                                             section_type,&
-                                             section_vals_create,&
-                                             section_vals_release,&
-                                             section_vals_type,&
-                                             section_vals_write,&
-                                             section_vals_get_subs_vals,&
-                                             section_vals_get_subs_vals2
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -93,14 +86,15 @@ SUBROUTINE fist_create_force_env ( force_env, globenv, qmmm, qmmm_env, force_env
 
 ! Argument
     TYPE(force_env_type), POINTER            :: force_env
-    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(global_environment_type), POINTER   :: globenv
     LOGICAL, OPTIONAL                        :: qmmm
     TYPE(qmmm_env_mm_type), OPTIONAL, &
       POINTER                                :: qmmm_env
+    TYPE(section_vals_type), POINTER         :: force_env_section
+    INTEGER, INTENT(in), OPTIONAL            :: method_name_id
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-    INTEGER,OPTIONAL, INTENT(in)             :: method_name_id
+
     CHARACTER(LEN=*), PARAMETER :: routineN = 'fist_create_force_env', &
       routineP = moduleN//':'//routineN
 

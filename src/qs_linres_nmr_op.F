@@ -30,28 +30,26 @@ MODULE qs_linres_nmr_op
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add,cp_fm_column_scale
   USE cp_control_types,                ONLY: dft_control_type
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_scale_and_add
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_get_submatrix,&
                                              cp_fm_p_type,&
-                                             cp_fm_set_all,&
-                                             cp_fm_to_fm,&
                                              cp_fm_release,&
+                                             cp_fm_set_all,&
                                              cp_fm_set_submatrix,&
                                              cp_fm_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply,copy_sm_to_fm
+  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: dp
-  USE orbital_pointers,                ONLY: coset,&
-                                             ncoset
+  USE orbital_pointers,                ONLY: coset
   USE particle_types,                  ONLY: get_particle_set,&
                                              particle_type
   USE qs_environment_types,            ONLY: get_qs_env,&
@@ -117,27 +115,25 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'nmr_operators', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle,homo, iao, iatom, idir, &
-                                                idir2, ii, iii, ispin, istat, &
+    INTEGER                                  :: handle, homo, i, iao, iatom, &
+                                                idir, ii, iii, ispin, istat, &
                                                 istate, nao, natom, nmo, &
                                                 nsgf, output_unit
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf, last_sgf
     LOGICAL                                  :: failure, ionode
     REAL(dp)                                 :: ck(3), ckdk(3), dk(3)
-    REAL(dp), DIMENSION(:,:), POINTER        :: vecbuf_c0
-    REAL(dp), DIMENSION(:,:), POINTER        :: basisfun_center
+    REAL(dp), DIMENSION(:, :), POINTER       :: basisfun_center, vecbuf_c0
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_2d_r_p_type), DIMENSION(3)       :: vecbuf_RmdC0
-    TYPE(cp_2d_r_p_type), DIMENSION(:),&
+    TYPE(cp_2d_r_p_type), DIMENSION(:), &
       POINTER                                :: centers_set
-    TYPE(cp_fm_struct_type), POINTER         :: tmp_fm_struct
-    TYPE(cp_fm_p_type), DIMENSION(:,:),&
-      POINTER                                :: p_psi0, rxp_psi0
-    TYPE(cp_fm_type), POINTER                :: mo_coeff
-    TYPE(cp_fm_type), POINTER                :: fm_work1,fm_work2
     TYPE(cp_fm_p_type), DIMENSION(3)         :: fm_Rmd_mos
+    TYPE(cp_fm_p_type), DIMENSION(:, :), &
+      POINTER                                :: p_psi0, rxp_psi0
+    TYPE(cp_fm_struct_type), POINTER         :: tmp_fm_struct
+    TYPE(cp_fm_type), POINTER                :: fm_work1, mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -146,11 +142,11 @@ CONTAINS
       POINTER                                :: mos
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(section_vals_type), POINTER         :: lr_section
-    TYPE(real_matrix_p_type), DIMENSION(:),&
+    TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: op_p_ao, op_rmd_ao
+    TYPE(section_vals_type), POINTER         :: lr_section
+
 !dbg
-    integer :: i,j, k, fnum
 !dbg
 
     CALL timeset(routineN,"I"," ",handle)
@@ -344,7 +340,9 @@ CONTAINS
 !****************************************************************************
   FUNCTION ind_m2(ii,iii) RESULT(i)
 
-    INTEGER                                  :: i, ii, iii, l(3)
+    INTEGER                                  :: ii, iii, i
+
+    INTEGER                                  :: l(3)
 
      i = 0.0_dp
      l(1:3) = 0

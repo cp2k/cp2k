@@ -27,11 +27,18 @@
 !****************************************************************************
 MODULE input_cp2k
   USE cp_output_handling,              ONLY: cp_print_key_section_create
+  USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_parser,                       ONLY: cp_parser_type,&
+                                             parser_create,&
+                                             parser_release
+  USE cp_units,                        ONLY: cp_unit_set_create,&
+                                             cp_unit_set_release,&
+                                             cp_unit_set_type
   USE input_constants
   USE input_cp2k_dft,                  ONLY: create_bsse_section,&
                                              create_dft_section,&
-                                             create_properties_section,&
-                                             create_ep_section
+                                             create_ep_section,&
+                                             create_properties_section
   USE input_cp2k_eip,                  ONLY: create_eip_section
   USE input_cp2k_mm,                   ONLY: create_mm_section
   USE input_cp2k_motion,               ONLY: create_motion_section
@@ -41,17 +48,11 @@ MODULE input_cp2k
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
                                              keyword_type
-  USE input_section_types,             ONLY: section_add_keyword,&
-                                             section_add_subsection,&
-                                             section_create,&
-                                             section_release,&
-                                             section_type,&
-                                             section_vals_get,&
-                                             section_vals_get_subs_vals,&
-                                             section_vals_type,&
-                                             section_vals_create
-  USE cp_parser, ONLY: cp_parser_type, parser_create, parser_release
-  USE input_parsing, only: section_vals_parse
+  USE input_parsing,                   ONLY: section_vals_parse
+  USE input_section_types,             ONLY: &
+       section_add_keyword, section_add_subsection, section_create, &
+       section_release, section_type, section_vals_create, section_vals_get, &
+       section_vals_get_subs_vals, section_vals_type
   USE input_val_types,                 ONLY: char_t,&
                                              integer_t,&
                                              no_t
@@ -59,8 +60,6 @@ MODULE input_cp2k
   USE string_utilities,                ONLY: s2a
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE cp_units, only: cp_unit_set_type, cp_unit_set_create, cp_unit_set_release
-  USE cp_para_types, only: cp_para_env_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -98,20 +97,20 @@ CONTAINS
 !!
 !!*** **********************************************************************
 FUNCTION create_cp2k_input_reading(file_path,para_env,error) RESULT(res)
-  CHARACTER(len=*), INTENT(in) :: file_path
-  TYPE(cp_para_env_type), pointer :: para_env
+    CHARACTER(len=*), INTENT(in)             :: file_path
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-    TYPE(section_vals_type), pointer :: res
-    
+    TYPE(section_vals_type), POINTER         :: res
+
     CHARACTER(len=*), PARAMETER :: routineN = 'create_cp2k_input_reading', &
       routineP = moduleN//':'//routineN
 
-    TYPE(section_type), POINTER              :: input_structure
+    INTEGER                                  :: handle
+    LOGICAL                                  :: failure
     TYPE(cp_parser_type), POINTER            :: cpparser
     TYPE(cp_unit_set_type), POINTER          :: default_units
-    INTEGER :: handle
-    LOGICAL :: failure
+    TYPE(section_type), POINTER              :: input_structure
 
     CALL timeset(routineN,handle)
     failure=.FALSE.
@@ -127,7 +126,7 @@ FUNCTION create_cp2k_input_reading(file_path,para_env,error) RESULT(res)
          default_units=default_units,error=error)
     CALL cp_unit_set_release(default_units,error=error)
     CALL parser_release(cpparser,error=error)
-    call timestop(handle)
+    CALL timestop(handle)
   END FUNCTION create_cp2k_input_reading
 !***************************************************************************
 
@@ -675,8 +674,9 @@ FUNCTION create_cp2k_input_reading(file_path,para_env,error) RESULT(res)
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
-    TYPE(section_type), POINTER              :: subsection
     TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection
+
     failure=.FALSE.
 
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)

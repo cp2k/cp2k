@@ -36,29 +36,36 @@ MODULE tbmd_neighbor_lists
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
+  USE basis_set_types,                 ONLY: get_gto_basis_set,&
+                                             gto_basis_set_type
   USE cell_types,                      ONLY: cell_type,&
                                              get_cell,&
                                              pbc,&
                                              plane_distance,&
                                              real_to_scaled,&
                                              scaled_to_real
-  USE message_passing,                 ONLY: mp_sum
-  USE string_utilities,                ONLY: compress
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE distribution_1d_types,           ONLY: distribution_1d_type
-  USE tbmd_neighbor_list_types,        ONLY: add_neighbor_list,&
-                                             add_neighbor_node,&
-                                             allocate_neighbor_list_set,&
-                                             deallocate_neighbor_list_set,&
-                                             init_neighbor_list_set,&
-                                             neighbor_list_p_type,&
-                                             neighbor_list_set_p_type,&
-                                             neighbor_list_set_type
-  USE basis_set_types,                 ONLY: get_gto_basis_set,&
-                                             gto_basis_set_type
+  USE global_types,                    ONLY: global_environment_type
+  USE input_section_types,             ONLY: section_vals_type
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp,&
+                                             dp_size,&
+                                             int_size
+  USE message_passing,                 ONLY: mp_max,&
+                                             mp_sum
+  USE particle_types,                  ONLY: particle_type
+  USE qs_neighbor_lists,               ONLY: allocate_subcell,&
+                                             deallocate_subcell,&
+                                             local_atoms_type,&
+                                             subcell_type
+  USE string_utilities,                ONLY: compress
+  USE tbmd_neighbor_list_env_types,    ONLY: tbmd_neighbor_list_env_get,&
+                                             tbmd_neighbor_list_env_set,&
+                                             tbmd_neighbor_list_env_type
   USE tbmd_neighbor_list_types,        ONLY: &
        add_neighbor_list, add_neighbor_node, allocate_neighbor_list_set, &
        deallocate_neighbor_list_set, first_list, first_node, &
@@ -66,21 +73,6 @@ MODULE tbmd_neighbor_lists
        init_neighbor_list_set, neighbor_list_p_type, &
        neighbor_list_set_p_type, neighbor_list_set_type, neighbor_list_type, &
        neighbor_node_type, next
-  USE global_types,                    ONLY: global_environment_type
-  USE input_section_types,             ONLY: section_vals_type
-  USE kinds,                           ONLY: dp,&
-                                             dp_size,&
-                                             int_size,&
-                                             default_string_length
-  USE message_passing,                 ONLY: mp_max
-  USE particle_types,                  ONLY: particle_type
-  USE qs_neighbor_lists,               ONLY: allocate_subcell,&
-                                             deallocate_subcell,&
-                                             local_atoms_type,&
-                                             subcell_type
-  USE tbmd_neighbor_list_env_types,    ONLY: tbmd_neighbor_list_env_get,&
-                                             tbmd_neighbor_list_env_set,&
-                                             tbmd_neighbor_list_env_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
@@ -163,7 +155,7 @@ CONTAINS
                                                 update_neighbor_lists
     REAL(KIND=dp)                            :: aup, dr2, dr2_max, lup, &
                                                 verlet_skin
-    REAL(KIND=dp), DIMENSION(3)              :: dr,s2r
+    REAL(KIND=dp), DIMENSION(3)              :: dr, s2r
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: r_cutoff, r_last_update, r_max
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: tbmd_neighbor_list
@@ -343,6 +335,7 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(local_atoms_type), ALLOCATABLE, &
       DIMENSION(:)                           :: atom
+
 !   ------------------------------------------------------------------------
 
     CALL timeset(routineN, "I", "", handle)
@@ -575,7 +568,7 @@ CONTAINS
       kcell, natom_local_a, natom_local_b, nkind
     INTEGER, DIMENSION(3)                    :: cell_a, cell_b, ncell, &
                                                 nsubcell, periodic
-    LOGICAL                                  :: cell000, include_ab
+    LOGICAL                                  :: cell000, dum, include_ab
     REAL(dp)                                 :: rab2, rab2_max, rab_max, &
                                                 subcells, unit_of_length
     REAL(dp), DIMENSION(3)                   :: abc, r, rab, rb, s, sab, &
@@ -586,7 +579,7 @@ CONTAINS
     TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set
     TYPE(subcell_type), DIMENSION(:, :, :), &
       POINTER                                :: subcell
-    logical :: dum
+
 !   ---------------------------------------------------------------------------
 
     CALL timeset(routineN, "I", "", handle)
@@ -954,7 +947,7 @@ CONTAINS
     TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set
     TYPE(neighbor_list_type), POINTER        :: neighbor_list
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     group = globenv%group
     mype = globenv%mepos + 1
@@ -1090,7 +1083,7 @@ CONTAINS
     TYPE(neighbor_list_type), POINTER        :: neighbor_list
     TYPE(neighbor_node_type), POINTER        :: neighbor_node
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     mype = globenv%mepos
 

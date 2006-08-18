@@ -45,20 +45,14 @@ MODULE qs_linres_nmr_atom_current
   USE qs_linres_nmr_op,                ONLY: set_vecp
   USE qs_linres_types,                 ONLY: allocate_jrho_atom_rad,&
                                              get_nmr_env,&
-                                             nmr_env_type,&
                                              jrho_atom_type,&
+                                             nmr_env_type,&
                                              set2zero_jrho_atom_rad
-  USE qs_neighbor_list_types,          ONLY: first_list,&
-                                             first_node, &
-                                             get_neighbor_list,&
-                                             get_neighbor_list_set,&
-                                             get_neighbor_node,&
-                                             neighbor_node_type,&
-                                             next,&
-                                             reduced_3c_list_type,&
-                                             neighbor_list_set_p_type, &
-                                             neighbor_list_type
-  USE qs_oce_types,                    ONLY: build_reduced_3c_lists, &
+  USE qs_neighbor_list_types,          ONLY: &
+       first_list, first_node, get_neighbor_list, get_neighbor_list_set, &
+       get_neighbor_node, neighbor_list_set_p_type, neighbor_list_type, &
+       neighbor_node_type, next, reduced_3c_list_type
+  USE qs_oce_types,                    ONLY: build_reduced_3c_lists,&
                                              deallocate_vtriple,&
                                              oce_matrix_type,&
                                              retrieve_sac_list
@@ -68,8 +62,6 @@ MODULE qs_linres_nmr_atom_current
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: get_limit
-
-
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -115,38 +107,35 @@ MODULE qs_linres_nmr_atom_current
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(nmr_env_type)                       :: nmr_env
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                ::  mat_jp, mat_jp_pii, mat_jp_piii
-    INTEGER, INTENT(IN)                      ::  iB,idir
+      POINTER                                :: mat_jp, mat_jp_pii, &
+                                                mat_jp_piii
+    INTEGER, INTENT(IN)                      :: iB, idir
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN ='calculate_jrho_atom_coeff',&
-          routineP = moduleN//':'//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_jrho_atom_coeff', &
+      routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, iab, iat, iatom, ii, iii, ikind, ilist, inode, isgfa, isgfb, &
-               ispin, istat, jatom, jkind, katom, kkind, kneighbor,&
-               last_jatom, last_katom, max_nsgf, &
-               maxsoc, max_gau, nat, natom, nkind, nlist, nnode, nnode_c, nsetc,&
-               nsgfa, nsgfb, nsoctot, nspins
+    INTEGER :: handle, iab, iat, iatom, ii, iii, ikind, ilist, inode, isgfa, &
+      isgfb, ispin, istat, jatom, jkind, katom, kkind, kneighbor, last_jatom, &
+      last_katom, max_gau, max_nsgf, maxsoc, nat, natom, nkind, nlist, nnode, &
+      nnode_c, nsetc, nsgfa, nsgfb, nsoctot, nspins
     INTEGER, DIMENSION(:), POINTER           :: atom_list
-
-    LOGICAL :: failure, new_atom_b, paw_atom
-
-    REAL(dp) :: rab(3), rac(3), rbc(3)
+    LOGICAL                                  :: failure, new_atom_b, paw_atom
+    REAL(dp)                                 :: rab(3), rbc(3)
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: PC
-    REAL(KIND=dp), DIMENSION(:,:), POINTER   :: C_coeff_hh_a, C_coeff_hh_b, &
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: C_coeff_hh_a, C_coeff_hh_b, &
                                                 C_coeff_ss_a, C_coeff_ss_b
-    TYPE(atomic_kind_type), DIMENSION(:),&
+    TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), &
-      POINTER                                :: atomic_kind
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
-    TYPE(jrho_atom_type),DIMENSION(:), &
+    TYPE(jrho_atom_type), DIMENSION(:), &
       POINTER                                :: jrho1_atom_set
-    TYPE(neighbor_list_set_p_type), DIMENSION(:),&
-      POINTER                                :: sab_orb
+    TYPE(neighbor_list_set_p_type), &
+      DIMENSION(:), POINTER                  :: sab_orb
     TYPE(neighbor_list_type), POINTER        :: sab_orb_neighbor_list, &
                                                 sab_orb_neighbor_list_local
     TYPE(neighbor_node_type), POINTER        :: sab_orb_neighbor_node
@@ -154,11 +143,11 @@ MODULE qs_linres_nmr_atom_current
     TYPE(reduced_3c_list_type), &
       DIMENSION(:), POINTER                  :: reduced_3c_oce
     TYPE(rho_atom_coeff), DIMENSION(:), &
-      POINTER                                :: jp_block, jp_ii_block, jp_iii_block
-    TYPE(rho_atom_coeff), DIMENSION(:), &
-      POINTER                                :: jp_RARnu
+      POINTER                                :: jp_block, jp_ii_block, &
+                                                jp_iii_block, jp_RARnu
 
 ! *****************************************************************************
+
     CALL timeset("calculate_jrho_atom_coeff","I"," ",handle)
 
     failure =.FALSE.
@@ -545,38 +534,31 @@ MODULE qs_linres_nmr_atom_current
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(nmr_env_type)                       :: nmr_env
-    INTEGER, INTENT(IN)                      :: idir,IB
+    INTEGER, INTENT(IN)                      :: IB, idir
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_jrho_atom_rad', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: lmax_expansion, max_iso_not0
-    INTEGER :: handle, iat, iatom, ikind, ir, ispin, istat, mepos, natom, nkind, nr, nspins, num_pe
-    INTEGER :: i1, i2, ipgf1, ipgf2, iset1, iset2, lmax12, lmin12,  m1s, m2s, maxl, maxso, n1s, n2s, nset, max_nso, size1, size2
-    INTEGER :: icg, iso, iso1, iso1_first, iso1_last, iso2, iso2_first, iso2_last, j, l, l_iso, l_sub, l_sum
+    INTEGER :: handle, i1, i2, iat, iatom, icg, ikind, ipgf1, ipgf2, iset1, &
+      iset2, iso, iso1, iso1_first, iso1_last, iso2, iso2_first, iso2_last, &
+      ispin, istat, l, l_iso, lmax12, lmax_expansion, lmin12, m1s, m2s, &
+      max_iso_not0, max_nso, maxl, maxso, mepos, n1s, n2s, natom, nkind, nr, &
+      nset, nspins, num_pe, size1, size2
     INTEGER, DIMENSION(2)                    :: bo
-    INTEGER, DIMENSION(:), POINTER           :: atom_list
-    INTEGER, DIMENSION(:), POINTER           :: lmax, lmin, npgf
-    LOGICAL :: failure, paw_atom
-    REAL(dp), DIMENSION(:), ALLOCATABLE      :: g1, g2
-    REAL(dp), DIMENSION(:,:), ALLOCATABLE    :: dgg_1, dgg_2, gg, gg_lm1
-    REAL(dp), DIMENSION(:,:), ALLOCATABLE    :: cjc_h_block, cjc_s_block
-    REAL(dp), DIMENSION(:,:), ALLOCATABLE    :: cjc_ii_h_block, cjc_ii_s_block
-    REAL(dp), DIMENSION(:,:), ALLOCATABLE    :: cjc_iii_h_block, cjc_iii_s_block
-    REAL(dp), DIMENSION(:, :), POINTER       :: coeff, zet
-    REAL(dp), DIMENSION(:, :), POINTER       :: Fr_a_h, Fr_a_s
-    REAL(dp), DIMENSION(:, :), POINTER       :: Fr_a_h_ii, Fr_a_s_ii
-    REAL(dp), DIMENSION(:, :), POINTER       :: Fr_a_h_iii, Fr_a_s_iii
-    REAL(dp), DIMENSION(:, :), POINTER       :: Fr_b_h, Fr_b_s
-    REAL(dp), DIMENSION(:, :), POINTER       :: Fr_b_h_ii, Fr_b_s_ii
-    REAL(dp), DIMENSION(:, :), POINTER       :: Fr_b_h_iii, Fr_b_s_iii
-    REAL(dp), DIMENSION(:, :), POINTER       :: Fr_c_h_ii, Fr_c_s_ii
-    REAL(dp), DIMENSION(:, :), POINTER       :: Fr_c_h_iii, Fr_c_s_iii
+    INTEGER, DIMENSION(:), POINTER           :: atom_list, lmax, lmin, npgf
+    LOGICAL                                  :: failure, paw_atom
+    REAL(dp), ALLOCATABLE, DIMENSION(:)      :: g1, g2
+    REAL(dp), ALLOCATABLE, DIMENSION(:, :) :: cjc_h_block, cjc_ii_h_block, &
+      cjc_ii_s_block, cjc_iii_h_block, cjc_iii_s_block, cjc_s_block, dgg_1, &
+      dgg_2, gg, gg_lm1
+    REAL(dp), DIMENSION(:, :), POINTER :: coeff, Fr_a_h, Fr_a_h_ii, &
+      Fr_a_h_iii, Fr_a_s, Fr_a_s_ii, Fr_a_s_iii, Fr_b_h, Fr_b_h_ii, &
+      Fr_b_h_iii, Fr_b_s, Fr_b_s_ii, Fr_b_s_iii, Fr_c_h_ii, Fr_c_h_iii, &
+      Fr_c_s_ii, Fr_c_s_iii, zet
     REAL(dp), DIMENSION(:, :, :), POINTER    :: my_CG
     REAL(dp), DIMENSION(:, :, :, :), POINTER :: my_CG_dxyz_asym
-
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atom_kind
@@ -585,11 +567,9 @@ MODULE qs_linres_nmr_atom_current
     TYPE(grid_atom_type), POINTER            :: grid_atom
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(harmonics_atom_type), POINTER       :: harmonics
-    TYPE(jrho_atom_type), POINTER            :: jrho1_atom
-    TYPE(jrho_atom_type),DIMENSION(:), &
+    TYPE(jrho_atom_type), DIMENSION(:), &
       POINTER                                :: jrho1_atom_set
-
-
+    TYPE(jrho_atom_type), POINTER            :: jrho1_atom
 
     CALL timeset("calculate_jrho_atom_rad","I"," ",handle)
 
@@ -883,18 +863,20 @@ MODULE qs_linres_nmr_atom_current
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(nmr_env_type)                       :: nmr_env
-    INTEGER, INTENT(IN)                      :: idir,IB
+    INTEGER, INTENT(IN)                      :: IB, idir
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'shift_atom', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL :: failure, paw_atom, store_current
-
-    INTEGER :: handle, iat, iatom, ikind, ispin, mepos, natom, nkind, nspins, num_pe
+    INTEGER                                  :: handle, iat, iatom, ikind, &
+                                                ispin, mepos, natom, nkind, &
+                                                nspins, num_pe
     INTEGER, DIMENSION(2)                    :: bo
     INTEGER, DIMENSION(:), POINTER           :: atom_list
+    LOGICAL                                  :: failure, paw_atom, &
+                                                store_current
     REAL(dp), DIMENSION(:, :), POINTER       :: jrho_h_grid, jrho_s_grid
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -903,9 +885,9 @@ MODULE qs_linres_nmr_atom_current
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(grid_atom_type), POINTER            :: grid_atom
     TYPE(harmonics_atom_type), POINTER       :: harmonics
-    TYPE(jrho_atom_type), POINTER             :: jrho1_atom
-    TYPE(jrho_atom_type),DIMENSION(:), &
+    TYPE(jrho_atom_type), DIMENSION(:), &
       POINTER                                :: jrho1_atom_set
+    TYPE(jrho_atom_type), POINTER            :: jrho1_atom
 
     CALL timeset("shift_atom","I"," ",handle)
 
@@ -984,27 +966,23 @@ MODULE qs_linres_nmr_atom_current
              harmonics,iB,idir,ispin,error)
 
     TYPE(jrho_atom_type), POINTER            :: jrho1_atom
-    REAL(dp), DIMENSION(:,:), POINTER        :: jrho_h,jrho_s
+    REAL(dp), DIMENSION(:, :), POINTER       :: jrho_h, jrho_s
     TYPE(grid_atom_type), POINTER            :: grid_atom
     TYPE(harmonics_atom_type), POINTER       :: harmonics
-    INTEGER, INTENT(IN)                      :: iB,idir,ispin
+    INTEGER, INTENT(IN)                      :: iB, idir, ispin
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'calculate_jrho_atom_ang', &
       routineP = moduleN//':'//routineN
 
-    INTEGER  :: ia, iiB, iiiB, ir, iso, max_iso, na, nr
-    LOGICAL  :: failure
-    REAL(dp) :: rad_part
-    REAL(dp), DIMENSION(:, :), POINTER       :: Fr_a_h, Fr_a_s
-    REAL(dp), DIMENSION(:, :), POINTER       :: Fr_a_h_ii, Fr_a_s_ii
-    REAL(dp), DIMENSION(:, :), POINTER       :: Fr_a_h_iii, Fr_a_s_iii
-    REAL(dp), DIMENSION(:, :), POINTER       :: Fr_b_h, Fr_b_s
-    REAL(dp), DIMENSION(:, :), POINTER       :: Fr_b_h_ii, Fr_b_s_ii
-    REAL(dp), DIMENSION(:, :), POINTER       :: Fr_b_h_iii, Fr_b_s_iii
-    REAL(dp), DIMENSION(:, :), POINTER       :: Fr_c_h_ii, Fr_c_s_ii
-    REAL(dp), DIMENSION(:, :), POINTER       :: Fr_c_h_iii, Fr_c_s_iii
+    INTEGER                                  :: ia, iiB, iiiB, ir, iso, &
+                                                max_iso, na, nr
+    LOGICAL                                  :: failure
+    REAL(dp)                                 :: rad_part
+    REAL(dp), DIMENSION(:, :), POINTER :: Fr_a_h, Fr_a_h_ii, Fr_a_h_iii, &
+      Fr_a_s, Fr_a_s_ii, Fr_a_s_iii, Fr_b_h, Fr_b_h_ii, Fr_b_h_iii, Fr_b_s, &
+      Fr_b_s_ii, Fr_b_s_iii, Fr_c_h_ii, Fr_c_h_iii, Fr_c_s_ii, Fr_c_s_iii
 
     failure = .FALSE.
     NULLIFY (Fr_a_h, Fr_a_s,Fr_a_h_ii, Fr_a_s_ii,Fr_a_h_iii, Fr_a_s_iii)
@@ -1108,24 +1086,24 @@ MODULE qs_linres_nmr_atom_current
     CHARACTER(LEN=*), PARAMETER :: routineN = 'list_3c_jrho_atom', &
       routineP = moduleN//':'//routineN
 
-
-    INTEGER :: iab, iat, iatom, ikind, ilist, inode, jatom, jkind, last_jatom, &
-               nat, natom, nkind, nlist, nnode 
+    INTEGER                                  :: iab, iat, iatom, ikind, &
+                                                ilist, inode, jatom, jkind, &
+                                                last_jatom, nat, natom, &
+                                                nkind, nlist, nnode
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: failure, new_atom_b
-    REAL(dp) :: rab(3)
+    REAL(dp)                                 :: rab(3)
     TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                 :: atomic_kind_set
-    TYPE(atomic_kind_type),  &
-      POINTER                                 :: atomic_kind
-    TYPE(neighbor_list_set_p_type), DIMENSION(:),&
-      POINTER :: sab_orb,sac_oce, sbc_oce
-    TYPE(neighbor_list_type), POINTER        :: sab_orb_neighbor_list,&
+      POINTER                                :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(neighbor_list_set_p_type), &
+      DIMENSION(:), POINTER                  :: sab_orb, sac_oce, sbc_oce
+    TYPE(neighbor_list_type), POINTER        :: sab_orb_neighbor_list, &
                                                 sab_orb_neighbor_list_local
     TYPE(neighbor_node_type), POINTER        :: sab_orb_neighbor_node
-    TYPE(reduced_3c_list_type), DIMENSION(:),&
-      POINTER     :: reduced_3c_oce
     TYPE(oce_matrix_type), POINTER           :: oce
+    TYPE(reduced_3c_list_type), &
+      DIMENSION(:), POINTER                  :: reduced_3c_oce
 
 ! *****************************************************************************
 

@@ -26,15 +26,15 @@ MODULE restraint
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE extended_system_types,           ONLY: extended_energy_type
   USE force_env_types,                 ONLY: force_env_get,&
-                                             force_env_type,&
-                                             force_env_set
+                                             force_env_set,&
+                                             force_env_type
   USE kinds,                           ONLY: dp
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
   USE mol_new_list_types,              ONLY: mol_new_list_type
   USE molecule_kind_types,             ONLY: colvar_constraint_type,&
+                                             fixd_constraint_type,&
                                              g3x3_constraint_type,&
                                              g4x6_constraint_type,&
-                                             fixd_constraint_type,&
                                              get_molecule_kind,&
                                              molecule_kind_type
   USE molecule_types_new,              ONLY: get_molecule,&
@@ -79,30 +79,29 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'restraint_control', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, ikind, imol, &
-                                                isubsys, n3x3con_restraint, &
-                                                n4x6con_restraint, nkind, &
-                                                nmol_per_kind,stat, nfixd_atoms,&
-                                                nfixd_restraint
+    INTEGER :: handle, i, ii, ikind, imol, iparticle, iparticle_local, &
+      isubsys, k, n3x3con_restraint, n4x6con_restraint, nfixd_restraint, &
+      nkind, nmol_per_kind, nparticle_local, stat
     LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: energy_3x3, energy_4x6, &
+                                                energy_colv, energy_fixd, &
+                                                rab(3), rab2, targ(3)
     TYPE(cell_type), POINTER                 :: cell
     TYPE(colvar_counters)                    :: ncolv
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
-    TYPE(distribution_1d_type), POINTER      :: local_molecules
-    TYPE(distribution_1d_type), POINTER      :: local_particles
+    TYPE(distribution_1d_type), POINTER      :: local_molecules, &
+                                                local_particles
+    TYPE(extended_energy_type), POINTER      :: extended_energies
+    TYPE(fixd_constraint_type), &
+      DIMENSION(:), POINTER                  :: fixd_list
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
     TYPE(mol_new_list_type), POINTER         :: molecules
-    TYPE(molecule_kind_type), POINTER        :: molecule_kind, molecule_kind_set(:)
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind, &
+                                                molecule_kind_set(:)
     TYPE(molecule_type), POINTER             :: molecule, molecule_set( : )
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(particle_type), POINTER             :: particle_set( : )
-    REAL(KIND=dp)                            :: energy_4x6, energy_3x3, energy_colv, energy_fixd
-    TYPE(extended_energy_type), POINTER      :: extended_energies
-    INTEGER :: nparticle_local, iparticle_local, iparticle, ii, k
-    TYPE(fixd_constraint_type), &
-      DIMENSION(:), POINTER                  :: fixd_list
-    REAL(KIND=dp) :: targ(3), rab(3), rab2 
 
     failure = .FALSE.
     CALL timeset ( routineN, 'I', ' ', handle )
@@ -223,8 +222,9 @@ CONTAINS
 
     INTEGER                                  :: first_atom, iconst, index_a, &
                                                 index_b, index_c, ng3x3
+    REAL(KIND=dp)                            :: k, rab, rac, rbc, tab, tac, &
+                                                tbc
     REAL(KIND=dp), DIMENSION(3)              :: r0_12, r0_13, r0_23
-    REAL(KIND=dp)                            :: rab, rac, rbc, tab, tbc, tac, k
     TYPE(g3x3_constraint_type), POINTER      :: g3x3_list( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
 
@@ -290,9 +290,11 @@ CONTAINS
     INTEGER                                  :: first_atom, iconst, index_a, &
                                                 index_b, index_c, index_d, &
                                                 ng4x6
+    REAL(KIND=dp)                            :: k, rab, rac, rad, rbc, rbd, &
+                                                rcd, tab, tac, tad, tbc, tbd, &
+                                                tcd
     REAL(KIND=dp), DIMENSION(3)              :: r0_12, r0_13, r0_14, r0_23, &
                                                 r0_24, r0_34
-    REAL(KIND=dp) :: rab, rac, rad, rbc, rbd, rcd, tab, tac, tad, tbc, tbd, tcd, k
     TYPE(g4x6_constraint_type), POINTER      :: g4x6_list( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
 
@@ -370,14 +372,13 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'restraint_colv', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: first_atom, iconst
+    INTEGER                                  :: first_atom, iatm, iconst, ind
     LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: k, tab, targ
     TYPE(colvar_constraint_type), POINTER    :: colv_list( : )
     TYPE(local_colvar_constraint_type), &
       POINTER                                :: lcolv( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
-    REAL(KIND=dp) :: k, targ, tab
-    INTEGER       :: ind, iatm
 
     failure = .FALSE.
     molecule_kind => molecule % molecule_kind

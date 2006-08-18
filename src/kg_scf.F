@@ -74,9 +74,9 @@ MODULE kg_scf
                                              write_mo_mol_restart
   USE kg_gpw_pw_env_methods,           ONLY: kg_rho_update_rho_mol
   USE kg_gpw_pw_env_types,             ONLY: kg_sub_pw_env_type
+  USE kg_scf_post,                     ONLY: scf_post_calculation
   USE kg_scf_types,                    ONLY: kg_scf_env_release,&
                                              kg_scf_env_type
-  USE kg_scf_post,                     ONLY: scf_post_calculation
   USE kinds,                           ONLY: dp,&
                                              dp_size
   USE machine,                         ONLY: m_flush,&
@@ -330,8 +330,7 @@ CONTAINS
       POINTER                                :: matrix_h, matrix_ks, &
                                                 matrix_p, matrix_s
     TYPE(scf_control_type), POINTER          :: scf_control
-    TYPE(section_vals_type), POINTER         :: dft_section
-    TYPE(section_vals_type), POINTER         :: scf_section
+    TYPE(section_vals_type), POINTER         :: dft_section, scf_section
 
 !   ---------------------------------------------------------------------------
 

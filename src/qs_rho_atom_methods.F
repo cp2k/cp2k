@@ -110,8 +110,8 @@ MODULE qs_rho_atom_methods
     INTEGER :: handle, i, i1, i2, iat, iatom, icg, ipgf1, ipgf2, ir, iset1, &
       iset2, iso, iso1, iso1_first, iso1_last, iso2, iso2_first, iso2_last, &
       istat, j, l, l_iso, l_sub, l_sum, lmax12, lmax_expansion, lmin12, m1s, &
-      m2s, max_iso_not0, maxl, maxso, mepos, n1s, n2s, nr, &
-      nset, num_pe, size1, size2
+      m2s, max_iso_not0, maxl, maxso, mepos, n1s, n2s, nr, nset, num_pe, &
+      size1, size2
     INTEGER, DIMENSION(2)                    :: bo
     INTEGER, DIMENSION(:), POINTER           :: lmax, lmin, npgf
     LOGICAL                                  :: failure
@@ -129,7 +129,6 @@ MODULE qs_rho_atom_methods
     REAL(dp), DIMENSION(:, :, :, :), POINTER :: my_CG_dxyz
     TYPE(gto_basis_set_type), POINTER        :: orb_basis
     TYPE(harmonics_atom_type), POINTER       :: harmonics
-    TYPE(rho_atom_type), POINTER             :: rho_atom
 
 ! *****************************************************************************
 
@@ -424,9 +423,9 @@ MODULE qs_rho_atom_methods
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_rho_atom_coeff'
 
     INTEGER :: handle, i, iab, iatom, icol, ikind, ilist, inode, irow, ispin, &
-      istat, j, jatom, jkind, katom, kkind, kneighbor, last_jatom, &
-      last_katom, max_gau, max_nsgf, maxsoc, nat_kind, natom, nkind, nlist, &
-      nnode, nnode_c, nsetc, nsgfa, nsgfb, nsoctot, nspins
+      istat, jatom, jkind, katom, kkind, kneighbor, last_jatom, last_katom, &
+      max_gau, max_nsgf, maxsoc, nat_kind, natom, nkind, nlist, nnode, &
+      nnode_c, nsetc, nsgfa, nsgfb, nsoctot, nspins
     INTEGER, DIMENSION(:), POINTER           :: a_list
     LOGICAL                                  :: new_atom_b, new_atom_c, &
                                                 paw_atom
@@ -454,6 +453,7 @@ MODULE qs_rho_atom_methods
       POINTER                                :: p_block_spin
     TYPE(rho_atom_type), DIMENSION(:), &
       POINTER                                :: rho_atom
+
 !
 ! *****************************************************************************
 
@@ -792,12 +792,12 @@ MODULE qs_rho_atom_methods
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'init_rho_atom'
 
-    INTEGER :: handle, ia, ikind, il, ir, iso, iso1, iso2, istat, &
-               l1, l1l2, l2, la, lc1, lc2, lcleb, ll, &
-               llmax, lmax_sphere, lp, m1, m2, max_s_harm, max_s_set, &
-               maxlgto, mm, mp, na, nat, natom, nkind, nr, nspins, quadrature
+    INTEGER :: handle, ia, ikind, il, ir, iso, iso1, iso2, istat, l1, l1l2, &
+      l2, la, lc1, lc2, lcleb, ll, llmax, lmax_sphere, lp, m1, m2, &
+      max_s_harm, max_s_set, maxlgto, mm, mp, na, nat, natom, nkind, nr, &
+      nspins, quadrature
     INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL                                  :: do_dxyz_asym,paw_atom
+    LOGICAL                                  :: do_dxyz_asym, paw_atom
     REAL(dp)                                 :: cosia, phi
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: rga
     REAL(dp), DIMENSION(:, :, :), POINTER    :: my_CG
@@ -998,8 +998,8 @@ MODULE qs_rho_atom_methods
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_rho_atom_internals'
 
-    INTEGER :: handle, iat, iatom, ikind, ispin, istat, j, max_iso_not0, maxso, nat, &
-      natom, nkind, nr, nset, nsotot, nspins, tmpstat
+    INTEGER :: handle, iat, iatom, ikind, ispin, istat, j, max_iso_not0, &
+      maxso, nat, natom, nkind, nr, nset, nsotot, nspins, tmpstat
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: paw_atom
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -1134,19 +1134,20 @@ MODULE qs_rho_atom_methods
 
   SUBROUTINE allocate_rho_atom_rad(rho_atom_set,iatom,ispin,nr,max_iso_not0,error)
 
-    TYPE(rho_atom_type),DIMENSION(:), POINTER             :: rho_atom_set
-    INTEGER, INTENT(IN)                      :: iatom,ispin,nr,max_iso_not0
+    TYPE(rho_atom_type), DIMENSION(:), &
+      POINTER                                :: rho_atom_set
+    INTEGER, INTENT(IN)                      :: iatom, ispin, nr, max_iso_not0
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'allocate_rho_atom_rad', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, istat, j
-    LOGICAL :: failure
+    INTEGER                                  :: handle, istat, j
+    LOGICAL                                  :: failure
 
     CALL timeset("calculate_rho_atom","I"," ",handle)
-    failure = .false.
+    failure = .FALSE.
 !    CPPrecondition(ASSOCIATED(rho_atom),cp_failure_level,routineP,error,failure)
 !    IF(.NOT. failure) THEN
          ALLOCATE(rho_atom_set(iatom)%rho_rad_h(ispin)%r_coef(1:nr,1:max_iso_not0), &
@@ -1187,19 +1188,19 @@ MODULE qs_rho_atom_methods
   SUBROUTINE set2zero_rho_atom_rad(rho_atom_set,iatom,ispin,error)
 
 !    TYPE(rho_atom_type), POINTER             :: rho_atom
-    TYPE(rho_atom_type), DIMENSION(:), POINTER     :: rho_atom_set
-    INTEGER, INTENT(IN)                      :: iatom
-    INTEGER, INTENT(IN)                      :: ispin
+    TYPE(rho_atom_type), DIMENSION(:), &
+      POINTER                                :: rho_atom_set
+    INTEGER, INTENT(IN)                      :: iatom, ispin
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'allocate_rho_atom_rad', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'set2zero_rho_atom_rad', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: j
-    LOGICAL :: failure
+    INTEGER                                  :: j
+    LOGICAL                                  :: failure
 
-    failure = .false.
+    failure = .FALSE.
 !    CPPrecondition(ASSOCIATED(rho_atom),cp_failure_level,routineP,error,failure)
 !    IF(.NOT. failure) THEN
 

@@ -102,52 +102,47 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-!   *** Local parameters ***
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'build_overlap_matrix'
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "build_overlap_matrix"
-
-!   *** Local variables ***
-
-    TYPE(atomic_kind_type), POINTER       :: atomic_kind
-    TYPE(gto_basis_set_type), POINTER     :: orb_basis_set
-    TYPE(neighbor_list_set_type), POINTER :: neighbor_list_set
-    TYPE(neighbor_list_type), POINTER     :: neighbor_list
-    TYPE(neighbor_node_type), POINTER     :: neighbor_node
-
-    CHARACTER(LEN=12) :: cgfsym
-    CHARACTER(LEN=80) :: name
-    REAL(KIND = dp)   :: dab,f,rab2
-    INTEGER           :: handle,i,iab,iatom,iblock,icol,ikind,ilist,&
-                         inode,irow,iset,istat,jatom,jkind,&
-                         jset,last_jatom,ldai,maxco,maxder,maxlgto,&
-                         maxsgf,natom,ncoa,ncob,nder,nkind,nlist,&
-                         nnode,nseta,nsetb,nsgf,sgfa,sgfb
-    LOGICAL           :: new_atom_b,return_s_derivatives
-
-    TYPE(atomic_kind_type), DIMENSION(:), POINTER         :: atomic_kind_set
-    TYPE(distribution_2d_type), POINTER                   :: distribution_2d
-    TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sab_orb
-    TYPE(particle_type), DIMENSION(:), POINTER            :: particle_set
-    TYPE(real_matrix_p_type), DIMENSION(:), POINTER       :: matrix_s
-
-    REAL(KIND = dp), DIMENSION(3)                :: rab
-    REAL(KIND = dp), DIMENSION(:,:), ALLOCATABLE :: sab,work
-
-    INTEGER, DIMENSION(:), ALLOCATABLE :: first_sgf,last_sgf
-
-    REAL(KIND = dp), DIMENSION(:,:,:), ALLOCATABLE :: ai_work
-
-    REAL(KIND = dp), DIMENSION(:), POINTER   :: set_radius_a,set_radius_b
-    INTEGER, DIMENSION(:), POINTER           :: la_max,la_min,lb_max,lb_min,&
-                                                npgfa,npgfb,nsgfa,nsgfb
-    REAL(KIND = dp), DIMENSION(:,:), POINTER :: rpgfa,rpgfb,sphi_a,sphi_b,&
-                                                zeta,zetb
-    INTEGER, DIMENSION(:,:), POINTER         :: first_sgfa,first_sgfb
-
-    TYPE(block_p_type), DIMENSION(:), ALLOCATABLE :: sint
-    INTEGER                                  :: neighbor_list_id
+    CHARACTER(LEN=12)                        :: cgfsym
+    CHARACTER(LEN=80)                        :: name
+    INTEGER :: handle, i, iab, iatom, iblock, icol, ikind, ilist, inode, &
+      irow, iset, istat, iw, jatom, jkind, jset, last_jatom, ldai, maxco, &
+      maxder, maxlgto, maxsgf, natom, ncoa, ncob, nder, neighbor_list_id, &
+      nkind, nlist, nnode, nseta, nsetb, nsgf, sgfa, sgfb
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf, last_sgf
+    INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
+                                                lb_min, npgfa, npgfb, nsgfa, &
+                                                nsgfb
+    INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
+    LOGICAL                                  :: new_atom_b, &
+                                                return_s_derivatives
+    REAL(KIND=dp)                            :: dab, f, rab2
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: sab, work
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :, :)                     :: ai_work
+    REAL(KIND=dp), DIMENSION(3)              :: rab
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a, set_radius_b
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rpgfa, rpgfb, sphi_a, sphi_b, &
+                                                zeta, zetb
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(block_p_type), ALLOCATABLE, &
+      DIMENSION(:)                           :: sint
     TYPE(cp_logger_type), POINTER            :: logger
-    INTEGER :: iw
+    TYPE(distribution_2d_type), POINTER      :: distribution_2d
+    TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
+    TYPE(neighbor_list_set_p_type), &
+      DIMENSION(:), POINTER                  :: sab_orb
+    TYPE(neighbor_list_set_type), POINTER    :: neighbor_list_set
+    TYPE(neighbor_list_type), POINTER        :: neighbor_list
+    TYPE(neighbor_node_type), POINTER        :: neighbor_node
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s
 
     CALL timeset(routineN,"I","",handle)
     NULLIFY(logger)
@@ -485,26 +480,28 @@ CONTAINS
                                  lb_min,first_sgfb,rpgfb,zetb,sphi_b,&
                                  rab,nder,ldai,sint,sab,work,ai_work,error)
 
-    INTEGER, INTENT(IN)                      :: iatom,nseta
-    INTEGER, DIMENSION(:),INTENT(IN)         :: npgfa,nsgfa,la_max,la_min
-    INTEGER, INTENT(IN)                      :: jatom,nsetb
-    INTEGER, DIMENSION(:),INTENT(IN)         :: npgfb,nsgfb,lb_max,lb_min
-    INTEGER, DIMENSION(:,:),INTENT(IN)       :: first_sgfa,first_sgfb
-    REAL(dp), DIMENSION(:,:),INTENT(IN)      :: rpgfa,rpgfb,zeta,zetb,&
-                                                sphi_a,sphi_b
-    REAL(dp), DIMENSION(:),INTENT(IN)        :: set_radius_a,set_radius_b
-    REAL(dp), DIMENSION(:),INTENT(IN)        :: rab
-    INTEGER, INTENT(IN)                      :: nder,ldai
+    INTEGER, INTENT(IN)                      :: iatom, nseta
+    REAL(dp), DIMENSION(:), INTENT(IN)       :: set_radius_a
+    INTEGER, DIMENSION(:), INTENT(IN)        :: npgfa, nsgfa, la_max, la_min
+    INTEGER, DIMENSION(:, :), INTENT(IN)     :: first_sgfa
+    REAL(dp), DIMENSION(:, :), INTENT(IN)    :: rpgfa, zeta, sphi_a
+    INTEGER, INTENT(IN)                      :: jatom, nsetb
+    REAL(dp), DIMENSION(:), INTENT(IN)       :: set_radius_b
+    INTEGER, DIMENSION(:), INTENT(IN)        :: npgfb, nsgfb, lb_max, lb_min
+    INTEGER, DIMENSION(:, :), INTENT(IN)     :: first_sgfb
+    REAL(dp), DIMENSION(:, :), INTENT(IN)    :: rpgfb, zetb, sphi_b
+    REAL(dp), DIMENSION(:), INTENT(IN)       :: rab
+    INTEGER, INTENT(IN)                      :: nder, ldai
     TYPE(block_p_type), DIMENSION(:)         :: sint
-    REAL(KIND = dp), DIMENSION(:,:)          :: sab,work
-    REAL(KIND = dp), DIMENSION(:,:,:)        :: ai_work
+    REAL(KIND=dp), DIMENSION(:, :)           :: sab, work
+    REAL(KIND=dp), DIMENSION(:, :, :)        :: ai_work
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    REAL(dp)                                 :: rab2,dab,f
-    INTEGER                                  :: iset,ncoa,sgfa,jset,ncob,sgfb,&
-                                                i,iblock,maxder
+    INTEGER                                  :: i, iblock, iset, jset, &
+                                                maxder, ncoa, ncob, sgfa, sgfb
     LOGICAL                                  :: return_s_derivatives
+    REAL(dp)                                 :: dab, f, rab2
 
 !-------------------------------------------------------------------------------
 

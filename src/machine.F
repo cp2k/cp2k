@@ -119,7 +119,8 @@ FUNCTION m_walltime() RESULT (wt)
     INTEGER                                  :: count, count_max, count_rate
     INTEGER, SAVE                            :: cycles = 0, last_count = -1
 
-    ! count lies in [0,count_max] and increases monotonically
+! count lies in [0,count_max] and increases monotonically
+
     CALL SYSTEM_CLOCK(count=count,count_rate=count_rate,count_max=count_max)
 
     ! protect against non-standard cases where time might be non-monotonous,

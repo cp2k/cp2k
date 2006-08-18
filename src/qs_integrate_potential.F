@@ -36,7 +36,6 @@
 !***********************************************************************
 
 MODULE qs_integrate_potential
-  USE cp_array_r_utils, only: cp_2d_r_p_type
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
@@ -47,6 +46,7 @@ MODULE qs_integrate_potential
   USE coefficient_types,               ONLY: coeff_copy,&
                                              coeff_transform_space,&
                                              coeff_type
+  USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_rs_pool_types,                ONLY: cp_rs_pool_p_type,&
@@ -67,8 +67,8 @@ MODULE qs_integrate_potential
                                              section_vals_val_get
   USE kinds,                           ONLY: dp,&
                                              int_size
-  USE l_utils,                         ONLY: l_info_type,&
-                                             finish_l_info,&
+  USE l_utils,                         ONLY: finish_l_info,&
+                                             l_info_type,&
                                              return_l_info
   USE memory_utilities,                ONLY: reallocate
   USE message_passing,                 ONLY: mp_max,&
@@ -103,16 +103,11 @@ MODULE qs_integrate_potential
                                              rs_get_loop_vars,&
                                              rs_get_my_tasks,&
                                              rs_pw_transfer
-  USE sparse_matrix_types,             ONLY: add_block_node,&
-                                             allocate_matrix,&
-                                             cp_sm_get_block_list,&
-                                             cp_sm_scale_and_add,&
-                                             deallocate_matrix,&
-                                             get_block_node,&
-                                             real_matrix_p_type,&
-                                             real_matrix_type,&
-                                             allocate_matrix_set,&
-                                             deallocate_matrix_set
+  USE sparse_matrix_types,             ONLY: &
+       add_block_node, allocate_matrix, allocate_matrix_set, &
+       cp_sm_get_block_list, cp_sm_scale_and_add, deallocate_matrix, &
+       deallocate_matrix_set, get_block_node, real_matrix_p_type, &
+       real_matrix_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
@@ -152,15 +147,16 @@ CONTAINS
       "SUBROUTINE integrate_v_core_rspace (MODULE qs_integrate_potential)"
 
     INTEGER                                  :: atom_a, dir, handle, iatom, &
-                                                ierr, ikind, j, &
-                                                natom_of_kind, npme, idir
+                                                idir, ierr, ikind, j, &
+                                                natom_of_kind, npme
     INTEGER, DIMENSION(2)                    :: bo
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     INTEGER, DIMENSION(:, :), POINTER        :: tasks
+    LOGICAL                                  :: use_virial
     REAL(KIND=dp)                            :: alpha_core_charge, &
                                                 ccore_charge, eps_rho_rspace
-    REAL(KIND=dp), DIMENSION(3)              :: force_a, force_b, ra,&
-                                                my_virial_a,my_virial_b
+    REAL(KIND=dp), DIMENSION(3)              :: force_a, force_b, &
+                                                my_virial_a, my_virial_b, ra
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: hab, pab
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -176,7 +172,6 @@ CONTAINS
       POINTER                                :: force
     TYPE(realspace_grid_type), POINTER       :: rs_v
     TYPE(virial_type), POINTER               :: virial
-    LOGICAL                                  :: use_virial
 
 !   --------------------------------------------------------------------
 
@@ -306,8 +301,8 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     LOGICAL, INTENT(IN)                      :: calculate_forces
     LOGICAL, INTENT(IN), OPTIONAL            :: compute_tau, gapw
-    TYPE(real_matrix_p_type), DIMENSION(:), OPTIONAL, TARGET :: matrix_dv
-
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      OPTIONAL, TARGET                       :: matrix_dv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -318,11 +313,12 @@ CONTAINS
     REAL(kind=dp), PARAMETER                 :: mult_tasks = 2.0_dp
 
     INTEGER :: ab, atom_a, atom_b, auxbas_grid, bcol, brow, curr_tasks, dir, &
-      handle, i, iatom, igrid_level, ijatoms, ijsets, ikind, ilist, inode, &
-      interp_kind, ipgf, iset, istat, itask, ithread, jatom, jkind, jpgf, &
-      jset, maxco, maxsgf_set, n, na1, na2, nalimit(2), natom, natom_pairs, &
-      nb1, nb2, ncoa, ncob, nkind, nlist, nnode, npme, nseta, nsetb, nthread, &
-      omp_get_max_threads, omp_get_thread_num, sgfa, sgfb, stat, tp, idir,offs_dv
+      handle, i, iatom, idir, igrid_level, ijatoms, ijsets, ikind, ilist, &
+      inode, interp_kind, ipgf, iset, istat, itask, ithread, jatom, jkind, &
+      jpgf, jset, maxco, maxsgf_set, n, na1, na2, nalimit(2), natom, &
+      natom_pairs, nb1, nb2, ncoa, ncob, nkind, nlist, nnode, npme, nseta, &
+      nsetb, nthread, offs_dv, omp_get_max_threads, omp_get_thread_num, sgfa, &
+      sgfb, stat, tp
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
                                                 lb_min, npgfa, npgfb, nsgfa, &
@@ -331,29 +327,31 @@ CONTAINS
                                                 first_sgfb, ival, latom, &
                                                 tasks_local
     INTEGER, DIMENSION(:, :, :), POINTER     :: tasks
-    LOGICAL                                  :: failure, h_duplicated, &
-                                                map_consistent, &
-                                                my_compute_tau, my_gapw, &
-                                                p_duplicated
+    LOGICAL :: failure, h_duplicated, has_dv, map_consistent, my_compute_tau, &
+      my_gapw, p_duplicated, use_virial
     REAL(KIND=dp)                            :: dab, eps_gvg_rspace, &
                                                 kind_radius_b, rab2, scale, &
                                                 zetp
-    REAL(KIND=dp), DIMENSION(3)              :: force_a, force_b, ra, rab, &
-                                                rb, rp, my_virial_a,my_virial_b
+    REAL(KIND=dp), DIMENSION(3)              :: force_a, force_b, &
+                                                my_virial_a, my_virial_b, ra, &
+                                                rab, rb, rp
     REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a, set_radius_b
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: dab_local, dp_block, h_block, &
                                                 hab, p_block, pab, rpgfa, &
                                                 rpgfb, sphi_a, sphi_b, work, &
                                                 zeta, zetb
     REAL(KIND=dp), DIMENSION(:, :, :), &
-      POINTER                                :: dist_ab, habt, pabt, workt,hdab,hadb
-    REAL(kind=dp), DIMENSION(:,:,:,:), POINTER :: hdabt,hadbt
+      POINTER                                :: dist_ab, habt, hadb, hdab, &
+                                                pabt, workt
+    REAL(kind=dp), DIMENSION(:, :, :, :), &
+      POINTER                                :: hadbt, hdabt
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(coeff_type), DIMENSION(:), POINTER  :: mgrid_gspace, mgrid_rspace, &
                                                 mgrid_temp_rspace
+    TYPE(cp_2d_r_p_type), DIMENSION(3)       :: dv_block
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_rs_pool_p_type), DIMENSION(:), &
       POINTER                                :: rs_pools
@@ -374,15 +372,13 @@ CONTAINS
       POINTER                                :: pw_pools
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: ddv
     TYPE(real_matrix_type), POINTER          :: deltap, dh
-    TYPE(real_matrix_p_type), POINTER, dimension(:)          :: ddv
-    TYPE(cp_2d_r_p_type), DIMENSION(3)       :: dv_block
     TYPE(realspace_grid_p_type), &
       DIMENSION(:), POINTER                  :: rs_v
     TYPE(section_vals_type), POINTER         :: input, interp_section
     TYPE(virial_type), POINTER               :: virial
-    LOGICAL                                  :: use_virial,has_dv
-     
 
 !   ---------------------------------------------------------------------------
 
@@ -391,7 +387,7 @@ CONTAINS
     debug_count=debug_count+1
 
 ! default, if compute_tau is not present we assume it is false
-    has_dv=.false.
+    has_dv=.FALSE.
     offs_dv=0
     has_dv=PRESENT(matrix_dv)
     IF (PRESENT(compute_tau)) THEN
@@ -570,7 +566,7 @@ CONTAINS
                          matrix_symmetry=h%matrix%symmetry)
         h_duplicated = .TRUE.
         IF (has_dv) THEN
-           nullify(ddv)
+           NULLIFY(ddv)
            CALL allocate_matrix_set(ddv,3)
            DO idir=1,3
               CALL allocate_matrix(matrix=ddv(idir)%matrix,&
@@ -582,7 +578,7 @@ CONTAINS
                          last_row=h%matrix%last_row(:),&
                          first_col=h%matrix%first_col(:),&
                          last_col=h%matrix%last_col(:),&
-                         matrix_name="LocalDV"//trim(adjustl(cp_to_string(idir))),&
+                         matrix_name="LocalDV"//TRIM(ADJUSTL(cp_to_string(idir))),&
                          sparsity_id=-1, & ! unknown sparsity, as it will be modified in parallel
                          matrix_symmetry=h%matrix%symmetry)
            END DO
@@ -1255,15 +1251,18 @@ CONTAINS
       OPTIONAL, POINTER                      :: hdab, hadb
     REAL(KIND=dp), DIMENSION(3), &
       INTENT(INOUT), OPTIONAL                :: force_a, force_b
-    REAL(KIND=dp), DIMENSION(3), &
-                   OPTIONAL                  :: my_virial_a,my_virial_b
     INTEGER, OPTIONAL                        :: ithread
     REAL(KIND=dp), DIMENSION(10), OPTIONAL   :: mytimings
     LOGICAL, INTENT(IN), OPTIONAL            :: compute_tau, map_consistent, &
-                                                collocate_rho0, use_virial
+                                                collocate_rho0
     REAL(dp), INTENT(IN), OPTIONAL           :: rpgf0_s
+    LOGICAL, INTENT(IN), OPTIONAL            :: use_virial
+    REAL(KIND=dp), DIMENSION(3), OPTIONAL    :: my_virial_a, my_virial_b
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'integrate_pgf_product_rspace', &
+      routineP = moduleN//':'//routineN
 
     INTEGER :: ax, ay, az, bx, by, bz, cmax, coef_max, gridbounds(2,3), i, &
       ico, icoef, ig, ithread_l, jco, k, l, la, la_max_l, la_min_l, lb, &
@@ -1287,9 +1286,6 @@ CONTAINS
     REAL(KIND=dp), POINTER                   :: alpha(:,:), dpy(:,:), &
                                                 dpz(:,:), polx(:,:), &
                                                 poly(:,:), polz(:,:), pzyx(:)
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'integrate_pgf_product_rspace', &
-      routineP = moduleN//':'//routineN
 
 !   ---------------------------------------------------------------------------
 
@@ -1672,16 +1668,19 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE virial_update(my_virial_a,my_virial_b,rab,pab,ftza,ftzb,ax,ay,az,bx,by,bz,pzyx,ipzyx) 
     REAL(KIND=dp), DIMENSION(3), &
-      INTENT(INOUT)                          :: my_virial_a,my_virial_b
+      INTENT(INOUT)                          :: my_virial_a, my_virial_b
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rab
     REAL(KIND=dp), INTENT(IN)                :: pab, ftza, ftzb
     INTEGER, INTENT(IN)                      :: ax, ay, az, bx, by, bz
     REAL(KIND=dp), POINTER                   :: pzyx(:)
     INTEGER, POINTER                         :: ipzyx(:,:,:,:,:,:)
 
-    REAL(kind=dp)                            :: axpm0, axp1, axp2, axm1p1, aym1p1, &
-                                                ayp1, ayp2, azm1p1, azp1, azp2, bxm1p1,&
-                                                bym1p1, bzm1p1 !, bxp2,byp2,bzp2
+    REAL(kind=dp)                            :: axm1p1, axp1, axp2, axpm0, &
+                                                aym1p1, ayp1, ayp2, azm1p1, &
+                                                azp1, azp2, bxm1p1, bym1p1, &
+                                                bzm1p1
+
+!, bxp2,byp2,bzp2
 
     axpm0 = pzyx(ipzyx(ax,ay,az,bx,by,bz))
     axp1=pzyx(ipzyx(ax+1,ay,az,bx,by,bz))

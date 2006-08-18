@@ -23,18 +23,17 @@
 
 MODULE mc_moves
   USE atomic_kind_types,               ONLY: get_atomic_kind
-  USE cell_types,                      ONLY: cell_type,&
-                                             get_cell,&
+  USE cell_types,                      ONLY: cell_clone,&
+                                             cell_create,&
                                              cell_release,&
-                                             cell_clone,&
-                                             cell_create
+                                             cell_type,&
+                                             get_cell
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsys_set,&
                                              cp_subsystem_p_type
   USE force_env_methods,               ONLY: force_env_calc_energy_force,&
                                              force_env_set_cell
   USE force_env_types,                 ONLY: force_env_get,&
-                                             force_env_release,&
                                              force_env_type,&
                                              use_fist_force
   USE global_types,                    ONLY: global_environment_type
@@ -42,13 +41,11 @@ MODULE mc_moves
   USE kinds,                           ONLY: dp,&
                                              dp_size
   USE mathconstants,                   ONLY: pi
-  USE mc_control,                      ONLY: mc_create_force_env
   USE mc_coordinates,                  ONLY: check_for_overlap,&
                                              create_discrete_array,&
                                              generate_cbmc_swap_config,&
                                              get_center_of_mass,&
                                              mc_coordinate_fold
-  USE mc_misc,                         ONLY: mc_make_dat_file
   USE mc_types,                        ONLY: get_mc_par,&
                                              mc_moves_type,&
                                              mc_simulation_parameters_type
@@ -1043,7 +1040,7 @@ CONTAINS
     CHARACTER(LEN=200)                       :: fft_lib
     CHARACTER(LEN=40)                        :: dat_file
     INTEGER :: cl, group, handle, i, iatom, icurrent, iside, iside_change, &
-      istat, iunit, natoms, nchain, nunits, nunits_tot, source,print_level
+      istat, iunit, natoms, nchain, nunits, nunits_tot, print_level, source
     LOGICAL                                  :: ionode, ldiscrete, lincrease, &
                                                 loverlap, ltoo_small
     REAL(KIND=dp) :: BETA, discrete_step, energy_term, new_energy, pressure, &
@@ -1051,17 +1048,21 @@ CONTAINS
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: mass
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: r
-    REAL(KIND=dp), DIMENSION(1:3,1:3) :: hmat_test
-    REAL(KIND=dp), DIMENSION(1:3) :: abc, center_of_mass, center_of_mass_new, &
-      diff, new_cell_length, old_cell_length
-    TYPE(cell_type), POINTER                 :: cell_old,cell_test,cell
+    REAL(KIND=dp), DIMENSION(1:3)            :: abc, center_of_mass, &
+                                                center_of_mass_new, diff, &
+                                                new_cell_length, &
+                                                old_cell_length
+    REAL(KIND=dp), DIMENSION(1:3, 1:3)       :: hmat_test
+    TYPE(cell_type), POINTER                 :: cell, cell_old, cell_test
     TYPE(cp_subsystem_p_type), &
-      DIMENSION(:), POINTER                  :: oldsys!, testsys
-!    TYPE(force_env_type), POINTER            :: test_env
+      DIMENSION(:), POINTER                  :: oldsys
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds_new
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
-    TYPE(particle_list_type), POINTER        :: particles_old!, particles_test
+    TYPE(particle_list_type), POINTER        :: particles_old
 
+!, testsys
+!    TYPE(force_env_type), POINTER            :: test_env
+!, particles_test
 !   ---------------------------------------------------------------------------
 ! begin the timing of the subroutine
 

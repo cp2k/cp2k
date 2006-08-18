@@ -31,15 +31,15 @@ MODULE qs_numerical_pressure
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
-  USE input_constants,                 ONLY: qs_debug_run, energy_force_run
+  USE input_constants,                 ONLY: qs_debug_run
   USE kinds,                           ONLY: dp
   USE particle_types,                  ONLY: particle_type
+  USE qs_energy,                       ONLY: qs_energies
   USE qs_environment_methods,          ONLY: qs_env_rebuild_pw_env
   USE qs_environment_types,            ONLY: set_qs_env
-  USE qs_ks_methods,                   ONLY: qs_ks_create 
-  USE qs_ks_types,                     ONLY: qs_ks_release, &
-                                             qs_ks_env_type 
-  USE qs_energy,                       ONLY: qs_energies
+  USE qs_ks_methods,                   ONLY: qs_ks_create
+  USE qs_ks_types,                     ONLY: qs_ks_env_type,&
+                                             qs_ks_release
   USE virial_types,                    ONLY: virial_type
 #include "cp_common_uses.h"
 
@@ -72,8 +72,8 @@ MODULE qs_numerical_pressure
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particles
+    TYPE(qs_ks_env_type), POINTER            :: new_ks_env
     TYPE(virial_type), POINTER               :: virial
-    TYPE ( qs_ks_env_type ), POINTER         :: new_ks_env
 
     NULLIFY(cell_local)
     failure = .FALSE.

@@ -30,17 +30,10 @@ MODULE eip_main
   USE force_env_methods,               ONLY: force_env_create
   USE force_env_types,                 ONLY: force_env_type
   USE global_types,                    ONLY: global_environment_type
+  USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE input_section_types,             ONLY: section_release,&
-                                             section_type,&
-                                             section_vals_create,&
-                                             section_vals_release,&
-                                             section_vals_type,&
-                                             section_vals_get,&
-                                             section_vals_get_subs_vals,&
-                                             section_vals_get_subs_vals2
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -79,8 +72,8 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE eip_create_force_env(force_env, globenv, force_env_section, error)
     TYPE(force_env_type), POINTER            :: force_env
-    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 

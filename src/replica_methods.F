@@ -25,38 +25,35 @@
 !!   SOURCE
 !****************************************************************************
 MODULE replica_methods
-  USE cp_files,                        ONLY: close_file,&
-                                             open_file
+  USE cp_control_types,                ONLY: dft_control_type
   USE cp_output_handling,              ONLY: cp_add_iter_level
-  USE cp_para_env,                     ONLY: cp_cart_create,&
-                                             cp_para_env_create,&
-                                             cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_cart_type,&
                                              cp_para_env_type
-  USE f77_interface,                   ONLY: &
-       calc_force, create_force_env, f_env_add_defaults, f_env_rm_defaults, &
-       f_env_type, get_force, get_natom, get_pos, set_vel, destroy_force_env
+  USE f77_interface,                   ONLY: f_env_add_defaults,&
+                                             f_env_rm_defaults,&
+                                             f_env_type
+  USE force_env_types,                 ONLY: force_env_get,&
+                                             use_qs_force
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get,&
-                                             section_vals_val_set,&
-                                             section_vals_write
-  USE kinds,                           ONLY: default_path_length,&
-                                             default_string_length,&
+                                             section_vals_val_set
+  USE kinds,                           ONLY: default_string_length,&
                                              dp
-  USE message_passing,                 ONLY: MPI_COMM_NULL,&
-                                             mp_cart_create,&
-                                             mp_cart_sub,&
-                                             mp_sum
-  USE replica_types,                   ONLY: replica_env_type,&
-       rep_env_sync, rep_env_write, rep_env_create,&
-       rep_env_calc_e_f, rep_env_release, rep_envs_get_rep_env
+  USE qs_environment_types,            ONLY: get_qs_env,&
+                                             qs_environment_type,&
+                                             set_qs_env
+  USE qs_wf_history_methods,           ONLY: wfi_create
+  USE qs_wf_history_types,             ONLY: qs_wf_history_type,&
+                                             wfi_retain
+  USE replica_types,                   ONLY: rep_env_calc_e_f,&
+                                             rep_env_create,&
+                                             rep_env_release,&
+                                             rep_env_sync,&
+                                             rep_env_write,&
+                                             rep_envs_get_rep_env,&
+                                             replica_env_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE cp_control_types, ONLY: dft_control_type
-  USE qs_environment_types, ONLY: qs_environment_type, get_qs_env, set_qs_env
-  USE force_env_types, ONLY: force_env_get,use_qs_force
-  USE qs_wf_history_types, ONLY: qs_wf_history_type,wfi_release,wfi_retain
-  USE qs_wf_history_methods, only: wfi_create
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -90,32 +87,23 @@ CONTAINS
 !!
 !!*** **********************************************************************
 SUBROUTINE rep_env_init_low(rep_env_id, ierr)
-  INTEGER, INTENT(in) :: rep_env_id
-  INTEGER, intent(out) :: ierr
-
-    TYPE(replica_env_type), POINTER          :: rep_env
+    INTEGER, INTENT(in)                      :: rep_env_id
+    INTEGER, INTENT(out)                     :: ierr
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rep_env_init_low', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(len=default_path_length)       :: input_file_path, &
-                                                output_file_path
-    INTEGER                                  :: comm_cart, comm_f, &
-                                                comm_inter_rep, i, i0, &
-                                                ip, ir, lp, my_prep, natom, &
-                                                new_env_id, stat, unit_nr,&
-                                                in_use
-    INTEGER, DIMENSION(2)                    :: dims, pos
-    LOGICAL                                  :: failure,first_rep
-    LOGICAL, DIMENSION(2)                    :: rdim
+    INTEGER                                  :: i, in_use, stat
+    LOGICAL                                  :: failure
     TYPE(cp_error_type)                      :: error
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_cart_type), POINTER         :: cart
     TYPE(cp_para_env_type), POINTER          :: para_env_f, para_env_inter_rep
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(f_env_type), POINTER                :: f_env
-    TYPE(qs_environment_type), pointer :: qs_env
-    TYPE(qs_wf_history_type), pointer :: wf_history
-    TYPE(dft_control_type), pointer :: dft_control
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(qs_wf_history_type), POINTER        :: wf_history
+    TYPE(replica_env_type), POINTER          :: rep_env
 
   failure=.FALSE.
   rep_env => rep_envs_get_rep_env(rep_env_id)
@@ -142,7 +130,7 @@ SUBROUTINE rep_env_init_low(rep_env_id, ierr)
               CALL force_env_get(f_env%force_env,qs_env=qs_env,&
                    error=error)
               CALL get_qs_env(qs_env,dft_control=dft_control,error=error)
-              ALLOCATE(rep_env%wf_history(size(rep_env%local_rep_indices)),stat=stat)
+              ALLOCATE(rep_env%wf_history(SIZE(rep_env%local_rep_indices)),stat=stat)
               CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
               DO i=1,SIZE(rep_env%wf_history)
                  NULLIFY(rep_env%wf_history(i)%wf_history)
@@ -206,14 +194,14 @@ SUBROUTINE rep_env_test(para_env,input,error)
     CHARACTER(len=*), PARAMETER :: routineN = 'rep_env_test', &
       routineP = moduleN//':'//routineN
 
+    CHARACTER(len=default_string_length)     :: project_name
     INTEGER                                  :: i, stat
     LOGICAL                                  :: failure
-    REAL(kind=dp)                            :: err,max_err
-    REAL(kind=dp), DIMENSION(:), allocatable :: e1, e2, e3
+    REAL(kind=dp)                            :: err, max_err
+    REAL(kind=dp), ALLOCATABLE, DIMENSION(:) :: e1, e2, e3
     REAL(kind=dp), DIMENSION(:, :), POINTER  :: f1, f2, f3
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(replica_env_type), POINTER          :: rep_env
-    CHARACTER(len=default_string_length)     :: project_name
 
   failure=.FALSE.
 
@@ -369,14 +357,15 @@ SUBROUTINE rep_env_calc_e_f_int(rep_env,calc_f,error)
     CHARACTER(len=*), PARAMETER :: routineN = 'rep_env_calc_e_f_int', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ierr, irep, md_iter, my_calc_f,i
+    INTEGER                                  :: i, ierr, irep, md_iter, &
+                                                my_calc_f
     LOGICAL                                  :: failure
     TYPE(cp_error_type)                      :: new_error
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(f_env_type), pointer :: f_env
-    TYPE(qs_environment_type), pointer :: qs_env
+    TYPE(f_env_type), POINTER                :: f_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
 
-  failure=.false.
+  failure=.FALSE.
   NULLIFY(f_env,qs_env)
   CPPrecondition(ASSOCIATED(rep_env),cp_failure_level,routineP,error,failure)
   CPPrecondition(rep_env%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -390,7 +379,7 @@ SUBROUTINE rep_env_calc_e_f_int(rep_env,calc_f,error)
           new_error=new_error, failure=failure)
      logger => cp_error_get_logger(new_error)
      md_iter=logger%iter_info%iteration(2)+1
-     call f_env_rm_defaults(f_env,new_error,ierr)
+     CALL f_env_rm_defaults(f_env,new_error,ierr)
      CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
 
      DO i=1,SIZE(rep_env%local_rep_indices)
@@ -455,19 +444,18 @@ END SUBROUTINE rep_env_calc_e_f_int
 !!
 !!*** **********************************************************************
 RECURSIVE SUBROUTINE rep_env_calc_e_f_low(rep_env_id,calc_f,ierr)
-  INTEGER, INTENT(in) :: rep_env_id, calc_f
-  INTEGER, intent(out) :: ierr
+    INTEGER, INTENT(in)                      :: rep_env_id, calc_f
+    INTEGER, INTENT(out)                     :: ierr
 
-  CHARACTER(len=*), PARAMETER :: routineN = 'rep_env_calc_e_f_int', &
-       routineP = moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'rep_env_calc_e_f_low', &
+      routineP = moduleN//':'//routineN
 
-  logical :: failure
-  TYPE(cp_error_type)                      :: new_error
-  TYPE(cp_logger_type), POINTER            :: logger
-  TYPE(replica_env_type), pointer :: rep_env
-  TYPE(f_env_type), pointer :: f_env
+    LOGICAL                                  :: failure
+    TYPE(cp_error_type)                      :: new_error
+    TYPE(f_env_type), POINTER                :: f_env
+    TYPE(replica_env_type), POINTER          :: rep_env
 
-  failure=.false.
+  failure=.FALSE.
   rep_env => rep_envs_get_rep_env(rep_env_id)
   IF (ASSOCIATED(rep_env)) THEN
      CALL f_env_add_defaults(f_env_id=rep_env%f_env_id,f_env=f_env,&

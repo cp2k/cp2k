@@ -26,15 +26,9 @@ MODULE topology
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE global_types,                    ONLY: global_environment_type
-  USE input_constants,                 ONLY: do_conn_generate,&
-                                             do_conn_g87,&
-                                             do_conn_g96,&
-                                             do_conn_mol_set,&
-                                             do_conn_off,&
-                                             do_conn_psf,&
-                                             do_coord_g96,&
-                                             do_coord_pdb,&
-                                             do_coord_xyz
+  USE input_constants,                 ONLY: &
+       do_conn_g87, do_conn_g96, do_conn_generate, do_conn_mol_set, &
+       do_conn_off, do_conn_psf, do_coord_g96, do_coord_pdb, do_coord_xyz
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -50,6 +44,9 @@ MODULE topology
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE topology_gromos,                 ONLY: pre_read_topology_gromos,&
+                                             read_coordinate_g96,&
+                                             read_topology_gromos
   USE topology_input,                  ONLY: read_constraints_section,&
                                              read_topology_section
   USE topology_pdb,                    ONLY: read_coordinate_pdb,&
@@ -57,10 +54,6 @@ MODULE topology
   USE topology_psf,                    ONLY: pre_read_topology_psf,&
                                              read_topology_psf,&
                                              write_topology_psf
-  USE topology_gromos,                 ONLY: pre_read_topology_gromos,&
-                                             read_topology_gromos,&
-                                             read_coordinate_g96,&
-                                             write_topology_gromos
   USE topology_types,                  ONLY: deallocate_topology,&
                                              init_topology,&
                                              topology_parameters_type
@@ -122,11 +115,11 @@ CONTAINS
       POINTER                                :: molecule_set
     TYPE(colvar_p_type), DIMENSION(:), &
       POINTER                                :: colvar_p
-    TYPE(section_vals_type),POINTER          :: force_env_section
     TYPE(global_environment_type), POINTER   :: globenv
     LOGICAL, INTENT(IN), OPTIONAL            :: qmmm
     TYPE(qmmm_env_mm_type), OPTIONAL, &
       POINTER                                :: qmmm_env
+    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -427,11 +420,14 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'coordinate_control', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(len=default_string_length)     :: my_element, element0
-    INTEGER                                  :: handle, handle2, i, j, id, iw, stat
+    CHARACTER(len=default_string_length)     :: element0, my_element
+    CHARACTER(len=default_string_length), &
+      ALLOCATABLE, DIMENSION(:)              :: elements
+    INTEGER                                  :: handle, handle2, i, id, iw, &
+                                                j, stat
     LOGICAL                                  :: failure, found
     TYPE(cp_logger_type), POINTER            :: logger
-    CHARACTER(len=default_string_length), ALLOCATABLE, DIMENSION(:)     :: elements
+
     failure = .FALSE.
     NULLIFY(logger)
     logger => cp_error_get_logger(error)

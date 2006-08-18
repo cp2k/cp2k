@@ -34,8 +34,7 @@ MODULE xas_env_types
   USE qs_loc_types,                    ONLY: qs_loc_env_new_type,&
                                              qs_loc_env_release,&
                                              qs_loc_env_retain
-  USE sparse_matrix_types,             ONLY: deallocate_matrix,&
-                                             deallocate_matrix_set,&
+  USE sparse_matrix_types,             ONLY: deallocate_matrix_set,&
                                              real_matrix_p_type
 #include "cp_common_uses.h"
 
@@ -161,8 +160,8 @@ CONTAINS
       POINTER                                :: spectrum
     TYPE(cp_fm_p_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: groundstate_coeff
-    TYPE(real_matrix_p_type), &
-      DIMENSION(:), OPTIONAL, POINTER     :: ostrength_sm
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: ostrength_sm
     TYPE(cp_fm_p_type), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: dip_fm_set
     TYPE(cp_fm_type), OPTIONAL, POINTER      :: excvec_coeff, excvec_overlap, &
@@ -231,10 +230,8 @@ CONTAINS
   SUBROUTINE set_xas_env(xas_env,iter_count,nvirtual,nvirtual1,nvirtual2, qs_loc_env,error)
 
     TYPE(xas_environment_type), POINTER      :: xas_env
-    INTEGER, INTENT(IN), OPTIONAL            :: iter_count
-    INTEGER, INTENT(IN), OPTIONAL            :: nvirtual
-    INTEGER, INTENT(IN), OPTIONAL            :: nvirtual1
-    INTEGER, INTENT(IN), OPTIONAL            :: nvirtual2
+    INTEGER, INTENT(IN), OPTIONAL            :: iter_count, nvirtual, &
+                                                nvirtual1, nvirtual2
     TYPE(qs_loc_env_new_type), OPTIONAL, &
       POINTER                                :: qs_loc_env
     TYPE(cp_error_type), INTENT(inout), &

@@ -40,9 +40,9 @@ MODULE fist_intra_force
                                              ub_type
   USE molecule_types_new,              ONLY: get_molecule,&
                                              molecule_type
-  USE splines,                         ONLY: potential_s
   USE particle_types,                  ONLY: particle_type
-  USE splines,                         ONLY: spline_data_type
+  USE splines,                         ONLY: potential_s,&
+                                             spline_data_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 
@@ -104,17 +104,16 @@ SUBROUTINE force_intra_control ( molecule_set, molecule_kind_set, local_molecule
     CHARACTER(len=*), PARAMETER :: routineN = 'force_intra_control', &
       routineP = moduleN//':'//routineN
 
-
     INTEGER :: first_atom, handle, i, ibend, ibond, ikind, imol, imul, &
       index_a, index_b, index_c, index_d, ionef, itorsion, nbends, nbonds, &
       nimptors, nkind, nmol_per_kind, nonefs, ntorsions, nub
     REAL(KIND=dp) :: d12, d32, dist, dist1, dist2, energy, fscalar, id12, &
-      id32, is32, ism, isn, iw1, iw2, rab2, s32, sm, sn, theta, w1, w2
-    REAL(KIND=dp) :: rinv, rinv2
+      id32, is32, ism, isn, iw1, iw2, rab2, rinv, rinv2, s32, sm, sn, theta, &
+      w1, w2
     REAL(KIND=dp), DIMENSION(3)              :: b12, b32, g1, g2, g3, gt1, &
-                                                gt2, gt3, gt4, rij, t12, t32, &
-                                                t34, t43, tm, tn, u1, u2, &
-                                                k1,k2,k3,k4
+                                                gt2, gt3, gt4, k1, k2, k3, &
+                                                k4, rij, t12, t32, t34, t43, &
+                                                tm, tn, u1, u2
     TYPE(bend_type), POINTER                 :: bend_list( : )
     TYPE(bond_type), POINTER                 :: bond_list( : )
     TYPE(impr_type), POINTER                 :: impr_list( : )

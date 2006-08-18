@@ -27,12 +27,10 @@ MODULE qs_energy
   USE qs_core_energies,                ONLY: calculate_ecore_overlap,&
                                              calculate_ecore_self
   USE qs_core_hamiltonian,             ONLY: build_core_hamiltonian_matrix
-  USE qs_environment_methods,          ONLY: qs_env_rebuild_pw_env,&
-                                             qs_env_update_s_mstruct
+  USE qs_environment_methods,          ONLY: qs_env_update_s_mstruct
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_ks_methods,                   ONLY: qs_ks_update_qs_env
-  USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE qs_neighbor_lists,               ONLY: build_qs_neighbor_lists
   USE qs_scf,                          ONLY: scf
   USE qs_semi_empirical_hamiltonian,   ONLY: build_se_core_matrix
@@ -69,7 +67,8 @@ CONTAINS
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(global_environment_type), POINTER   :: globenv
-    LOGICAL, INTENT(IN), OPTIONAL            :: consistent_energies,  calc_forces 
+    LOGICAL, INTENT(IN), OPTIONAL            :: consistent_energies, &
+                                                calc_forces
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 

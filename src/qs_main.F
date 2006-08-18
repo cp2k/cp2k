@@ -29,8 +29,10 @@ MODULE qs_main
   USE cell_types,                      ONLY: cell_type
   USE cp_subsystem_types,              ONLY: cp_subsystem_type
   USE force_env_methods,               ONLY: force_env_create
-  USE force_env_types,                 ONLY: force_env_type, force_env_p_type
+  USE force_env_types,                 ONLY: force_env_p_type,&
+                                             force_env_type
   USE global_types,                    ONLY: global_environment_type
+  USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
   USE qs_environment,                  ONLY: qs_init
   USE qs_environment_types,            ONLY: qs_env_create,&
@@ -38,11 +40,6 @@ MODULE qs_main
                                              qs_environment_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE input_section_types,             ONLY: section_vals_get,&
-                                             section_vals_get_subs_vals,&
-                                             section_vals_type,&
-                                             section_vals_val_get
-
 #include "cp_common_uses.h"
 
     IMPLICIT NONE
@@ -99,17 +96,14 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
-    TYPE(section_vals_type), POINTER         :: respa_section
     LOGICAL                                  :: failure
-    TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(qs_environment_type), POINTER       :: qs_env_respa
     TYPE(force_env_p_type), DIMENSION(:), &
       POINTER                                :: sub_force_env
-    INTEGER                                  :: stat
+    TYPE(qs_environment_type), POINTER       :: qs_env
 
     CALL timeset(routineN,"I","",handle)
     failure = .FALSE.
-    NULLIFY(qs_env,qs_env_respa,sub_force_env)
+    NULLIFY(qs_env, sub_force_env)
     !Reference qs_env 
     CALL qs_env_create(qs_env,globenv%para_env)
     CALL qs_init( qs_env, globenv, subsystem=subsystem, cell=cell, cell_ref=cell_ref,&

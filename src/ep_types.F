@@ -24,38 +24,40 @@
 !!   SOURCE
 !****************************************************************************
 MODULE ep_types
-  USE sparse_matrix_types, ONLY: real_matrix_p_type, real_matrix_type,&
-       deallocate_matrix
   USE cp_fm_types,                     ONLY: cp_fm_p_type
   USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc
+  USE cp_para_env,                     ONLY: cp_para_env_release,&
+                                             cp_para_env_retain
+  USE cp_para_types,                   ONLY: cp_para_env_type
+  USE global_types,                    ONLY: global_environment_type,&
+                                             globenv_release,&
+                                             globenv_retain
+  USE input_section_types,             ONLY: section_vals_release,&
+                                             section_vals_type
   USE kinds,                           ONLY: dp
   USE preconditioner,                  ONLY: destroy_preconditioner,&
-       preconditioner_p_type
+                                             preconditioner_p_type
   USE qs_environment_types,            ONLY: qs_env_release,&
-       qs_environment_p_type,&
-       qs_environment_type
+                                             qs_environment_type
   USE qs_p_env_types,                  ONLY: p_env_release,&
-       qs_p_env_type
+                                             qs_p_env_type
   USE qs_p_sparse_psi,                 ONLY: p_proj_release,&
-       qs_p_projection_p_type
+                                             qs_p_projection_p_type
+  USE replica_types,                   ONLY: rep_env_release,&
+                                             replica_env_type
+  USE sparse_matrix_types,             ONLY: deallocate_matrix,&
+                                             real_matrix_p_type
   USE timings,                         ONLY: timeset,&
-       timestop
-  USE replica_types, ONLY: replica_env_type, rep_env_release
-  USE cp_para_types, only: cp_para_env_type
-  USE cp_para_env, ONLY: cp_para_env_release, cp_para_env_retain
-  USE input_section_types, ONLY: section_vals_type, section_vals_retain, &
-       section_vals_release
-  USE global_types, ONLY: global_environment_type, globenv_release, globenv_retain
-  USE cp_sm_pool_types, ONLY: cp_sm_pool_type, sm_pool_release
+                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
   PRIVATE
 
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='ep_types'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ep_types'
   INTEGER, SAVE :: last_ep_env_id=0, last_force_id=0
-  LOGICAL, SAVE, private :: module_initialized=.false.
+  LOGICAL, SAVE, PRIVATE :: module_initialized=.FALSE.
 
   PUBLIC :: ep_env_type, ep_env_p_type, ep_energy_type, ep_force_type
   PUBLIC :: ep_env_retain, ep_env_release, ep_env_get
@@ -167,9 +169,9 @@ MODULE ep_types
   TYPE ep_env_type
      INTEGER :: id_nr, ref_count, f_env_id,nspins,nat,nmol,nat_per_mol
      TYPE(global_environment_type), POINTER :: globenv
-     TYPE(cp_para_env_type), pointer :: para_env
-     TYPE(section_vals_type), pointer :: input
-     TYPE(replica_env_type), pointer :: mol_envs
+     TYPE(cp_para_env_type), POINTER :: para_env
+     TYPE(section_vals_type), POINTER :: input
+     TYPE(replica_env_type), POINTER :: mol_envs
      TYPE(qs_p_projection_p_type), &
           DIMENSION(:), POINTER        :: sub_proj
      TYPE(qs_environment_type), POINTER :: main_qs_env
@@ -178,8 +180,8 @@ MODULE ep_types
      TYPE(cp_fm_p_type), DIMENSION(:), POINTER :: psi1
      TYPE(preconditioner_p_type), DIMENSION(:), POINTER :: precond
      INTEGER, DIMENSION(:), POINTER :: sub_nmo,sub_nao,full_nmo,full_nao,at2sub
-     type(ep_energy_type) :: energy
-     TYPE(ep_force_type), pointer :: force
+     TYPE(ep_energy_type) :: energy
+     TYPE(ep_force_type), POINTER :: force
   END TYPE ep_env_type
   !!***
   !****************************************************************************
@@ -238,12 +240,12 @@ CONTAINS
   !!
   !!*** **********************************************************************
   SUBROUTINE ep_energy_zero(ep_energy,error)
-    TYPE(ep_energy_type), intent(out) :: ep_energy
-    type(cp_error_type), optional, intent(inout) :: error
+    TYPE(ep_energy_type), INTENT(out)        :: ep_energy
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineN='ep_energy_zero',&
-         routineP=moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'ep_energy_zero', &
+      routineP = moduleN//':'//routineN
 
     ep_energy%e_no_int=0._dp
     ep_energy%e0=0._dp
@@ -276,12 +278,12 @@ CONTAINS
   !!
   !!*** **********************************************************************
   SUBROUTINE ep_env_retain(ep_env, error)
-    TYPE(ep_env_type), POINTER            :: ep_env
+    TYPE(ep_env_type), POINTER               :: ep_env
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ep_env_retain', &
-         routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
 
@@ -319,14 +321,14 @@ CONTAINS
   !!
   !!*** **********************************************************************
   SUBROUTINE ep_env_release(ep_env, error)
-    TYPE(ep_env_type), POINTER            :: ep_env
+    TYPE(ep_env_type), POINTER               :: ep_env
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ep_env_release', &
-         routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, stat, ierr
+    INTEGER                                  :: i, ierr, stat
     LOGICAL                                  :: failure
 
     failure=.FALSE.
@@ -335,15 +337,15 @@ CONTAINS
        CPPrecondition(ep_env%ref_count>0,cp_failure_level,routineP,error,failure)
        ep_env%ref_count=ep_env%ref_count-1
        IF (ep_env%ref_count<1) THEN
-          call rep_env_release(ep_env%mol_envs)
+          CALL rep_env_release(ep_env%mol_envs)
           IF (ASSOCIATED(ep_env%sub_proj)) THEN
              DO i=1,SIZE(ep_env%sub_proj)
                 CALL p_proj_release(ep_env%sub_proj(i)%projection,error=error)
              END DO
-             deallocate(ep_env%sub_proj,stat=stat)
+             DEALLOCATE(ep_env%sub_proj,stat=stat)
              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
           END IF
-          call qs_env_release(ep_env%main_qs_env)
+          CALL qs_env_release(ep_env%main_qs_env)
           CALL p_env_release(ep_env%main_p_env,error=error)
           CALL p_env_release(ep_env%sub_p_env,error=error)
           CALL cp_fm_vect_dealloc(ep_env%m_pi_Hrho_psi0d,error=error)
@@ -375,7 +377,7 @@ CONTAINS
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
        END IF
     END IF
-    nullify(ep_env)
+    NULLIFY(ep_env)
   END SUBROUTINE ep_env_release
   !***************************************************************************
 
@@ -407,26 +409,28 @@ CONTAINS
   SUBROUTINE ep_env_get(ep_env,id_nr, mol_envs, sub_proj, main_qs_env,&
        main_p_env,sub_p_env, preconditioner, m_pi_Hrho_psi0d, psi1, f_env_id,&
        globenv,at2sub,error)
-    TYPE(ep_env_type), POINTER            :: ep_env
+    TYPE(ep_env_type), POINTER               :: ep_env
     INTEGER, INTENT(out), OPTIONAL           :: id_nr
+    TYPE(replica_env_type), OPTIONAL, &
+      POINTER                                :: mol_envs
     TYPE(qs_p_projection_p_type), &
-         DIMENSION(:), OPTIONAL, POINTER        :: sub_proj
-    TYPE(replica_env_type), POINTER, optional :: mol_envs
+      DIMENSION(:), OPTIONAL, POINTER        :: sub_proj
     TYPE(qs_environment_type), OPTIONAL, &
-         POINTER                                :: main_qs_env
-    TYPE(qs_p_env_type), OPTIONAL, POINTER   :: main_p_env,sub_p_env
+      POINTER                                :: main_qs_env
+    TYPE(qs_p_env_type), OPTIONAL, POINTER   :: main_p_env, sub_p_env
     TYPE(preconditioner_p_type), &
-         DIMENSION(:), OPTIONAL, POINTER        :: preconditioner
-    TYPE(cp_fm_p_type), DIMENSION(:), POINTER, optional :: m_pi_Hrho_psi0d
-    TYPE(cp_fm_p_type), DIMENSION(:), POINTER, optional :: psi1
-    INTEGER, INTENT(out), optional :: f_env_id
-    TYPE(global_environment_type), POINTER, optional :: globenv
-    INTEGER, DIMENSION(:), POINTER, OPTIONAL :: at2sub
+      DIMENSION(:), OPTIONAL, POINTER        :: preconditioner
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: m_pi_Hrho_psi0d, psi1
+    INTEGER, INTENT(out), OPTIONAL           :: f_env_id
+    TYPE(global_environment_type), &
+      OPTIONAL, POINTER                      :: globenv
+    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: at2sub
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ep_env_get', &
-         routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
 
@@ -444,8 +448,8 @@ CONTAINS
        IF (PRESENT(main_qs_env)) main_qs_env => ep_env%main_qs_env
        IF (PRESENT(main_p_env)) main_p_env => ep_env%main_p_env
        IF (PRESENT(sub_p_env)) sub_p_env => ep_env%sub_p_env
-       if (present(m_pi_Hrho_psi0d)) m_pi_Hrho_psi0d => ep_env%m_pi_Hrho_psi0d
-       if (present(psi1)) psi1 => ep_env%psi1
+       IF (PRESENT(m_pi_Hrho_psi0d)) m_pi_Hrho_psi0d => ep_env%m_pi_Hrho_psi0d
+       IF (PRESENT(psi1)) psi1 => ep_env%psi1
 !FM     IF (PRESENT(nspins)) THEN
 !FM        CPPrecondition(ASSOCIATED(ep_env%main_qs_env),cp_failure_level,routineP,error,failure)
 !FM        IF (.not.failure) THEN
@@ -455,9 +459,9 @@ CONTAINS
        IF (PRESENT(preconditioner)) THEN
           preconditioner => ep_env%precond
        END IF
-       if (present(globenv)) globenv => ep_env%globenv
-       if (present(f_env_id)) f_env_id=ep_env%f_env_id
-       if (present(at2sub)) at2sub => ep_env%at2sub
+       IF (PRESENT(globenv)) globenv => ep_env%globenv
+       IF (PRESENT(f_env_id)) f_env_id=ep_env%f_env_id
+       IF (PRESENT(at2sub)) at2sub => ep_env%at2sub
     END IF
   END SUBROUTINE ep_env_get
   !***************************************************************************
@@ -490,17 +494,18 @@ CONTAINS
   !!
   !!*** **********************************************************************
   SUBROUTINE ep_env_create(ep_env,globenv, error)
-    TYPE(ep_env_type), POINTER            :: ep_env
-    TYPE(global_environment_type), pointer :: globenv
+    TYPE(ep_env_type), POINTER               :: ep_env
+    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ep_env_create', &
-         routineP = moduleN//':'//routineN
-    INTEGER :: handle,ierr, stat
-    logical :: failure
+      routineP = moduleN//':'//routineN
 
-    failure=.false.
+    INTEGER                                  :: handle, ierr, stat
+    LOGICAL                                  :: failure
+
+    failure=.FALSE.
     CALL timeset(routineN,handle)
     CPPrecondition(.NOT.ASSOCIATED(ep_env),cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
@@ -520,7 +525,7 @@ CONTAINS
             ep_env%psi1, ep_env%precond,ep_env%sub_nmo,ep_env%sub_nao,&
             ep_env%full_nmo,ep_env%full_nao,ep_env%input,ep_env%at2sub,&
             ep_env%force)
-       call ep_energy_zero(ep_env%energy)
+       CALL ep_energy_zero(ep_env%energy)
        ep_env%globenv => globenv
        CALL globenv_retain(globenv,error=error)
        ep_env%para_env=>globenv%para_env
@@ -531,7 +536,7 @@ CONTAINS
 
        CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
     END IF
-    call timestop(handle)
+    CALL timestop(handle)
   END SUBROUTINE ep_env_create
 
   !!****f* ep_types/ep_envs_get_ep_env *
@@ -553,14 +558,15 @@ CONTAINS
   !!
   !!*** **********************************************************************
   FUNCTION ep_envs_get_ep_env(id_nr) RESULT(res)
-    INTEGER, intent(in) :: id_nr
-    TYPE(ep_env_type), pointer :: res
+    INTEGER, INTENT(in)                      :: id_nr
+    TYPE(ep_env_type), POINTER               :: res
 
-    character(len=*), parameter :: routineN='ep_envs_get_ep_env',&
-         routineP=moduleN//':'//routineN
-    integer :: i
+    CHARACTER(len=*), PARAMETER :: routineN = 'ep_envs_get_ep_env', &
+      routineP = moduleN//':'//routineN
 
-    nullify(res)
+    INTEGER                                  :: i
+
+    NULLIFY(res)
     IF (module_initialized) THEN
        IF (ASSOCIATED(ep_envs)) THEN
           DO i=1,SIZE(ep_envs)
@@ -595,17 +601,20 @@ CONTAINS
   !!
   !!*** **********************************************************************
   SUBROUTINE ep_envs_add_ep_env(ep_env,error)
-    TYPE(ep_env_type), pointer :: ep_env
-    type(cp_error_type), optional, intent(inout) :: error
+    TYPE(ep_env_type), POINTER               :: ep_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    TYPE(ep_env_type), pointer :: ep_env2
-    TYPE(ep_env_p_type), DIMENSION(:), POINTER :: new_ep_envs
-    logical :: failure
-    character(len=*), parameter :: routineN='ep_envs_add_ep_env',&
-         routineP=moduleN//':'//routineN
-    INTEGER :: stat,i
+    CHARACTER(len=*), PARAMETER :: routineN = 'ep_envs_add_ep_env', &
+      routineP = moduleN//':'//routineN
 
-    failure=.false.
+    INTEGER                                  :: i, stat
+    LOGICAL                                  :: failure
+    TYPE(ep_env_p_type), DIMENSION(:), &
+      POINTER                                :: new_ep_envs
+    TYPE(ep_env_type), POINTER               :: ep_env2
+
+    failure=.FALSE.
 
     IF (ASSOCIATED(ep_env)) THEN
        ep_env2 => ep_envs_get_ep_env(ep_env%id_nr)
@@ -628,8 +637,8 @@ CONTAINS
              ALLOCATE(ep_envs(1),stat=stat)
              CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
           END IF
-          ep_envs(size(ep_envs))%ep_env => ep_env
-          module_initialized=.true.
+          ep_envs(SIZE(ep_envs))%ep_env => ep_env
+          module_initialized=.TRUE.
        END IF
     END IF
   END SUBROUTINE ep_envs_add_ep_env
@@ -656,18 +665,21 @@ CONTAINS
   !!
   !!*** **********************************************************************
   SUBROUTINE ep_envs_rm_ep_env(ep_env,error)
-    TYPE(ep_env_type), pointer :: ep_env
-    type(cp_error_type), optional, intent(inout) :: error
+    TYPE(ep_env_type), POINTER               :: ep_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    TYPE(ep_env_p_type), DIMENSION(:), POINTER :: new_ep_envs
-    logical :: failure
-    character(len=*), parameter :: routineN='ep_envs_rm_ep_env',&
-         routineP=moduleN//':'//routineN
-    INTEGER :: stat,ii,i
+    CHARACTER(len=*), PARAMETER :: routineN = 'ep_envs_rm_ep_env', &
+      routineP = moduleN//':'//routineN
 
-    failure=.false.
+    INTEGER                                  :: i, ii, stat
+    LOGICAL                                  :: failure
+    TYPE(ep_env_p_type), DIMENSION(:), &
+      POINTER                                :: new_ep_envs
 
-    IF (ASSOCIATED(ep_env)) then
+    failure=.FALSE.
+
+    IF (ASSOCIATED(ep_env)) THEN
        CPPrecondition(module_initialized,cp_failure_level,routineP,error,failure)
        ALLOCATE(new_ep_envs(SIZE(ep_envs)-1),stat=stat)
        CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
@@ -710,16 +722,18 @@ CONTAINS
   !!
   !!*** **********************************************************************
   SUBROUTINE ep_env_calc_e_f(ep_env,calc_f,error)
-    TYPE(ep_env_type), pointer :: ep_env
-    LOGICAL, intent(in) :: calc_f
-    type(cp_error_type), optional, intent(inout) :: error
+    TYPE(ep_env_type), POINTER               :: ep_env
+    LOGICAL, INTENT(in)                      :: calc_f
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineN='ep_env_calc_e_f',&
-         routineP=moduleN//':'//routineN
-    INTEGER :: my_calc_f,ierr
+    CHARACTER(len=*), PARAMETER :: routineN = 'ep_env_calc_e_f', &
+      routineP = moduleN//':'//routineN
 
-    failure=.false.
+    INTEGER                                  :: ierr, my_calc_f
+    LOGICAL                                  :: failure
+
+    failure=.FALSE.
 
     IF (.NOT.failure) THEN
        IF (calc_f) THEN
@@ -754,15 +768,18 @@ CONTAINS
   !!
   !!*** **********************************************************************
   SUBROUTINE ep_dealloc_local_sm(local_sm,error)
-    TYPE(real_matrix_p_type), DIMENSION(:,:), pointer :: local_sm
-    type(cp_error_type), optional, intent(inout) :: error
+    TYPE(real_matrix_p_type), &
+      DIMENSION(:, :), POINTER               :: local_sm
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineN='ep_dealloc_local_sm',&
-         routineP=moduleN//':'//routineN
-    INTEGER :: ispin,i,stat
+    CHARACTER(len=*), PARAMETER :: routineN = 'ep_dealloc_local_sm', &
+      routineP = moduleN//':'//routineN
 
-    failure=.false.
+    INTEGER                                  :: i, ispin, stat
+    LOGICAL                                  :: failure
+
+    failure=.FALSE.
     CPPrecondition(ASSOCIATED(local_sm),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
        DO i=1,SIZE(local_sm,2)
@@ -800,21 +817,23 @@ CONTAINS
   !!
   !!*** **********************************************************************
   SUBROUTINE ep_force_create(force,nat,error)
-    TYPE(ep_force_type), pointer :: force
-    INTEGER, intent(in) :: nat
-    type(cp_error_type), optional, intent(inout) :: error
+    TYPE(ep_force_type), POINTER             :: force
+    INTEGER, INTENT(in)                      :: nat
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineN='ep_force_create',&
-         routineP=moduleN//':'//routineN
-    integer :: stat
+    CHARACTER(len=*), PARAMETER :: routineN = 'ep_force_create', &
+      routineP = moduleN//':'//routineN
 
-    failure=.false.
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
+    failure=.FALSE.
     CPPrecondition(.NOT.ASSOCIATED(force),cp_failure_level,routineP,error,failure)
-    if (.not. failure) then
+    IF (.NOT. failure) THEN
        ALLOCATE(force,stat=stat)
        CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
-    end if
+    END IF
     IF (.NOT. failure) THEN
        last_force_id=last_force_id+1
        force%id_nr=last_force_id
@@ -846,14 +865,16 @@ CONTAINS
   !!
   !!*** **********************************************************************
   SUBROUTINE ep_force_zero(force,error)
-    TYPE(ep_force_type), pointer :: force
-    type(cp_error_type), optional, intent(inout) :: error
+    TYPE(ep_force_type), POINTER             :: force
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineN='ep_force_create',&
-         routineP=moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'ep_force_zero', &
+      routineP = moduleN//':'//routineN
 
-    failure=.false.
+    LOGICAL                                  :: failure
+
+    failure=.FALSE.
     CPPrecondition(ASSOCIATED(force),cp_failure_level,routineP,error,failure)
     CPPrecondition(force%ref_count>0,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
@@ -883,14 +904,16 @@ CONTAINS
   !!
   !!*** **********************************************************************
   SUBROUTINE ep_force_retain(force,error)
-    TYPE(ep_force_type), pointer :: force
-    type(cp_error_type), optional, intent(inout) :: error
+    TYPE(ep_force_type), POINTER             :: force
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineN='ep_force_retain',&
-         routineP=moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'ep_force_retain', &
+      routineP = moduleN//':'//routineN
 
-    failure=.false.
+    LOGICAL                                  :: failure
+
+    failure=.FALSE.
     CPPrecondition(ASSOCIATED(force),cp_failure_level,routineP,error,failure)
     CPPrecondition(force%ref_count>0,cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
@@ -920,15 +943,17 @@ CONTAINS
   !!
   !!*** **********************************************************************
   SUBROUTINE ep_force_release(force,error)
-    TYPE(ep_force_type), pointer :: force
-    type(cp_error_type), optional, intent(inout) :: error
+    TYPE(ep_force_type), POINTER             :: force
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineN='ep_force_retain',&
-         routineP=moduleN//':'//routineN
-    integer :: stat
+    CHARACTER(len=*), PARAMETER :: routineN = 'ep_force_release', &
+      routineP = moduleN//':'//routineN
 
-    failure=.false.
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
+    failure=.FALSE.
     IF (ASSOCIATED(force)) THEN
        CPPrecondition(force%ref_count>0,cp_failure_level,routineP,error,failure)
        force%ref_count=force%ref_count-1
@@ -939,7 +964,7 @@ CONTAINS
           CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
        END IF
     END IF
-    nullify(force)
+    NULLIFY(force)
   END SUBROUTINE ep_force_release
   !***************************************************************************
 

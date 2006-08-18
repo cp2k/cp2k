@@ -29,8 +29,6 @@ MODULE fist_neighbor_lists
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
                                              get_atomic_kind_set
-  USE basis_set_types,                 ONLY: get_gto_basis_set,&
-                                             gto_basis_set_type
   USE cell_types,                      ONLY: cell_type,&
                                              get_cell,&
                                              pbc,&
@@ -42,19 +40,18 @@ MODULE fist_neighbor_lists
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE distribution_1d_types,           ONLY: distribution_1d_type
-  USE fist_neighbor_list_types,        ONLY: fist_neighbor_type,&
-                                             neighbor_kind_pairs_type,&
-                                             fist_neighbor_init,&
+  USE fist_neighbor_list_types,        ONLY: fist_neighbor_add,&
                                              fist_neighbor_deallocate,&
-                                             fist_neighbor_add
+                                             fist_neighbor_init,&
+                                             fist_neighbor_type,&
+                                             neighbor_kind_pairs_type
   USE global_types,                    ONLY: global_environment_type
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
-                                             dp_size,&
                                              int_size
-  USE message_passing,                 ONLY: mp_sum
   USE particle_types,                  ONLY: particle_type
+  USE qmmm_ff_fist,                    ONLY: qmmm_ff_precond_only_qm
   USE qs_neighbor_lists,               ONLY: allocate_subcell,&
                                              deallocate_subcell,&
                                              local_atoms_type,&
@@ -66,7 +63,6 @@ MODULE fist_neighbor_lists
                                              timestop
   USE util,                            ONLY: matvec_3x3,&
                                              sort
-  USE qmmm_ff_fist,                    ONLY: qmmm_ff_precond_only_qm
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -74,7 +70,7 @@ MODULE fist_neighbor_lists
   PRIVATE
 
   ! Global parameters (in this module)
-  CHARACTER(LEN=*), PARAMETER :: moduleN = "fist_neighbor_lists"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'fist_neighbor_lists'
 
   ! Public subroutines
   PUBLIC :: build_fist_neighbor_lists,&
@@ -110,32 +106,32 @@ CONTAINS
        build_from_scratch,force_env_section,error)
 
     TYPE(atomic_kind_type), DIMENSION(:), &
-         POINTER                                :: atomic_kind_set
+      POINTER                                :: atomic_kind_set
     TYPE(particle_type), DIMENSION(:), &
-         POINTER                                :: particle_set
+      POINTER                                :: particle_set
     TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(cell_type), POINTER                 :: cell
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: r_max, r_minsq
-    TYPE(fist_neighbor_type),POINTER         :: nonbonded
+    TYPE(fist_neighbor_type), POINTER        :: nonbonded
     TYPE(global_environment_type), POINTER   :: globenv
     LOGICAL, INTENT(IN)                      :: build_from_scratch
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
+      OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'build_fist_neighbor_lists',&
-         routineP = moduleN//':'//routineN
-    CHARACTER(LEN=default_string_length)     :: print_key_path, kind_name
-    INTEGER :: atom_a, handle, iatom, iatom_local
-    INTEGER :: ikind, istat, iw, maxatom, maxatom_local, natom_a
-    INTEGER :: natom_local_a, nkind, output_unit
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'build_fist_neighbor_lists', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_string_length)     :: kind_name, print_key_path
+    INTEGER :: atom_a, handle, iatom, iatom_local, ikind, istat, iw, maxatom, &
+      maxatom_local, natom_a, natom_local_a, nkind, output_unit
     LOGICAL                                  :: print_subcell_grid
+    LOGICAL, DIMENSION(:), POINTER           :: skip_kind
     REAL(dp), DIMENSION(3)                   :: r_pbc
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(local_atoms_type), ALLOCATABLE, &
-         DIMENSION(:)                           :: atom
-    LOGICAL, DIMENSION(:), POINTER           :: skip_kind
+      DIMENSION(:)                           :: atom
 
     CALL timeset(routineN,"I","",handle)
     NULLIFY(logger)
@@ -275,53 +271,48 @@ CONTAINS
        print_subcell_grid,output_unit,r_max,r_minsq,&
        build_from_scratch,name,skip_kind,error)
 
-    TYPE(fist_neighbor_type),POINTER            :: nonbonded
+    TYPE(fist_neighbor_type), POINTER        :: nonbonded
     TYPE(particle_type), DIMENSION(:), &
-         POINTER                                :: particle_set
+      POINTER                                :: particle_set
     TYPE(local_atoms_type), DIMENSION(:), &
-         INTENT(IN)                             :: atom
+      INTENT(IN)                             :: atom
     TYPE(cell_type), POINTER                 :: cell
     INTEGER, INTENT(IN)                      :: maxatom_local
     LOGICAL, INTENT(IN)                      :: print_subcell_grid
     INTEGER, INTENT(IN)                      :: output_unit
-    REAL(dp), DIMENSION(:, :), INTENT(IN)    :: r_max,r_minsq
+    REAL(dp), DIMENSION(:, :), INTENT(IN)    :: r_max, r_minsq
     LOGICAL, INTENT(IN)                      :: build_from_scratch
     CHARACTER(LEN=*), INTENT(IN)             :: name
     LOGICAL, DIMENSION(:), POINTER           :: skip_kind
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error      
+      OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'build_neighbor_lists',&
-         routineP = moduleN//':'//routineN
-    LOGICAL :: failure 
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'build_neighbor_lists', &
+      routineP = moduleN//':'//routineN
+
     CHARACTER(LEN=8)                         :: unit_of_length_name
-    INTEGER :: atom_a, atom_b, handle, i, iab, iatom,&
-         iatom_local, &
-         iatom_subcell, icell, ikind, istat, j, jatom_local, jatom_subcell,&
-         jcell, jkind, k, &
-         kcell, natom_local_a, natom_local_b, nkind, iw
-    INTEGER, DIMENSION(3)                    :: cell_a, ncell, &
-         nsubcell, isubcell, periodic
-    LOGICAL                                  :: subcell000, include_ab
-    REAL(dp)                                 :: rab2, rab2_max, rab_max, rab2_min,&
-         unit_of_length, max_diag
-    REAL(dp), DIMENSION(3)                   :: abc, r, rab, rb, s, sab, &
-         sab_max, sb, sb_max, sb_min, &
-         sb_pbc, cell_v, cell_w
-    TYPE(subcell_type), DIMENSION(:, :, :), &
-         POINTER                                :: subcell_a,  subcell_b
-    LOGICAL :: added
+    INTEGER :: a_i, a_j, a_k, atom_a, atom_b, b_i, b_j, b_k, b_pi, b_pj, &
+      b_pk, bg_i, bg_j, bg_k, dim1, dim1p, dim2, dim2p, g00, g0_i, g0_j, &
+      g0_k, g_i, g_j, g_k, glob_a_index, glob_b_index, handle, i, i1, iab, &
+      iatom, iatom_local, icell, icellmap, ii, ij, ik, ikind, imap, &
+      imax_cell, iw, ix, j, j1, jatom_local, jcell, jkind, jx, k, kcell, kx, &
+      natom_local_a, ncellmax, nkind, nkind00, pre_glob_ind, stat, tmpdim, &
+      xdim
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: work
+    INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: cellmap
+    INTEGER, DIMENSION(3)                    :: isubcell, ncell, nsubcell, &
+                                                periodic
+    LOGICAL                                  :: added, failure, subcell000
+    LOGICAL, ALLOCATABLE, DIMENSION(:, :, :) :: sphcub
+    REAL(dp)                                 :: rab2, rab2_max, rab2_min, &
+                                                rab_max, unit_of_length
+    REAL(dp), DIMENSION(3)                   :: abc, cell_v, r, rab, sab_max
+    REAL(KIND=dp)                            :: ic(3), icx(3), vv
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: coord
     TYPE(neighbor_kind_pairs_type), POINTER  :: neighbor_kind_pair
-    INTEGER :: imap,imax_cell,dim1,dim2,ix,jx,kx,ncellmax,icellmap,icellmapinv
-    INTEGER :: a_i, a_j, a_k, b_i, b_j, b_k, b_pi, b_pj, b_pk, stat, tmpdim, nkind00
-    REAL(KIND=dp) ::  ab_r2, ab_rc(3), ab_sc(3), vv 
-    REAL(KIND=dp) :: s_pbc(3), r_pbc(3), ic(3), icx(3)
-    INTEGER       :: glob_a_index, glob_b_index, bg_i, bg_j, bg_k, xdim, ii, ij, ik
-    REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE :: coord
-    LOGICAL, DIMENSION(:,:,:), ALLOCATABLE     :: sphcub
-    INTEGER, DIMENSION(:,:,:), ALLOCATABLE     :: cellmap
-    INTEGER, DIMENSION(:), ALLOCATABLE         :: work
-    INTEGER :: dim1p, dim2p, g00, g0_i, g0_j, g0_k, g_i, g_j, g_k, pre_glob_ind, i1, j1
+    TYPE(subcell_type), DIMENSION(:, :, :), &
+      POINTER                                :: subcell_a, subcell_b
 
     CALL timeset(routineN,"I","",handle)
     failure = .FALSE.
@@ -669,12 +660,12 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE give_ijk_subcell(r,i,j,k,cell,nsubcell)
-    REAL(KIND=dp)	        :: r(3)
-    TYPE(cell_type), POINTER  :: cell
-    INTEGER, INTENT(OUT)	:: i,j,k
-    INTEGER, INTENT(IN), DIMENSION(3) :: nsubcell
-    
-    REAL(KIND=dp) :: r_pbc(3), s_pbc(3), s(3)
+    REAL(KIND=dp)                            :: r(3)
+    INTEGER, INTENT(OUT)                     :: i, j, k
+    TYPE(cell_type), POINTER                 :: cell
+    INTEGER, DIMENSION(3), INTENT(IN)        :: nsubcell
+
+    REAL(KIND=dp)                            :: r_pbc(3), s(3), s_pbc(3)
 
     r_pbc = r
     CALL real_to_scaled(s_pbc, r_pbc, cell)
@@ -712,12 +703,12 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE reorder_atoms_subcell(atom_list,particle_set,work)
     ! work needs to be dimensioned 3xSIZE(atom_list)
-    INTEGER, DIMENSION(:), POINTER              :: atom_list
-    INTEGER, DIMENSION(:)                       :: work
+    INTEGER, DIMENSION(:), POINTER           :: atom_list
     TYPE(particle_type), DIMENSION(:), &
-         POINTER                                :: particle_set
-    
-    INTEGER :: stat, i, i0,j0,i1,j1,i2,j2
+      POINTER                                :: particle_set
+    INTEGER, DIMENSION(:)                    :: work
+
+    INTEGER                                  :: i, i0, i1, i2, j0, j1, j2
 
     i0 = 1
     j0 = SIZE(atom_list)
@@ -761,7 +752,7 @@ CONTAINS
   SUBROUTINE write_neighbor_lists(nonbonded,particle_set,cell,globenv,output_unit,&
                                   name,error)
 
-    TYPE(fist_neighbor_type),POINTER         :: nonbonded
+    TYPE(fist_neighbor_type), POINTER        :: nonbonded
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(cell_type), POINTER                 :: cell
@@ -774,11 +765,10 @@ CONTAINS
     CHARACTER(LEN=8)                         :: unit_of_length_name
     CHARACTER(LEN=default_string_length)     :: string
     INTEGER                                  :: atom_a, atom_b, iab, ilist, &
-                                                mype, &
-                                                nneighbor
+                                                mype, nneighbor
     LOGICAL                                  :: print_headline
     REAL(dp)                                 :: dab, unit_of_length
-    REAL(dp), DIMENSION(3)                   :: ra, rab, rb, cell_v
+    REAL(dp), DIMENSION(3)                   :: cell_v, ra, rab, rb
     TYPE(neighbor_kind_pairs_type), POINTER  :: neighbor_kind_pair
 
     mype = globenv%mepos

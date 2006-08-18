@@ -44,8 +44,7 @@ MODULE fist_debug
                                              do_ewald_none,&
                                              do_ewald_pme,&
                                              do_ewald_spme
-  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                             section_vals_type
+  USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
   USE molecule_kind_types,             ONLY: molecule_kind_type

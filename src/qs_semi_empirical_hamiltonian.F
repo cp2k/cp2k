@@ -91,9 +91,9 @@ CONTAINS
       natorb_b, nkind, nlist, nnode
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
     LOGICAL                                  :: defined, failure
-    REAL(KIND=dp)                            :: delta, econst, eheat, eisol, &
-                                                enuclear, kh, range, rc, udd, &
-                                                uff, upp, uss, dr
+    REAL(KIND=dp)                            :: delta, dr, econst, eheat, &
+                                                eisol, enuclear, kh, udd, &
+                                                uff, upp, uss
     REAL(KIND=dp), DIMENSION(16)             :: ha, hb, ua
     REAL(KIND=dp), DIMENSION(3)              :: force_ab, rij
     REAL(KIND=dp), DIMENSION(:), POINTER     :: beta_a, beta_b

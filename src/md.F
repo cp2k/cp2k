@@ -57,7 +57,7 @@ MODULE md
 
   PRIVATE
 
-  CHARACTER(len=*), PARAMETER :: moduleN = "md"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'md'
 
   ! Public data types
 
@@ -685,27 +685,26 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "initialize_velocities"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'initialize_velocities'
 
     INTEGER                                  :: handle, i, ifixd, &
                                                 imolecule_kind, istat, iw, &
                                                 natoms, nfixd
     LOGICAL                                  :: explicit
+    LOGICAL, ALLOCATABLE, DIMENSION(:)       :: is_fixed
     REAL(KIND=dp)                            :: akin, denom, mass, mass_tot, &
                                                 sc, temp
-    LOGICAL, DIMENSION(:), ALLOCATABLE       :: is_fixed
     REAL(KIND=dp), DIMENSION(3)              :: v, vcom, vcom_new
     REAL(KIND=dp), DIMENSION(:), POINTER     :: vel
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(unit_convert_type), POINTER         :: unit
-
     TYPE(fixd_constraint_type), &
       DIMENSION(:), POINTER                  :: fixd_list
     TYPE(molecule_kind_type), DIMENSION(:), &
       POINTER                                :: molecule_kind_set
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
+    TYPE(unit_convert_type), POINTER         :: unit
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     CALL timeset(routineN,"I","",handle)
 

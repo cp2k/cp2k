@@ -148,8 +148,8 @@ END SUBROUTINE kg_energies
 SUBROUTINE kg_only_energies ( kg_env, globenv, force_env_section, error )
 
     TYPE(kg_environment_type), POINTER       :: kg_env
-    TYPE(section_vals_type), pointer         :: force_env_section
     TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -498,8 +498,8 @@ SUBROUTINE init_energy_calculation ( kg_env, vxc_r, globenv, force_env_section, 
 
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(coeff_type), POINTER                :: vxc_r
-    TYPE(section_vals_type), pointer         :: force_env_section
     TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -614,8 +614,8 @@ SUBROUTINE calc_c_gradients ( kg_env, vxc_r, maxgrad, globenv, force_env_section
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(coeff_type), POINTER                :: vxc_r
     REAL(KIND=dp), INTENT(inout)             :: maxgrad
-    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 

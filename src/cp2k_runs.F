@@ -22,31 +22,26 @@ MODULE cp2k_runs
   USE cp_units,                        ONLY: cp_unit_set_create,&
                                              cp_unit_set_release,&
                                              cp_unit_set_type
-  USE eip_main,                        ONLY: eip_create_force_env
   USE environment,                     ONLY: compile_date,&
                                              compile_lastcvs,&
                                              cp2k_finalize,&
                                              cp2k_init,&
                                              cp2k_read,&
                                              cp2k_setup
-  USE f77_interface,                   ONLY: f77_default_para_env => default_para_env,&
-       create_force_env,&
-       destroy_force_env,&
-       f_env_type,&
-       f_env_add_defaults,&
-       f_env_rm_defaults
+  USE f77_interface,                   ONLY: create_force_env,&
+                                             destroy_force_env,&
+                                             f77_default_para_env => default_para_env,&
+                                             f_env_add_defaults,&
+                                             f_env_rm_defaults,&
+                                             f_env_type
   USE farming_methods,                 ONLY: farming_parse_input
   USE farming_types,                   ONLY: deallocate_farming_env,&
                                              farming_env_type,&
                                              init_farming_env
   USE fist_debug,                      ONLY: fist_debug_control => debug_control
-  USE fist_main,                       ONLY: fist_create_force_env
-  USE force_env_methods,               ONLY: force_env_calc_energy_force,&
-       ep_create_force_env
-  USE force_env_types,                 ONLY: force_env_release,&
-                                             force_env_set,&
-                                             force_env_type,&
-                                             force_env_get
+  USE force_env_methods,               ONLY: force_env_calc_energy_force
+  USE force_env_types,                 ONLY: force_env_get,&
+                                             force_env_type
   USE geo_opt,                         ONLY: qs_geo_opt
   USE global_types,                    ONLY: global_environment_type,&
                                              globenv_create,&
@@ -55,25 +50,23 @@ MODULE cp2k_runs
   USE harris_metropolis_mc,            ONLY: harris_mc_ld
   USE input_constants,                 ONLY: &
        EIP_MC_method, Harris_MC_method, KG_DFT_MC_method, QS_MC_method, &
-       SE_MC_method, TBMD_MC_method, bsse_run, do_eip, do_farming, do_fist, &
-       do_kg, do_qmmm, do_qs, do_tbmd, do_test,do_cp2k,do_ep, &
+       SE_MC_method, TBMD_MC_method, bsse_run, do_cp2k, do_eip, do_ep, &
+       do_farming, do_fist, do_kg, do_qmmm, do_qs, do_tbmd, do_test, &
        electronic_spectra_run, energy_force_run, energy_run, geo_opt_run, &
        hmc_run, ldmc_run, linear_response_run, mol_dyn_run, mon_car_run, &
-       none_run, qs_debug_run,pint_run
-  USE input_cp2k,                      ONLY: create_cp2k_root_section,&
-                                             create_global_section,&
-                                             create_cp2k_input_reading
+       none_run, pint_run, qs_debug_run
+  USE input_cp2k,                      ONLY: create_cp2k_input_reading,&
+                                             create_cp2k_root_section,&
+                                             create_global_section
   USE input_cp2k_check,                ONLY: check_cp2k_input
   USE input_keyword_types,             ONLY: keyword_release
   USE input_parsing,                   ONLY: section_vals_parse
   USE input_section_types,             ONLY: &
        section_describe_html, section_describe_index_html, section_release, &
        section_type, section_typo_match, section_vals_create, &
-       section_vals_get_subs_vals, section_vals_release, section_vals_type, &
-       section_vals_val_get, section_vals_write, write_section_xml,&
-       section_vals_get_subs_vals2,section_vals_duplicate,&
-       section_vals_get, section_vals_retain
-  USE kg_main,                         ONLY: kg_create_force_env
+       section_vals_get_subs_vals, section_vals_release, section_vals_retain, &
+       section_vals_type, section_vals_val_get, section_vals_write, &
+       write_section_xml
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp
@@ -86,19 +79,13 @@ MODULE cp2k_runs
                                              mp_comm_split,&
                                              mp_environ,&
                                              mp_sync
-  USE metadynamics,                    ONLY: metadyn_read
-  USE metadynamics_types,              ONLY: meta_env_release,&
-                                             meta_env_type
   USE pint_methods,                    ONLY: do_pint_run
-  USE qmmm_init,                       ONLY: qmmm_create_force_env
   USE qs_debug,                        ONLY: qs_debug_energy_and_forces
   USE qs_linres_module,                ONLY: linres_calculation
-  USE qs_main,                         ONLY: quickstep_create_force_env
+  USE qs_numerical_pressure,           ONLY: qs_calc_numerical_pressure
   USE qs_tddfpt_module,                ONLY: tddfpt_calculation
-  USE tbmd_main,                       ONLY: tbmd_create_force_env
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE qs_numerical_pressure,           ONLY: qs_calc_numerical_pressure
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -156,37 +143,31 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cp2k_run', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=512)                       :: unknown_string
-    CHARACTER(LEN=512)                       :: matching_string(15)
-    INTEGER                                  :: matching_rank(15)
-    INTEGER                                  :: mc_method, unit_nr, i, stat
+    CHARACTER(LEN=512)                       :: matching_string(15), &
+                                                unknown_string
+    INTEGER :: f_env_handle, i, ierr, matching_rank(15), mc_method, &
+      method_name_id, new_env_id, prog_name_id, run_type_id, unit_nr
     LOGICAL                                  :: echo_input, failure, &
                                                 I_was_ionode, was_present
     TYPE(cp_error_type)                      :: error, suberror
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_parser_type), POINTER            :: my_parser
-    TYPE(cp_unit_set_type), POINTER          :: default_units
-    TYPE(force_env_type), POINTER            :: force_env, my_force_env
+    TYPE(f_env_type), POINTER                :: f_env
+    TYPE(force_env_type), POINTER            :: force_env
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(meta_env_type), POINTER             :: meta_env
     TYPE(section_type), POINTER              :: input_structure
-    TYPE(section_vals_type), POINTER         :: glob_section, hmc_section, &
-                                                input_file, metadyn_section, &
-                                                force_env_sections, force_env_section
-    INTEGER :: nforce_eval, iforce_eval,method_name_id
-    INTEGER, POINTER, DIMENSION(:) :: i_force_eval
-    INTEGER :: new_env_id,ierr,f_env_handle, prog_name_id, run_type_id
-    TYPE(f_env_type), pointer :: f_env
+    TYPE(section_vals_type), POINTER         :: force_env_section, &
+                                                glob_section, hmc_section, &
+                                                input_file
 
     cp2k_run_OK = .FALSE.
     failure=.FALSE.
     was_present = .FALSE.
-    NULLIFY(para_env, metadyn_section, default_units,f_env)
+    NULLIFY(para_env, f_env)
     CALL cp_para_env_create(para_env, group=mpi_comm,&
          owns_group=.FALSE.)
 
-    NULLIFY(globenv, force_env, my_force_env )
+    NULLIFY(globenv, force_env)
 
     CALL cp_error_init(error, stop_level=cp_fatal_level)
 
@@ -207,10 +188,10 @@ CONTAINS
           WRITE(unit_nr,'(T2,A)') ""
           matching_rank=0
           matching_string=""
-          nullify(input_structure)
+          NULLIFY(input_structure)
           CALL cp_error_init(suberror,template_error=error)
           CALL create_cp2k_root_section(input_structure,error=suberror)
-          call cp_error_dealloc_ref(suberror)
+          CALL cp_error_dealloc_ref(suberror)
           CALL section_typo_match(input_structure,unknown_string,location_string="", &
                                   matching_rank=matching_rank,matching_string=matching_string,error=error)
           CALL section_release(input_structure,error=error)
@@ -306,7 +287,7 @@ CONTAINS
           CASE (do_farming)
              CALL farming_run ( globenv, suberror )
           CASE(do_cp2k)
-             call create_force_env(new_env_id,input_path=input_file_name,&
+             CALL create_force_env(new_env_id,input_path=input_file_name,&
                   output_path="__STD_OUT__",mpi_comm=para_env%group,&
                   output_unit=output_unit,&
                   owns_out_unit=.FALSE.,&
@@ -404,8 +385,8 @@ CPSourceFileRef,&
                "cp2k ending run", error=error,failure=failure)
           IF (prog_name_id==do_cp2k) THEN
              f_env%force_env => force_env ! for mc
-             call globenv_retain(globenv,error=error)!mc
-             call globenv_release(force_env%globenv,error=error) !mc
+             CALL globenv_retain(globenv,error=error)!mc
+             CALL globenv_release(force_env%globenv,error=error) !mc
              force_env%globenv => globenv !mc
              CALL f_env_rm_defaults(f_env,error=suberror,ierr=ierr,&
                   handle=f_env_handle)
@@ -465,7 +446,7 @@ CPSourceFileRef,&
     CHARACTER(LEN=default_string_length)     :: str
     INTEGER :: handle, i, i_job_to_restart, ierr, ijob, ijob_end, ijob_start, &
       iunit, n_jobs_to_run, new_group, new_rank, new_size, ngroups, &
-      output_unit, stat,method_name_id
+      output_unit, stat
     INTEGER, DIMENSION(:), POINTER           :: group_distribution
     LOGICAL                                  :: failure, found, run_OK
     TYPE(cp_parser_type), POINTER            :: my_parser
@@ -473,7 +454,7 @@ CPSourceFileRef,&
     TYPE(farming_env_type), POINTER          :: farming_env
     TYPE(section_type), POINTER              :: g_section
     TYPE(section_vals_type), POINTER         :: g_data
-    TYPE(section_vals_type), POINTER         :: force_env_sections
+
     failure=.FALSE.
     CALL timeset(routineN,'I','',handle)
     NULLIFY(my_parser,g_section,g_data,default_units)

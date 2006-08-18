@@ -26,13 +26,11 @@ MODULE md_run
   USE cell_types,                      ONLY: cell_type
   USE cp_output_handling,              ONLY: cp_add_iter_level,&
                                              cp_iterate,&
-                                             cp_rm_iter_level,&
                                              cp_print_key_finished_output,&
-                                             cp_print_key_should_output,&
-                                             cp_print_key_unit_nr
+                                             cp_print_key_unit_nr,&
+                                             cp_rm_iter_level
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
-                                             cp_subsys_set,&
                                              cp_subsystem_p_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_initialize,&

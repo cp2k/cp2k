@@ -268,7 +268,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'colvar_setup', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ii, stat, idum
+    INTEGER                                  :: idum, ii, stat
     LOGICAL                                  :: failure
 
     CPPostcondition(ASSOCIATED(colvar),cp_warning_level,routineP,error,failure)
@@ -449,19 +449,17 @@ CONTAINS
   !!
   !!*** **********************************************************************
   SUBROUTINE colvar_clone(colvar_out, colvar_in, i_atom_offset, error)
-    IMPLICIT NONE
-    ! Arguments
-    TYPE(colvar_type), POINTER :: colvar_out, colvar_in
-    INTEGER, INTENT(IN), OPTIONAL :: i_atom_offset
+    TYPE(colvar_type), POINTER               :: colvar_out, colvar_in
+    INTEGER, INTENT(IN), OPTIONAL            :: i_atom_offset
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'colvar_clone', &
-         routineP = moduleN//':'//routineN
-    ! Local Variables
-    INTEGER                                  :: stat,ndim, my_offset
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: my_offset, ndim, stat
     LOGICAL                                  :: failure
-    
+
     my_offset = 0   
     failure=.FALSE.
     CPPostcondition(ASSOCIATED(colvar_in),cp_warning_level,routineP,error,failure)
@@ -537,16 +535,18 @@ CONTAINS
   !!*** **********************************************************************
 
   SUBROUTINE colvar_p_reallocate(colvar_set,lb1_new,ub1_new, error)
-    ! Arguments
-    TYPE(colvar_p_type), POINTER, DIMENSION(:) :: colvar_set
-    INTEGER, INTENT(IN)                        :: lb1_new, ub1_new
+    TYPE(colvar_p_type), DIMENSION(:), &
+      POINTER                                :: colvar_set
+    INTEGER, INTENT(IN)                      :: lb1_new, ub1_new
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                              :: error
+      OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER                :: routineN = 'colvar_p_reallocate'
-    INTEGER                                    :: istat, lb1, lb1_old, &
-                                                  ub1, ub1_old, j
-    TYPE(colvar_p_type), POINTER, DIMENSION(:) :: work
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'colvar_p_reallocate'
+
+    INTEGER                                  :: istat, j, lb1, lb1_old, ub1, &
+                                                ub1_old
+    TYPE(colvar_p_type), DIMENSION(:), &
+      POINTER                                :: work
 
     NULLIFY(work)
     IF (ASSOCIATED(colvar_set)) THEN

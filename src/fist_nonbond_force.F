@@ -24,37 +24,32 @@
 MODULE fist_nonbond_force
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
-       get_atomic_kind
-  USE cell_types,                      ONLY: cell_type,&
-       scaled_to_real, pbc
+                                             get_atomic_kind
+  USE cell_types,                      ONLY: cell_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE ewald_environment_types,         ONLY: ewald_env_get,&
-       ewald_environment_type
-  USE fist_neighbor_list_types,        ONLY: neighbor_kind_pairs_type,&
-       fist_neighbor_type
+                                             ewald_environment_type
+  USE fist_neighbor_list_types,        ONLY: fist_neighbor_type,&
+                                             neighbor_kind_pairs_type
   USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_get,&
-       fist_nonbond_env_type, pos_type
+                                             fist_nonbond_env_type,&
+                                             pos_type
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp,&
-       dp_size
+                                             dp_size
   USE mathconstants,                   ONLY: pi
   USE message_passing,                 ONLY: mp_sum
-  USE splines,                         ONLY: potential_s
-  USE pair_potential_types,            ONLY: pair_potential_pp_type,&
-       pair_potential_single_type,&
-       nn_type,&
-       lj_type,&
-       ft_type,&
-       wl_type,&
-       gw_type,&
-       ip_type,&
-       ea_type       
+  USE pair_potential_types,            ONLY: ea_type,&
+                                             pair_potential_pp_type,&
+                                             pair_potential_single_type
   USE particle_types,                  ONLY: particle_type
-  USE splines,                         ONLY: spline_data_type
+  USE splines,                         ONLY: potential_s,&
+                                             spline_data_type
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
-       timestop
-  USE util, ONLY: matvec_3x3
+                                             timestop
+  USE util,                            ONLY: matvec_3x3
+
   IMPLICIT NONE
 
   PRIVATE
@@ -80,29 +75,30 @@ CONTAINS
 
     TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
     TYPE(particle_type), DIMENSION(:), &
-         INTENT(IN)                             :: particle_set
+      INTENT(IN)                             :: particle_set
     TYPE(cell_type), POINTER                 :: cell
     REAL(KIND=dp), INTENT(OUT)               :: pot_nonbond
     REAL(KIND=dp), DIMENSION(:, :), &
-         INTENT(OUT)                            :: f_nonbond, ptens_nonbond
+      INTENT(OUT)                            :: f_nonbond, ptens_nonbond
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'force_nonbond'
 
     INTEGER                                  :: ab, atom_a, atom_b, handle, &
-         ikind, ilist, inode, jkind, &
-         nkinds, nlist, nnode, ipair
-    REAL(KIND=dp)                            :: energy, f_eam, &
-         fscalar, rab2, rab2_max
-    REAL(KIND=dp), DIMENSION(3)              :: drab, fr, rab, cell_v, s
-    TYPE(neighbor_kind_pairs_type), POINTER  :: neighbor_kind_pair
+                                                ikind, ilist, inode, ipair, &
+                                                jkind, nkinds, nlist, nnode
+    LOGICAL                                  :: is_eam
+    REAL(KIND=dp)                            :: energy, f_eam, fscalar, rab2, &
+                                                rab2_max
+    REAL(KIND=dp), DIMENSION(3)              :: cell_v, drab, fr, rab
+    TYPE(cell_type), POINTER                 :: cell_last_update
     TYPE(fist_neighbor_type), POINTER        :: nonbonded
+    TYPE(neighbor_kind_pairs_type), POINTER  :: neighbor_kind_pair
     TYPE(pair_potential_pp_type), POINTER    :: potparm
     TYPE(pair_potential_single_type), &
-         POINTER                                :: pot
+      POINTER                                :: pot
+    TYPE(pos_type), DIMENSION(:), POINTER    :: r_last_update, &
+                                                r_last_update_pbc
     TYPE(spline_data_type), POINTER          :: spline_data
-    LOGICAL                                  :: is_eam
-    TYPE(pos_type), DIMENSION(:), POINTER :: r_last_update, r_last_update_pbc
-    TYPE(cell_type), pointer              :: cell_last_update
 
     CALL timeset ( routineN, handle )
     CALL fist_nonbond_env_get ( fist_nonbond_env, nonbonded = nonbonded, &
@@ -195,27 +191,30 @@ CONTAINS
     !
     TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
     TYPE(particle_type), DIMENSION(:), &
-         INTENT(INOUT)                          :: particle_set
+      INTENT(INOUT)                          :: particle_set
     TYPE(cell_type), POINTER                 :: cell
     TYPE(global_environment_type), POINTER   :: globenv
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'density_nonbond'
 
-    INTEGER :: ab, atom_a, atom_b, handle, ikind, ilist, inode, iparticle, &
-         istat, jkind, nkinds, nlist, nnode, nparticle, ipair
+    INTEGER                                  :: atom_a, atom_b, handle, &
+                                                ikind, ilist, ipair, &
+                                                iparticle, istat, jkind, &
+                                                nkinds, nparticle
+    LOGICAL                                  :: do_eam
     REAL(KIND=dp)                            :: flops, rab2, rab2_max
-    REAL(KIND=dp), DIMENSION(3)              :: drab, rab, cell_v, s
+    REAL(KIND=dp), DIMENSION(3)              :: cell_v, drab, rab
     REAL(KIND=dp), DIMENSION(:), POINTER     :: rho
-    TYPE(neighbor_kind_pairs_type), POINTER  :: neighbor_kind_pair
+    TYPE(cell_type), POINTER                 :: cell_last_update
     TYPE(fist_neighbor_type), POINTER        :: nonbonded
+    TYPE(neighbor_kind_pairs_type), POINTER  :: neighbor_kind_pair
     TYPE(pair_potential_pp_type), POINTER    :: potparm
     TYPE(pair_potential_single_type), &
-         POINTER                                :: pot
+      POINTER                                :: pot
+    TYPE(pos_type), DIMENSION(:), POINTER    :: r_last_update, &
+                                                r_last_update_pbc
     TYPE(spline_data_type), POINTER          :: spline_data
-    TYPE(pos_type), DIMENSION(:), POINTER :: r_last_update, r_last_update_pbc
-    TYPE(cell_type), POINTER              :: cell_last_update
-    LOGICAL :: do_eam
-    
+
     CALL timeset ( routineN, 'I', 'Mflops', handle )
     flops = 0.0_dp
     do_eam = .FALSE.
@@ -288,14 +287,14 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'energy_manybody'
 
     INTEGER                                  :: flops, ikind, index, &
-         iparticle, iparticle_local, &
-         istat, nparticle, &
-         nparticle_local
+                                                iparticle, iparticle_local, &
+                                                istat, nparticle, &
+                                                nparticle_local
     REAL(dp)                                 :: embed, qr
     REAL(dp), POINTER                        :: fembed( : )
     TYPE(pair_potential_pp_type), POINTER    :: potparm
     TYPE(pair_potential_single_type), &
-         POINTER                                :: pot
+      POINTER                                :: pot
 
     flops = 0.0_dp
     CALL fist_nonbond_env_get ( fist_nonbond_env, potparm = potparm )
@@ -342,7 +341,7 @@ CONTAINS
   !******************************************************************************
   SUBROUTINE get_rho_eam ( potparm, rab2, atom_a, atom_b, rho )
     TYPE(pair_potential_single_type), &
-         POINTER                                :: potparm
+      POINTER                                :: potparm
     REAL(dp), INTENT(IN)                     :: rab2
     INTEGER, INTENT(IN)                      :: atom_a, atom_b
     REAL(dp), INTENT(INOUT)                  :: rho( : )
@@ -350,7 +349,7 @@ CONTAINS
     INTEGER                                  :: index
     REAL(dp)                                 :: qq, rab, rhoi, rhoj
 
-    ! Computation of rhotot
+! Computation of rhotot
 
     rab = SQRT ( rab2 )
     index = INT ( rab / potparm % eam % drar ) + 1
@@ -373,7 +372,7 @@ CONTAINS
   SUBROUTINE get_force_eam ( rab2, potparm, particle_set, atom_a, atom_b, f_eam )
     REAL(dp), INTENT(IN)                     :: rab2
     TYPE(pair_potential_single_type), &
-         POINTER                                :: potparm
+      POINTER                                :: potparm
     TYPE(particle_type), INTENT(IN)          :: particle_set( : )
     INTEGER, INTENT(IN)                      :: atom_a, atom_b
     REAL(dp), INTENT(OUT)                    :: f_eam
@@ -381,7 +380,7 @@ CONTAINS
     INTEGER                                  :: index
     REAL(dp)                                 :: denspi, denspj, fcp, qq, rab
 
-    ! compute scaler part of the force
+! compute scaler part of the force
 
     f_eam = 0._dp
     rab = SQRT ( rab2 )
@@ -418,26 +417,25 @@ CONTAINS
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     REAL(KIND=dp), INTENT(OUT)               :: v_bonded_corr
     REAL(KIND=dp), DIMENSION(:, :), &
-         INTENT(OUT)                            :: pv_bc
+      INTENT(OUT)                            :: pv_bc
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = 'bonded_correct_gaussian'
-
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'bonded_correct_gaussian'
     REAL(KIND=dp), PARAMETER :: ac1 = 0.254829592_dp, ac2 = -0.284496736_dp, &
-         ac3 = 1.421413741_dp, ac4 = -1.453152027_dp, ac5 = 1.061405429_dp, &
-         pc = 0.3275911_dp
+      ac3 = 1.421413741_dp, ac4 = -1.453152027_dp, ac5 = 1.061405429_dp, &
+      pc = 0.3275911_dp
 
     INTEGER                                  :: group, handle, i, iatom, &
-         iexl, ikind, j, jkind, &
-         natoms_per_kind, nexl, nkind
+                                                iexl, ikind, j, &
+                                                natoms_per_kind, nkind
     REAL(KIND=dp)                            :: alpha, arg, const, dij, &
-         e_arg_arg, eps0, errf, flops, &
-         fscalar, idij, ifourpieps0, &
-         qi, qj, rijsq, tc
+                                                e_arg_arg, eps0, errf, flops, &
+                                                fscalar, idij, ifourpieps0, &
+                                                qi, qj, rijsq, tc
     REAL(KIND=dp), DIMENSION(3)              :: ri, rij, rj
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
 
-    ! parameters for the numerical erf in Abramowitz and Stegun Eq. 7.1.26 pg 299
-    !------------------------------------------------------------------------------
+! parameters for the numerical erf in Abramowitz and Stegun Eq. 7.1.26 pg 299
+!------------------------------------------------------------------------------
 
     CALL timeset ( routineN, 'I', 'Mflops', handle )
     flops = 0.0_dp

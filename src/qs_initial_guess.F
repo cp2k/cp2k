@@ -35,7 +35,6 @@ MODULE qs_initial_guess
   USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm,&
                                              cp_sm_fm_multiply
   USE external_potential_types,        ONLY: all_potential_type,&
-                                             get_potential,&
                                              gth_potential_type
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: atomic_guess,&
@@ -44,12 +43,12 @@ MODULE qs_initial_guess
                                              random_guess,&
                                              restart_guess
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                             section_vals_type, &
+                                             section_vals_type,&
                                              section_vals_val_get
-  USE kinds,                           ONLY: dp,&
+  USE kinds,                           ONLY: default_path_length,&
+                                             dp,&
                                              dp_size,&
-                                             int_size, &
-                                             default_path_length
+                                             int_size
   USE message_passing,                 ONLY: mp_sum
   USE particle_types,                  ONLY: get_particle_set,&
                                              particle_type
@@ -121,14 +120,15 @@ CONTAINS
       routineN = 'calculate_first_density_matrix', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: atom_a, group, handle, homo, iatom, ikind, iset, isgf, isgfa, &
-      ishell, ispin, istat, la, maxl, maxll, nao, natom, ncount, nelectron, &
-      nmo, nset, nspin, qs_env_id, density_guess, id_nr
-    CHARACTER(LEN=default_path_length) :: file_name
+    CHARACTER(LEN=default_path_length)       :: file_name
+    INTEGER :: atom_a, density_guess, group, handle, homo, iatom, id_nr, &
+      ikind, iset, isgf, isgfa, ishell, ispin, istat, la, maxl, maxll, nao, &
+      natom, ncount, nelectron, nmo, nset, nspin, qs_env_id
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf
     INTEGER, DIMENSION(:), POINTER           :: atom_list, elec_conf, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, l, last_sgfa
-    LOGICAL                                  :: failure, id_equal, ortho_basis, exist
+    LOGICAL                                  :: exist, failure, id_equal, &
+                                                ortho_basis
     REAL(KIND=dp)                            :: maxocc, nelec, paa, scale, &
                                                 total_rho, trps1, trps2
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: econf, pdiag, sdiag
@@ -138,8 +138,8 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: work1
-    TYPE(cp_fm_type), POINTER                :: mo_coeff, moa, mob, ortho, sv, &
-                                                work2
+    TYPE(cp_fm_type), POINTER                :: mo_coeff, moa, mob, ortho, &
+                                                sv, work2
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(gth_potential_type), POINTER        :: gth_potential
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
@@ -207,7 +207,7 @@ CONTAINS
                          ADJUSTL(cp_to_string(id_nr))
         END IF 
         INQUIRE(FILE=file_name,exist=exist)
-        IF (.NOT. exist) THEn
+        IF (.NOT. exist) THEN
            density_guess = atomic_guess
         ENDIF
     ENDIF

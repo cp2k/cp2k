@@ -110,8 +110,9 @@ CONTAINS
 
   SUBROUTINE init_cube_info(info,dr,dh,ortho,max_radius,cmax)
     TYPE(cube_info_type)                     :: info
-    REAL(KIND=dp)                            :: dr(3), dh(3,3),max_radius
+    REAL(KIND=dp)                            :: dr(3), dh(3,3)
     LOGICAL                                  :: ortho
+    REAL(KIND=dp)                            :: max_radius
     INTEGER                                  :: cmax
 
     CHARACTER(LEN=*), PARAMETER :: &

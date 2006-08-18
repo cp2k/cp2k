@@ -105,8 +105,8 @@ CONTAINS
                                                 p_ppl, p_ppnl, p_soft, &
                                                 paw_atom
     REAL(KIND=dp) :: alpha_core_charge, alpha_ppl, ccore_charge, cerf_ppl, &
-      core_charge_radius, eps_reduce, gcca, kind_radius, ppl_radius, &
-      ppnl_radius, rcprj,  short_radius, kg_radius, zeta
+      core_charge_radius, eps_reduce, gcca, kg_radius, kind_radius, &
+      ppl_radius, ppnl_radius, rcprj, short_radius, zeta
     REAL(KIND=dp), DIMENSION(:), POINTER     :: alpha_ppl_elp, alpha_ppnl, &
                                                 cexp_ppl, set_radius
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: cexp_ppl_elp, cprj_ppnl, &
@@ -659,8 +659,9 @@ CONTAINS
     INTEGER                                  :: ikind, ipgf, iset, nkind, &
                                                 nset, output_unit
     INTEGER, DIMENSION(:), POINTER           :: npgf
-    REAL(KIND=dp)                            :: kind_radius, short_kind_radius,&
-                                                kg_radius, unit_of_length
+    REAL(KIND=dp)                            :: kg_radius, kind_radius, &
+                                                short_kind_radius, &
+                                                unit_of_length
     REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pgf_radius
     TYPE(atomic_kind_type), POINTER          :: atomic_kind

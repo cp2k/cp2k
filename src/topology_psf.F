@@ -21,7 +21,8 @@
 !******************************************************************************
 
 MODULE topology_psf
-  USE cp_files,                        ONLY: open_file, close_file
+  USE cp_files,                        ONLY: close_file,&
+                                             open_file
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_parser,                       ONLY: cp_parser_type,&
@@ -31,6 +32,7 @@ MODULE topology_psf
                                              parser_release,&
                                              parser_search_string
   USE global_types,                    ONLY: global_environment_type
+  USE input_constants,                 ONLY: do_skip_14
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
@@ -42,10 +44,8 @@ MODULE topology_psf
   USE topology_types,                  ONLY: atom_info_type,&
                                              connectivity_info_type,&
                                              topology_parameters_type
-  USE topology_util,                   ONLY: reorder_structure,&
-                                             atom_bond_list_type
-  USE input_constants,                 ONLY: do_skip_14
-
+  USE topology_util,                   ONLY: atom_bond_list_type,&
+                                             reorder_structure
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -159,17 +159,16 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: dummy_field, label
-    INTEGER :: handle, i, iatom, ibond, index_now, iphi, itheta, iw, jatom, &
-      natom, natom_prev, nbond, nbond_prev, nphi, nphi_prev, ntheta, &
-      ntheta_prev, nonfo, ionfo, nonfo_prev, stat, N
-    LOGICAL                                  :: failure, found
+    INTEGER :: handle, i, iatom, ibond, index_now, ionfo, iphi, itheta, iw, &
+      jatom, N, natom, natom_prev, nbond, nbond_prev, nonfo, nonfo_prev, &
+      nphi, nphi_prev, ntheta, ntheta_prev, stat
+    LOGICAL                                  :: do_onfo, failure, found
+    TYPE(atom_bond_list_type), &
+      DIMENSION(:), POINTER                  :: ex_bend_list, ex_bond_list
     TYPE(atom_info_type), POINTER            :: atom_info
     TYPE(connectivity_info_type), POINTER    :: conn_info
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_parser_type), POINTER            :: parser
-    TYPE(atom_bond_list_type), DIMENSION(:), POINTER   :: ex_bond_list,&
-                                                          ex_bend_list
-    LOGICAL                                  :: do_onfo
 
     NULLIFY(parser, logger)
     logger => cp_error_get_logger(error)

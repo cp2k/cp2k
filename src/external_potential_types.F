@@ -58,7 +58,7 @@ MODULE external_potential_types
 
   ! Global parameters
 
-  CHARACTER(LEN=*), PARAMETER :: moduleN = 'external_potential_types'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'external_potential_types'
 
   ! Define the all-electron potential type
 
@@ -547,6 +547,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'get_elp_potential'
 
 !   ---------------------------------------------------------------------------
+
     IF (ASSOCIATED(potential)) THEN
 
       IF (PRESENT(name)) name = potential%name
@@ -893,8 +894,8 @@ CONTAINS
     CHARACTER(LEN=*), INTENT(IN)             :: element_symbol, potential_name
     TYPE(all_potential_type), POINTER        :: potential
     REAL(KIND=dp)                            :: zeff_correction
-    TYPE(section_vals_type),POINTER          :: dft_section
     TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(section_vals_type), POINTER         :: dft_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -1021,8 +1022,8 @@ CONTAINS
 
     CHARACTER(LEN=*), INTENT(IN)             :: element_symbol, potential_name
     TYPE(elp_potential_type), POINTER        :: potential
-    TYPE(section_vals_type),POINTER          :: dft_section
     TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(section_vals_type), POINTER         :: dft_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -1175,8 +1176,8 @@ CONTAINS
     CHARACTER(LEN=*), INTENT(IN)             :: element_symbol, potential_name
     TYPE(gth_potential_type), POINTER        :: potential
     REAL(KIND=dp), INTENT(IN)                :: zeff_correction
-    TYPE(section_vals_type), POINTER         :: dft_section
     TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(section_vals_type), POINTER         :: dft_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -1638,10 +1639,10 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    TYPE(cp_logger_type), POINTER            :: logger
     CHARACTER(LEN=20)                        :: string
+    TYPE(cp_logger_type), POINTER            :: logger
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     NULLIFY(logger)
 
@@ -1686,7 +1687,7 @@ CONTAINS
 
     TYPE(cp_logger_type), POINTER            :: logger
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     NULLIFY(logger)
 
@@ -1730,7 +1731,7 @@ CONTAINS
     REAL(KIND=dp)                            :: r
     TYPE(cp_logger_type), POINTER            :: logger
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     NULLIFY(logger)
 

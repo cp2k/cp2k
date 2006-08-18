@@ -23,11 +23,8 @@
 !******************************************************************************
 
 MODULE topology_input
-  USE colvar_types,                    ONLY: angle_colvar_id,&
-                                             colvar_p_type,&
-                                             dist_colvar_id,&
-                                             torsion_colvar_id,& 
-                                             colvar_clone
+  USE colvar_types,                    ONLY: colvar_clone,&
+                                             colvar_p_type
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: do_conn_mol_set,&
                                              do_conn_psf,&
@@ -180,8 +177,9 @@ SUBROUTINE read_constraints_section(topology, globenv, colvar_p, constraint_sect
 
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: tmpstringlist
-    INTEGER                                  :: icolvar, ig, isize, j, jj, &
-                                                n_rep, ncons, stat, msize, isize_old, msize_old
+    INTEGER                                  :: icolvar, ig, isize, &
+                                                isize_old, j, jj, msize, &
+                                                msize_old, n_rep, ncons, stat
     INTEGER, DIMENSION(:), POINTER           :: ilist, tmplist
     LOGICAL                                  :: explicit, failure, freeze_mm, &
                                                 freeze_qm
@@ -477,17 +475,18 @@ END SUBROUTINE read_constraints_section
 !******************************************************************************
 
 SUBROUTINE check_restraint(cons_section, is_restraint, k0, i_rep_section, error)
-  TYPE(section_vals_type), POINTER            :: cons_section
-  LOGICAL, INTENT(OUT)                        :: is_restraint
-  REAL(KIND=dp), INTENT(OUT)                  :: k0
-  INTEGER, INTENT(IN), OPTIONAL               :: i_rep_section
-  TYPE(cp_error_type), INTENT(inout), &
-       OPTIONAL                               :: error
+    TYPE(section_vals_type), POINTER         :: cons_section
+    LOGICAL, INTENT(OUT)                     :: is_restraint
+    REAL(KIND=dp), INTENT(OUT)               :: k0
+    INTEGER, INTENT(IN), OPTIONAL            :: i_rep_section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  CHARACTER(len=*), PARAMETER :: routineN = 'check_restraint', &
-       routineP = moduleN//':'//routineN
-  LOGICAL  :: explicit, failure
-  TYPE(section_vals_type), POINTER            :: restraint_section
+    CHARACTER(len=*), PARAMETER :: routineN = 'check_restraint', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: explicit, failure
+    TYPE(section_vals_type), POINTER         :: restraint_section
 
   failure      = .FALSE.
   is_restraint = .FALSE.

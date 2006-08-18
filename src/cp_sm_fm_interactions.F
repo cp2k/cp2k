@@ -47,7 +47,7 @@ MODULE cp_sm_fm_interactions
                                              real_matrix_type,&
                                              sparse_plus_loc_loct,&
                                              sparse_times_local
-  USE termination,                     ONLY: stop_memory,stop_program
+  USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -112,8 +112,8 @@ CONTAINS
     
     my_beta=0._dp
     my_alpha=1._dp
-    if (present(alpha)) my_alpha=alpha
-    if (present(beta)) my_beta=beta
+    IF (PRESENT(alpha)) my_alpha=alpha
+    IF (PRESENT(beta)) my_beta=beta
     group = fm%matrix_struct%para_env%group
     context => fm%matrix_struct%context
 

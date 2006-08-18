@@ -29,8 +29,8 @@
 
 MODULE qs_diis
 
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
-                                             cp_fm_column_scale,&
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
+                                             cp_fm_gemm,&
                                              cp_fm_scale_and_add,&
                                              cp_fm_symm,&
                                              cp_fm_trace
@@ -64,7 +64,7 @@ MODULE qs_diis
 
   PRIVATE
 
-  CHARACTER(LEN=*), PARAMETER :: moduleN = "qs_diis"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_diis'
   INTEGER, SAVE               :: last_diis_b_id = 0
 
   ! Public subroutines
@@ -111,13 +111,13 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = "qs_diis_b_create", &
-                                   routineP = moduleN//":"//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_diis_b_create', &
+      routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle,stat
+    INTEGER                                  :: handle, stat
     LOGICAL                                  :: failure
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     CALL timeset(routineN,"I","",handle)
 
@@ -181,15 +181,15 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "qs_diis_b_check_i_alloc",&
-                                   routineP = moduleN//":"//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_diis_b_check_i_alloc', &
+      routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ibuffer, ispin, istat, &
-                                                nbuffer, output_unit
+    INTEGER                                  :: handle, ibuffer, ispin, &
+                                                istat, nbuffer, output_unit
     LOGICAL                                  :: failure, ionode
     TYPE(cp_logger_type), POINTER            :: logger
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     CALL timeset(routineN,"I","",handle)
 
@@ -320,28 +320,27 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "qs_diis_b_step",&
-                                   routineP = moduleN//":"//routineN
-    REAL(KIND=dp), PARAMETER    :: eigenvalue_threshold = 1.0E-12_dp
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_diis_b_step', &
+      routineP = moduleN//':'//routineN
+    REAL(KIND=dp), PARAMETER :: eigenvalue_threshold = 1.0E-12_dp
 
     CHARACTER(LEN=2*default_string_length)   :: message
-    INTEGER                                  :: handle, homo, ib, imo, &
-                                                ispin, istat, jb, &
-                                                nao, nb, nb1, nmo, nspin, &
-                                                output_unit
-    LOGICAL                                  :: failure, ionode, mo_uocc, &
-                                                my_roks, eigenvectors_discarded
+    INTEGER                                  :: handle, homo, ib, imo, ispin, &
+                                                istat, jb, nao, nb, nb1, nmo, &
+                                                nspin, output_unit
+    LOGICAL                                  :: eigenvectors_discarded, &
+                                                failure, ionode, mo_uocc, &
+                                                my_roks
     REAL(KIND=dp)                            :: maxocc, tmp
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: ev
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: occa,occb
-    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: occ
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: ev, occ
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: occa, occb
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: a, b
     TYPE(cp_fm_struct_type), POINTER         :: matrix_struct
     TYPE(cp_fm_type), POINTER                :: c, new_errors, old_errors, &
                                                 parameters
     TYPE(cp_logger_type), POINTER            :: logger
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     CALL timeset(routineN,"I","",handle)
 
@@ -654,13 +653,13 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "qs_diis_b_clear", &
-                                   routineP = moduleN//":"//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_diis_b_clear', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle
     LOGICAL                                  :: failure
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     CALL timeset(routineN,"I","",handle)
 

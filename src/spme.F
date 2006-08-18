@@ -23,7 +23,7 @@ MODULE spme
 
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
-  USE cell_types,                      ONLY: cell_type, &
+  USE cell_types,                      ONLY: cell_type,&
                                              real_to_scaled
   USE dgs,                             ONLY: dg_sum_patch,&
                                              dg_sum_patch_force_3d

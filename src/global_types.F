@@ -132,7 +132,7 @@ MODULE global_types
      REAL(KIND=dp) :: cp2k_start_time, cp2k_target_time
      TYPE(section_vals_type), POINTER :: input_file
      LOGICAL :: close_output_unit
-     integer :: handle
+     INTEGER :: handle
   END TYPE global_environment_type
 !!***
 ! *****************************************************************************

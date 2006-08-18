@@ -25,14 +25,8 @@ MODULE mc_control
                                              get_cell
   USE cp_files,                        ONLY: close_file,&
                                              open_file
-  USE cp_parser,                       ONLY: cp_parser_type,&
-                                             parser_create,&
-                                             parser_release
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsystem_p_type
-  USE cp_units,                        ONLY: cp_unit_set_create,&
-                                             cp_unit_set_release,&
-                                             cp_unit_set_type
   USE environment,                     ONLY: cp2k_read
   USE fist_main,                       ONLY: fist_create_force_env
   USE force_env_types,                 ONLY: force_env_get,&
@@ -45,14 +39,12 @@ MODULE mc_control
                                              do_kg,&
                                              do_qs
   USE input_cp2k,                      ONLY: create_cp2k_input_reading
-  USE input_parsing,                   ONLY: section_vals_parse
-  USE input_section_types,             ONLY: section_type,&
-                                             section_vals_create,&
-                                             section_vals_type,&
+  USE input_section_types,             ONLY: section_release,&
+                                             section_type,&
                                              section_vals_get,&
-                                             section_release,&
-                                             section_vals_val_get,&
-                                             section_vals_get_subs_vals
+                                             section_vals_get_subs_vals,&
+                                             section_vals_type,&
+                                             section_vals_val_get
   USE kg_main,                         ONLY: kg_create_force_env
   USE kinds,                           ONLY: dp,&
                                              dp_size
@@ -220,7 +212,7 @@ SUBROUTINE read_mc_restart ( mc_par, force_env, iw, rng_stream)
     CHARACTER(LEN=200)                       :: fft_lib
     CHARACTER(LEN=40)                        :: dat_file, restart_file_name
     INTEGER :: group, handle, i, ipart, istat, iunit, mc_nchain, mc_nunits, &
-      mc_nunits_tot, nstart, nunits_tot, source, unit,print_level
+      mc_nunits_tot, nstart, nunits_tot, print_level, source, unit
     LOGICAL                                  :: ionode
     REAL(KIND=dp)                            :: mc_temp, rand, temp
     REAL(KIND=dp), ALLOCATABLE, &
@@ -390,27 +382,26 @@ SUBROUTINE mc_create_force_env ( force_env, globenv_old,input_file_name,&
 
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(global_environment_type), POINTER   :: globenv_old
-    TYPE(global_environment_type), POINTER,OPTIONAL   :: globenv_new
-
-    CHARACTER(LEN=*),INTENT(IN)               :: input_file_name
+    CHARACTER(LEN=*), INTENT(IN)             :: input_file_name
+    TYPE(global_environment_type), &
+      OPTIONAL, POINTER                      :: globenv_new
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'mc_create_force_env', &
       routineP = moduleN//':'//routineN
 
-    TYPE(global_environment_type), POINTER   :: globenv
-    INTEGER                                  :: i_val, nforce_eval,method_name_id
+    INTEGER                                  :: i_val, method_name_id, &
+                                                nforce_eval
     LOGICAL                                  :: failure
-    TYPE(cp_parser_type), POINTER            :: my_parser
-    TYPE(cp_unit_set_type), POINTER          :: default_units
+    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_type), POINTER              :: input_structure
-    TYPE(section_vals_type), POINTER         :: input_file
-    TYPE(section_vals_type), POINTER         :: force_env_section
+    TYPE(section_vals_type), POINTER         :: force_env_section, input_file
 
 !**************************************************************************
-      failure= .false.
-      NULLIFY(input_file,input_structure,my_parser,default_units,globenv)
+
+      failure= .FALSE.
+      NULLIFY(input_file, input_structure, globenv)
 
       NULLIFY(globenv, force_env, force_env_section )
 
@@ -481,8 +472,8 @@ SUBROUTINE mc_create_bias_force_env (bias_env,force_env,&
     TYPE(force_env_type), POINTER            :: bias_env, force_env
     TYPE(global_environment_type), POINTER   :: globenv
     CHARACTER(LEN=*), INTENT(IN)             :: fft_lib
+    INTEGER, INTENT(IN)                      :: print_level
     LOGICAL, INTENT(IN)                      :: ionode
-    INTEGER,INTENT(IN)                       :: print_level
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 

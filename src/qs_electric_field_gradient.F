@@ -28,11 +28,10 @@ MODULE qs_electric_field_gradient
                                              gto_basis_set_type
   USE coefficient_types,               ONLY: coeff_type
   USE cp_control_types,                ONLY: dft_control_type
+  USE cp_output_handling,              ONLY: cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE eigenvalueproblems,              ONLY: diagonalise
-  USE input_section_types,             ONLY: section_get_ival,&
-                                             section_get_rval,&
-                                             section_get_lval,&
+  USE input_section_types,             ONLY: section_get_lval,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
@@ -42,8 +41,6 @@ MODULE qs_electric_field_gradient
   USE message_passing,                 ONLY: mp_sum
   USE orbital_pointers,                ONLY: indso,&
                                              nsoset
-  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
-                                             cp_print_key_unit_nr
   USE particle_types,                  ONLY: particle_type
   USE physcon,                         ONLY: a_bohr,&
                                              e_charge,&
@@ -57,23 +54,15 @@ MODULE qs_electric_field_gradient
                                              pw_pool_type
   USE pw_spline_utils,                 ONLY: Eval_Interp_Spl3_pbc,&
                                              find_coeffs,&
-                                             pw_spline_precond_type,&
+                                             pw_spline_do_precond,&
                                              pw_spline_precond_create,&
                                              pw_spline_precond_release,&
-                                             pw_spline_do_precond,&
                                              pw_spline_precond_set_kind,&
+                                             pw_spline_precond_type,&
                                              spl3_pbc
-  USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                             REALDATA3D,&
-                                             RECIPROCALSPACE,&
-                                             REALSPACE,&
-                                             pw_copy,&
-                                             pw_dr2,&
-                                             pw_integral_aa,&
-                                             pw_integral_ab,&
-                                             pw_structure_factor,&
-                                             pw_smoothing, &
-                                             pw_transfer
+  USE pw_types,                        ONLY: &
+       COMPLEXDATA1D, REALDATA3D, REALSPACE, RECIPROCALSPACE, pw_dr2, &
+       pw_integral_ab, pw_smoothing, pw_structure_factor, pw_transfer
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_gapw_densities,               ONLY: prepare_gapw_den
@@ -109,31 +98,30 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=2)                         :: element_symbol
-    INTEGER                                  :: i, iat, iatom, ij, ikind, &
-                                                istat, j, m, natom, &
-                                                natomkind, nkind, nspins, &
-                                                unit_nr, max_iter, precond_kind, &
-                                                aint_precond
+    INTEGER :: aint_precond, i, iat, iatom, ij, ikind, istat, j, m, max_iter, &
+      natom, natomkind, nkind, nspins, precond_kind, unit_nr
     INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL                                  :: failure, gapw, paw_atom, success
-    LOGICAL                                  :: efg_interpolation, smoothing
-    REAL(KIND=dp)                            :: efg_units, ehartree, f1, f2, &
-                                                efg_val, eps_r, eps_x, &
-                                                ecut, sigma
-    REAL(KIND=dp), POINTER, DIMENSION(:)     :: rvals
+    LOGICAL                                  :: efg_interpolation, failure, &
+                                                gapw, paw_atom, smoothing, &
+                                                success
+    REAL(KIND=dp)                            :: ecut, efg_units, efg_val, &
+                                                ehartree, eps_r, eps_x, f1, &
+                                                f2, sigma
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: efg_diagval, vh0
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: efg_tensor
     REAL(KIND=dp), DIMENSION(3)              :: eigenvalues, ra
     REAL(KIND=dp), DIMENSION(3, 3)           :: eigenvectors
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: rvals
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(coeff_type)                         :: rho_tot_gspace, &
+    TYPE(coeff_type)                         :: dvr2rs, rho_tot_gspace, &
                                                 structure_factor, &
-                                                v_hartree_gspace, dvr2rs
+                                                v_hartree_gspace
     TYPE(coeff_type), DIMENSION(:), POINTER  :: dvr2, dvspl
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(grid_atom_type), POINTER            :: grid_atom
@@ -142,12 +130,12 @@ CONTAINS
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(pw_poisson_type), POINTER           :: poisson_env
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(pw_spline_precond_type), POINTER    :: precond
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(rho_atom_type), DIMENSION(:), &
       POINTER                                :: rho_atom_set
-    TYPE(pw_spline_precond_type), POINTER    :: precond
-    TYPE(section_vals_type), POINTER         :: input, dft_section, interp_section
-    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(section_vals_type), POINTER         :: dft_section, input, &
+                                                interp_section
 
     NULLIFY(atomic_kind_set, dft_control, para_env, particle_set, rho, &
          rho_atom_set, input, dft_section, interp_section)

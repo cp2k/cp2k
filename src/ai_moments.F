@@ -1284,19 +1284,19 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: la_min, lb_max, npgfb
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: zetb, rpgfb
     INTEGER, INTENT(IN)                      :: lb_min, order
-    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rac,rbc
+    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rac, rbc
     REAL(KIND=dp), DIMENSION(:, :, :, :), &
       INTENT(OUT)                            :: difmab
-    REAL(KIND=dp), DIMENSION(:,:,:), &
-     POINTER, OPTIONAL                       :: mab_ext
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      OPTIONAL, POINTER                      :: mab_ext
 
-    INTEGER                                  :: imom, istat, lda_min, &
-                                                ldb_min, lda, &
-                                                ldb, lmax
-    REAL(KIND=dp)                            :: dab,rab(3),rab2
+    INTEGER                                  :: imom, istat, lda, lda_min, &
+                                                ldb, ldb_min, lmax
+    REAL(KIND=dp)                            :: dab, rab(3), rab2
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: difmab_tmp
-    REAL(KIND=dp), DIMENSION(:,:,:), POINTER :: mab
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      POINTER                                :: mab
 
 !   ---------------------------------------------------------------------------
 

@@ -43,8 +43,8 @@ MODULE ai_angmom
 
 ! *****************************************************************************
 
-  USE ai_moments,                      ONLY: moment
   USE ai_derivatives,                  ONLY: dabdr
+  USE ai_moments,                      ONLY: moment
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
   USE orbital_pointers,                ONLY: coset,&
@@ -913,13 +913,15 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :, :), &
       INTENT(INOUT)                          :: angab
 
-    INTEGER                                  :: lda_min, ldb_min, lmax, lds, i,&
-                                                ia, ib, na, nb, ja, jb, istat
+    INTEGER                                  :: i, ia, ib, istat, ja, jb, &
+                                                lda_min, ldb_min, lds, lmax, &
+                                                na, nb
+    REAL(KIND=dp)                            :: dab
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: mab
     REAL(KIND=dp), DIMENSION(:, :, :, :), &
       POINTER                                :: dmab
-    REAL(KIND=dp)                            :: dab
+
 !   ---------------------------------------------------------------------------
 
     dab = SQRT( SUM ((rac - rbc)**2) )
@@ -945,13 +947,13 @@ CONTAINS
     DO ia=1,npgfa
       nb=0
       DO ib=1,npgfb
-        do ja=na+1,na+ncoset(la_max)
-          do jb=nb+1,nb+ncoset(lb_max)
+        DO ja=na+1,na+ncoset(la_max)
+          DO jb=nb+1,nb+ncoset(lb_max)
             angab(ja,jb,1) = -dmab(jb,ja,3,2) + dmab(jb,ja,2,3)
             angab(ja,jb,2) = -dmab(jb,ja,1,3) + dmab(jb,ja,3,1)
             angab(ja,jb,3) = -dmab(jb,ja,2,1) + dmab(jb,ja,1,2)
-          enddo
-        enddo
+          ENDDO
+        ENDDO
         nb = nb + ncoset(lb_max)
       END DO
       na = na + ncoset(la_max)

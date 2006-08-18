@@ -127,8 +127,6 @@ CONTAINS
       POINTER                                :: mm_particles
     LOGICAL, INTENT(in), OPTIONAL            :: calc_force
     TYPE(cell_type), POINTER                 :: mm_cell
-!    TYPE(global_environment_type), &
-!      OPTIONAL, POINTER                      :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -137,10 +135,10 @@ CONTAINS
 
     INTEGER                                  :: handle, Imm, IndMM, ispin, &
                                                 iw, stat
-    LOGICAL                                  :: failure, gapw, need_f, periodic
+    LOGICAL                                  :: failure, gapw, need_f, &
+                                                periodic
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: Forces, Forces_added_charges
-    TYPE(coeff_type), POINTER                :: rho_core
-    TYPE(coeff_type), POINTER                :: rho0_s_gs
+    TYPE(coeff_type), POINTER                :: rho0_s_gs, rho_core
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -154,6 +152,9 @@ CONTAINS
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(section_vals_type), POINTER         :: input_section, &
                                                 interp_section, print_section
+
+!    TYPE(global_environment_type), &
+!      OPTIONAL, POINTER                      :: globenv
 
     CALL timeset(routineN,"I","",handle)
     failure=.FALSE.

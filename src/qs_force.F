@@ -42,10 +42,9 @@ MODULE qs_force
   USE particle_types,                  ONLY: particle_type
   USE qs_core_energies,                ONLY: calculate_ecore_overlap,&
                                              calculate_ecore_self
-  USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_core_hamiltonian,             ONLY: build_core_hamiltonian_matrix
   USE qs_energy,                       ONLY: qs_energies
-  USE qs_environment_methods,          ONLY: qs_env_rebuild_pw_env
+  USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type,&
                                              set_qs_env
@@ -53,10 +52,8 @@ MODULE qs_force
                                              qs_force_type,&
                                              zero_qs_force
   USE qs_ks_methods,                   ONLY: calculate_w_matrix,&
-                                             qs_ks_create,&
                                              qs_ks_update_qs_env
-  USE qs_ks_types,                     ONLY: qs_ks_env_type,&
-                                             qs_ks_release
+  USE qs_ks_types,                     ONLY: qs_ks_env_type
   USE qs_mo_types,                     ONLY: mo_set_p_type,&
                                              mo_set_type
   USE qs_rho_types,                    ONLY: qs_rho_type
@@ -111,9 +108,9 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_forces', &
       routine = "SUBROUTINE "//routineN//" (MODULE "//moduleN//")"
 
-    INTEGER                                  :: handle, i, iatom, ikind, &
+    INTEGER                                  :: dir, handle, i, iatom, ikind, &
                                                 ispin, istat, iw, natom, &
-                                                nkind, nspin, output_unit, dir
+                                                nkind, nspin, output_unit
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, kind_of, &
                                                 natom_of_kind
     LOGICAL                                  :: failure, gapw, harris_flag, &
@@ -131,17 +128,17 @@ CONTAINS
     TYPE(mo_set_type), POINTER               :: mo_set
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(qs_energy_type), POINTER            :: energy
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
-    TYPE(qs_energy_type), POINTER            :: energy
-    TYPE(qs_ks_env_type), POINTER            :: ks_env, new_ks_env
+    TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, matrix_s, matrix_w
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(virial_type), POINTER               :: virial
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     CALL timeset(routineN,"I","",handle)
     failure = .FALSE.

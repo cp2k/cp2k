@@ -392,19 +392,19 @@ CONTAINS
   SUBROUTINE mol_density_matrix(mo_set,pmat,error)
 
     TYPE(mol_mo_set_type), POINTER           :: mo_set
-    REAL(KIND=dp), DIMENSION(:,:), POINTER   :: pmat
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pmat
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'mol_density_matrix', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, icol, ncol, nrow, &
-                                                homo, lfomo, istat
+    INTEGER                                  :: handle, homo, icol, istat, &
+                                                lfomo, ncol, nrow
     LOGICAL                                  :: failure
     REAL(dp)                                 :: maxocc
     REAL(dp), DIMENSION(:), POINTER          :: occupation
-    REAL(dp), DIMENSION(:, :), POINTER       :: mo_coeff, fmo_coeff
+    REAL(dp), DIMENSION(:, :), POINTER       :: fmo_coeff, mo_coeff
 
 !   ---------------------------------------------------------------------------
 

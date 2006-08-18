@@ -280,12 +280,12 @@ MODULE qs_harmonics_atom
     CHARACTER(len=*), PARAMETER :: routineN = 'create_harmonics_atom', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: i, ia, ic, incg, incg_d, incg_da, is, is1, is2, iso, iso1, iso2, &
-      iso_mm, iso_mm1, iso_mp1, l, l1, l2, lx, ly, lz, m, max_iso_not0, &
+    INTEGER :: i, ia, ic, incg, incg_d, incg_da, is, is1, is2, iso, iso1, &
+      iso2, iso_mm, iso_mm1, iso_mp1, l, l1, l2, lx, ly, lz, m, max_iso_not0, &
       maxcg, maxcg_d, maxcg_da, maxl, maxs, mm, n, nset
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: ind_cg_a, ind_cg_a_d, &
-                                                ind_cg_b, ind_cg_b_d, &
-                                                ind_cg_a_da, ind_cg_b_da
+                                                ind_cg_a_da, ind_cg_b, &
+                                                ind_cg_b_d, ind_cg_b_da
     INTEGER, DIMENSION(:), POINTER           :: lmax, lmin
     REAL(dp)                                 :: abs_m, cosmp1, drx, dry, drz, &
                                                 int1, int2, int3, l_r, m_r, &

@@ -50,7 +50,7 @@ MODULE integrator
   USE extended_system_dynamics,        ONLY: lnhc
   USE extended_system_types,           ONLY: lnhc_parameters_type,&
                                              npt_info_type
-  USE force_env_methods,               ONLY: force_env_calc_energy_force, &
+  USE force_env_methods,               ONLY: force_env_calc_energy_force,&
                                              force_env_set_cell
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_p_type
@@ -3162,9 +3162,9 @@ END SUBROUTINE update_particle_set
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'nve_respa'
 
-    INTEGER :: icoef, iparticle, iparticle_kind, iparticle_local, istat, &
-      isubsys, mass_storage, nmolecule, nmolecule_kind, nparticle, &
-      nparticle_kind, nparticle_local, n_time_steps,i_step
+    INTEGER :: i_step, icoef, iparticle, iparticle_kind, iparticle_local, &
+      istat, isubsys, mass_storage, n_time_steps, nmolecule, nmolecule_kind, &
+      nparticle, nparticle_kind, nparticle_local
     REAL(KIND=dp)                            :: dm, dmcoef, dt, global_mass, &
                                                 mass
     REAL(KIND=dp), ALLOCATABLE, &
@@ -3196,13 +3196,14 @@ END SUBROUTINE update_particle_set
       POINTER                                :: molecule_set
     TYPE(particle_list_type), POINTER        :: particles, particles_respa
     TYPE(particle_type), DIMENSION(:), &
-      POINTER                                :: particle_set, particle_set_respa
+      POINTER                                :: particle_set, &
+                                                particle_set_respa
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
     TYPE(virial_type), POINTER               :: virial
 
 !   ---------------------------------------------------------------------------
-    
+
     NULLIFY (dyn_coeff_set,coeffs_of_kind,coeffs,nhc_coef,para_env,cell,subsys_respa)
     NULLIFY (particles_respa, particle_set_respa)
     CALL get_md_env(md_env=md_env,simpar=simpar,force_env_p=force_env_p,&

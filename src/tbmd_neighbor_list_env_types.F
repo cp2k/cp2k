@@ -23,10 +23,10 @@
 !!   SOURCE
 !****************************************************************************
 MODULE tbmd_neighbor_list_env_types
+  USE kinds,                           ONLY: dp
   USE tbmd_neighbor_list_types,        ONLY: deallocate_neighbor_list_set,&
                                              neighbor_list_set_p_type,&
                                              neighbor_list_set_type
-  USE kinds,                           ONLY: dp
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

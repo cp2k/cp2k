@@ -21,7 +21,6 @@ MODULE qs_oce_types
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
   USE distribution_2d_types,           ONLY: distribution_2d_type
-  USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp,&
                                              dp_size,&
                                              int_size
@@ -43,8 +42,7 @@ MODULE qs_oce_types
                                              replicate_matrix_structure
   USE string_utilities,                ONLY: compress,&
                                              uppercase
-  USE termination,                     ONLY: stop_memory,&
-                                             stop_program
+  USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: locate,&
@@ -218,8 +216,8 @@ CONTAINS
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_vtriple',&
-        routineP = moduleN//':'//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_vtriple', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: iat, icell, istat, jcell, &
                                                 kcell, kkind, natom, nkind
@@ -292,7 +290,8 @@ CONTAINS
 
     CHARACTER(LEN=12)                        :: cgfsym
     CHARACTER(LEN=80)                        :: name
-    INTEGER                                  :: handle, i, istat, maxder, nsotot
+    INTEGER                                  :: handle, i, istat, maxder, &
+                                                nsotot
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_nso, last_nso
 
 !   ---------------------------------------------------------------------------
@@ -389,8 +388,7 @@ CONTAINS
     LOGICAL                                  :: pippo
     REAL(dp), INTENT(IN)                     :: eps_rho
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                            :: error
-!   *** Local parameters ***
+      OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'build_reduced_3c_lists'
 
@@ -398,7 +396,7 @@ CONTAINS
       kneighbor, nblock_kkind, nkind, nneighbor, nneighbor_old, num
     INTEGER, DIMENSION(3)                    :: cell_c
     INTEGER, DIMENSION(:), POINTER           :: index_atom
-    LOGICAL                                  :: add_node,paw_atom
+    LOGICAL                                  :: add_node, paw_atom
     REAL(KIND=dp)                            :: dac2, dbc2, maxab
     REAL(KIND=dp), DIMENSION(3)              :: rac, rbc
     REAL(KIND=dp), DIMENSION(:), POINTER     :: rac2_tmp, rbc2_tmp
@@ -574,30 +572,35 @@ CONTAINS
   SUBROUTINE check_oce_overlap(atomic_kind_set,ikind,rac,dac2,jkind,rbc,dbc2,&
              kkind,maxab)
 
-    TYPE(atomic_kind_type), DIMENSION(:), POINTER :: atomic_kind_set
-    INTEGER, INTENT(IN) :: ikind,jkind,kkind
-    REAL(dp) :: dac2, dbc2
-    REAL(dp), INTENT(IN) :: rac(3), rbc(3)
-    REAL(dp), INTENT(INOUT) :: maxab
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    INTEGER, INTENT(IN)                      :: ikind
+    REAL(dp), INTENT(IN)                     :: rac(3)
+    REAL(dp)                                 :: dac2
+    INTEGER, INTENT(IN)                      :: jkind
+    REAL(dp), INTENT(IN)                     :: rbc(3)
+    REAL(dp)                                 :: dbc2
+    INTEGER, INTENT(IN)                      :: kkind
+    REAL(dp), INTENT(INOUT)                  :: maxab
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'build_reduced_3c_lists'
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'check_oce_overlap'
 
-    INTEGER :: iexp, iexp_zmin, jexp_zmin, ip, iset, jset, kset, &
-               lc_max, ishell, jshell, lshella, lshellb, nseta, nsetb
-    INTEGER , DIMENSION(:), POINTER :: la_max, la_min, lb_max, lb_min, &
-                                       npgfa, npgfb, nprjc, nshella, nshellb
-    INTEGER , DIMENSION(:,:), POINTER :: lsha, lshb
-    REAL(dp) :: gcca_zmin, gccb_zmin, gauss_value_a, gauss_value_b, gauss_value_c
-    REAL(dp) :: max_overlap_ab, max_overlap_abc, overlap_ab, overlap_abc
-    REAL(dp) :: rcprj, zetamin, zetbmin, zetcmin
-    REAL(dp), DIMENSION(:,:), POINTER          :: zeta, zetb, zetc
+    INTEGER                                  :: iexp, iexp_zmin, iset, &
+                                                ishell, jexp_zmin, jset, &
+                                                jshell, lc_max, lshella, &
+                                                lshellb, nseta, nsetb
+    INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
+                                                lb_min, npgfa, npgfb, nprjc, &
+                                                nshella, nshellb
+    INTEGER, DIMENSION(:, :), POINTER        :: lsha, lshb
+    REAL(dp) :: gauss_value_a, gauss_value_b, gcca_zmin, gccb_zmin, &
+      max_overlap_ab, overlap_ab, rcprj, zetamin, zetbmin
+    REAL(dp), DIMENSION(:, :), POINTER       :: zeta, zetb, zetc
     REAL(KIND=dp), DIMENSION(:, :, :), &
-      POINTER                                  :: gcca, gccb
-    TYPE(atomic_kind_type),  POINTER :: atomic_kind
-    TYPE(gto_basis_set_type), POINTER          :: orb_basis_set
-    TYPE(paw_proj_set_type),  POINTER          :: paw_proj_c
-    
-
+      POINTER                                :: gcca, gccb
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
+    TYPE(paw_proj_set_type), POINTER         :: paw_proj_c
 
     NULLIFY(atomic_kind,orb_basis_set,paw_proj_c)
     NULLIFY(gcca,gccb,la_max,lb_max,npgfa,npgfb,nprjc,zeta,zetb,zetc)
@@ -642,7 +645,7 @@ CONTAINS
          IF(dac2<1.0E-8_dp ) THEN
            gauss_value_a = 1.0_dp
          ELSE
-           gauss_value_a = gcca_zmin*(sqrt(dac2))**(lshella)*exp(-zetamin*(sqrt(dac2))**2)
+           gauss_value_a = gcca_zmin*(SQRT(dac2))**(lshella)*EXP(-zetamin*(SQRT(dac2))**2)
          END IF
 !      write(*,*) ' AC ',sqrt(dac2), iset,zetamin,lshella,gcca_zmin,gauss_value_a
          DO jset = 1,nsetb
@@ -662,7 +665,7 @@ CONTAINS
              IF(dbc2<1.0E-8_dp ) THEN
                gauss_value_b = 1.0_dp
              ELSE
-               gauss_value_b = gccb_zmin*(sqrt(dbc2))**(lshellb)*exp(-zetbmin*(sqrt(dbc2))**2)
+               gauss_value_b = gccb_zmin*(SQRT(dbc2))**(lshellb)*EXP(-zetbmin*(SQRT(dbc2))**2)
              END IF
 
 !      write(*,*) ' BC ',sqrt(dbc2), jset,zetbmin,lshellb,gccb_zmin,gauss_value_b
@@ -703,13 +706,11 @@ CONTAINS
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'retrieve_sac_list', &
+      routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=*), PARAMETER   :: routineN = 'retrieve_sac_list',&
-       routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle, i, iac, icell,&
-                                                istat, jcell, &
-                                                katom, kcell, kkind, &
+    INTEGER                                  :: handle, i, iac, icell, istat, &
+                                                jcell, katom, kcell, kkind, &
                                                 kneighbor, n, nneighbor
     INTEGER, DIMENSION(3)                    :: cell_c, cell_c_max, cell_c_min
     LOGICAL                                  :: failure

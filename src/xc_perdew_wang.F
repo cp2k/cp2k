@@ -34,7 +34,7 @@ MODULE xc_perdew_wang
   USE xc_derivative_types,             ONLY: xc_derivative_get,&
                                              xc_derivative_type
   USE xc_functionals_utilities,        ONLY: calc_fx,&
-                                              calc_rs,&
+                                             calc_rs,&
                                              calc_z,&
                                              set_util
   USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
@@ -53,7 +53,7 @@ MODULE xc_perdew_wang
        epsilon = 5.E-13_dp, &
        fpp = 0.584822362263464620726223866376013788782_dp ! d^2f(0)/dz^2
   REAL(KIND=dp) :: eps_rho
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_perdew_wang_new'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_perdew_wang'
 
 
   PUBLIC :: perdew_wang_info, perdew_wang_lda_eval, perdew_wang_lsd_eval
@@ -83,7 +83,7 @@ CONTAINS
     TYPE(xc_rho_cflags_type), &
       INTENT(inout), OPTIONAL                :: needs
     INTEGER, INTENT(out), OPTIONAL           :: max_deriv
-    REAL(kind=dp), intent(in) :: scale
+    REAL(kind=dp), INTENT(in)                :: scale
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -251,7 +251,7 @@ CONTAINS
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     INTEGER, INTENT(in)                      :: order
-    REAL(kind=dp), intent(in) :: scale
+    REAL(kind=dp), INTENT(in)                :: scale
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -345,7 +345,7 @@ SUBROUTINE perdew_wang_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints
       INTENT(inout)                          :: e_0, e_rho, e_rho_rho, &
                                                 e_rho_rho_rho
     INTEGER, INTENT(in)                      :: npoints, order
-    REAL(kind=dp), intent(in) :: scale
+    REAL(kind=dp), INTENT(in)                :: scale
 
     INTEGER                                  :: abs_order, k
     REAL(KIND=dp), DIMENSION(0:3)            :: ed
@@ -408,7 +408,7 @@ SUBROUTINE perdew_wang_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints
     TYPE(xc_rho_set_type), POINTER           :: rho_set
     TYPE(xc_derivative_set_type), POINTER    :: deriv_set
     INTEGER, INTENT(IN), OPTIONAL            :: order
-    REAL(kind=dp), intent(in) :: scale
+    REAL(kind=dp), INTENT(in)                :: scale
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -520,7 +520,7 @@ SUBROUTINE perdew_wang_lda_calc(rho,e_0,e_rho, e_rho_rho, e_rho_rho_rho, npoints
       INTENT(inout)                          :: e_0, ea, eb, eaa, eab, ebb, &
                                                 eaaa, eaab, eabb, ebbb
     INTEGER, INTENT(in)                      :: npoints, order
-    REAL(kind=dp), intent(in) :: scale
+    REAL(kind=dp), INTENT(in)                :: scale
 
     INTEGER                                  :: abs_order, k
     REAL(KIND=dp)                            :: rho

@@ -24,14 +24,15 @@
 !!   SOURCE
 !****************************************************************************
 MODULE ep_qs_types
-  USE kinds, only: dp
-  USE timings, ONLY: timeset, timestop
+  USE kinds,                           ONLY: dp
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
   PRIVATE
 
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='ep_qs_types'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ep_qs_types'
 
   PUBLIC :: ep_qs_type, ep_qs_p_type
   PUBLIC :: ep_qs_retain, ep_qs_release
@@ -82,7 +83,7 @@ END TYPE ep_qs_type
 !!
 !!*** **********************************************************************
 TYPE ep_qs_p_type
-   TYPE(ep_qs_type), pointer :: ep_qs_env
+   TYPE(ep_qs_type), POINTER :: ep_qs_env
 END TYPE ep_qs_p_type
 !***************************************************************************
 
@@ -109,14 +110,16 @@ CONTAINS
 !!
 !!*** **********************************************************************
 SUBROUTINE ep_qs_retain(ep_qs_env,error)
-  TYPE(ep_qs_type), pointer :: ep_qs_env
-  type(cp_error_type), optional, intent(inout) :: error
-  
-  logical :: failure
-  character(len=*), parameter :: routineN='ep_qs_retain',&
-        routineP=moduleN//':'//routineN
+    TYPE(ep_qs_type), POINTER                :: ep_qs_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  failure=.false.
+    CHARACTER(len=*), PARAMETER :: routineN = 'ep_qs_retain', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+  failure=.FALSE.
 
   CPPrecondition(ASSOCIATED(ep_qs_env),cp_failure_level,routineP,error,failure)
   IF (.NOT.failure) THEN
@@ -147,15 +150,17 @@ END SUBROUTINE ep_qs_retain
 !!
 !!*** **********************************************************************
 SUBROUTINE ep_qs_release(ep_qs_env,error)
-  TYPE(ep_qs_type), pointer :: ep_qs_env
-  type(cp_error_type), optional, intent(inout) :: error
-  
-  logical :: failure
-  character(len=*), parameter :: routineN='ep_qs_retain',&
-        routineP=moduleN//':'//routineN
-  integer :: stat
+    TYPE(ep_qs_type), POINTER                :: ep_qs_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  failure=.false.
+    CHARACTER(len=*), PARAMETER :: routineN = 'ep_qs_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
+  failure=.FALSE.
 
   IF (ASSOCIATED(ep_qs_env)) THEN
      CPPrecondition(ep_qs_env%ref_count>0,cp_failure_level,routineP,error,failure)

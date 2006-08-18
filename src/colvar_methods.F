@@ -24,18 +24,11 @@
 !!   SOURCE
 !****************************************************************************
 MODULE colvar_methods
-  USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind
   USE cell_types,                      ONLY: cell_type
-  USE colvar_types,                    ONLY: angle_colvar_id,&
-                                             colvar_create,&
-                                             colvar_setup,&
-                                             colvar_type,&
-                                             coord_colvar_id,&
-                                             dist_colvar_id,&
-                                             plane_distance_colvar_id,&
-                                             torsion_colvar_id,&
-                                             rotation_colvar_id
+  USE colvar_types,                    ONLY: &
+       angle_colvar_id, colvar_create, colvar_setup, colvar_type, &
+       coord_colvar_id, dist_colvar_id, plane_distance_colvar_id, &
+       rotation_colvar_id, torsion_colvar_id
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
@@ -51,9 +44,7 @@ MODULE colvar_methods
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
   USE particle_list_types,             ONLY: particle_list_type
-  USE particle_types,                  ONLY: particle_type,&
-                                             allocate_particle_set,&
-                                             deallocate_particle_set
+  USE particle_types,                  ONLY: particle_type
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -113,12 +104,8 @@ CONTAINS
     LOGICAL                                  :: failure
     LOGICAL, DIMENSION(6)                    :: my_subsection
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(section_vals_type), POINTER         :: angle_section,&
-                                                coordination_section, &
-                                                distance_section,&
-                                                plane_dist_section,&
-                                                torsion_section,&
-                                                rotation_section
+    TYPE(section_vals_type), POINTER :: angle_section, coordination_section, &
+      distance_section, plane_dist_section, rotation_section, torsion_section
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
@@ -282,18 +269,21 @@ CONTAINS
   !!
   !!*** **********************************************************************
   SUBROUTINE colvar_eval_mol_f(colvar, cell, particles, pos, error)
-    TYPE(colvar_type),POINTER                   :: colvar
-    TYPE(particle_type), POINTER , DIMENSION(:) :: particles
-    REAL(kind=dp), DIMENSION(:,:), INTENT(IN), OPTIONAL :: pos
+    TYPE(colvar_type), POINTER               :: colvar
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particles
+    REAL(kind=dp), DIMENSION(:, :), &
+      INTENT(IN), OPTIONAL                   :: pos
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'colvar_eval_mol_f', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                     :: failure, colvar_ok
-    INTEGER                                     :: i, j
+    INTEGER                                  :: i, j
+    LOGICAL                                  :: colvar_ok, failure
+
     failure=.FALSE.
 
     colvar_ok=ASSOCIATED(colvar)
@@ -521,15 +511,16 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'rotation_colvar', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: i, idum, ii
     LOGICAL                                  :: failure
     REAL(dp)                                 :: a, b, fmod, t0, t1, t2, t3, &
-                                                xij(3), xkj(3), xdum(3)
-    REAL(KIND=dp)                            :: xp1b1(3), xp2b1(3), xp1b2(3), xp2b2(3),&
-                                                dp1b1(3), dp2b1(3), dp1b2(3), dp2b2(3)
+                                                xdum(3), xij(3), xkj(3)
+    REAL(KIND=dp)                            :: dp1b1(3), dp1b2(3), dp2b1(3), &
+                                                dp2b2(3), xp1b1(3), xp1b2(3), &
+                                                xp2b1(3), xp2b2(3)
     TYPE(particle_list_type), POINTER        :: particles_i
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: my_particles
-    INTEGER                                  :: idum, ii, i
 
     failure=.FALSE.
     NULLIFY(particles_i)
@@ -864,10 +855,10 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(dp) :: angle, cosine, dedphi, dedxia, dedxib, dedxic, dedxid, dedxt, &
       dedxu, dedyia, dedyib, dedyic, dedyid, dedyt, dedyu, dedzia, dedzib, &
-      dedzic, dedzid, dedzt, dedzu, dt, e, rcb, rt2, rtru, ru2, sine, &
+      dedzic, dedzid, dedzt, dedzu, dt, e, o0, rcb, rt2, rtru, ru2, sine, &
       xba, xca, xcb, xdb, xdc, xia, xib, xic, xid, xt, xtu, xu, yba, yca, &
       ycb, ydb, ydc, yia, yib, yic, yid, yt, ytu, yu, zba, zca, zcb, zdb, &
-      zdc, zia, zib, zic, zid, zt, ztu, zu, o0
+      zdc, zia, zib, zic, zid, zt, ztu, zu
     REAL(dp), DIMENSION(3, 4)                :: rr
     TYPE(particle_list_type), POINTER        :: particles_i
     TYPE(particle_type), DIMENSION(:), &

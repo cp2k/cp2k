@@ -121,8 +121,8 @@ SUBROUTINE fist_init ( fist_env, globenv, force_env_section, error )
 
 
     TYPE(fist_environment_type), POINTER     :: fist_env
-    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -150,7 +150,8 @@ SUBROUTINE fist_init ( fist_env, globenv, force_env_section, error )
       POINTER                                :: particle_set
     TYPE(qmmm_env_mm_type), POINTER          :: qmmm_env
     TYPE(section_vals_type), POINTER         :: cell_section, colvar_section, &
-                                                mm_section, poisson_section, ewald_section
+                                                ewald_section, mm_section, &
+                                                poisson_section
 
   CALL timeset(routineN,"I",'',handle)
   failure = .FALSE.

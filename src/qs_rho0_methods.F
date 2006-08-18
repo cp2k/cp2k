@@ -95,10 +95,10 @@ MODULE qs_rho0_methods
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_mpole_gau'
 
-    INTEGER                                  :: handle, icg, ig1, ig2, ipgf1, ipgf2, &
-                                                iset1, iset2, iso, iso1, &
-                                                iso2, l, l1, l2, m1, m2, &
-                                                maxso, n1, n2, nset
+    INTEGER                                  :: handle, icg, ig1, ig2, ipgf1, &
+                                                ipgf2, iset1, iset2, iso, &
+                                                iso1, iso2, l, l1, l2, m1, &
+                                                m2, maxso, n1, n2, nset
     INTEGER, DIMENSION(:), POINTER           :: lmax, lmin, npgf
     REAL(dp)                                 :: zet1, zet2
     REAL(dp), DIMENSION(:, :), POINTER       :: zet
@@ -331,9 +331,9 @@ MODULE qs_rho0_methods
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'init_rho0'
 
-    INTEGER :: handle, iat, iatom, ikind, istat, l, l_rho1_max, laddg, lmaxg, max_nr, &
-      maxl, maxnset, maxso, nat, natom, nchan_c, nchan_s, nkind, nr, nset, &
-      nsotot, output_unit
+    INTEGER :: handle, iat, iatom, ikind, istat, l, l_rho1_max, laddg, lmaxg, &
+      max_nr, maxl, maxnset, maxso, nat, natom, nchan_c, nchan_s, nkind, nr, &
+      nset, nsotot, output_unit
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: failure, my_tddft, paw_atom
     REAL(dp) :: alpha_core, ecut, eps_fit, eps_Vrho0, gcut, max_rpgf0_s, &
@@ -354,6 +354,7 @@ MODULE qs_rho0_methods
     TYPE(section_vals_type), POINTER         :: dft_section
 
 ! -----------------------------------------------------------------------------
+
     CALL timeset("init_rho0","I"," ",handle)
 
     failure = .FALSE.

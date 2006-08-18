@@ -26,16 +26,16 @@ MODULE fist_force_numer
                                              get_atomic_kind_set
   USE cell_types,                      ONLY: &
        cell_create, cell_release, cell_retain, cell_type, get_cell, get_hinv, &
-       plane_distance, real_to_scaled, scaled_to_real, pbc
+       pbc, plane_distance, real_to_scaled, scaled_to_real
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE ewald_environment_types,         ONLY: ewald_env_get,&
                                              ewald_environment_type
   USE ewald_pw_types,                  ONLY: ewald_pw_get,&
                                              ewald_pw_type
-  USE fist_neighbor_list_types,        ONLY: neighbor_kind_pairs_type,&
-                                             fist_neighbor_type
+  USE fist_neighbor_list_types,        ONLY: fist_neighbor_type,&
+                                             neighbor_kind_pairs_type
   USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_get,&
-                                             fist_nonbond_env_type, pos_type
+                                             fist_nonbond_env_type
   USE global_types,                    ONLY: global_environment_type
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp,&
@@ -57,27 +57,21 @@ MODULE fist_force_numer
   USE molecule_types_new,              ONLY: get_molecule,&
                                              molecule_type
   USE pair_potential,                  ONLY: potential_f
-  USE splines,                         ONLY: potential_s
-  USE pair_potential_types,            ONLY: pair_potential_pp_type,&
-                                             nn_type,&
-                                             lj_type,&
-                                             ft_type,&
-                                             wl_type,&
-                                             gw_type,&
-                                             ip_type,&
-                                             ea_type       
+  USE pair_potential_types,            ONLY: ea_type,&
+                                             pair_potential_pp_type
   USE particle_types,                  ONLY: particle_type
   USE pme,                             ONLY: pme_evaluate
   USE pw_grid_types,                   ONLY: pw_grid_type
   USE pw_grids,                        ONLY: pw_grid_change
   USE pw_pool_types,                   ONLY: pw_pool_type
   USE qs_neighbor_lists,               ONLY: local_atoms_type
-  USE splines,                         ONLY: spline_data_type
+  USE splines,                         ONLY: potential_s,&
+                                             spline_data_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE util, ONLY: matvec_3x3
+  USE util,                            ONLY: matvec_3x3
 #include "cp_common_uses.h"  
 
   IMPLICIT NONE
@@ -224,7 +218,8 @@ SUBROUTINE force_onefour_numer ( molecule_set, molecule_kind_set, local_molecule
 
     INTEGER :: akind, bkind, first_atom, i, ibond, idim, ikind, imol, &
       index_a, index_b, nkind, nmol_per_kind, nonfo
-    REAL(KIND=dp)                            :: e0, e1, em,em1,em2, ep,ep1,ep2, fscalar, rab2, &
+    REAL(KIND=dp)                            :: e0, e1, em, em1, em2, ep, &
+                                                ep1, ep2, fscalar, rab2, &
                                                 rab2_minus_delta, &
                                                 rab2_plus_delta, rinv, rinv2
     REAL(KIND=dp), DIMENSION(3)              :: delta, rij
@@ -1910,7 +1905,7 @@ SUBROUTINE pv_g_numer ( ewald_env, ewald_pw, cell, atomic_kind_set, particle_set
       DIMENSION(:, :)                        :: s
     REAL(KIND=dp), DIMENSION(3, 3)           :: dvdh
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: g
-    TYPE(cell_type), POINTER                 ::  cell_local
+    TYPE(cell_type), POINTER                 :: cell_local
     TYPE(pw_grid_type), POINTER              :: pw_grid
     TYPE(pw_pool_type), POINTER              :: pw_pool
 
@@ -2174,7 +2169,7 @@ SUBROUTINE pme_force_numer ( ewald_env, ewald_pw, cell, particle_set, delta, f_p
      force_env_section, error)
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
-    TYPE ( cell_type ), POINTER              :: cell
+    TYPE(cell_type), POINTER                 :: cell
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     REAL(KIND=dp), INTENT(IN)                :: delta
@@ -2379,7 +2374,8 @@ SUBROUTINE potential_onefour ( molecule_set, molecule_kind_set, local_molecules,
                                                 ibond, ikind, imol, index_a, &
                                                 index_b, nkind, &
                                                 nmol_per_kind, nonfo
-    REAL(KIND=dp)                            :: e0,e1,fscalar,rab2,rinv2,rinv
+    REAL(KIND=dp)                            :: e0, e1, fscalar, rab2, rinv, &
+                                                rinv2
     REAL(KIND=dp), DIMENSION(3)              :: rij
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
@@ -2782,14 +2778,13 @@ SUBROUTINE potential_nonbond ( fist_nonbond_env, particle_set, atomic_kind_set, 
     TYPE(cell_type), POINTER                 :: cell
     REAL(KIND=dp), INTENT(INOUT)             :: vnb
 
-    INTEGER                                  :: ab, atom_a, atom_b, ikind, &
-                                                ilist, inode, jkind, nkinds, &
-                                                nlist, nnode, ipair
+    INTEGER                                  :: atom_a, atom_b, ikind, ilist, &
+                                                ipair, jkind, nkinds
     REAL(KIND=dp)                            :: energy, qi, qj, rab2, rab2_max
-    REAL(KIND=dp), DIMENSION(3)              :: dra, drb, rab,s2r,r2s, cell_v
+    REAL(KIND=dp), DIMENSION(3)              :: cell_v, rab
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(neighbor_kind_pairs_type), POINTER  :: neighbor_kind_pair
     TYPE(fist_neighbor_type), POINTER        :: nonbonded
+    TYPE(neighbor_kind_pairs_type), POINTER  :: neighbor_kind_pair
     TYPE(pair_potential_pp_type), POINTER    :: potparm
 
 !------------------------------------------------------------------------------
@@ -3022,7 +3017,6 @@ END SUBROUTINE potential_nonbond
     INTEGER :: atom_a, atom_b, handle, i, iatom, iatom_local, icell, ikind, &
       jatom_local, jcell, jkind, kcell, natom_local_a, natom_local_b, nkind
     INTEGER, DIMENSION(3)                    :: cell_b, ncell, periodic
-    INTEGER, DIMENSION(:), POINTER           :: exclusion_list
     LOGICAL                                  :: exclude_flag, include_ab
     REAL(KIND=dp)                            :: qi, qj, rab2, rab2_max
     REAL(KIND=dp), DIMENSION(3)              :: r, rab, rb, sab, sab_max, sb, &

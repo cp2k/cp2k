@@ -194,7 +194,7 @@ SUBROUTINE sm_struct_create(sm_struct, block_begins_at_row,&
     CHARACTER(len=*)                         :: symmetry
     TYPE(distribution_2d_type), POINTER      :: distribution_2d
     TYPE(cp_sm_node_type), OPTIONAL, POINTER :: local_blocks_ptr
-    INTEGER, optional                        :: sparsity_id
+    INTEGER, OPTIONAL                        :: sparsity_id
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 

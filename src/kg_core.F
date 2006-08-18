@@ -84,9 +84,9 @@ CONTAINS
 
     CHARACTER(LEN=8)                         :: unit_of_length_name
     INTEGER :: atom_a, atom_b, group, handle, i, iatom, iatom_local, &
-      iatom_subcell, icell, iexl, ikind, istat, j, jatom, jatom_local, jcell, &
-      jkind, k, kcell, kkind, maxatom_local, natom, natom_local_a, &
-      natom_local_b, nexl, nkind, output_unit
+      iatom_subcell, icell, ikind, istat, j, jatom, jatom_local, jcell, &
+      jkind, k, kcell, maxatom_local, natom, natom_local_a, natom_local_b, &
+      nkind, output_unit
     INTEGER, DIMENSION(3)                    :: cell_b, ncell, nsubcell, &
                                                 periodic
     INTEGER, DIMENSION(:), POINTER           :: list

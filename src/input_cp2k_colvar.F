@@ -354,8 +354,7 @@ CONTAINS
       OPTIONAL                               :: error
     CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: description
 
-    CHARACTER(len=*), PARAMETER :: &
-      routineN = 'create_colvar_rot_section', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_colvar_rot_section', &
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure

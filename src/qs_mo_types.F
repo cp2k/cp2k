@@ -54,8 +54,8 @@ MODULE qs_mo_types
                                              global_environment_type
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
-  USE kinds,                           ONLY: default_string_length,&
-                                             default_path_length,&
+  USE kinds,                           ONLY: default_path_length,&
+                                             default_string_length,&
                                              dp,&
                                              dp_size,&
                                              int_size
@@ -601,16 +601,16 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(section_vals_type), POINTER         :: dft_section
     TYPE(global_environment_type), POINTER   :: globenv
     INTEGER, INTENT(in)                      :: id_nr
+    TYPE(section_vals_type), POINTER         :: dft_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_mo_set_to_restart', &
       routine = "SUBROUTINE "//routineN//" (MODULE "//moduleN//")"
 
-    CHARACTER(LEN=default_path_length)                       :: file_name
+    CHARACTER(LEN=default_path_length)       :: file_name
     INTEGER :: handle, i, i_block, iatom, iset, ishell, ispin, istat, j, &
       lshell, max_block, nao, natom, nmo, nset, nset_max, nsgf, nshell_max, &
       nspin, restart_unit
@@ -769,7 +769,7 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(global_environment_type), POINTER   :: globenv
-    INTEGER, INTENT(in)                      :: id_nr,multiplicity
+    INTEGER, INTENT(in)                      :: id_nr, multiplicity
     TYPE(section_vals_type), POINTER         :: dft_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -777,11 +777,11 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_mo_set_from_restart', &
       routine = "SUBROUTINE "//routineN//" (MODULE "//moduleN//")"
 
-    CHARACTER(LEN=default_path_length)                       :: file_name
+    CHARACTER(LEN=default_path_length)       :: file_name
     INTEGER :: group, handle, i, iatom, irow, iset, iset_read, ishell, &
       ishell_read, iso, ispin, istat, lshell, nao, nao_read, natom, &
-      natom_read, nelectron, nmo, nmo_read, nset, nset_max, nsgf, nshell_max, nspin, &
-      nspin_read, offset_read, restart_unit, source
+      natom_read, nelectron, nmo, nmo_read, nset, nset_max, nsgf, nshell_max, &
+      nspin, nspin_read, offset_read, restart_unit, source
     INTEGER, DIMENSION(:), POINTER           :: nset_info, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: l, nshell_info
     INTEGER, DIMENSION(:, :, :), POINTER     :: nso_info, offset_info
@@ -1081,24 +1081,24 @@ CONTAINS
 
     CHARACTER(LEN=12), DIMENSION(:), POINTER :: cgf_symbol
     CHARACTER(LEN=2)                         :: element_symbol
+    CHARACTER(LEN=2*default_string_length)   :: name
     CHARACTER(LEN=22)                        :: fmtstr2
     CHARACTER(LEN=25)                        :: fmtstr1
     CHARACTER(LEN=38)                        :: fmtstr3
     CHARACTER(LEN=6), DIMENSION(:), POINTER  :: sgf_symbol
-    CHARACTER(LEN=2*default_string_length)   :: name
     INTEGER :: from, iatom, icgf, ico, icol, irow, iset, isgf, ishell, iso, &
       istat, iw, jcol, left, lshell, natom, ncgf, ncol, ncol_global, &
-      nrow_global, nset, nsgf, right, to, width, scf_step
+      nrow_global, nset, nsgf, right, scf_step, to, width
     INTEGER, DIMENSION(:), POINTER           :: nshell
     INTEGER, DIMENSION(:, :), POINTER        :: l
-    LOGICAL                                  :: ionode, p_cart, p_eval, &
-                                                p_evec, p_occ, should_output
+    LOGICAL                                  :: ionode, my_last, p_cart, &
+                                                p_eval, p_evec, p_occ, &
+                                                should_output
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: cmatrix, smatrix
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
-    LOGICAL                                  :: my_last
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)

@@ -27,7 +27,8 @@ MODULE qs_p_env_types
   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
                                              cp_fm_type
   USE cp_fm_vect,                      ONLY: cp_fm_vect_dealloc,&
-       cp_fm_vect_write
+                                             cp_fm_vect_write
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE hartree_local_types,             ONLY: hartree_local_release,&
                                              hartree_local_type
   USE kinds,                           ONLY: dp
@@ -43,7 +44,6 @@ MODULE qs_p_env_types
                                              real_matrix_p_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE cp_para_types, only: cp_para_env_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -356,21 +356,20 @@ END SUBROUTINE p_env_retain
  !!
  !!*** **********************************************************************
    SUBROUTINE p_env_write(p_env, unit_nr, long_description, local, error)
-     TYPE(qs_p_env_type), POINTER             :: p_env
-     INTEGER, INTENT(in)                      :: unit_nr
-     LOGICAL, INTENT(in), OPTIONAL            :: long_description, local
-     TYPE(cp_error_type), INTENT(inout), &
-       OPTIONAL                               :: error
+    TYPE(qs_p_env_type), POINTER             :: p_env
+    INTEGER, INTENT(in)                      :: unit_nr
+    LOGICAL, INTENT(in), OPTIONAL            :: long_description, local
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-     CHARACTER(len=*), PARAMETER :: routineN = 'p_env_write', &
-       routineP = moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'p_env_write', &
+      routineP = moduleN//':'//routineN
 
-     INTEGER                                  :: i, iostat
-     INTEGER, SAVE                            :: uniquing_nr = 0
-     LOGICAL                                  :: failure, my_local, &
-                                                 my_long_description, should_w
-     TYPE(cp_logger_type), POINTER            :: logger
-     TYPE(cp_para_env_type), POINTER          :: para_env
+    INTEGER                                  :: iostat
+    LOGICAL                                  :: failure, my_local, &
+                                                my_long_description, should_w
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
 
      failure=.FALSE.; my_local=.FALSE.; my_long_description=.FALSE.
      iostat=0

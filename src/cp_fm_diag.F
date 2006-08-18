@@ -39,14 +39,13 @@ MODULE cp_fm_diag
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE util,                            ONLY: sort
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
 
   PRIVATE
 
-  CHARACTER(LEN=*), PARAMETER :: moduleN = "cp_fm_diag"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_fm_diag'
 
   ! Public subroutines
 
@@ -73,7 +72,7 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "cp_fm_syevd"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'cp_fm_syevd'
 
     INTEGER                                  :: handle, info, istat, liwork, &
                                                 lwork, mypcol, myprow, n
@@ -84,7 +83,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: m, v
     TYPE(cp_blacs_env_type), POINTER         :: context
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     CALL timeset("cp_fm_syevd","I","",handle)
 

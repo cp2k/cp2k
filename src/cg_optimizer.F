@@ -23,8 +23,6 @@
 
 MODULE cg_optimizer
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
-  USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind
   USE bfgs_optimizer,                  ONLY: check_converg,&
                                              write_cycle_infos
   USE cell_types,                      ONLY: cell_type
@@ -39,8 +37,8 @@ MODULE cg_optimizer
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
   USE gopt_f_types,                    ONLY: cp_eval_at,&
-                                             gopt_param_type,&
-                                             gopt_f_type
+                                             gopt_f_type,&
+                                             gopt_param_type
   USE input_constants,                 ONLY: dump_xmol
   USE input_cp2k_restarts,             ONLY: write_restart
   USE input_section_types,             ONLY: section_vals_type
@@ -94,25 +92,18 @@ CONTAINS
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(gopt_param_type), POINTER           :: gopt_param
     TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(gopt_f_type), POINTER               :: gopt_env
     REAL(KIND=dp), DIMENSION(:), POINTER     :: x0
-    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'geoopt_cg', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: atom, handle, iatom, ihandle, &
-                                                ikind, indf, j, natom, ndf, &
-                                                nfixed, nfree, nkind, &
-                                                output_unit, stat
-    INTEGER, DIMENSION(:), POINTER           :: atom_list
+    INTEGER                                  :: handle, ihandle, output_unit
     LOGICAL                                  :: failure, ionode
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_subsystem_p_type), &
@@ -197,8 +188,8 @@ CONTAINS
     LOGICAL, INTENT(IN)                      :: ionode
     INTEGER, INTENT(IN)                      :: output_unit
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(gopt_f_type), POINTER               :: gopt_env
     TYPE(section_vals_type), POINTER         :: force_env_section
+    TYPE(gopt_f_type), POINTER               :: gopt_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -549,7 +540,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE cg_mnbrak(gopt_env, ax, bx, cx, pcom, xicom, brack_limit, output_unit, ionode,&
        histpoint, globenv, error)
-    TYPE(gopt_f_type), pointer               :: gopt_env
+    TYPE(gopt_f_type), POINTER               :: gopt_env
     REAL(KIND=dp)                            :: ax, bx, cx
     REAL(KIND=dp), DIMENSION(:), POINTER     :: pcom, xicom
     REAL(KIND=dp)                            :: brack_limit

@@ -28,16 +28,11 @@ MODULE scf_control_types
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE global_types,                    ONLY: global_environment_type
-  USE input_constants,                 ONLY: atomic_guess,&
-                                             core_guess,&
-                                             general_roks,&
-                                             high_spin_roks,&
-                                             outer_scf_ddapc_constraint,&
-                                             outer_scf_none,&
-                                             outer_scf_optimizer_diis,&
-                                             outer_scf_optimizer_none,&
-                                             outer_scf_optimizer_sd,&
-                                             outer_scf_s2_constraint
+  USE input_constants,                 ONLY: &
+       atomic_guess, core_guess, general_roks, high_spin_roks, &
+       outer_scf_ddapc_constraint, outer_scf_none, outer_scf_optimizer_diis, &
+       outer_scf_optimizer_none, outer_scf_optimizer_sd, &
+       outer_scf_s2_constraint
   USE input_cp2k_dft,                  ONLY: create_scf_section
   USE input_enumeration_types,         ONLY: enum_i2c,&
                                              enumeration_type
@@ -60,7 +55,7 @@ MODULE scf_control_types
 
   PRIVATE
 
-  CHARACTER(LEN=*), PARAMETER :: moduleN = "scf_control_types"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'scf_control_types'
   LOGICAL, PRIVATE, PARAMETER :: debug_this_module = .TRUE.
 
   INTEGER, SAVE :: last_scf_c_id_nr = 0
@@ -184,13 +179,13 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "scf_c_create",&
-                                   routineP = moduleN//":"//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'scf_c_create', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     failure = .FALSE.
 
@@ -308,12 +303,12 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = "scf_c_retain", &
-                                   routineP = moduleN//":"//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'scf_c_retain', &
+      routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     failure = .FALSE.
 
@@ -357,13 +352,13 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = "scf_c_release", &
-                                   routineP = moduleN//":"//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'scf_c_release', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     failure = .FALSE.
 
@@ -411,17 +406,16 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "scf_c_read_parameters", &
-                                   routineP = moduleN//":"//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'scf_c_read_parameters', &
+      routineP = moduleN//':'//routineN
 
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: parameter
     INTEGER, DIMENSION(:), POINTER           :: added_mos
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: r_vals
     LOGICAL                                  :: explicit, failure
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: PARAMETER, r_vals
     TYPE(section_vals_type), POINTER         :: harris_section, &
                                                 outer_scf_section, scf_section
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     failure = .FALSE.
 
@@ -494,17 +488,17 @@ CONTAINS
          ! Read high-spin ROKS parameters for the diagonal block
          ! 0 = v)irtual, 1 = o)pen shell, 2 = c)losed shell
 
-         NULLIFY (parameter)
+         NULLIFY (PARAMETER)
          CALL section_vals_val_get(scf_section,"ROKS_PARAMETERS",&
-                                   r_vals=parameter,&
+                                   r_vals=PARAMETER,&
                                    error=error)
-         IF (ASSOCIATED(parameter)) THEN
-           scf_control%roks_parameter(2,2,1) = parameter(1) ! acc
-           scf_control%roks_parameter(2,2,2) = parameter(2) ! bcc
-           scf_control%roks_parameter(1,1,1) = parameter(3) ! aoo
-           scf_control%roks_parameter(1,1,2) = parameter(4) ! boo
-           scf_control%roks_parameter(0,0,1) = parameter(5) ! avv
-           scf_control%roks_parameter(0,0,2) = parameter(6) ! bvv
+         IF (ASSOCIATED(PARAMETER)) THEN
+           scf_control%roks_parameter(2,2,1) = PARAMETER(1) ! acc
+           scf_control%roks_parameter(2,2,2) = PARAMETER(2) ! bcc
+           scf_control%roks_parameter(1,1,1) = PARAMETER(3) ! aoo
+           scf_control%roks_parameter(1,1,2) = PARAMETER(4) ! boo
+           scf_control%roks_parameter(0,0,1) = PARAMETER(5) ! avv
+           scf_control%roks_parameter(0,0,2) = PARAMETER(6) ! bvv
          END IF
 
        END IF
@@ -603,18 +597,18 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "scf_c_write_parameters", &
-                                   routineP = moduleN//":"//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'scf_c_write_parameters', &
+      routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: output_unit,roks_scheme
-    LOGICAL                                  :: failure,roks
+    INTEGER                                  :: output_unit, roks_scheme
+    LOGICAL                                  :: failure, roks
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(enumeration_type), POINTER          :: enum
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: section
-    TYPE(section_vals_type), POINTER         :: dft_section,scf_section
+    TYPE(section_vals_type), POINTER         :: dft_section, scf_section
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     failure = .FALSE.
 

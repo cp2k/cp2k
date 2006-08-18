@@ -38,8 +38,7 @@ MODULE input_cp2k_subsys
                                              integer_t,&
                                              lchar_t,&
                                              real_t
-  USE kinds,                           ONLY: dp,&
-                                             default_string_length
+  USE kinds,                           ONLY: dp
   USE physcon,                         ONLY: bohr
   USE string_utilities,                ONLY: s2a
   USE timings,                         ONLY: timeset,&
@@ -79,17 +78,17 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE create_cell_section(section,periodic,error)
     TYPE(section_type), POINTER              :: section
+    INTEGER, INTENT(IN), OPTIONAL            :: periodic
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-    INTEGER, INTENT(IN), OPTIONAL            :: periodic
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_cell_section', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: my_periodic
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(section_type), POINTER              :: subsection
-    INTEGER                                  :: my_periodic
 
     failure=.FALSE.
 

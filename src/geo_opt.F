@@ -52,8 +52,7 @@ MODULE geo_opt
                                              default_cg_method_id,&
                                              default_lbfgs_method_id
   USE input_cp2k_restarts,             ONLY: write_restart
-  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                             section_vals_type
+  USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: write_particle_distances
@@ -104,10 +103,10 @@ MODULE geo_opt
 
     INTEGER                                  :: handle, stat
     LOGICAL                                  :: failure
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: x0
+    TYPE(gopt_f_type), POINTER               :: gopt_env
     TYPE(gopt_param_type), POINTER           :: gopt_param
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(gopt_f_type), POINTER               :: gopt_env
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: x0
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
@@ -178,8 +177,7 @@ MODULE geo_opt
     CHARACTER(len=*), PARAMETER :: routineN = 'gopt_do_opt', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, ihandle, isubsys, &
-                                                stat
+    INTEGER                                  :: handle, i, ihandle, isubsys
     LOGICAL                                  :: failure, should_stop
     REAL(KIND=dp)                            :: f
     TYPE(cell_type), POINTER                 :: cell
@@ -188,7 +186,6 @@ MODULE geo_opt
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
-
     TYPE(particle_list_type), POINTER        :: particles
 
      CALL timeset(routineN,"I","",handle)

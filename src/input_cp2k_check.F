@@ -42,12 +42,11 @@ MODULE input_cp2k_check
   USE input_parsing,                   ONLY: section_vals_parse
   USE input_section_types,             ONLY: &
        section_release, section_type, section_vals_create, section_vals_get, &
-       section_vals_get_subs_vals, section_vals_release, &
-       section_vals_set_subs_vals, section_vals_type, section_vals_val_get, &
-       section_vals_val_set, section_vals_duplicate,section_vals_get_subs_vals2 ,&
-       section_vals_get_subs_vals3
-  USE kinds,                           ONLY: default_string_length,&
-                                             default_path_length,&
+       section_vals_get_subs_vals, section_vals_get_subs_vals3, &
+       section_vals_release, section_vals_set_subs_vals, section_vals_type, &
+       section_vals_val_get, section_vals_val_set
+  USE kinds,                           ONLY: default_path_length,&
+                                             default_string_length,&
                                              dp
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -95,9 +94,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'check_cp2k_input', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, nforce_eval, iforce_eval
+    INTEGER                                  :: handle, iforce_eval, &
+                                                nforce_eval
     LOGICAL                                  :: explicit, failure
-    TYPE(section_vals_type), POINTER         :: section, sections, section2
+    TYPE(section_vals_type), POINTER         :: section, section2, sections
 
     CALL timeset(routineN,handle)
 
@@ -270,10 +270,11 @@ SUBROUTINE handle_ext_restart(input_file,para_env,error)
     CHARACTER(len=*), PARAMETER :: routineN = 'handle_ext_restart', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(default_string_length)         :: path
     CHARACTER(default_path_length)           :: r_file_path
-    INTEGER                                  :: handle, i_rep_val, myi, &
-                                                n_rep_val, nforce_eval1, nforce_eval2, iforce_eval
+    CHARACTER(default_string_length)         :: path
+    INTEGER                                  :: handle, i_rep_val, &
+                                                iforce_eval, myi, n_rep_val, &
+                                                nforce_eval1, nforce_eval2
     LOGICAL                                  :: explicit1, explicit2, &
                                                 failure, flag, flag2
     REAL(KIND=dp)                            :: myt
@@ -282,9 +283,9 @@ SUBROUTINE handle_ext_restart(input_file,para_env,error)
     TYPE(cp_unit_set_type), POINTER          :: default_units
     TYPE(section_type), POINTER              :: input_structure
     TYPE(section_vals_type), POINTER         :: r_section, restart_input, &
-                                                section, work_section,&
-                                                section1, section2,&
-                                                sections1, sections2
+                                                section, section1, section2, &
+                                                sections1, sections2, &
+                                                work_section
 
   CALL timeset(routineN,handle)
 

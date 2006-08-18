@@ -35,8 +35,8 @@ MODULE xas_control
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
-  USE kinds,                           ONLY: dp,&
-                                             default_path_length
+  USE kinds,                           ONLY: default_path_length,&
+                                             dp
   USE memory_utilities,                ONLY: reallocate
   USE qs_loc_control,                  ONLY: localized_wfn_control_create,&
                                              localized_wfn_control_release,&

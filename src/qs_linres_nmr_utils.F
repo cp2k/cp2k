@@ -86,19 +86,18 @@ MODULE qs_linres_nmr_utils
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_linres_methods,               ONLY: linres_scf
-  USE qs_linres_nmr_atom_current,      ONLY: calculate_jrho_atom_coeff,&
-                                            list_3c_jrho_atom
-  USE qs_linres_nmr_current,           ONLY: nmr_response_current,&
-                                             test_func
+  USE qs_linres_nmr_atom_current,      ONLY: list_3c_jrho_atom
+  USE qs_linres_nmr_current,           ONLY: nmr_response_current
   USE qs_linres_nmr_op,                ONLY: set_vecp
   USE qs_linres_nmr_shift,             ONLY: nmr_print_shift
   USE qs_linres_types,                 ONLY: deallocate_jrho_atom_set,&
                                              get_nmr_env,&
-                                             init_jrho_atom_set, &
-                                             jrho_atom_type, &
+                                             init_jrho_atom_set,&
+                                             jrho_atom_type,&
                                              linres_control_type,&
                                              nmr_env_create,&
-                                             nmr_env_type, set_nmr_env
+                                             nmr_env_type,&
+                                             set_nmr_env
   USE qs_loc_methods,                  ONLY: qs_print_cubes
   USE qs_matrix_pools,                 ONLY: mpools_get,&
                                              qs_matrix_pools_type
@@ -107,7 +106,8 @@ MODULE qs_linres_nmr_utils
   USE qs_operators_ao,                 ONLY: set_up_op_sm
   USE qs_p_env_types,                  ONLY: p_env_release,&
                                              qs_p_env_type
-  USE qs_rho_types,                    ONLY: qs_rho_release, qs_rho_retain
+  USE qs_rho_types,                    ONLY: qs_rho_release,&
+                                             qs_rho_retain
   USE scf_control_types,               ONLY: scf_control_type
   USE sparse_matrix_types,             ONLY: allocate_matrix_set,&
                                              deallocate_matrix,&
@@ -140,27 +140,27 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'nmr_do_nmr', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, homo, iao, idir, idir2, ii, &
-                                                iii, ik, ispin, ist_true, istat, &
-                                                istate, istate2, nao,  nmo, ncubes, &
-                                                nstates(2), output_unit
+    INTEGER :: handle, homo, idir, ii, iii, ispin, ist_true, istat, istate, &
+      istate2, nao, ncubes, nmo, nstates(2), output_unit
     INTEGER, DIMENSION(:), POINTER           :: list_cubes
-    INTEGER, DIMENSION(:,:), POINTER         :: statetrueindex
+    INTEGER, DIMENSION(:, :), POINTER        :: statetrueindex
     LOGICAL                                  :: failure, ionode
     REAL(dp)                                 :: dk(3), dkl(3), dl(3)
-    REAL(dp), DIMENSION(:), POINTER          :: dkl_vec_ii,dkl_vec_iii
+    REAL(dp), DIMENSION(:), POINTER          :: dkl_vec_ii, dkl_vec_iii
     REAL(dp), DIMENSION(:, :), POINTER       :: vecbuf_dklxp0
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_2d_r_p_type), DIMENSION(:),&
+    TYPE(cp_2d_r_p_type), DIMENSION(:), &
       POINTER                                :: centers_set
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: h1_psi0, psi1
-    TYPE(cp_fm_p_type), DIMENSION(:,:), POINTER :: psi1_p, psi1_rxp, psi1_D
-    TYPE(cp_fm_p_type), DIMENSION(:,:), POINTER :: p_psi0, rxp_psi0
-    TYPE(cp_fm_type), POINTER                :: mo_coeff, fm_work_ii, fm_work_iii
+    TYPE(cp_fm_p_type), DIMENSION(:, :), &
+      POINTER                                :: p_psi0, psi1_D, psi1_p, &
+                                                psi1_rxp, rxp_psi0
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
       POINTER                                :: ao_mo_fm_pools
     TYPE(cp_fm_struct_type), POINTER         :: tmp_fm_struct
+    TYPE(cp_fm_type), POINTER                :: fm_work_ii, fm_work_iii, &
+                                                mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -523,9 +523,9 @@ CONTAINS
 
     CHARACTER(LEN=2)                         :: label
     CHARACTER(LEN=default_string_length)     :: nics_file_name
-    INTEGER :: handle, homo, i_B, icount, idir, ini, ir, ispin, istat, istate, &
-      istate2, istate_next, j, k, n_mo(2), n_rep, nao, natom, nat_print, ncubes, nmoloc, &
-      nspins, nstates, output_unit
+    INTEGER :: handle, homo, i_B, icount, idir, ini, ir, ispin, istat, &
+      istate, istate2, istate_next, j, k, n_mo(2), n_rep, nao, nat_print, &
+      natom, ncubes, nmoloc, nspins, nstates, output_unit
     INTEGER, DIMENSION(:), POINTER           :: bounds, list
     LOGICAL                                  :: failure, gapw, ionode, my_end
     LOGICAL, ALLOCATABLE, DIMENSION(:, :)    :: state_done
@@ -537,8 +537,8 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_parser_type), POINTER            :: parser
     TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(jrho_atom_type),DIMENSION(:),&
-       POINTER                               :: jrho1_atom_set
+    TYPE(jrho_atom_type), DIMENSION(:), &
+      POINTER                                :: jrho1_atom_set
     TYPE(linres_control_type), POINTER       :: linres_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos

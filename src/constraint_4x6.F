@@ -72,7 +72,7 @@ CONTAINS
 
     INTEGER                                  :: first_atom, iconst, index_a, &
                                                 index_b, index_c, index_d, &
-                                                ng4x6
+                                                ishake, ng4x6
     REAL(KIND=dp)                            :: dtby2, dtsqby2, idtsq, &
                                                 imass1, imass2, imass3, &
                                                 imass4, mass, max_sigma, sigma
@@ -86,7 +86,6 @@ CONTAINS
     TYPE(local_g4x6_constraint_type), &
       POINTER                                :: lg4x6( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
-    INTEGER                                  :: ishake
 
     dtsqby2 = simpar%dt*simpar%dt*.5_dp
     idtsq = 1.0_dp/simpar%dt/simpar%dt
@@ -316,7 +315,7 @@ CONTAINS
 
     INTEGER                                  :: first_atom, iconst, index_a, &
                                                 index_b, index_c, index_d, &
-                                                ng4x6, ishake
+                                                ishake, ng4x6
     REAL(KIND=dp)                            :: dtby2, dtsqby2, idtsq, &
                                                 imass1, imass2, imass3, &
                                                 imass4, mass, max_sigma, sigma

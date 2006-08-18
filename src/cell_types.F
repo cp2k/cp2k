@@ -21,7 +21,6 @@
 MODULE cell_types
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
-  USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: &
        use_perd_none, use_perd_x, use_perd_xy, use_perd_xyz, use_perd_xz, &
        use_perd_y, use_perd_yz, use_perd_z, use_unit_angstrom, use_unit_bohr, &
@@ -220,7 +219,7 @@ CONTAINS
       INTENT(OUT), OPTIONAL                  :: cell_angle
 
     REAL(KIND=dp)                            :: alpha, beta, gamma
-   TYPE(cell_type), POINTER                 :: cell
+    TYPE(cell_type), POINTER                 :: cell
 
 !   ---------------------------------------------------------------------------
 
@@ -469,7 +468,7 @@ CONTAINS
     INTEGER, DIMENSION(3)                    :: periodic
     REAL(KIND=dp)                            :: rab2, rab2_pbc
     REAL(KIND=dp), DIMENSION(3)              :: r, ra_pbc, rab, rb_image, &
-                                                rb_pbc,s2r
+                                                rb_pbc, s2r
 
 !   ---------------------------------------------------------------------------
 
@@ -656,9 +655,9 @@ CONTAINS
 
 !   ***************************************************************************
 
+    REAL(KIND=dp), DIMENSION(3), INTENT(OUT) :: s
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: r
     TYPE(cell_type), POINTER                 :: cell
-    REAL(KIND=dp), DIMENSION(3), INTENT(OUT) :: s
 
 !   ---------------------------------------------------------------------------
 
@@ -684,9 +683,9 @@ CONTAINS
 
 !   ***************************************************************************
 
+    REAL(KIND=dp), DIMENSION(3), INTENT(OUT) :: r
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: s
     TYPE(cell_type), POINTER                 :: cell
-    REAL(KIND=dp), DIMENSION(3), INTENT(OUT) :: r
 
 !   ---------------------------------------------------------------------------
 

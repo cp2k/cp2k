@@ -152,7 +152,6 @@ CONTAINS
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_vals_type), POINTER         :: force_env_section
-
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -184,8 +183,8 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: cell_section, colvar_section, &
-                                                dft_section, qs_section,&
-                                                work_section, kind_section
+                                                dft_section, kind_section, &
+                                                qs_section, work_section
 
     CALL timeset(routineN,"I",'',handle)
 
@@ -477,8 +476,8 @@ CONTAINS
 !   We generate a qs_environment for the system
 
     TYPE(kg_environment_type), POINTER       :: kg_env
-    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 

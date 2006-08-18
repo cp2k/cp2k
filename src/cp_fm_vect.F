@@ -195,20 +195,20 @@ END SUBROUTINE cp_fm_vect_copy
  !!*** **********************************************************************
    SUBROUTINE cp_fm_vect_write(matrixes, unit_nr, long_description,&
         local, error)
-     TYPE(cp_fm_p_type), DIMENSION(:), &
-       POINTER                                :: matrixes
-     INTEGER, INTENT(in)                      :: unit_nr
-     LOGICAL, INTENT(in), OPTIONAL            :: long_description, local
-     TYPE(cp_error_type), INTENT(inout), &
-       OPTIONAL                               :: error
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: matrixes
+    INTEGER, INTENT(in)                      :: unit_nr
+    LOGICAL, INTENT(in), OPTIONAL            :: long_description, local
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-     CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_vect_write', &
-       routineP = moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_vect_write', &
+      routineP = moduleN//':'//routineN
 
-     INTEGER                                  :: i
-     LOGICAL                                  :: failure, my_local, &
-                                                 my_long_description, should_w
-     TYPE(cp_logger_type), POINTER            :: logger
+    INTEGER                                  :: i
+    LOGICAL                                  :: failure, my_local, &
+                                                my_long_description, should_w
+    TYPE(cp_logger_type), POINTER            :: logger
 
    failure=.FALSE.; my_local=.FALSE.; my_long_description=.FALSE.
    logger => cp_error_get_logger(error)

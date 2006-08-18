@@ -23,8 +23,8 @@
 
 MODULE force_field_types
 
-  USE kinds,                           ONLY: default_string_length,&
-                                             default_path_length,&
+  USE kinds,                           ONLY: default_path_length,&
+                                             default_string_length,&
                                              dp
   USE pair_potential_types,            ONLY: pair_potential_p_release,&
                                              pair_potential_p_type

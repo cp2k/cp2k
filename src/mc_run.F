@@ -56,6 +56,8 @@ MODULE mc_run
                                              use_fist_force
   USE global_types,                    ONLY: global_environment_type,&
                                              globenv_release
+  USE input_section_types,             ONLY: section_vals_get,&
+                                             section_vals_type
   USE kinds,                           ONLY: dp
   USE mc_control,                      ONLY: mc_create_force_env,&
                                              read_mc_restart
@@ -81,14 +83,6 @@ MODULE mc_run
   USE physcon,                         ONLY: angstrom
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
-  USE input_section_types,             ONLY: section_release,&
-                                             section_type,&
-                                             section_vals_create,&
-                                             section_vals_release,&
-                                             section_vals_type,&
-                                             section_vals_get,&
-                                             section_vals_get_subs_vals,&
-                                             section_vals_get_subs_vals2
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -160,6 +154,7 @@ CONTAINS
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys, subsys_2
     TYPE(force_env_type), POINTER            :: force_env_2
+    TYPE(global_environment_type), POINTER   :: globenv_2
     TYPE(mc_environment_p_type), &
       DIMENSION(:), POINTER                  :: mc_env
     TYPE(mc_simulation_parameters_type), &
@@ -168,8 +163,7 @@ CONTAINS
                                                 molecule_kinds_new_2
     TYPE(molecule_kind_type), POINTER        :: molecule_kind, molecule_kind_2
     TYPE(rng_stream_type), POINTER           :: rng_stream
-    TYPE(global_environment_type), POINTER   :: globenv_2
-    TYPE(section_vals_type), pointer         :: force_env_section
+    TYPE(section_vals_type), POINTER         :: force_env_section
 
       NULLIFY(mc_env,mc_par,mc_par_2,force_env_2,rng_stream)
 

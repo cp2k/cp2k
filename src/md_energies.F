@@ -47,7 +47,6 @@ MODULE md_energies
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE machine,                         ONLY: m_flush
-  USE mathconstants,                   ONLY: zero
   USE md,                              ONLY: simulation_parameters_type
   USE md_conserved_quantities,         ONLY: compute_conserved_quantity
   USE md_environment_types,            ONLY: get_md_env,&

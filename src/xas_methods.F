@@ -60,16 +60,15 @@ MODULE xas_methods
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: &
        do_loc_none, op_loc_berry, state_loc_upton, xas_1s_type, xas_2p_type, &
-       xas_2s_type, xas_dip_len, xas_dip_vel, xas_dip_len2, xas_dscf, &
-       xas_scf_default, xas_scf_general, &
-       xas_scf_ot, xas_tddft, xas_tp_fh, xas_tp_hh, xas_tp_xfh, xas_tp_xhh, &
-       xes_tp_val
+       xas_2s_type, xas_dip_len2, xas_dip_vel, xas_dscf, xas_scf_default, &
+       xas_scf_general, xas_scf_ot, xas_tddft, xas_tp_fh, xas_tp_hh, &
+       xas_tp_xfh, xas_tp_xhh, xes_tp_val
   USE input_section_types,             ONLY: section_get_ival,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type
-  USE kinds,                           ONLY: default_string_length,&
-                                             dp,&
-                                             default_path_length
+  USE kinds,                           ONLY: default_path_length,&
+                                             default_string_length,&
+                                             dp
   USE mathconstants,                   ONLY: twopi
   USE orbital_pointers,                ONLY: ncoset
   USE particle_types,                  ONLY: get_particle_set,&
@@ -187,16 +186,13 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'xas', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, homo, i, iat, iatom, ispin, istat, iter, j, &
-      method0,mixing0, my_homo(2),nao, nelectron, nexc_search, nmo, nspins, output_unit, &
-      state_to_be_excited, xas_iter_count
+    INTEGER :: handle, homo, i, iat, iatom, ispin, istat, iter, method0, &
+      mixing0, my_homo(2), nao, nelectron, nexc_search, nmo, nspins, &
+      output_unit, state_to_be_excited, xas_iter_count
     INTEGER, DIMENSION(:), POINTER           :: state_of_atom
-    LOGICAL                                  :: ch_method_flags, &
-                                                converged, failure, ionode, &
-                                                my_uocc(2), should_stop, &
-                                                skip_scf, & 
-                                                transition_potential, uocc
-    REAL(dp)                                 :: maxocc, ra(3), rc(3)
+    LOGICAL :: ch_method_flags, converged, failure, ionode, my_uocc(2), &
+      should_stop, skip_scf, transition_potential, uocc
+    REAL(dp)                                 :: maxocc
     REAL(dp), DIMENSION(:), POINTER          :: eigenvalues, &
                                                 occupation_numbers
     REAL(dp), DIMENSION(:, :), POINTER       :: vecbuffer
@@ -221,8 +217,8 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, op_sm, ostrength_sm
     TYPE(scf_control_type), POINTER          :: scf_control
-    TYPE(section_vals_type), POINTER         :: dft_section, loc_section,scf_section, &
-                                                xas_section
+    TYPE(section_vals_type), POINTER         :: dft_section, loc_section, &
+                                                scf_section, xas_section
     TYPE(xas_environment_type), POINTER      :: xas_env
 
     CALL timeset(routineN,"I",'',handle)
@@ -620,7 +616,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'xas_env_init', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=default_string_length)       :: name_sto
+    CHARACTER(LEN=default_string_length)     :: name_sto
     INTEGER :: homo, i, iat, iatom, ik, ikind, ispin, istat, j, l, n_mo(2), &
       nao, nexc_atoms, nexc_search, nj, nk, nkind, nmo, nmoloc(2), norb(0:3), &
       nsgf_gto, nsgf_sto, nspins, nwork
@@ -1021,7 +1017,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cls_calculate_spectrum', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: homo, i, istat,output_unit
+    INTEGER                                  :: homo, i, istat, output_unit
     LOGICAL                                  :: failure, ionode, length
     REAL(dp)                                 :: rc(3)
     REAL(dp), DIMENSION(:), POINTER          :: all_evals
@@ -1281,8 +1277,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(len=50)                        :: flag
-    INTEGER                                  :: homo, ia, ie, istat, istate0, nspins, &
-                                                nstates
+    INTEGER                                  :: homo, ia, ie, istat, istate0, &
+                                                nspins, nstates
     LOGICAL                                  :: failure
     REAL(dp), DIMENSION(:, :), POINTER       :: centers
 
@@ -1467,8 +1463,8 @@ CONTAINS
 
     TYPE(cp_fm_p_type), DIMENSION(:, :), &
       POINTER                                :: fm_set
-    TYPE(real_matrix_p_type), &
-      DIMENSION(:), POINTER               :: op_sm
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: op_sm
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(cp_fm_type), POINTER                :: excvec, all_vectors
@@ -1482,7 +1478,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'spectrum_dip_vel', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: homo, i, ii, istate, j, nao, nmo, &
+    INTEGER                                  :: homo, i, istate, nao, nmo, &
                                                 nvirtual
     LOGICAL                                  :: failure
     REAL(dp)                                 :: dip(3), ene_f, ene_i
@@ -1661,21 +1657,18 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'cls_assign_core_states', &
       routineP = moduleN//':'//routineN
 
-
-    INTEGER :: homo, i, iat, iatom, ikind, isgf, istat, istate, j, my_kind,&
-               nao, natom, nexc_atoms, nexc_search, output_unit
-    INTEGER, DIMENSION(3)                    :: perd0
+    INTEGER :: homo, i, iat, iatom, ikind, isgf, istat, istate, j, my_kind, &
+      nao, natom, nexc_atoms, nexc_search, output_unit
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf
+    INTEGER, DIMENSION(3)                    :: perd0
     INTEGER, DIMENSION(:), POINTER           :: atom_of_state, &
                                                 mykind_of_kind, &
                                                 state_of_atom, &
-                                                state_of_mytype,&
-                                                type_of_state
+                                                state_of_mytype, type_of_state
     LOGICAL                                  :: failure, ionode
     REAL(dp)                                 :: component, dist, distmin, &
-                                                maxocc, ra(3), rc(3), rac(3)
-    REAL(dp), DIMENSION(:), POINTER          :: max_overlap, &
-                                                sto_state_overlap
+                                                maxocc, ra(3), rac(3), rc(3)
+    REAL(dp), DIMENSION(:), POINTER          :: max_overlap, sto_state_overlap
     REAL(dp), DIMENSION(:, :), POINTER       :: centers_wfn
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: vecbuffer
     TYPE(atomic_kind_type), POINTER          :: atomic_kind

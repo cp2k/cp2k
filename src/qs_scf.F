@@ -52,14 +52,13 @@ MODULE qs_scf
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE cp_control_types,                ONLY: dft_control_type
-
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
+                                             cp_fm_symm
   USE cp_fm_cholesky,                  ONLY: cp_fm_cholesky_decompose,&
                                              cp_fm_cholesky_reduce,&
                                              cp_fm_cholesky_restore
   USE cp_fm_diag,                      ONLY: cp_fm_power,&
                                              cp_fm_syevd
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
-                                             cp_fm_symm
   USE cp_fm_pool_types,                ONLY: cp_fm_pool_p_type,&
                                              fm_pool_get_el_struct
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -67,10 +66,10 @@ MODULE qs_scf
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
   USE cp_fm_types,                     ONLY: cp_fm_add_to_element,&
-                                             cp_fm_to_fm,&
                                              cp_fm_create,&
                                              cp_fm_p_type,&
                                              cp_fm_release,&
+                                             cp_fm_to_fm,&
                                              cp_fm_type
   USE cp_output_handling,              ONLY: cp_add_iter_level,&
                                              cp_iterate,&
@@ -92,11 +91,11 @@ MODULE qs_scf
                                              harris_energy_correction,&
                                              harris_postprocessing
   USE input_constants,                 ONLY: &
-       core_guess, densities_guess, restart_guess, ot_precond_full_all, &
-       ot_precond_full_kinetic, ot_precond_full_single, &
+       core_guess, densities_guess, general_roks, high_spin_roks, &
+       ot_precond_full_all, ot_precond_full_kinetic, ot_precond_full_single, &
        ot_precond_full_single_inverse, ot_precond_none, ot_precond_s_inverse, &
        ot_precond_sparse_diag, ot_precond_sparse_firstorder, qs_debug_run, &
-       general_roks, high_spin_roks
+       restart_guess
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kahan_sum,                       ONLY: accurate_sum
@@ -354,9 +353,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, handle2, ispin, &
-                                                output_unit
+                                                iter_level, output_unit
     LOGICAL :: diis_step, energy_only, failure, gapw, gapw_xc, harris_flag, &
-      has_unit_metric, outer_loop_converged, use_jacobi
+      has_unit_metric, outer_loop_converged, use_jacobi, use_virial
     REAL(KIND=dp)                            :: outer_loop_eps, t1, t2
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -377,8 +376,6 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: dft_section, input, &
                                                 scf_section
     TYPE(virial_type), POINTER               :: virial
-    INTEGER                                  :: dir, iter_level
-    LOGICAL                                  :: use_virial
 
     CALL timeset(routineN,"I"," ",handle)
 
@@ -2072,17 +2069,17 @@ END SUBROUTINE qs_scf_print_summary
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "qs_scf_loop_do_roks_diag",&
-                                   routineP = moduleN//":"//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_scf_loop_do_roks_diag', &
+      routineP = moduleN//':'//routineN
 
-    TYPE(cp_fm_type), POINTER :: mo2ao,ksa,ksb,moa,mob,ortho,work
+    INTEGER                                  :: handle, homoa, homob, imo, &
+                                                nalpha, nao, nbeta, nmo
+    REAL(KIND=dp)                            :: diis_error, level_shift_loc
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: eiga, eigb, occa, occb
+    TYPE(cp_fm_type), POINTER                :: ksa, ksb, mo2ao, moa, mob, &
+                                                ortho, work
 
-    REAL(KIND=dp) :: diis_error,level_shift_loc
-    INTEGER       :: handle,homoa,homob,imo,nalpha,nao,nbeta,nmo
-
-    REAL(KIND=dp), DIMENSION(:), POINTER :: eiga,eigb,occa,occb
-
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     CALL timeset(routineN,"I","",handle)
 

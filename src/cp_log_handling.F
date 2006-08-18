@@ -52,9 +52,9 @@ MODULE cp_log_handling
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE kinds,                           ONLY: default_string_length,&
-                                             dp,&
-                                             default_path_length
+  USE kinds,                           ONLY: default_path_length,&
+                                             default_string_length,&
+                                             dp
   USE machine,                         ONLY: m_datum,&
                                              m_flush,&
                                              m_getpid,&
@@ -251,10 +251,11 @@ CONTAINS
 !!
 !!*** **********************************************************************
   FUNCTION cp_default_logger_stack_size() RESULT(res)
-    CHARACTER(len=*), PARAMETER :: routineN='cp_default_logger_stack_size',&
-         routineP=moduleN//':'//routineN
-    INTEGER :: res
-    
+    INTEGER                                  :: res
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_default_logger_stack_size', &
+      routineP = moduleN//':'//routineN
+
     res=stack_pointer
   END FUNCTION cp_default_logger_stack_size
 !***************************************************************************
@@ -989,8 +990,8 @@ CONTAINS
       routineN = 'cp_logger_get_default_unit_nr', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(len=default_string_length)     :: host_name
     CHARACTER(len=default_path_length)       :: filename
+    CHARACTER(len=default_string_length)     :: host_name
     INTEGER                                  :: iostat, pid
     LOGICAL                                  :: loc
     TYPE(cp_logger_type), POINTER            :: lggr

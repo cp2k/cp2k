@@ -23,8 +23,7 @@
 MODULE bfgs_optimizer
 
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
-  USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind
+  USE atomic_kind_types,               ONLY: atomic_kind_type
   USE cell_types,                      ONLY: cell_type
   USE cp_files,                        ONLY: close_file,&
                                              open_file
@@ -35,13 +34,12 @@ MODULE bfgs_optimizer
                                              cp_rm_iter_level
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsystem_p_type
-  USE force_env_methods,               ONLY: force_env_calc_energy_force
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
-  USE gopt_f_types,                    ONLY: gopt_param_type,&
+  USE gopt_f_types,                    ONLY: cp_eval_at,&
                                              gopt_f_type,&
-                                             cp_eval_at
+                                             gopt_param_type
   USE input_constants,                 ONLY: dump_xmol
   USE input_cp2k_restarts,             ONLY: write_restart
   USE input_section_types,             ONLY: section_vals_type
@@ -50,17 +48,14 @@ MODULE bfgs_optimizer
   USE mathlib,                         ONLY: diamat_all
   USE message_passing,                 ONLY: mp_bcast
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
-  USE molecule_kind_types,             ONLY: fixd_constraint_type,&  
-                                             get_molecule_kind,&     
-                                             molecule_kind_type      
-  USE molecule_types_new,              ONLY: get_molecule,&
-                                             molecule_type
+  USE molecule_kind_types,             ONLY: fixd_constraint_type,&
+                                             get_molecule_kind,&
+                                             molecule_kind_type
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type,&
                                              write_particle_coordinates,&
                                              write_particle_distances,&
-                                             write_qs_particle_coordinates,&
-                                             write_structure_data
+                                             write_qs_particle_coordinates
   USE termination,                     ONLY: external_control
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -86,8 +81,8 @@ CONTAINS
        gopt_env, x0, error)
 
     TYPE(force_env_type), POINTER            :: force_env
-    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(gopt_param_type), POINTER           :: gopt_param
+    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(gopt_f_type), POINTER               :: gopt_env
     REAL(KIND=dp), DIMENSION(:), POINTER     :: x0
@@ -98,22 +93,20 @@ CONTAINS
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp, zero = 0.0_dp
 
     CHARACTER(LEN=80)                        :: title
-    INTEGER :: atom, dataunit, handle, hesunit, i, iatom, ihandle, ikind, &
-      indf, istat, it, j, maxiter, natom, ndf, nfixed, nfree, nkind, &
-      output_unit, traj_unit
-    INTEGER, DIMENSION(:), POINTER           :: atom_list
+    INTEGER :: handle, hesunit, i, ihandle, indf, istat, it, j, maxiter, &
+      natom, ndf, nfree, nkind, output_unit, traj_unit
     LOGICAL                                  :: conv, hesrest, ionode, &
                                                 should_stop
     REAL(KIND=dp)                            :: ediff, emin, eold, etot, &
                                                 pred, rad, rat, step
-    REAL(KIND=dp), POINTER, DIMENSION(:)      :: g
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)  :: dg, dr, dx, eigval
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)  :: gold, hes, work, xold
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:,:):: eigvec, hes_mat 
-    TYPE(atomic_kind_list_type), POINTER      :: atomic_kinds
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: dg, dr, dx, eigval, gold, &
+                                                hes, work, xold
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: eigvec, hes_mat
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: g
+    TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_subsystem_p_type), &
@@ -727,8 +720,8 @@ CONTAINS
 
     INTEGER, INTENT(IN)                      :: output_unit, it
     REAL(KIND=dp), INTENT(IN)                :: etot
-    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: pred, rat, step, rad
-    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: emin, ediff
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: ediff, pred, rat, step, rad, &
+                                                emin
     CHARACTER(LEN=5), OPTIONAL               :: wildcard
 
      WRITE(UNIT=output_unit,FMT="(/,T2,8('-'),A,I5,1X,12('-'))")&
@@ -969,15 +962,15 @@ CONTAINS
 
   SUBROUTINE apply_fixed_atom_constraint(force_env,g)
 
-    TYPE(force_env_type), POINTER              :: force_env
-    REAL(KIND=dp), DIMENSION(:), INTENT(INOUT) :: g
+    TYPE(force_env_type), POINTER            :: force_env
+    REAL(KIND=dp), DIMENSION(:), &
+      INTENT(INOUT)                          :: g
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "apply_fixed_atom_constraint",&
-                                   routineP = moduleN//":"//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'apply_fixed_atom_constraint', &
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, ifixd, &
                                                 imolecule_kind, isubsys, nfixd
-
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
     TYPE(fixd_constraint_type), &
@@ -987,7 +980,7 @@ CONTAINS
       POINTER                                :: molecule_kind_set
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     CALL timeset(routineN,"I","",handle)
 

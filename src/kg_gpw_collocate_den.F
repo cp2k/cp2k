@@ -70,7 +70,8 @@ MODULE kg_gpw_collocate_den
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_integrate_potential,          ONLY: integrate_pgf_product_rspace
-  USE qs_modify_pab_block,             ONLY: FUNC_AB, FUNC_DADB
+  USE qs_modify_pab_block,             ONLY: FUNC_AB,&
+                                             FUNC_DADB
   USE realspace_grid_types,            ONLY: pw2rs,&
                                              realspace_grid_p_type,&
                                              rs2pw,&
@@ -157,12 +158,12 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_rho_mol', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: bcol, brow, curr_tasks, first_pgfb, first_setb,ga_gb_function,& 
-      handle, i, iat, iatom, igrid_level, igridlevel, ikind, ikind_old, ipgf, iset, &
-      istat, itask, ithread, j, jat, jatom, jkind, jkind_old, jpgf, jset, k, &
-      maxco, maxsgf, maxsgf_set, n, na1, na2, nat_mol, nb1, nb2, ncoa, ncob, &
-      nseta, nsetb, nthread, num_tasks, omp_get_max_threads, &
-      omp_get_thread_num, sgfa, sgfb
+    INTEGER :: bcol, brow, curr_tasks, first_pgfb, first_setb, &
+      ga_gb_function, handle, i, iat, iatom, igrid_level, igridlevel, ikind, &
+      ikind_old, ipgf, iset, istat, itask, ithread, j, jat, jatom, jkind, &
+      jkind_old, jpgf, jset, k, maxco, maxsgf, maxsgf_set, n, na1, na2, &
+      nat_mol, nb1, nb2, ncoa, ncob, nseta, nsetb, nthread, num_tasks, &
+      omp_get_max_threads, omp_get_thread_num, sgfa, sgfb
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb, lb_max, &
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb, ntasks, ub

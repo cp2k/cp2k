@@ -241,13 +241,11 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'add_neighbor_node'
 
-    INTEGER                                  :: iatom, istat
+    INTEGER                                  :: istat
     TYPE(neighbor_node_type), POINTER        :: new_neighbor_node
 
-    !   ---------------------------------------------------------------------------
-
-
-    !     *** Check for exclusions ***
+!   ---------------------------------------------------------------------------
+!     *** Check for exclusions ***
 
     IF ( SIZE(exclusion_list) > 0 ) THEN
        IF (ANY(exclusion_list==neighbor)) THEN 
@@ -722,9 +720,10 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(neighbor_list_type), POINTER        :: neighbor_list
-    INTEGER, INTENT(OUT), OPTIONAL :: atom
-    INTEGER, DIMENSION(3), INTENT(OUT), OPTIONAL :: cell
-    INTEGER, INTENT(OUT), OPTIONAL :: nnode
+    INTEGER, INTENT(OUT), OPTIONAL           :: atom
+    INTEGER, DIMENSION(3), INTENT(OUT), &
+      OPTIONAL                               :: cell
+    INTEGER, INTENT(OUT), OPTIONAL           :: nnode
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'get_neighbor_list'
 
@@ -779,15 +778,15 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(neighbor_node_type), POINTER        :: neighbor_node
-    INTEGER, INTENT(OUT) :: neighbor
-    REAL(dp), DIMENSION(3), INTENT(OUT) :: r
+    INTEGER, INTENT(OUT)                     :: neighbor
+    REAL(dp), DIMENSION(3), INTENT(OUT)      :: r
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'get_neighbor_node'
 
 !   ---------------------------------------------------------------------------
+! IF (PRESENT(neighbor)) neighbor = neighbor_node%neighbor
+! IF (PRESENT(r)) r(:) = neighbor_node%r(:)
 
-      ! IF (PRESENT(neighbor)) neighbor = neighbor_node%neighbor
-      ! IF (PRESENT(r)) r(:) = neighbor_node%r(:)
       neighbor = neighbor_node%neighbor
       r(:) = neighbor_node%r(:)
 

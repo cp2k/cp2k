@@ -19,7 +19,8 @@
 
 MODULE topology_gromos
   USE convert_units,                   ONLY: convert_to_cp2k_units
-  USE cp_files,                        ONLY: open_file, close_file
+  USE cp_files,                        ONLY: close_file,&
+                                             open_file
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_parser,                       ONLY: cp_parser_type,&
@@ -29,21 +30,17 @@ MODULE topology_gromos
                                              parser_release,&
                                              parser_search_string
   USE global_types,                    ONLY: global_environment_type
+  USE input_constants,                 ONLY: do_skip_14
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE memory_utilities,                ONLY: reallocate
   USE qmmm_ff_fist,                    ONLY: qmmm_ff_precond_only_qm
-  USE string_utilities,                ONLY: uppercase
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE topology_types,                  ONLY: atom_info_type,&
                                              connectivity_info_type,&
                                              topology_parameters_type
-  USE topology_util,                   ONLY: reorder_structure,&
-                                             atom_bond_list_type
-  USE input_constants,                 ONLY: do_skip_14
-
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -157,31 +154,21 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'read_topology_gromos', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=default_string_length)     :: dummy_field, label,string
-    INTEGER :: handle, i, iatom, ibond, index_now, iphi, itheta, iw, jatom, &
-      natom, natom_prev, nbond, nbond_prev, nphi, nphi_prev, ntheta, &
-      ntheta_prev, nonfo, ionfo, nonfo_prev, stat, N
-
-    INTEGER :: itype,ntype
-
-    LOGICAL                                  :: failure, found
+    CHARACTER(LEN=default_string_length)     :: label, string
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(21)                          :: avail_section
+    CHARACTER(LEN=default_string_length), &
+      POINTER                                :: namearray1(:), namearray2(:)
+    INTEGER :: handle, i, iatom, ibond, icon, iresid, isolvent, itemp, itype, &
+      iw, jatom, natom, natom_prev, nbond, nbond_prev, ncon, nsolute, &
+      nsolvent, ntype, offset, offset2
+    INTEGER, POINTER                         :: ba(:), bb(:), na(:)
+    LOGICAL                                  :: do_onfo, failure, found
+    REAL(KIND=dp), POINTER                   :: ac(:), am(:)
     TYPE(atom_info_type), POINTER            :: atom_info
     TYPE(connectivity_info_type), POINTER    :: conn_info
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_parser_type), POINTER            :: parser
-    TYPE(atom_bond_list_type), DIMENSION(:), POINTER   :: ex_bond_list,&
-                                                          ex_bend_list
-    LOGICAL                                  :: do_onfo
-
-    CHARACTER(LEN=default_string_length), &
-      DIMENSION(21)                          :: avail_section
-    CHARACTER(LEN=default_string_length), &
-      POINTER                                :: namearray1(:),namearray2(:)
-    INTEGER:: irestyp,iatyp,iresid,itemp,offset,offset2,nsolute,isolvent,nsolvent
-    INTEGER:: icon,ncon
-
-    INTEGER, POINTER :: na(:),ba(:),bb(:)
-    REAL(KIND=dp),POINTER :: am(:),ac(:)
 
     NULLIFY(parser, logger)
     NULLIFY(namearray1,namearray2)
@@ -922,17 +909,14 @@ CONTAINS
       routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: nblock_atom = 10000
 
-    INTEGER                                  :: handle, &
-                                                iw, iatom, natom, itemp
+    CHARACTER(LEN=default_string_length)     :: label, string
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(5)                           :: avail_section
+    INTEGER                                  :: handle, itemp, iw, natom
+    LOGICAL                                  :: found
     TYPE(atom_info_type), POINTER            :: atom_info
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_parser_type), POINTER            :: parser
-
-    CHARACTER(LEN=default_string_length), &
-      DIMENSION(5)                           :: avail_section
-
-    CHARACTER(LEN=default_string_length)     :: dummy_field, label,string
-    LOGICAL                                  :: found
 
     NULLIFY(parser, logger)
     logger => cp_error_get_logger(error)

@@ -33,8 +33,7 @@ MODULE ewald_environment_types
                                              do_ewald_pme,&
                                              do_ewald_spme,&
                                              ewald_name_types
-  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                             section_vals_release,&
+  USE input_section_types,             ONLY: section_vals_release,&
                                              section_vals_retain,&
                                              section_vals_type,&
                                              section_vals_val_get

@@ -51,7 +51,8 @@ MODULE kg_gpw_pw_env_methods
   USE gaussian_gridlevels,             ONLY: destroy_gaussian_gridlevel,&
                                              init_gaussian_gridlevel
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                             section_vals_type, section_vals_retain
+                                             section_vals_retain,&
+                                             section_vals_type
   USE kg_gpw_collocate_den,            ONLY: calculate_rho_mol
   USE kg_gpw_fm_mol_types,             ONLY: fm_mol_blocks_type,&
                                              get_fm_mol_block,&
@@ -1162,8 +1163,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_rho_update_rho_mol', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: imol, imolecule_kind, ispin, &
-                                                nmol, nmolecule_kind, nspins, handle
+    INTEGER                                  :: handle, imol, imolecule_kind, &
+                                                ispin, nmol, nmolecule_kind, &
+                                                nspins
     INTEGER, DIMENSION(:), POINTER           :: i_atom, i_kind
     LOGICAL                                  :: failure
     REAL(dp)                                 :: dum

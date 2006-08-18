@@ -191,7 +191,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_ecore_overlap'
 
     CHARACTER(LEN=8)                         :: unit_of_length_name
-    INTEGER :: atom_a, atom_b, group, handle, i, iatom, iatom_local, &
+    INTEGER :: atom_a, atom_b, dir, group, handle, i, iatom, iatom_local, &
       iatom_subcell, icell, ikind, istat, j, jatom, jatom_local, jcell, &
       jkind, k, kcell, maxatom_local, natom, natom_local_a, natom_local_b, &
       nkind, output_unit
@@ -200,7 +200,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: local_cols_array, &
                                                 local_rows_array
     LOGICAL                                  :: cell000, include_ab, &
-                                                only_molecule
+                                                only_molecule, use_virial
     REAL(KIND=dp) :: aab, dab, eab, ecore_overlap, f, fab, r_skin, rab2, &
       rab2_max, rab_max, rootaab, subcells, unit_of_length, zab
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: alpha, radius, zeff
@@ -224,8 +224,7 @@ CONTAINS
     TYPE(subcell_type), DIMENSION(:, :, :), &
       POINTER                                :: subcell
     TYPE(virial_type), POINTER               :: virial
-    INTEGER                                  :: dir
-    LOGICAL                                  :: use_virial
+
 ! -------------------------------------------------------------------------
 
     NULLIFY(logger)

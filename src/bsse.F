@@ -264,9 +264,10 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: name
     CHARACTER(len=default_string_length), &
       DIMENSION(:), POINTER                  :: atom_type
-    INTEGER                                  :: i, isize, j, jj, k, my_targ, &
+    INTEGER                                  :: i, isize, j, jj, k, &
+                                                method_name_id, my_targ, &
                                                 n_rep, num_of_frag, old_size, &
-                                                stat,method_name_id
+                                                stat
     INTEGER, DIMENSION(:), POINTER           :: atom_index, atom_list, &
                                                 my_conf, subsys_index, tmplist
     LOGICAL                                  :: failure
@@ -276,7 +277,8 @@ CONTAINS
       DIMENSION(:), POINTER                  :: subsys
     TYPE(cp_subsystem_type), POINTER         :: subsys_loc
     TYPE(particle_list_type), POINTER        :: particles
-    TYPE(section_vals_type), POINTER         :: force_env_section, bsse_section
+    TYPE(section_vals_type), POINTER         :: bsse_section, &
+                                                force_env_section
 
     failure = .FALSE.
     CALL section_vals_get(n_frags,n_repetition=num_of_frag,error=error)
@@ -413,8 +415,8 @@ CONTAINS
     CHARACTER(len=default_string_length), &
       DIMENSION(:), POINTER                  :: atom_type
     INTEGER, DIMENSION(:), INTENT(IN)        :: conf, conf_loc
-    TYPE(section_vals_type), POINTER         :: bsse_section
     TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(section_vals_type), POINTER         :: bsse_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 

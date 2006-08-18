@@ -27,14 +27,14 @@ MODULE topology_util
                                              get_atomic_kind,&
                                              set_atomic_kind
   USE checkpoint_handler,              ONLY: Pwarning
-  USE colvar_types,                    ONLY: colvar_create,&
+  USE colvar_methods,                  ONLY: colvar_eval_mol_f
+  USE colvar_types,                    ONLY: colvar_clone,&
+                                             colvar_counters,&
+                                             colvar_create,&
+                                             colvar_p_reallocate,&
                                              colvar_setup,&
                                              dist_colvar_id,&
-                                             torsion_colvar_id,&
-                                             colvar_counters,&
-                                             colvar_clone,&
-                                             colvar_p_reallocate
-  USE colvar_methods,                  ONLY: colvar_eval_mol_f
+                                             torsion_colvar_id
   USE convert_units,                   ONLY: convert_to_cp2k_units
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
@@ -43,16 +43,9 @@ MODULE topology_util
                                              get_potential,&
                                              set_potential
   USE global_types,                    ONLY: global_environment_type
-  USE input_constants,                 ONLY: do_bondparm_covalent, &
-                                             do_bondparm_vdw, &
-                                             do_conn_off, &
-                                             do_conn_g87,&
-                                             do_conn_g96,&
-                                             do_fist, &
-                                             do_qmmm_none, &
-                                             do_skip_12, &
-                                             do_skip_13, &
-                                             do_skip_14
+  USE input_constants,                 ONLY: &
+       do_bondparm_covalent, do_bondparm_vdw, do_conn_g87, do_conn_g96, &
+       do_conn_off, do_fist, do_skip_12, do_skip_13, do_skip_14
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -60,32 +53,17 @@ MODULE topology_util
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE memory_utilities,                ONLY: reallocate
-  USE molecule_kind_types,             ONLY: allocate_molecule_kind_set,&
-                                             atom_type,&
-                                             bend_type,&
-                                             bond_type, &
-                                             colvar_constraint_type,&
-                                             fixd_constraint_type, &
-                                             g3x3_constraint_type,&
-                                             g4x6_constraint_type,&
-                                             get_molecule_kind, &
-                                             impr_type,&
-                                             molecule_kind_type,&
-                                             onfo_type,&
-                                             set_molecule_kind, &
-                                             torsion_type,&
-                                             ub_type,&
-                                             setup_colvar_counters
-  USE molecule_types_new,              ONLY: allocate_molecule_set,&
-                                             get_molecule,&
-                                             local_colvar_constraint_type, &
-                                             local_constraint_type,&
-                                             local_g3x3_constraint_type, &
-                                             local_g4x6_constraint_type,&
-                                             local_molecule_type,&
-                                             molecule_type, &
-                                             set_molecule,&
-                                             set_molecule_set
+  USE molecule_kind_types,             ONLY: &
+       allocate_molecule_kind_set, atom_type, bend_type, bond_type, &
+       colvar_constraint_type, fixd_constraint_type, g3x3_constraint_type, &
+       g4x6_constraint_type, get_molecule_kind, impr_type, &
+       molecule_kind_type, onfo_type, set_molecule_kind, &
+       setup_colvar_counters, torsion_type, ub_type
+  USE molecule_types_new,              ONLY: &
+       allocate_molecule_set, get_molecule, local_colvar_constraint_type, &
+       local_constraint_type, local_g3x3_constraint_type, &
+       local_g4x6_constraint_type, local_molecule_type, molecule_type, &
+       set_molecule, set_molecule_set
   USE particle_types,                  ONLY: allocate_particle_set,&
                                              generate_particle_distances,&
                                              particle_type
@@ -359,17 +337,16 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'topology_generate_molecule', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: atom_in_kind, atom_in_mol, first, handle, i, iatm, iatom, &
-      ifirst, iiatom, iii, ilast, inum, itype, iw, j, jtype, jump1, jump2, &
-      last, max_mol_num, myind, natom, nbond, nmol, ntype, stat, handle2
-    INTEGER :: mol_typ, mol_num, mol_res
+    INTEGER :: atom_in_kind, atom_in_mol, first, handle, handle2, i, iatm, &
+      iatom, ifirst, ilast, inum, iw, j, jump1, jump2, last, max_mol_num, &
+      mol_num, mol_res, mol_typ, myind, N, natom, ntype, stat
     INTEGER, DIMENSION(:), POINTER           :: qm_atom_index
     LOGICAL                                  :: do_again, failure, my_qmmm
+    TYPE(atom_bond_list_type), ALLOCATABLE, &
+      DIMENSION(:)                           :: atom_bond_list
     TYPE(atom_info_type), POINTER            :: atom_info
     TYPE(connectivity_info_type), POINTER    :: conn_info
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(atom_bond_list_type), DIMENSION(:), ALLOCATABLE  :: atom_bond_list
-    INTEGER :: N
 
     failure = .FALSE.
     NULLIFY(logger)
@@ -633,18 +610,19 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
   SUBROUTINE reorder_structure(work, list1, list2, N, error)
-    IMPLICIT NONE
-    TYPE(atom_bond_list_type), DIMENSION(:), INTENT(INOUT)  :: work
-    INTEGER, DIMENSION(:), INTENT(IN)                       :: list1, list2
-    INTEGER, INTENT(IN)                                     :: N
+    TYPE(atom_bond_list_type), &
+      DIMENSION(:), INTENT(INOUT)            :: work
+    INTEGER, DIMENSION(:), INTENT(IN)        :: list1, list2
+    INTEGER, INTENT(IN)                      :: N
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'reorder_structure', &
       routineP = moduleN//':'//routineN
-    INTEGER, POINTER, DIMENSION(:)           :: wrk_tmp
-    LOGICAL :: failure 
-    INTEGER :: I, atom_a, atom_b, stat, Nbond
+
+    INTEGER                                  :: atom_a, atom_b, I, Nbond, stat
+    INTEGER, DIMENSION(:), POINTER           :: wrk_tmp
+    LOGICAL                                  :: failure
 
     failure = .FALSE.
     DO I=1,N
@@ -692,12 +670,12 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
   SUBROUTINE find_molecule(atom_bond_list,mol_info)
-    IMPLICIT NONE
-    TYPE(atom_bond_list_type), DIMENSION(:), INTENT(IN) :: atom_bond_list
-    INTEGER, DIMENSION(:), POINTER                      :: mol_info
-    
-    INTEGER :: I,N,nmol
-    
+    TYPE(atom_bond_list_type), &
+      DIMENSION(:), INTENT(IN)               :: atom_bond_list
+    INTEGER, DIMENSION(:), POINTER           :: mol_info
+
+    INTEGER                                  :: I, N, nmol
+
     N=SIZE(atom_bond_list)
     nmol=0
     DO I=1,N
@@ -728,13 +706,13 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
   RECURSIVE SUBROUTINE spread_mol(atom_bond_list,mol_info,iatom,imol)
-    IMPLICIT NONE
-    TYPE(atom_bond_list_type), DIMENSION(:), INTENT(IN) :: atom_bond_list
-    INTEGER, DIMENSION(:), POINTER         :: mol_info
-    INTEGER, INTENT(IN) :: iatom,imol
-    
-    INTEGER :: i,atom_b
-    
+    TYPE(atom_bond_list_type), &
+      DIMENSION(:), INTENT(IN)               :: atom_bond_list
+    INTEGER, DIMENSION(:), POINTER           :: mol_info
+    INTEGER, INTENT(IN)                      :: iatom, imol
+
+    INTEGER                                  :: atom_b, i
+
     mol_info(iatom)=imol
     DO I=1,SIZE(atom_bond_list(iatom)%bonds)
        atom_b=atom_bond_list(iatom)%bonds(I)
@@ -1554,9 +1532,9 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length)     :: name
     INTEGER :: atm_a, atm_b, atm_c, atm_d, c_intra, counter, first, handle, &
-      i, ibond, ikind, imol, inum, ires, ityp, iw, j, k, last, natom, nbond, &
-      nelectron, nhcopt, nimpr, nmol, nonfo, nphi, nsgf, ntheta, nub, stat
-    INTEGER :: handle2
+      handle2, i, ibond, ikind, imol, inum, ires, ityp, iw, j, k, last, &
+      natom, nbond, nelectron, nhcopt, nimpr, nmol, nonfo, nphi, nsgf, &
+      ntheta, nub, stat
     INTEGER, DIMENSION(:), POINTER           :: checkme, first_list, &
                                                 last_list, molecule_list
     LOGICAL                                  :: failure, found
@@ -2424,7 +2402,8 @@ CONTAINS
     LOGICAL, INTENT(IN), OPTIONAL            :: qmmm
     TYPE(qmmm_env_mm_type), OPTIONAL, &
       POINTER                                :: qmmm_env
-    TYPE(section_vals_type), POINTER         :: subsys_section, force_env_section
+    TYPE(section_vals_type), POINTER         :: subsys_section, &
+                                                force_env_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -2438,28 +2417,26 @@ CONTAINS
       DIMENSION(:), POINTER                  :: element
     CHARACTER(LEN=default_string_length), &
       POINTER                                :: work(:)
-    INTEGER :: counter, first, first_atom, handle, i, iatom, ibend, ibond, &
-      ikind, imol_now, imolecule, itorsion, iw, j, k, handle3, kk, n,&
-      last, last_atom, natom, nbend, nbond, ntorsion, position, stat, handle2,method_name_id
-    INTEGER :: dim0, dim1, dim2, dim3
-    INTEGER, DIMENSION(:), POINTER :: atomkind, iatomlist, first_mol, kind_of, &
-      last_mol, list, list2, wlist, molecule_list, natom_of_kind
+    INTEGER :: counter, dim0, dim1, dim2, dim3, first, first_atom, handle, &
+      handle2, i, iatom, ikind, iw, j, k, last, last_atom, method_name_id, n, &
+      natom, position, stat
+    INTEGER, DIMENSION(:), POINTER           :: iatomlist, kind_of, list, &
+                                                list2, molecule_list, &
+                                                natom_of_kind, wlist
     LOGICAL                                  :: failure, found, my_qmmm
-    LOGICAL, POINTER, DIMENSION(:)           :: atomlist, atomlist_ei
     REAL(KIND=dp)                            :: alpha_core_charge, qeff
     REAL(KIND=dp), DIMENSION(:), POINTER     :: charge, mass
+    TYPE(atom_bond_list_type), &
+      DIMENSION(:), POINTER                  :: ex_bend_list, ex_bond_list, &
+                                                ex_onfo_list
     TYPE(atom_info_type), POINTER            :: atom_info
     TYPE(atom_type), DIMENSION(:), POINTER   :: atom_list
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(connectivity_info_type), POINTER    :: conn_info
-    TYPE(atom_bond_list_type), DIMENSION(:), POINTER   :: ex_bond_list,&
-                                                          ex_bend_list,&
-                                                          ex_onfo_list
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(elp_potential_type), POINTER        :: elp_potential
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
-
 
     failure = .FALSE.
     NULLIFY(logger)
@@ -2967,18 +2944,17 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: molname, name
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: atom_typeh
-    INTEGER :: dum, first, first_atom, handle, i, offset, iw, j, k, kk, last, &
-      m, nbond, nhdist, nfixed_atoms, ng3x3, ng4x6, nmolecule, nrep, search1, &
-      search2, stat, n_start_colv, ncolv_tot, ncolv_mol, kdim, ii, natom, &
-      last_atom, k1loc, k2loc, ng3x3_restraint, ng4x6_restraint, nfixd_restraint
-    INTEGER, DIMENSION(:), POINTER           :: molecule_list,&
-                                                colv_mol_num,&
-                                                colv_mol_map
-    LOGICAL                                  :: failure, fix_atom_molname, &
-                                                fix_atom_qmmm, fix_fixed_atom,&
-                                                fix_atom_qm, fix_atom_mm
+    INTEGER :: first, first_atom, handle, i, ii, iw, j, k, k1loc, k2loc, &
+      kdim, kk, last, last_atom, m, n_start_colv, natom, nbond, ncolv_mol, &
+      nfixd_restraint, nfixed_atoms, ng3x3, ng3x3_restraint, ng4x6, &
+      ng4x6_restraint, nhdist, nmolecule, nrep, offset, stat
+    INTEGER, DIMENSION(:), POINTER           :: molecule_list
+    LOGICAL                                  :: failure, fix_atom_mm, &
+                                                fix_atom_molname, &
+                                                fix_atom_qm, fix_atom_qmmm, &
+                                                fix_fixed_atom
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: missed_molname
-    REAL(KIND=dp)                            :: rmod, rvec(3), xdum
+    REAL(KIND=dp)                            :: rmod, rvec(3)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: hdist
     TYPE(atom_type), DIMENSION(:), POINTER   :: atom_list
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
@@ -3504,14 +3480,17 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'topology_molecules_check', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: first, handle, iatom, &
-                                                iw, natom, first_loc, stat, n, i, k
-    INTEGER                                  :: mol_typ, mol_num, counter, loc_counter
-    LOGICAL                                  :: failure, icheck_num, icheck_typ
+    INTEGER                                  :: counter, first, first_loc, &
+                                                handle, i, iatom, iw, k, &
+                                                loc_counter, mol_num, &
+                                                mol_typ, n, natom, stat
+    LOGICAL                                  :: failure, icheck_num, &
+                                                icheck_typ
+    TYPE(atom_bond_list_type), ALLOCATABLE, &
+      DIMENSION(:)                           :: atom_bond_list
     TYPE(atom_info_type), POINTER            :: atom_info
-    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(connectivity_info_type), POINTER    :: conn_info
-    TYPE(atom_bond_list_type), DIMENSION(:), ALLOCATABLE  :: atom_bond_list
+    TYPE(cp_logger_type), POINTER            :: logger
 
     failure = .FALSE.
     NULLIFY(logger)
@@ -3658,7 +3637,7 @@ CONTAINS
 
     CHARACTER(len=default_string_length)     :: current_symbol, &
                                                 element_symbol, keyword
-    INTEGER                                  :: handle, i, i_rep, n_rep
+    INTEGER                                  :: i, i_rep, n_rep
     INTEGER, SAVE                            :: iwarn = 20
     LOGICAL                                  :: failure, found
     TYPE(section_vals_type), POINTER         :: kind_section

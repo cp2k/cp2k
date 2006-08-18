@@ -407,8 +407,8 @@ MODULE qs_rho0_ggrid
     INTEGER :: auxbas_grid, bo(2), dir, handle, iat, iatom, ic, icg, ico, &
       ig1, ig2, igrid, ikind, ipgf1, ipgf2, is, iset1, iset2, iso, iso1, &
       iso2, ispin, istat, ithread, j, l0_ikind, lmax0, lshell, lx, ly, lz, &
-      m1, m2, maxso, n1, n2, nat, nch_ik, nch_max, ncurr, npme, nset, &
-      nspins, nthread, omp_get_max_threads, omp_get_thread_num
+      m1, m2, maxso, n1, n2, nat, nch_ik, nch_max, ncurr, npme, nset, nspins, &
+      nthread, omp_get_max_threads, omp_get_thread_num
     INTEGER, DIMENSION(:), POINTER           :: atom_list, lmax, npgf
     INTEGER, DIMENSION(:, :), POINTER        :: tasks
     LOGICAL                                  :: failure, my_tddft, paw_atom

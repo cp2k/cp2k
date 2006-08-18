@@ -199,7 +199,7 @@ MODULE qs_wf_history_types
   !!   SOURCE
   !***************************************************************************
   TYPE qs_wf_history_p_type
-     TYPE(qs_wf_history_type), pointer :: wf_history
+     TYPE(qs_wf_history_type), POINTER :: wf_history
   END TYPE qs_wf_history_p_type
   !!***
   !****************************************************************************

@@ -441,14 +441,13 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'set_up_oce'
 
     INTEGER                                  :: handle, i, katom, kkind, &
-                                                kneighbor, ndist, nkind, &
-                                                nneighbor
+                                                kneighbor, mepos, ndist, &
+                                                nkind, nneighbor, num
     LOGICAL                                  :: add_oce, dist_done, paw_atom
     REAL(KIND=dp)                            :: dac, dbc
     REAL(KIND=dp), DIMENSION(3)              :: rac, rbc, rdist
     TYPE(atomic_kind_type), POINTER          :: at_a, at_b, atomic_kind
     TYPE(cp_logger_type), POINTER            :: logger
-    INTEGER :: mepos,num
 
 !   ---------------------------------------------------------------------------
 

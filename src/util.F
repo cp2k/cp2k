@@ -476,10 +476,10 @@ SUBROUTINE matvec_3x3 (res, mat, vec )
 
 
 ! Return value
+    REAL(KIND=dp), DIMENSION(3), INTENT(OUT) :: res
     REAL(KIND=dp), DIMENSION(3, 3), &
       INTENT(IN)                             :: mat
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: vec
-    REAL(KIND=dp), DIMENSION(3), INTENT(OUT) :: res
 
 !------------------------------------------------------------------------------
 

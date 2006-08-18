@@ -45,11 +45,11 @@ MODULE mc_misc
                                              use_fist_force,&
                                              use_kg_force,&
                                              use_qs_force
-  USE global_types,                    ONLY: SILENT,&
+  USE global_types,                    ONLY: DEBUG,&
+                                             HIGH,&
                                              LOW,&
                                              MEDIUM,&
-                                             HIGH,&
-                                             DEBUG
+                                             SILENT
   USE input_constants,                 ONLY: do_ewald_ewald,&
                                              do_ewald_none,&
                                              do_ewald_pme,&
@@ -69,10 +69,10 @@ MODULE mc_misc
                                              mc_simulation_parameters_type
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
   USE molecule_kind_types,             ONLY: atom_type,&
+                                             bend_type,&
+                                             bond_type,&
                                              get_molecule_kind,&
                                              molecule_kind_type,&
-                                             bond_type,&
-                                             bend_type,&
                                              torsion_type
   USE pair_potential_types,            ONLY: pair_potential_pp_type
   USE physcon,                         ONLY: angstrom,&
@@ -601,24 +601,28 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
 
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: coordinates
-    INTEGER, INTENT(IN)                      :: natoms_tot,print_level
+    INTEGER, INTENT(IN)                      :: natoms_tot
     REAL(KIND=dp), DIMENSION(1:3), &
       INTENT(IN)                             :: box_length
     CHARACTER(LEN=*), INTENT(IN)             :: filename
     TYPE(force_env_type), POINTER            :: force_env
     CHARACTER(LEN=*), INTENT(IN)             :: fft_lib
+    INTEGER, INTENT(IN)                      :: print_level
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'mc_make_dat_file', &
       routineP = moduleN//':'//routineN
 
+    CHARACTER(default_string_length), &
+      ALLOCATABLE, DIMENSION(:)              :: atom_a_done, atom_b_done, &
+                                                atom_c_done, atom_d_done
     CHARACTER(LEN=2)                         :: element_symbol
     CHARACTER(LEN=5)                         :: cfile
-    CHARACTER(LEN=default_string_length)     :: c_val, name, unit_type,&
-         name_a,name_b,name_c,name_d
-    INTEGER :: ewald_type, gmax, handle, i_val, iatom, ichain, ifunct, itype, &
-      jtype, natoms, nchains, ns_max, ntypes, o_spline, unit,&
-      nbond,nbend,ntorsion,ibond,ibend,itorsion,jbond,stat,current_bond,&
-      jbend,current_bend,imul,current_torsion,jtorsion
+    CHARACTER(LEN=default_string_length)     :: c_val, name, name_a, name_b, &
+                                                name_c, name_d, unit_type
+    INTEGER :: current_bend, current_bond, current_torsion, ewald_type, gmax, &
+      handle, i_val, iatom, ibend, ibond, ichain, ifunct, imul, itorsion, &
+      itype, jbend, jbond, jtorsion, jtype, natoms, nbend, nbond, nchains, &
+      ns_max, ntorsion, ntypes, o_spline, stat, unit
     LOGICAL                                  :: failure, use_ref_cell
     REAL(KIND=dp)                            :: alpha, charge, epsilon, r_val
     REAL(KIND=dp), DIMENSION(1:3)            :: abc
@@ -626,6 +630,8 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(bend_type), DIMENSION(:), POINTER   :: bend_list
+    TYPE(bond_type), DIMENSION(:), POINTER   :: bond_list
     TYPE(cell_type), POINTER                 :: cell, cell_ref
     TYPE(cp_error_type)                      :: error
     TYPE(cp_subsystem_p_type), &
@@ -641,14 +647,12 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(pair_potential_pp_type), POINTER    :: potparm
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(section_vals_type), POINTER         :: input, xc_fun, xc_fun_section,&
-         spline_section
-    TYPE(bond_type), DIMENSION(:), POINTER   :: bond_list
-    TYPE(bend_type), DIMENSION(:), POINTER   :: bend_list
-    TYPE(torsion_type), DIMENSION(:), POINTER   :: torsion_list
+    TYPE(section_vals_type), POINTER         :: input, spline_section, &
+                                                xc_fun, xc_fun_section
+    TYPE(torsion_type), DIMENSION(:), &
+      POINTER                                :: torsion_list
+
 !    TYPE(input_info_type), POINTER           :: inp_info
-    CHARACTER(default_string_length),DIMENSION(:),ALLOCATABLE :: atom_a_done,&
-         atom_b_done,atom_c_done,atom_d_done
 !------------------------------------------------------------------------------
 ! begin the timing of the subroutine
 

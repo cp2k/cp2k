@@ -59,13 +59,12 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'whittaker_c0'
 
-    INTEGER                                  :: handle, i, k
+    INTEGER                                  :: i, k
     REAL(dp) :: t1, t10, t11, t12, t13, t14, t16, t17, t18, t19, t2, t21, &
       t22, t23, t25, t28, t3, t30, t31, t34, t36, t39, t4, t41, t44, t45, &
       t46, t5, t50, t51, t52, t56, t6, t61, t7, t8, t9, x
 
 ! -----------------------------------------------------------------------------
-
 !    CALL timeset("whittaker_c0","I"," ",handle)
 
     IF ( MOD(l,2) /= 0 ) THEN
@@ -288,13 +287,12 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'whittaker_ci'
 
-    INTEGER                                  :: handle, i, k
+    INTEGER                                  :: i, k
     REAL(dp)                                 :: t1, t10, t13, t14, t17, t18, &
                                                 t2, t21, t25, t29, t3, t30, &
                                                 t33, t4, t5, t6, t7, t8, t9, x
 
 ! -----------------------------------------------------------------------------
-
 !    CALL timeset("whittaker_ci","I"," ",handle)
 
     IF ( MOD(l,2) /= 0 ) THEN

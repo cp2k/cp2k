@@ -56,9 +56,9 @@ MODULE input_cp2k_restarts
                                              use_unit_scaled_bohr
   USE input_section_types,             ONLY: &
        section_get_keyword_index, section_type, section_vals_add_values, &
-       section_vals_get_subs_vals, section_vals_type, section_vals_val_get, &
-       section_vals_val_set, section_vals_val_unset, section_vals_write,&
-       section_vals_get_subs_vals2, section_vals_get,section_vals_get_subs_vals3
+       section_vals_get, section_vals_get_subs_vals, &
+       section_vals_get_subs_vals3, section_vals_type, section_vals_val_get, &
+       section_vals_val_set, section_vals_val_unset, section_vals_write
   USE input_val_types,                 ONLY: val_create,&
                                              val_release,&
                                              val_type
@@ -144,15 +144,13 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=256)                       :: cwd, datx
-    INTEGER                                  :: handle, ires, strend, strstart, ikey,&
-         nforce_eval, iforce_eval
+    CHARACTER(LEN=30), DIMENSION(2) :: &
+      keys = (/"PRINT%RESTART_HISTORY", "PRINT%RESTART        "/)
+    INTEGER                                  :: handle, ikey, ires, &
+                                                nforce_eval, strend, strstart
+    LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(section_vals_type), POINTER         :: motion_section,&
-                                                sections, section
-    CHARACTER(LEN=30), DIMENSION(2) :: keys=(/"PRINT%RESTART_HISTORY", &
-                                               "PRINT%RESTART        "/)
-    LOGICAL                                  :: multiple_force_env, failure
-    TYPE(force_env_type), POINTER            :: my_force_env
+    TYPE(section_vals_type), POINTER         :: motion_section, sections
 
     CALL timeset(routineN,handle)
 
@@ -905,18 +903,19 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE update_force_eval(force_env,logger,globenv,error)
-    TYPE(force_env_type), POINTER              :: force_env
-    TYPE(cp_logger_type), POINTER              :: logger
-    TYPE(global_environment_type), POINTER     :: globenv
+    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
-    TYPE(force_env_type), POINTER              :: my_force_env
     CHARACTER(LEN=*), PARAMETER :: routineN = 'update_force_eval', &
       routineP = moduleN//':'//routineN
 
-    TYPE(section_vals_type), POINTER         :: rng_section, subsys_section, force_env_sections
-    INTEGER :: nforce_eval, iforce_eval
+    INTEGER                                  :: iforce_eval, nforce_eval
+    TYPE(force_env_type), POINTER            :: my_force_env
+    TYPE(section_vals_type), POINTER         :: force_env_sections, &
+                                                rng_section, subsys_section
 
     NULLIFY(rng_section, subsys_section)
     
@@ -1194,7 +1193,8 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: my_tag, name, rcval
     INTEGER                                  :: ik, imol, irk, k, last_atom, &
                                                 Nlist
-    LOGICAL                                  :: failure, ldum, molname_generated
+    LOGICAL                                  :: failure, ldum, &
+                                                molname_generated
     TYPE(cp_sll_val_type), POINTER           :: new_pos, vals
     TYPE(molecule_type), POINTER             :: molecule_now
     TYPE(section_type), POINTER              :: section

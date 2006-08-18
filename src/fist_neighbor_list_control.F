@@ -23,14 +23,17 @@
 MODULE fist_neighbor_list_control
 
   USE atomic_kind_types,               ONLY: atomic_kind_type
-  USE cell_types,                      ONLY: cell_type,&
-       cell_create, cell_release, cell_clone, pbc
+  USE cell_types,                      ONLY: cell_clone,&
+                                             cell_create,&
+                                             cell_release,&
+                                             cell_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE fist_neighbor_list_types,        ONLY: fist_neighbor_type
   USE fist_neighbor_lists,             ONLY: build_fist_neighbor_lists
   USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_get,&
                                              fist_nonbond_env_set,&
-                                             fist_nonbond_env_type, pos_type
+                                             fist_nonbond_env_type,&
+                                             pos_type
   USE global_types,                    ONLY: global_environment_type
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp,&
@@ -65,31 +68,32 @@ CONTAINS
 SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
                           cell, fist_nonbond_env, globenv, force_env_section, error)
 
-  TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
-  TYPE(particle_type), POINTER             :: particle_set( : )
-  TYPE(distribution_1d_type), POINTER      :: local_particles
-  TYPE(cell_type), POINTER                 :: cell
-  TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
-  TYPE(global_environment_type), POINTER   :: globenv
-  TYPE(section_vals_type), POINTER         :: force_env_section
-  TYPE(cp_error_type), INTENT(inout), &
-       OPTIONAL                               :: error
-  
-  CHARACTER(LEN=*), PARAMETER              :: routineN = 'list_control'
-  
-  INTEGER :: counter, handle, i, iparticle, iparticle_kind, &
-       iparticle_local, istat, last_update, nparticle, nparticle_kind, &
-       nparticle_local, num_update
-  LOGICAL                                  :: build_from_scratch, &
-                                              update_neighbor_lists
-  REAL(KIND=dp)                            :: aup, dr2, dr2_max, lup, &
-                                              verlet_skin
-  REAL(KIND=dp), DIMENSION(3)              :: dr,s2r,rab,s
-  TYPE(pos_type), DIMENSION(:), POINTER :: r_last_update, r_last_update_pbc
-  TYPE(cell_type), POINTER                 :: cell_last_update
-  REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rlist_cutsq, rlist_lowsq
-  TYPE(fist_neighbor_type), POINTER        :: nonbonded
-  
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
+    TYPE(particle_type), POINTER             :: particle_set( : )
+    TYPE(distribution_1d_type), POINTER      :: local_particles
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(section_vals_type), POINTER         :: force_env_section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'list_control'
+
+    INTEGER :: counter, handle, i, iparticle, iparticle_kind, &
+      iparticle_local, istat, last_update, nparticle, nparticle_kind, &
+      nparticle_local, num_update
+    LOGICAL                                  :: build_from_scratch, &
+                                                update_neighbor_lists
+    REAL(KIND=dp)                            :: aup, dr2, dr2_max, lup, &
+                                                verlet_skin
+    REAL(KIND=dp), DIMENSION(3)              :: dr, rab, s, s2r
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rlist_cutsq, rlist_lowsq
+    TYPE(cell_type), POINTER                 :: cell_last_update
+    TYPE(fist_neighbor_type), POINTER        :: nonbonded
+    TYPE(pos_type), DIMENSION(:), POINTER    :: r_last_update, &
+                                                r_last_update_pbc
+
   CALL timeset(routineN,"I"," ",handle )
 
 ! *** Assigning local pointers ***

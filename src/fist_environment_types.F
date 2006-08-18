@@ -49,10 +49,10 @@ MODULE fist_environment_types
   USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_release,&
                                              fist_nonbond_env_retain,&
                                              fist_nonbond_env_type
-  USE kinds,                           ONLY: dp
   USE input_section_types,             ONLY: section_vals_release,&
                                              section_vals_retain,&
                                              section_vals_type
+  USE kinds,                           ONLY: dp
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_create,&
                                              mol_kind_new_list_release,&
                                              mol_kind_new_list_type
@@ -173,8 +173,6 @@ CONTAINS
       POINTER                                :: fist_nonbond_env
     TYPE(fist_energy_type), OPTIONAL, &
       POINTER                                :: thermo
-    TYPE(section_vals_type), OPTIONAL, &
-      POINTER                                :: input
     TYPE(cp_para_env_type), OPTIONAL, &
       POINTER                                :: para_env
     TYPE(cp_subsystem_type), OPTIONAL, &
@@ -182,6 +180,8 @@ CONTAINS
     LOGICAL, OPTIONAL                        :: qmmm
     TYPE(qmmm_env_mm_type), OPTIONAL, &
       POINTER                                :: qmmm_env
+    TYPE(section_vals_type), OPTIONAL, &
+      POINTER                                :: input
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
@@ -280,8 +280,6 @@ CONTAINS
     TYPE(distribution_1d_type), OPTIONAL, &
       POINTER                                :: local_particles, &
                                                 local_molecules
-    TYPE(section_vals_type), OPTIONAL, &
-      POINTER                                :: input
     TYPE(molecule_kind_type), OPTIONAL, &
       POINTER                                :: molecule_kind_set( : )
     TYPE(molecule_type), OPTIONAL, POINTER   :: molecule_set( : )
@@ -297,6 +295,8 @@ CONTAINS
     LOGICAL, OPTIONAL                        :: qmmm
     TYPE(qmmm_env_mm_type), OPTIONAL, &
       POINTER                                :: qmmm_env
+    TYPE(section_vals_type), OPTIONAL, &
+      POINTER                                :: input
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 

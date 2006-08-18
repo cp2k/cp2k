@@ -33,8 +33,7 @@ MODULE wiener_process
                                              force_env_p_type
   USE input_constants,                 ONLY: langevin_ensemble
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                             section_vals_type,&
-                                             section_vals_get_subs_vals2
+                                             section_vals_type
   USE kinds,                           ONLY: dp
   USE md,                              ONLY: simulation_parameters_type
   USE md_environment_types,            ONLY: get_md_env,&
@@ -96,8 +95,8 @@ CONTAINS
     TYPE(force_env_p_type), DIMENSION(:), &
       POINTER                                :: force_env_p
     TYPE(particle_list_type), POINTER        :: particles
-    TYPE(section_vals_type), POINTER         :: work_section
-    TYPE(section_vals_type), POINTER         :: subsys_section, force_env_section
+    TYPE(section_vals_type), POINTER         :: force_env_section, &
+                                                subsys_section, work_section
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
 

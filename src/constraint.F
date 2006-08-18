@@ -18,10 +18,11 @@
 !!   SOURCE
 !******************************************************************************
 MODULE constraint
+  USE atomic_kind_types,               ONLY: atomic_kind_type,&
+                                             get_atomic_kind
   USE cell_types,                      ONLY: cell_type
   USE colvar_methods,                  ONLY: colvar_eval_mol_f
-  USE colvar_types,                    ONLY: dist_colvar_id,&
-                                             colvar_counters
+  USE colvar_types,                    ONLY: colvar_counters
   USE constraint_3x3,                  ONLY: rattle_3x3,&
                                              rattle_roll_3x3,&
                                              shake_3x3,&
@@ -58,10 +59,6 @@ MODULE constraint
   USE util,                            ONLY: matmul_3x3,&
                                              transpose_3d
   USE virial_types,                    ONLY: virial_type
-  USE colvar_types, ONLY: dist_colvar_id
-  USE colvar_methods, ONLY: colvar_eval_mol_f
-  USE atomic_kind_types, ONLY: atomic_kind_type, get_atomic_kind
-
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -92,28 +89,26 @@ CONTAINS
     TYPE(distribution_1d_type), POINTER      :: local_molecules
     TYPE(molecule_type), POINTER             :: molecule_set( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
-    TYPE(particle_type), POINTER             :: particle_set( : )   
+    TYPE(particle_type), POINTER             :: particle_set( : )
     REAL(KIND=dp), INTENT(INOUT)             :: pos( :, : ), vel( :, : )
-    TYPE(cell_type), POINTER                 :: cell
     TYPE(simulation_parameters_type), &
       INTENT(IN)                             :: simpar
+    TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error 
+      OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'shake_control', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, ikind, imol, &
-                                                n3x3con, n4x6con, &
-                                                nkind, nmol_per_kind
-    REAL(KIND=dp)                            :: max_sigma
+    INTEGER                                  :: handle, i, ikind, imol, k, &
+                                                n3x3con, n4x6con, nkind, &
+                                                nmol_per_kind
+    REAL(KIND=dp)                            :: mass
+    REAL(KIND=dp), DIMENSION(SIZE(pos, 2))   :: imass
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(colvar_counters)                    :: ncolv
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    REAL(KIND=dp)                            :: mass
-    INTEGER                                  :: k
-    REAL(KIND=dp), DIMENSION(SIZE(pos,2))    :: imass
 
     CALL timeset ( routineN, 'I', ' ', handle )
     nkind = SIZE ( molecule_kind_set )
@@ -176,21 +171,20 @@ CONTAINS
       INTENT(IN)                             :: simpar
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error 
+      OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'rattle_control', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, ikind, imol, &
-                                                n3x3con, n4x6con, &
-                                                nkind, nmol_per_kind
+    INTEGER                                  :: handle, i, ikind, imol, k, &
+                                                n3x3con, n4x6con, nkind, &
+                                                nmol_per_kind
+    REAL(KIND=dp)                            :: mass
+    REAL(KIND=dp), DIMENSION(SIZE(vel, 2))   :: imass
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(colvar_counters)                    :: ncolv
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    REAL(KIND=dp)                            :: mass
-    INTEGER                                  :: k
-    REAL(KIND=dp), DIMENSION(SIZE(vel,2))    :: imass
 
     CALL timeset ( routineN, 'I', ' ', handle )
     nkind = SIZE ( molecule_kind_set )
@@ -261,17 +255,16 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'shake_roll_control', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, ikind, imol, &
-                                                n3x3con, n4x6con, &
-                                                nkind, nmol_per_kind
-    TYPE(colvar_counters)                    :: ncolv
+    INTEGER                                  :: handle, i, ikind, imol, k, &
+                                                n3x3con, n4x6con, nkind, &
+                                                nmol_per_kind
+    REAL(KIND=dp)                            :: mass
     REAL(KIND=dp), DIMENSION(3, 3)           :: r_shake, v_shake
+    REAL(KIND=dp), DIMENSION(SIZE(pos, 2))   :: imass
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(colvar_counters)                    :: ncolv
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    REAL(KIND=dp)                            :: mass
-    INTEGER                                  :: k
-    REAL(KIND=dp), DIMENSION(SIZE(pos,2))    :: imass
 
     CALL timeset ( routineN, 'I', ' ', handle )
     nkind = SIZE ( molecule_kind_set )
@@ -358,17 +351,16 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'rattle_roll_control', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, ikind, imol, &
-                                                n3x3con, n4x6con, &
-                                                nkind, nmol_per_kind
-    TYPE(colvar_counters)                    :: ncolv
+    INTEGER                                  :: handle, i, ikind, imol, k, &
+                                                n3x3con, n4x6con, nkind, &
+                                                nmol_per_kind
+    REAL(KIND=dp)                            :: amass
     REAL(KIND=dp), DIMENSION(3, 3)           :: r_rattle
+    REAL(KIND=dp), DIMENSION(SIZE(vel, 2))   :: imass
+    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(colvar_counters)                    :: ncolv
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    REAL(KIND=dp)                            :: amass
-    INTEGER                                  :: k
-    REAL(KIND=dp), DIMENSION(SIZE(vel,2))    :: imass
 
     CALL timeset ( routineN, 'I', ' ', handle )
     ! initialize locals
@@ -710,16 +702,16 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
   SUBROUTINE pv_colv_eval(pv, lcolv, particle_set)
-    IMPLICIT NONE
-    ! Arguments
-    REAL(KIND=dp), INTENT(INOUT), DIMENSION(3,3) :: pv
+    REAL(KIND=dp), DIMENSION(3, 3), &
+      INTENT(INOUT)                          :: pv
     TYPE(local_colvar_constraint_type), &
-         INTENT(IN)                              :: lcolv
-    TYPE(particle_type), POINTER, dimension(:)   :: particle_set
-    ! Local Variables
-    INTEGER :: iatm, ind, i, j
-    REAL(KIND=dp), DIMENSION(3) :: f
-    REAL(KIND=dp)               :: tmp, lambda
+      INTENT(IN)                             :: lcolv
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+
+    INTEGER                                  :: i, iatm, ind, j
+    REAL(KIND=dp)                            :: lambda, tmp
+    REAL(KIND=dp), DIMENSION(3)              :: f
 
     DO iatm = 1, SIZE( lcolv % colvar_old % i_atom )
        ind =   lcolv % colvar_old % i_atom (iatm)

@@ -22,6 +22,7 @@
 
 MODULE nhc_mapping
 
+  USE colvar_types,                    ONLY: colvar_counters
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_type,&
                                              get_dyn_coeff
@@ -47,8 +48,7 @@ MODULE nhc_mapping
                                              molecule_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
-  USE colvar_types,                    ONLY: colvar_counters
-                                             
+
   IMPLICIT NONE
 
   PRIVATE

@@ -31,7 +31,7 @@ MODULE velocity_verlet_control
        nvt_ensemble, reftraj_ensemble
   USE integrator,                      ONLY: &
        isokin, langevin, nph_uniaxial, nph_uniaxial_damped, npt_f, npt_i, &
-       nve, nvt, reftraj,nve_respa
+       nve, nve_respa, nvt, reftraj
   USE mathconstants,                   ONLY: zero
   USE md,                              ONLY: simulation_parameters_type
   USE md_environment_types,            ONLY: get_md_env,&

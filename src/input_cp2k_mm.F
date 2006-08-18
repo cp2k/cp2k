@@ -23,8 +23,8 @@
 !!   SOURCE
 !****************************************************************************
 MODULE input_cp2k_mm
-  USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE cp_output_handling,              ONLY: cp_print_key_section_create
+  USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE input_constants
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
@@ -146,8 +146,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
-    TYPE(section_type), POINTER              :: print_key
     TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: print_key
 
     failure=.FALSE.
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
@@ -362,7 +362,6 @@ CONTAINS
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-    TYPE(section_type), POINTER              :: print_key
 
     failure=.FALSE.
     
@@ -374,7 +373,7 @@ CONTAINS
             n_keywords=1, n_subsections=0, repeats=.TRUE., required=.FALSE.,&
             error=error)
 
-       NULLIFY(keyword, print_key)
+       NULLIFY(keyword)
               
        CALL keyword_create(keyword, name="R0_NB",&
             description="Specify the minimum value of the distance interval "//&

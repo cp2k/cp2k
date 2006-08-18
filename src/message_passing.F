@@ -33,8 +33,8 @@ MODULE message_passing
                                              dp_size,&
                                              int_size,&
                                              sp
-  USE machine,                         ONLY: m_walltime,&
-                                             m_abort
+  USE machine,                         ONLY: m_abort,&
+                                             m_walltime
   USE parallel_include
 
   IMPLICIT NONE

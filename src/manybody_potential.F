@@ -21,25 +21,17 @@
 MODULE manybody_potential
 
   USE kinds,                           ONLY: dp
-  USE pair_potential_types,            ONLY: pair_potential_pp_type,&
-                                             pair_potential_single_type,&
-                                             nn_type,&
-                                             lj_type,&
-                                             ft_type,&
-                                             wl_type,&
-                                             gw_type,&
-                                             ip_type,&
-                                             ea_type                                                    
+  USE pair_potential_types,            ONLY: ea_type,&
+                                             pair_potential_pp_type,&
+                                             pair_potential_single_type
   USE splines,                         ONLY: init_spline,&
                                              init_splinexy,&
+                                             potential_s,&
+                                             spline_data_create,&
                                              spline_data_release,&
                                              spline_data_type,&
-                                             spline_environment_type,&
-                                             potential_s,&
-                                             spline_data_release,&
-                                             spline_data_create
+                                             spline_environment_type
   USE termination,                     ONLY: stop_program
-
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -54,7 +46,7 @@ CONTAINS
   FUNCTION manybody_pot ( pot, r )
 
     TYPE(pair_potential_single_type), &
-         INTENT(IN)                             :: pot
+      INTENT(IN)                             :: pot
     REAL(KIND=dp), INTENT(IN)                :: r
     REAL(KIND=dp)                            :: manybody_pot
 
@@ -76,20 +68,22 @@ CONTAINS
 
     TYPE(spline_environment_type), POINTER   :: spline_env
     TYPE(pair_potential_pp_type), POINTER    :: potparm
-    REAL(KIND=dp), INTENT(IN)                :: eps_spline, max_energy, rlow_nb,&
-         emax_spline
+    REAL(KIND=dp), INTENT(IN)                :: eps_spline, max_energy, &
+                                                rlow_nb, emax_spline
     INTEGER, INTENT(IN)                      :: iw, iw2
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'spline_manybody_control', &
-         routineP = moduleN//':'//routineN
-    INTEGER                                  :: i, j, jx, n, npoints, ntype
-    INTEGER                                  :: nspline, nkx, kx, nsize
-    REAL(KIND=dp)                            :: dx2, e, &
-         hicut, locut, x, x2,  xdum,diffmax,xdum1,ediff,xsav
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, j, jx, kx, n, nkx, &
+                                                npoints, nsize, nspline, ntype
+    LOGICAL                                  :: check_bounds, failure
+    REAL(KIND=dp)                            :: diffmax, dx2, e, ediff, &
+                                                hicut, locut, x, x2, xdum, &
+                                                xdum1, xsav
     TYPE(spline_data_type), POINTER          :: spline_data
-    LOGICAL                                  :: failure, check_bounds
 
     failure = .FALSE.
     n = 0
@@ -241,7 +235,7 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: rijsq
     REAL(KIND=dp), INTENT(OUT)               :: energy, fscalar
 
-    !------------------------------------------------------------------------------
+!------------------------------------------------------------------------------
 
     energy = potential_s ( spline_table, rijsq, fscalar )
 
@@ -259,7 +253,7 @@ CONTAINS
 
     REAL(KIND=dp)                            :: rij
 
-    !------------------------------------------------------------------------------
+!------------------------------------------------------------------------------
 
     rij = SQRT ( rijsq )
 

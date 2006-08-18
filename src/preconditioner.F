@@ -52,8 +52,8 @@ MODULE preconditioner
   USE input_constants,                 ONLY: &
        lr_precond_full_all, lr_precond_h0_inverse, lr_precond_s_inverse, &
        ot_precond_full_all, ot_precond_full_kinetic, ot_precond_full_single, &
-       ot_precond_s_inverse, ot_precond_sparse_diag, &
-       ot_precond_sparse_firstorder, ot_precond_full_single_inverse
+       ot_precond_full_single_inverse, ot_precond_s_inverse, &
+       ot_precond_sparse_diag, ot_precond_sparse_firstorder
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
   USE qs_mo_methods,                   ONLY: calculate_subspace_eigenvalues,&
@@ -844,12 +844,13 @@ SUBROUTINE make_full_single_inverse(preconditioner_env, matrix_c0, matrix_h, mat
     REAL(KIND=dp), DIMENSION(:), POINTER     :: c0_evals
     REAL(KIND=dp)                            :: energy_gap
 
-    TYPE(cp_fm_type), POINTER                :: matrix_sc0,matrix_tmp, matrix_tmp2
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: c0_shift
-    INTEGER                                  :: n,k
+    LOGICAL, PARAMETER                       :: check_it = .TRUE.
+
+    INTEGER                                  :: k, n
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: c0_shift, evals
     TYPE(cp_fm_struct_type), POINTER         :: fm_struct_tmp
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: evals
-    LOGICAL, PARAMETER                       :: check_it=.TRUE.
+    TYPE(cp_fm_type), POINTER                :: matrix_sc0, matrix_tmp, &
+                                                matrix_tmp2
 
     CALL cp_fm_get_info(matrix_c0,nrow_global=n,ncol_global=k)
 
@@ -865,8 +866,8 @@ SUBROUTINE make_full_single_inverse(preconditioner_env, matrix_c0, matrix_h, mat
     ALLOCATE(c0_shift(k))
    
     ! this must be positive since c0_evals are sorted from most negative to most positive  ?
-    write(6,*) 'C0 evals', c0_evals
-    c0_shift=sqrt(-(c0_evals-c0_evals(k))+energy_gap)
+    WRITE(6,*) 'C0 evals', c0_evals
+    c0_shift=SQRT(-(c0_evals-c0_evals(k))+energy_gap)
 
     CALL cp_fm_column_scale(matrix_sc0,c0_shift)
     CALL cp_fm_gemm('N','T',n,n,k,1.0_dp,matrix_sc0,matrix_sc0,0.0_dp,preconditioner_env%fm)
@@ -889,8 +890,8 @@ SUBROUTINE make_full_single_inverse(preconditioner_env, matrix_c0, matrix_h, mat
        CALL cp_fm_to_fm(preconditioner_env%fm,matrix_tmp2)
        ALLOCATE(evals(n))
        CALL cp_fm_syevd(matrix_tmp2,matrix_tmp,evals)
-       write(6,*) 'EVALS'
-       write(6,'(4F15.8)') evals
+       WRITE(6,*) 'EVALS'
+       WRITE(6,'(4F15.8)') evals
        DEALLOCATE(evals)
     ENDIF
 

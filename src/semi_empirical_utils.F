@@ -39,8 +39,8 @@ MODULE semi_empirical_utils
   USE semi_empirical_parameters,       ONLY: am1_default_parameter,&
                                              eht_default_parameter,&
                                              mndo_default_parameter,&
-                                             pm3_default_parameter,&
-                                             pdg_default_parameter
+                                             pdg_default_parameter,&
+                                             pm3_default_parameter
   USE semi_empirical_types,            ONLY: semi_empirical_type
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
@@ -182,8 +182,8 @@ CONTAINS
     REAL(KIND=dp), OPTIONAL                  :: uss, upp, udd, uff, alp, &
                                                 eisol, gss, gsp, gpp, gp2, &
                                                 hsp, gsd, gpd, gdd
-    INTEGER, INTENT(OUT), OPTIONAL           :: ngauss
     REAL(KIND=dp), DIMENSION(2), OPTIONAL    :: ppddg, dpddg
+    INTEGER, INTENT(OUT), OPTIONAL           :: ngauss
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'get_se_param'
 
@@ -394,8 +394,8 @@ CONTAINS
                                                 gsp, gss, hsp, udd, uff, upp, &
                                                 uss, zeff
     REAL(KIND=dp), DIMENSION(0:3)            :: u
+    REAL(KIND=dp), DIMENSION(2)              :: dpddg, ppddg
     REAL(KIND=dp), DIMENSION(:), POINTER     :: beta, sexp
-    REAL(KIND=dp), DIMENSION(2)              :: ppddg, dpddg
     TYPE(cp_logger_type), POINTER            :: logger
 
     NULLIFY(logger)

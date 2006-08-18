@@ -25,15 +25,12 @@
 !!   SOURCE
 !*****************************************************************************
 MODULE gopt_f_types
-  USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
-  USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind
   USE cell_types,                      ONLY: cell_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsystem_p_type
-  USE force_env_methods,               ONLY: force_env_calc_energy_force,&
-                                             apply_qmmm_trasl
+  USE force_env_methods,               ONLY: apply_qmmm_trasl,&
+                                             force_env_calc_energy_force
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_release,&
                                              force_env_retain,&
@@ -45,8 +42,7 @@ MODULE gopt_f_types
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
   USE particle_list_types,             ONLY: particle_list_type
-  USE particle_types,                  ONLY: particle_type,&
-                                             write_particle_distances,&
+  USE particle_types,                  ONLY: write_particle_distances,&
                                              write_qs_particle_coordinates,&
                                              write_structure_data
   USE timings,                         ONLY: timeset,&

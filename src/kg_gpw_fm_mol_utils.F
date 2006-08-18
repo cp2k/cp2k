@@ -27,8 +27,8 @@ MODULE kg_gpw_fm_mol_utils
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE global_types,                    ONLY: global_environment_type
-  USE input_section_types,             ONLY: section_vals_val_get,&
-                                             section_vals_type
+  USE input_section_types,             ONLY: section_vals_type,&
+                                             section_vals_val_get
   USE kg_gpw_fm_mol_types,             ONLY: fm_mol_blocks_type,&
                                              get_fm_mol_block,&
                                              get_kg_fm_mol_set,&
@@ -37,9 +37,10 @@ MODULE kg_gpw_fm_mol_utils
                                              kg_fm_p_type,&
                                              mol_mo_set_p_type,&
                                              mol_mo_set_type
-  USE kinds,                           ONLY: dp,&
+  USE kinds,                           ONLY: default_path_length,&
+                                             dp,&
                                              dp_size,&
-                                             int_size, default_path_length
+                                             int_size
   USE memory_utilities,                ONLY: reallocate
   USE message_passing,                 ONLY: mp_bcast,&
                                              mp_sum
@@ -770,15 +771,15 @@ CONTAINS
     TYPE(kg_fm_p_type)                       :: kg_fm
     TYPE(global_environment_type), POINTER   :: globenv
     INTEGER, INTENT(IN)                      :: nspins, id_nr
-    TYPE(section_vals_type),POINTER          :: force_env_section
+    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_mo_mol_restart', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=default_path_length)                       :: file_name
     CHARACTER(LEN=6)                         :: method
+    CHARACTER(LEN=default_path_length)       :: file_name
     INTEGER :: group, handle, imo, imol_found, imol_global, imol_local, &
       imol_proc, imolecule_kind, ispin, istat, n_ao, n_mo(2), nao_max, &
       nelectron_global, nelectron_spin(2), nmo_max, nmolecule_global, &
@@ -1009,8 +1010,8 @@ CONTAINS
 
     TYPE(kg_fm_p_type)                       :: kg_fm
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(section_vals_type),POINTER          :: force_env_section
     INTEGER, INTENT(IN)                      :: nspins, id_nr
+    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 

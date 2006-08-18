@@ -27,23 +27,15 @@ MODULE pint_methods
   USE input_constants,                 ONLY: do_qs,&
                                              mol_dyn_run
   USE input_section_types,             ONLY: section_vals_type,&
-                                             section_vals_val_set,&
-                                             section_vals_val_get
-  USE kinds,                           ONLY: dp, default_string_length
+                                             section_vals_val_set
+  USE kinds,                           ONLY: dp
   USE pint_types,                      ONLY: pint_calc_uf_h,&
                                              pint_env_create,&
                                              pint_env_type,&
                                              pint_f2uf,&
-                                             pint_run,&
-                                             pint_start,&
                                              pint_u2x,&
                                              pint_x2u
   USE replica_methods,                 ONLY: rep_env_test
-  USE replica_types,                   ONLY: rep_env_release,&
-                                             rep_env_calc_e_f,&
-                                             rep_env_create,&
-                                             replica_env_type,&
-                                             rep_env_write
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -103,7 +95,7 @@ SUBROUTINE pint_env_test(para_env,input,error)
   CPPrecondition(ASSOCIATED(input),cp_failure_level,routineP,error,failure)
   CPPrecondition(para_env%ref_count>0,cp_failure_level,routineP,error,failure)
   CPPrecondition(input%ref_count>0,cp_failure_level,routineP,error,failure)
-  nullify(pint_env)
+  NULLIFY(pint_env)
   IF (.NOT. failure) THEN
      logger => cp_error_get_logger(error)
      CALL pint_env_create(pint_env,input,para_env,error=error)
@@ -180,7 +172,6 @@ SUBROUTINE do_pint_run(para_env,input,error)
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
-    TYPE(pint_env_type), POINTER             :: pint_env
 
   failure=.FALSE.
   
@@ -188,7 +179,6 @@ SUBROUTINE do_pint_run(para_env,input,error)
   CPPrecondition(ASSOCIATED(input),cp_failure_level,routineP,error,failure)
   CPPrecondition(para_env%ref_count>0,cp_failure_level,routineP,error,failure)
   CPPrecondition(input%ref_count>0,cp_failure_level,routineP,error,failure)
-  NULLIFY(pint_env)
   IF (.NOT. failure) THEN
      CALL section_vals_val_set(input,"GLOBAL%RUN_TYPE",i_val=mol_dyn_run,&
           error=error)

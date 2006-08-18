@@ -22,8 +22,7 @@
 MODULE splines
 
   USE kinds,                           ONLY: dp
-  USE termination,                     ONLY: stop_memory,&
-       stop_program
+  USE termination,                     ONLY: stop_memory
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -114,10 +113,10 @@ CONTAINS
   SUBROUTINE spline_env_release(spline_env,error)
     TYPE(spline_environment_type), POINTER   :: spline_env
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'spline_env_release', &
-         routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, stat
     LOGICAL                                  :: failure
@@ -168,10 +167,10 @@ CONTAINS
   SUBROUTINE spline_data_release (spline_data,error)
     TYPE(spline_data_type), POINTER          :: spline_data
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'spline_data_release', &
-         routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: stat
     LOGICAL                                  :: failure
@@ -224,10 +223,10 @@ CONTAINS
   SUBROUTINE spline_data_retain(spline_data,error)
     TYPE(spline_data_type), POINTER          :: spline_data
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'spline_data_retain', &
-         routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
 
@@ -262,10 +261,10 @@ CONTAINS
   SUBROUTINE spline_env_retain(spline_env,error)
     TYPE(spline_environment_type), POINTER   :: spline_env
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'spline_env_retain', &
-         routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
 
@@ -302,10 +301,10 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: ntype
     INTEGER, INTENT(IN), OPTIONAL            :: ntab_in
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'spline_env_create', &
-         routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: i, ntab, stat
     LOGICAL                                  :: failure
@@ -357,12 +356,12 @@ CONTAINS
   !******************************************************************************
   SUBROUTINE spline_data_copy ( spline_data_source, spline_data_dest, error )
     TYPE(spline_data_type), POINTER          :: spline_data_source, &
-         spline_data_dest
+                                                spline_data_dest
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'spline_data_copy', &
-         routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: stat
     LOGICAL                                  :: failure
@@ -420,10 +419,10 @@ CONTAINS
   SUBROUTINE spline_data_create ( spline_data, error )
     TYPE(spline_data_type), POINTER          :: spline_data
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'spline_data_create', &
-         routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
     INTEGER                                  :: stat
     LOGICAL                                  :: failure
@@ -541,8 +540,9 @@ CONTAINS
   SUBROUTINE init_spline ( spl, dx, y1a, y1b, ei_scale14, ei_cutoff14)
 
     TYPE(spline_data_type), POINTER          :: spl
-    REAL(KIND=dp), INTENT(IN)                :: dx 
-    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: y1a, y1b, ei_scale14, ei_cutoff14
+    REAL(KIND=dp), INTENT(IN)                :: dx
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: y1a, y1b, ei_scale14, &
+                                                ei_cutoff14
 
     INTEGER                                  :: err, i, n
     REAL(KIND=dp)                            :: p, s
@@ -637,10 +637,11 @@ CONTAINS
     REAL(KIND=dp), INTENT(OUT)               :: y1
     REAL(KIND=dp)                            :: potential_s
 
+    REAL(KIND=dp), PARAMETER                 :: f13 = 1.0_dp/3.0_dp
+
     INTEGER                                  :: i
-    REAL(KIND=dp)                            :: a, b, h26, invh, y2hi, y2lo, &
-         yhi, ylo, xx, x4
-    REAL(KIND=dp), PARAMETER :: f13=1.0_dp/3.0_dp
+    REAL(KIND=dp)                            :: a, b, h26, invh, x4, xx, &
+                                                y2hi, y2lo, yhi, ylo
 
     xx = 1.0_dp/xxi
     h26 = spl%h26

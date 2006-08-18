@@ -20,8 +20,9 @@
 
 MODULE qs_operators_ao
 
-  USE ai_angmom,                       ONLY: angmom, angmom2
-  USE ai_moments,                      ONLY: diff_momop, diffop,&
+  USE ai_angmom,                       ONLY: angmom
+  USE ai_moments,                      ONLY: diff_momop,&
+                                             diffop,&
                                              moment
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind,&
@@ -43,7 +44,6 @@ MODULE qs_operators_ao
        get_neighbor_list_set, get_neighbor_node, neighbor_list_set_p_type, &
        neighbor_list_type, neighbor_node_type, next
   USE sparse_matrix_types,             ONLY: add_block_node,&
-                                             add_1d_block_node,&
                                              allocate_matrix,&
                                              get_block_node,&
                                              real_matrix_p_type,&
@@ -108,15 +108,16 @@ CONTAINS
 
     INTEGER :: handle, i, iab, iatom, icol, ikind, ilist, inode, irow, iset, &
       istat, ithread, j, jatom, jkind, jset, last_jatom, ldab, ldsa, ldsb, &
-      ldwork, maxl, ncoa, ncob, nkind, nlist, nnode, nseta, nsetb, &
-      nthread, sgfa, sgfb
+      ldwork, maxl, ncoa, ncob, nkind, nlist, nnode, nseta, nsetb, nthread, &
+      sgfa, sgfb
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
     LOGICAL                                  :: failure, my_minimum_image, &
                                                 new_atom_b
-    REAL(KIND=dp)                            :: alpha, dab, Lxo2, Lyo2, Lzo2, rab2
+    REAL(KIND=dp)                            :: alpha, dab, Lxo2, Lyo2, Lzo2, &
+                                                rab2
     REAL(KIND=dp), DIMENSION(3)              :: ra, rab, rb
     REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a, set_radius_b
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rpgfa, rpgfb, sphi_a, sphi_b, &
@@ -829,10 +830,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'rRc_xyz_ao', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, i, iab, iatom, icol, ikind, ilist, imom, inode, irow, iset, &
-      istat, ithread, j, jatom, jkind, jset, last_jatom, ldab, ldsa, ldsb, &
-      ldwork, M_dim, maxl, ncoa, ncob, nkind, nlist, nnode, nrow, nseta, nsetb, &
-      nthread, sgfa, sgfb
+    INTEGER :: handle, i, iab, iatom, icol, ikind, ilist, imom, inode, irow, &
+      iset, istat, ithread, j, jatom, jkind, jset, last_jatom, ldab, ldsa, &
+      ldsb, ldwork, M_dim, maxl, ncoa, ncob, nkind, nlist, nnode, nrow, &
+      nseta, nsetb, nthread, sgfa, sgfb
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
                                                 lb_min, npgfa, npgfb, nsgfa, &
                                                 nsgfb
@@ -1197,8 +1198,8 @@ CONTAINS
 
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: op_sm
-    TYPE(real_matrix_p_type), DIMENSION(:,:), &
-      POINTER                                :: op_sm_der
+    TYPE(real_matrix_p_type), &
+      DIMENSION(:, :), POINTER               :: op_sm_der
     TYPE(qs_environment_type), POINTER       :: qs_env
     REAL(dp)                                 :: Rc(3)
     INTEGER, INTENT(IN)                      :: order
@@ -1209,9 +1210,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'rRc_xyz_der_ao', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, i, iab, iatom, icol, idir, ikind, ilist, imom, inode, ipgf, irow, iset, &
-      istat, ithread, j, jatom, jkind, jpgf, jset, last_jatom, lda_min, ldab, ldb_min, ldsa, ldsb, &
-      ldwork, M_dim, maxl, na, nb, ncoa, ncob, nda, ndb, nkind, nlist, nnode, nseta, nsetb, &
+    INTEGER :: handle, i, iab, iatom, icol, idir, ikind, ilist, imom, inode, &
+      ipgf, irow, iset, istat, ithread, j, jatom, jkind, jpgf, jset, &
+      last_jatom, lda_min, ldab, ldb_min, ldsa, ldsb, ldwork, M_dim, maxl, &
+      na, nb, ncoa, ncob, nda, ndb, nkind, nlist, nnode, nseta, nsetb, &
       nthread, sgfa, sgfb
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb_max, &
                                                 lb_min, npgfa, npgfb, nsgfa, &
@@ -1219,8 +1221,8 @@ CONTAINS
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
     LOGICAL                                  :: failure, my_minimum_image, &
                                                 my_soft, new_atom_b
-    REAL(KIND=dp)                            :: alpha, alpha_der, alpha_ji
-    REAL(KIND=dp)                            :: dab, Lxo2, Lyo2, Lzo2, rab2
+    REAL(KIND=dp)                            :: alpha, alpha_der, dab, Lxo2, &
+                                                Lyo2, Lzo2, rab2
     REAL(KIND=dp), DIMENSION(3)              :: ra, rab, rac, rb, rbc
     REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a, set_radius_b
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rpgfa, rpgfb, sphi_a, sphi_b, &
@@ -1228,20 +1230,16 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: mab, mab_tmp, workt
     REAL(KIND=dp), DIMENSION(:, :, :, :), &
-      POINTER                                :: difmab
-    REAL(KIND=dp), DIMENSION(:, :, :, :), &
-      POINTER                                :: mabt
-    REAL(KIND=dp), DIMENSION(:, :, :, :, :), &
-      POINTER                                :: difmabt
+      POINTER                                :: difmab, mabt
+    REAL(KIND=dp), &
+      DIMENSION(:, :, :, :, :), POINTER      :: difmabt
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(block_p_type), DIMENSION(:), &
       POINTER                                :: op_dip
     TYPE(block_p_type), DIMENSION(:, :), &
-      POINTER                                :: op_dip_der
-    TYPE(block_p_type), DIMENSION(:, :), &
-      POINTER                                :: op_dipt
+      POINTER                                :: op_dip_der, op_dipt
     TYPE(block_p_type), DIMENSION(:, :, :), &
       POINTER                                :: op_dip_dert
     TYPE(cell_type), POINTER                 :: cell
@@ -1622,8 +1620,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'set_up_op_sm', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: iab, iatom, icol, ikind, ilist, inode, irow, istat, jatom, jkind, &
-      last_jatom, natom, neighbor_list_id, nkind, nlist, nnode, nsgf
+    INTEGER :: iab, iatom, icol, ikind, ilist, inode, irow, istat, jatom, &
+      jkind, last_jatom, natom, neighbor_list_id, nkind, nlist, nnode, nsgf
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: first_sgf, last_sgf
     LOGICAL                                  :: failure, new_atom_b
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: block

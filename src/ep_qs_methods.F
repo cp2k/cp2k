@@ -23,19 +23,20 @@
 !!   SOURCE
 !****************************************************************************
 MODULE ep_qs_methods
-  USE kinds, only: dp
-  USE timings, ONLY: timeset, timestop
-  USE ep_qs_types, only: ep_qs_type
-  USE qs_environment_types, only: qs_environment_type
+  USE ep_qs_types,                     ONLY: ep_qs_type
+  USE kinds,                           ONLY: dp
+  USE qs_environment_types,            ONLY: qs_environment_type
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
   PRIVATE
 
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='ep_qs_methods'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'ep_qs_methods'
   INTEGER, SAVE, PRIVATE :: last_ep_qs_id=0
 
-  public :: ep_qs_create
+  PUBLIC :: ep_qs_create
 !!***
 !****************************************************************************
 
@@ -63,16 +64,18 @@ CONTAINS
 !!
 !!*** **********************************************************************
 SUBROUTINE ep_qs_create(ep_qs_env,qs_env,error)
-  TYPE(ep_qs_type), pointer :: ep_qs_env
-  TYPE(qs_environment_type), pointer :: qs_env
-  type(cp_error_type), optional, intent(inout) :: error
-  
-  logical :: failure
-  character(len=*), parameter :: routineN='ep_qs_create',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: handle, stat
+    TYPE(ep_qs_type), POINTER                :: ep_qs_env
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  failure=.false.
+    CHARACTER(len=*), PARAMETER :: routineN = 'ep_qs_create', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, stat
+    LOGICAL                                  :: failure
+
+  failure=.FALSE.
 
   CALL timeset(routineN,handle)
   CPPrecondition(.NOT.ASSOCIATED(ep_qs_env),cp_failure_level,routineP,error,failure)
@@ -83,7 +86,7 @@ SUBROUTINE ep_qs_create(ep_qs_env,qs_env,error)
      ep_qs_env%id_nr=last_ep_qs_id
      ep_qs_env%ref_count=1
   END IF
-  call timestop(handle)
+  CALL timestop(handle)
 END SUBROUTINE ep_qs_create
 !***************************************************************************
 

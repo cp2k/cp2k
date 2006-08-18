@@ -30,7 +30,7 @@ MODULE qs_scf_methods
   USE cp_fm_diag,                      ONLY: cp_fm_block_jacobi,&
                                              cp_fm_syevd,&
                                              cp_fm_syevx
-  USE cp_fm_struct,                    ONLY: cp_fm_struct_equivalent,&  
+  USE cp_fm_struct,                    ONLY: cp_fm_struct_equivalent,&
                                              cp_fm_struct_type
   USE cp_fm_types,                     ONLY: cp_fm_get_element,&
                                              cp_fm_get_info,&
@@ -66,7 +66,7 @@ MODULE qs_scf_methods
 
   PRIVATE
 
-  CHARACTER(len=*), PARAMETER :: moduleN = "qs_scf_methods"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_scf_methods'
   REAL(KIND=dp), PARAMETER    :: ratio = 0.25_dp
 
   ! Public subroutines
@@ -494,25 +494,26 @@ CONTAINS
     ! Literature: - C. C. J. Roothaan, Rev. Mod. Phys. 32, 179 (1960)
     !             - M. F. Guest and V. R. Saunders, Mol. Phys. 28(3), 819 (1974)
 
-    TYPE(cp_fm_type), POINTER                         :: ksa,ksb
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)           :: occa,occb
-    REAL(KIND=dp), DIMENSION(0:2,0:2,1:2), INTENT(IN) :: roks_parameter
-    TYPE(cp_error_type), INTENT(INOUT), OPTIONAL      :: error
+    TYPE(cp_fm_type), POINTER                :: ksa, ksb
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: occa, occb
+    REAL(KIND=dp), &
+      DIMENSION(0:2, 0:2, 1:2), INTENT(IN)   :: roks_parameter
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "combine_ks_matrices_1",&
-                                   routineP = moduleN//":"//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'combine_ks_matrices_1', &
+      routineP = moduleN//':'//routineN
 
-    TYPE(cp_fm_struct_type), POINTER :: ksa_struct,ksb_struct
+    INTEGER                                  :: handle, i, icol_global, &
+                                                icol_local, irow_global, &
+                                                irow_local, j, ncol_local, &
+                                                nrow_local
+    INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
+    LOGICAL                                  :: compatible_matrices, failure
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: fa, fb
+    TYPE(cp_fm_struct_type), POINTER         :: ksa_struct, ksb_struct
 
-    INTEGER :: i,icol_global,icol_local,irow_global,irow_local,j,handle,&
-               ncol_local,nrow_local
-    LOGICAL :: compatible_matrices,failure
-
-    INTEGER, DIMENSION(:), POINTER :: col_indices,row_indices
-
-    REAL(KIND=dp), DIMENSION(:,:), POINTER :: fa,fb
-
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     CALL timeset(routineN,"I","",handle)
 
@@ -569,27 +570,27 @@ CONTAINS
     ! Literature: - C. C. J. Roothaan, Rev. Mod. Phys. 32, 179 (1960)
     !             - M. Filatov and S. Shaik, Chem. Phys. Lett. 288, 689 (1998)
 
-    TYPE(cp_fm_type), POINTER                         :: ksa,ksb
-    REAL(KIND=dp), DIMENSION(:), INTENT(IN)           :: occa,occb
-    REAL(KIND=dp), INTENT(IN)                         :: f
-    INTEGER, INTENT(IN)                               :: nalpha,nbeta
-    TYPE(cp_error_type), INTENT(INOUT), OPTIONAL      :: error
+    TYPE(cp_fm_type), POINTER                :: ksa, ksb
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: occa, occb
+    REAL(KIND=dp), INTENT(IN)                :: f
+    INTEGER, INTENT(IN)                      :: nalpha, nbeta
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "combine_ks_matrices_2",&
-                                   routineP = moduleN//":"//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'combine_ks_matrices_2', &
+      routineP = moduleN//':'//routineN
 
-    TYPE(cp_fm_struct_type), POINTER :: ksa_struct,ksb_struct
+    INTEGER                                  :: handle, i, icol_global, &
+                                                icol_local, irow_global, &
+                                                irow_local, ncol_local, &
+                                                nrow_local
+    INTEGER, DIMENSION(:), POINTER           :: col_indices, row_indices
+    LOGICAL                                  :: compatible_matrices, failure
+    REAL(KIND=dp)                            :: beta, t1, t2, ta, tb
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: fa, fb
+    TYPE(cp_fm_struct_type), POINTER         :: ksa_struct, ksb_struct
 
-    REAL(KIND=dp) :: beta,t1,t2,ta,tb
-    INTEGER       :: i,icol_global,icol_local,irow_global,irow_local,j,&
-                     handle,ncol_local,nrow_local
-    LOGICAL       :: compatible_matrices,failure
-
-    INTEGER, DIMENSION(:), POINTER :: col_indices,row_indices
-
-    REAL(KIND=dp), DIMENSION(:,:), POINTER :: fa,fb
-
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     CALL timeset(routineN,"I","",handle)
 

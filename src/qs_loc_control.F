@@ -30,10 +30,9 @@ MODULE qs_loc_control
        state_loc_fromitoj, state_loc_list, state_loc_none, state_loc_upton
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
+  USE kinds,                           ONLY: default_path_length
   USE memory_utilities,                ONLY: reallocate
   USE string_utilities,                ONLY: xstring
-  USE kinds,                           ONLY: default_string_length,&
-                                             default_path_length
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -242,8 +241,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_loc_section', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, ir, istat, n_rep, &
-                                                n_state, ncubes, output_unit
+    INTEGER                                  :: i, ir, istat, n_rep, n_state, &
+                                                ncubes, output_unit
     INTEGER, DIMENSION(:), POINTER           :: bounds, list
     LOGICAL                                  :: failure, ionode
     TYPE(cp_logger_type), POINTER            :: logger
@@ -478,8 +477,8 @@ CONTAINS
     TYPE(localized_wfn_control_type)         :: localized_wfn_control
     INTEGER, DIMENSION(2), INTENT(IN)        :: nmoloc
     INTEGER, INTENT(IN)                      :: nspins
-    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 

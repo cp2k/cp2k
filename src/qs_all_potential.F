@@ -106,7 +106,7 @@ MODULE qs_all_potential
       icoam_plus, icoap_plus, icob, icobm, ipgfa, ipgfb, istat, katom, kkind, &
       knode, na, na_plus, nap, nb, nb_plus, ncoa, ncob, nnode_c
     INTEGER, DIMENSION(3)                    :: la, lam, lap, lb, lbm
-    LOGICAL :: calculate_forces
+    LOGICAL                                  :: calculate_forces
     REAL(dp) :: cerf, der_intab_a, der_intab_b, force_a, force_b, rab2, &
       rac(3), rac2, rbc(3), rbc2, rpgfc, zax2, zbx2, zc, zetc
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: ff
@@ -309,7 +309,6 @@ MODULE qs_all_potential
     REAL(dp), INTENT(IN)                     :: eps_core
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'radii_3c_orbxall'
-!    REAL(dp), PARAMETER                      :: EPS = 1.E-06_dp
 
     INTEGER                                  :: i, ico, icoa, ikind, ipgf, &
                                                 iset, istat, maxlgto, n, &
@@ -327,6 +326,8 @@ MODULE qs_all_potential
     REAL(dp), DIMENSION(:, :), POINTER       :: rpgfa, set_rad, sphi_a, zeta
     TYPE(atomic_kind_type), POINTER          :: atom_kind
     TYPE(gto_basis_set_type), POINTER        :: orb_basis
+
+!    REAL(dp), PARAMETER                      :: EPS = 1.E-06_dp
 
     NULLIFY(orb_rad,set_rad)
 

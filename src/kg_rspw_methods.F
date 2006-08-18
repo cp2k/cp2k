@@ -43,8 +43,7 @@ MODULE kg_rspw_methods
   USE kg_rspw_types,                   ONLY: kg_rspw_type
   USE kinds,                           ONLY: dp
   USE l_utils,                         ONLY: init_l_info,&
-                                             l_info_release,&
-                                             l_info_retain
+                                             l_info_release
   USE pw_grid_types,                   ONLY: FULLSPACE,&
                                              HALFSPACE,&
                                              pw_grid_type
@@ -142,8 +141,8 @@ END SUBROUTINE kg_rspw_create
     INTEGER, DIMENSION(:, :), POINTER        :: lshella
     LOGICAL                                  :: failure, use_ref_cell
     REAL(dp)                                 :: alpha, cutilev, drmin, &
-                                                maxradius, rel_cutoff, zetp, &
-                                                my_cut
+                                                maxradius, my_cut, &
+                                                rel_cutoff, zetp
     REAL(KIND=dp), DIMENSION(:), POINTER     :: cutoff, my_cutoff
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: zeta
     TYPE(atomic_kind_type), DIMENSION(:), &

@@ -32,17 +32,15 @@ MODULE environment
   USE gamma,                           ONLY: deallocate_md_ftable
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: &
-       do_eip, do_farming, do_fist, do_kg, do_qs, do_tbmd, do_test,do_cp2k,do_ep, &
-       energy_run, mol_dyn_run, none_run, program_names, run_type_names,method_names
+       do_cp2k, do_eip, do_farming, do_fist, do_kg, do_qs, do_tbmd, do_test, &
+       energy_run, mol_dyn_run, none_run, program_names, run_type_names
   USE input_section_types,             ONLY: section_get_lval,&
                                              section_get_rval,&
                                              section_vals_get,&
                                              section_vals_get_subs_vals,&
-                                             section_vals_get_subs_vals2,&
                                              section_vals_get_subs_vals3,&
                                              section_vals_type,&
-                                             section_vals_val_get,&
-                                             section_vals_duplicate,section_vals_release
+                                             section_vals_val_get
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp,&
@@ -68,8 +66,8 @@ MODULE environment
                                              write_rng_stream
   USE physcon,                         ONLY: write_physcon
   USE string_utilities,                ONLY: ascii_to_string,&
-                                             string_to_ascii,&
-                                             integer_to_string
+                                             integer_to_string,&
+                                             string_to_ascii
   USE termination,                     ONLY: set_error_unit,&
                                              stop_memory,&
                                              stop_program
@@ -80,8 +78,6 @@ MODULE environment
                                              timestop,&
                                              trace_debug,&
                                              use_HPM
-  USE force_env_types,                 ONLY: force_env_type
-
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -484,7 +480,6 @@ SUBROUTINE cp2k_read(globenv,error)
   SUBROUTINE read_global_section(globenv,error)
 
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(force_env_type), POINTER            :: force_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -492,13 +487,16 @@ SUBROUTINE cp2k_read(globenv,error)
       start_section_label = "GLOBAL"
 
     CHARACTER(len=default_string_length) :: basis_set_file_name, &
-      mm_potential_file_name, potential_file_name, coord_file_name,&
-      restart_file_name, env_num
-    INTEGER                                  :: num_threads, output_unit, nforce_eval,&
-         iforce_eval,method_name_id
+      coord_file_name, env_num, mm_potential_file_name, potential_file_name, &
+      restart_file_name
+    INTEGER                                  :: iforce_eval, method_name_id, &
+                                                nforce_eval, num_threads, &
+                                                output_unit
     LOGICAL                                  :: ata, failure, trace
-    TYPE(section_vals_type), POINTER         :: dft_section, global_section,&
-         qmmm_section, subsys_section,force_env_sections
+    TYPE(section_vals_type), POINTER         :: dft_section, &
+                                                force_env_sections, &
+                                                global_section, qmmm_section, &
+                                                subsys_section
 
 !$  INTEGER :: omp_get_num_threads
 

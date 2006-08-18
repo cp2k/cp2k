@@ -34,8 +34,9 @@ MODULE input_cp2k_motion
                                              section_create,&
                                              section_release,&
                                              section_type
-  USE input_val_types,                 ONLY: integer_t,&
-                                             real_t, char_t
+  USE input_val_types,                 ONLY: char_t,&
+                                             integer_t,&
+                                             real_t
   USE kinds,                           ONLY: dp
   USE string_utilities,                ONLY: s2a
   USE timings,                         ONLY: timeset,&
@@ -233,7 +234,7 @@ CONTAINS
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-    TYPE(section_type), POINTER              :: subsection, print_key
+    TYPE(section_type), POINTER              :: print_key, subsection
 
     failure=.FALSE.
     
@@ -315,8 +316,8 @@ CONTAINS
   SUBROUTINE restraint_info_section(section, error)
     TYPE(section_type), POINTER              :: section
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
-    
+      OPTIONAL                               :: error
+
     CHARACTER(len=*), PARAMETER :: routineN = 'restraint_info_section', &
       routineP = moduleN//':'//routineN
 

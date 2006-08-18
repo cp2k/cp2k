@@ -60,7 +60,7 @@ MODULE basis_set_types
 
   ! Global parameters (only in this module)
 
-  CHARACTER(LEN=*), PARAMETER :: moduleN = "basis_set_types"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'basis_set_types'
 
   ! Define the Gaussian-type orbital basis set type
 
@@ -138,11 +138,11 @@ CONTAINS
 
     TYPE(gto_basis_set_type), POINTER        :: gto_basis_set
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "allocate_gto_basis_set"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_gto_basis_set'
 
     INTEGER                                  :: istat
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     IF (ASSOCIATED(gto_basis_set)) CALL deallocate_gto_basis_set(gto_basis_set)
 
@@ -190,11 +190,11 @@ CONTAINS
 
     TYPE(gto_basis_set_type), POINTER        :: gto_basis_set
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "deallocate_gto_basis_set"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_gto_basis_set'
 
     INTEGER                                  :: istat
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     DEALLOCATE (gto_basis_set%cgf_symbol,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
@@ -322,8 +322,6 @@ CONTAINS
       INTENT(OUT), OPTIONAL                  :: name
     INTEGER, INTENT(OUT), OPTIONAL           :: norm_type
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: kind_radius
-    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: short_kind_radius
-    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: kg_gpw_kind_radius
     INTEGER, INTENT(OUT), OPTIONAL           :: ncgf, nset, nsgf
     CHARACTER(LEN=12), DIMENSION(:), &
       OPTIONAL, POINTER                      :: cgf_symbol
@@ -345,12 +343,14 @@ CONTAINS
                                                 maxsgf_set, maxshell, maxso, &
                                                 nco_sum, npgf_sum, nshell_sum
     INTEGER, INTENT(IN), OPTIONAL            :: maxder
+    REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: short_kind_radius, &
+                                                kg_gpw_kind_radius
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = "get_gto_basis_set"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'get_gto_basis_set'
 
     INTEGER                                  :: iset, nder
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     IF (ASSOCIATED(gto_basis_set)) THEN
       IF (PRESENT(name)) name = gto_basis_set%name
@@ -460,9 +460,9 @@ CONTAINS
 
     TYPE(gto_basis_set_type), POINTER        :: gto_basis_set
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "init_aux_basis_set"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'init_aux_basis_set'
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     IF (.NOT.ASSOCIATED(gto_basis_set)) RETURN
 
@@ -501,9 +501,8 @@ CONTAINS
                                                 ico, ipgf, iset, ishell, l, &
                                                 n, ncgf, nsgf
 
-    ! -------------------------------------------------------------------------
-
-    ! Build the Cartesian transformation matrix "cphi"
+! -------------------------------------------------------------------------
+! Build the Cartesian transformation matrix "cphi"
 
     DO iset=1,gto_basis_set%nset
       n = ncoset(gto_basis_set%lmax(iset))
@@ -553,7 +552,7 @@ CONTAINS
 
     TYPE(gto_basis_set_type), POINTER        :: gto_basis_set
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = "init_norm_cgf_aux"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'init_norm_cgf_aux'
 
     INTEGER                                  :: icgf, ico, ipgf, iset, &
                                                 ishell, istat, jco, jpgf, ll, &
@@ -567,7 +566,7 @@ CONTAINS
       DIMENSION(:, :, :)                     :: vv
     REAL(KIND=dp), DIMENSION(:), POINTER     :: rpgfa, zeta
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     n = 0
     ll = 0
@@ -637,7 +636,7 @@ CONTAINS
 
     INTEGER                                  :: icgf, iset, ishell
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     DO iset=1,gto_basis_set%nset
       DO ishell=1,gto_basis_set%nshell(iset)
@@ -666,7 +665,7 @@ CONTAINS
     REAL(KIND=dp)                            :: expzet, fnorm, gcca, gccb, &
                                                 prefac, zeta, zetb
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     DO iset=1,gto_basis_set%nset
       DO ishell=1,gto_basis_set%nshell(iset)
@@ -717,7 +716,7 @@ CONTAINS
     INTEGER                                  :: icgf, ipgf, iset, ishell, l
     REAL(KIND=dp)                            :: expzet, gcca, prefac, zeta
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     DO iset=1,gto_basis_set%nset
       DO ishell=1,gto_basis_set%nshell(iset)
@@ -748,9 +747,9 @@ CONTAINS
 
     TYPE(gto_basis_set_type), POINTER        :: gto_basis_set
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "init_orb_basis_set"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'init_orb_basis_set'
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     IF (.NOT.ASSOCIATED(gto_basis_set)) RETURN
 
@@ -790,7 +789,7 @@ CONTAINS
     INTEGER                                  :: ipgf, iset, ishell, l
     REAL(KIND=dp)                            :: expzet, gcca, prefac, zeta
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     DO iset=1,gto_basis_set%nset
       DO ishell=1,gto_basis_set%nshell(iset)
@@ -819,11 +818,11 @@ CONTAINS
     CHARACTER(LEN=*), INTENT(IN)             :: element_symbol, basis_set_name
     TYPE(gto_basis_set_type), POINTER        :: gto_basis_set
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(section_vals_type),pointer          :: force_env_section
+    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "read_gto_basis_set"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'read_gto_basis_set'
 
     CHARACTER(LEN=240)                       :: line
     CHARACTER(LEN=242)                       :: line2
@@ -842,7 +841,7 @@ CONTAINS
       POINTER                                :: gcc
     TYPE(cp_parser_type), POINTER            :: parser
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     line = ""
     line2 = ""
@@ -1096,8 +1095,6 @@ CONTAINS
       INTENT(IN), OPTIONAL                   :: name
     INTEGER, INTENT(IN), OPTIONAL            :: norm_type
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: kind_radius
-    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: short_kind_radius
-    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: kg_gpw_kind_radius
     INTEGER, INTENT(IN), OPTIONAL            :: ncgf, nset, nsgf
     CHARACTER(LEN=12), DIMENSION(:), &
       OPTIONAL, POINTER                      :: cgf_symbol
@@ -1115,10 +1112,12 @@ CONTAINS
                                                 last_cgf, last_sgf, n
     REAL(KIND=dp), DIMENSION(:, :, :), &
       OPTIONAL, POINTER                      :: gcc
+    REAL(KIND=dp), INTENT(IN), OPTIONAL      :: short_kind_radius, &
+                                                kg_gpw_kind_radius
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = "set_gto_basis_set"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'set_gto_basis_set'
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     IF (ASSOCIATED(gto_basis_set)) THEN
       IF (PRESENT(name)) gto_basis_set%name = name
@@ -1180,7 +1179,7 @@ CONTAINS
     INTEGER                                  :: icgf, ico, ipgf, iset, ishell
     TYPE(cp_logger_type), POINTER            :: logger
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     NULLIFY (logger)
 
@@ -1254,7 +1253,7 @@ CONTAINS
 
     INTEGER                                  :: ipgf, iset, ishell
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     IF (ASSOCIATED(gto_basis_set).AND.(output_unit>0)) THEN
       WRITE (UNIT=output_unit,FMT="(/,T6,A,T41,A40,/,/,T25,A)")&
@@ -1298,7 +1297,7 @@ CONTAINS
     INTEGER                                  :: icgf, ico, ipgf, iset, ishell
     TYPE(cp_logger_type), POINTER            :: logger
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     NULLIFY(logger)
 
@@ -1358,11 +1357,11 @@ CONTAINS
 
     TYPE(sto_basis_set_type), POINTER        :: sto_basis_set
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "allocate_sto_basis_set"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_sto_basis_set'
 
     INTEGER                                  :: istat
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     IF (ASSOCIATED(sto_basis_set)) CALL deallocate_sto_basis_set(sto_basis_set)
 
@@ -1384,11 +1383,11 @@ CONTAINS
 
     TYPE(sto_basis_set_type), POINTER        :: sto_basis_set
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "deallocate_sto_basis_set"
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_sto_basis_set'
 
     INTEGER                                  :: istat
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     IF (ASSOCIATED(sto_basis_set)) THEN
        IF (ASSOCIATED(sto_basis_set%symbol)) THEN
@@ -1434,11 +1433,11 @@ CONTAINS
       POINTER                                :: zet
     INTEGER, INTENT(OUT), OPTIONAL           :: maxlq, numsto
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = "get_sto_basis_set"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'get_sto_basis_set'
 
     INTEGER                                  :: iset
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     IF (ASSOCIATED(sto_basis_set)) THEN
       IF (PRESENT(name)) name = sto_basis_set%name
@@ -1477,11 +1476,11 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
       POINTER                                :: zet
 
-    CHARACTER(LEN=*), PARAMETER              :: routineN = "set_sto_basis_set"
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'set_sto_basis_set'
 
     INTEGER                                  :: ns
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     IF (ASSOCIATED(sto_basis_set)) THEN
       IF (PRESENT(name)) sto_basis_set%name = name
@@ -1525,8 +1524,8 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "create_gto_from_sto_basis"
-    INTEGER, PARAMETER          :: maxng = 6
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'create_gto_from_sto_basis'
+    INTEGER, PARAMETER                       :: maxng = 6
 
     CHARACTER(LEN=default_string_length)     :: name, sng
     INTEGER                                  :: ico, ipgf, iset, istat, &

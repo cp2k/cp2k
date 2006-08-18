@@ -76,7 +76,7 @@ CONTAINS
       routine = "SUBROUTINE calculate_ebond_corr (MODULE kg_intra)"
 
     INTEGER :: atom_a, atom_b, group, handle, i, iatom, iexl, ikind, ipgf, &
-      iset, ishell, istat, j, jkind, jpgf, jset, jshell, nexl, nkind, npart, &
+      iset, ishell, istat, j, jkind, jpgf, jset, jshell, nkind, npart, &
       nparticle_local, nseta, nsetb, output_unit
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
     INTEGER, DIMENSION(:), POINTER           :: list, npgfa, npgfb, nshella, &
@@ -151,7 +151,7 @@ CONTAINS
         i = local_particles % list ( ikind ) % array ( iatom )
         atom_a=atom_of_kind(i)
         ri ( : ) = particle_set ( i ) % r ( : )
-          DO iexl = 1, size(particle_set(i)%list_exclude_ei)
+          DO iexl = 1, SIZE(particle_set(i)%list_exclude_ei)
             j =  particle_set(i)%list_exclude_ei(iexl)
             IF ( j==i ) CYCLE
             rj ( : ) = particle_set ( j ) % r ( : )

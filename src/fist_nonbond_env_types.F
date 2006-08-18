@@ -19,6 +19,8 @@
 !******************************************************************************
 
 MODULE fist_nonbond_env_types
+  USE cell_types,                      ONLY: cell_release,&
+                                             cell_type
   USE convert_units,                   ONLY: convert_to_cp2k_units
   USE fist_neighbor_list_types,        ONLY: fist_neighbor_deallocate,&
                                              fist_neighbor_type
@@ -26,7 +28,6 @@ MODULE fist_nonbond_env_types
                                              dp
   USE pair_potential_types,            ONLY: pair_potential_pp_release,&
                                              pair_potential_pp_type
-  USE cell_types,                      ONLY: cell_type, cell_release
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -98,12 +99,15 @@ SUBROUTINE fist_nonbond_env_get (fist_nonbond_env, potparm, &
     TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
     TYPE(pair_potential_pp_type), OPTIONAL, &
       POINTER                                :: potparm
-    TYPE(fist_neighbor_type), POINTER, OPTIONAL  :: nonbonded
+    TYPE(fist_neighbor_type), OPTIONAL, &
+      POINTER                                :: nonbonded
     REAL(KIND=dp), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: rlist_cutsq, rlist_lowsq
     REAL(KIND=dp), OPTIONAL                  :: verlet_skin, aup, lup
-    TYPE(pos_type), DIMENSION(:), OPTIONAL, POINTER :: r_last_update, r_last_update_pbc
-    TYPE(cell_type), POINTER, OPTIONAL       :: cell_last_update
+    TYPE(pos_type), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: r_last_update, &
+                                                r_last_update_pbc
+    TYPE(cell_type), OPTIONAL, POINTER       :: cell_last_update
     INTEGER, OPTIONAL                        :: num_update, last_update, &
                                                 counter, natom_types
     REAL(KIND=dp), OPTIONAL                  :: long_range_correction
@@ -170,10 +174,13 @@ SUBROUTINE fist_nonbond_env_set ( fist_nonbond_env,  potparm, &
     REAL(KIND=dp), DIMENSION(:, :), &
       OPTIONAL, POINTER                      :: rlist_cutsq, rlist_lowsq
     REAL(KIND=dp), OPTIONAL                  :: verlet_skin
-    TYPE(fist_neighbor_type), OPTIONAL, POINTER        :: nonbonded
+    TYPE(fist_neighbor_type), OPTIONAL, &
+      POINTER                                :: nonbonded
     REAL(KIND=dp), OPTIONAL                  :: aup, lup
-    TYPE(pos_type), DIMENSION(:), OPTIONAL, POINTER :: r_last_update, r_last_update_pbc
-    TYPE(cell_type), POINTER, optional       :: cell_last_update
+    TYPE(pos_type), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: r_last_update, &
+                                                r_last_update_pbc
+    TYPE(cell_type), OPTIONAL, POINTER       :: cell_last_update
     INTEGER, OPTIONAL                        :: num_update, last_update, &
                                                 counter, natom_types
     REAL(KIND=dp), OPTIONAL                  :: long_range_correction
@@ -397,7 +404,7 @@ SUBROUTINE fist_nonbond_env_release(fist_nonbond_env,error)
     CHARACTER(len=*), PARAMETER :: routineN = 'fist_nonbond_env_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: iab, stat
+    INTEGER                                  :: stat
     LOGICAL                                  :: failure
 
   failure=.FALSE.

@@ -88,8 +88,7 @@ MODULE harris_metropolis_mc
   USE input_cp2k_restarts,             ONLY: write_restart
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
-                                             section_vals_val_get,&
-                                             section_vals_get
+                                             section_vals_val_get
   USE kg_environment,                  ONLY: kg_init
   USE kg_environment_types,            ONLY: kg_env_create,&
                                              kg_env_release,&
@@ -212,7 +211,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, mc_prog_name_id, &
-                                                md_method, stat, isos,method_name_id
+                                                md_method, method_name_id, &
+                                                stat
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
     TYPE(cp_subsystem_type), POINTER         :: subsystem
@@ -222,9 +222,8 @@ CONTAINS
       POINTER                                :: force_env_p
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(section_vals_type), POINTER         :: hmc_section
+    TYPE(section_vals_type), POINTER         :: force_env_section, hmc_section
     TYPE(tbmd_environment_type), POINTER     :: tbmd_env
-    TYPE(section_vals_type), POINTER         :: force_env_section
 
     NULLIFY(force_env_p, hmc_section, kg_env, qs_env, tbmd_env, eip_env, &
          subsys, subsystem, fist_env)
@@ -452,15 +451,15 @@ CONTAINS
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
-    TYPE(force_env_type), POINTER            :: force_env
+
     CHARACTER(LEN=*), PARAMETER :: routineN = 'harris_mc_md', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: accept, atom, force_env_in_use, handle, hmc_max_scf, i, iatom, &
-      ibead, ikind, in_use, iparticles, istat, istep, isubsys, iter_level, &
-      iw, max_scf_aspc_tmp, max_scf_tmp, mc_method, md_method, myi, nbeads, &
-      reject, wf_interpolation_method_tmp, harris_max_scf_tmp, ifixd, nfixd, &
-      natom, imolecule_kind
+    INTEGER :: accept, atom, force_env_in_use, handle, harris_max_scf_tmp, &
+      hmc_max_scf, i, iatom, ibead, ifixd, ikind, imolecule_kind, in_use, &
+      iparticles, istat, istep, isubsys, iter_level, iw, max_scf_aspc_tmp, &
+      max_scf_tmp, mc_method, md_method, myi, natom, nbeads, nfixd, reject, &
+      wf_interpolation_method_tmp
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     INTEGER, POINTER                         :: accepted_md, itimes, &
                                                 md_approach_nr
@@ -469,12 +468,13 @@ CONTAINS
       fill_wf_history, interMMC_extrapolation, ionode, lpsc, multiple_scf, &
       qs_ener, rand_vel, restore_velocities, restore_wf_past, semi_hybrid, &
       soft_start, start_qs, tot_energy, use_harris_tmp, vel_scaling
-    REAL(KIND=dp) :: acceptance_rate, akin, denom, e_kinetic, Econs, &
-      Ekin_new, Ekin_prev, Epot_new, Epot_prev, eps_default_tmp, eps_scf_tmp, &
-      mass, md_run_start_time, new_ldmc_energy, prev_ldmc_energy, prob, &
-      random_number, sigma, temp, temperature, time_iter_start, &
-      time_iter_stop, v2, lpsc_prev_energy, lpsc_new_energy, lpsc_diff_energy, &
-      dftMC, auxMC, dftMC_diff, auxMC_diff
+    LOGICAL, ALLOCATABLE, DIMENSION(:)       :: is_fixed
+    REAL(KIND=dp) :: acceptance_rate, akin, auxMC_diff, denom, dftMC_diff, &
+      e_kinetic, Econs, Ekin_new, Ekin_prev, Epot_new, Epot_prev, &
+      eps_default_tmp, eps_scf_tmp, lpsc_diff_energy, lpsc_new_energy, &
+      lpsc_prev_energy, mass, md_run_start_time, new_ldmc_energy, &
+      prev_ldmc_energy, prob, random_number, sigma, temp, temperature, &
+      time_iter_start, time_iter_stop, v2
     REAL(KIND=dp), DIMENSION(3)              :: vcom, vcom_new
     REAL(KIND=dp), POINTER                   :: t, used_time
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
@@ -492,11 +492,17 @@ CONTAINS
       DIMENSION(:), POINTER                  :: dyn_coeff_set
     TYPE(eip_environment_type), POINTER      :: eip_env
     TYPE(extended_system_type)               :: extended_type
+    TYPE(fixd_constraint_type), &
+      DIMENSION(:), POINTER                  :: fixd_list
+    TYPE(force_env_type), POINTER            :: force_env
     TYPE(harris_energy_type), POINTER        :: harris_energy
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds_new
     TYPE(mol_new_list_type), POINTER         :: molecules_new
+    TYPE(molecule_kind_type), DIMENSION(:), &
+      POINTER                                :: molecule_kind_set
+    TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -515,15 +521,7 @@ CONTAINS
     TYPE(tbmd_environment_type), POINTER     :: tbmd_env
     TYPE(unit_convert_type), POINTER         :: unit
 
-    TYPE(fixd_constraint_type), &
-      DIMENSION(:), POINTER                  :: fixd_list
-    TYPE(molecule_kind_type), DIMENSION(:), &
-      POINTER                                :: molecule_kind_set
-    TYPE(molecule_kind_type), POINTER        :: molecule_kind
-
-    LOGICAL, DIMENSION(:), ALLOCATABLE       :: is_fixed
-
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     CALL timeset(routineN, "I", "", handle)
     NULLIFY(force_env_section, motion_section,  subsys_section, md_approach_nr,&
@@ -1619,19 +1617,16 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
-    TYPE(section_vals_type), POINTER         :: force_env_section
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: lpsc_prev_energy, &
                                                 lpsc_new_energy, &
                                                 lpsc_diff_energy
+    TYPE(section_vals_type), POINTER         :: force_env_section
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'harris_mc_md_approach', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ibead, iter, iw, &
-                                                max_scf_aspc_tmp, &
-                                                max_scf_tmp, nbeads, &
-                                                harris_max_scf_tmp, &
-                                                method_name_id
+    INTEGER :: handle, harris_max_scf_tmp, ibead, iter, iw, max_scf_aspc_tmp, &
+      max_scf_tmp, method_name_id, nbeads
     INTEGER, POINTER                         :: itimes
     LOGICAL                                  :: ionode, should_stop, &
                                                 tot_energy

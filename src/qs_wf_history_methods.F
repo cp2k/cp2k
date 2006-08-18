@@ -932,8 +932,8 @@ SUBROUTINE wfi_extrapolate(globenv,wf_history, qs_env, dt, extrapolation_method_
     CHARACTER(len=*), PARAMETER :: routineN = 'wfi_extrapolate', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: actual_extrapolation_method_nr, &
-                                                handle, i, ispin, k, n, &
+    INTEGER                                  :: actual_extrapolation_method_nr&
+                                                , handle, i, ispin, k, n, &
                                                 nmo, nvec, output_unit
     LOGICAL                                  :: failure, ionode, my_kg_gpw, &
                                                 my_orthogonal_wf
@@ -943,6 +943,7 @@ SUBROUTINE wfi_extrapolate(globenv,wf_history, qs_env, dt, extrapolation_method_
     TYPE(cp_fm_struct_type), POINTER         :: matrix_struct, &
                                                 matrix_struct_new
     TYPE(cp_fm_type), POINTER                :: csc, fm_tmp, mo_coeff
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(kg_sub_pw_env_type), POINTER        :: kg_sub_pw_env
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
@@ -950,7 +951,6 @@ SUBROUTINE wfi_extrapolate(globenv,wf_history, qs_env, dt, extrapolation_method_
     TYPE(qs_wf_snapshot_type), POINTER       :: t0_state, t1_state
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
-    TYPE(cp_logger_type), POINTER            :: logger
 
   NULLIFY(mos, ao_mo_fm_pools, t0_state, t1_state, matrix_s, mo_coeff, rho, rho_xc)
   failure=.FALSE.

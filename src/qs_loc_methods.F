@@ -26,7 +26,8 @@ MODULE qs_loc_methods
 ! *****************************************************************************
 
   USE atomic_kind_types,               ONLY: atomic_kind_type
-  USE cell_types,                      ONLY: cell_type,pbc
+  USE cell_types,                      ONLY: cell_type,&
+                                             pbc
   USE coefficient_types,               ONLY: coeff_type
   USE cp_cfm_basic_linalg,             ONLY: cp_cfm_lu_decompose
   USE cp_cfm_types,                    ONLY: cp_cfm_create,&
@@ -57,9 +58,9 @@ MODULE qs_loc_methods
                                              state_loc_list
   USE input_section_types,             ONLY: section_get_ival,&
                                              section_vals_type
-  USE kinds,                           ONLY: dp,&
+  USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
-                                             default_path_length
+                                             dp
   USE mathconstants,                   ONLY: twopi
   USE particle_types,                  ONLY: get_particle_set,&
                                              particle_type
@@ -136,14 +137,14 @@ CONTAINS
     CHARACTER(len=default_path_length)       :: file_tmp
     COMPLEX(KIND=dp)                         :: almost_determinant, z
     INTEGER                                  :: idir, istate, iter, nstates, &
-                                                unit_out_c, unit_out_s, output_unit
+                                                output_unit, unit_out_c, &
+                                                unit_out_s
     LOGICAL                                  :: failure, ionode
-    REAL(dp), DIMENSION(3)                   :: c, cpbc,spreadtot
+    REAL(dp), DIMENSION(3)                   :: c, cpbc, spreadtot
     REAL(dp), DIMENSION(:, :), POINTER       :: centers
     REAL(KIND=dp)                            :: imagpart, realpart
     TYPE(cp_cfm_type), POINTER               :: complexresult
     TYPE(cp_logger_type), POINTER            :: logger
-
 
      NULLIFY(centers,complexresult,logger) 
      failure = .FALSE.
@@ -301,7 +302,6 @@ CONTAINS
     LOGICAL                                  :: ionode
     TYPE(cp_fm_type), POINTER                :: opvec
     TYPE(cp_logger_type), POINTER            :: logger
-
 
     CALL timeset(routineP,"I",'',handle)
 
@@ -523,7 +523,7 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     INTEGER, INTENT(IN)                      :: ispin
-    TYPE(section_vals_type), POINTER         :: loc_section  
+    TYPE(section_vals_type), POINTER         :: loc_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -532,15 +532,15 @@ CONTAINS
 
     CHARACTER(len=default_path_length)       :: filename1, filename2
     INTEGER                                  :: iatom, istat, istate, iter, &
-                                                natom, nstate, out_c, out_s, output_unit
+                                                natom, nstate, out_c, out_s, &
+                                                output_unit
     INTEGER, DIMENSION(:), POINTER           :: atom_of_state
-    LOGICAL                                  :: failure, ionode, file_exists
+    LOGICAL                                  :: failure, file_exists, ionode
     REAL(dp)                                 :: r(3)
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: Qii, ziimax
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: diag
     REAL(dp), DIMENSION(:, :), POINTER       :: centers
     TYPE(cp_logger_type), POINTER            :: logger
-
 
     NULLIFY(centers,logger) 
     failure = .FALSE.
@@ -686,10 +686,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_loc_driver', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, imo, imoloc, ispin, istat, &
-                                                istate, iter, j, jstate, lb, loc_method, &
-                                                my_nspins, nao, ncubes, nmo, nmosub, ub
-    INTEGER, DIMENSION(:), POINTER           :: state_list
+    INTEGER :: i, imo, imoloc, ispin, istat, istate, iter, j, jstate, lb, &
+      loc_method, my_nspins, nao, ncubes, nmo, nmosub, ub
     LOGICAL                                  :: failure, ionode, my_one_spin
     REAL(dp), DIMENSION(6)                   :: weights
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: centers, vecbuffer
@@ -717,7 +715,6 @@ CONTAINS
 
     NULLIFY(cell, localized_wfn_control, moloc_coeff, op_sm_set, op_fm_set)
     NULLIFY(mos, dft_control)
-    NULLIFY(state_list)
 
     CALL get_qs_loc_env(qs_loc_env=qs_loc_env,&
                         localized_wfn_control=localized_wfn_control,&
@@ -860,10 +857,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_print_cubes', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=default_path_length)       :: file_tmp,filename
+    CHARACTER                                :: label
+    CHARACTER(LEN=default_path_length)       :: file_tmp, filename
     CHARACTER(LEN=default_string_length)     :: title
     CHARACTER, DIMENSION(3)                  :: labels
-    CHARACTER                                :: label
+
     DATA labels /'x','y','z'/
     INTEGER                                  :: ia, ie, istate, ivector, &
                                                 my_ispin, my_state0, my_stride

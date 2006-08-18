@@ -23,7 +23,6 @@
 !******************************************************************************
 
 MODULE force_env_methods 
-  USE fp_methods,                      ONLY: fp_eval
   USE cell_types,                      ONLY: cell_type
   USE constraint_clv,                  ONLY: fix_atom_control
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -32,36 +31,42 @@ MODULE force_env_methods
   USE cp_subsystem_types,              ONLY: cp_subsys_retain,&
                                              cp_subsystem_p_type
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_retain
+  USE eip_environment_types,           ONLY: eip_env_get,&
+                                             eip_env_retain,&
+                                             eip_environment_type
+  USE eip_silicon,                     ONLY: eip_bazant,&
+                                             eip_lenosky
+  USE ep_types,                        ONLY: ep_env_calc_e_f,&
+                                             ep_env_create,&
+                                             ep_env_release,&
+                                             ep_env_retain,&
+                                             ep_env_type
   USE ewald_environment_types,         ONLY: ewald_environment_type
   USE ewald_pw_methods,                ONLY: ewald_pw_grid_change
   USE ewald_pw_types,                  ONLY: ewald_pw_type
-  USE eip_environment_types,           ONLY: eip_environment_type, &
-                                             eip_env_get, &
-                                             eip_env_retain
-  USE eip_silicon,                     ONLY: eip_bazant, &
-                                             eip_lenosky
   USE fist_environment_types,          ONLY: fist_env_retain,&
                                              fist_environment_type,&
-                                             get_fist_env, set_fist_env
+                                             get_fist_env,&
+                                             set_fist_env
   USE fist_force,                      ONLY: fist_force_control
   USE force_env_types,                 ONLY: &
        force_env_get, force_env_p_type, force_env_type, use_eip_force, &
-       use_fist_force, use_kg_force, use_pol_force, use_qmmm, use_qs_force, &
-       use_tbmd_force, use_ep_force
+       use_ep_force, use_fist_force, use_kg_force, use_pol_force, use_qmmm, &
+       use_qs_force, use_tbmd_force
+  USE fp_methods,                      ONLY: fp_eval
   USE global_types,                    ONLY: global_environment_type,&
                                              globenv_retain
-  USE input_constants,                 ONLY: use_bazant_eip,&
-                                             use_lenosky_eip,&
-                                             qs_debug_run               
+  USE input_constants,                 ONLY: qs_debug_run,&
+                                             use_bazant_eip,&
+                                             use_lenosky_eip
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                             section_vals_type,&
-                                             section_vals_release,&
-                                             section_vals_retain
+                                             section_vals_retain,&
+                                             section_vals_type
   USE kg_energy,                       ONLY: kg_energies
   USE kg_environment_types,            ONLY: get_kg_env,&
-                                             set_kg_env,&
                                              kg_env_retain,&
-                                             kg_environment_type
+                                             kg_environment_type,&
+                                             set_kg_env
   USE kg_force,                        ONLY: kg_force_control
   USE kg_rho_methods,                  ONLY: kg_rho_create
   USE kg_rho_types,                    ONLY: kg_rho_type
@@ -92,9 +97,10 @@ MODULE force_env_methods
   USE qs_force,                        ONLY: qs_forces
   USE qs_ks_methods,                   ONLY: qs_ks_create
   USE qs_ks_qmmm_methods,              ONLY: ks_qmmm_env_rebuild
-  USE qs_ks_types,                     ONLY: qs_ks_env_type, & 
-                                             qs_ks_release 
+  USE qs_ks_types,                     ONLY: qs_ks_env_type,&
+                                             qs_ks_release
   USE qs_numerical_pressure,           ONLY: qs_calc_numerical_pressure
+  USE restraint,                       ONLY: restraint_control
   USE tbmd_energy,                     ONLY: tbmd_energies
   USE tbmd_environment_types,          ONLY: tbmd_env_get,&
                                              tbmd_env_retain,&
@@ -104,9 +110,6 @@ MODULE force_env_methods
                                              virial_retain,&
                                              virial_type,&
                                              zero_virial
-  USE restraint,                       ONLY: restraint_control
-  USE ep_types, ONLY: ep_env_calc_e_f, ep_env_create, ep_env_retain,&
-       ep_env_type, ep_env_p_type,ep_env_release
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -163,8 +166,8 @@ RECURSIVE SUBROUTINE force_env_calc_energy_force ( force_env, &
 
     LOGICAL                                  :: energy_consistency, failure, &
                                                 need_f
-    TYPE(virial_type), POINTER               :: virial
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(virial_type), POINTER               :: virial
 
 !------------------------------------------------------------------------------
 
@@ -289,7 +292,6 @@ SUBROUTINE force_env_create(force_env,globenv,fist_env,qs_env,kg_env,&
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(fist_environment_type), OPTIONAL, &
       POINTER                                :: fist_env
-    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(qs_environment_type), OPTIONAL, &
       POINTER                                :: qs_env
     TYPE(kg_environment_type), OPTIONAL, &
@@ -303,8 +305,8 @@ SUBROUTINE force_env_create(force_env,globenv,fist_env,qs_env,kg_env,&
       POINTER                                :: qmmm_env
     TYPE(eip_environment_type), OPTIONAL, &
       POINTER                                :: eip_env
-    TYPE(ep_env_type), OPTIONAL,&
-         pointer :: ep_env
+    TYPE(ep_env_type), OPTIONAL, POINTER     :: ep_env
+    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -541,20 +543,22 @@ END SUBROUTINE force_env_create
 !!
 !!*** **********************************************************************
 SUBROUTINE ep_create_force_env(force_env, globenv, error)
-  TYPE(force_env_type), pointer :: force_env
-  TYPE(global_environment_type), pointer :: globenv
-  type(cp_error_type), optional, intent(inout) :: error
-  
-  logical :: failure
-  character(len=*), parameter :: routineN='ep_create_force_env',&
-        routineP=moduleN//':'//routineN
-  TYPE(ep_env_type), pointer :: ep_env
-  TYPE(section_vals_type), pointer :: force_env_section
+    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  failure=.false.
+    CHARACTER(len=*), PARAMETER :: routineN = 'ep_create_force_env', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(ep_env_type), POINTER               :: ep_env
+    TYPE(section_vals_type), POINTER         :: force_env_section
+
+  failure=.FALSE.
   
-  if (.not. failure) then
-     nullify(ep_env)
+  IF (.NOT. failure) THEN
+     NULLIFY(ep_env)
      CALL ep_env_create(ep_env,globenv=globenv,&
           error=error)
      force_env_section=> section_vals_get_subs_vals(globenv%input_file,&
@@ -562,7 +566,7 @@ SUBROUTINE ep_create_force_env(force_env, globenv, error)
      CALL force_env_create(force_env,globenv=globenv,ep_env=ep_env,&
           force_env_section = force_env_section, error=error)
      CALL ep_env_release(ep_env,error=error)
-  end if
+  END IF
 END SUBROUTINE ep_create_force_env
 !***************************************************************************
 
@@ -601,11 +605,11 @@ RECURSIVE SUBROUTINE force_env_set_cell(force_env, cell, error)
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
+    TYPE(ewald_environment_type), POINTER    :: ewald_env
+    TYPE(ewald_pw_type), POINTER             :: ewald_pw
+    TYPE(kg_rho_type), POINTER               :: kg_rho
+    TYPE(kg_rspw_type), POINTER              :: kg_rspw
     TYPE(qs_ks_env_type), POINTER            :: new_ks_env
-    TYPE ( ewald_environment_type ), POINTER         :: ewald_env
-    TYPE ( ewald_pw_type ), POINTER          :: ewald_pw
-    TYPE ( kg_rspw_type ), POINTER           :: kg_rspw 
-    TYPE ( kg_rho_type ), POINTER            :: kg_rho
 
   failure=.FALSE.
   CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
@@ -687,8 +691,7 @@ END SUBROUTINE force_env_set_cell
 !!*** **********************************************************************
 RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,calc_force,only_apply_trasl,error)
     TYPE(force_env_type), POINTER            :: force_env
-    LOGICAL, INTENT(IN), OPTIONAL            :: calc_force,&
-                                                only_apply_trasl
+    LOGICAL, INTENT(IN), OPTIONAL            :: calc_force, only_apply_trasl
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -699,6 +702,7 @@ RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,calc_force,only_apply_tras
     INTEGER                                  :: ip, isubsys, output_unit
     INTEGER, DIMENSION(:), POINTER           :: qm_atom_index, qm_subsys_index
     LOGICAL                                  :: failure, need_f, &
+                                                only_apply_trasl_loc, &
                                                 qmmm_added_chrg, qmmm_link, &
                                                 qmmm_link_imomm
     LOGICAL, SAVE                            :: do_translate = .TRUE.
@@ -712,7 +716,6 @@ RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,calc_force,only_apply_tras
       POINTER                                :: particles_mm, particles_qm
     TYPE(qmmm_links_type), POINTER           :: qmmm_links
     TYPE(section_vals_type), POINTER         :: force_env_section
-    logical                                  :: only_apply_trasl_loc
 
   min_coord       =  HUGE(0.0_dp)
   max_coord       = -HUGE(0.0_dp)
@@ -909,9 +912,9 @@ END SUBROUTINE qmmm_energy_and_forces
 !!
 !!*** **********************************************************************
 SUBROUTINE apply_qmmm_trasl(force_env, error)
-  TYPE(force_env_type), POINTER            :: force_env
-  TYPE(cp_error_type), INTENT(inout), &
-       OPTIONAL                               :: error
+    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
   SELECT CASE(force_env%in_use)
   CASE(use_qmmm)  

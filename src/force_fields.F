@@ -50,29 +50,15 @@ MODULE force_fields
                                              set_potential
   USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_create,&
                                              fist_nonbond_env_type
-  USE force_field_types,               ONLY: allocate_bend_kind_set,&
-                                             allocate_bond_kind_set, &
-                                             allocate_impr_kind_set,&
-                                             allocate_onfo_kind_set, &
-                                             allocate_torsion_kind_set,&
-                                             allocate_ub_kind_set,&
-                                             bend_kind_type, &
-                                             bond_kind_type,&
-                                             charmm_info_type,&
-                                             gromos_info_type,&
-                                             deallocate_bend_kind_set, &
-                                             deallocate_bond_kind_set,&
-                                             deallocate_ff_type,&
-                                             force_field_type, &
-                                             impr_kind_dealloc_ref,&
-                                             impr_kind_type,&
-                                             init_ff_type,&
-                                             input_info_type, &
-                                             onfo_kind_type,&
-                                             torsion_kind_dealloc_ref,&
-                                             torsion_kind_type, &
-                                             ub_kind_dealloc_ref,&
-                                             ub_kind_type
+  USE force_field_types,               ONLY: &
+       allocate_bend_kind_set, allocate_bond_kind_set, &
+       allocate_impr_kind_set, allocate_onfo_kind_set, &
+       allocate_torsion_kind_set, allocate_ub_kind_set, bend_kind_type, &
+       bond_kind_type, charmm_info_type, deallocate_bend_kind_set, &
+       deallocate_bond_kind_set, deallocate_ff_type, force_field_type, &
+       gromos_info_type, impr_kind_dealloc_ref, impr_kind_type, init_ff_type, &
+       input_info_type, onfo_kind_type, torsion_kind_dealloc_ref, &
+       torsion_kind_type, ub_kind_dealloc_ref, ub_kind_type
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: do_qmmm_none
   USE input_section_types,             ONLY: section_vals_get,&
@@ -84,41 +70,22 @@ MODULE force_fields
   USE manybody_potential,              ONLY: spline_manybody_control
   USE memory_utilities,                ONLY: reallocate
   USE message_passing,                 ONLY: mp_bcast
-  USE molecule_kind_types,             ONLY: atom_type,&
-                                             bend_type,&
-                                             bond_type,&
-                                             colvar_constraint_type, &
-                                             g3x3_constraint_type,&
-                                             g4x6_constraint_type,&
-                                             get_molecule_kind, &
-                                             impr_type,&
-                                             molecule_kind_type,&
-                                             onfo_type,&
-                                             set_molecule_kind, &
-                                             torsion_type,&
-                                             ub_type
+  USE molecule_kind_types,             ONLY: &
+       atom_type, bend_type, bond_type, colvar_constraint_type, &
+       g3x3_constraint_type, g4x6_constraint_type, get_molecule_kind, &
+       impr_type, molecule_kind_type, onfo_type, set_molecule_kind, &
+       torsion_type, ub_type
   USE molecule_types_new,              ONLY: get_molecule,&
                                              molecule_type
-  USE pair_potential,                  ONLY: spline_nonbond_control,&
-                                             get_nonbond_storage
-  USE pair_potential_types,            ONLY: eam_pot_type,&
-                                             pair_potential_lj_create,&
-                                             pair_potential_p_type, &
-                                             pair_potential_pp_create,&
-                                             pair_potential_pp_release, &
-                                             pair_potential_pp_type,&
-                                             pair_potential_reallocate, &
-                                             pair_potential_single_clean,&
-                                             pair_potential_single_copy, &
-                                             pair_potential_single_type,&
-                                             nn_type,&
-                                             lj_type,&
-                                             lj_charmm_type,&
-                                             ft_type,&
-                                             wl_type,&
-                                             gw_type,&
-                                             ip_type,&
-                                             ea_type       
+  USE pair_potential,                  ONLY: get_nonbond_storage,&
+                                             spline_nonbond_control
+  USE pair_potential_types,            ONLY: &
+       ea_type, eam_pot_type, ft_type, gw_type, ip_type, lj_charmm_type, &
+       lj_type, nn_type, pair_potential_lj_create, pair_potential_p_type, &
+       pair_potential_pp_create, pair_potential_pp_release, &
+       pair_potential_pp_type, pair_potential_reallocate, &
+       pair_potential_single_clean, pair_potential_single_copy, &
+       pair_potential_single_type, wl_type
   USE particle_types,                  ONLY: particle_type
   USE physcon,                         ONLY: bohr
   USE qmmm_ff_fist,                    ONLY: qmmm_ff_precond_only_qm
@@ -316,9 +283,9 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'read_force_field_section1', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: nbends, nbmhft, nbonds, &
-                                                nchg, neam, ngd, nipbv, nlj, &
-                                                ntors, ntot, nubs, nwl
+    INTEGER                                  :: nbends, nbmhft, nbonds, nchg, &
+                                                neam, ngd, nipbv, nlj, ntors, &
+                                                ntot, nubs, nwl
     LOGICAL                                  :: explicit, failure
     TYPE(input_info_type), POINTER           :: inp_info
     TYPE(section_vals_type), POINTER         :: tmp_section, tmp_section2
@@ -945,8 +912,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'read_chrg_section', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: isec, n_items
     CHARACTER(LEN=default_string_length)     :: atm_name
+    INTEGER                                  :: isec, n_items
 
     CALL section_vals_get(section,n_repetition=n_items,error=error)
     DO isec = 1, n_items         
@@ -1003,8 +970,8 @@ CONTAINS
        CALL section_vals_val_get(section,"ATOMS",i_rep_section=isec,c_vals=atm_names,error=error)
        bond_a(start+isec) = atm_names(1)
        bond_b(start+isec) = atm_names(2)
-       call uppercase(bond_a(start+isec))
-       call uppercase(bond_b(start+isec))
+       CALL uppercase(bond_a(start+isec))
+       CALL uppercase(bond_b(start+isec))
        CALL section_vals_val_get(section,"K",i_rep_section=isec,r_vals=Kvals,error=error)
        CPPostcondition(SIZE(Kvals) <= 3, cp_failure_level, routineP, error, failure)
        bond_k(:,start+isec) = 0.0_dp
@@ -1143,7 +1110,7 @@ CONTAINS
                                                 torsion_b, torsion_c, &
                                                 torsion_d
     REAL(KIND=dp), DIMENSION(:), POINTER     :: torsion_k, torsion_cosphi0
-    INTEGER,DIMENSION(:),POINTER             :: torsion_m
+    INTEGER, DIMENSION(:), POINTER           :: torsion_m
     TYPE(section_vals_type), POINTER         :: section
     INTEGER, INTENT(IN)                      :: start
     TYPE(cp_error_type), INTENT(inout), &
@@ -1242,31 +1209,23 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_force_field_gromos', &
       routineP = moduleN//':'//routineN
+    REAL(KIND=dp), PARAMETER                 :: ekt = 2.5_dp    
 
-    CHARACTER(LEN=default_string_length)     :: label, string, string2, &
-                                                string3, string4
-    CHARACTER(LEN=default_string_length), &
-      DIMENSION(2)                           :: angl_section, impr_section, &
-                                                nbon_section, thet_section
-    INTEGER                                  :: dummy, handle, ilab, iw, &
-                                                nbend, nbond, nimpr, &
-                                                nnonbond, nonfo, ntorsion, nub
-    LOGICAL                                  :: failure, found
-    TYPE(gromos_info_type), POINTER          :: gro_info
-    TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_parser_type), POINTER            :: parser
-
-
-    CHARACTER(LEN=default_string_length), &
-      POINTER                                :: namearray(:)
+    CHARACTER(LEN=default_string_length)     :: label
     CHARACTER(LEN=default_string_length), &
       DIMENSION(21)                          :: avail_section
-    INTEGER:: irestyp,iatyp,iresid,itemp,offset
-    INTEGER:: itype,ntype,iatom,jatom,katom,latom,natom,icon,ncon
-    INTEGER,POINTER:: type_conversion(:)
-    REAL(KIND=dp) :: etemp
-    REAL(KIND=dp),PARAMETER :: ekt = 2.5_dp    !ikuo - Do not change
-    REAL(KIND=dp) :: cost2,sdet,csq
+    CHARACTER(LEN=default_string_length), &
+      POINTER                                :: namearray(:)
+    INTEGER                                  :: handle, iatom, icon, itemp, &
+                                                itype, iw, jatom, ncon, &
+                                                ntype, offset
+    LOGICAL                                  :: failure, found
+    REAL(KIND=dp)                            :: cost2, csq, sdet
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_parser_type), POINTER            :: parser
+    TYPE(gromos_info_type), POINTER          :: gro_info
+
+!ikuo - Do not change
 
     CALL timeset(routineN,'I','',handle)
     failure = .FALSE.
@@ -2011,19 +1970,22 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'force_field_pack', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=default_string_length) :: atmname, name_atm_a, &
+    CHARACTER(LEN=default_string_length) :: atmname, ldum, name_atm_a, &
       name_atm_a2, name_atm_a_local, name_atm_b, name_atm_b2, &
-      name_atm_b_local, name_atm_c, name_atm_c2, name_atm_d, name_atm_d2,ldum
-    INTEGER :: atm_a, atm_b, atm_c, atm_d, counter, first, handle, handle2, i, ii, &
-      ikind, ilink, imul, iw, j, jj, jkind, k, last, match_names, n, natom, &
-      nbend, nbond, nimpr, nkinds, nonfo, ntorsion, nub, stat, iw2, iw3, iw4
+      name_atm_b_local, name_atm_c, name_atm_c2, name_atm_d, name_atm_d2
+    INTEGER :: atm_a, atm_b, atm_c, atm_d, counter, first, handle, handle2, &
+      i, ii, ikind, ilink, imul, itype, iw, iw2, iw3, iw4, j, jj, jkind, k, &
+      last, match_names, n, natom, nbend, nbond, nimpr, nkinds, nonfo, &
+      ntorsion, nub, stat
     INTEGER, DIMENSION(:), POINTER           :: molecule_list, my_atom_list
     INTEGER, POINTER :: map_bend_kind(:), map_bond_kind(:), map_impr_kind(:), &
       map_onfo_kind(:), map_torsion_kind(:), map_ub_kind(:)
     LOGICAL :: allocate_spline_bond_env, failure, found, found_a, found_b, &
       is_link_atom, my_qmmm, only_qm, use_qmmm_ff
-    REAL(KIND=dp) :: epsilon, epsilon_a, epsilon_b, qi1, qi2, &
-      qi3, qi4, rmin, rmin2_a, rmin2_b, scale_factor
+    REAL(KIND=dp)                            :: epsilon, epsilon_a, &
+                                                epsilon_b, qi1, qi2, qi3, &
+                                                qi4, rmin, rmin2_a, rmin2_b, &
+                                                scale_factor
     REAL(KIND=dp), DIMENSION(:), POINTER     :: charge
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(bend_kind_type), DIMENSION(:), &
@@ -2033,9 +1995,9 @@ CONTAINS
       POINTER                                :: bond_kind_set
     TYPE(bond_type), DIMENSION(:), POINTER   :: bond_list
     TYPE(charmm_info_type), POINTER          :: chm_info
-    TYPE(gromos_info_type), POINTER          :: gro_info
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(elp_potential_type), POINTER        :: elp_potential
+    TYPE(gromos_info_type), POINTER          :: gro_info
     TYPE(impr_kind_type), DIMENSION(:), &
       POINTER                                :: impr_kind_set
     TYPE(impr_type), DIMENSION(:), POINTER   :: impr_list
@@ -2057,7 +2019,6 @@ CONTAINS
     TYPE(ub_kind_type), DIMENSION(:), &
       POINTER                                :: ub_kind_set
     TYPE(ub_type), DIMENSION(:), POINTER     :: ub_list
-    INTEGER :: itype
 
     CALL timeset(routineN,'I','',handle)
     failure = .FALSE.

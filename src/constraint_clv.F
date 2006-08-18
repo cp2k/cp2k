@@ -19,19 +19,15 @@
 !******************************************************************************
 MODULE constraint_clv
   USE cell_types,                      ONLY: cell_type
-  USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind
-  USE colvar_types,                    ONLY: dist_colvar_id,&
-                                             colvar_type,&
-                                             colvar_counters
   USE colvar_methods,                  ONLY: colvar_eval_mol_f
+  USE colvar_types,                    ONLY: colvar_counters,&
+                                             colvar_type
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsystem_p_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
   USE kinds,                           ONLY: dp
-  USE mathlib,                         ONLY: invert_matrix
   USE md,                              ONLY: simulation_parameters_type
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
   USE molecule_kind_types,             ONLY: colvar_constraint_type,&
@@ -45,8 +41,7 @@ MODULE constraint_clv
   USE particle_types,                  ONLY: particle_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE util,                            ONLY: dotprod_3d,&
-                                             matvec_3x3
+  USE util,                            ONLY: matvec_3x3
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -85,10 +80,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'fix_atom_control', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, ikind, iparticle, &
-                                                iparticle_local, isubsys, &
-                                                nfixed_atoms, nkind, &
-                                                nparticle_local, ii
+    INTEGER :: handle, i, ii, ikind, iparticle, iparticle_local, isubsys, &
+      nfixed_atoms, nkind, nparticle_local
     LOGICAL                                  :: failure
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
@@ -169,31 +162,25 @@ CONTAINS
     TYPE(molecule_type), POINTER             :: molecule
     TYPE(particle_type), POINTER             :: particle_set( : )
     REAL(KIND=dp), INTENT(INOUT)             :: pos( :, : ), vel( :, : )
-    TYPE(cell_type), POINTER                 :: cell
-    TYPE(colvar_counters), INTENT(IN)        :: ncolv
     TYPE(simulation_parameters_type), &
       INTENT(IN)                             :: simpar
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(colvar_counters), INTENT(IN)        :: ncolv
+    REAL(KIND=dp), DIMENSION(:)              :: imass
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-    REAL(KIND=dp),DIMENSION(:)               :: imass
 
     CHARACTER(len=*), PARAMETER :: routineN = 'shake_colv', &
-         routineP = moduleN//':'//routineN
-    INTEGER                                  :: first_atom, iconst, index_a, &
-                                                index_b
-    REAL(KIND=dp)                            :: del_lam, dtby2, dtsqby2,&
-                                                fdotf, fdotf_sum, imass1, &
-                                                imass2, mass
-    REAL(KIND=dp), DIMENSION(3)              :: fc_t, r12
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: first_atom, iconst, ishake
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: del_lam, dtby2, dtsqby2, &
+                                                fdotf_sum, max_sigma
     TYPE(colvar_constraint_type), POINTER    :: colv_list( : )
     TYPE(local_colvar_constraint_type), &
       POINTER                                :: lcolv( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
-    REAL(KIND=dp)                            :: max_sigma
-    INTEGER                                  :: ishake
-    LOGICAL                                  :: failure
-    INTEGER                                  :: stat, jconst
 
     failure = .FALSE.
     ishake = 0       
@@ -279,28 +266,22 @@ CONTAINS
     TYPE(molecule_type), POINTER             :: molecule
     TYPE(particle_type), POINTER             :: particle_set( : )
     REAL(KIND=dp), INTENT(INOUT)             :: vel( :, : )
-    TYPE(colvar_counters), INTENT(IN)        :: ncolv
-    TYPE(cell_type), POINTER                 :: cell
     TYPE(simulation_parameters_type), &
       INTENT(IN)                             :: simpar
+    TYPE(colvar_counters), INTENT(IN)        :: ncolv
+    TYPE(cell_type), POINTER                 :: cell
     REAL(KIND=dp), DIMENSION(:)              :: imass
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error 
+      OPTIONAL                               :: error
 
-    INTEGER                                  :: first_atom, iconst, index_a, &
-                                                index_b
-    REAL(KIND=dp)                            :: del_lam, dtby2, fdotf, &
-                                                fdotf_sum, imass1, imass2, &
-                                                mass
-    REAL(KIND=dp), DIMENSION(3)              :: r12, v12
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    INTEGER                                  :: first_atom, iconst, irattle
+    REAL(KIND=dp)                            :: del_lam, dtby2, fdotf_sum, &
+                                                max_sigma
     TYPE(colvar_constraint_type), POINTER    :: colv_list( : )
     TYPE(local_colvar_constraint_type), &
       POINTER                                :: lcolv( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
-    REAL(KIND=dp)                            :: max_sigma
-    INTEGER                                  :: irattle
-    
+
     irattle   = 0
     max_sigma = -1.0E+10_dp
     dtby2     = simpar%dt*.5_dp
@@ -375,25 +356,19 @@ CONTAINS
       INTENT(IN)                             :: r_shake, v_shake
     TYPE(simulation_parameters_type), &
       INTENT(IN)                             :: simpar
-    REAL(KIND=dp), DIMENSION(:)    :: imass
-    TYPE(cell_type), POINTER                 :: cell
     TYPE(colvar_counters), INTENT(IN)        :: ncolv
+    TYPE(cell_type), POINTER                 :: cell
+    REAL(KIND=dp), DIMENSION(:)              :: imass
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error    
+      OPTIONAL                               :: error
 
-    INTEGER                                  :: first_atom, iconst, index_a, &
-                                                index_b,k
+    INTEGER                                  :: first_atom, iconst, ishake
     REAL(KIND=dp)                            :: del_lam, dtby2, dtsqby2, &
-                                                fdotf, fdotf_sum, imass1, &
-                                                imass2, mass
-    REAL(KIND=dp), DIMENSION(3)              :: f_roll_r, f_roll_v, fc_t, r12
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+                                                fdotf_sum, max_sigma
     TYPE(colvar_constraint_type), POINTER    :: colv_list( : )
     TYPE(local_colvar_constraint_type), &
       POINTER                                :: lcolv( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
-    REAL(KIND=dp)                            :: max_sigma
-    INTEGER                                  :: ishake
 
     dtsqby2 = simpar%dt*simpar%dt*.5_dp
     dtby2 = simpar%dt*.5_dp
@@ -481,28 +456,22 @@ CONTAINS
     TYPE(particle_type), POINTER             :: particle_set( : )
     REAL(KIND=dp), INTENT(INOUT)             :: vel( :, : )
     REAL(KIND=dp), INTENT(IN)                :: r_rattle( :, : )
-    TYPE(cell_type), POINTER                 :: cell
-    TYPE(colvar_counters), INTENT(IN)        :: ncolv
-    REAL(KIND=dp), DIMENSION(:)    :: imass
     TYPE(simulation_parameters_type), &
       INTENT(IN)                             :: simpar
     REAL(KIND=dp), INTENT(IN)                :: veps( :, : )
+    TYPE(colvar_counters), INTENT(IN)        :: ncolv
+    TYPE(cell_type), POINTER                 :: cell
+    REAL(KIND=dp), DIMENSION(:)              :: imass
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    INTEGER                                  :: first_atom, iconst, index_a, &
-                                                index_b,k
-    REAL(KIND=dp)                            :: del_lam, dtby2, fdotf, &
-                                                fdotf_sum, imass1, imass2, &
-                                                mass
-    REAL(KIND=dp), DIMENSION(3)              :: f_roll, r1, r12, r2, v12
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    INTEGER                                  :: first_atom, iconst, irattle
+    REAL(KIND=dp)                            :: del_lam, dtby2, fdotf_sum, &
+                                                max_sigma
     TYPE(colvar_constraint_type), POINTER    :: colv_list( : )
     TYPE(local_colvar_constraint_type), &
       POINTER                                :: lcolv( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
-    REAL(KIND=dp)                            :: max_sigma
-    INTEGER                                  :: irattle
 
     dtby2 = simpar%dt*.5_dp
     max_sigma = -1.0E+10_dp
@@ -573,27 +542,27 @@ CONTAINS
 !******************************************************************************
   SUBROUTINE  update_con_colv(wrk, fac, lcolv, particles, lambda, roll, rmat, imass,&
        error)
-    IMPLICIT NONE
     REAL(KIND=dp), INTENT(INOUT)             :: wrk( :, : )
-    REAL(KIND=dp), INTENT(IN)                :: fac, lambda
-    REAL(KIND=dp), DIMENSION(:)              :: imass
-    TYPE(local_colvar_constraint_type),&
-         INTENT(IN)                          :: lcolv
-    TYPE(particle_type), POINTER, DIMENSION(:) :: particles
+    REAL(KIND=dp), INTENT(IN)                :: fac
+    TYPE(local_colvar_constraint_type), &
+      INTENT(IN)                             :: lcolv
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particles
+    REAL(KIND=dp), INTENT(IN)                :: lambda
     LOGICAL, INTENT(in), OPTIONAL            :: roll
-    REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, &
-      INTENT(IN)                             :: rmat
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(IN), OPTIONAL                   :: rmat
+    REAL(KIND=dp), DIMENSION(:)              :: imass
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'update_con_colv', &
-         routineP = moduleN//':'//routineN
-    LOGICAL :: failure, my_roll
-    REAL(KIND=dp)  :: del_lam, mass
-    INTEGER :: stat, iatm, ind
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: iatm, ind
+    LOGICAL                                  :: failure, my_roll
     REAL(KIND=dp), DIMENSION(3)              :: f_roll
-    
+
     failure = .FALSE.
     my_roll = .FALSE.
     IF (PRESENT(roll)) THEN
@@ -634,25 +603,23 @@ CONTAINS
 !******************************************************************************
   FUNCTION eval_Jac_colvar(colvar, colvar_old, particles, roll, rmat, imass,&
        error) RESULT(res)
-    IMPLICIT NONE
-    TYPE(colvar_type), POINTER :: colvar, colvar_old
-    TYPE(particle_type), POINTER, DIMENSION(:) :: particles
-    REAL(KIND=dp)              :: res
-    REAL(KIND=dp), DIMENSION(:) :: imass
-    LOGICAL, INTENT(IN), OPTIONAL :: roll
-    REAL(KIND=dp), DIMENSION(:, :), OPTIONAL, &
-      INTENT(IN)                             :: rmat    
+    TYPE(colvar_type), POINTER               :: colvar, colvar_old
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particles
+    LOGICAL, INTENT(IN), OPTIONAL            :: roll
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(IN), OPTIONAL                   :: rmat
+    REAL(KIND=dp), DIMENSION(:)              :: imass
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
+    REAL(KIND=dp)                            :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'eval_Jac_colvar', &
-         routineP = moduleN//':'//routineN
-    REAL(KIND=dp), DIMENSION(:), POINTER  :: wrk1, wrk2
-    REAL(KIND=dp), DIMENSION(3) :: tmp1, tmp2, tmp3
-    INTEGER :: stat, i, ind, iatom
-    LOGICAL :: failure, my_roll
-    REAL(KIND=dp)                            :: mass
-    TYPE(atomic_kind_type), POINTER          :: atomic_kind
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, iatom
+    LOGICAL                                  :: failure, my_roll
+    REAL(KIND=dp), DIMENSION(3)              :: tmp1, tmp2, tmp3
 
     failure = .FALSE.
     my_roll = .FALSE.
@@ -694,23 +661,24 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
   FUNCTION rattle_con_eval(colvar, vel, roll, veps, rmat, particles, error) RESULT(res)
-    IMPLICIT NONE
     TYPE(colvar_type), POINTER               :: colvar
     REAL(KIND=dp), INTENT(INOUT)             :: vel( :, : )
     LOGICAL, INTENT(IN), OPTIONAL            :: roll
-    REAL(KIND=dp), INTENT(IN), DIMENSION(:,:),&
-         OPTIONAL               :: rmat, veps
-    TYPE(particle_type), POINTER, DIMENSION(:),&
-         OPTIONAL               :: particles
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(IN), OPTIONAL                   :: veps, rmat
+    TYPE(particle_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: particles
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-    REAL(KIND=dp)               :: res, tmp(3)
+    REAL(KIND=dp)                            :: res
 
     CHARACTER(len=*), PARAMETER :: routineN = 'rattle_con_eval', &
-         routineP = moduleN//':'//routineN
-    INTEGER :: iatm, ind
-    LOGICAL :: my_roll, failure
-    REAL(KIND=dp), DIMENSION(3) :: v_roll, f_roll, pos
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: iatm, ind
+    LOGICAL                                  :: failure, my_roll
+    REAL(KIND=dp)                            :: tmp(3)
+    REAL(KIND=dp), DIMENSION(3)              :: f_roll, pos, v_roll
 
     failure = .FALSE.
     my_roll = .FALSE.

@@ -115,10 +115,10 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv,  debug , force_env_se
 
     TYPE(fist_environment_type), POINTER     :: fist_env
     TYPE(virial_type), POINTER               :: virial
-    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(debug_variables_type), &
       INTENT(INOUT), OPTIONAL                :: debug
+    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -131,8 +131,8 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv,  debug , force_env_se
     LOGICAL                                  :: failure
     LOGICAL, SAVE                            :: first_time = .TRUE.
     REAL(KIND=dp) :: pot_bend, pot_bond, pot_imptors, pot_manybody, &
-      pot_nonbond, pot_onef, pot_torsion, pot_urey_bradley, vg_coulomb
-    REAL(KIND=dp) :: xdum1, xdum2, xdum3
+      pot_nonbond, pot_onef, pot_torsion, pot_urey_bradley, vg_coulomb, &
+      xdum1, xdum2, xdum3
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: f_nonbond, f_total, fg_coulomb
     REAL(KIND=dp), DIMENSION(3, 3) :: ident, pv_bc, pv_bend, pv_bond, pv_g, &
@@ -153,8 +153,7 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv,  debug , force_env_se
       POINTER                                :: molecule_set
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(section_vals_type), POINTER         :: fist_section, &
-                                                print_section
+    TYPE(section_vals_type), POINTER         :: fist_section, print_section
 
   CALL timeset(routineN,'I','',handle)
   failure = .FALSE.
@@ -588,7 +587,8 @@ SUBROUTINE fist_dipole(atomic_kind_set, particle_set, cell, unit_nr, error)
     COMPLEX(KIND=dp), DIMENSION(3)           :: ggamma, zeta
     INTEGER                                  :: i, iparticle_kind, j
     INTEGER, DIMENSION(:), POINTER           :: atom_list
-    REAL(KIND=dp)                            :: dipole(3), gvec(3), q, theta, dipole_deriv(3)
+    REAL(KIND=dp)                            :: dipole(3), dipole_deriv(3), &
+                                                gvec(3), q, theta
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
 
   NULLIFY(atomic_kind)

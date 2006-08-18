@@ -30,10 +30,9 @@ MODULE qmmm_init
                                              set_atomic_kind
   USE cell_types,                      ONLY: cell_clone,&
                                              cell_release,&
-                                             read_cell,&
                                              cell_type,&
                                              get_cell,&
-                                             init_cell,&
+                                             read_cell,&
                                              write_cell
   USE checkpoint_handler,              ONLY: Pwarning
   USE cp_output_handling,              ONLY: cp_p_file,&
@@ -67,7 +66,7 @@ MODULE qmmm_init
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
-                                             section_vals_val_get, &
+                                             section_vals_val_get,&
                                              section_vals_val_set
   USE kinds,                           ONLY: default_string_length,&
                                              dp
@@ -89,7 +88,6 @@ MODULE qmmm_init
   USE qs_main,                         ONLY: quickstep_create_force_env
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE force_env_types,                  ONLY:  force_env_set
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -127,8 +125,8 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE  qmmm_create_force_env(force_env, globenv, force_env_section, error)
     TYPE(force_env_type), POINTER            :: force_env
-    TYPE(section_vals_type), pointer         :: force_env_section
     TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -138,7 +136,8 @@ CONTAINS
     CHARACTER(len=default_string_length), &
       DIMENSION(:), POINTER                  :: qm_atom_type
     INTEGER                                  :: handle, isubf, iw, iw2, &
-                                                qmmm_coupl_type, stat,method_name_id
+                                                method_name_id, &
+                                                qmmm_coupl_type, stat
     INTEGER, DIMENSION(:), POINTER           :: mm_atom_index, mm_link_atoms, &
                                                 qm_atom_index, qm_subsys_index
     LOGICAL :: add_mm_charges, explicit, failure, move_mm_charges, nocenter, &
@@ -164,9 +163,8 @@ CONTAINS
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env_qm
     TYPE(qmmm_links_type), POINTER           :: qmmm_links
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(section_vals_type), POINTER         :: print_gen, &
-                                                print_section, qmmm_periodic, &
-                                                qmmm_section
+    TYPE(section_vals_type), POINTER         :: print_gen, print_section, &
+                                                qmmm_periodic, qmmm_section
 
     CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
@@ -931,17 +929,16 @@ CONTAINS
 
     CHARACTER(len=default_string_length)     :: atmname, mm_atom_kind
     INTEGER                                  :: i, icount, ikind, ikindr, &
-                                                n_rep, n_rep_val, nkind, &
+                                                n_rep_val, nkind, &
                                                 size_mm_system, stat
     INTEGER, DIMENSION(:), POINTER           :: mm_link_atoms
     LOGICAL                                  :: explicit, failure, is_mm, &
                                                 is_qm
     REAL(KIND=dp)                            :: tmp_radius, tmp_radius_c
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: cell_par
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(elp_potential_type), POINTER        :: elp_potential
-    TYPE(section_vals_type), POINTER         :: mm_kinds, cell_section
+    TYPE(section_vals_type), POINTER         :: cell_section, mm_kinds
 
     NULLIFY(mm_link_atoms, cell_section)
     qmmm_link = .FALSE.

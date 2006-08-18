@@ -72,7 +72,8 @@ CONTAINS
       INTENT(IN)                             :: simpar
 
     INTEGER                                  :: first_atom, iconst, index_a, &
-                                                index_b, index_c, ng3x3
+                                                index_b, index_c, ishake, &
+                                                ng3x3
     REAL(KIND=dp)                            :: dtby2, dtsqby2, idtsq, &
                                                 imass1, imass2, imass3, mass, &
                                                 max_sigma, sigma
@@ -86,7 +87,6 @@ CONTAINS
     TYPE(local_g3x3_constraint_type), &
       POINTER                                :: lg3x3( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
-    INTEGER                                  :: ishake
 
     dtsqby2 = simpar%dt*simpar%dt*.5_dp
     idtsq = 1.0_dp/simpar%dt/simpar%dt
@@ -223,7 +223,8 @@ CONTAINS
       INTENT(IN)                             :: simpar
 
     INTEGER                                  :: first_atom, iconst, index_a, &
-                                                index_b, index_c, ng3x3, ishake
+                                                index_b, index_c, ishake, &
+                                                ng3x3
     REAL(KIND=dp)                            :: dtby2, dtsqby2, idtsq, &
                                                 imass1, imass2, imass3, mass, &
                                                 max_sigma, sigma

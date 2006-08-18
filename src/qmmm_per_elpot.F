@@ -294,7 +294,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: mm_atom_index
     TYPE(cell_type), POINTER                 :: qm_cell, mm_cell
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(section_vals_type),POINTER          :: qmmm_per_section,&
+    TYPE(section_vals_type), POINTER         :: qmmm_per_section, &
                                                 print_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error

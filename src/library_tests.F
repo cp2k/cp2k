@@ -715,6 +715,7 @@ END SUBROUTINE fft_test
 SUBROUTINE pw_fft_test ( globenv )
 
     TYPE(global_environment_type), POINTER   :: globenv
+
     REAL(KIND=dp), PARAMETER                 :: toler = 1.e-11_dp
 
     INTEGER                                  :: ig, ip, iw, nn, ntim

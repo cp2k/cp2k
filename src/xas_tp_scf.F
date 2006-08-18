@@ -168,8 +168,8 @@ CONTAINS
                                                 iter_count, m, n, nao, nmo, &
                                                 output_unit
     INTEGER, DIMENSION(:), POINTER           :: col_indices
-    LOGICAL :: diis_step, do_level_shift, energy_only, failure, gapw, &
-      ionode, uniform_occupation, use_cholesky, use_jacobi
+    LOGICAL :: diis_step, do_level_shift, energy_only, failure, gapw, ionode, &
+      uniform_occupation, use_cholesky, use_jacobi
     REAL(KIND=dp)                            :: a_max, b_max, diis_error, &
                                                 IP_energy, t1, t2, tot1_h, &
                                                 tot1_s
@@ -194,12 +194,10 @@ CONTAINS
     TYPE(qs_ks_env_type), POINTER            :: ks_env
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_h, matrix_ks, &
-                                                matrix_s
+      POINTER                                :: matrix_h, matrix_ks, matrix_s
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: dft_section, input, &
                                                 scf_section
-
 
     CALL timeset(routineN,"I"," ",handle)
     NULLIFY(dft_control,matrix_h,matrix_s,matrix_ks)

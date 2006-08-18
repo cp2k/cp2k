@@ -28,35 +28,30 @@
 !!   SOURCE
 !****************************************************************************
 MODULE replica_types
-  USE cp_para_env,                     ONLY: cp_cart_release,&
+  USE cp_files,                        ONLY: close_file,&
+                                             open_file
+  USE cp_para_env,                     ONLY: cp_cart_create,&
+                                             cp_cart_release,&
+                                             cp_cart_write,&
+                                             cp_para_env_create,&
                                              cp_para_env_release,&
-                                             cp_para_env_write,&
-                                             cp_cart_write
+                                             cp_para_env_write
   USE cp_para_types,                   ONLY: cp_para_cart_type,&
                                              cp_para_env_type
-  USE kinds,                           ONLY: default_path_length,&
-                                             default_string_length,&
-                                             dp
-  USE timings,                         ONLY: timeset,&
-                                             timestop
-  USE message_passing,                 ONLY: MPI_COMM_NULL,&
-                                             mp_cart_create,&
-                                             mp_cart_sub,&
-                                             mp_sum
-  USE qs_wf_history_types, ONLY: qs_wf_history_p_type, qs_wf_history_type,wfi_release
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get,&
                                              section_vals_val_set,&
                                              section_vals_write
-  USE cp_files,                        ONLY: close_file,&
-                                             open_file
-  USE cp_output_handling,              ONLY: cp_add_iter_level
-  USE cp_para_env,                     ONLY: cp_cart_create,&
-                                             cp_para_env_create,&
-                                             cp_para_env_retain
-  USE cp_para_types,                   ONLY: cp_para_cart_type,&
-                                             cp_para_env_type
-
+  USE kinds,                           ONLY: default_path_length,&
+                                             dp
+  USE message_passing,                 ONLY: MPI_COMM_NULL,&
+                                             mp_cart_create,&
+                                             mp_cart_sub,&
+                                             mp_sum
+  USE qs_wf_history_types,             ONLY: qs_wf_history_p_type,&
+                                             wfi_release
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -121,7 +116,7 @@ MODULE replica_types
      INTEGER :: ref_count, id_nr, f_env_id, nrep,nat,ndim
      REAL(kind=dp), DIMENSION(:,:), POINTER :: r,v,f     
      LOGICAL :: sync_v, keep_wf_history
-     TYPE(qs_wf_history_p_type), DIMENSION(:), pointer :: wf_history
+     TYPE(qs_wf_history_p_type), DIMENSION(:), POINTER :: wf_history
      INTEGER, DIMENSION(:), POINTER :: local_rep_indices
      INTEGER, DIMENSION(:), POINTER :: replica_owner,row_rank,col_rank
      TYPE(cp_para_cart_type), POINTER :: cart
@@ -150,7 +145,7 @@ MODULE replica_types
   !!   SOURCE
   !***************************************************************************
   TYPE replica_env_p_type
-     TYPE(replica_env_type), pointer :: rep_env
+     TYPE(replica_env_type), POINTER :: rep_env
   END TYPE replica_env_p_type
   !!***
   !****************************************************************************
@@ -201,19 +196,15 @@ SUBROUTINE rep_env_create(rep_env, para_env, input, nrep, prep,&
 
     CHARACTER(len=default_path_length)       :: input_file_path, &
                                                 output_file_path
-    INTEGER                                  :: comm_cart, comm_f, &
-                                                comm_inter_rep, i, i0, ierr, &
-                                                ip, ir, lp, my_prep, natom, &
-                                                new_env_id, stat, unit_nr,&
-                                                in_use,nrep_local,irep
+    INTEGER :: comm_cart, comm_f, comm_inter_rep, i, i0, ierr, ip, ir, irep, &
+      lp, my_prep, natom, new_env_id, nrep_local, stat, unit_nr
     INTEGER, DIMENSION(2)                    :: dims, pos
-    LOGICAL                                  :: failure,first_rep
+    LOGICAL                                  :: failure
     LOGICAL, DIMENSION(2)                    :: rdim
-    TYPE(cp_error_type)                      :: new_error
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_cart_type), POINTER         :: cart
-    TYPE(cp_para_env_type), POINTER          :: para_env_f, para_env_inter_rep,&
-         para_env_full
+    TYPE(cp_para_env_type), POINTER          :: para_env_f, para_env_full, &
+                                                para_env_inter_rep
 
   failure=.FALSE.
   CPPrecondition(.NOT.ASSOCIATED(rep_env),cp_failure_level,routineP,error,failure)
@@ -232,7 +223,7 @@ SUBROUTINE rep_env_create(rep_env, para_env, input, nrep, prep,&
      CALL mp_cart_create ( comm_old=para_env%group, ndims=2, dims=dims, pos=pos, comm_cart=comm_cart)
      IF (comm_cart/=MPI_COMM_NULL) THEN
         CALL cp_cart_create(cart,comm_cart,ndims=2,owns_group=.TRUE.,error=error)
-        nullify(para_env_full)
+        NULLIFY(para_env_full)
         CALL cp_para_env_create(para_env_full,comm_cart,owns_group=.FALSE.,error=error)
         rdim(1)=.TRUE.
         rdim(2)=.FALSE.
@@ -253,10 +244,10 @@ SUBROUTINE rep_env_create(rep_env, para_env, input, nrep, prep,&
      rep_env%ref_count=1
      rep_env%nrep=nrep
      rep_env%sync_v=.FALSE.
-     if (present(sync_v)) rep_env%sync_v=sync_v
-     rep_env%keep_wf_history=.true.
-     if (present(keep_wf_history)) rep_env%keep_wf_history=keep_wf_history
-     nullify(rep_env%wf_history)
+     IF (PRESENT(sync_v)) rep_env%sync_v=sync_v
+     rep_env%keep_wf_history=.TRUE.
+     IF (PRESENT(keep_wf_history)) rep_env%keep_wf_history=keep_wf_history
+     NULLIFY(rep_env%wf_history)
 
      ALLOCATE(rep_env%row_rank(0:cart%num_pe(1)-1),rep_env%col_rank(0:cart%num_pe(2)-1),&
           stat=stat)
@@ -378,7 +369,7 @@ SUBROUTINE rep_env_release(rep_env,error)
     CHARACTER(len=*), PARAMETER :: routineN = 'rep_env_release', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ierr, stat, i,handle
+    INTEGER                                  :: handle, i, ierr, stat
     LOGICAL                                  :: failure
 
   failure=.FALSE.
@@ -428,7 +419,7 @@ SUBROUTINE rep_env_release(rep_env,error)
      END IF
   END IF
   NULLIFY(rep_env)
-  call timestop(handle)
+  CALL timestop(handle)
 END SUBROUTINE rep_env_release
 !***************************************************************************
 
@@ -460,8 +451,8 @@ SUBROUTINE rep_env_retain(rep_env,error)
     CHARACTER(len=*), PARAMETER :: routineN = 'rep_env_retain', &
       routineP = moduleN//':'//routineN
 
+    INTEGER                                  :: handle
     LOGICAL                                  :: failure
-    integer :: handle
 
   failure=.FALSE.
   CALL timeset(routineN,"I","",handle)
@@ -470,7 +461,7 @@ SUBROUTINE rep_env_retain(rep_env,error)
      CPPrecondition(rep_env%ref_count>0,cp_failure_level,routineP,error,failure)
      rep_env%ref_count=rep_env%ref_count+1
   END IF
-  call timestop(handle)
+  CALL timestop(handle)
 END SUBROUTINE rep_env_retain
 !***************************************************************************
 
@@ -496,16 +487,18 @@ END SUBROUTINE rep_env_retain
 !!
 !!*** **********************************************************************
 SUBROUTINE rep_env_write(rep_env, unit_nr, error)
-  TYPE(replica_env_type), pointer :: rep_env
-  INTEGER, INTENT(in) :: unit_nr
-  type(cp_error_type), optional, intent(inout) :: error
-  
-  logical :: failure
-  integer :: handle
-  character(len=*), parameter :: routineN='rep_env_write',&
-        routineP=moduleN//':'//routineN
+    TYPE(replica_env_type), POINTER          :: rep_env
+    INTEGER, INTENT(in)                      :: unit_nr
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  failure=.false.
+    CHARACTER(len=*), PARAMETER :: routineN = 'rep_env_write', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle
+    LOGICAL                                  :: failure
+
+  failure=.FALSE.
   
   CALL timeset(routineN,"I","",handle)
   IF (ASSOCIATED(rep_env)) THEN
@@ -539,12 +532,12 @@ SUBROUTINE rep_env_write(rep_env, unit_nr, error)
      WRITE (unit_nr,"(3es12.5)") rep_env%f
      WRITE (unit_nr,"(')')")
      WRITE (unit_nr,"(' keep_wf_history=',l1,', associated(wf_history)=',l1,',')")&
-          rep_env%keep_wf_history,associated(rep_env%wf_history)
+          rep_env%keep_wf_history,ASSOCIATED(rep_env%wf_history)
      WRITE (unit_nr,"('</replica_env>')")
   ELSE
      WRITE(unit_nr,"('<replica_env=*null*/>')")
-  end if
-  call timestop(handle)
+  END IF
+  CALL timestop(handle)
 END SUBROUTINE rep_env_write
 !***************************************************************************
 
@@ -580,7 +573,7 @@ SUBROUTINE rep_env_sync(rep_env,vals,error)
     CHARACTER(len=*), PARAMETER :: routineN = 'rep_env_sync', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: irep,handle
+    INTEGER                                  :: handle, irep
     LOGICAL                                  :: failure
 
   failure=.FALSE.
@@ -632,10 +625,8 @@ SUBROUTINE rep_env_calc_e_f(rep_env,calc_f,error)
     CHARACTER(len=*), PARAMETER :: routineN = 'rep_env_calc_e_f', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ierr, my_calc_f, handle
+    INTEGER                                  :: handle, ierr, my_calc_f
     LOGICAL                                  :: failure
-    TYPE(cp_error_type)                      :: new_error
-    TYPE(cp_logger_type), POINTER            :: logger
 
   failure=.FALSE.
 
@@ -645,12 +636,12 @@ SUBROUTINE rep_env_calc_e_f(rep_env,calc_f,error)
   IF (.NOT. failure) THEN
      my_calc_f=0
      IF (PRESENT(calc_f)) THEN
-        if (calc_f) my_calc_f=1
+        IF (calc_f) my_calc_f=1
      END IF
      CALL cp_rep_calc_e_f(rep_env%id_nr,my_calc_f,ierr)
      CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
   END IF
-  call timestop(handle)
+  CALL timestop(handle)
 END SUBROUTINE rep_env_calc_e_f
 !***************************************************************************
 
@@ -675,15 +666,17 @@ END SUBROUTINE rep_env_calc_e_f
 !!
 !!*** **********************************************************************
 FUNCTION rep_envs_get_rep_env(id_nr,error) RESULT(res)
-  INTEGER, intent(in) :: id_nr
-  type(cp_error_type), optional, intent(inout) :: error
-  TYPE(replica_env_type), pointer :: res
-  
-  character(len=*), parameter :: routineN='rep_envs_get_rep_env',&
-        routineP=moduleN//':'//routineN
-  integer :: i
+    INTEGER, INTENT(in)                      :: id_nr
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    TYPE(replica_env_type), POINTER          :: res
 
-  nullify(res)
+    CHARACTER(len=*), PARAMETER :: routineN = 'rep_envs_get_rep_env', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i
+
+  NULLIFY(res)
   IF (module_initialized) THEN
      IF (ASSOCIATED(rep_envs)) THEN
         DO i=1,SIZE(rep_envs)
@@ -718,17 +711,20 @@ END FUNCTION rep_envs_get_rep_env
 !!
 !!*** **********************************************************************
 SUBROUTINE rep_envs_add_rep_env(rep_env,error)
-  TYPE(replica_env_type), pointer :: rep_env
-  type(cp_error_type), optional, intent(inout) :: error
-  
-  TYPE(replica_env_type), pointer :: rep_env2
-  TYPE(replica_env_p_type), DIMENSION(:), POINTER :: new_rep_envs
-  logical :: failure
-  character(len=*), parameter :: routineN='rep_envs_add_rep_env',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: stat,i
+    TYPE(replica_env_type), POINTER          :: rep_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  failure=.false.
+    CHARACTER(len=*), PARAMETER :: routineN = 'rep_envs_add_rep_env', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: i, stat
+    LOGICAL                                  :: failure
+    TYPE(replica_env_p_type), DIMENSION(:), &
+      POINTER                                :: new_rep_envs
+    TYPE(replica_env_type), POINTER          :: rep_env2
+
+  failure=.FALSE.
   
   IF (ASSOCIATED(rep_env)) THEN
      rep_env2 => rep_envs_get_rep_env(rep_env%id_nr)
@@ -751,8 +747,8 @@ SUBROUTINE rep_envs_add_rep_env(rep_env,error)
            ALLOCATE(rep_envs(1),stat=stat)
            CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
         END IF
-        rep_envs(size(rep_envs))%rep_env => rep_env
-        module_initialized=.true.
+        rep_envs(SIZE(rep_envs))%rep_env => rep_env
+        module_initialized=.TRUE.
      END IF
   END IF
 END SUBROUTINE rep_envs_add_rep_env
@@ -779,18 +775,21 @@ END SUBROUTINE rep_envs_add_rep_env
 !!
 !!*** **********************************************************************
 SUBROUTINE rep_envs_rm_rep_env(rep_env,error)
-  TYPE(replica_env_type), pointer :: rep_env
-  type(cp_error_type), optional, intent(inout) :: error
-  
-  TYPE(replica_env_p_type), DIMENSION(:), POINTER :: new_rep_envs
-  logical :: failure
-  character(len=*), parameter :: routineN='rep_envs_rm_rep_env',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: stat,ii,i
+    TYPE(replica_env_type), POINTER          :: rep_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  failure=.false.
+    CHARACTER(len=*), PARAMETER :: routineN = 'rep_envs_rm_rep_env', &
+      routineP = moduleN//':'//routineN
 
-  IF (ASSOCIATED(rep_env)) then
+    INTEGER                                  :: i, ii, stat
+    LOGICAL                                  :: failure
+    TYPE(replica_env_p_type), DIMENSION(:), &
+      POINTER                                :: new_rep_envs
+
+  failure=.FALSE.
+
+  IF (ASSOCIATED(rep_env)) THEN
      CPPrecondition(module_initialized,cp_failure_level,routineP,error,failure)
      ALLOCATE(new_rep_envs(SIZE(rep_envs)-1),stat=stat)
      CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
@@ -835,19 +834,21 @@ END SUBROUTINE rep_envs_rm_rep_env
 !!
 !!*** **********************************************************************
 FUNCTION rep_env_local_index(rep_env,global_index,error) RESULT(res)
-  TYPE(replica_env_type), pointer :: rep_env
-  INTEGER, intent(in) :: global_index
-  type(cp_error_type), optional, intent(inout) :: error
-  integer :: res
-  
-  logical :: failure
-  character(len=*), parameter :: routineN='rep_env_local_index',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: handle,i
+    TYPE(replica_env_type), POINTER          :: rep_env
+    INTEGER, INTENT(in)                      :: global_index
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    INTEGER                                  :: res
 
-  failure=.false.
+    CHARACTER(len=*), PARAMETER :: routineN = 'rep_env_local_index', &
+      routineP = moduleN//':'//routineN
 
-  call timeset(routineN,handle)
+    INTEGER                                  :: handle, i
+    LOGICAL                                  :: failure
+
+  failure=.FALSE.
+
+  CALL timeset(routineN,handle)
   CPPrecondition(ASSOCIATED(rep_env),cp_failure_level,routineP,error,failure)
   CPPrecondition(rep_env%ref_count>0,cp_failure_level,routineP,error,failure)
   IF (.NOT.failure) THEN
@@ -855,7 +856,7 @@ FUNCTION rep_env_local_index(rep_env,global_index,error) RESULT(res)
      DO i=1,SIZE(rep_env%local_rep_indices)
         IF (rep_env%local_rep_indices(i)==global_index) THEN
            res=i
-           exit
+           EXIT
         END IF
      END DO
   END IF

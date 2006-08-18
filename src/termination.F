@@ -392,11 +392,10 @@ CONTAINS
       routineN = 'external_control', routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=10)                        :: exit_fname_level
-    INTEGER                                  :: unit_number,i
-    LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: time_check,t1,t2
+    INTEGER                                  :: i, unit_number
+    LOGICAL                                  :: failure, should_wait
+    REAL(KIND=dp)                            :: t1, t2, time_check
     TYPE(cp_logger_type), POINTER            :: logger
-    LOGICAL                                  :: should_wait
 
 !   ---------------------------------------------------------------------------
 

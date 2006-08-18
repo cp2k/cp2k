@@ -131,8 +131,7 @@ CONTAINS
       DIMENSION(:, :, :)                     :: dAm, dqv
     REAL(KIND=dp), DIMENSION(:), POINTER     :: inp_radii, radii
     TYPE(cell_type), POINTER                 :: cell, super_cell
-    TYPE(coeff_type), POINTER                :: rho_core
-    TYPE(coeff_type), POINTER                :: rho0_s_gs
+    TYPE(coeff_type), POINTER                :: rho0_s_gs, rho_core
     TYPE(cp_ddapc_type), POINTER             :: cp_ddapc_env
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dft_control_type), POINTER          :: dft_control

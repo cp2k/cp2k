@@ -236,9 +236,8 @@ CONTAINS
       nlist, nnode, nspins
     INTEGER, DIMENSION(:), POINTER           :: atom_of_kind
     LOGICAL                                  :: defined, failure, switch
-    REAL(KIND=dp)                            :: delta, dr1, dr2, ecore2, &
-                                                ecoul, enuc, enuclear, range, &
-                                                rc
+    REAL(KIND=dp)                            :: delta, dr1, ecore2, ecoul, &
+                                                enuc, enuclear, range, rc
     REAL(KIND=dp), DIMENSION(10)             :: e1b, e2a, pvec
     REAL(KIND=dp), DIMENSION(10, 3)          :: de1b, de2a
     REAL(KIND=dp), DIMENSION(3)              :: denuc, force_ab, rij

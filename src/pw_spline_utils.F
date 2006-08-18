@@ -31,7 +31,6 @@ MODULE pw_spline_utils
   USE cell_types,                      ONLY: cell_type
   USE cp_output_handling,              ONLY: cp_add_iter_level,&
                                              cp_iterate,&
-                                             cp_print_key_should_output,&
                                              cp_rm_iter_level
   USE input_constants,                 ONLY: no_precond,&
                                              precond_spl3_1,&

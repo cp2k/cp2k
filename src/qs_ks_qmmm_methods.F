@@ -220,8 +220,8 @@ CONTAINS
 
     INTEGER                                  :: handle, ispin
     LOGICAL                                  :: failure
-    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(coeff_type), POINTER                :: rho0_s_rs
+    TYPE(dft_control_type), POINTER          :: dft_control
 
     CALL timeset(routineN,"I","",handle)    
     failure=.FALSE.

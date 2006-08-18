@@ -78,8 +78,8 @@ MODULE qs_collocate_density
   USE kahan_sum,                       ONLY: accurate_sum
   USE kinds,                           ONLY: dp,&
                                              dp_size
-  USE l_utils,                         ONLY: l_info_type,&
-                                             finish_l_info,&
+  USE l_utils,                         ONLY: finish_l_info,&
+                                             l_info_type,&
                                              return_l_info
   USE mathconstants,                   ONLY: pi,&
                                              twopi
@@ -110,12 +110,13 @@ MODULE qs_collocate_density
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_interactions,                 ONLY: exp_radius_very_extended
-  USE qs_modify_pab_block,             ONLY: FUNC_AB, FUNC_DADB, &
+  USE qs_modify_pab_block,             ONLY: FUNC_AB,&
                                              FUNC_ADBmDAB,&
                                              FUNC_ARDBmDARB,&
-                                             prepare_dadb,&
+                                             FUNC_DADB,&
                                              prepare_adb_m_dab,&
-                                             prepare_ardb_m_darb
+                                             prepare_ardb_m_darb,&
+                                             prepare_dadb
   USE qs_neighbor_list_types,          ONLY: &
        first_list, first_node, get_neighbor_list, get_neighbor_list_set, &
        get_neighbor_node, neighbor_list_set_p_type, neighbor_list_type, &
@@ -596,10 +597,10 @@ CONTAINS
     REAL(kind=dp), PARAMETER                 :: mult_tasks = 2.0_dp
 
     INTEGER :: ab, bcol, brow, curr_tasks, dir, first_pgfb, first_setb, &
-      ga_gb_function, handle, i, iatom, igrid_level, ijatoms, ijsets, ikind, ilist, inode, &
-      ipgf, iset, istat, itask, ithread, j, jatom, jkind, jpgf, jset, k, &
-      maxco, maxsgf, maxsgf_set, n, na1, na2, natom_pairs, nb1, nb2, ncoa, &
-      ncob, nkind, nlist, nnode, npme, nseta, nsetb, nthread, &
+      ga_gb_function, handle, i, iatom, igrid_level, ijatoms, ijsets, ikind, &
+      ilist, inode, ipgf, iset, istat, itask, ithread, j, jatom, jkind, jpgf, &
+      jset, k, maxco, maxsgf, maxsgf_set, n, na1, na2, natom_pairs, nb1, nb2, &
+      ncoa, ncob, nkind, nlist, nnode, npme, nseta, nsetb, nthread, &
       omp_get_max_threads, omp_get_thread_num, sgfa, sgfb, stat, tp
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb, lb_max, &
                                                 lb_min, npgfa, npgfb, nsgfa, &
@@ -1515,7 +1516,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: ra, rab
     REAL(KIND=dp), INTENT(IN)                :: rab2, scale
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: pab
-    INTEGER,INTENT(IN)                       :: o1, o2
+    INTEGER, INTENT(IN)                      :: o1, o2
     TYPE(realspace_grid_type), POINTER       :: rsgrid
     TYPE(cube_info_type), INTENT(IN)         :: cube_info
     TYPE(l_info_type), INTENT(IN)            :: l_info
@@ -1523,20 +1524,19 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: ga_gb_function
     TYPE(lgrid_type), OPTIONAL               :: lgrid
     INTEGER, INTENT(IN), OPTIONAL            :: ithread
-    LOGICAL, INTENT(IN), OPTIONAL            :: map_consistent, &
-                                                collocate_rho0
-    INTEGER, INTENT(IN), OPTIONAL            :: idir, ir
+    LOGICAL, INTENT(IN), OPTIONAL            :: map_consistent, collocate_rho0
     REAL(dp), INTENT(IN), OPTIONAL           :: rpgf0_s
+    INTEGER, INTENT(IN), OPTIONAL            :: idir, ir
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'collocate_pgf_product_rspace', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: cmax, coef_max, gridbounds(2,3), i, ico, icoef, ig, &
-      ithread_l, jco, k, l, la_max_local, la_min_local, lb_max_local, &
-      lb_min_local, length, lx, lx_max, lxa, lxb, lxy, lxy_max, lxyz, &
-      lxyz_max, lya, lyb, lza, lzb, o1_local, o2_local, offset, start
+    INTEGER :: cmax, coef_max, gridbounds(2,3), i, ico, icoef, ig, ithread_l, &
+      jco, k, l, la_max_local, la_min_local, lb_max_local, lb_min_local, &
+      length, lx, lx_max, lxa, lxb, lxy, lxy_max, lxyz, lxyz_max, lya, lyb, &
+      lza, lzb, o1_local, o2_local, offset, start
     INTEGER, DIMENSION(3)                    :: cubecenter, lb_cube, ng, &
                                                 ub_cube
     INTEGER, DIMENSION(:), POINTER           :: ly_max, lz_max, sphere_bounds
@@ -1723,7 +1723,7 @@ CONTAINS
     coef_max=la_max_local+lb_max_local+1
    
     IF ( .NOT. rsgrid%orthorhombic ) THEN
-       call stop_program(routineN,"only orthorhombic grids allowd")
+       CALL stop_program(routineN,"only orthorhombic grids allowd")
     END IF
 
 !   *** properties of the grid ***

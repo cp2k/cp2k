@@ -29,85 +29,67 @@ MODULE f77_interface
   USE cp2k_units,                      ONLY: init_cp2k_units,&
                                              rm_cp2k_units
   USE cp_files,                        ONLY: open_file
+  USE cp_output_handling,              ONLY: cp_iterate
   USE cp_para_env,                     ONLY: cp_para_env_create,&
                                              cp_para_env_release,&
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_parser,                       ONLY: cp_parser_type,&
-                                             parser_create,&
-                                             parser_release
   USE cp_subsystem_types,              ONLY: cp_subsystem_p_type
-  USE cp_units,                        ONLY: cp_unit_set_create,&
-                                             cp_unit_set_release,&
-                                             cp_unit_set_type
-  USE cp_output_handling,              ONLY: cp_iterate
+  USE eip_main,                        ONLY: eip_create_force_env
   USE environment,                     ONLY: cp2k_finalize,&
                                              cp2k_init,&
                                              cp2k_read,&
                                              cp2k_setup
   USE fist_main,                       ONLY: fist_create_force_env
-  USE force_env_methods,               ONLY: force_env_calc_energy_force,&
-                                             ep_create_force_env
+  USE force_env_methods,               ONLY: ep_create_force_env,&
+                                             force_env_calc_energy_force
+  USE force_env_types,                 ONLY: force_env_get,&
+                                             force_env_release,&
+                                             force_env_retain,&
+                                             force_env_set,&
+                                             force_env_type
   USE fp_types,                        ONLY: fp_env_create,&
                                              fp_env_read,&
-                                             fp_env_retain,&
                                              fp_env_release,&
                                              fp_env_write,&
                                              fp_type
-  USE metadynamics,                    ONLY: metadyn_read
-  USE metadynamics_types,              ONLY: meta_env_release,&
-                                             meta_env_type
-  USE force_env_types,                 ONLY: force_env_get,&
-                                             force_env_release,&
-                                             force_env_set,&
-                                             force_env_retain,&
-                                             force_env_type
   USE global_types,                    ONLY: global_environment_type,&
                                              globenv_create,&
                                              globenv_release,&
                                              globenv_retain
-  USE eip_main,                        ONLY: eip_create_force_env
-  USE tbmd_main,                       ONLY: tbmd_create_force_env
-  USE input_constants,                 ONLY: do_fist,&
+  USE input_constants,                 ONLY: do_eip,&
+                                             do_ep,&
+                                             do_fist,&
                                              do_kg,&
                                              do_qmmm,&
                                              do_qs,&
-                                             do_ep,&
-                                             do_eip,&
                                              do_tbmd,&
                                              method_names
   USE input_cp2k,                      ONLY: create_cp2k_input_reading
   USE input_cp2k_check,                ONLY: check_cp2k_input
-  USE input_parsing,                   ONLY: section_vals_parse
-  USE input_section_types,             ONLY: section_release,&
-                                             section_type,&
-                                             section_vals_create,&
+  USE input_section_types,             ONLY: section_vals_duplicate,&
+                                             section_vals_get,&
+                                             section_vals_get_subs_vals,&
                                              section_vals_release,&
                                              section_vals_retain,&
                                              section_vals_type,&
-                                             section_vals_get,&
                                              section_vals_val_get,&
-                                             section_vals_write,&
-                                             section_vals_get_subs_vals,&
-                                             section_vals_get_subs_vals2,&
-                                             section_vals_duplicate
+                                             section_vals_write
   USE kg_main,                         ONLY: kg_create_force_env
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: init_mathcon
-  USE message_passing,                 ONLY: MPI_COMM_WORLD,&
-                                             add_mp_perf_env,&
-                                             get_mp_perf_env,&
-                                             mp_max, &
-                                             mp_perf_env_release,&
-                                             mp_perf_env_retain,&
-                                             mp_perf_env_type,&
-                                             mp_world_finalize,&
-                                             mp_world_init,&
-                                             rm_mp_perf_env
+  USE message_passing,                 ONLY: &
+       MPI_COMM_WORLD, add_mp_perf_env, get_mp_perf_env, mp_max, &
+       mp_perf_env_release, mp_perf_env_retain, mp_perf_env_type, &
+       mp_world_finalize, mp_world_init, rm_mp_perf_env
+  USE metadynamics,                    ONLY: metadyn_read
+  USE metadynamics_types,              ONLY: meta_env_release,&
+                                             meta_env_type
   USE particle_list_types,             ONLY: particle_list_type
   USE physcon,                         ONLY: init_physcon
   USE qmmm_init,                       ONLY: qmmm_create_force_env
   USE qs_main,                         ONLY: quickstep_create_force_env
+  USE tbmd_main,                       ONLY: tbmd_create_force_env
   USE timings,                         ONLY: add_timer_env,&
                                              get_timer_env,&
                                              rm_timer_env,&
@@ -447,7 +429,7 @@ SUBROUTINE f_env_add_defaults(f_env_id,f_env,new_error, failure, handle)
     TYPE(f_env_type), POINTER                :: f_env
     TYPE(cp_error_type), INTENT(out)         :: new_error
     LOGICAL                                  :: failure
-    INTEGER, INTENT(out), optional           :: handle
+    INTEGER, INTENT(out), OPTIONAL           :: handle
 
     CHARACTER(len=*), PARAMETER :: routineN = 'f_env_add_defaults', &
       routineP = moduleN//':'//routineN
@@ -595,33 +577,38 @@ END SUBROUTINE f_env_rm_defaults
   RECURSIVE SUBROUTINE create_force_env(new_env_id,input_path,&
        output_path,mpi_comm,output_unit,owns_out_unit,input,ierr)
     INTEGER, INTENT(out)                     :: new_env_id
-    CHARACTER(len=*), intent(in) :: input_path
-    CHARACTER(len=*), INTENT(in), OPTIONAL :: output_path
-    INTEGER, INTENT(in), OPTIONAL            :: mpi_comm
-    INTEGER, INTENT(in), OPTIONAL :: output_unit
-    LOGICAL, INTENT(in), OPTIONAL :: owns_out_unit
-    TYPE(section_vals_type), POINTER,optional :: input
+    CHARACTER(len=*), INTENT(in)             :: input_path
+    CHARACTER(len=*), INTENT(in), OPTIONAL   :: output_path
+    INTEGER, INTENT(in), OPTIONAL            :: mpi_comm, output_unit
+    LOGICAL, INTENT(in), OPTIONAL            :: owns_out_unit
+    TYPE(section_vals_type), OPTIONAL, &
+      POINTER                                :: input
     INTEGER, INTENT(out), OPTIONAL           :: ierr
 
     CHARACTER(len=*), PARAMETER :: routineN = 'create_force_env', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, stat, unit_nr, nforce_eval, iforce_eval,method_name_id
-    INTEGER, POINTER, DIMENSION(:) :: i_force_eval
-    LOGICAL                                  :: failure,my_owns_out_unit,my_echo
+    INTEGER                                  :: i, iforce_eval, &
+                                                method_name_id, nforce_eval, &
+                                                stat, unit_nr
+    INTEGER, DIMENSION(:), POINTER           :: i_force_eval
+    LOGICAL                                  :: failure, my_echo, &
+                                                my_owns_out_unit
     TYPE(cp_error_type)                      :: error
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(f_env_p_type), DIMENSION(:), &
       POINTER                                :: f_envs_old
     TYPE(force_env_type), POINTER            :: force_env, my_force_env
-    TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(mp_perf_env_type), POINTER          :: mp_perf_env
-    TYPE(section_vals_type), POINTER         :: input_file,force_env_sections, &
-         force_env_section, metadyn_section, fp_section
-    TYPE(timer_env_type), POINTER            :: timer_env
-    TYPE(meta_env_type), POINTER             :: meta_env
     TYPE(fp_type), POINTER                   :: fp_env
+    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(meta_env_type), POINTER             :: meta_env
+    TYPE(mp_perf_env_type), POINTER          :: mp_perf_env
+    TYPE(section_vals_type), POINTER         :: force_env_section, &
+                                                force_env_sections, &
+                                                fp_section, input_file, &
+                                                metadyn_section
+    TYPE(timer_env_type), POINTER            :: timer_env
 
     failure=.FALSE.
     
@@ -659,8 +646,8 @@ END SUBROUTINE f_env_rm_defaults
     ! support it, the program might crash upon error
     CALL cp_error_init(error,stop_level=cp_fatal_level,logger=logger)
 
-    nullify(input_file)
-    if (present(input)) input_file => input
+    NULLIFY(input_file)
+    IF (PRESENT(input)) input_file => input
     IF (.NOT.ASSOCIATED(input_file)) THEN
        input_file => create_cp2k_input_reading(input_path,para_env=para_env,error=error)
     ELSE
@@ -815,7 +802,7 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'destroy_force_env', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: env_pos,i,stat
+    INTEGER                                  :: env_pos, i, stat
     LOGICAL                                  :: failure
     TYPE(cp_error_type)                      :: error
     TYPE(f_env_type), POINTER                :: f_env
@@ -1347,8 +1334,8 @@ CPSourceFileRef,&
 
     LOGICAL                                  :: failure
     TYPE(cp_error_type)                      :: error
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(f_env_type), POINTER                :: f_env
-    TYPE(cp_logger_type), pointer            :: logger
 
     failure=.FALSE.
    
@@ -1535,8 +1522,6 @@ CPSourceFileRef,&
     TYPE(cp_error_type)                      :: error
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(cp_parser_type), POINTER            :: cpparser
-    TYPE(cp_unit_set_type), POINTER          :: default_units
     TYPE(section_vals_type), POINTER         :: input_file
 
     failure=.FALSE.

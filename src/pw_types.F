@@ -550,10 +550,10 @@ SUBROUTINE pw_dr2 ( pw, pwdr2, i, j )
 
     TYPE(pw_type), INTENT(IN)                :: pw
     TYPE(pw_type), INTENT(INOUT)             :: pwdr2
-    INTEGER, INTENT(IN)                      :: i,j
+    INTEGER, INTENT(IN)                      :: i, j
 
     INTEGER                                  :: cnt, handle, ig
-    REAL(KIND=dp)                            :: gg, o3, flop
+    REAL(KIND=dp)                            :: flop, gg, o3
 
 !------------------------------------------------------------------------------
 
@@ -629,7 +629,7 @@ SUBROUTINE pw_smoothing ( pw, ecut, sigma )
     REAL(KIND=dp), INTENT(IN)                :: ecut, sigma
 
     INTEGER                                  :: cnt, handle, ig
-    REAL(KIND=dp)                            :: gg, f, arg, flop
+    REAL(KIND=dp)                            :: arg, f, flop
 
 !------------------------------------------------------------------------------
 
@@ -647,7 +647,7 @@ SUBROUTINE pw_smoothing ( pw, ecut, sigma )
 !$omp parallel do private (ig)
     DO ig = 1, cnt
       arg = (ecut - pw%pw_grid%gsq(ig))/sigma
-      f = exp(arg)/(1+exp(arg))
+      f = EXP(arg)/(1+EXP(arg))
       pw%cc(ig) = f * pw%cc(ig)
     END DO
     flop = flop + 6 * cnt
@@ -3745,7 +3745,7 @@ SUBROUTINE pw_structure_factor ( sf, r )
     REAL(KIND=dp), DIMENSION(:), INTENT(in)  :: r
 
     INTEGER                                  :: cnt, handle, ig
-    REAL(KIND=dp)                            :: flop, arg
+    REAL(KIND=dp)                            :: arg, flop
 
 !------------------------------------------------------------------------------
 

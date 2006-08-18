@@ -46,8 +46,7 @@ MODULE pw_env_methods
   USE input_constants,                 ONLY: do_rsgrid_distributed
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&
-                                             section_vals_val_get,&
-                                             section_vals_val_set
+                                             section_vals_val_get
   USE kinds,                           ONLY: dp
   USE l_utils,                         ONLY: init_l_info,&
                                              l_info_release,&
@@ -189,8 +188,8 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
     LOGICAL                                  :: failure, uf_grid, use_ref_cell
     REAL(KIND=dp)                            :: alpha, cutilev, drmin, &
                                                 max_rpgf0_s, maxradius, &
-                                                my_cut, rel_cutoff, &
-                                                zet0_s, zetp
+                                                my_cut, rel_cutoff, zet0_s, &
+                                                zetp
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: radius
     REAL(KIND=dp), DIMENSION(:), POINTER     :: cutoff, my_cutoff
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: zeta, zetb
@@ -209,7 +208,7 @@ SUBROUTINE pw_env_rebuild(pw_env, qs_env, error)
                                                 xc_super_ref_grid
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
-    TYPE(rho0_mpole_type), POINTER           :: nddo_mpole, rho0_mpole
+    TYPE(rho0_mpole_type), POINTER           :: rho0_mpole
     TYPE(section_vals_type), POINTER         :: input, poisson_section, &
                                                 print_section
 

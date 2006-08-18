@@ -39,8 +39,7 @@ MODULE tbmd_force
                                              cp_subsystem_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE global_types,                    ONLY: global_environment_type
-  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                             section_vals_type
+  USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_flush
   USE mathlib,                         ONLY: symmetrize_matrix

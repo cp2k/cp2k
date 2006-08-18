@@ -36,8 +36,7 @@ MODULE atoms_input
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
-  USE kinds,                           ONLY: default_path_length,&
-                                             default_string_length,&
+  USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE memory_utilities,                ONLY: reallocate
   USE termination,                     ONLY: stop_program

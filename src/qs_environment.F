@@ -181,9 +181,9 @@ CONTAINS
       POINTER                                :: subsystem
     TYPE(cell_type), OPTIONAL, POINTER       :: cell, cell_ref
     LOGICAL, INTENT(IN), OPTIONAL            :: qmmm
+    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-    TYPE(section_vals_type), POINTER         :: force_env_section
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_init', &
       routineP = moduleN//':'//routineN
@@ -207,7 +207,7 @@ CONTAINS
       POINTER                                :: particle_set
     TYPE(section_vals_type), POINTER         :: cell_section, colvar_section, &
                                                 harris_section, kind_section
- 
+
     NULLIFY(my_subsystem, molecule_kind_set, molecule_set, atomic_kind_set,&
          particle_set,atomic_kinds,particles,mols,mol_kinds,my_cell,my_cell_ref,&
          cell_section, harris_section, kind_section)
@@ -354,9 +354,10 @@ CONTAINS
     TYPE(qs_force_type), DIMENSION(:), &
       POINTER                                :: force
     TYPE(qs_wf_history_type), POINTER        :: wf_history
-    TYPE(rho0_mpole_type), POINTER           :: nddo_mpole, rho0_mpole
+    TYPE(rho0_mpole_type), POINTER           :: rho0_mpole
     TYPE(scf_control_type), POINTER          :: scf_control
-    TYPE(section_vals_type), POINTER         :: dft_section, xas_section, qs_section
+    TYPE(section_vals_type), POINTER         :: dft_section, qs_section, &
+                                                xas_section
     TYPE(semi_empirical_control_type), &
       POINTER                                :: se_control
 

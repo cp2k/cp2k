@@ -211,7 +211,7 @@ END SUBROUTINE clone_particle
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_particle_set'
 
-    INTEGER                                  :: i, iparticle, istat
+    INTEGER                                  :: iparticle, istat
 
 !   ---------------------------------------------------------------------------
 
@@ -774,26 +774,27 @@ END SUBROUTINE clone_particle
        bond_a,bond_b,bondparm_type,globenv)
 
     REAL(KIND=dp), POINTER                   :: r(:,:)
+    CHARACTER(LEN=default_string_length), &
+      POINTER                                :: molname(:)
     TYPE(cell_type), POINTER                 :: cell
     REAL(KIND=dp), POINTER                   :: radius(:)
     REAL(KIND=dp)                            :: bondparm_factor
     INTEGER, POINTER                         :: bond_a(:), bond_b(:)
     INTEGER                                  :: bondparm_type
     TYPE(global_environment_type), POINTER   :: globenv
-    CHARACTER (LEN=default_string_length), POINTER :: molname(:)
 
     INTEGER, PARAMETER                       :: nblock = 1000
 
     INTEGER                                  :: first, i, iatom, iproc, &
-         istat, j, jatom, k, last, &
-         natom, nbond, workload
+                                                istat, j, jatom, k, last, &
+                                                natom, nbond, workload
     INTEGER, POINTER                         :: nbond_loc(:)
     REAL(KIND=dp)                            :: dr(3), r2, rbond, rbond2, &
-         rr(3)
+                                                rr(3)
     REAL(KIND=dp), POINTER                   :: tbond_a(:), tbond_b(:), &
-         ttbond_a(:), ttbond_b(:)
+                                                ttbond_a(:), ttbond_b(:)
 
-    !------------------------------------------------------------------------------
+!------------------------------------------------------------------------------
 
     NULLIFY(bond_a,bond_b,tbond_a,tbond_b,ttbond_a,ttbond_b)
     NULLIFY(nbond_loc)

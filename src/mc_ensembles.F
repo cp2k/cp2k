@@ -33,6 +33,7 @@ MODULE mc_ensembles
                                              force_env_release
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: dump_xmol
+  USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp,&
                                              dp_size
   USE machine,                         ONLY: m_flush
@@ -75,14 +76,6 @@ MODULE mc_ensembles
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE input_section_types,             ONLY: section_release,&
-                                             section_type,&
-                                             section_vals_create,&
-                                             section_vals_release,&
-                                             section_vals_type,&
-                                             section_vals_write,&
-                                             section_vals_get_subs_vals,&
-                                             section_vals_get_subs_vals2
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -133,8 +126,8 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: nboxes
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(rng_stream_type), POINTER           :: rng_stream
+    TYPE(section_vals_type), POINTER         :: force_env_section
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'mc_run_ensemble'
 
@@ -146,16 +139,18 @@ CONTAINS
     INTEGER, DIMENSION(1:3, 1:2)             :: discrete_array
     INTEGER :: box_number, cell_unit, com_crd, com_ene, com_mol, group, &
       handle, ibox, imove, iparticle, iprint, istat, iuptrans, iupvolume, iw, &
-      mol, mol_swap, mol_target, nmoves, nnstep, nstart, nstep, source,&
-      print_level
+      mol, mol_swap, mol_target, nmoves, nnstep, nstart, nstep, print_level, &
+      source
     CHARACTER(LEN=40), DIMENSION(1:nboxes) :: cell_file, coords_file, &
       data_file, displacement_file, energy_file, molecules_file, moves_file
     LOGICAL                                  :: ionode, lbias, ldiscrete, &
                                                 lnew_bias_env, loverlap, &
                                                 lreject, lstop, should_stop
     REAL(dp), DIMENSION(1:3, 1:2)            :: conf_prob
-    REAL(KIND=dp) :: discrete_step, pbias, pmavbmc, &
-      pmswap, pmtraion, pmtrans, pmvolume, rand, test_energy
+    REAL(KIND=dp)                            :: discrete_step, pbias, &
+                                                pmavbmc, pmswap, pmtraion, &
+                                                pmtrans, pmvolume, rand, &
+                                                test_energy
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: r_old
     REAL(KIND=dp), DIMENSION(1:3, 1:nboxes)  :: abc

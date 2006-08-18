@@ -184,24 +184,24 @@ RECURSIVE SUBROUTINE cp_run_input_comm(input_file_path,output_file_path,&
 END SUBROUTINE cp_run_input_comm
 
 RECURSIVE SUBROUTINE cp_rep_init(rep_env_id,ierr)
-  USE replica_methods, only: rpin => rep_env_init_low
-  implicit none
+  USE replica_methods, ONLY: rpin => rep_env_init_low
+  IMPLICIT NONE
   INTEGER :: rep_env_id,ierr
   
   CALL rpin(rep_env_id,ierr)
 END SUBROUTINE cp_rep_init
 
 RECURSIVE SUBROUTINE cp_rep_calc_e_f(rep_env_id,calc_f,ierr)
-  USE replica_methods, only: rpef => rep_env_calc_e_f_low
-  implicit none
+  USE replica_methods, ONLY: rpef => rep_env_calc_e_f_low
+  IMPLICIT NONE
   INTEGER :: rep_env_id,calc_f,ierr
   
   CALL rpef(rep_env_id,calc_f,ierr)
 END SUBROUTINE cp_rep_calc_e_f
 
 RECURSIVE SUBROUTINE cp_ep_init(ep_env_id,ierr)
-  USE ep_methods, only: epin => ep_env_init_low
-  implicit none
+  USE ep_methods, ONLY: epin => ep_env_init_low
+  IMPLICIT NONE
   INTEGER :: ep_env_id, ierr
   
   PRINT *, "start cp_ep_init"
@@ -210,8 +210,8 @@ RECURSIVE SUBROUTINE cp_ep_init(ep_env_id,ierr)
 END SUBROUTINE cp_ep_init
 
 RECURSIVE SUBROUTINE cp_ep_calc_e_f(ep_env_id,calc_f,ierr)
-  USE ep_methods, only: epef => ep_env_calc_e_f_low
-  implicit none
+  USE ep_methods, ONLY: epef => ep_env_calc_e_f_low
+  IMPLICIT NONE
   INTEGER :: ep_env_id, calc_f, ierr
   
   CALL epef(ep_env_id, calc_f, ierr)

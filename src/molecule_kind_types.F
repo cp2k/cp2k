@@ -26,6 +26,13 @@ MODULE molecule_kind_types
                                              get_atomic_kind
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
+  USE colvar_types,                    ONLY: angle_colvar_id,&
+                                             colvar_counters,&
+                                             coord_colvar_id,&
+                                             dist_colvar_id,&
+                                             plane_distance_colvar_id,&
+                                             rotation_colvar_id,&
+                                             torsion_colvar_id
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE external_potential_types,        ONLY: all_potential_type,&
@@ -41,14 +48,6 @@ MODULE molecule_kind_types
                                              int_size
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
-  USE colvar_types,                    ONLY: colvar_counters,&
-                                             angle_colvar_id,&
-                                             coord_colvar_id,&
-                                             dist_colvar_id,&
-                                             plane_distance_colvar_id,&
-                                             torsion_colvar_id,&
-                                             rotation_colvar_id
-  
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -207,13 +206,11 @@ CONTAINS
 
 
   SUBROUTINE setup_colvar_counters(colv_list, ncolv)
-    IMPLICIT NONE
-    ! Arguments
     TYPE(colvar_constraint_type), &
-         DIMENSION(:), POINTER                  :: colv_list
-    TYPE(colvar_counters)                       :: ncolv
-    ! Local Variables
-    INTEGER                                     :: k
+      DIMENSION(:), POINTER                  :: colv_list
+    TYPE(colvar_counters)                    :: ncolv
+
+    INTEGER                                  :: k
 
     ncolv%ndist       = 0
     ncolv%nangle      = 0
@@ -551,10 +548,8 @@ CONTAINS
                                                 nconstraint, nfixd
     TYPE(colvar_counters), INTENT(out), &
       OPTIONAL                               :: ncolv
-    INTEGER, INTENT(OUT), OPTIONAL           :: ng3x3, ng4x6, nmolecule, &
-                                                nsgf, ntorsion,&
-                                                nfixd_restraint, ng3x3_restraint,&
-                                                ng4x6_restraint
+    INTEGER, INTENT(OUT), OPTIONAL :: ng3x3, ng4x6, nfixd_restraint, &
+      ng3x3_restraint, ng4x6_restraint, nmolecule, nsgf, ntorsion
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: molecule_list
     INTEGER, INTENT(OUT), OPTIONAL           :: nelectron
     TYPE(bond_kind_type), DIMENSION(:), &
@@ -651,10 +646,8 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'get_molecule_kind_set'
 
-    INTEGER                                  :: ibend, ibond, iimpr, &
-                                                imolecule_kind, ionfo, &
-                                                itorsion, iub, na, nc, nfixd, &
-                                                nm, nmolecule_kind, nfixd_restraint
+    INTEGER :: ibend, ibond, iimpr, imolecule_kind, ionfo, itorsion, iub, na, &
+      nc, nfixd, nfixd_restraint, nm, nmolecule_kind
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
 
 !   ---------------------------------------------------------------------------
@@ -837,10 +830,12 @@ CONTAINS
     INTEGER, INTENT(IN), OPTIONAL            :: ng3x3
     TYPE(g3x3_constraint_type), &
       DIMENSION(:), OPTIONAL, POINTER        :: g3x3_list
-    INTEGER, INTENT(IN), OPTIONAL            :: ng4x6, nfixd,&
-         ng3x3_restraint, ng4x6_restraint, nfixd_restraint
+    INTEGER, INTENT(IN), OPTIONAL            :: ng4x6, nfixd
     TYPE(g4x6_constraint_type), &
       DIMENSION(:), OPTIONAL, POINTER        :: g4x6_list
+    INTEGER, INTENT(IN), OPTIONAL            :: ng3x3_restraint, &
+                                                ng4x6_restraint, &
+                                                nfixd_restraint
     TYPE(bond_kind_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: bond_kind_set
     TYPE(bend_kind_type), DIMENSION(:), &

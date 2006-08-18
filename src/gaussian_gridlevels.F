@@ -21,7 +21,9 @@ MODULE gaussian_gridlevels
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE global_types,                    ONLY: global_environment_type
-  USE input_section_types,             ONLY: section_vals_type, section_vals_retain, section_vals_release
+  USE input_section_types,             ONLY: section_vals_release,&
+                                             section_vals_retain,&
+                                             section_vals_type
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
   USE termination,                     ONLY: stop_memory

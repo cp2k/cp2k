@@ -25,16 +25,16 @@
 
 MODULE topology_types
   USE cell_types,                      ONLY: cell_release,&
-       cell_type
-  USE input_constants,                 ONLY: do_bondparm_covalent,&
-       do_conn_generate,&
-       do_nhcopt_global
-  USE kinds,                           ONLY: default_string_length,&
-       default_path_length,&
-       dp
-  USE termination,                     ONLY: stop_memory
+                                             cell_type
   USE colvar_types,                    ONLY: colvar_p_type,&
-       colvar_release
+                                             colvar_release
+  USE input_constants,                 ONLY: do_bondparm_covalent,&
+                                             do_conn_generate,&
+                                             do_nhcopt_global
+  USE kinds,                           ONLY: default_path_length,&
+                                             default_string_length,&
+                                             dp
+  USE termination,                     ONLY: stop_memory
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -184,13 +184,14 @@ CONTAINS
   !******************************************************************************
   SUBROUTINE init_topology (topology)
     TYPE(topology_parameters_type), &
-         INTENT(INOUT)                          :: topology
+      INTENT(INOUT)                          :: topology
 
     INTEGER                                  :: istat
 
-    !-----------------------------------------------------------------------------
-    ! 1. Nullify and allocate things in topology
-    !-----------------------------------------------------------------------------
+!-----------------------------------------------------------------------------
+! 1. Nullify and allocate things in topology
+!-----------------------------------------------------------------------------
+
     ALLOCATE(topology%atom_info,STAT=istat)
     IF(istat/=0) CALL stop_memory ('init_topology','atom_info')
     ALLOCATE(topology%conn_info,STAT=istat)
@@ -282,7 +283,8 @@ CONTAINS
   SUBROUTINE init_constraint(constraint_info)
     TYPE(constraint_info_type), POINTER      :: constraint_info
 
-    ! Bonds involving Hydrogens
+! Bonds involving Hydrogens
+
     constraint_info%hbonds_restraint = .FALSE.
     ! Fixed Atoms
     constraint_info%nfixed_atoms = 0
@@ -348,14 +350,16 @@ CONTAINS
   !******************************************************************************
   SUBROUTINE deallocate_topology (topology, error)
     TYPE(topology_parameters_type), &
-         INTENT(INOUT)                          :: topology
+      INTENT(INOUT)                          :: topology
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
+      OPTIONAL                               :: error
 
     INTEGER                                  :: istat
-    !-----------------------------------------------------------------------------
-    ! 1. DEALLOCATE things in topology%atom_info
-    !-----------------------------------------------------------------------------
+
+!-----------------------------------------------------------------------------
+! 1. DEALLOCATE things in topology%atom_info
+!-----------------------------------------------------------------------------
+
     IF(ASSOCIATED(topology%atom_info%label_molname)) THEN
        DEALLOCATE(topology%atom_info%label_molname,STAT=istat)
        IF (istat /= 0) CALL stop_memory('deallocate_topology','label_molname')
@@ -549,12 +553,12 @@ CONTAINS
   SUBROUTINE deallocate_constraint(constraint_info, error)
     TYPE(constraint_info_type), POINTER      :: constraint_info
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'deallocate_constraint', &
-         routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat, i
+    INTEGER                                  :: i, stat
     LOGICAL                                  :: failure
 
     failure = .FALSE.

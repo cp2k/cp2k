@@ -19,7 +19,7 @@
 !******************************************************************************
 
 MODULE ewald_pw_types
-  USE cell_types,                      ONLY: cell_type 
+  USE cell_types,                      ONLY: cell_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -129,7 +129,7 @@ END SUBROUTINE ewald_pw_retain
 SUBROUTINE ewald_pw_create ( ewald_pw, ewald_env, cell, cell_ref, force_env_section, error )
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
     TYPE(ewald_environment_type), POINTER    :: ewald_env
-    TYPE ( cell_type ), POINTER              :: cell, cell_ref
+    TYPE(cell_type), POINTER                 :: cell, cell_ref
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -227,8 +227,8 @@ SUBROUTINE ewald_pw_init ( ewald_pw, ewald_env, cell, cell_ref, print_section, e
   
 
     TYPE(ewald_pw_type), POINTER             :: ewald_pw
-    TYPE ( cell_type ), POINTER              :: cell_ref, cell
     TYPE(ewald_environment_type), POINTER    :: ewald_env
+    TYPE(cell_type), POINTER                 :: cell, cell_ref
     TYPE(section_vals_type), POINTER         :: print_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error

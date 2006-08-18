@@ -24,22 +24,22 @@ MODULE cp_control_utils
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: &
        bsse_run, do_ddapc_constraint, do_ddapc_restraint, do_loc_crazy, &
-       do_loc_direct, do_loc_jacobi, do_loc_none, do_method_am1, do_method_pdg, &
+       do_loc_direct, do_loc_jacobi, do_loc_none, do_method_am1, &
        do_method_eht, do_method_gapw, do_method_gapw_xc, do_method_gpw, &
-       do_method_kg_pol, do_method_mndo, do_method_pm3, &
+       do_method_kg_pol, do_method_mndo, do_method_pdg, do_method_pm3, &
        do_pwgrid_ns_fullspace, do_pwgrid_ns_halfspace, do_pwgrid_spherical, &
        do_s2_constraint, do_s2_restraint, electronic_spectra_run, &
        elstr_method_name, energy_force_run, energy_run, geo_opt_run, hmc_run, &
        ldmc_run, linear_response_run, mol_dyn_run, mon_car_run, op_loc_berry, &
-       op_loc_boys, qs_debug_run, quadrature_name, run_type_names, sic_ad, &
-       sic_mauri_spz, sic_mauri_us, sic_none, state_loc_all, &
+       op_loc_boys, pint_run, qs_debug_run, quadrature_name, run_type_names, &
+       sic_ad, sic_mauri_spz, sic_mauri_us, sic_none, state_loc_all, &
        state_loc_fromitoj, state_loc_list, state_loc_upton, &
        tddfpt_excitations, xc_debug_new_routine, xc_deriv_fd, &
        xc_deriv_nn10_smooth, xc_deriv_nn50_smooth, xc_deriv_pw, &
        xc_deriv_spline2, xc_deriv_spline2_smooth, xc_deriv_spline3, &
        xc_deriv_spline3_smooth, xc_new_f_routine, xc_old_f_routine, &
        xc_rho_nn10, xc_rho_nn50, xc_rho_no_smooth, xc_rho_spline2_smooth, &
-       xc_rho_spline3_smooth, xc_test_lsd_f_routine, pint_run
+       xc_rho_spline3_smooth, xc_test_lsd_f_routine
   USE input_cp2k_check,                ONLY: xc_functionals_expand
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
@@ -80,8 +80,8 @@ CONTAINS
 
   SUBROUTINE read_dft_control(dft_control,globenv, dft_section, error)
     TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(section_vals_type), POINTER         :: dft_section
     TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(section_vals_type), POINTER         :: dft_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -92,11 +92,10 @@ CONTAINS
                                                 potential_file_name
     INTEGER                                  :: excitations, run_id
     LOGICAL                                  :: failure, l_param, was_present
-    TYPE(section_vals_type), POINTER         :: scf_section, &
-                                                tmp_section, &
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: rvec
+    TYPE(section_vals_type), POINTER         :: scf_section, tmp_section, &
                                                 xc_fun_section, xc_section
     TYPE(xc_rho_cflags_type)                 :: needs
-    REAL(KIND=dp), DIMENSION(:),POINTER      :: rvec
 
 !   ---------------------------------------------------------------------------
 
@@ -304,7 +303,7 @@ CONTAINS
 
     TYPE(qs_control_type), INTENT(INOUT)     :: qs_control
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(section_vals_type), POINTER :: qs_section
+    TYPE(section_vals_type), POINTER         :: qs_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -545,8 +544,8 @@ CONTAINS
   SUBROUTINE read_tddfpt_control(t_control,nspins,globenv, dft_section,error)
     TYPE(tddfpt_control_type)                :: t_control
     INTEGER, INTENT(IN)                      :: nspins
-    TYPE(section_vals_type), POINTER         :: dft_section
     TYPE(global_environment_type)            :: globenv
+    TYPE(section_vals_type), POINTER         :: dft_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -634,7 +633,7 @@ CONTAINS
 
     CHARACTER(len=160)                       :: reference
     CHARACTER(len=20)                        :: tmpStr
-    INTEGER                                  :: ifun, output_unit, il
+    INTEGER                                  :: ifun, il, output_unit
     LOGICAL                                  :: failure
     REAL(kind=dp)                            :: density_cut, &
                                                 density_smooth_cut_range, &
