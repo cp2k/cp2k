@@ -87,7 +87,7 @@ CONTAINS
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-    TYPE(section_type), POINTER              :: print_key, print_section
+    TYPE(section_type), POINTER              :: subsection,print_section,print_key
 
     failure=.FALSE.
 
@@ -111,7 +111,7 @@ CONTAINS
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
-    NULLIFY(print_section)
+    nullify(print_section)
     CALL section_create(print_section,name="print",&
          description="Section of possible print options for an EP calculation.",&
          repeats=.FALSE., required=.TRUE.,error=error)
@@ -167,7 +167,7 @@ CONTAINS
     CALL keyword_create(keyword, name="mo_s_inv",&
          description="print the value of the inverse of the mo overlap matrix",&
          usage="mo_s_inv",&
-         default_l_val=.TRUE.,lone_keyword_l_val=.TRUE.,error=error)
+         default_l_val=.true.,lone_keyword_l_val=.TRUE.,error=error)
     CALL section_add_keyword(print_key,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
@@ -189,7 +189,7 @@ CONTAINS
     CALL keyword_create(keyword, name="rho1",&
          description="print the value of the blocs of rho1, the psi1 (and psi0) derived density matrix",&
          usage="rho1 F",&
-         default_l_val=.TRUE.,lone_keyword_l_val=.TRUE.,error=error)
+         default_l_val=.true.,lone_keyword_l_val=.TRUE.,error=error)
     CALL section_add_keyword(print_key,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
@@ -203,7 +203,7 @@ CONTAINS
     CALL keyword_create(keyword, name="mo_s_inv",&
          description="print the value of the inverse of the mo overlap matrix",&
          usage="mo_s_inv",&
-         default_l_val=.TRUE.,lone_keyword_l_val=.TRUE.,error=error)
+         default_l_val=.true.,lone_keyword_l_val=.TRUE.,error=error)
     CALL section_add_keyword(print_key,keyword,error=error)
     CALL keyword_release(keyword,error=error)
 
@@ -592,8 +592,8 @@ CONTAINS
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-    TYPE(section_type), POINTER              :: print_key, print_key2, &
-                                                subsection
+    TYPE(section_type), POINTER              :: print_key, print_key2
+    TYPE(section_type), POINTER              :: subsection
 
     failure=.FALSE.
 
@@ -820,7 +820,7 @@ CONTAINS
        CALL keyword_release(keyword,error=error)    
        CALL keyword_create(keyword, name="write_cube",&
             description="If the cube file should be written. If false, the eigenvalues are still computed.",&
-            default_l_val=.TRUE., error=error)
+            default_l_val=.true., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)    
        CALL keyword_create(keyword, name="nlumo",&
@@ -915,16 +915,16 @@ CONTAINS
 
        CALL keyword_create(keyword, name="TOTAL_DIPOLE",&
             description="prints out the total dipole of the wannier centers.",&
-            usage="TOTAL_DIPOLE", default_l_val=.FALSE., &
-            lone_keyword_l_val=.TRUE., error=error)
+            usage="TOTAL_DIPOLE", default_l_val=.false., &
+            lone_keyword_l_val=.true., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="JACOBI_FALLBACK",&
             description="If the jacobi method should be used in no convergence"//&
                         " could be obtained using the crazy rotations",&
-            usage="JACOBI_FALLBACK", default_l_val=.TRUE., &
-            lone_keyword_l_val=.TRUE., error=error)
+            usage="JACOBI_FALLBACK", default_l_val=.true., &
+            lone_keyword_l_val=.true., error=error)
        CALL section_add_keyword(print_key,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
@@ -4285,13 +4285,13 @@ END SUBROUTINE create_ot_section
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword, name="CURRENT_DENSITY",&
-            description="Calculate the current density and the "//&
-            " induced magnetic field on a mesh in real space",&
-            usage="CURRENT_DENSITY",&
-            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
+!       CALL keyword_create(keyword, name="CURRENT_DENSITY",&
+!            description="Calculate the current density and the "//&
+!            " induced magnetic field on a mesh in real space",&
+!            usage="CURRENT_DENSITY",&
+!            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+!       CALL section_add_keyword(section,keyword,error=error)
+!       CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="FULL",&
             description="Calculate the orbital dependent correction "//&

@@ -35,12 +35,12 @@ MODULE qs_linres_types
                                              localized_wfn_control_release,&
                                              localized_wfn_control_type
   USE qs_rho_atom_types,               ONLY: rho_atom_coeff
-  USE qs_rho_types,                    ONLY: qs_rho_p_type,&
-                                             qs_rho_release
+  USE qs_rho_types,                    ONLY: qs_rho_p_type,qs_rho_release
   USE sparse_matrix_types,             ONLY: real_matrix_p_type,&
                                              real_matrix_type
   USE timings,                         ONLY: timeset,&
                                              timestop
+
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -96,7 +96,6 @@ MODULE qs_linres_types
 !!
 !! ATTRIBUTES
 !!   - ref_count
-!!   - current_density : true if the response current density is calculated
 !!   - full_nmr    : true if the full correction is calculated
 !!   - simplenmr_done, fullnmr_done : flags that indicate what has been
 !!                   already calculated: used for restart
@@ -134,14 +133,15 @@ MODULE qs_linres_types
      INTEGER                                     :: ref_count, n_nics, nao, nstates(2)
      INTEGER, DIMENSION(:), POINTER              :: list_cubes
      INTEGER, DIMENSION(:), POINTER              :: cs_atom_list
+     INTEGER, DIMENSION(:), POINTER              :: do_calc_cs_atom
      INTEGER, DIMENSION(:,:), POINTER            :: statetrueindex
-     LOGICAL                                     :: current_density, do_nics,&
+     LOGICAL                                     :: do_nics,&
                                                     full_nmr,simplenmr_done(6),&
                                                     simplenmr_converged(6),&
                                                     store_current,restart_nmr
      LOGICAL, DIMENSION(:,:), POINTER            :: fullnmr_done
      REAL(dp)                                    :: shift_factor, chi_factor
-     REAL(dp)                                    :: shift_SI2ppm, chi_SI2ppmcgs
+     REAL(dp)                                    :: chi_SI2shiftppm, chi_SI2ppmcgs
      REAL(dp)                                    :: chi_tensor(3,3)
      REAL(dp)                                    :: chi_tensor_loc(3,3)
      REAL(dp), DIMENSION(:,:), POINTER           :: basisfun_center
@@ -337,6 +337,7 @@ CONTAINS
        NULLIFY(nmr_env%statetrueindex)
        NULLIFY(nmr_env%list_cubes)
        NULLIFY(nmr_env%cs_atom_list)
+       NULLIFY(nmr_env%do_calc_cs_atom)
      END IF 
 
 
@@ -346,7 +347,7 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE get_nmr_env(nmr_env, n_nics, nao, nstates,&
-             chi_tensor,list_cubes, cs_atom_list, statetrueindex, &
+             chi_tensor,list_cubes, cs_atom_list, do_calc_cs_atom, statetrueindex, &
              chi_tensor_loc, r_nics, chemical_shift,&
              chemical_shift_loc, chemical_shift_loc_nics, chemical_shift_nics,&
              basisfun_center, centers_set,&
@@ -354,44 +355,52 @@ CONTAINS
              jrho1_atom_set, jrho1_set, op_p_ao, op_rmd_ao, &
              jp1_ao, jp2_ao, error)
 
-    TYPE(nmr_env_type)                       :: nmr_env
-    INTEGER, INTENT(OUT), OPTIONAL           :: n_nics, nao, nstates(2)
-    REAL(dp), INTENT(out), OPTIONAL          :: chi_tensor(3,3)
-    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: list_cubes, cs_atom_list
-    INTEGER, DIMENSION(:, :), OPTIONAL, &
-      POINTER                                :: statetrueindex
-    REAL(dp), INTENT(out), OPTIONAL          :: chi_tensor_loc(3,3)
-    REAL(dp), DIMENSION(:, :), OPTIONAL, &
-      POINTER                                :: r_nics
-    REAL(dp), DIMENSION(:, :, :), OPTIONAL, &
-      POINTER                                :: chemical_shift, &
-                                                chemical_shift_loc, &
-                                                chemical_shift_loc_nics, &
-                                                chemical_shift_nics
-    REAL(dp), DIMENSION(:, :), OPTIONAL, &
-      POINTER                                :: basisfun_center
-    TYPE(cp_2d_r_p_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: centers_set
-    TYPE(cp_fm_p_type), DIMENSION(:, :), &
-      OPTIONAL, POINTER                      :: psi1_p, psi1_rxp, psi1_D, &
-                                                p_psi0, rxp_psi0
-    TYPE(jrho_atom_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: jrho1_atom_set
-    TYPE(qs_rho_p_type), DIMENSION(:, :), &
-      OPTIONAL, POINTER                      :: jrho1_set
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: op_p_ao, op_rmd_ao
+    TYPE(nmr_env_type)                           :: nmr_env
+    INTEGER, INTENT(OUT), OPTIONAL               :: n_nics, nao, nstates(2)
+    INTEGER, DIMENSION(:), OPTIONAL, POINTER     :: list_cubes
+    INTEGER, DIMENSION(:), OPTIONAL, POINTER     :: cs_atom_list
+    INTEGER, DIMENSION(:), OPTIONAL, POINTER     :: do_calc_cs_atom
+    INTEGER, DIMENSION(:,:), OPTIONAL, POINTER   :: statetrueindex
+
+    REAL(dp), INTENT(out), OPTIONAL              :: chi_tensor(3,3)
+    REAL(dp), INTENT(out), OPTIONAL              :: chi_tensor_loc(3,3)
+    REAL(dp), DIMENSION(:,:), OPTIONAL, &
+      POINTER                                    :: r_nics
+    REAL(dp), DIMENSION(:,:,:), OPTIONAL, &
+      POINTER                                    :: chemical_shift
+    REAL(dp), DIMENSION(:,:,:), OPTIONAL, &
+      POINTER                                    :: chemical_shift_loc
+    REAL(dp), DIMENSION(:,:,:), OPTIONAL, &
+      POINTER                                    :: chemical_shift_loc_nics
+    REAL(dp), DIMENSION(:,:,:), OPTIONAL, &
+      POINTER                                    :: chemical_shift_nics
+    REAL(dp), DIMENSION(:,:), OPTIONAL, &
+      POINTER                                    :: basisfun_center
+    TYPE(cp_2d_r_p_type), DIMENSION(:), OPTIONAL,&
+      POINTER                                    :: centers_set
+    TYPE(cp_fm_p_type), DIMENSION(:,:), OPTIONAL, &
+      POINTER                                    :: psi1_p, psi1_rxp, psi1_D
+    TYPE(cp_fm_p_type), DIMENSION(:,:), OPTIONAL, &
+      POINTER                                    :: p_psi0, rxp_psi0
+    TYPE(jrho_atom_type),DIMENSION(:), OPTIONAL,&
+      POINTER                                    :: jrho1_atom_set
+    TYPE(qs_rho_p_type),DIMENSION(:,:), OPTIONAL, &
+      POINTER                                    :: jrho1_set
+    TYPE(real_matrix_p_type), DIMENSION(:), OPTIONAL, &
+      POINTER                                    :: op_p_ao, op_rmd_ao
+    TYPE(real_matrix_p_type), DIMENSION(:), OPTIONAL, &
+      POINTER                                    :: jp2_ao
     TYPE(real_matrix_type), OPTIONAL, &
-      POINTER                                :: jp1_ao
-    TYPE(real_matrix_p_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: jp2_ao
+      POINTER                                    :: jp1_ao
+
+
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+      OPTIONAL                                   :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_nmr_env', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
+       LOGICAL                                  :: failure
 
      failure =.FALSE.
 
@@ -402,6 +411,7 @@ CONTAINS
      IF(PRESENT(nstates)) nstates(1:2)=nmr_env%nstates(1:2)
      IF(PRESENT(list_cubes)) list_cubes => nmr_env%list_cubes
      IF(PRESENT(cs_atom_list)) cs_atom_list => nmr_env%cs_atom_list
+     IF(PRESENT(do_calc_cs_atom)) do_calc_cs_atom => nmr_env%do_calc_cs_atom
      IF(PRESENT(statetrueindex)) statetrueindex => nmr_env%statetrueindex
      IF(PRESENT(centers_set)) centers_set => nmr_env%centers_set
      IF(PRESENT(chi_tensor)) chi_tensor = nmr_env%chi_tensor
@@ -424,23 +434,25 @@ CONTAINS
      
   END SUBROUTINE get_nmr_env
 
-  SUBROUTINE set_nmr_env(nmr_env,shift_factor,chi_factor,shift_SI2ppm,chi_SI2ppmcgs,&
+  SUBROUTINE set_nmr_env(nmr_env,shift_factor,chi_factor,chi_SI2shiftppm,chi_SI2ppmcgs,&
              chi_tensor,chi_tensor_loc,jrho1_atom_set,jrho1_set,error)
 
-    TYPE(nmr_env_type)                       :: nmr_env
-    REAL(dp), INTENT(IN), OPTIONAL :: shift_factor, chi_factor, shift_SI2ppm, &
-      chi_SI2ppmcgs, chi_tensor(3,3), chi_tensor_loc(3,3)
-    TYPE(jrho_atom_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: jrho1_atom_set
-    TYPE(qs_rho_p_type), DIMENSION(:, :), &
-      OPTIONAL, POINTER                      :: jrho1_set
+    TYPE(nmr_env_type)                           :: nmr_env
+    REAL(dp), INTENT(IN),OPTIONAL                :: shift_factor, chi_factor
+    REAL(dp), INTENT(IN),OPTIONAL                :: chi_SI2shiftppm, chi_SI2ppmcgs
+    REAL(dp), INTENT(IN),OPTIONAL                :: chi_tensor(3,3)
+    REAL(dp), INTENT(IN),OPTIONAL                :: chi_tensor_loc(3,3)
+     TYPE(jrho_atom_type),DIMENSION(:), OPTIONAL,&
+       POINTER                                   :: jrho1_atom_set
+    TYPE(qs_rho_p_type),DIMENSION(:,:), OPTIONAL, &
+       POINTER                                   :: jrho1_set
     TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+      OPTIONAL                                   :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'set_nmr_env', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: iB, idir
+    INTEGER :: iB,idir
     LOGICAL                                  :: failure
 
      failure =.FALSE.
@@ -449,7 +461,7 @@ CONTAINS
 
      IF(PRESENT(shift_factor)) nmr_env%chi_factor=chi_factor
      IF(PRESENT(shift_factor)) nmr_env%chi_factor=chi_factor
-     IF(PRESENT(shift_SI2ppm)) nmr_env%shift_SI2ppm=shift_SI2ppm
+     IF(PRESENT(chi_SI2shiftppm)) nmr_env%chi_SI2shiftppm=chi_SI2shiftppm
      IF(PRESENT(chi_SI2ppmcgs))   nmr_env%chi_SI2ppmcgs=chi_SI2ppmcgs
      IF(PRESENT(chi_tensor))   THEN
        DO iB=1,3
@@ -489,16 +501,15 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE allocate_jrho_atom_set(jrho_atom_set,natom,error)
 
-    TYPE(jrho_atom_type), DIMENSION(:), &
-      POINTER                                :: jrho_atom_set
-    INTEGER, INTENT(IN)                      :: natom
+    TYPE(jrho_atom_type), DIMENSION(:), POINTER :: jrho_atom_set
+    INTEGER, INTENT(IN) :: natom
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_jrho_atom_set'
 
-    INTEGER                                  :: iat, istat
-    LOGICAL                                  :: failure
+    INTEGER :: iat, istat
+    LOGICAL :: failure
 
      failure = .FALSE.
 
@@ -541,16 +552,14 @@ CONTAINS
 ! *****************************************************************************
   SUBROUTINE deallocate_jrho_atom_set(jrho_atom_set,error)
 
-    TYPE(jrho_atom_type), DIMENSION(:), &
-      POINTER                                :: jrho_atom_set
+    TYPE(jrho_atom_type), DIMENSION(:), POINTER :: jrho_atom_set
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_jrho_atom_set'
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'allocate_jrho_atom_set'
 
-    INTEGER                                  :: i, iat, iB, idir, istat, n, &
-                                                NATOM
-    LOGICAL                                  :: failure
+    INTEGER :: i, iat, iB, idir, istat, n, NATOM
+    LOGICAL :: failure
 
      CPPrecondition(ASSOCIATED(jrho_atom_set),cp_failure_level,routineN,error,failure)
      natom = SIZE(jrho_atom_set)
@@ -671,15 +680,15 @@ CONTAINS
   SUBROUTINE  allocate_jrho_atom_rad(jrho1_atom,ispin,nr,max_iso_not0,error)
   
     TYPE(jrho_atom_type), POINTER            :: jrho1_atom
-    INTEGER, INTENT(IN)                      :: ispin, nr, max_iso_not0
+    INTEGER, INTENT(IN)                      :: ispin,nr,max_iso_not0
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'allocate_jrho_atom_rad', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, istat
-    LOGICAL                                  :: failure
+    INTEGER :: handle, istat
+    LOGICAL :: failure
 
     CALL timeset("calculate_jrho_atom_rad","I"," ",handle)
     CPPrecondition(ASSOCIATED(jrho1_atom),cp_failure_level,routineP,error,failure)
@@ -758,8 +767,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'set2zero_jrho_atom_rad', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
-
+    LOGICAL :: failure
     CPPrecondition(ASSOCIATED(jrho1_atom),cp_failure_level,routineP,error,failure)
     IF(.NOT.failure) THEN
 
@@ -792,23 +800,29 @@ CONTAINS
   SUBROUTINE get_jrho_atom(jrho1_atom_set,iatom,cjc_h,cjc_s,cjc_ii_h,cjc_ii_s,&
              cjc_iii_h,cjc_iii_s,jrho_rad_h,jrho_rad_s,jrho_vec_rad_h,jrho_vec_rad_s,error)
 
-    TYPE(jrho_atom_type), DIMENSION(:), &
+    TYPE(jrho_atom_type), DIMENSION(:),&
       POINTER                                :: jrho1_atom_set
     INTEGER, INTENT(IN)                      :: iatom
-    TYPE(rho_atom_coeff), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: cjc_h, cjc_s, cjc_ii_h, &
-                                                cjc_ii_s, cjc_iii_h, &
-                                                cjc_iii_s, jrho_rad_h, &
+    TYPE(rho_atom_coeff), DIMENSION(:),&
+      OPTIONAL, POINTER                      :: cjc_h, cjc_s
+    TYPE(rho_atom_coeff), DIMENSION(:),&
+      OPTIONAL, POINTER                      :: cjc_ii_h, cjc_ii_s
+    TYPE(rho_atom_coeff), DIMENSION(:),&
+      OPTIONAL, POINTER                      :: cjc_iii_h, cjc_iii_s
+    TYPE(rho_atom_coeff), DIMENSION(:),&
+     OPTIONAL, POINTER                       :: jrho_rad_h,&
                                                 jrho_rad_s
-    TYPE(rho_atom_coeff), &
-      DIMENSION(:, :, :), OPTIONAL, POINTER  :: jrho_vec_rad_h, jrho_vec_rad_s
+    TYPE(rho_atom_coeff), DIMENSION(:,:,:),&
+      OPTIONAL, POINTER                      :: jrho_vec_rad_h,&
+                                                jrho_vec_rad_s
+
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'get_jrho_atom', &
       routineP = moduleN//':'//routineN
 
-    LOGICAL                                  :: failure
+    LOGICAL :: failure
 
      CPPrecondition(ASSOCIATED(jrho1_atom_set), cp_failure_level,routineN,error,failure)
 
@@ -840,10 +854,12 @@ CONTAINS
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'init_jrho_atom_set'
 
-    INTEGER :: handle, iat, iatom, iB, idir, ikind, ispin, istat, &
-      max_iso_not0, maxso, na, nat, natom, nkind, nr, nset, nsotot
+    INTEGER :: handle,  iat, iatom, iB, idir, ikind, ispin, istat, max_iso_not0,&
+               maxso, na, nat, natom, nkind, nr, nset, nsotot
+    LOGICAL :: failure
     INTEGER, DIMENSION(:), POINTER           :: atom_list
-    LOGICAL                                  :: failure, paw_atom
+    LOGICAL                                  :: paw_atom
+
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(harmonics_atom_type), POINTER       :: harmonics

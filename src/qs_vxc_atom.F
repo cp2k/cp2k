@@ -72,7 +72,7 @@ MODULE qs_vxc_atom
 
   PRIVATE
 
-  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_vxc_atom'
+  CHARACTER(LEN=*), PARAMETER :: moduleN = "qs_vxc_atom"
 
   PUBLIC :: calculate_vxc_atom,&
             calculate_xc_2nd_deriv_atom,&
@@ -92,13 +92,13 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_vxc_atom', &
-      routineP = moduleN//':'//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = "calculate_vxc_atom", &
+                                   routineP = moduleN//":"//routineN
 
-    INTEGER                                  :: bo(2), handle, i, iat, iatom, &
-                                                ikind, ir, istat, mepos, na, &
-                                                natom, nkind, nr, nspins, &
-                                                num_pe
+    INTEGER                                  :: bo(2), handle, i, ia, iat, &
+                                                iatom, ikind, ir, istat, &
+                                                mepos, na, natom, nkind, nr, &
+                                                nspins, num_pe
     INTEGER, DIMENSION(2, 3)                 :: bounds
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: gradient_f, lsd, paw_atom
@@ -128,7 +128,7 @@ CONTAINS
     TYPE(xc_rho_cflags_type)                 :: needs
     TYPE(xc_rho_set_type), POINTER           :: rho_set_h, rho_set_s
 
-! -------------------------------------------------------------------------
+    ! -------------------------------------------------------------------------
 
     CALL timeset(routineN,"I","",handle)
 
@@ -223,7 +223,6 @@ CONTAINS
      
       CALL reallocate(rho_h,1,na,1,nspins)
       CALL reallocate(rho_s,1,na,1,nspins)
-!      CALL reallocate(weight,1,na,1,nr)
       weight => grid_atom%weight
       CALL reallocate(vxc_h,1,na,1,nr,1,nspins)
       CALL reallocate(vxc_s,1,na,1,nr,1,nspins)
@@ -268,9 +267,6 @@ CONTAINS
                                 r_h_d, r_s_d, drho_h, drho_s, error=error)
           CALL fill_rho_set(rho_set_h,lsd,nspins,needs,rho_h,drho_h,na,ir,error=error)
           CALL fill_rho_set(rho_set_s,lsd,nspins,needs,rho_s,drho_s,na,ir,error=error)
-!          DO ia=1, na
-!            weight(ia,ir) = grid_atom%wr(ir)*grid_atom%wa(ia)
-!          END DO
         END DO
 
         !-------------------!
@@ -330,12 +326,6 @@ CONTAINS
                                         "rho_s")
     END IF
 
-!    IF (ASSOCIATED(weight)) THEN
-!      DEALLOCATE (weight,STAT=istat)
-!      IF (istat /= 0)  CALL stop_memory(routineN,moduleN,__LINE__,&
-!                                        "weight")
-!    END IF
-
     IF (ASSOCIATED(vxc_h)) THEN
       DEALLOCATE (vxc_h,STAT=istat)
       IF (istat /= 0)  CALL stop_memory(routineN,moduleN,__LINE__,&
@@ -390,10 +380,10 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_xc_2nd_deriv_atom', &
-      routineP = moduleN//':'//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = "calculate_xc_2nd_deriv_atom", &
+                                   routineP = moduleN//":"//routineN
 
-    INTEGER                                  :: atom, excitations, iatom, &
+    INTEGER                                  :: atom, excitations, ia, iatom, &
                                                 ikind, ir, na, natom, nkind, &
                                                 nr, nspins, res_etype, stat
     INTEGER, DIMENSION(2)                    :: local_loop_limit
@@ -431,7 +421,7 @@ CONTAINS
     TYPE(xc_rho_set_type), POINTER           :: rho1_set_h, rho1_set_s, &
                                                 rho_set_h, rho_set_s
 
-! -------------------------------------------------------------------------
+    ! -------------------------------------------------------------------------
 
    failure = .FALSE.
 
@@ -803,7 +793,7 @@ CONTAINS
     TYPE(rho_atom_coeff), DIMENSION(:), &
       POINTER                                :: int_hh, int_ss
 
-! -------------------------------------------------------------------------
+    ! -------------------------------------------------------------------------
 
     failure = .FALSE.
 
@@ -984,7 +974,7 @@ CONTAINS
     TYPE(rho_atom_coeff), DIMENSION(:), &
       POINTER                                :: int_hh, int_ss
 
-! -------------------------------------------------------------------------
+    ! -------------------------------------------------------------------------
 
     failure = .FALSE.
 

@@ -34,6 +34,7 @@ MODULE qs_linres_nmr_utils
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
+  USE coefficient_types,               ONLY: coeff_zero
   USE convert_units,                   ONLY: convert_to_cp2k_units
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
   USE cp_control_types,                ONLY: dft_control_type
@@ -86,18 +87,19 @@ MODULE qs_linres_nmr_utils
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_linres_methods,               ONLY: linres_scf
-  USE qs_linres_nmr_atom_current,      ONLY: list_3c_jrho_atom
-  USE qs_linres_nmr_current,           ONLY: nmr_response_current
+  USE qs_linres_nmr_atom_current,      ONLY: calculate_jrho_atom_coeff,&
+                                            list_3c_jrho_atom
+  USE qs_linres_nmr_current,           ONLY: nmr_response_current,&
+                                             test_func
   USE qs_linres_nmr_op,                ONLY: set_vecp
   USE qs_linres_nmr_shift,             ONLY: nmr_print_shift
   USE qs_linres_types,                 ONLY: deallocate_jrho_atom_set,&
                                              get_nmr_env,&
-                                             init_jrho_atom_set,&
-                                             jrho_atom_type,&
+                                             init_jrho_atom_set, &
+                                             jrho_atom_type, &
                                              linres_control_type,&
                                              nmr_env_create,&
-                                             nmr_env_type,&
-                                             set_nmr_env
+                                             nmr_env_type, set_nmr_env
   USE qs_loc_methods,                  ONLY: qs_print_cubes
   USE qs_matrix_pools,                 ONLY: mpools_get,&
                                              qs_matrix_pools_type
@@ -106,8 +108,7 @@ MODULE qs_linres_nmr_utils
   USE qs_operators_ao,                 ONLY: set_up_op_sm
   USE qs_p_env_types,                  ONLY: p_env_release,&
                                              qs_p_env_type
-  USE qs_rho_types,                    ONLY: qs_rho_release,&
-                                             qs_rho_retain
+  USE qs_rho_types,                    ONLY: qs_rho_release, qs_rho_retain
   USE scf_control_types,               ONLY: scf_control_type
   USE sparse_matrix_types,             ONLY: allocate_matrix_set,&
                                              deallocate_matrix,&
@@ -140,27 +141,27 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'nmr_do_nmr', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, homo, idir, ii, iii, ispin, ist_true, istat, istate, &
-      istate2, nao, ncubes, nmo, nstates(2), output_unit
+    INTEGER                                  :: handle, homo, iao, idir, idir2, ii, &
+                                                iii, ik, ispin, ist_true, istat, &
+                                                istate, istate2, nao,  nmo, ncubes, &
+                                                nstates(2), output_unit
     INTEGER, DIMENSION(:), POINTER           :: list_cubes
-    INTEGER, DIMENSION(:, :), POINTER        :: statetrueindex
+    INTEGER, DIMENSION(:,:), POINTER         :: statetrueindex
     LOGICAL                                  :: failure, ionode
     REAL(dp)                                 :: dk(3), dkl(3), dl(3)
-    REAL(dp), DIMENSION(:), POINTER          :: dkl_vec_ii, dkl_vec_iii
+    REAL(dp), DIMENSION(:), POINTER          :: dkl_vec_ii,dkl_vec_iii
     REAL(dp), DIMENSION(:, :), POINTER       :: vecbuf_dklxp0
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_2d_r_p_type), DIMENSION(:), &
+    TYPE(cp_2d_r_p_type), DIMENSION(:),&
       POINTER                                :: centers_set
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: h1_psi0, psi1
-    TYPE(cp_fm_p_type), DIMENSION(:, :), &
-      POINTER                                :: p_psi0, psi1_D, psi1_p, &
-                                                psi1_rxp, rxp_psi0
+    TYPE(cp_fm_p_type), DIMENSION(:,:), POINTER :: psi1_p, psi1_rxp, psi1_D
+    TYPE(cp_fm_p_type), DIMENSION(:,:), POINTER :: p_psi0, rxp_psi0
+    TYPE(cp_fm_type), POINTER                :: mo_coeff, fm_work_ii, fm_work_iii
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
       POINTER                                :: ao_mo_fm_pools
     TYPE(cp_fm_struct_type), POINTER         :: tmp_fm_struct
-    TYPE(cp_fm_type), POINTER                :: fm_work_ii, fm_work_iii, &
-                                                mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -523,9 +524,9 @@ CONTAINS
 
     CHARACTER(LEN=2)                         :: label
     CHARACTER(LEN=default_string_length)     :: nics_file_name
-    INTEGER :: handle, homo, i_B, icount, idir, ini, ir, ispin, istat, &
-      istate, istate2, istate_next, j, k, n_mo(2), n_rep, nao, nat_print, &
-      natom, ncubes, nmoloc, nspins, nstates, output_unit
+    INTEGER :: handle, homo, i_B, icount, idir, ini, ir, ispin, istat, istate, &
+      istate2, istate_next, j, k, n_mo(2), n_rep, nao, natom, nat_print, ncubes, nmoloc, &
+      nspins, nstates, output_unit
     INTEGER, DIMENSION(:), POINTER           :: bounds, list
     LOGICAL                                  :: failure, gapw, ionode, my_end
     LOGICAL, ALLOCATABLE, DIMENSION(:, :)    :: state_done
@@ -537,8 +538,8 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_parser_type), POINTER            :: parser
     TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(jrho_atom_type), DIMENSION(:), &
-      POINTER                                :: jrho1_atom_set
+    TYPE(jrho_atom_type),DIMENSION(:),&
+       POINTER                               :: jrho1_atom_set
     TYPE(linres_control_type), POINTER       :: linres_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
@@ -589,8 +590,6 @@ CONTAINS
     ! If surrent_density or full_nmr different allocations are required
     nmr_section => section_vals_get_subs_vals(qs_env%input, &
                                                  "PROPERTIES%LINRES%NMR")
-    CALL section_vals_val_get(nmr_section,"CURRENT_DENSITY", &
-         l_val=nmr_env%current_density,error=error)
     CALL section_vals_val_get(nmr_section,"FULL",l_val=nmr_env%full_nmr,error=error)
     CALL section_vals_val_get(nmr_section,"RESTART_NMR",l_val=nmr_env%restart_nmr,error=error)
     CALL section_vals_val_get(nmr_section,"NICS",l_val=nmr_env%do_nics,error=error)
@@ -641,6 +640,7 @@ CONTAINS
           ' To get NMR parameters within PBC you need localized zero order orbitals '
      END IF
      nspins = dft_control%nspins
+     natom = SIZE(particle_set,1)
      ALLOCATE(nmr_env%centers_set(nspins),STAT=istat)
      nstates = 0
      nmr_env%nstates = 0
@@ -709,14 +709,39 @@ CONTAINS
      DEALLOCATE(state_done,STAT=istat)
      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
+
 !    Conversion factors
-     nmr_env%shift_factor = 1.0_dp
+!    factor for the CHEMICAL SHIFTS: alpha^2 *  ppm.
+     nmr_env%shift_factor = ( 1.0_dp / 137.03602_dp )**2   * 1.0E+6_dp / cell%deth
 !    chi_factor =  1/4 * e^2/m * a_0 ^2
      nmr_env%chi_factor = 1.9727566E-29_dp / 1.0E-30_dp ! -> displayed in 10^-30 J/T^2
-     nmr_env%shift_SI2ppm = 1.0_dp
 !    Factor to convert 10^-30 J/T^2 into ppm cgs = ppm cm^3/mol
-     nmr_env%chi_SI2ppmcgs = 6.022045_dp/1.0E+2_dp ! = 10^-30 * mu_0/4pi * N_A * 10^6 * 10^6
-                                                   ! [one 10^6 for ppm, one for m^3 -> cm^3]
+!      = 10^-30 * mu_0/4pi * N_A * 10^6 * 10^6  [one 10^6 for ppm, one for m^3 -> cm^3]
+     nmr_env%chi_SI2ppmcgs = 6.022045_dp/1.0E+2_dp 
+!    Chi to Shift: 10^-30  *  2/3  mu_0 / Omega  * 1/ppm
+     nmr_env%chi_SI2shiftppm = 1.0E-30_dp * 8.37758041E-7_dp/ &
+                      (cell%deth /cell%unit_of_length**3*1.0E-30_dp) * 1.0E+6_dp
+
+     IF(output_unit>0) THEN
+       IF(nmr_env%full_nmr) THEN
+         WRITE (UNIT=output_unit,FMT="(T2,A,T60,A)")&
+            "  NMR|","Full orbital dependent correction"
+       END IF
+       IF(nmr_env%do_nics) THEN
+         WRITE (UNIT=output_unit,FMT="(T2,A,T50,I5,A)")&
+            "  NMR|   NICS computed in ",nmr_env%n_nics," additional points"
+         WRITE (UNIT=output_unit,FMT="(T2,A,T60,A)")&
+            "  NMR|   NICS coordinates read on file ",nics_file_name
+       END IF
+       WRITE (UNIT=output_unit,FMT="(T2,A,T60,ES15.6)")&
+            "  NMR|      Shift factor (ppm)", nmr_env%shift_factor
+       WRITE (UNIT=output_unit,FMT="(T2,A,T60,ES15.6)")&
+            "  NMR|        Chi factor  (SI)", nmr_env%chi_factor
+       WRITE (UNIT=output_unit,FMT="(T2,A,T60,ES15.6)")&
+            "  NMR| Conversion Chi (ppm/cgs)", nmr_env%chi_SI2ppmcgs
+       WRITE (UNIT=output_unit,FMT="(T2,A,T60,ES15.6)")&
+            "  NMR| Conversion Chi to Shift", nmr_env%chi_SI2shiftppm
+     END IF
 
      nmr_env%store_current = .FALSE.
      IF (BTEST(cp_print_key_should_output(logger%iter_info,nmr_section,&
@@ -765,13 +790,17 @@ CONTAINS
        nmr_env%store_current = .TRUE.
      END IF
 
+     ALLOCATE (nmr_env%do_calc_cs_atom(natom), STAT=istat)
+     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+     nmr_env%do_calc_cs_atom = 0
+
      IF (BTEST(cp_print_key_should_output(logger%iter_info,nmr_section,&
-                  "PRINT%SCHIELDING_TENSOR",error=error),cp_p_file)) THEN
+                  "PRINT%SHIELDING_TENSOR",error=error),cp_p_file)) THEN
 
        NULLIFY(bounds,list)
        nat_print = 0
        CALL section_vals_val_get(nmr_section,&
-          "PRINT%SCHIELDING_TENSOR%ATOMS_LU_BOUNDS",&
+          "PRINT%SHIELDING_TENSOR%ATOMS_LU_BOUNDS",&
            i_vals=bounds,error=error) 
        nat_print = bounds(2) - bounds(1)  + 1
        IF(nat_print > 0) THEN
@@ -779,6 +808,7 @@ CONTAINS
          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
          DO ir = 1,nat_print
            nmr_env%cs_atom_list(ir) = bounds(1) + (ir-1)
+           nmr_env%do_calc_cs_atom(bounds(1) + (ir-1)) = 1
          END DO
        END IF
 
@@ -794,6 +824,7 @@ CONTAINS
             CALL reallocate(nmr_env%cs_atom_list,1,nat_print + SIZE(list))
             DO ini = 1, SIZE(list)
               nmr_env%cs_atom_list(ini+nat_print) = list(ini)
+              nmr_env%do_calc_cs_atom(list(ini)) = 1
             END DO
             nat_print = nat_print + SIZE(list)
           END IF
@@ -806,10 +837,22 @@ CONTAINS
          DO ir = 1,natom
            nmr_env%cs_atom_list(ir) = ir
          END DO
+         nmr_env%do_calc_cs_atom = 1
        END IF
 
      ELSE
         NULLIFY(nmr_env%cs_atom_list)
+     END IF
+
+     IF(output_unit>0) THEN
+       IF(ASSOCIATED(nmr_env%cs_atom_list)) THEN
+         WRITE (UNIT=output_unit,FMT="(T2,A,T40,I5,A)")&
+            "  NMR|   Shielding tensor computed for ", SIZE(nmr_env%cs_atom_list,1) ," atoms"
+       ELSE
+         WRITE (UNIT=output_unit,FMT="(T2,A,T50)")&
+            "  NMR|   Shielding tensor not computed at the atomic positions"
+
+       END IF
      END IF
 
      CALL mpools_get(qs_env%mpools, ao_mo_fm_pools=nmr_env%ao_mo_fm_pools, error=error)
@@ -928,9 +971,13 @@ CONTAINS
                CALL pw_pool_init_coeff(auxbas_pw_pool,&
                     nmr_env%jrho1_set(idir,i_B)%rho%rho_r(ispin),&
                     use_data=REALDATA3D,in_space=REALSPACE,error=error)
-                CALL pw_pool_init_coeff(auxbas_pw_pool,&
+               CALL coeff_zero(nmr_env%jrho1_set(idir,i_B)%rho%rho_r(ispin))
+
+               CALL pw_pool_init_coeff(auxbas_pw_pool,&
                     nmr_env%jrho1_set(idir,i_B)%rho%rho_g(ispin),&
                     use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,error=error)
+               CALL coeff_zero(nmr_env%jrho1_set(idir,i_B)%rho%rho_g(ispin))
+               
            END DO
            CALL qs_rho_retain(nmr_env%jrho1_set(idir,i_B)%rho,error=error)
          END DO 
@@ -949,7 +996,6 @@ CONTAINS
     
     ! Initialize the chemical shift tensor
     nmr_env%chi_tensor = 0.0_dp
-    natom = SIZE(particle_set,1)
     ALLOCATE(nmr_env%chemical_shift(3,3,natom),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
     nmr_env%chemical_shift = 0.0_dp
@@ -1083,6 +1129,9 @@ CONTAINS
         END IF
         IF(ASSOCIATED(nmr_env%cs_atom_list)) THEN
           DEALLOCATE(nmr_env%cs_atom_list)
+        END IF
+        IF(ASSOCIATED(nmr_env%do_calc_cs_atom)) THEN
+          DEALLOCATE(nmr_env%do_calc_cs_atom)
         END IF
         !op_p_ao
         IF(ASSOCIATED(nmr_env%op_p_ao)) THEN

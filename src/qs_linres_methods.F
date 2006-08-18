@@ -25,7 +25,9 @@
 
 MODULE qs_linres_methods
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
+                                             cp_fm_gemm,&
+                                             cp_fm_scale,&
                                              cp_fm_scale_and_add,&
                                              cp_fm_symm,&
                                              cp_fm_trace
@@ -35,13 +37,14 @@ MODULE qs_linres_methods
                                              fm_pool_create_fm,&
                                              fm_pools_create_fm_vect,&
                                              fm_pools_give_back_fm_vect
-  USE cp_fm_types,                     ONLY: cp_fm_get_element,&
-                                             cp_fm_get_info,&
+  USE cp_fm_types,                     ONLY: cp_fm_get_info,&
+                                             cp_fm_get_element,&
                                              cp_fm_maxabsval,&
                                              cp_fm_p_type,&
                                              cp_fm_release,&
                                              cp_fm_set_all,&
-                                             cp_fm_to_fm
+                                             cp_fm_to_fm,&
+                                             cp_fm_vectorsnorm
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
@@ -132,9 +135,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'linres_localize', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: ispin, istate, n_mo(2), &
-                                                nelectron, nmoloc(2), &
-                                                output_unit
+    INTEGER                                  :: ispin, istate, n_mo(2), nelectron, &
+                                                nmoloc(2), output_unit
     LOGICAL                                  :: failure, ionode, &
                                                 my_centers_only
     REAL(dp)                                 :: maxocc
@@ -142,7 +144,7 @@ CONTAINS
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(qs_loc_env_new_type), POINTER       :: qs_loc_env
-    TYPE(section_vals_type), POINTER         :: loc_section, lr_section
+    TYPE(section_vals_type), POINTER         :: loc_section,lr_section
 
     failure = .FALSE.
     NULLIFY(logger, lr_section, loc_section)
@@ -176,9 +178,7 @@ CONTAINS
          nmoloc,n_mo,nspins,error=error)
     CALL set_loc_centers(localized_wfn_control,nmoloc,&
          nspins,globenv,qs_env%input,error=error) 
-!dbg
-     localized_wfn_control%print_cubes = .TRUE.
-!dbg
+
     CALL qs_loc_env_create(qs_loc_env,error=error)
     CALL qs_loc_env_init(qs_loc_env,localized_wfn_control,qs_env,error=error)
     ! The localized orbitals are copied in the mos, 
@@ -246,8 +246,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, homo, i, ik, ispin, &
-                                                istat, iter, last_ik, nao, &
-                                                nvectors, output_unit
+                                                istat, iter, last_ik, &
+                                                nao, nvectors, output_unit
     LOGICAL                                  :: energy_only, failure, ionode, &
                                                 vec_zero
     REAL(dp)                                 :: eps_perturbation, &
@@ -339,7 +339,7 @@ CONTAINS
          DO i=1,homo
            CALL cp_fm_get_element(Ab(ispin)%matrix,i,i,vectorsnorm(i))
 !           write(*,*) i , vectorsnorm(i),sqrt(vectorsnorm(i))
-           max_input_norm = MAX(max_input_norm,SQRT(vectorsnorm(i)))
+           max_input_norm = MAX(max_input_norm,sqrt(vectorsnorm(i)))
          END DO 
          DEALLOCATE(vectorsnorm,STAT=istat)
        END DO 

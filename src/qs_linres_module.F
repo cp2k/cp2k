@@ -165,6 +165,7 @@ CONTAINS
          !Initialize the nmr environment
          nmr_env%ref_count=0
          CALL nmr_env_init(nmr_env,qs_env,error=error)
+
          CALL nmr_operators(nmr_env,qs_env,error=error)
          CALL nmr_do_nmr(nmr_env,p_env,qs_env,error=error)
 
@@ -282,7 +283,6 @@ CONTAINS
          CALL read_loc_section(linres_control%localized_wfn_control,loc_section,error=error)
          CALL linres_localize(linres_control%localized_wfn_control,qs_env,&
                dft_control%nspins,globenv,error=error)
-
 
          DO ispin=1,dft_control%nspins
             CALL calculate_density_matrix(mos(ispin)%mo_set,&

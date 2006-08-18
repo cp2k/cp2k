@@ -43,8 +43,7 @@ MODULE qs_linres_nmr_current
                                              coeff_zero
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
-                                             cp_fm_gemm,&
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,cp_fm_column_scale,&
                                              cp_fm_scale_and_add
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
@@ -77,15 +76,17 @@ MODULE qs_linres_nmr_current
                                              section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: dp
-  USE l_utils,                         ONLY: finish_l_info,&
-                                             l_info_type,&
+  USE l_utils,                         ONLY: l_info_type,&
+                                             finish_l_info,&
                                              return_l_info
+  USE mathconstants,                   ONLY: twopi
   USE memory_utilities,                ONLY: reallocate
   USE orbital_pointers,                ONLY: coset,&
                                              ncoset
   USE particle_types,                  ONLY: particle_type
   USE pw_env_types,                    ONLY: pw_env_get,&
                                              pw_env_type
+  USE pw_grid_types,                   ONLY: pw_grid_type
   USE pw_pool_types,                   ONLY: pw_pool_give_back_coeff,&
                                              pw_pool_init_coeff,&
                                              pw_pool_p_type,&
@@ -94,27 +95,29 @@ MODULE qs_linres_nmr_current
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              REALDATA3D,&
                                              REALSPACE,&
-                                             RECIPROCALSPACE
-  USE qs_collocate_density,            ONLY: calculate_total_rho,&
-                                             calculate_wavefunction,&
-                                             collocate_pgf_product_rspace,&
+                                             RECIPROCALSPACE,&
+                                             pw_transfer
+  USE qs_collocate_density,            ONLY: collocate_pgf_product_rspace,&
+                                             calculate_total_rho,&
                                              density_on_full_grid,&
-                                             lgrid_type
+                                             lgrid_type,&
+                                             calculate_wavefunction
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_interactions,                 ONLY: exp_radius_very_extended
-  USE qs_linres_nmr_atom_current,      ONLY: calculate_jrho_atom_coeff,&
-                                             calculate_jrho_atom_rad
   USE qs_linres_nmr_op,                ONLY: fac_vecp,&
                                              set_vecp,&
                                              set_vecp_rev
   USE qs_linres_nmr_shift,             ONLY: chi_soft_analytic,&
                                              interpolate_shift_pwgrid,&
                                              mult_G_ov_G2_grid
+  USE qs_linres_nmr_atom_current,      ONLY: calculate_jrho_atom_coeff,&
+                                             calculate_jrho_atom_rad,&
+                                             shift_atom
   USE qs_linres_types,                 ONLY: nmr_env_type
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
-  USE qs_modify_pab_block,             ONLY: FUNC_AB,&
+  USE qs_modify_pab_block,             ONLY: FUNC_AB, &
                                              FUNC_ADBmDAB,&
                                              FUNC_ARDBmDARB
   USE qs_neighbor_list_types,          ONLY: &
@@ -129,11 +132,16 @@ MODULE qs_linres_nmr_current
                                              rs_get_my_tasks,&
                                              rs_grid_zero,&
                                              rs_pw_to_cube
-  USE sparse_matrix_types,             ONLY: &
-       add_block_node, allocate_matrix, allocate_matrix_set, &
-       deallocate_matrix, deallocate_matrix_set, get_block_node, &
-       real_matrix_p_type, real_matrix_type, replicate_matrix_structure, &
-       set_matrix
+  USE sparse_matrix_types,             ONLY: add_block_node,&
+                                             allocate_matrix,&
+                                             allocate_matrix_set,&
+                                             deallocate_matrix,&
+                                             deallocate_matrix_set,&
+                                             get_block_node,&
+                                             real_matrix_p_type,&
+                                             real_matrix_type,&
+                                             replicate_matrix_structure,&
+                                             set_matrix
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE timings,                         ONLY: timeset,&
@@ -206,8 +214,8 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=80)                        :: ext, filename
+    CHARACTER                                :: label
     CHARACTER, DIMENSION(3)                  :: labels
-
     DATA labels /'x','y','z'/
     INTEGER :: handle, homo, i_B, iao, iatom, idir, idir2, idir3, ii_B, &
       iii_B, ispin, istat, istate, nao, natom, nmo, nspins, unit_nr
@@ -247,7 +255,10 @@ CONTAINS
     TYPE(realspace_grid_type), POINTER       :: rs
     TYPE(section_vals_type), POINTER         :: nmr_section
 !dbg
-    INTEGER :: num
+    INTEGER :: num, numj, ig
+    TYPE(pw_grid_type), POINTER              :: grid
+    INTEGER :: bo(2,3), i, k, j
+    REAL(dp) :: dr(3), rgrid(3)
 !   ---------------------------------------------------------------------------
 
     failure = .FALSE.
@@ -447,6 +458,10 @@ CONTAINS
                                   ncol=homo,&
                                   alpha=alpha)
 
+          DO idir3=1,3
+            ! set to zero for the calculation of the shift
+            CALL coeff_zero(shift_pw_gspace(idir3))
+          END DO 
           DO idir = 1,3
 
            ! Calculate the current density on the pw grid (only soft if GAPW)
@@ -462,13 +477,48 @@ CONTAINS
               rho_gspace => rho_struct%rho_g(ispin)
             END IF
 
+            CALL coeff_zero(rho_rspace)
+            CALL coeff_zero(rho_gspace)
             CALL calculate_jrho_resp(density_matrix(ispin)%matrix , &
                  density_matrix_ii(ispin)%matrix ,&
                  density_matrix_iii(ispin)%matrix , &
                  i_B, idir, rho_rspace, rho_gspace,qs_env,&
                  gapw, error=error)
 
-            jrho_tot = calculate_total_rho(rho_gspace)
+            scale_fac = cell%deth / twopi
+            CALL coeff_scale(rho_rspace,scale_fac)
+            CALL coeff_scale(rho_gspace,scale_fac)
+!            jrho_tot = calculate_total_rho(rho_gspace)
+!dbg
+!       numj = 300+i_B*10+idir
+!      bo = rho_rspace%pw%pw_grid%bounds_local
+!      dr = rho_rspace%pw%pw_grid%dr
+!      ig = 0
+!      DO k =  bo(1,3),bo(2,3)
+!        rgrid(3) = REAL(k-bo(1,3))*dr(3)
+!        DO j = bo(1,2), bo(2,2)
+!          rgrid(2) = REAL(j-bo(1,2))*dr(2)
+!          DO i =  bo(1,1), bo(2,1)
+!            rgrid(1) = REAL(i-bo(1,1))*dr(1)
+!            write(numj,'(3f12.6,f16.10)')  rgrid(1:3), &
+!                rho_rspace%pw%cr3d(i,j,k)
+!          END DO
+!        END DO 
+!      END DO 
+!dbg
+
+
+
+!dbg
+!      numj=100+i_B*10+idir
+!      write(numj,*)  ' CURRENT in G space ', i_B, idir
+!      grid => rho_gspace%pw%pw_grid
+!      DO ig = grid % first_gne0, grid % ngpts_cut_local
+!        write(numj,'(4f12.6,2f16.8)') grid%g(1,ig),grid%g(2,ig),&
+!                        grid%g(3,ig), grid%gsq(ig), rho_gspace%pw%cc(ig)
+!      END DO 
+!dbg
+
 
 !  IF(.FALSE.,) THEN
 !           !Field gradient
@@ -483,6 +533,7 @@ CONTAINS
                    CALL set_vecp_rev(idir,idir2,idir3)
                    scale_fac=fac_vecp(idir3,idir2,idir)
                    CALL coeff_scale(pw_gspace_work,scale_fac)
+
                    CALL coeff_sumup(pw_gspace_work,shift_pw_gspace(idir3))
               END IF
             END DO
@@ -491,13 +542,13 @@ CONTAINS
 !   END IF  !false
 !dbg
           END DO  ! idir
-         
+
 !dbg
 !   END IF  !false
 !dbg
           ! Deallocate buffer vectors
           DO idir = 1,3
-             DEALLOCATE(vecbuf(idir)%array,STAT=istat)
+             DeALLOCATE(vecbuf(idir)%array,STAT=istat)
              CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
           END DO
           DEALLOCATE(vecbuf_psi1,STAT=istat)
@@ -527,11 +578,9 @@ CONTAINS
 
               ! Finally the radial functions are multiplied by the YLM and properly summed
               ! The resulting array is J on the local grid. One array per atom.
-              ! The contribution to the shift,  at the real space positions where required,
-              ! is done immediatly after the calculation of J. Hence the current is not
-              ! farther store, unless required
-
               
+              ! Local contributions by numerical integration over the spherical grids
+              CALL shift_atom(qs_env,nmr_env,i_B,idir,error=error)
           END DO  ! idir
         END IF
 
@@ -548,10 +597,7 @@ CONTAINS
           CALL interpolate_shift_pwgrid(nmr_env,pw_env,particle_set,cell,shift_pw_rspace,&
               i_B,idir,nmr_section,error=error)
         END DO 
-        IF(gapw) THEN
-        ! Add the local contributions by numerical integration over the spherical grids
-        END IF
-
+!         stop 'prova shitf' 
 !dbg
 !  ENDIF  !FALSE
 !dbg
@@ -570,8 +616,7 @@ CONTAINS
              IF(gapw) THEN
              ! Add the local hard and soft contributions
              ! This can be done atom by atom by a spline extrapolation of the  values
-             ! on the spherical grid on the grid points. It is not very
-             ! accurate, but it is used only for the printing of cube files.
+             ! on the spherical grid to the grid points. 
                 DO iatom = 1,natom
                 END DO
              END IF
@@ -593,7 +638,7 @@ CONTAINS
         END IF
       END DO  ! i_B
 
- STOP 'chi all'
+ stop 'chi all'
 
 
       IF (BTEST(cp_print_key_should_output(logger%iter_info,nmr_section,&
@@ -683,15 +728,15 @@ CONTAINS
                                                 max_tasks = 2000
     REAL(kind=dp), PARAMETER                 :: mult_tasks = 2.0_dp
 
+
     INTEGER :: ab, bcol, brow, curr_tasks, dir, handle, i, iatom, &
-      igrid_level, iiB, iiiB, ijatoms, ijsets, ikind, ilist, inode, ipgf, &
-      iset, istat, itask, ithread, j, jatom, jkind, jpgf, jset, k, maxco, &
-      maxsgf, maxsgf_set, n, na1, na2, natom_pairs, nb1, nb2, ncoa, ncob, &
-      nkind, nlist, nnode, npme, nseta, nsetb, nthread, omp_get_max_threads, &
+      igrid_level, iiB, iiiB, ijatoms, ijsets, ikind, ilist, inode, ipgf, iset, istat, &
+      itask, ithread, j, jatom, jkind, jpgf, jset, k,  maxco, maxsgf, &
+      maxsgf_set, n, na1, na2, natom_pairs, nb1, nb2, ncoa, ncob, nkind, &
+      nlist, nnode, npme, nseta, nsetb, nthread, omp_get_max_threads, &
       omp_get_thread_num, sgfa, sgfb, stat, tp
-    INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb, lb_max, &
-                                                lb_min, npgfa, npgfb, nsgfa, &
-                                                nsgfb, ntasks, ub
+    INTEGER, DIMENSION(:), POINTER :: la_max, la_min, lb, lb_max, lb_min, &
+      npgfa, npgfb, nsgfa, nsgfb, ntasks, ub
     INTEGER, DIMENSION(:, :), POINTER        :: asets, atasks, first_sgfa, &
                                                 first_sgfb, ival, latom, &
                                                 tasks_local
@@ -701,14 +746,14 @@ CONTAINS
                                                 my_minimum_image, my_soft
     REAL(KIND=dp)                            :: dab, eps_rho_rspace, &
                                                 kind_radius_a, kind_radius_b, &
-                                                Lxo2, Lyo2, Lzo2, rab2, &
-                                                scale, zetp
+                                                rab2, scale, zetp
+    REAL(KIND=dp)                            :: Lxo2, Lyo2, Lzo2
     REAL(KIND=dp), DIMENSION(3)              :: ra, rab, rb, rp
     REAL(KIND=dp), DIMENSION(:), POINTER     :: set_radius_a, set_radius_b
     REAL(KIND=dp), DIMENSION(:, :), POINTER :: dab_local, jp_block, &
       jp_block_rii, jp_block_riii, jpab, jpab_ii, jpab_iii, jpblock, &
-      jpblock_rii, jpblock_riii, rpgfa, rpgfb, sphi_a, sphi_b, work, zeta, &
-      zetb
+      jpblock_rii, jpblock_riii, rpgfa, rpgfb, sphi_a, sphi_b,  &
+      work, zeta, zetb
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: dist_ab, jpabt, jpabt_ii, &
                                                 jpabt_iii, workt
@@ -999,7 +1044,7 @@ CONTAINS
                CYCLE
              END IF
 
-  WRITE(*,*) ' pair ', iatom, jatom, SIZE(jp_block,1), SIZE(jp_block,2)
+!  write(*,*) ' pair ', iatom, jatom, size(jp_block,1), size(jp_block,2)
 
              IF (distributed_rs_grids) THEN
                  NULLIFY (jpblock,jpblock_rii,jp_block_riii )
@@ -1440,31 +1485,29 @@ CONTAINS
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: &
-      routineN = 'collocate_pgf_resp_curr_wrong', &
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'chi_soft_analytic', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: cmax, coef_max, gridbounds(2,3), i, ico, icoef, ig, istat, &
-      ithread_l, jco, k, l, len1, len2, length, lx, lx_max, lxa, lxb, lxy, &
-      lxy_max, lxyz, lxyz_max, lya, lyb, lza, lzb, offset, start
+    INTEGER :: cmax, coef_max, gridbounds(2,3), i, ico, icoef, ig, istat, ithread_l, &
+      jco, k, l, length, len1, len2, lx, lx_max, lxa, lxb, lxy, lxy_max, lxyz, lxyz_max, &
+      lya, lyb, lza, lzb, offset, start
     INTEGER, DIMENSION(3)                    :: cubecenter, lb_cube, ng, &
                                                 ub_cube
     INTEGER, DIMENSION(:), POINTER           :: ly_max, lz_max, sphere_bounds
     INTEGER, DIMENSION(:, :), POINTER        :: map
-    LOGICAL                                  :: failure, my_map_consistent
+    LOGICAL                                  :: failure,my_map_consistent
     REAL(KIND=dp) :: a, b, binomial_k_lxa, binomial_l_lxb, cutoff, f, pg, &
       prefactor, radius, rpg, xrrb, ya, yap, yb, ybp, yrrb, za, zap, zb, zbp, &
       zetp, zrrb
     REAL(KIND=dp), DIMENSION(3)              :: dr, rap, rb, rboffset, rbp, &
                                                 roffset, rp
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: pzyx_ii, pzyx_iii
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: polx_ii, polx_iii, poly_ii, &
-                                                poly_iii, polz_ii, polz_iii
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: grid
-    REAL(KIND=dp), POINTER                   :: alpha(:,:), dpy(:,:), &
-                                                dpz(:,:), polx(:,:), &
-                                                poly(:,:), polz(:,:), pzyx(:)
+    REAL(KIND=dp), POINTER :: alpha(:,:), dpy(:,:), dpz(:,:), polx(:,:), &
+      poly(:,:), polz(:,:), pzyx(:)
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: pzyx_ii, pzyx_iii
+    REAL(KIND=dp), DIMENSION(:,:), POINTER   :: polx_ii, polx_iii,&
+                                                poly_ii, poly_iii,polz_ii, polz_iii
 
 !   ---------------------------------------------------------------------------
 
@@ -1785,16 +1828,14 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'test_func', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: cubecenter(3), homo, iao, &
-                                                idir, igrid_level, istat, &
-                                                istate, ix, iy, iz, lb(3), &
-                                                nao, ng(3), nmo, ub(3)
-    LOGICAL                                  :: failure, wavefunction
-    REAL(KIND=dp)                            :: dk(3), dr(3), mom(3), rdk(3), &
-                                                roffset(3), rpos(3), ry, rz, &
-                                                shift(3), sumr, sumrm(9)
+
+    INTEGER  :: cubecenter(3),homo, igrid_level, istat, istate, iao, idir, &
+                ix, iy, iz, lb(3), ub(3), nao, ng(3), nmo
+    LOGICAL :: failure,wavefunction
+    REAL(KIND=dp):: rpos(3),rx,ry,rz, dk(3),dr(3), mom(3), rdk(3),roffset(3), shift(3),sumr, sumrm(9)
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: grid
+
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
@@ -1802,8 +1843,7 @@ CONTAINS
     TYPE(coeff_type), DIMENSION(:), POINTER  :: mgrid_gspace, mgrid_rspace
     TYPE(cp_2d_r_p_type), DIMENSION(3)       :: vecbuf
     TYPE(cp_fm_struct_type), POINTER         :: tmp_fm_struct
-    TYPE(cp_fm_type), POINTER                :: fm_work, mo_coeff
-    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_rs_pool_p_type), DIMENSION(:), &
       POINTER                                :: rs_pools
     TYPE(cube_info_type), DIMENSION(:), &
@@ -1813,17 +1853,21 @@ CONTAINS
     TYPE(l_info_type), POINTER               :: l_info
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
+    TYPE(cp_fm_type), POINTER                :: fm_work
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
+    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
-    TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s, op_mom_ao
     TYPE(REALSPACE_GRID_P_TYPE), &
       DIMENSION(:), POINTER                  :: rs_rho
+
+
 
     NULLIFY(auxbas_pw_pool, atomic_kind_set, cell, dft_control)
     NULLIFY(mo_coeff, mos, particle_set, para_env, pw_env)
@@ -1881,7 +1925,7 @@ CONTAINS
      wavefunction = .FALSE.
      IF(wavefunction) THEN
      DO istate = 1,homo
-       WRITE(*,*) 'istate ', istate
+       write(*,*) 'istate ', istate
         CALL calculate_wavefunction(mo_coeff, istate,&
                   wf_r, wf_g, atomic_kind_set,cell,dft_control,particle_set, &
                   pw_env, error=error)
@@ -1906,7 +1950,7 @@ CONTAINS
 !       write(*,*) ' cubecenter ', cubecenter
 !       write(*,*) ' roffset    ', roffset
        dk(1:3) = 10.0_dp
-       WRITE(*,*) ' dk ', dk
+       write(*,*) ' dk ', dk
        sumr  = 0.0_dp
        sumrm = 0.0_dp
        DO iz = lb(3),ub(3)
@@ -1956,7 +2000,7 @@ CONTAINS
        END DO 
        sumr = sumr*wf_r%pw%pw_grid%dvol
        sumrm(1:9) = sumrm(1:9)*wf_r%pw%pw_grid%dvol
-        WRITE(*,'(A,10f12.6)') 'integrals  ',  sumr, sumrm(1:9)
+        write(*,'(A,10f12.6)') 'integrals  ',  sumr, sumrm(1:9)
 
      END DO  ! istate
     ELSE 
@@ -1964,7 +2008,7 @@ CONTAINS
        CALL coeff_copy(rho%rho_r(1),wf_r)
 !       CALL pw_transfer(qs_env%rho_core%pw,wf_r%pw)
        dk(1:3) = 10.0_dp
-       WRITE(*,*) ' dk ', dk
+       write(*,*) ' dk ', dk
        sumr  = 0.0_dp
        sumrm = 0.0_dp
        DO iz = lb(3),ub(3)
@@ -1993,7 +2037,7 @@ CONTAINS
                      wf_r%pw%cr3d(ix,iy,iz)*rdk(idir)
                END DO 
                sumrm(4) = sumrm(4) + &
-                     ABS(wf_r%pw%cr3d(ix,iy,iz))*rdk(1)*rdk(1)
+                     abs(wf_r%pw%cr3d(ix,iy,iz))*rdk(1)*rdk(1)
                sumrm(5) = sumrm(5) + &
                      wf_r%pw%cr3d(ix,iy,iz)*rdk(1)*rdk(2)
                sumrm(6) = sumrm(6) + &
@@ -2014,7 +2058,7 @@ CONTAINS
        END DO 
        sumr = sumr*wf_r%pw%pw_grid%dvol
        sumrm(1:9) = sumrm(1:9)*wf_r%pw%pw_grid%dvol/2.0_dp
-        WRITE(*,'(A,10f12.6)') 'integrals  ',  sumr, sumrm(1:9)
+        write(*,'(A,10f12.6)') 'integrals  ',  sumr, sumrm(1:9)
 
     END IF
 
@@ -2060,8 +2104,8 @@ CONTAINS
        DO iao = 1,nao
           sumr = sumr + mo_coeff%local_data(iao,istate)*psi1(1)%matrix%local_data(iao,istate)
        END DO
-       WRITE(*,*) 'istate ' , istate, sumr 
-       WRITE(*,*) 'istate  ', istate,  fm_work%local_data(istate,istate)
+       write(*,*) 'istate ' , istate, sumr 
+       write(*,*) 'istate  ', istate,  fm_work%local_data(istate,istate)
      END DO 
 
      DO istate = 1,homo
@@ -2080,17 +2124,17 @@ CONTAINS
                   beta=0.0_dp,matrix_c=fm_work,&
                   error=error)
 
-          WRITE(*,'(A,I4,A,I4,2f12.6)') 'istate  ', istate,' idir ', idir,  fm_work%local_data(istate,istate), sumrm(idir)
+          write(*,'(A,I4,A,I4,2f12.6)') 'istate  ', istate,' idir ', idir,  fm_work%local_data(istate,istate), sumrm(idir)
 !         CALL cp_fm_get_submatrix(psi1(1)%matrix,vecbuf(idir)%array,&
 !                1,istate,nao,1,transpose=.TRUE.,error=error)
 !         DO iao = 1,nao
 !           mom(idir) = mom(idir) + vecbuf(idir)%array(1,iao)
 !         END DO 
        END DO 
-      STOP 'pippo'
+      stop 'pippo'
        
 !       write(*,*) mom(1), mom(2), mom(3)
-      STOP 'pippo'
+      stop 'pippo'
      END DO  ! istate
 
      DO idir = 1,3
