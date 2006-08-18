@@ -92,6 +92,16 @@ H2O-32_SPME_fp.inp        2
 H2O-restraint.inp         2
 # torsion
 ethene-restraint.inp      2
+ethene-restraint2.inp     2
+#next two are a double crossed check
+ethene-no-restraint.inp   2
+ethene-ck-restraint.inp   2
+#restraint 3x3
+H2O-restraint_3x3.inp     2
+#restraint 4x6
+nh3-restraint4x6.inp      2
+#restraint fixed_atoms
+nh3-restraint-fixd.inp    2
 #
 # testing loops in topology
 loop.inp                  2

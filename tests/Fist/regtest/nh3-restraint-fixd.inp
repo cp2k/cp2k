@@ -1,0 +1,68 @@
+
+&FORCE_EVAL
+  METHOD FIST
+  &MM
+    &FORCEFIELD
+      &spline
+       rcut_nb 6.9
+      &end
+      parmfile charmm.pot
+      parmtype CHM
+      &CHARGE
+        ATOM NH3
+        CHARGE -1.14
+      &END CHARGE
+      &CHARGE
+        ATOM HC
+        CHARGE 0.38
+      &END CHARGE
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE ewald
+        ALPHA .5
+        GMAX 21
+      &END EWALD
+    &END POISSON
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC 13.858 13.858 13.858
+      UNIT ANGSTROM
+    &END CELL
+    &TOPOLOGY
+      COORD_FILE_NAME ../sample_pdb/NH3_1.pdb
+      COORDINATE PDB
+      NHCOPT MOLECULE
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  FFTLIB FFTSG
+  PRINT_LEVEL LOW
+
+  PROJECT NH3
+  RUN_TYPE MD
+&END GLOBAL
+&MOTION
+  &CONSTRAINT
+    &FIXED_ATOMS
+      LIST 2 3 4
+      &RESTRAINT
+          K   [kcalmol*angstrom^-2]  100.0
+      &END
+    &END FIXED_ATOMS
+  &END CONSTRAINT
+  &MD
+    ENSEMBLE NVT
+    STEPS 5
+    TIMESTEP 2.5
+    TEMPERATURE 298
+    &NOSE
+      LENGTH 1
+      YOSHIDA 3
+      TIMECON 500
+      MTS 2
+    &END NOSE
+  &END MD
+&END MOTION

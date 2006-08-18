@@ -181,7 +181,7 @@ SUBROUTINE read_constraints_section(topology, globenv, colvar_p, constraint_sect
     CHARACTER(LEN=default_string_length), &
       DIMENSION(:), POINTER                  :: tmpstringlist
     INTEGER                                  :: icolvar, ig, isize, j, jj, &
-                                                n_rep, ncons, stat
+                                                n_rep, ncons, stat, msize, isize_old, msize_old
     INTEGER, DIMENSION(:), POINTER           :: ilist, tmplist
     LOGICAL                                  :: explicit, failure, freeze_mm, &
                                                 freeze_qm
@@ -195,13 +195,17 @@ SUBROUTINE read_constraints_section(topology, globenv, colvar_p, constraint_sect
   cons_info    => topology%cons_info
   failure = .FALSE.
   IF (.NOT.failure) THEN
-     hbonds_section => section_vals_get_subs_vals(constraint_section,"HBONDS",error=error)
-     g3x3_section => section_vals_get_subs_vals(constraint_section,"G3X3",error=error)
-     g4x6_section => section_vals_get_subs_vals(constraint_section,"G4X6",error=error)
-     fix_atom_section => section_vals_get_subs_vals(constraint_section,"FIXED_ATOMS",error=error)
+     hbonds_section     => section_vals_get_subs_vals(constraint_section,"HBONDS",error=error)
+     g3x3_section       => section_vals_get_subs_vals(constraint_section,"G3X3",error=error)
+     g4x6_section       => section_vals_get_subs_vals(constraint_section,"G4X6",error=error)
+     fix_atom_section   => section_vals_get_subs_vals(constraint_section,"FIXED_ATOMS",error=error)
      collective_section => section_vals_get_subs_vals(constraint_section,"COLLECTIVE",error=error)
      ! HBONDS
-     CALL section_vals_get(hbonds_section,explicit=topology%const_hydr, error=error)
+     CALL section_vals_get(hbonds_section, explicit=topology%const_hydr, error=error)
+     CALL check_restraint(hbonds_section,&
+                          is_restraint=cons_info%hbonds_restraint, &
+                          k0=cons_info%hbonds_k0,&
+                          error=error)
      ! G3X3
      CALL section_vals_get(g3x3_section,explicit=explicit, n_repetition=ncons, error=error)
      IF (explicit) THEN
@@ -222,7 +226,16 @@ SUBROUTINE read_constraints_section(topology, globenv, colvar_p, constraint_sect
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         ALLOCATE(cons_info%const_g33_dbc(ncons),stat=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        ALLOCATE(cons_info%g33_restraint(ncons),stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        ALLOCATE(cons_info%g33_k0(ncons),stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         DO ig = 1, ncons
+           CALL check_restraint(g3x3_section,&
+                                is_restraint=cons_info%g33_restraint(ig), &
+                                k0=cons_info%g33_k0(ig),&
+                                i_rep_section=ig,&
+                                error=error)
            CALL section_vals_val_get(g3x3_section,"MOLECULE",i_rep_section=ig,&
                 i_val=cons_info%const_g33_mol(ig),error=error)
            CALL section_vals_val_get(g3x3_section,"ATOMS",i_rep_section=ig,&
@@ -266,7 +279,16 @@ SUBROUTINE read_constraints_section(topology, globenv, colvar_p, constraint_sect
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         ALLOCATE(cons_info%const_g46_dcd(ncons),stat=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        ALLOCATE(cons_info%g46_restraint(ncons),stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        ALLOCATE(cons_info%g46_k0(ncons),stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         DO ig = 1, ncons
+           CALL check_restraint(g4x6_section,&
+                                is_restraint=cons_info%g46_restraint(ig), &
+                                k0=cons_info%g46_k0(ig),&
+                                i_rep_section=ig,&
+                                error=error)
            CALL section_vals_val_get(g4x6_section,"MOLECULE",i_rep_section=ig,&
                 i_val=cons_info%const_g46_mol(ig),error=error)
            CALL section_vals_val_get(g4x6_section,"ATOMS",i_rep_section=ig,&
@@ -289,17 +311,31 @@ SUBROUTINE read_constraints_section(topology, globenv, colvar_p, constraint_sect
      CALL section_vals_get(fix_atom_section,explicit=explicit, n_repetition=ncons, error=error)
      IF (explicit) THEN
         NULLIFY(tmplist,tmpstringlist)
-        isize = 0
+        isize  = 0
+        msize  = 0
         ALLOCATE(cons_info%fixed_atoms(isize),stat=stat)
-        ALLOCATE(cons_info%fixed_molnames(0),stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        ALLOCATE(cons_info%fixed_molnames(msize),stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        ALLOCATE(cons_info%fixed_restraint(isize),stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        ALLOCATE(cons_info%fixed_k0(isize),stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        ALLOCATE(cons_info%fixed_mol_restraint(msize),stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        ALLOCATE(cons_info%fixed_mol_k0(msize),stat=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         DO ig = 1, ncons
+           isize_old  = isize
+           msize_old  = msize
            CALL section_vals_val_get(fix_atom_section,"LIST", i_rep_section=ig, n_rep_val=n_rep, error=error)
            IF (n_rep /= 0) THEN
               CALL section_vals_val_get(fix_atom_section,"LIST", i_rep_section=ig, &
                    i_vals=tmplist, error=error)
               CALL reallocate(cons_info%fixed_atoms,1,isize+SIZE(tmplist))
               cons_info%fixed_atoms(isize+1:isize+SIZE(tmplist)) = tmplist
+              CALL reallocate(cons_info%fixed_restraint,1,isize+SIZE(tmplist))
+              CALL reallocate(cons_info%fixed_k0,1,isize+SIZE(tmplist))
               isize = SIZE(cons_info%fixed_atoms)
            END IF
            CALL section_vals_val_get(fix_atom_section,"RANGE", i_rep_section=ig, n_rep_val=n_rep, error=error)
@@ -307,6 +343,8 @@ SUBROUTINE read_constraints_section(topology, globenv, colvar_p, constraint_sect
               CALL section_vals_val_get(fix_atom_section,"RANGE", i_rep_section=ig, &
                    i_vals=tmplist, error=error)
               CALL reallocate(cons_info%fixed_atoms,1,isize+tmplist(2)-tmplist(1)+1)
+              CALL reallocate(cons_info%fixed_restraint,1,isize+tmplist(2)-tmplist(1)+1)
+              CALL reallocate(cons_info%fixed_k0,1,isize+tmplist(2)-tmplist(1)+1)
               jj = 0
               DO j = tmplist(1), tmplist(2)
                  jj = jj + 1
@@ -314,17 +352,55 @@ SUBROUTINE read_constraints_section(topology, globenv, colvar_p, constraint_sect
               END DO
               isize = SIZE(cons_info%fixed_atoms)
            END IF
+           !Check for restraints
+           IF (n_rep /=0) THEN
+              CALL check_restraint(fix_atom_section,&
+                                   is_restraint=cons_info%fixed_restraint(isize_old+1), &
+                                   k0=cons_info%fixed_k0(isize_old+1),&
+                                   i_rep_section=ig,&
+                                   error=error)
+              cons_info%fixed_restraint(isize_old+1:isize)=cons_info%fixed_restraint(isize_old+1)
+              cons_info%fixed_k0(isize_old+1:isize)=cons_info%fixed_k0(isize_old+1)
+           END IF
            CALL section_vals_val_get(fix_atom_section,"MOLNAME", i_rep_section=ig, n_rep_val=n_rep, error=error)
            IF (n_rep /= 0) THEN
               CALL section_vals_val_get(fix_atom_section,"MOLNAME", i_rep_section=ig, &
                    c_vals=tmpstringlist, error=error)
-              ALLOCATE(cons_info%fixed_molnames(1:SIZE(tmpstringlist,1)))
+              CALL reallocate(cons_info%fixed_molnames,1,msize+SIZE(tmpstringlist,1))
+              CALL reallocate(cons_info%fixed_mol_restraint,1,msize+SIZE(tmpstringlist,1))
+              CALL reallocate(cons_info%fixed_mol_k0,1,msize+SIZE(tmpstringlist,1))
+              msize  = SIZE(cons_info%fixed_molnames)
               cons_info%fixed_molnames(:)=tmpstringlist(:)
+           END IF
+           !Check for restraints
+           IF (n_rep /=0) THEN
+              CALL check_restraint(fix_atom_section,&
+                                   is_restraint=cons_info%fixed_mol_restraint(msize_old+1), &
+                                   k0=cons_info%fixed_mol_k0(msize_old+1),&
+                                   i_rep_section=ig,&
+                                   error=error)
+              cons_info%fixed_mol_restraint(msize_old+1:msize)=cons_info%fixed_mol_restraint(msize_old+1)
+              cons_info%fixed_mol_k0(msize_old+1:msize)=cons_info%fixed_mol_k0(msize_old+1)
            END IF
            CALL section_vals_val_get(fix_atom_section,"MM_SUBSYS",l_val=freeze_mm,i_rep_section=ig,error=error)
            CALL section_vals_val_get(fix_atom_section,"QM_SUBSYS",l_val=freeze_qm,i_rep_section=ig,error=error)
            cons_info%freeze_mm = cons_info%freeze_mm .OR. freeze_mm
            cons_info%freeze_qm = cons_info%freeze_qm .OR. freeze_qm
+           IF (cons_info%freeze_mm) THEN
+              CALL check_restraint(fix_atom_section,&
+                                   is_restraint=cons_info%fixed_mm_restraint, &
+                                   k0=cons_info%fixed_mm_k0,&
+                                   i_rep_section=ig,&
+                                   error=error)
+           END IF
+           IF (cons_info%freeze_qm) THEN
+              CALL check_restraint(fix_atom_section,&
+                                   is_restraint=cons_info%fixed_qm_restraint, &
+                                   k0=cons_info%fixed_qm_k0,&
+                                   i_rep_section=ig,&
+                                   error=error)
+           END IF
+
         END DO
         IF (isize /= 0 .OR. cons_info%freeze_mm .OR. cons_info%freeze_qm &
              .OR. SIZE(cons_info%fixed_molnames,1)>0 ) THEN
@@ -349,7 +425,16 @@ SUBROUTINE read_constraints_section(topology, globenv, colvar_p, constraint_sect
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         ALLOCATE(cons_info%colvar_set(ncons), stat=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        ALLOCATE(cons_info%colv_restraint(ncons),stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        ALLOCATE(cons_info%colv_k0(ncons),stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         DO ig = 1, ncons
+           CALL check_restraint(collective_section,&
+                                is_restraint=cons_info%colv_restraint(ig), &
+                                k0=cons_info%colv_k0(ig),&
+                                i_rep_section=ig,&
+                                error=error)
            NULLIFY(cons_info%colvar_set(ig)%colvar)
            CALL section_vals_val_get(collective_section,"COLVAR",i_rep_section=ig,&
                 i_val=icolvar, error=error)
@@ -370,6 +455,52 @@ SUBROUTINE read_constraints_section(topology, globenv, colvar_p, constraint_sect
   END IF
   
 END SUBROUTINE read_constraints_section
+
+!!*****
+!******************************************************************************
+!!****** topology_input/check_restraint [1.0] *
+!!
+!!   NAME
+!!     check_restraint
+!!
+!!   FUNCTION
+!!     Reads input and decides if apply restraints instead of constraints
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!   MODIFICATION HISTORY
+!!
+!!
+!!   NOTES
+!!
+!******************************************************************************
+
+SUBROUTINE check_restraint(cons_section, is_restraint, k0, i_rep_section, error)
+  TYPE(section_vals_type), POINTER            :: cons_section
+  LOGICAL, INTENT(OUT)                        :: is_restraint
+  REAL(KIND=dp), INTENT(OUT)                  :: k0
+  INTEGER, INTENT(IN), OPTIONAL               :: i_rep_section
+  TYPE(cp_error_type), INTENT(inout), &
+       OPTIONAL                               :: error
+
+  CHARACTER(len=*), PARAMETER :: routineN = 'check_restraint', &
+       routineP = moduleN//':'//routineN
+  LOGICAL  :: explicit, failure
+  TYPE(section_vals_type), POINTER            :: restraint_section
+
+  failure      = .FALSE.
+  is_restraint = .FALSE.
+  CALL section_vals_get(cons_section,explicit=explicit, error=error)
+  IF (explicit) THEN
+     restraint_section => section_vals_get_subs_vals(cons_section,"RESTRAINT",i_rep_section=i_rep_section,error=error)
+     CALL section_vals_get(restraint_section,explicit=is_restraint, error=error)
+     IF (is_restraint) THEN        
+        CALL section_vals_val_get(restraint_section,"K",r_val=k0,error=error)
+     END IF
+  END IF
+
+  END SUBROUTINE check_restraint
 
 END MODULE topology_input
 

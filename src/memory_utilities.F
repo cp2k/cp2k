@@ -50,7 +50,7 @@ MODULE memory_utilities
     MODULE PROCEDURE reallocate_c1,reallocate_c2,reallocate_c3,reallocate_c4,&
                      reallocate_i1,reallocate_i2,reallocate_i3,reallocate_i4,&
                      reallocate_r1,reallocate_r2,reallocate_r3,reallocate_r4,&
-                     reallocate_r5,reallocate_s1
+                     reallocate_r5,reallocate_s1,reallocate_l1
   END INTERFACE
 
 !!***
@@ -930,6 +930,61 @@ CONTAINS
     END IF
 
   END SUBROUTINE reallocate_r5
+
+
+  SUBROUTINE reallocate_l1(p,lb1_new,ub1_new)
+
+!   Purpose: (Re)Allocate a logical vector with a new dimension.
+
+!   History: - Creation (18.07.2002,MK)
+
+!   ***************************************************************************
+
+    LOGICAL, DIMENSION(:), POINTER           :: p
+    INTEGER, INTENT(IN)                      :: lb1_new, ub1_new
+
+    CHARACTER(LEN=*), PARAMETER              :: routineN = 'reallocate_l1'
+
+    INTEGER                                  :: istat, lb1, lb1_old, &
+                                                new_size, old_size, ub1, &
+                                                ub1_old
+    LOGICAL, ALLOCATABLE, DIMENSION(:)       :: work
+
+!   ---------------------------------------------------------------------------
+
+    IF (ASSOCIATED(p)) THEN
+      lb1_old = LBOUND(p,1)
+      ub1_old = UBOUND(p,1)
+      lb1 = MAX(lb1_new,lb1_old)
+      ub1 = MIN(ub1_new,ub1_old)
+      ALLOCATE (work(lb1:ub1),STAT=istat)
+      IF (istat /= 0) THEN
+        old_size = (ub1 - lb1 + 1)*int_size
+        CALL stop_memory(routineN,moduleN,__LINE__,"work",old_size)
+      END IF
+      work(lb1:ub1) = p(lb1:ub1)
+      DEALLOCATE (p,STAT=istat)
+      IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"p")
+    END IF
+
+    ALLOCATE (p(lb1_new:ub1_new),STAT=istat)
+    IF (istat /= 0) THEN
+      new_size = (ub1_new - lb1_new + 1)*int_size
+      CALL stop_memory(routineN,moduleN,__LINE__,"p",new_size)
+    END IF
+    p(:) = .FALSE. 
+
+    IF (ALLOCATED(work)) THEN
+      lb1 = MAX(lb1_new,lb1_old)
+      ub1 = MIN(ub1_new,ub1_old)
+      p(lb1:ub1) = work(lb1:ub1)
+      DEALLOCATE (work,STAT=istat)
+      IF (istat /= 0) THEN
+        CALL stop_memory(routineN,moduleN,__LINE__,"work")
+      END IF
+    END IF
+
+  END SUBROUTINE reallocate_l1
 
 ! *****************************************************************************
 

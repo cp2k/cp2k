@@ -210,3 +210,10 @@ nh3-meta-1.inp
 nh3-meta-2.inp
 H2O-32_SPME_fp.inp
 H2O-1.inp
+#reset due to a stable definition of the torsion angle in COLVAR.. it avoids the singularity
+#only numerics 10^-11 - 10^-12
+ethene_colv2.inp
+ethene_colv2_npt.inp
+#reset due to the new scheme to implement RESTRAINTS
+H2O-restraint.inp
+ethene-restraint.inp

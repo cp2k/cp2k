@@ -32,21 +32,6 @@
       COORD_FILE ../sample_pdb/water_1.pdb
       COORDINATE pdb
     &END TOPOLOGY
-    &COLVAR
-      &DISTANCE
-        ATOMS 1 2
-      &END 
-    &END 
-    &COLVAR
-      &DISTANCE
-        ATOMS 1 3
-      &END
-    &END 
-    &COLVAR
-      &ANGLE
-        ATOMS 2 1 3
-      &END ANGLE
-    &END 
   &END SUBSYS
 &END FORCE_EVAL
 &GLOBAL
@@ -68,29 +53,13 @@
     &END NOSE
   &END MD
   &CONSTRAINT
-    &COLLECTIVE
-      TARGET [angstrom]              0.957
+    &G3X3
+      DISTANCES 1.8897268 1.8897268 3.0859239
       MOLECULE 1
-      COLVAR 1
+      ATOMS 1 2 3
       &RESTRAINT
-          K   [kcalmol*angstrom^-2] 450.0
+          K   [kcalmol*angstrom^-2]  55.0
       &END
-    &END COLLECTIVE
-    &COLLECTIVE
-      TARGET [angstrom]              0.9572
-      MOLECULE 1
-      COLVAR 2
-      &RESTRAINT
-          K   [kcalmol*angstrom^-2] 450.0
-      &END
-    &END COLLECTIVE
-    &COLLECTIVE
-      TARGET [deg]            104.52
-      MOLECULE 1
-      COLVAR 3
-      &RESTRAINT
-          K   [kcalmol*rad^-2]  55.0
-      &END
-    &END COLLECTIVE
+    &END G3X3
   &END CONSTRAINT
 &END MOTION

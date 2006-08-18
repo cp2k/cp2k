@@ -140,6 +140,8 @@ OBJECTS_GENERIC =\
  force_env_types.o\
  force_field_types.o\
  force_fields.o\
+ fp_types.o\
+ fp_methods.o\
  gamma.o\
  gaussian_gridlevels.o\
  geo_opt.o\
@@ -385,8 +387,7 @@ OBJECTS_GENERIC =\
  realspace_grid_types.o\
  replica_methods.o\
  replica_types.o\
- restraint_types.o\
- restraint_methods.o\
+ restraint.o\
  s_square_methods.o\
  scf_control_types.o\
  semi_empirical_integrals.o\

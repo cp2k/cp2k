@@ -100,24 +100,34 @@ MODULE molecule_kind_types
     CHARACTER(LEN=default_string_length)  :: name
   END TYPE onfo_type
 
+  TYPE restraint_type
+     LOGICAL       :: active
+     REAL(KIND=dp) :: k0
+  END TYPE restraint_type
+
   TYPE colvar_constraint_type
      INTEGER                        :: type_id
      REAL(KIND = dp)                :: expected_value
      INTEGER, POINTER, DIMENSION(:) :: i_atoms
+     TYPE(restraint_type)           :: restraint
   END TYPE colvar_constraint_type
 
   TYPE g3x3_constraint_type
-    INTEGER                :: a,b,c
-    REAL(KIND = dp)        :: dab,dac,dbc
+     INTEGER                        :: a,b,c
+     REAL(KIND = dp)                :: dab,dac,dbc
+     TYPE(restraint_type)           :: restraint
   END TYPE g3x3_constraint_type
 
   TYPE g4x6_constraint_type
-    INTEGER                :: a,b,c,d
-    REAL(KIND = dp)        :: dab,dac,dbc,dad,dbd,dcd
+     INTEGER                        :: a,b,c,d
+     REAL(KIND = dp)                :: dab,dac,dbc,dad,dbd,dcd
+     TYPE(restraint_type)           :: restraint
   END TYPE g4x6_constraint_type
 
   TYPE fixd_constraint_type
-     INTEGER :: fixd
+     TYPE(restraint_type)           :: restraint
+     INTEGER                        :: fixd
+     REAL(KIND=dp), DIMENSION(3)    :: coord
   END TYPE fixd_constraint_type
 
   TYPE molecule_kind_type
@@ -150,9 +160,9 @@ MODULE molecule_kind_types
                                                          nonfo,&
                                                          ntorsion,&
                                                          nub,&
-                                                         ng3x3,&
-                                                         ng4x6,&
-                                                         nfixd,&
+                                                         ng3x3, ng3x3_restraint,&
+                                                         ng4x6, ng4x6_restraint,&
+                                                         nfixd, nfixd_restraint,&
                                                          nmolecule
     TYPE(colvar_counters)                             :: ncolv
     INTEGER                                           :: nsgf, nelectron
@@ -181,6 +191,7 @@ MODULE molecule_kind_types
             torsion_type,&
             impr_type,&
             onfo_type,&
+            restraint_type,&
             colvar_constraint_type,&
             g3x3_constraint_type,&
             g4x6_constraint_type,&
@@ -203,30 +214,32 @@ CONTAINS
     TYPE(colvar_counters)                       :: ncolv
     ! Local Variables
     INTEGER                                     :: k
-    
+
     ncolv%ndist       = 0
     ncolv%nangle      = 0
     ncolv%ntorsion    = 0
     ncolv%ncoord      = 0
     ncolv%nplane_dist = 0
     ncolv%nrot        = 0
+    ncolv%nrestraint  = 0
     IF (ASSOCIATED(colv_list)) THEN
-      DO k = 1, SIZE(colv_list)
-         SELECT CASE(colv_list(k)%type_id)       
-         CASE(angle_colvar_id)
-            ncolv%nangle = ncolv%nangle + 1
-         CASE(coord_colvar_id)
-            ncolv%ncoord = ncolv%ncoord + 1
-         CASE(rotation_colvar_id)
-            ncolv%nrot = ncolv%nrot + 1
-         CASE(dist_colvar_id)
-            ncolv%ndist = ncolv%ndist + 1
-         CASE(plane_distance_colvar_id)
-            ncolv%nplane_dist = ncolv%nplane_dist + 1
-         CASE(torsion_colvar_id)
-            ncolv%ntorsion = ncolv%ntorsion + 1
-         END SELECT
-      END DO
+       DO k = 1, SIZE(colv_list)
+          IF (colv_list(k)%restraint%active) ncolv%nrestraint  = ncolv%nrestraint + 1
+          SELECT CASE(colv_list(k)%type_id)       
+          CASE(angle_colvar_id)
+             ncolv%nangle = ncolv%nangle + 1
+          CASE(coord_colvar_id)
+             ncolv%ncoord = ncolv%ncoord + 1
+          CASE(rotation_colvar_id)
+             ncolv%nrot = ncolv%nrot + 1
+          CASE(dist_colvar_id)
+             ncolv%ndist = ncolv%ndist + 1
+          CASE(plane_distance_colvar_id)
+             ncolv%nplane_dist = ncolv%nplane_dist + 1
+          CASE(torsion_colvar_id)
+             ncolv%ntorsion = ncolv%ntorsion + 1
+          END SELECT
+       END DO
     END IF
     ncolv%ntot = ncolv%ndist        +&      
                  ncolv%nangle       +&
@@ -301,6 +314,9 @@ CONTAINS
       molecule_kind_set(imolecule_kind)%ng3x3 = 0
       molecule_kind_set(imolecule_kind)%ng4x6 = 0
       molecule_kind_set(imolecule_kind)%nfixd = 0
+      molecule_kind_set(imolecule_kind)%ng3x3_restraint = 0
+      molecule_kind_set(imolecule_kind)%ng4x6_restraint = 0
+      molecule_kind_set(imolecule_kind)%nfixd_restraint = 0
       molecule_kind_set(imolecule_kind)%nmolecule = 0
       molecule_kind_set(imolecule_kind)%ntorsion = 0
       NULLIFY (molecule_kind_set(imolecule_kind)%molecule_list)
@@ -488,7 +504,9 @@ CONTAINS
                                g3x3_list,g4x6_list,torsion_list,name,nhcopt,&
                                mass,charge,kind_number,natom,nbend,nbond,nub,&
                                nimpr,nonfo,nconstraint,nfixd,&
-                               ncolv,ng3x3,ng4x6,nmolecule,nsgf,ntorsion,&
+                               ncolv,ng3x3,ng4x6,&
+                               nfixd_restraint, ng3x3_restraint, ng4x6_restraint,&
+                               nmolecule,nsgf,ntorsion,&
                                molecule_list,nelectron,&
                                bond_kind_set,bend_kind_set,ub_kind_set,&
                                impr_kind_set,onfo_kind_set,torsion_kind_set,&
@@ -534,7 +552,9 @@ CONTAINS
     TYPE(colvar_counters), INTENT(out), &
       OPTIONAL                               :: ncolv
     INTEGER, INTENT(OUT), OPTIONAL           :: ng3x3, ng4x6, nmolecule, &
-                                                nsgf, ntorsion
+                                                nsgf, ntorsion,&
+                                                nfixd_restraint, ng3x3_restraint,&
+                                                ng4x6_restraint
     INTEGER, DIMENSION(:), OPTIONAL, POINTER :: molecule_list
     INTEGER, INTENT(OUT), OPTIONAL           :: nelectron
     TYPE(bond_kind_type), DIMENSION(:), &
@@ -586,13 +606,16 @@ CONTAINS
       IF (PRESENT(nub)) nub = molecule_kind%nub
       IF (PRESENT(nimpr)) nimpr = molecule_kind%nimpr
       IF (PRESENT(nonfo)) nonfo = molecule_kind%nonfo
-      IF (PRESENT(nconstraint)) nconstraint = molecule_kind%ncolv%ntot +&
-                                              3*molecule_kind%ng3x3 +&
-                                              6*molecule_kind%ng4x6 
+      IF (PRESENT(nconstraint)) nconstraint = (molecule_kind%ncolv%ntot - molecule_kind%ncolv%nrestraint) +&
+                                              3*(molecule_kind%ng3x3-molecule_kind%ng3x3_restraint) +&
+                                              6*(molecule_kind%ng4x6-molecule_kind%ng4x6_restraint)
       IF (PRESENT(ncolv)) ncolv = molecule_kind%ncolv
       IF (PRESENT(ng3x3)) ng3x3= molecule_kind%ng3x3
       IF (PRESENT(ng4x6)) ng4x6= molecule_kind%ng4x6
       IF (PRESENT(nfixd)) nfixd= molecule_kind%nfixd
+      IF (PRESENT(ng3x3_restraint)) ng3x3_restraint= molecule_kind%ng3x3_restraint
+      IF (PRESENT(ng4x6_restraint)) ng4x6_restraint= molecule_kind%ng4x6_restraint
+      IF (PRESENT(nfixd_restraint)) nfixd_restraint= molecule_kind%nfixd_restraint
       IF (PRESENT(nmolecule)) nmolecule = molecule_kind%nmolecule
       IF (PRESENT(ntorsion)) ntorsion= molecule_kind%ntorsion
       IF (PRESENT(nsgf)) nsgf = molecule_kind%nsgf
@@ -631,7 +654,7 @@ CONTAINS
     INTEGER                                  :: ibend, ibond, iimpr, &
                                                 imolecule_kind, ionfo, &
                                                 itorsion, iub, na, nc, nfixd, &
-                                                nm, nmolecule_kind
+                                                nm, nmolecule_kind, nfixd_restraint
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
 
 !   ---------------------------------------------------------------------------
@@ -666,6 +689,7 @@ CONTAINS
                                nonfo=ionfo,&
                                nconstraint=nc,&
                                nfixd=nfixd,&
+                               nfixd_restraint=nfixd_restraint,&
                                nmolecule=nm)
 
         IF (PRESENT(maxatom)) maxatom = MAX(maxatom,na)
@@ -676,7 +700,7 @@ CONTAINS
         IF (PRESENT(ntorsion)) ntorsion = ntorsion + itorsion*nm
         IF (PRESENT(nimpr)) nimpr = nimpr + iimpr*nm
         IF (PRESENT(nonfo)) nonfo = nonfo + ionfo*nm
-        IF (PRESENT(nconstraint)) nconstraint = nconstraint + nc*nm + 3*nfixd
+        IF (PRESENT(nconstraint)) nconstraint = nconstraint + nc*nm + 3*(nfixd-nfixd_restraint)
         IF (PRESENT(nmolecule)) nmolecule = nmolecule + nm
 
       END DO
@@ -767,6 +791,7 @@ CONTAINS
                                nbend,bend_list,nub,ub_list,nimpr,impr_list,&
                                nonfo,onfo_list,ntorsion,torsion_list,fixd_list,&
                                ncolv,colv_list,ng3x3,g3x3_list,ng4x6,nfixd,g4x6_list,&
+                               ng3x3_restraint,ng4x6_restraint,nfixd_restraint,&
                                bond_kind_set,bend_kind_set,ub_kind_set,&
                                torsion_kind_set,impr_kind_set,onfo_kind_set,&
                                nelectron,nsgf,molname_generated)
@@ -812,7 +837,8 @@ CONTAINS
     INTEGER, INTENT(IN), OPTIONAL            :: ng3x3
     TYPE(g3x3_constraint_type), &
       DIMENSION(:), OPTIONAL, POINTER        :: g3x3_list
-    INTEGER, INTENT(IN), OPTIONAL            :: ng4x6, nfixd
+    INTEGER, INTENT(IN), OPTIONAL            :: ng4x6, nfixd,&
+         ng3x3_restraint, ng4x6_restraint, nfixd_restraint
     TYPE(g4x6_constraint_type), &
       DIMENSION(:), OPTIONAL, POINTER        :: g4x6_list
     TYPE(bond_kind_type), DIMENSION(:), &
@@ -869,6 +895,9 @@ CONTAINS
       IF (PRESENT(g3x3_list)) molecule_kind%g3x3_list => g3x3_list
       IF (PRESENT(ng4x6)) molecule_kind%ng4x6 = ng4x6
       IF (PRESENT(nfixd)) molecule_kind%nfixd = nfixd
+      IF (PRESENT(nfixd_restraint)) molecule_kind%nfixd_restraint = nfixd_restraint
+      IF (PRESENT(ng3x3_restraint)) molecule_kind%ng3x3_restraint = ng3x3_restraint
+      IF (PRESENT(ng4x6_restraint)) molecule_kind%ng4x6_restraint = ng4x6_restraint
       IF (PRESENT(g4x6_list)) molecule_kind%g4x6_list => g4x6_list
       IF (PRESENT(fixd_list)) molecule_kind%fixd_list => fixd_list
       IF (PRESENT(bond_kind_set)) molecule_kind%bond_kind_set => bond_kind_set

@@ -23,6 +23,7 @@
 !******************************************************************************
 
 MODULE force_env_methods 
+  USE fp_methods,                      ONLY: fp_eval
   USE cell_types,                      ONLY: cell_type
   USE constraint_clv,                  ONLY: fix_atom_control
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -94,13 +95,6 @@ MODULE force_env_methods
   USE qs_ks_types,                     ONLY: qs_ks_env_type, & 
                                              qs_ks_release 
   USE qs_numerical_pressure,           ONLY: qs_calc_numerical_pressure
-  USE restraint_methods,               ONLY: restraint_eval
-  USE restraint_types,                 ONLY: restraint_env_type,&
-                                             restraint_env_create,&
-                                             restraint_env_release,&
-                                             restraint_env_retain,&
-                                             restraint_env_read,&
-                                             restraint_env_write
   USE tbmd_energy,                     ONLY: tbmd_energies
   USE tbmd_environment_types,          ONLY: tbmd_env_get,&
                                              tbmd_env_retain,&
@@ -110,6 +104,7 @@ MODULE force_env_methods
                                              virial_retain,&
                                              virial_type,&
                                              zero_virial
+  USE restraint,                       ONLY: restraint_control
   USE ep_types, ONLY: ep_env_calc_e_f, ep_env_create, ep_env_retain,&
        ep_env_type, ep_env_p_type,ep_env_release
 #include "cp_common_uses.h"
@@ -241,20 +236,22 @@ RECURSIVE SUBROUTINE force_env_calc_energy_force ( force_env, &
         CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
      END SELECT
 
-     ! Metadynamics + Restraints
+     ! Metadynamics 
      IF (ASSOCIATED(force_env%meta_env)) THEN
         CALL metadyn_add_forces(force_env%meta_env,force_env, error=error)
      END IF
-     IF (ASSOCIATED(force_env%restraint_env)) THEN
-        IF (force_env%restraint_env%in_use) THEN
+     ! Flexible Partitioning
+     IF (ASSOCIATED(force_env%fp_env)) THEN
+        IF (force_env%fp_env%use_fp) THEN
            CALL force_env_get(force_env,cell=cell)
-           CALL restraint_eval(force_env%restraint_env,force_env%subsys, &
+           CALL fp_eval(force_env%fp_env,force_env%subsys, &
                         cell,error=error)
         ENDIF
-     ENDIF
-     
-     ! Constraint ONLY of Fixed Atom type
+     ENDIF     
+     ! Constraints ONLY of Fixed Atom type
      CALL fix_atom_control(force_env, error=error)
+     ! All Restraints
+     CALL restraint_control(force_env, error=error)
 
   END IF
 END SUBROUTINE force_env_calc_energy_force
@@ -329,8 +326,9 @@ SUBROUTINE force_env_create(force_env,globenv,fist_env,qs_env,kg_env,&
                force_env%para_env, force_env%globenv, &
                force_env%dyn_coeff_set,&
                force_env%meta_env, force_env%sub_force_env, &
-               force_env%qmmm_env, force_env%ep_env, force_env%restraint_env, &
-               force_env%restraint_env, force_env%force_env_section )
+               force_env%qmmm_env, force_env%ep_env, force_env%fp_env, &
+               force_env%force_env_section,&
+               force_env%extended_energies)
      last_force_env_id=last_force_env_id+1
      force_env%id_nr=last_force_env_id
      force_env%ref_count=1

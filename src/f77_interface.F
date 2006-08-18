@@ -47,15 +47,16 @@ MODULE f77_interface
                                              cp2k_setup
   USE fist_main,                       ONLY: fist_create_force_env
   USE force_env_methods,               ONLY: force_env_calc_energy_force,&
-       ep_create_force_env
+                                             ep_create_force_env
+  USE fp_types,                        ONLY: fp_env_create,&
+                                             fp_env_read,&
+                                             fp_env_retain,&
+                                             fp_env_release,&
+                                             fp_env_write,&
+                                             fp_type
   USE metadynamics,                    ONLY: metadyn_read
   USE metadynamics_types,              ONLY: meta_env_release,&
                                              meta_env_type
-  USE restraint_types,                 ONLY: restraint_env_create,&
-                                             restraint_env_release,&
-                                             restraint_env_type,&
-                                             restraint_env_read,&
-                                             restraint_env_write
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_release,&
                                              force_env_set,&
@@ -93,10 +94,16 @@ MODULE f77_interface
   USE kg_main,                         ONLY: kg_create_force_env
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: init_mathcon
-  USE message_passing,                 ONLY: &
-       MPI_COMM_WORLD, add_mp_perf_env, get_mp_perf_env, mp_max, &
-       mp_perf_env_release, mp_perf_env_retain, mp_perf_env_type, &
-       mp_world_finalize, mp_world_init, rm_mp_perf_env
+  USE message_passing,                 ONLY: MPI_COMM_WORLD,&
+                                             add_mp_perf_env,&
+                                             get_mp_perf_env,&
+                                             mp_max, &
+                                             mp_perf_env_release,&
+                                             mp_perf_env_retain,&
+                                             mp_perf_env_type,&
+                                             mp_world_finalize,&
+                                             mp_world_init,&
+                                             rm_mp_perf_env
   USE particle_list_types,             ONLY: particle_list_type
   USE physcon,                         ONLY: init_physcon
   USE qmmm_init,                       ONLY: qmmm_create_force_env
@@ -138,10 +145,10 @@ MODULE f77_interface
   PUBLIC :: default_para_env
   PUBLIC :: init_cp2k, finalize_cp2k
   PUBLIC :: create_force_env, destroy_force_env, set_pos, get_pos,&
-       get_force, calc_energy_force, get_energy, &
-       calc_energy, calc_force, check_input, get_natom,&
-       f_env_add_defaults, f_env_rm_defaults, f_env_type, f_env_p_type,&
-       set_vel, get_vel !,set_force
+            get_force, calc_energy_force, get_energy, &
+            calc_energy, calc_force, check_input, get_natom,&
+            f_env_add_defaults, f_env_rm_defaults, f_env_type, f_env_p_type,&
+            set_vel, get_vel 
   !!***
   !****************************************************************************
 CONTAINS
@@ -611,15 +618,15 @@ END SUBROUTINE f_env_rm_defaults
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(mp_perf_env_type), POINTER          :: mp_perf_env
     TYPE(section_vals_type), POINTER         :: input_file,force_env_sections, &
-         force_env_section, metadyn_section, restraint_section
+         force_env_section, metadyn_section, fp_section
     TYPE(timer_env_type), POINTER            :: timer_env
     TYPE(meta_env_type), POINTER             :: meta_env
-    TYPE(restraint_env_type), POINTER        :: restraint_env
+    TYPE(fp_type), POINTER                   :: fp_env
 
     failure=.FALSE.
     
     NULLIFY(para_env, force_env,timer_env,mp_perf_env, globenv,meta_env,&
-         restraint_env)
+         fp_env)
     IF (PRESENT(mpi_comm)) THEN
        CALL cp_para_env_create(para_env, group=mpi_comm, owns_group=.FALSE.)
     ELSE
@@ -731,22 +738,24 @@ END SUBROUTINE f_env_rm_defaults
                   force_env_section=force_env_section, error=error)
           CASE default
              CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-               "Invalid METHOD <"//TRIM(method_names(method_name_id))//"> was specified, "//&
+               "Invalid METHOD <"//TRIM(method_names(method_name_id))//&
+               "> was specified, "//&
 CPSourceFileRef,&
                error,failure)
           END SELECT
-          metadyn_section => section_vals_get_subs_vals(globenv%input_file,"MOTION%METADYN",error=error)
+          metadyn_section => section_vals_get_subs_vals(globenv%input_file,&
+               "MOTION%METADYN",error=error)
           CALL metadyn_read(meta_env, globenv, metadyn_section, error=error)
           CALL force_env_set(my_force_env,meta_env=meta_env,error=error)
           CALL meta_env_release(meta_env,error=error)
-          NULLIFY(restraint_env)
-          restraint_section => section_vals_get_subs_vals(globenv%input_file,&
-               "MOTION%RESTRAINT",error=error)
-          CALL restraint_env_create(restraint_env,error=error)
-          CALL restraint_env_read(restraint_env,restraint_section,error=error)
-          CALL restraint_env_write(restraint_env,restraint_section,error=error)
-          CALL force_env_set(my_force_env,restraint_env=restraint_env,error=error)
-          CALL restraint_env_release(restraint_env,error=error)
+          NULLIFY(fp_env)
+          fp_section => section_vals_get_subs_vals(globenv%input_file,&
+               "MOTION%FLEXIBLE_PARTITIONING",error=error)
+          CALL fp_env_create(fp_env,error=error)
+          CALL fp_env_read(fp_env,fp_section,error=error)
+          CALL fp_env_write(fp_env,fp_section,error=error)
+          CALL force_env_set(my_force_env,fp_env=fp_env,error=error)
+          CALL fp_env_release(fp_env,error=error)
           IF (nforce_eval>1.AND.iforce_eval==1) THEN
              ALLOCATE(my_force_env%sub_force_env(nforce_eval-1),stat=stat)
              CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)

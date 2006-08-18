@@ -29,7 +29,14 @@ MODULE extended_system_types
   PUBLIC :: extended_system_type, extended_type_init, &
             lnhc_dealloc, lnhc_init, npt_dealloc, &
             lnhc_parameters_type, npt_info_type, nhc_info_type, &
-            particle_kinetic_type, particle_scale_type
+            particle_kinetic_type, particle_scale_type, extended_energy_type
+
+  TYPE extended_energy_type
+     REAL(KIND=dp)   ::  energy_g3x3_restraint,&
+                         energy_fixd_restraint,&
+                         energy_g4x6_restraint,&
+                         energy_colv_restraint
+  END TYPE extended_energy_type
 
   TYPE npt_info_type
      REAL (KIND=dp) :: eps

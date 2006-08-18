@@ -90,7 +90,7 @@
       &END
     &END COLLECTIVE
     &COLLECTIVE
-      TARGET [deg] 180.0
+      TARGET [deg] -180.0
       MOLECULE 1
       COLVAR 3
       &RESTRAINT

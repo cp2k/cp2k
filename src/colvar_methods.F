@@ -161,6 +161,7 @@ CONTAINS
        CALL colvar_create(colvar, torsion_colvar_id, error)
        CALL section_vals_val_get(torsion_section,"ATOMS",i_vals=iatms,error=error)
        colvar%torsion_param%i_at_tors = iatms
+       colvar%torsion_param%o0        = 0.0_dp
     ELSE IF (my_subsection(4)) THEN
        ! Coordination
        CALL colvar_create(colvar, coord_colvar_id, error)
@@ -863,10 +864,10 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(dp) :: angle, cosine, dedphi, dedxia, dedxib, dedxic, dedxid, dedxt, &
       dedxu, dedyia, dedyib, dedyic, dedyid, dedyt, dedyu, dedzia, dedzib, &
-      dedzic, dedzid, dedzt, dedzu, dt, e, radian, rcb, rt2, rtru, ru2, sine, &
+      dedzic, dedzid, dedzt, dedzu, dt, e, rcb, rt2, rtru, ru2, sine, &
       xba, xca, xcb, xdb, xdc, xia, xib, xic, xid, xt, xtu, xu, yba, yca, &
       ycb, ydb, ydc, yia, yib, yic, yid, yt, ytu, yu, zba, zca, zcb, zdb, &
-      zdc, zia, zib, zic, zid, zt, ztu, zu
+      zdc, zia, zib, zic, zid, zt, ztu, zu, o0
     REAL(dp), DIMENSION(3, 4)                :: rr
     TYPE(particle_list_type), POINTER        :: particles_i
     TYPE(particle_type), DIMENSION(:), &
@@ -887,9 +888,8 @@ CONTAINS
        i=colvar%torsion_param%i_at_tors(ii)
        rr(:,ii)=my_particles(i)%r(1:3)
     ENDDO
-
+    o0 = colvar%torsion_param%o0
     ! temporary: from tinker improper torsion routines
-    radian=180.0_dp/pi
     xia = rr(1,1)
     yia = rr(2,1)
     zia = rr(3,1)
@@ -928,18 +928,14 @@ CONTAINS
        cosine = (xt*xu + yt*yu + zt*zu) / rtru
        sine = (xcb*xtu + ycb*ytu + zcb*ztu) / (rcb*rtru)
        cosine = MIN(1.0_dp,MAX(-1.0_dp,cosine))
-       angle = radian * ACOS(cosine)
+       angle  = ACOS(cosine)
        IF (sine .LT. 0.0_dp)  angle = -angle
-       dt = angle
-       DO ii=1,100
-          IF(dt<180._dp) EXIT
-          dt = dt - 360.0_dp
-       ENDDO
-       DO ii=1,100
-          IF(dt>-180._dp) EXIT
-          dt = dt + 360.0_dp
-       ENDDO
-       dt = dt / radian
+       ! 
+       dt = angle ! [rad]
+       dt=MOD(2.0E4_dp*pi+dt-o0,2.0_dp*pi)
+       IF ( dt .GT. pi ) dt = dt - 2.0_dp*pi
+       dt=o0+dt
+       colvar%torsion_param%o0 = dt
        !
        !     calculate improper energy and master chain rule term
        !

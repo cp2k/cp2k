@@ -92,6 +92,7 @@ MODULE colvar_types
   END TYPE coord_colvar_type
 
   TYPE torsion_colvar_type
+     REAL(KIND=dp)                   :: o0
      INTEGER, DIMENSION (4)          :: i_at_tors
   END TYPE torsion_colvar_type
 
@@ -154,6 +155,7 @@ MODULE colvar_types
      INTEGER :: ncoord
      INTEGER :: nplane_dist
      INTEGER :: nrot
+     INTEGER :: nrestraint
      !
      INTEGER :: ntot
   END TYPE colvar_counters
@@ -488,6 +490,7 @@ CONTAINS
        colvar_out%angle_param%i_at_angle   = colvar_in%angle_param%i_at_angle + my_offset
     CASE(torsion_colvar_id)
        colvar_out%torsion_param%i_at_tors     = colvar_in%torsion_param%i_at_tors + my_offset
+       colvar_out%torsion_param%o0            = colvar_in%torsion_param%o0
     CASE(plane_distance_colvar_id)
        colvar_out%plane_distance_param%plane = colvar_in%plane_distance_param%plane + my_offset
        colvar_out%plane_distance_param%point = colvar_in%plane_distance_param%point + my_offset

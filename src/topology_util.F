@@ -30,6 +30,7 @@ MODULE topology_util
   USE colvar_types,                    ONLY: colvar_create,&
                                              colvar_setup,&
                                              dist_colvar_id,&
+                                             torsion_colvar_id,&
                                              colvar_counters,&
                                              colvar_clone,&
                                              colvar_p_reallocate
@@ -59,18 +60,32 @@ MODULE topology_util
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE memory_utilities,                ONLY: reallocate
-  USE molecule_kind_types,             ONLY: &
-       allocate_molecule_kind_set, atom_type, bend_type, bond_type, &
-       colvar_constraint_type, fixd_constraint_type, &
-       g3x3_constraint_type, g4x6_constraint_type, get_molecule_kind, &
-       impr_type, molecule_kind_type, onfo_type, set_molecule_kind, &
-       torsion_type, ub_type,&
-       setup_colvar_counters
-  USE molecule_types_new,              ONLY: &
-       allocate_molecule_set, get_molecule, local_colvar_constraint_type, &
-       local_constraint_type, local_g3x3_constraint_type, &
-       local_g4x6_constraint_type, local_molecule_type, molecule_type, &
-       set_molecule, set_molecule_set
+  USE molecule_kind_types,             ONLY: allocate_molecule_kind_set,&
+                                             atom_type,&
+                                             bend_type,&
+                                             bond_type, &
+                                             colvar_constraint_type,&
+                                             fixd_constraint_type, &
+                                             g3x3_constraint_type,&
+                                             g4x6_constraint_type,&
+                                             get_molecule_kind, &
+                                             impr_type,&
+                                             molecule_kind_type,&
+                                             onfo_type,&
+                                             set_molecule_kind, &
+                                             torsion_type,&
+                                             ub_type,&
+                                             setup_colvar_counters
+  USE molecule_types_new,              ONLY: allocate_molecule_set,&
+                                             get_molecule,&
+                                             local_colvar_constraint_type, &
+                                             local_constraint_type,&
+                                             local_g3x3_constraint_type, &
+                                             local_g4x6_constraint_type,&
+                                             local_molecule_type,&
+                                             molecule_type, &
+                                             set_molecule,&
+                                             set_molecule_set
   USE particle_types,                  ONLY: allocate_particle_set,&
                                              generate_particle_distances,&
                                              particle_type
@@ -2955,12 +2970,13 @@ CONTAINS
     INTEGER :: dum, first, first_atom, handle, i, offset, iw, j, k, kk, last, &
       m, nbond, nhdist, nfixed_atoms, ng3x3, ng4x6, nmolecule, nrep, search1, &
       search2, stat, n_start_colv, ncolv_tot, ncolv_mol, kdim, ii, natom, &
-      last_atom
+      last_atom, k1loc, k2loc, ng3x3_restraint, ng4x6_restraint, nfixd_restraint
     INTEGER, DIMENSION(:), POINTER           :: molecule_list,&
                                                 colv_mol_num,&
                                                 colv_mol_map
     LOGICAL                                  :: failure, fix_atom_molname, &
-                                                fix_atom_qmmm
+                                                fix_atom_qmmm, fix_fixed_atom,&
+                                                fix_atom_qm, fix_atom_mm
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: missed_molname
     REAL(KIND=dp)                            :: rmod, rvec(3), xdum
     REAL(KIND=dp), DIMENSION(:), POINTER     :: hdist
@@ -3059,6 +3075,11 @@ CONTAINS
        CALL reallocate(cons_info%const_colv_mol,1,cons_info%nconst_colv)
        CALL reallocate(cons_info%const_colv_target,1,cons_info%nconst_colv)
        CALL colvar_p_reallocate(cons_info%colvar_set,1,cons_info%nconst_colv)
+       ! Fill in Restraints info
+       CALL reallocate(cons_info%colv_restraint,1,cons_info%nconst_colv)
+       CALL reallocate(cons_info%colv_k0,1,cons_info%nconst_colv)
+       cons_info%colv_restraint(n_start_colv+1:cons_info%nconst_colv) = cons_info%hbonds_restraint
+       cons_info%colv_k0(n_start_colv+1:cons_info%nconst_colv)        = cons_info%hbonds_k0
        !
        nhdist = 0
        DO i=1,SIZE(molecule_kind_set)
@@ -3139,6 +3160,14 @@ CONTAINS
                 ELSE
                    colv_list(ncolv_mol)%expected_value = cons_info%const_colv_target(j)
                 END IF
+                ! Only if torsion let's take into account the singularity in the definition
+                ! of the dihedral
+                IF (cons_info%colvar_set(j)%colvar%type_id==torsion_colvar_id) THEN
+                   cons_info%colvar_set(j)%colvar%torsion_param%o0=colv_list(ncolv_mol)%expected_value
+                END IF
+                ! Restraint
+                colv_list(ncolv_mol)%restraint%active = cons_info%colv_restraint(j)
+                colv_list(ncolv_mol)%restraint%k0     = cons_info%colv_k0(j)
              END IF
           END DO
           CALL setup_colvar_counters(colv_list,ncolv)
@@ -3196,6 +3225,7 @@ CONTAINS
           ALLOCATE(g3x3_list(ng3x3),STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           ng3x3 = 0
+          ng3x3_restraint = 0
           DO j=1,SIZE(cons_info%const_g33_mol)
              IF (cons_info%const_g33_mol(j)==ii) THEN
                 ng3x3 = ng3x3 + 1
@@ -3205,9 +3235,13 @@ CONTAINS
                 g3x3_list(ng3x3)%dab = cons_info%const_g33_dab(j)
                 g3x3_list(ng3x3)%dac = cons_info%const_g33_dac(j)
                 g3x3_list(ng3x3)%dbc = cons_info%const_g33_dbc(j)
+                ! Restraint
+                g3x3_list(ng3x3)%restraint%active = cons_info%g33_restraint(j)
+                g3x3_list(ng3x3)%restraint%k0     = cons_info%g33_k0(j)
+                IF (g3x3_list(ng3x3)%restraint%active) ng3x3_restraint = ng3x3_restraint+ 1
              END IF
-          END DO     
-          CALL set_molecule_kind(molecule_kind,ng3x3=ng3x3,g3x3_list=g3x3_list)
+          END DO
+          CALL set_molecule_kind(molecule_kind,ng3x3=ng3x3,ng3x3_restraint=ng3x3_restraint,g3x3_list=g3x3_list)
           DO j=1,nmolecule
              molecule => molecule_set(molecule_list(j))
              CALL get_molecule ( molecule, first_atom = first_atom, last_atom= last_atom)
@@ -3263,6 +3297,7 @@ CONTAINS
           ALLOCATE(g4x6_list(ng4x6),STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           ng4x6 = 0
+          ng4x6_restraint = 0
           DO j=1,SIZE(cons_info%const_g46_a)
              IF (cons_info%const_g46_mol(j)==ii) THEN
                 ng4x6 = ng4x6 + 1
@@ -3276,9 +3311,13 @@ CONTAINS
                 g4x6_list(ng4x6)%dad = cons_info%const_g46_dad(j)
                 g4x6_list(ng4x6)%dbd = cons_info%const_g46_dbd(j)
                 g4x6_list(ng4x6)%dcd = cons_info%const_g46_dcd(j)
+                ! Restraint
+                g4x6_list(ng4x6)%restraint%active = cons_info%g46_restraint(j)
+                g4x6_list(ng4x6)%restraint%k0     = cons_info%g46_k0(j)
+                IF (g4x6_list(ng4x6)%restraint%active) ng4x6_restraint = ng4x6_restraint+ 1
              END IF
           END DO
-          CALL set_molecule_kind(molecule_kind,ng4x6=ng4x6,g4x6_list=g4x6_list)
+          CALL set_molecule_kind(molecule_kind,ng4x6=ng4x6,ng4x6_restraint=ng4x6_restraint,g4x6_list=g4x6_list)
           DO j=1,nmolecule
              molecule => molecule_set(molecule_list(j))
              CALL get_molecule ( molecule, first_atom = first_atom, last_atom= last_atom)
@@ -3370,29 +3409,62 @@ CONTAINS
           ALLOCATE(fixd_list(nfixed_atoms),STAT=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           kk = 0
+          nfixd_restraint = 0 
           DO j=1,nmolecule
              molecule => molecule_set(molecule_list(j))
              CALL get_molecule ( molecule, first_atom = first, last_atom = last )
              fix_atom_molname=.FALSE.
              IF (ASSOCIATED(cons_info%fixed_molnames)) THEN
-                IF (ANY(cons_info%fixed_molnames.EQ.molname)) fix_atom_molname=.TRUE.
+                DO k1loc = 1, SIZE(cons_info%fixed_molnames)
+                   IF (cons_info%fixed_molnames(k1loc).EQ.molname) THEN
+                      fix_atom_molname=.TRUE.
+                      EXIT
+                   END IF
+                END DO
              ENDIF
-             fix_atom_qmmm=.FALSE.
+             fix_atom_qm  = .FALSE.
+             fix_atom_mm  = .FALSE.
              IF (PRESENT(qmmm_env)) THEN
-                IF  ((cons_info%freeze_qm.AND.ANY(qmmm_env%qm_molecule_index == molecule_list(j))).OR.&
-                     (cons_info%freeze_mm.AND.ALL(qmmm_env%qm_molecule_index /= molecule_list(j)))) THEN
-                  fix_atom_qmmm=.TRUE.
-                ENDIF
-             ENDIF
+                fix_atom_qm  = (cons_info%freeze_qm.AND.ANY(qmmm_env%qm_molecule_index == molecule_list(j)))
+                fix_atom_mm  = (cons_info%freeze_mm.AND.ALL(qmmm_env%qm_molecule_index /= molecule_list(j)))
+             END IF
+             fix_atom_qmmm= (fix_atom_qm.OR.fix_atom_mm)
              DO k=first,last
-               IF (ANY(cons_info%fixed_atoms == k).OR.fix_atom_qmmm.OR.fix_atom_molname) THEN
-                 kk = kk + 1
-                 fixd_list(kk)%fixd = k
-               END IF
+                fix_fixed_atom = .FALSE.
+                DO k2loc=1,SIZE(cons_info%fixed_atoms)
+                   IF (cons_info%fixed_atoms(k2loc) == k) THEN
+                      fix_fixed_atom = .TRUE.
+                      EXIT
+                   END IF
+                END DO
+                IF (fix_fixed_atom.OR.fix_atom_qmmm.OR.fix_atom_molname) THEN
+                   kk = kk + 1
+                   fixd_list(kk)%fixd  = k
+                   fixd_list(kk)%coord = particle_set(k)%r
+                   ! Restraint
+                   IF (fix_fixed_atom) THEN
+                      fixd_list(kk)%restraint%active = cons_info%fixed_restraint(k2loc)
+                      fixd_list(kk)%restraint%k0     = cons_info%fixed_k0(k2loc)
+                   ELSEIF (fix_atom_qm) THEN
+                      fixd_list(kk)%restraint%active = cons_info%fixed_qm_restraint
+                      fixd_list(kk)%restraint%k0     = cons_info%fixed_qm_k0
+                   ELSEIF (fix_atom_mm) THEN
+                      fixd_list(kk)%restraint%active = cons_info%fixed_mm_restraint
+                      fixd_list(kk)%restraint%k0     = cons_info%fixed_mm_k0
+                   ELSEIF (fix_atom_molname) THEN
+                      fixd_list(kk)%restraint%active = cons_info%fixed_mol_restraint(k1loc)
+                      fixd_list(kk)%restraint%k0     = cons_info%fixed_mol_k0(k1loc)        
+                   ELSE
+                      ! should never reach this point
+                      CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+                   END IF
+                   IF (fixd_list(kk)%restraint%active) nfixd_restraint = nfixd_restraint+ 1
+                END IF
              END DO
           END DO
           IF (iw>0) WRITE(iw,*)"FIXD_LIST ::",fixd_list
-          CALL set_molecule_kind(molecule_kind, nfixd=nfixed_atoms, fixd_list=fixd_list)
+          CALL set_molecule_kind(molecule_kind, nfixd=nfixed_atoms, nfixd_restraint=nfixd_restraint,&
+               fixd_list=fixd_list)
        END DO
        CPPostcondition(COUNT(missed_molname)==0,cp_failure_level,routineP,error,failure)
        DEALLOCATE(missed_molname,STAT=stat)

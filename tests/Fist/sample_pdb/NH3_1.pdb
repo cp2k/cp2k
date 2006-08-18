@@ -1,0 +1,4 @@
+ATOM      1 NH3  NH3 A   1       0.000   0.000   0.000  1.00 -1.14      AMMO N
+ATOM      2 HC   NH3 A   1       0.197   0.613   0.804  1.00  0.38      AMMO H
+ATOM      3 HC   NH3 A   1      -0.046   0.620  -0.801  1.00  0.38      AMMO H
+ATOM      4 HC   NH3 A   1       0.767  -0.654  -0.058  1.00  0.38      AMMO H

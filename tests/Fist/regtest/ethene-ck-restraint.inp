@@ -74,11 +74,11 @@
   &END MD
   &CONSTRAINT
     &COLLECTIVE
-      TARGET [deg] 0.0
+      TARGET [deg] 180.0
       MOLECULE 1
       COLVAR 1
       &RESTRAINT
-          K   [kcalmol] 4.90
+          K   [kcalmol] 0.0
       &END
     &END COLLECTIVE
     &COLLECTIVE
@@ -86,7 +86,7 @@
       MOLECULE 1
       COLVAR 2
       &RESTRAINT
-          K   [kcalmol] 4.90
+          K   [hartree] 0.0
       &END
     &END COLLECTIVE
     &COLLECTIVE
@@ -94,15 +94,15 @@
       MOLECULE 1
       COLVAR 3
       &RESTRAINT
-          K   [kcalmol] 4.90
+          K   [kcalmol] 0.0
       &END
     &END COLLECTIVE
     &COLLECTIVE
-      TARGET [deg] 0.0
+      TARGET [deg] 180.0
       MOLECULE 1
       COLVAR 4
       &RESTRAINT
-          K   [kcalmol] 4.90
+          K   [eV] 0.0
       &END
     &END COLLECTIVE
   &END CONSTRAINT

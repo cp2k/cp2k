@@ -88,7 +88,7 @@ CONTAINS
     INTEGER                                  :: handle, i, ikind, iparticle, &
                                                 iparticle_local, isubsys, &
                                                 nfixed_atoms, nkind, &
-                                                nparticle_local
+                                                nparticle_local, ii
     LOGICAL                                  :: failure
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
@@ -127,7 +127,15 @@ CONTAINS
                 nparticle_local   = local_particles%n_el(i)
                 DO iparticle_local=1,nparticle_local
                    iparticle = local_particles%list(i)%array(iparticle_local)
-                   IF (ANY(fixd_list(:)%fixd == iparticle)) particle_set(iparticle)%f(:) = 0.0_dp
+                   DO ii = 1, SIZE(fixd_list)
+                      IF (fixd_list(ii)%fixd == iparticle) THEN
+                         IF (.NOT.fixd_list(ii)%restraint%active) THEN
+                            ! Constraint
+                            particle_set(iparticle)%f(:) = 0.0_dp
+                         END IF
+                         EXIT
+                      END IF
+                   END DO
                 END DO
              END DO
           END DO Mol_kind
@@ -200,7 +208,8 @@ CONTAINS
        CALL get_molecule ( molecule, first_atom = first_atom, lcolv=lcolv )
 
        IF (ishake==1) THEN
-          DO iconst = 1, SIZE(colv_list)             
+          DO iconst = 1, SIZE(colv_list)
+             IF (colv_list(iconst)%restraint%active) CYCLE
              ! Update positions 
              CALL update_con_colv(pos, dtsqby2, lcolv(iconst), &
                   particles=particle_set, lambda=lcolv(iconst)%lambda,&
@@ -212,6 +221,7 @@ CONTAINS
           END DO
        ELSE             
           DO iconst = 1, SIZE(colv_list)
+             IF (colv_list(iconst)%restraint%active) CYCLE
              ! Update colvar
              CALL colvar_eval_mol_f( lcolv ( iconst ) % colvar, cell, particles=particle_set,&
                   pos=pos, error=error)
@@ -234,6 +244,7 @@ CONTAINS
        END IF
        ! computing the constraint and value of tolerance
        DO iconst = 1, SIZE(colv_list)
+          IF (colv_list(iconst)%restraint%active) CYCLE
           CALL colvar_eval_mol_f( lcolv ( iconst ) % colvar, cell, particles=particle_set,&
                pos=pos, error=error)
           lcolv ( iconst ) % sigma = lcolv ( iconst ) % colvar % ss - &
@@ -301,6 +312,7 @@ CONTAINS
        CALL get_molecule ( molecule, first_atom = first_atom, lcolv=lcolv )
        IF (irattle==1) THEN
           DO iconst = 1, SIZE(colv_list)
+             IF (colv_list(iconst)%restraint%active) CYCLE
              ! Update colvar_old
              CALL colvar_eval_mol_f(lcolv ( iconst ) % colvar_old, cell,&
                   particles=particle_set, error=error)                
@@ -311,6 +323,7 @@ CONTAINS
           END DO
        ELSE             
           DO iconst = 1, SIZE(colv_list)
+             IF (colv_list(iconst)%restraint%active) CYCLE
              lcolv ( iconst ) % sigma = rattle_con_eval(lcolv ( iconst ) % colvar_old, vel)
              fdotf_sum = eval_Jac_colvar(lcolv ( iconst ) % colvar_old,&
                   lcolv ( iconst ) % colvar_old, particle_set,imass=imass,error=error)
@@ -325,6 +338,7 @@ CONTAINS
        END IF
        
        DO iconst = 1, SIZE(colv_list)
+          IF (colv_list(iconst)%restraint%active) CYCLE
           lcolv ( iconst ) % sigma = rattle_con_eval(lcolv ( iconst ) % colvar_old, vel)
           max_sigma = MAX(ABS(lcolv ( iconst ) % sigma),max_sigma)
        END DO
@@ -393,6 +407,7 @@ CONTAINS
        CALL get_molecule ( molecule, first_atom = first_atom, lcolv=lcolv )
        IF (ishake==1) THEN
           DO iconst = 1, SIZE(colv_list)
+             IF (colv_list(iconst)%restraint%active) CYCLE
              ! Update positions 
              CALL update_con_colv(pos, dtsqby2, lcolv(iconst), &
                   particles=particle_set, lambda=lcolv(iconst)%lambda,&
@@ -404,6 +419,7 @@ CONTAINS
           END DO
        ELSE
           DO iconst = 1, SIZE(colv_list)
+             IF (colv_list(iconst)%restraint%active) CYCLE
              ! Update colvar
              CALL colvar_eval_mol_f( lcolv ( iconst ) % colvar, cell, particles=particle_set,&
                   pos=pos, error=error)
@@ -428,6 +444,7 @@ CONTAINS
        
        ! computing the constraint and value of tolerance
        DO iconst = 1, SIZE(colv_list)
+          IF (colv_list(iconst)%restraint%active) CYCLE
           CALL colvar_eval_mol_f( lcolv ( iconst ) % colvar, cell, particles=particle_set,&
                pos=pos, error=error)
           lcolv ( iconst ) % sigma = lcolv ( iconst ) % colvar % ss - &
@@ -498,6 +515,7 @@ CONTAINS
        CALL get_molecule ( molecule, first_atom = first_atom, lcolv=lcolv )
        IF (irattle==1) THEN
           DO iconst = 1, SIZE ( colv_list )
+             IF (colv_list(iconst)%restraint%active) CYCLE
              ! Update colvar_old
              CALL colvar_eval_mol_f(lcolv ( iconst ) % colvar_old, cell,&
                   particles=particle_set, error=error)                
@@ -508,6 +526,7 @@ CONTAINS
           END DO
        ELSE
           DO iconst = 1, SIZE ( colv_list )
+             IF (colv_list(iconst)%restraint%active) CYCLE
              lcolv ( iconst ) % sigma = rattle_con_eval(lcolv ( iconst ) % colvar_old, vel,&
                   roll=.TRUE., veps=veps, rmat=r_rattle, particles=particle_set,&
                   error=error)
@@ -525,6 +544,7 @@ CONTAINS
        END IF
        ! computing the constraint and value of the tolerance
        DO iconst = 1, SIZE(colv_list)
+          IF (colv_list(iconst)%restraint%active) CYCLE
           lcolv ( iconst ) % sigma = rattle_con_eval(lcolv ( iconst ) % colvar_old, vel,&
                roll=.TRUE., veps=veps, rmat=r_rattle, particles=particle_set,&
                error=error)

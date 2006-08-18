@@ -89,11 +89,6 @@ MODULE cp2k_runs
   USE metadynamics,                    ONLY: metadyn_read
   USE metadynamics_types,              ONLY: meta_env_release,&
                                              meta_env_type
-  USE restraint_types,                 ONLY: restraint_env_create,&
-                                             restraint_env_release,&
-                                             restraint_env_type,&
-                                             restraint_env_read,&
-                                             restraint_env_write
   USE pint_methods,                    ONLY: do_pint_run
   USE qmmm_init,                       ONLY: qmmm_create_force_env
   USE qs_debug,                        ONLY: qs_debug_energy_and_forces
@@ -177,10 +172,9 @@ CONTAINS
     TYPE(meta_env_type), POINTER             :: meta_env
     TYPE(section_type), POINTER              :: input_structure
     TYPE(section_vals_type), POINTER         :: glob_section, hmc_section, &
-                                                input_file, metadyn_section, restraint_section,&
+                                                input_file, metadyn_section, &
                                                 force_env_sections, force_env_section
     INTEGER :: nforce_eval, iforce_eval,method_name_id
-    TYPE(restraint_env_type), POINTER        :: restraint_env
     INTEGER, POINTER, DIMENSION(:) :: i_force_eval
     INTEGER :: new_env_id,ierr,f_env_handle, prog_name_id, run_type_id
     TYPE(f_env_type), pointer :: f_env
@@ -511,7 +505,8 @@ CPSourceFileRef,&
         WRITE(globenv%scr,FMT="(T2,A)",ADVANCE="NO") "FARMING| Task to group correspondence:"
         DO i=0,globenv%num_pe-1
            IF (MODULO(i,4)==0) WRITE(globenv%scr,*)
-           WRITE(globenv%scr,FMT='(A3,I4,A3,I4,A1)',ADVANCE="NO") "  (",i," : ",group_distribution(i),")"
+           WRITE(globenv%scr,FMT='(A3,I4,A3,I4,A1)',ADVANCE="NO")&
+                "  (",i," : ",group_distribution(i),")"
         END DO
         WRITE(globenv%scr,*)
     ENDIF

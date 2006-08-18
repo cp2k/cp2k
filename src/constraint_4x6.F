@@ -95,6 +95,7 @@ CONTAINS
     CALL get_molecule_kind ( molecule_kind, ng4x6 = ng4x6, g4x6_list = g4x6_list )
     CALL get_molecule ( molecule, first_atom = first_atom, lg4x6=lg4x6 )
     DO iconst = 1, ng4x6
+       IF (g4x6_list(iconst)%restraint%active) CYCLE
        ishake=0
        index_a = g4x6_list ( iconst ) % a + first_atom -1
        index_b = g4x6_list ( iconst ) % b + first_atom -1
@@ -338,6 +339,7 @@ CONTAINS
     CALL get_molecule_kind ( molecule_kind, ng4x6 = ng4x6, g4x6_list = g4x6_list )
     CALL get_molecule ( molecule, first_atom = first_atom, lg4x6=lg4x6 )
     DO iconst = 1, ng4x6
+       IF (g4x6_list(iconst)%restraint%active) CYCLE
        ishake=0
        index_a = g4x6_list ( iconst ) % a + first_atom -1
        index_b = g4x6_list ( iconst ) % b + first_atom -1
@@ -592,6 +594,7 @@ CONTAINS
     CALL get_molecule_kind ( molecule_kind, ng4x6 = ng4x6, g4x6_list = g4x6_list )
     CALL get_molecule ( molecule, first_atom = first_atom, lg4x6=lg4x6 )
     DO iconst = 1, SIZE ( g4x6_list )
+       IF (g4x6_list(iconst)%restraint%active) CYCLE
        index_a = g4x6_list ( iconst ) % a + first_atom -1
        index_b = g4x6_list ( iconst ) % b + first_atom -1
        index_c = g4x6_list ( iconst ) % c + first_atom -1
@@ -753,6 +756,7 @@ CONTAINS
     CALL get_molecule_kind ( molecule_kind, ng4x6 = ng4x6, g4x6_list = g4x6_list )
     CALL get_molecule ( molecule, first_atom = first_atom, lg4x6=lg4x6 )
     DO iconst = 1, SIZE ( g4x6_list )
+       IF (g4x6_list(iconst)%restraint%active) CYCLE
        index_a = g4x6_list ( iconst ) % a + first_atom -1
        index_b = g4x6_list ( iconst ) % b + first_atom -1
        index_c = g4x6_list ( iconst ) % c + first_atom -1
