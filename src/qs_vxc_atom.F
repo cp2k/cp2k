@@ -72,7 +72,7 @@ MODULE qs_vxc_atom
 
   PRIVATE
 
-  CHARACTER(LEN=*), PARAMETER :: moduleN = "qs_vxc_atom"
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_vxc_atom'
 
   PUBLIC :: calculate_vxc_atom,&
             calculate_xc_2nd_deriv_atom,&
@@ -92,13 +92,13 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "calculate_vxc_atom", &
-                                   routineP = moduleN//":"//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_vxc_atom', &
+      routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: bo(2), handle, i, ia, iat, &
-                                                iatom, ikind, ir, istat, &
-                                                mepos, na, natom, nkind, nr, &
-                                                nspins, num_pe
+    INTEGER                                  :: bo(2), handle, i, iat, iatom, &
+                                                ikind, ir, istat, mepos, na, &
+                                                natom, nkind, nr, nspins, &
+                                                num_pe
     INTEGER, DIMENSION(2, 3)                 :: bounds
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: gradient_f, lsd, paw_atom
@@ -128,7 +128,7 @@ CONTAINS
     TYPE(xc_rho_cflags_type)                 :: needs
     TYPE(xc_rho_set_type), POINTER           :: rho_set_h, rho_set_s
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     CALL timeset(routineN,"I","",handle)
 
@@ -380,10 +380,10 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = "calculate_xc_2nd_deriv_atom", &
-                                   routineP = moduleN//":"//routineN
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'calculate_xc_2nd_deriv_atom', &
+      routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: atom, excitations, ia, iatom, &
+    INTEGER                                  :: atom, excitations, iatom, &
                                                 ikind, ir, na, natom, nkind, &
                                                 nr, nspins, res_etype, stat
     INTEGER, DIMENSION(2)                    :: local_loop_limit
@@ -421,7 +421,7 @@ CONTAINS
     TYPE(xc_rho_set_type), POINTER           :: rho1_set_h, rho1_set_s, &
                                                 rho_set_h, rho_set_s
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
    failure = .FALSE.
 
@@ -793,7 +793,7 @@ CONTAINS
     TYPE(rho_atom_coeff), DIMENSION(:), &
       POINTER                                :: int_hh, int_ss
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     failure = .FALSE.
 
@@ -974,7 +974,7 @@ CONTAINS
     TYPE(rho_atom_coeff), DIMENSION(:), &
       POINTER                                :: int_hh, int_ss
 
-    ! -------------------------------------------------------------------------
+! -------------------------------------------------------------------------
 
     failure = .FALSE.
 
