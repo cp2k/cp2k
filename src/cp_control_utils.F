@@ -152,10 +152,10 @@ CONTAINS
          error=error)
     CALL section_vals_val_get(tmp_section,"RUN_TYPE",i_val=run_id,error=error)
     SELECT CASE (run_id)!FM to rm, ugly!!
-    CASE (energy_run,mon_car_run,energy_force_run,electronic_spectra_run,&
+    CASE (energy_run,mon_car_run,electronic_spectra_run,&
           bsse_run,linear_response_run)
       dft_control%forces = .FALSE.
-    CASE (mol_dyn_run,hmc_run,ldmc_run,geo_opt_run,qs_debug_run,pint_run)
+    CASE (mol_dyn_run,hmc_run,ldmc_run,energy_force_run,geo_opt_run,qs_debug_run,pint_run)
       dft_control%forces = .TRUE.
     CASE DEFAULT
       CALL stop_program(routine,"unknown run type "//TRIM(run_type_names(globenv%run_type_id)))

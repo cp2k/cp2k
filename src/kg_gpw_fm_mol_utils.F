@@ -661,7 +661,7 @@ CONTAINS
 
     TYPE(real_matrix_type), POINTER          :: matrix
     TYPE(fm_mol_blocks_type), POINTER        :: mol_block
-    REAL(dp), DIMENSION(:, :), POINTER       :: matrix_mol_block
+    REAL(dp), DIMENSION(:, :)                :: matrix_mol_block
     INTEGER, INTENT(IN)                      :: natom, nrow, ncol
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -686,7 +686,6 @@ CONTAINS
                           ifirst_ao = ifirst_ao,&
                           ilast_ao = ilast_ao )
 
-    CPPrecondition(ASSOCIATED(matrix_mol_block),cp_failure_level,routineP,error,failure)
     CPPrecondition(SIZE(matrix_mol_block,1)>=nrow,cp_failure_level,routineP,error,failure)
     CPPrecondition(SIZE(matrix_mol_block,2)>=ncol,cp_failure_level,routineP,error,failure)
 

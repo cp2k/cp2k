@@ -4449,23 +4449,40 @@ SUBROUTINE create_kg_section(section,error)
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: failure
-    TYPE(section_type), POINTER              :: subsection
+    TYPE(keyword_type), POINTER              :: keyword
 
   failure=.FALSE.
 
   CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
   IF (.NOT. failure) THEN
        CALL section_create(section,name="kg",&
-            description="The parameters specific to kg",&
+            description="Parameters specific to KG methods",&
+            n_keywords=2, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
             error=error)
 
-     NULLIFY(subsection)
-     CALL create_xc_fun_section(subsection,error=error)
-     subsection%description="kinetic functional for the coupling of molecules"
-     CALL section_add_subsection(section,subsection,error=error)
-     CALL section_release(subsection,error=error)
+       NULLIFY ( keyword )
+       CALL keyword_create(keyword, name="OVERLAP_ANALYSIS",&
+            description="Analyze overlap between wavefunction on different"//&
+            " subsystems in KG_GPW method", usage="OVERLAP ANALYSIS",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       NULLIFY ( keyword )
+       CALL keyword_create(keyword, name="PAULI_REPULSION",&
+            description="Add a Pauli repulsion potential to the KG_GPW"//&
+            " Hamiltonian, scaling value in [a.u.] is given after the keyword",&
+            usage="PAULI_REPULSION 0.1",&
+            default_r_val=0._dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
   END IF
+
 END SUBROUTINE create_kg_section
+
 !***************************************************************************
 
 END MODULE input_cp2k_dft
+
+!***************************************************************************

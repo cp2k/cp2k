@@ -60,6 +60,7 @@ MODULE kg_force
   USE kg_intra,                        ONLY: calculate_ebond_corr
   USE kg_kxc,                          ONLY: calculate_kxc_derivatives
   USE kg_neighbor_lists,               ONLY: build_kg_neighbor_lists
+  USE kg_pauli_potential,              ONLY: kg_gpw_pauli
   USE kg_ppl,                          ONLY: calculate_drho_ppl,&
                                              calculate_rho0_ppl
   USE kg_rho_types,                    ONLY: kg_rho_get,&
@@ -924,6 +925,9 @@ END SUBROUTINE kg_calculate_forces
                                        globenv=globenv,&
                                        calculate_forces=.TRUE.,error=error)
 
+    ! add forces from Pauli potential
+    CALL kg_gpw_pauli( kg_env, .FALSE., .TRUE., .FALSE., error )
+
 ! ** here qs_env%rho%rho_r and qs_env%rho%rho_g should be up to date
 ! *** compute grid-based forces ***
      CALL qs_ks_update_qs_env(ks_env=ks_env,qs_env=qs_env, kg_env=kg_env,&
@@ -940,6 +944,7 @@ END SUBROUTINE kg_calculate_forces
       CALL mp_sum(force(ikind)%rho_core,globenv%group)
       CALL mp_sum(force(ikind)%rho_elec,globenv%group)
       CALL mp_sum(force(ikind)%kg_gpw_ekin_mol,globenv%group)
+      CALL mp_sum(force(ikind)%kg_gpw_pauli,globenv%group)
       force(ikind)%total(:,:) = force(ikind)%total(:,:) +&
                                 force(ikind)%core_overlap(:,:) +&
                                 force(ikind)%gth_ppl(:,:) +&
@@ -948,7 +953,8 @@ END SUBROUTINE kg_calculate_forces
                                 force(ikind)%overlap(:,:) +&
                                 force(ikind)%rho_core(:,:) +&
                                 force(ikind)%rho_elec(:,:) +&
-                                force(ikind)%kg_gpw_ekin_mol(:,:) 
+                                force(ikind)%kg_gpw_ekin_mol(:,:) +&
+                                force(ikind)%kg_gpw_pauli(:,:) 
     END DO
 
     DO iatom=1,natom

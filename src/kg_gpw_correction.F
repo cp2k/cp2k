@@ -28,13 +28,13 @@ MODULE kg_gpw_correction
   USE coefficient_types,               ONLY: coeff_init,&
                                              coeff_type
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE input_constants,                 ONLY: sic_none
-  USE input_section_types,             ONLY: section_vals_duplicate,&
-                                             section_vals_get_subs_vals,&
-                                             section_vals_release,&
-                                             section_vals_set_subs_vals,&
-                                             section_vals_type,&
-                                             section_vals_val_get
+  USE input_constants,                 ONLY: sic_none,&
+                                             xc_funct_no_shortcut
+  USE input_section_types,             ONLY: &
+       section_vals_create, section_vals_duplicate, &
+       section_vals_get_subs_vals, section_vals_release, section_vals_retain, &
+       section_vals_set_subs_vals, section_vals_type, section_vals_val_get, &
+       section_vals_val_set
   USE kg_gpw_collocate_den,            ONLY: integrate_mol_potential
   USE kg_gpw_fm_mol_types,             ONLY: fm_mol_blocks_type,&
                                              get_fm_mol_block,&
@@ -158,8 +158,10 @@ CONTAINS
     TYPE(rho_mol_blocks_type), &
       DIMENSION(:), POINTER                  :: rho_mol_blocks
     TYPE(rho_mol_blocks_type), POINTER       :: rho_block
-    TYPE(section_vals_type), POINTER         :: input, xc_fun_section, &
-                                                xc_section, xc_section_tmp
+    TYPE(section_vals_type), POINTER         :: input, kef_section, &
+                                                xc_fun_section, &
+                                                xc_fun_section_kg, &
+                                                xc_section, xc_section_kg
 
 !------------------------------------------------------------------------------
 
@@ -171,17 +173,30 @@ CONTAINS
     ekin_mol = 0.0_dp
 
     NULLIFY(atomic_kind_set,particle_set,para_env,vxc_tau,tau)
-    NULLIFY(rho_global,rho_g,rho_r,my_vxc_rho,my_vxc_tau,input,xc_section_tmp)
+    NULLIFY(rho_global,rho_g,rho_r,my_vxc_rho,my_vxc_tau,input,xc_section_kg)
 
     CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set,&
          input=input,rho=rho_global,para_env=para_env)
 
+    ! generate a new XC section with only the KE functional
     xc_section => section_vals_get_subs_vals(input,"DFT%XC",error=error)
-    CALL section_vals_duplicate(xc_section,xc_section_tmp,error=error)
-    xc_fun_section => section_vals_get_subs_vals(input,"DFT%KG%XC_FUNCTIONAL",&
+    xc_fun_section => section_vals_get_subs_vals(xc_section,&
+         "XC_FUNCTIONAL",error=error)
+    kef_section => section_vals_get_subs_vals(xc_fun_section,"KE_GGA",error=error)
+
+    CALL section_vals_duplicate(xc_section,xc_section_kg,error=error)
+
+    NULLIFY(xc_fun_section_kg)
+    CALL section_vals_create(xc_fun_section_kg,xc_fun_section%section,&
          error=error)
-    CALL section_vals_set_subs_vals(xc_section_tmp,"XC_FUNCTIONAL",xc_fun_section,&
-         error=error)
+    CALL section_vals_retain(xc_fun_section_kg,error=error)
+    CALL section_vals_val_set(xc_fun_section_kg,"_SECTION_PARAMETERS_",&
+         i_val=xc_funct_no_shortcut,error=error)
+    CALL section_vals_set_subs_vals(xc_fun_section_kg,"KE_GGA",&
+         kef_section,error=error)
+
+    CALL section_vals_set_subs_vals(xc_section_kg,"XC_FUNCTIONAL",&
+         xc_fun_section_kg,error=error)
 
     ! Sic is not implemented
     CALL section_vals_val_get(input,"DFT%SIC%SIC_METHOD",&
@@ -280,13 +295,13 @@ CONTAINS
           ekin_imol = 0.0_dp
           IF (my_just_energy) THEN
             ekin_imol = xc_exc_calc(rho_r=rho_r,tau=tau,&
-                     rho_g=rho_g, xc_section=xc_section_tmp,&
+                     rho_g=rho_g, xc_section=xc_section_kg,&
                      cell=cell_mol, pw_pool=auxbas_pw_pool,&
                      error=error)
           ELSE
             CALL xc_vxc_pw_create1(vxc_rho=my_vxc_rho,vxc_tau=my_vxc_tau, rho_r=rho_r,&
                                    rho_g=rho_g,tau=tau,exc=ekin_imol,&
-                                   xc_section=xc_section_tmp,&
+                                   xc_section=xc_section_kg,&
                                    cell=cell_mol, pw_pool=auxbas_pw_pool,&
                                    error=error)
           END IF
@@ -415,7 +430,8 @@ CONTAINS
        CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
     END IF
 
-    CALL section_vals_release(xc_section_tmp,error=error)
+    CALL section_vals_release(xc_section_kg,error=error)
+    CALL section_vals_release(xc_fun_section_kg,error=error)
 
     CALL timestop(0.0_dp,handle)
 

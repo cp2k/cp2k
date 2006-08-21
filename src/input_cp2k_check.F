@@ -129,8 +129,6 @@ CONTAINS
           ! xc: expand and fix default for tddfpt
           section2 => section_vals_get_subs_vals(section,"XC%XC_FUNCTIONAL",error=error)
           CALL xc_functionals_expand(section2,error=error)
-          section2 => section_vals_get_subs_vals(section,"KG%XC_FUNCTIONAL",error=error)
-          CALL xc_functionals_expand(section2,error=error)
           section2 => section_vals_get_subs_vals(section,"TDDFPT%XC%XC_FUNCTIONAL",error=error)
           CALL section_vals_get(section2,explicit=explicit,error=error)
           IF (explicit) THEN

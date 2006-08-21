@@ -79,7 +79,9 @@ MODULE qs_overlap
 
 ! *** Public subroutines ***
 
-  PUBLIC :: build_overlap_matrix
+  PUBLIC :: build_overlap_matrix, &
+            atom_overlap_matrix, &
+            block_p_type
 
 ! *****************************************************************************
 
@@ -501,7 +503,7 @@ CONTAINS
     INTEGER                                  :: i, iblock, iset, jset, &
                                                 maxder, ncoa, ncob, sgfa, sgfb
     LOGICAL                                  :: return_s_derivatives
-    REAL(dp)                                 :: dab, f, rab2
+    REAL(dp)                                 :: dab, rab2
 
 !-------------------------------------------------------------------------------
 
@@ -542,31 +544,11 @@ CONTAINS
                        sphi_b(1,sgfb),SIZE(sphi_b,1),&
                        0.0_dp,work(1,1),SIZE(work,1))
 
-            IF (iatom <= jatom) THEN
-
-              CALL dgemm("T","N",nsgfa(iset),nsgfb(jset),ncoa,&
-                         1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
-                         work(1,1),SIZE(work,1),&
-                         1.0_dp,sint(i)%block(sgfa,sgfb),&
-                         SIZE(sint(i)%block,1))
-
-            ELSE
-
-!             *** The first derivatives are anti-symmetric ***
-
-              IF (i > 1) THEN
-                f = -1.0_dp
-              ELSE
-                f = 1.0_dp
-              END IF
-
-              CALL dgemm("T","N",nsgfb(jset),nsgfa(iset),ncoa,&
-                         f,work(1,1),SIZE(work,1),&
-                         sphi_a(1,sgfa),SIZE(sphi_a,1),&
-                         1.0_dp,sint(i)%block(sgfb,sgfa),&
-                         SIZE(sint(i)%block,1))
-
-            END IF
+            CALL dgemm("T","N",nsgfa(iset),nsgfb(jset),ncoa,&
+                       1.0_dp,sphi_a(1,sgfa),SIZE(sphi_a,1),&
+                       work(1,1),SIZE(work,1),&
+                       1.0_dp,sint(i)%block(sgfa,sgfb),&
+                       SIZE(sint(i)%block,1))
 
           END DO
 

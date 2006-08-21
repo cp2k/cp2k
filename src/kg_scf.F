@@ -45,7 +45,8 @@ MODULE kg_scf
                                              random_guess,&
                                              restart_guess
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
-                                             section_vals_type
+                                             section_vals_type,&
+                                             section_vals_val_get
   USE kahan_sum,                       ONLY: accurate_sum
   USE kg_diis_methods,                 ONLY: kg_diis_b_clear,&
                                              kg_diis_b_create,&
@@ -74,6 +75,7 @@ MODULE kg_scf
                                              write_mo_mol_restart
   USE kg_gpw_pw_env_methods,           ONLY: kg_rho_update_rho_mol
   USE kg_gpw_pw_env_types,             ONLY: kg_sub_pw_env_type
+  USE kg_pauli_potential,              ONLY: kg_gpw_pauli
   USE kg_scf_post,                     ONLY: scf_post_calculation
   USE kg_scf_types,                    ONLY: kg_scf_env_release,&
                                              kg_scf_env_type
@@ -311,8 +313,8 @@ CONTAINS
 
     INTEGER :: handle, handle2, i, ib, imol, ispin, istat, iw, jb, nb, nb1, &
       nelectron_global, nmolecule_global, nmolecule_kind, output_unit
-    LOGICAL :: diis_step, do_level_shift, energy_only, failure, id_equal, &
-      ionode, should_stop, use_cholesky, use_jacobi
+    LOGICAL :: diis_step, do_level_shift, do_overlap, energy_only, failure, &
+      id_equal, ionode, should_stop, use_cholesky, use_jacobi
     REAL(dp)                                 :: diis_error, t1, t2
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: orthonormality
     REAL(dp), DIMENSION(:), POINTER          :: diis_ev_global
@@ -330,13 +332,14 @@ CONTAINS
       POINTER                                :: matrix_h, matrix_ks, &
                                                 matrix_p, matrix_s
     TYPE(scf_control_type), POINTER          :: scf_control
-    TYPE(section_vals_type), POINTER         :: dft_section, scf_section
+    TYPE(section_vals_type), POINTER         :: dft_section, kg_section, &
+                                                scf_section
 
 !   ---------------------------------------------------------------------------
 
     NULLIFY(dft_control,scf_control,ks_env,qs_env)
     NULLIFY(rho, matrix_h, matrix_ks, matrix_p, matrix_s, kg_fm)
-    NULLIFY(dft_section,scf_section)
+    NULLIFY(dft_section,scf_section,kg_section)
     NULLIFY(logger)
 
     logger => cp_error_get_logger(error)
@@ -361,6 +364,7 @@ CONTAINS
     energy_only = .FALSE.
 
     dft_section => section_vals_get_subs_vals(kg_env%input,"DFT",error=error)
+    kg_section => section_vals_get_subs_vals(dft_section,"KG",error=error)
     scf_section => section_vals_get_subs_vals(dft_section,"SCF",error=error)
 
     output_unit = cp_print_key_unit_nr(logger,scf_section,"PRINT%PROGRAM_RUN_INFO",&
@@ -476,8 +480,8 @@ CONTAINS
               extension=".scfLog",error=error)
          IF (iw>0) THEN
             DO imol = 1, nmolecule_global
-               WRITE(iw,'(T8,A,T60,I4,E20.4)')  &
-                    " Maximum deviation from MOS-orthonormality for molecule",&
+               WRITE(iw,'(T2,A,T56,I4,E20.4)')  &
+                    " Max. deviation from MOS-orthonormality for molecule",&
                     imol,orthonormality(imol)
             END DO
          ENDIF
@@ -721,7 +725,6 @@ CONTAINS
 !   *** add the converged wavefunction to the wavefunction history
 !   should possibly be moved down after de-mixing
     IF (ASSOCIATED(qs_env%wf_history)) THEN
-
         CALL wfi_update(qs_env%wf_history,qs_env=qs_env,dt=1.0_dp,&
                         kg_fm_mol_set=kg_fm%kg_fm_mol_set,error=error)
     END IF
@@ -753,6 +756,11 @@ CONTAINS
 
 ! ** compute properties that depend on the converged wavefunction
     IF ( .NOT. should_stop ) THEN
+      CALL section_vals_val_get(kg_section,"OVERLAP_ANALYSIS",&
+                                l_val=do_overlap,error=error)
+      IF ( do_overlap ) THEN
+        CALL kg_gpw_pauli( kg_env, .FALSE., .FALSE., .TRUE., error=error )
+      END IF
       CALL scf_post_calculation(dft_section, kg_env, error=error)
     END IF
 
