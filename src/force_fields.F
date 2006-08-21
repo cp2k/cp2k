@@ -2552,6 +2552,7 @@ CONTAINS
     !-----------------------------------------------------------------------------
     CALL timeset(routineN//'_bonds2',handle2)
     DO i=1,SIZE(molecule_kind_set)
+       WRITE(*,*) "i = ",i
        molecule_kind => molecule_kind_set(i)
        CALL get_molecule_kind(molecule_kind=molecule_kind,&
             molecule_list=molecule_list,&
@@ -2586,9 +2587,12 @@ CONTAINS
                IF(ff_type%ff_type=="G96") bond_list(j)%name = "G96"
                found = .TRUE.
              ELSE
-               k=SIZE(gro_info%solvent_k)
-               bond_list(j)%bond_kind%k(1) = gro_info%solvent_k(itype/k)
-               bond_list(j)%bond_kind%r0   = gro_info%solvent_r0(itype/k)
+               !k=SIZE(gro_info%solvent_k)
+               !bond_list(j)%bond_kind%k(1) = gro_info%solvent_k(itype/k)
+               !bond_list(j)%bond_kind%r0   = gro_info%solvent_r0(itype/k)
+               itype=itype-k
+               bond_list(j)%bond_kind%k(1) = gro_info%solvent_k(itype)
+               bond_list(j)%bond_kind%r0   = gro_info%solvent_r0(itype)
                IF(ff_type%ff_type=="G87") bond_list(j)%bond_kind%name = "G87"
                IF(ff_type%ff_type=="G96") bond_list(j)%bond_kind%name = "G96"
                IF(ff_type%ff_type=="G87") bond_list(j)%name = "G87"
