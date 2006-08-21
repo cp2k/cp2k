@@ -26,10 +26,6 @@
       &END XC_FUNCTIONAL
     &END XC
     &KG
-      &XC_FUNCTIONAL
-        &TF
-        &END
-      &END
     &END
     &QS
       METHOD KG_GPW
