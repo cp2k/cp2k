@@ -193,7 +193,7 @@ CONTAINS
       END DO
 
       ! sum all contributions to energy over calculated parts on all processors
-      CALL mp_sum(ekin, force_env%globenv%para_env%group)
+      CALL mp_sum(ekin, force_env%para_env%group)
       eip_env%eip_kinetic_energy = ekin
 
       eip_env%eip_potential_energy = ener/evolt
@@ -398,7 +398,7 @@ CONTAINS
       END DO
 
       ! sum all contributions to energy over calculated parts on all processors
-      CALL mp_sum(ekin, force_env%globenv%para_env%group)
+      CALL mp_sum(ekin, force_env%para_env%group)
       eip_env%eip_kinetic_energy = ekin
 
       eip_env%eip_potential_energy = ener/evolt

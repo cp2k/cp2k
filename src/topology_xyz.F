@@ -21,12 +21,12 @@ MODULE topology_xyz
   USE convert_units,                   ONLY: convert_to_cp2k_units
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_parser,                       ONLY: cp_parser_type,&
                                              parser_create,&
                                              parser_get_next_line,&
                                              parser_get_object,&
                                              parser_release
-  USE global_types,                    ONLY: global_environment_type
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
   USE memory_utilities,                ONLY: reallocate
@@ -65,10 +65,9 @@ CONTAINS
   !!   INPUTS
   !!*** *************************************************************************
 
-  SUBROUTINE read_coordinate_xyz (topology,globenv,subsys_section,error)
+  SUBROUTINE read_coordinate_xyz (topology,para_env,subsys_section,error)
     TYPE(topology_parameters_type)           :: topology
-    TYPE(global_environment_type), &
-      OPTIONAL, POINTER                      :: globenv
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -93,7 +92,7 @@ CONTAINS
 
     IF(iw>0) WRITE(iw,*) "    Reading in XYZ file ",TRIM(topology%coord_file_name)
     CALL parser_create(parser,topology%coord_file_name,&
-         para_env=globenv%para_env,error=error)      
+         para_env=para_env,error=error)      
 
     natom = 0
     frame = 0

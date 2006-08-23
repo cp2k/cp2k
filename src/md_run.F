@@ -155,6 +155,7 @@ CONTAINS
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(cell_type), POINTER                 :: cell, cell_ref
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
     TYPE(distribution_1d_type), POINTER      :: local_molecules, &
@@ -176,7 +177,7 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     CALL timeset(routineN,"I","",handle)
-
+    para_env=>globenv%para_env
     failure=.FALSE.
     NULLIFY ( particles, local_molecules, cell, cell_ref, dyn_coeff_set,&
               simpar,itimes,used_time,subsys,motion_section )
@@ -309,7 +310,7 @@ CONTAINS
 
     END DO
 
-    CALL md_env_create ( md_env, globenv % para_env, error = error )
+    CALL md_env_create ( md_env, para_env, error = error )
 
     CALL set_md_env(md_env=md_env,&
                     simpar=simpar,&

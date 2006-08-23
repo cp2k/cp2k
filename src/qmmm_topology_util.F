@@ -23,6 +23,7 @@
 MODULE qmmm_topology_util
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE global_types,                    ONLY: global_environment_type
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: default_string_length,&
@@ -155,22 +156,24 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: qm_atom_index, &
                                                 qm_molecule_index
     LOGICAL                                  :: detected_link, failure
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
 
     NULLIFY(qm_atom_index, qm_molecule_index, molecule, molecule_kind)
+    para_env=>globenv%para_env
     failure = .FALSE.
     detected_link = .FALSE.
     iw = globenv%scr
     CALL timeset(routineN,'I','',handle)
     IF (.NOT.failure) THEN
-       IF((globenv%para_env%ionode).AND.(globenv%print_level>0))THEN
+       IF((para_env%ionode).AND.(globenv%print_level>0))THEN
           WRITE(iw,*) "  Entering qmmm_connectivity_control"
        END IF
        qm_mol_num    = 0
        qm_atom_index => qmmm_env%qm_atom_index
        DO imolecule=1,SIZE(molecule_set)
-          IF ((globenv%para_env%ionode).AND.(globenv%print_level>1))&
+          IF ((para_env%ionode).AND.(globenv%print_level>1))&
                WRITE(iw,*)"Entering molecule number ::",imolecule
           molecule => molecule_set(imolecule)
           CALL get_molecule(molecule,molecule_kind=molecule_kind,&
@@ -183,7 +186,7 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        qm_mol_num    = 0
        DO imolecule=1,SIZE(molecule_set)
-          IF ((globenv%para_env%ionode).AND.(globenv%print_level>1))&
+          IF ((para_env%ionode).AND.(globenv%print_level>1))&
                WRITE(iw,*)"Entering molecule number ::",imolecule
           molecule => molecule_set(imolecule)
           CALL get_molecule(molecule,molecule_kind=molecule_kind,&
@@ -200,7 +203,7 @@ CONTAINS
                 IF (.NOT.ANY(qm_atom_index == i)) detected_link = .TRUE.
              END DO
              IF (detected_link) THEN
-                IF (globenv%para_env%ionode) THEN
+                IF (para_env%ionode) THEN
                     WRITE(iw,fmt='(A)',ADVANCE="NO") " QM/MM link detected..."
                 ENDIF
                 IF (.NOT.qmmm_env%qmmm_link) THEN 
@@ -214,12 +217,12 @@ CONTAINS
        IF (ASSOCIATED(qmmm_env%qm_molecule_index)) DEALLOCATE(qmmm_env%qm_molecule_index)
        NULLIFY(qmmm_env%qm_molecule_index)
        qmmm_env%qm_molecule_index => qm_molecule_index
-       IF((globenv%para_env%ionode).AND.(globenv%print_level>0))THEN
+       IF((para_env%ionode).AND.(globenv%print_level>0))THEN
           WRITE(iw,*) "    QM molecule index ::",qm_molecule_index
           WRITE(iw,*) "  Exiting qmmm_connectivity_control"
        END IF
     END IF
-    IF((globenv%para_env%ionode).AND.(globenv%print_level>0))THEN
+    IF((para_env%ionode).AND.(globenv%print_level>0))THEN
        WRITE(iw,*) "  Leaving qmmm_connectivity_control"
     END IF
     CALL timestop(0.0_dp,handle)

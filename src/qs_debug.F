@@ -33,6 +33,7 @@
 !!   SOURCE
 !****************************************************************************
 MODULE qs_debug
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsystem_types,              ONLY: cp_subsystem_p_type
   USE force_env_methods,               ONLY: force_env_calc_energy_force
   USE force_env_types,                 ONLY: force_env_get,&
@@ -44,7 +45,6 @@ MODULE qs_debug
   USE kinds,                           ONLY: dp
   USE particle_types,                  ONLY: particle_type
   USE qs_numerical_pressure,           ONLY: qs_calc_numerical_pressure
-
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -67,11 +67,13 @@ CONTAINS
 
     INTEGER                                  :: ip, iseq, isubsys, iw, j, k, &
                                                 stat
-    LOGICAL                                  :: failure, harris_flag, num_pressure
-    REAL(kind=dp)                            :: std_value, dx
+    LOGICAL                                  :: failure, harris_flag, &
+                                                num_pressure
+    REAL(kind=dp)                            :: dx, std_value
     REAL(kind=dp), DIMENSION(2)              :: numer_energy
     REAL(kind=dp), DIMENSION(3)              :: Err, my_maxerr
     REAL(kind=dp), DIMENSION(:, :), POINTER  :: analyt_forces, numer_forces
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
     TYPE(particle_type), DIMENSION(:), &
@@ -80,6 +82,7 @@ CONTAINS
 
     failure = .FALSE.
     NULLIFY(analyt_forces, numer_forces, subsys, particles)
+    para_env=>globenv%para_env
     IF (.NOT.failure) THEN
        harris_section => section_vals_get_subs_vals(force_env%force_env_section, &
                                                     "DFT%QS%HARRIS")
@@ -141,7 +144,7 @@ CONTAINS
                 END DO
                 particles(ip)%r(k) = std_value
                 numer_forces(ip,k) = - (numer_energy(1) - numer_energy(2) ) / (2.0_dp*Dx)
-                IF (globenv%para_env%ionode) THEN
+                IF (para_env%ionode) THEN
                    WRITE(iw,'(A,I5,A,I5,4F15.9)')"ATOM NUMBER ::",iseq," COORD:",k,numer_energy,&
                      numer_forces(ip,k), analyt_forces(iseq,k)
                 ENDIF
@@ -149,17 +152,17 @@ CONTAINS
              !
              ! Check analytical forces Vs numerical forces
              !             
-             IF (globenv%para_env%ionode) THEN
+             IF (para_env%ionode) THEN
                 WRITE(iw,'(A,I5,6F15.9)')"ATOM NUMBER ::",iseq,analyt_forces(iseq,:), numer_forces(ip,:)
              ENDIF
           END DO Atom
-          IF (globenv%para_env%ionode) THEN
+          IF (para_env%ionode) THEN
               WRITE(iw,'(A,I5)')"SUMMARY DEBUG :: SUBSYS NUMBER :",isubsys
           ENDIF
           iseq = iseq - subsys(isubsys)%subsys%particles%n_els
           DO ip = 1, subsys(isubsys)%subsys%particles%n_els
              iseq = iseq + 1 
-             IF (globenv%para_env%ionode) THEN
+             IF (para_env%ionode) THEN
                  WRITE(iw,'(A,I5,9F12.6)')"ATOM NUMBER ::",iseq,analyt_forces(iseq,:), numer_forces(ip,:),&
                       analyt_forces(iseq,:) - numer_forces(ip,:)   
              ENDIF
@@ -174,7 +177,7 @@ CONTAINS
                    Err(K) = (analyt_forces(ip,K)-numer_forces(ip,K))/numer_forces(ip,K)*100.0_dp
                 END IF
              END DO
-             IF (globenv%para_env%ionode) THEN
+             IF (para_env%ionode) THEN
                  WRITE(iw,100)ip,Analyt_Forces(Ip,1),Err(1),&
                                  Analyt_Forces(Ip,2),Err(2),&
                                  Analyt_Forces(Ip,3),Err(3)

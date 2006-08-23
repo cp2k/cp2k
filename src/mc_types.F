@@ -24,6 +24,7 @@ MODULE mc_types
   USE cell_types,                      ONLY: cell_type,&
                                              get_cell
   USE convert_units,                   ONLY: convert_to_cp2k_units
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE fist_environment_types,          ONLY: fist_environment_type,&
                                              get_fist_env
   USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_get,&
@@ -490,10 +491,13 @@ SUBROUTINE read_mc_section ( mc_par, globenv, input_file_name, input_file, force
     INTEGER                                  :: handle, ia, ie, iw, &
                                                 method_name_id, stop_num
     LOGICAL                                  :: failure
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: mc_section
 
 !------------------------------------------------------------------------------
 ! begin the timing of the subroutine
+
+    para_env=>globenv%para_env
 
     CPPrecondition(ASSOCIATED(input_file),cp_failure_level,routineN,error,failure)
 
@@ -509,9 +513,9 @@ SUBROUTINE read_mc_section ( mc_par, globenv, input_file_name, input_file, force
       mc_par % input_file => input_file
 
 ! set the ionode and mepos
-      mc_par % ionode = globenv%para_env%ionode
-      mc_par % group = globenv%para_env%group
-      mc_par % source = globenv%para_env%source
+      mc_par % ionode = para_env%ionode
+      mc_par % group = para_env%group
+      mc_par % source = para_env%source
 
 !..defaults
       mc_par % rmbond = 0.1d0
@@ -538,8 +542,8 @@ SUBROUTINE read_mc_section ( mc_par, globenv, input_file_name, input_file, force
          mc_par % iprint = 1
       END SELECT
  
-      iw = globenv % scr
-      IF(globenv%para_env%ionode) WRITE ( iw, * )
+      iw = globenv%scr
+      IF(para_env%ionode) WRITE ( iw, * )
 
 !..filenames
       mc_par % program = input_file_name
@@ -573,7 +577,7 @@ SUBROUTINE read_mc_section ( mc_par, globenv, input_file_name, input_file, force
 
 ! grab the FFT library name and print level...this is used for writing the dat file
 ! and hopefully will be changed
-      mc_par % fft_lib = globenv % default_fft_library
+      mc_par % fft_lib = globenv%default_fft_library
       mc_par % print_level = globenv%print_level
 
  ! first, grab all the integer values

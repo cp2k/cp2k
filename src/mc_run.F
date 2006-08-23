@@ -48,6 +48,7 @@
 !******************************************************************************
 
 MODULE mc_run
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsystem_p_type
   USE force_env_types,                 ONLY: force_env_get,&
@@ -135,9 +136,9 @@ CONTAINS
 
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(global_environment_type), POINTER   :: globenv
+    CHARACTER(LEN=*)                         :: input_file_name
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-    CHARACTER(LEN=*)                         :: input_file_name
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'do_mon_car', &
       routineP = moduleN//':'//routineN
@@ -152,6 +153,7 @@ CONTAINS
                                                 pmtrans, pmvolume, pressure, &
                                                 rcut, temp
     REAL(KIND=dp), DIMENSION(1:3)            :: conf_prob
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys, subsys_2
     TYPE(force_env_type), POINTER            :: force_env_2
@@ -167,13 +169,14 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: force_env_section
 
       NULLIFY(mc_env,mc_par,mc_par_2,force_env_2,rng_stream)
+      para_env=>globenv%para_env
 
-      iw = globenv % scr
+      iw = globenv%scr
       force_env_section => force_env%force_env_section
       CALL section_vals_get(force_env_section,n_repetition=isos,error=error)
       CPPostconditionNoFail(isos==1,cp_warning_level,routineP,error)
 ! set some values...will use get_globenv if that ever comes around
-      ionode=globenv%para_env%ionode
+      ionode=para_env%ionode
 
 ! allocating or nullifying local pointers
       ALLOCATE ( mc_par, STAT = isos )

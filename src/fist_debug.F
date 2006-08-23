@@ -21,6 +21,7 @@
 MODULE fist_debug
   USE atomic_kind_types,               ONLY: atomic_kind_type
   USE cell_types,                      ONLY: cell_type
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE ewald_environment_types,         ONLY: ewald_env_get,&
                                              ewald_environment_type
@@ -104,6 +105,7 @@ SUBROUTINE  debug_control ( force_env, globenv, error)
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(debug_variables_type)               :: dbg
     TYPE(distribution_1d_type), POINTER      :: local_molecules, &
                                                 local_particles
@@ -119,8 +121,9 @@ SUBROUTINE  debug_control ( force_env, globenv, error)
     TYPE(particle_type), POINTER             :: particle_set( : )
     TYPE(section_vals_type), POINTER         :: force_env_section
 
-  ionode = globenv%para_env%ionode
-  group  = globenv%para_env%group
+  para_env=>globenv%para_env
+  ionode = para_env%ionode
+  group  = para_env%group
   fist_env => force_env % fist_env
 ! associcating local pointers
   CALL get_fist_env ( fist_env, ewald_pw = ewald_pw, ewald_env = ewald_env, &
@@ -139,7 +142,7 @@ SUBROUTINE  debug_control ( force_env, globenv, error)
   natoms = SIZE ( particle_set )
 
 !------------------------------------------------------------------------------
-  iw = globenv % scr
+  iw = globenv%scr
   iwf = 7
   ir = 5
   IF ( ionode ) THEN

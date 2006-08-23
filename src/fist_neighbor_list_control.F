@@ -27,6 +27,7 @@ MODULE fist_neighbor_list_control
                                              cell_create,&
                                              cell_release,&
                                              cell_type
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE fist_neighbor_list_types,        ONLY: fist_neighbor_type
   USE fist_neighbor_lists,             ONLY: build_fist_neighbor_lists
@@ -90,11 +91,13 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
     REAL(KIND=dp), DIMENSION(3)              :: dr, rab, s, s2r
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rlist_cutsq, rlist_lowsq
     TYPE(cell_type), POINTER                 :: cell_last_update
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(fist_neighbor_type), POINTER        :: nonbonded
     TYPE(pos_type), DIMENSION(:), POINTER    :: r_last_update, &
                                                 r_last_update_pbc
 
   CALL timeset(routineN,"I"," ",handle )
+    para_env=>globenv%para_env
 
 ! *** Assigning local pointers ***
 
@@ -136,7 +139,7 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
     END DO
 
 #if defined(__parallel)
-    CALL mp_max(dr2_max,globenv%para_env%group)
+    CALL mp_max(dr2_max,para_env%group)
 #endif
 
     IF (dr2_max > 0.25_dp*verlet_skin**2) THEN
@@ -176,7 +179,7 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
 
     CALL build_fist_neighbor_lists(atomic_kind_set,particle_set,&
                                    local_particles,cell,rlist_cutsq,rlist_lowsq,&
-                                   nonbonded,globenv,&
+                                   nonbonded,para_env,&
                                    build_from_scratch=build_from_scratch,&
                                    force_env_section=force_env_section,error=error)
 
@@ -206,7 +209,7 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
                               last_update=last_update,&
                               cell_last_update=cell_last_update)
 
-    IF ((globenv%print_level >= 2).AND.(globenv%para_env%ionode)) THEN
+    IF ((globenv%print_level >= 2).AND.(para_env%ionode)) THEN
       WRITE (UNIT=globenv%scr,&
              FMT="(/,T2,A,/,T52,A,/,A,T31,A,T49,2(1X,F15.2),/,T2,A,/)")&
         REPEAT("*",79),"INSTANTANEOUS        AVERAGES",&

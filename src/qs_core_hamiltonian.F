@@ -1302,7 +1302,7 @@ CONTAINS
                 IF (.NOT.ASSOCIATED(p_block)) THEN
                   CALL stop_program(routineN,moduleN,__LINE__,&
                                     "A density matrix block is missing",&
-                                    globenv)
+                                    para_env)
                 END IF
                 CALL get_block_node(matrix=matrix_w(1)%matrix,&
                                     block_row=irow,&
@@ -1311,7 +1311,7 @@ CONTAINS
                 IF (.NOT.ASSOCIATED(w_block)) THEN
                   CALL stop_program(routineN,moduleN,__LINE__,&
                                     "A weighted density matrix block is missing",&
-                                    globenv)
+                                    para_env)
                 END IF
               END IF
             END IF
@@ -2178,7 +2178,7 @@ CONTAINS
 
 !   *** Print the distribution of the overlap matrix blocks ***
 
-    CALL write_matrix_distribution(matrix_s(1)%matrix,qs_env%input,globenv,error)
+    CALL write_matrix_distribution(matrix_s(1)%matrix,qs_env%input,para_env,error)
 
 !   *** Print the overlap integral matrix, if requested ***
 
@@ -2186,11 +2186,11 @@ CONTAINS
          qs_env%input,"DFT%PRINT%AO_MATRICES/OVERLAP",error=error),cp_p_file)) THEN
        iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/OVERLAP",&
             extension=".Log",error=error)
-      CALL write_sparse_matrix(matrix_s(1)%matrix,4,6,qs_env,globenv,output_unit=iw)
+      CALL write_sparse_matrix(matrix_s(1)%matrix,4,6,qs_env,para_env,output_unit=iw)
       IF (BTEST(cp_print_key_should_output(logger%iter_info,qs_env%input,&
            "DFT%PRINT%AO_MATRICES/DERIVATIVES",error=error),cp_p_file)) THEN
          DO i=2,SIZE(matrix_s)
-            CALL write_sparse_matrix(matrix_s(i)%matrix,4,6,qs_env,globenv,output_unit=iw)
+            CALL write_sparse_matrix(matrix_s(i)%matrix,4,6,qs_env,para_env,output_unit=iw)
          END DO
       END IF
       CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
@@ -2203,11 +2203,11 @@ CONTAINS
          qs_env%input,"DFT%PRINT%AO_MATRICES/KINETIC_ENERGY",error=error),cp_p_file)) THEN
        iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/KINETIC_ENERGY",&
             extension=".Log",error=error)
-       CALL write_sparse_matrix(matrix_t(1)%matrix,4,6,qs_env,globenv,output_unit=iw)
+       CALL write_sparse_matrix(matrix_t(1)%matrix,4,6,qs_env,para_env,output_unit=iw)
        IF (BTEST(cp_print_key_should_output(logger%iter_info,qs_env%input,&
             "DFT%PRINT%AO_MATRICES/DERIVATIVES",error=error),cp_p_file)) THEN
           DO i=2,SIZE(matrix_t)
-             CALL write_sparse_matrix(matrix_t(i)%matrix,4,6,qs_env,globenv,output_unit=iw)
+             CALL write_sparse_matrix(matrix_t(i)%matrix,4,6,qs_env,para_env,output_unit=iw)
           END DO
        END IF
       CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
@@ -2225,7 +2225,7 @@ CONTAINS
                                       TARGET=matrix_v(1)%matrix,&
                                       target_name="POTENTIAL ENERGY MATRIX")
       CALL add_matrices(matrix_v(1)%matrix,1.0_dp,matrix_h(1)%matrix,-1.0_dp,matrix_t(1)%matrix)
-      CALL write_sparse_matrix(matrix_v(1)%matrix,4,6,qs_env,globenv,output_unit=iw)
+      CALL write_sparse_matrix(matrix_v(1)%matrix,4,6,qs_env,para_env,output_unit=iw)
       CALL deallocate_matrix_set(matrix_v)
       CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
             "DFT%PRINT%AO_MATRICES/POTENTIAL_ENERGY", error=error)
@@ -2237,7 +2237,7 @@ CONTAINS
          qs_env%input,"DFT%PRINT%AO_MATRICES/CORE_HAMILTONIAN",error=error),cp_p_file)) THEN
        iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/CORE_HAMILTONIAN",&
             extension=".Log",error=error)
-       CALL write_sparse_matrix(matrix_h(1)%matrix,4,6,qs_env,globenv,output_unit=iw)
+       CALL write_sparse_matrix(matrix_h(1)%matrix,4,6,qs_env,para_env,output_unit=iw)
        CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
             "DFT%PRINT%AO_MATRICES/CORE_HAMILTONIAN", error=error)       
     END IF

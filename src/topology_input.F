@@ -98,10 +98,10 @@ SUBROUTINE read_topology_section ( topology, topology_section, globenv, error )
     LOGICAL                                  :: failure
 
   CALL timeset(routineN,handle)
-  CALL xstring(globenv % project_name,ia,ie)
+  CALL xstring(globenv%project_name,ia,ie)
   failure = .FALSE.
-  topology % coord_file_name = globenv % project_name(ia:ie) // '.dat'
-  topology % conn_file_name = globenv % project_name(ia:ie) // '.top'
+  topology % coord_file_name = globenv%project_name(ia:ie) // '.dat'
+  topology % conn_file_name = globenv%project_name(ia:ie) // '.top'
   
   IF (.NOT. failure) THEN
      ! Logical

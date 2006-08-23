@@ -198,9 +198,10 @@ CONTAINS
     LOGICAL                                  :: explicit
     REAL(kind=dp)                            :: dt
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: md_section, metavar_section
 
-    NULLIFY(logger)
+    para_env=>globenv%para_env
     logger => cp_error_get_logger(error)
     CALL section_vals_get(metadyn_section,explicit=explicit,error=error)
     IF (.NOT.explicit) RETURN
@@ -212,7 +213,7 @@ CONTAINS
     metavar_section => section_vals_get_subs_vals(metadyn_section,"METAVAR",error=error)
     CALL section_vals_get(metavar_section,n_repetition=n_colvar,error=error)
     CALL metadyn_create(meta_env,n_colvar=n_colvar,&
-         dt=dt,para_env=globenv%para_env,metadyn_section=metadyn_section,error=error)
+         dt=dt,para_env=para_env,metadyn_section=metadyn_section,error=error)
 
     CALL section_vals_val_get(metadyn_section,"DO_HILLS",l_val=meta_env%do_hills,error=error)
     CALL section_vals_val_get(metadyn_section,"LAGRANGE",l_val=meta_env%extended_lagrange,error=error)

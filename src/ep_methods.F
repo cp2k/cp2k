@@ -694,6 +694,7 @@ CONTAINS
     INTEGER                                  :: handle, ispin
     LOGICAL                                  :: failure
     TYPE(cp_fm_type), POINTER                :: mo_coeff
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
@@ -705,8 +706,9 @@ CONTAINS
     NULLIFY(ks_env, mos, mo_coeff, dft_control,matrix_ks,matrix_s)
 
     CALL timeset(routineN,"I","",handle)
+    para_env=>globenv%para_env
 
-    CALL build_qs_neighbor_lists(qs_env,globenv,force_env_section=qs_env%input,error=error)
+    CALL build_qs_neighbor_lists(qs_env,para_env,force_env_section=qs_env%input,error=error)
 
     ! *** Calculate the overlap and the core Hamiltonian integral matrix ***
 
@@ -752,7 +754,7 @@ CONTAINS
          matrix_ks=matrix_ks)
 
     CALL calculate_ecore_self(qs_env)
-    CALL calculate_ecore_overlap(qs_env,globenv,.FALSE.,error=error)
+    CALL calculate_ecore_overlap(qs_env,para_env,.FALSE.,error=error)
 
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE ep_env_finish_qs_init
@@ -1782,6 +1784,7 @@ CONTAINS
          blacs_env)
 
     globenv => ep_env%globenv
+    para_env=>globenv%para_env
     qs_env => ep_env%main_qs_env
 
     CALL cp_error_init(suberror,template_error=error)
@@ -1831,7 +1834,7 @@ CONTAINS
     CALL ep_force_zero(ep_env%force,error=error)
 
     ! !!!!! qs energy
-    CALL build_qs_neighbor_lists(qs_env,globenv,force_env_section=qs_env%input,error=error)
+    CALL build_qs_neighbor_lists(qs_env,para_env,force_env_section=qs_env%input,error=error)
 
     ! *** Calculate the overlap and the core Hamiltonian integral matrix ***
     CALL build_core_hamiltonian_matrix(qs_env=qs_env, globenv=globenv,&
@@ -1839,7 +1842,7 @@ CONTAINS
     CALL qs_env_update_s_mstruct(qs_env)
     CALL qs_check_i_alloc(qs_env,error=error)
     CALL calculate_ecore_self(qs_env)
-    CALL calculate_ecore_overlap(qs_env, globenv, &
+    CALL calculate_ecore_overlap(qs_env, para_env, &
          calculate_forces=.FALSE.,error=error)
 
     ! *** calculate psi0
@@ -2045,7 +2048,7 @@ CONTAINS
          globenv=globenv,&
          calculate_forces=.TRUE.,my_ep=.TRUE.,error=error)
     CALL calculate_ecore_self(qs_env)
-    CALL calculate_ecore_overlap(qs_env, globenv, &
+    CALL calculate_ecore_overlap(qs_env, para_env, &
          calculate_forces=.TRUE.,&
          error=error)
 
@@ -2057,18 +2060,18 @@ CONTAINS
 
     !  *** replicate forces ***
     DO ikind=1,SIZE(force)
-       CALL mp_sum(force(ikind)%overlap,globenv%para_env%group)
-       CALL mp_sum(force(ikind)%kinetic,globenv%para_env%group)
-       CALL mp_sum(force(ikind)%gth_ppl,globenv%para_env%group)
-       CALL mp_sum(force(ikind)%gth_ppnl,globenv%para_env%group)
-       CALL mp_sum(force(ikind)%all_potential,globenv%para_env%group)
-       CALL mp_sum(force(ikind)%core_overlap,globenv%para_env%group)
-       CALL mp_sum(force(ikind)%rho_core,globenv%para_env%group)
-       CALL mp_sum(force(ikind)%rho_elec,globenv%para_env%group)
-       CALL mp_sum(force(ikind)%vhxc_atom,globenv%para_env%group)
-       CALL mp_sum(force(ikind)%g0s_Vh_elec,globenv%para_env%group)
-       CALL mp_sum(force(ikind)%hartree_2c,globenv%para_env%group)
-       CALL mp_sum(force(ikind)%hartree_3c,globenv%para_env%group)
+       CALL mp_sum(force(ikind)%overlap,para_env%group)
+       CALL mp_sum(force(ikind)%kinetic,para_env%group)
+       CALL mp_sum(force(ikind)%gth_ppl,para_env%group)
+       CALL mp_sum(force(ikind)%gth_ppnl,para_env%group)
+       CALL mp_sum(force(ikind)%all_potential,para_env%group)
+       CALL mp_sum(force(ikind)%core_overlap,para_env%group)
+       CALL mp_sum(force(ikind)%rho_core,para_env%group)
+       CALL mp_sum(force(ikind)%rho_elec,para_env%group)
+       CALL mp_sum(force(ikind)%vhxc_atom,para_env%group)
+       CALL mp_sum(force(ikind)%g0s_Vh_elec,para_env%group)
+       CALL mp_sum(force(ikind)%hartree_2c,para_env%group)
+       CALL mp_sum(force(ikind)%hartree_3c,para_env%group)
        force(ikind)%total(:,:) = force(ikind)%total(:,:) +&
             force(ikind)%core_overlap(:,:) +&
             force(ikind)%gth_ppl(:,:) +&

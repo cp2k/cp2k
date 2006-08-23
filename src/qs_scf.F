@@ -78,6 +78,7 @@ MODULE qs_scf
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr,&
                                              cp_rm_iter_level
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm,&
                                              cp_sm_fm_multiply
   USE cp_sm_pool_types,                ONLY: cp_sm_pool_p_type,&
@@ -360,6 +361,7 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(harris_env_type), POINTER           :: harris_env
     TYPE(mo_set_p_type), DIMENSION(:), &
@@ -386,6 +388,7 @@ CONTAINS
             scf_control,logger,qs_charges,ks_env,mos,atomic_kind_set, &
             particle_set,harris_env,dft_section,input,&
             scf_section)
+    para_env=>globenv%para_env
 
     CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -475,7 +478,7 @@ CONTAINS
                                    error=error)
 
           ! print 'heavy weight' or relatively expensive quantities
-          CALL qs_scf_loop_print(qs_env,scf_env,globenv,error)
+          CALL qs_scf_loop_print(qs_env,scf_env,para_env,error)
 
           scf_env%p_mix = scf_control%p_mix
           scf_env%iter_param = 0.0_dp
@@ -524,7 +527,7 @@ CONTAINS
           ! ** calculation of the harris energy correction *** !
           IF (harris_flag) THEN
             CALL harris_energy_correction(qs_env, harris_env, &
-                                          globenv=globenv, fast=.TRUE., error=error)
+                                          para_env=para_env, fast=.TRUE., error=error)
             IF (scf_env%method .NE. ot_method_nr) THEN
               CALL harris_eigenvalue_trace_KS_Pmix(scf_env, qs_env, harris_env, error=error)
             ELSE
@@ -581,7 +584,7 @@ CONTAINS
           ! ** Write restart file **
           IF (scf_control%write_restart_each>0.AND.&
                MODULO(scf_env%iter_count,scf_control%write_restart_each)==0) THEN
-             CALL write_mo_set(mos,atomic_kind_set,particle_set,globenv,&
+             CALL write_mo_set(mos,atomic_kind_set,particle_set,para_env,&
                   id_nr=1,dft_section=dft_section)
           END IF
 
@@ -617,7 +620,7 @@ CONTAINS
 
        !   *** Write restart file ***
        IF (scf_control%write_restart_each>=0) THEN
-          CALL write_mo_set(mos,atomic_kind_set,particle_set,globenv,&
+          CALL write_mo_set(mos,atomic_kind_set,particle_set,para_env,&
                id_nr=1,dft_section=dft_section)
        END IF
 
@@ -1024,10 +1027,10 @@ END SUBROUTINE qs_scf_print_summary
 !!     03.2006 created [Joost VandeVondele]
 !!
 !!*** **********************************************************************
-  SUBROUTINE qs_scf_loop_print(qs_env,scf_env,globenv,error)
+  SUBROUTINE qs_scf_loop_print(qs_env,scf_env,para_env,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_scf_env_type), POINTER           :: scf_env
-    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -1069,7 +1072,7 @@ END SUBROUTINE qs_scf_print_summary
            dft_section,"PRINT%AO_MATRICES/DENSITY",error=error),cp_p_file)) THEN
          iw = cp_print_key_unit_nr(logger,dft_section,"PRINT%AO_MATRICES/DENSITY",&
               extension=".Log",error=error)
-         CALL write_sparse_matrix(matrix_p(ispin)%matrix,4,6,qs_env,globenv,output_unit=iw)
+         CALL write_sparse_matrix(matrix_p(ispin)%matrix,4,6,qs_env,para_env,output_unit=iw)
          CALL cp_print_key_finished_output(iw,logger,dft_section,&
               "PRINT%AO_MATRICES/DENSITY", error=error)
       END IF
@@ -1079,10 +1082,10 @@ END SUBROUTINE qs_scf_print_summary
          iw = cp_print_key_unit_nr(logger,dft_section,"PRINT%AO_MATRICES/KOHN_SHAM_MATRIX",&
               extension=".Log",error=error)
          IF (dft_control%qs_control%semi_empirical) THEN
-            CALL write_sparse_matrix(matrix_ks(ispin)%matrix,4,6,qs_env,globenv,&
+            CALL write_sparse_matrix(matrix_ks(ispin)%matrix,4,6,qs_env,para_env,&
                  scale=evolt,output_unit=iw)
          ELSE
-            CALL write_sparse_matrix(matrix_ks(ispin)%matrix,4,6,qs_env,globenv,output_unit=iw)
+            CALL write_sparse_matrix(matrix_ks(ispin)%matrix,4,6,qs_env,para_env,output_unit=iw)
          END IF
          CALL cp_print_key_finished_output(iw,logger,dft_section,&
               "PRINT%AO_MATRICES/KOHN_SHAM_MATRIX", error=error)
@@ -1388,6 +1391,7 @@ END SUBROUTINE qs_scf_print_summary
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
@@ -1403,6 +1407,7 @@ END SUBROUTINE qs_scf_print_summary
     failure=.FALSE.
     my_transition_potential = .FALSE.
     logger => cp_error_get_logger(error)
+    para_env=>globenv%para_env
     
     CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -1484,7 +1489,7 @@ END SUBROUTINE qs_scf_print_summary
             qs_env%input,"DFT%PRINT%AO_MATRICES/ORTHO",error=error),cp_p_file)) THEN
           iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/ORTHO",&
                extension=".Log",error=error)
-          CALL write_fm_with_basis_info(scf_env%ortho,4,6,qs_env,globenv,output_unit=iw)
+          CALL write_fm_with_basis_info(scf_env%ortho,4,6,qs_env,para_env,output_unit=iw)
           CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
                "DFT%PRINT%AO_MATRICES/ORTHO", error=error)
        END IF

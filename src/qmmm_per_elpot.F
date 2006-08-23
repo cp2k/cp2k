@@ -27,8 +27,8 @@ MODULE qmmm_per_elpot
   USE cell_types,                      ONLY: cell_type
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_should_output
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE ewald_spline_util,               ONLY: Setup_Ewald_Spline
-  USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: do_qmmm_gauss,&
                                              do_qmmm_grid
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
@@ -78,7 +78,7 @@ CONTAINS
 !!
 !!*** ********************************************************************** 
   SUBROUTINE qmmm_per_potential_init(qmmm_coupl_type, per_potentials, potentials,&
-    pgfs, qm_cell_small, mm_cell, globenv, compatibility, qmmm_periodic, print_section,&
+    pgfs, qm_cell_small, mm_cell, para_env, compatibility, qmmm_periodic, print_section,&
     eps_mm_rspace, maxchrg, ncp, ncpl, error)
     INTEGER, INTENT(IN)                      :: qmmm_coupl_type
     TYPE(qmmm_per_pot_p_type), &
@@ -88,7 +88,7 @@ CONTAINS
     TYPE(qmmm_gaussian_p_type), &
       DIMENSION(:), POINTER                  :: pgfs
     TYPE(cell_type), POINTER                 :: qm_cell_small, mm_cell
-    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_para_env_type), POINTER          :: para_env
     LOGICAL, INTENT(IN)                      :: compatibility
     TYPE(section_vals_type), POINTER         :: qmmm_periodic, print_section
     REAL(KIND=dp), INTENT(IN)                :: eps_mm_rspace, maxchrg
@@ -233,14 +233,14 @@ CONTAINS
        CALL qmmm_per_pot_type_create(per_potentials(K)%Pot, LG=LG, gx=gx, gy=gy, gz=gz,&
                                      Gmax=Gmax, Kmax=Kmax, n_rep_real=n_rep_real,&
                                      Fac=Fac, mm_atom_index=mm_atom_index, &
-                                     qm_cell=qm_cell_small, mm_cell=mm_cell, globenv=globenv,&
+                                     qm_cell=qm_cell_small, mm_cell=mm_cell, para_env=para_env,&
                                      qmmm_per_section=qmmm_periodic, print_section=print_section,&
                                      error=error)
 
        IF (BTEST(cp_print_key_should_output(logger%iter_info,print_pot,error=error),&
             cp_p_file).AND.logger%para_env%mepos==logger%para_env%source) THEN
-          IF (globenv%para_env%ionode) THEN
-             iw = globenv%scr
+          IF (para_env%ionode) THEN
+             iw = 1111111 ! globenv%scr
              npt = REAL(ncoarset,KIND=dp)*REAL(ndim,KIND=dp)*REAL(SIZE(mm_atom_index),KIND=dp)
              npl = REAL(ncoarsel,KIND=dp)*REAL(ndim,KIND=dp)*REAL(SIZE(mm_atom_index),KIND=dp)
              WRITE (UNIT=iw,FMT="(/,T2,A)") REPEAT("-",79)
@@ -284,7 +284,7 @@ CONTAINS
 !!
 !!*** ********************************************************************** 
   SUBROUTINE qmmm_per_pot_type_create(Pot, LG, gx, gy, gz, GMax, Kmax, n_rep_real,&
-       Fac, mm_atom_index, qm_cell, mm_cell, globenv, qmmm_per_section, print_section,&
+       Fac, mm_atom_index, qm_cell, mm_cell, para_env, qmmm_per_section, print_section,&
        error)
     TYPE(qmmm_per_pot_type), POINTER         :: Pot
     REAL(KIND=dp), DIMENSION(:), POINTER     :: LG, gx, gy, gz
@@ -293,7 +293,7 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: Fac(3)
     INTEGER, DIMENSION(:), POINTER           :: mm_atom_index
     TYPE(cell_type), POINTER                 :: qm_cell, mm_cell
-    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: qmmm_per_section, &
                                                 print_section
     TYPE(cp_error_type), INTENT(inout), &
@@ -332,7 +332,7 @@ CONTAINS
        grid_print_section=> section_vals_get_subs_vals(print_section,"GRID_INFORMATION",error=error)
        CALL Setup_Ewald_Spline(pw_grid=Pot%pw_grid, pw_pool=Pot%pw_pool, coeff=Pot%TabLR,&
             LG=LG, gx=gx, gy=gy, gz=gz, hmat=hmat, npts=npts, param_section=qmmm_per_section,&
-            tag="qmmm",para_env=globenv%para_env, print_section=grid_print_section,error=error)
+            tag="qmmm",para_env=para_env, print_section=grid_print_section,error=error)
 
     END IF
 

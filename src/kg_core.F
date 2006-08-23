@@ -26,9 +26,9 @@ MODULE kg_core
                                              scaled_to_real
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE erf_fn,                          ONLY: erfc
-  USE global_types,                    ONLY: global_environment_type
   USE kg_energy_types,                 ONLY: kg_energy_type
   USE kg_environment_types,            ONLY: get_kg_env,&
                                              kg_environment_type
@@ -68,14 +68,14 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE calculate_ecore_rspace(kg_env,globenv,calculate_forces,error)
+  SUBROUTINE calculate_ecore_rspace(kg_env,para_env,calculate_forces,error)
 
     ! Purpose: Calculate the overlap energy of the core charge distribution.
 
     ! *************************************************************************
 
     TYPE(kg_environment_type), POINTER       :: kg_env
-    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_para_env_type), POINTER          :: para_env
     LOGICAL, INTENT(IN)                      :: calculate_forces
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -128,7 +128,7 @@ CONTAINS
     NULLIFY (subcell)
     NULLIFY (list)
 
-    group = globenv%para_env%group
+    group = para_env%group
 
     ! Set Verlet skin
 

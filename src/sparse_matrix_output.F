@@ -30,8 +30,10 @@ MODULE sparse_matrix_output
                                              cp_fm_get_submatrix,&
                                              cp_fm_type
   USE cp_output_handling,              ONLY: cp_p_file,&
-                                             cp_print_key_should_output
-  USE global_types,                    ONLY: global_environment_type
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
+                                             cp_print_key_unit_nr
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp,&
                                              int_size
@@ -72,7 +74,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE write_fm_with_basis_info(blacs_matrix,before,after,qs_env,globenv,&
+  SUBROUTINE write_fm_with_basis_info(blacs_matrix,before,after,qs_env,para_env,&
                                       first_row,last_row,first_col,last_col,output_unit)
 
 !   Purpose: Print a spherical matrix of blacs type.
@@ -85,7 +87,7 @@ CONTAINS
     TYPE(cp_fm_type), POINTER                :: blacs_matrix
     INTEGER, INTENT(IN)                      :: before, after
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER, INTENT(IN), OPTIONAL            :: first_row, last_row, &
                                                 first_col, last_col
     INTEGER, INTENT(IN)                      :: output_unit
@@ -102,7 +104,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    group = globenv%para_env%group
+    group = para_env%group
     IF (.NOT.ASSOCIATED(blacs_matrix)) RETURN
     CALL cp_fm_get_info(blacs_matrix,name=matrix_name,&
             nrow_global=nrow_global,ncol_global=ncol_global)
@@ -140,7 +142,7 @@ CONTAINS
       col2 = nsgf
     END IF
 
-    CALL write_matrix(matrix,matrix_name,before,after,qs_env,globenv,&
+    CALL write_matrix(matrix,matrix_name,before,after,qs_env,para_env,&
                       row1,row2,col1,col2,output_unit)
 
 !   *** Release work storage ***
@@ -155,7 +157,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE write_matrix(matrix,matrix_name,before,after,qs_env,globenv,&
+  SUBROUTINE write_matrix(matrix,matrix_name,before,after,qs_env,para_env,&
                           first_row,last_row,first_col,last_col,output_unit)
 
 !   Purpose: Write a matrix or a sub-matrix to the output unit.
@@ -168,7 +170,7 @@ CONTAINS
     CHARACTER(LEN=*), INTENT(IN)             :: matrix_name
     INTEGER, INTENT(IN)                      :: before, after
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER, INTENT(IN)                      :: first_row, last_row, &
                                                 first_col, last_col, &
                                                 output_unit
@@ -191,7 +193,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    group = globenv%para_env%group
+    group = para_env%group
 
     IF (output_unit>0) THEN
       CALL m_flush(output_unit)
@@ -279,7 +281,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE write_matrix_distribution(matrix,force_env_section,globenv,error)
+  SUBROUTINE write_matrix_distribution(matrix,force_env_section,para_env,error)
 
 !   Purpose: Print the distribution of a sparse matrix.
 
@@ -289,7 +291,7 @@ CONTAINS
 
     TYPE(real_matrix_type), POINTER          :: matrix
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -313,11 +315,12 @@ CONTAINS
     IF (.NOT.BTEST(cp_print_key_should_output(logger%iter_info,&
          force_env_section,"PRINT%DISTRIBUTION",error=error),cp_p_file)) RETURN
 
-    group = globenv%para_env%group
-    ionode = globenv%para_env%ionode
-    mype = globenv%para_env%mepos + 1
-    npe = globenv%para_env%num_pe
-    output_unit = globenv%scr
+    group = para_env%group
+    ionode = para_env%ionode
+    mype = para_env%mepos + 1
+    npe = para_env%num_pe
+    output_unit = cp_print_key_unit_nr(logger,force_env_section,"PRINT%DISTRIBUTION",&
+                        extension=".distribution",error=error)
 
 !   *** Allocate work storage ***
 
@@ -367,6 +370,9 @@ CONTAINS
         " of",nblock_tot," (",occupation," % occupation)"
     END IF
 
+    CALL cp_print_key_finished_output(output_unit,logger,force_env_section,"PRINT%DISTRIBUTION",&
+                        error=error)
+
 !   *** Release work storage ***
 
     DEALLOCATE (nblock,STAT=istat)
@@ -381,7 +387,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE write_sparse_matrix(sparse_matrix,before,after,qs_env,globenv,&
+  SUBROUTINE write_sparse_matrix(sparse_matrix,before,after,qs_env,para_env,&
                                  first_row,last_row,first_col,last_col,scale,&
                                  output_unit)
 
@@ -395,7 +401,7 @@ CONTAINS
     TYPE(real_matrix_type), POINTER          :: sparse_matrix
     INTEGER, INTENT(IN)                      :: before, after
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER, INTENT(IN), OPTIONAL            :: first_row, last_row, &
                                                 first_col, last_col
     REAL(dp), INTENT(IN), OPTIONAL           :: scale
@@ -413,7 +419,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    group = globenv%para_env%group
+    group = para_env%group
 
     CALL get_matrix_info(matrix=sparse_matrix,&
                          matrix_name=matrix_name,&
@@ -429,7 +435,7 @@ CONTAINS
       CALL symmetrize_matrix(matrix,"anti_upper_to_lower")
     ELSE IF (matrix_symmetry /= "none") THEN
       CALL stop_program(routineN,moduleN,__LINE__,&
-                        "Invalid matrix structure",globenv)
+                        "Invalid matrix structure",para_env)
     END IF
 
     CALL mp_sum(matrix,group)
@@ -467,7 +473,7 @@ CONTAINS
       matrix=matrix*scale
     END IF
 
-    CALL write_matrix(matrix,matrix_name,before,after,qs_env,globenv,&
+    CALL write_matrix(matrix,matrix_name,before,after,qs_env,para_env,&
                       row1,row2,col1,col2, output_unit)
 
     IF (ASSOCIATED(matrix)) THEN

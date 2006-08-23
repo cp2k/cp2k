@@ -175,6 +175,7 @@ CONTAINS
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(mol_kind_new_list_type), POINTER    :: mol_kinds
     TYPE(mol_new_list_type), POINTER         :: mols
     TYPE(molecule_kind_type), DIMENSION(:), &
@@ -190,6 +191,7 @@ CONTAINS
     failure=.FALSE.
     NULLIFY(mol_kinds,mols,particles,atomic_kinds, atomic_kind_set, particle_set, &
          molecule_kind_set,molecule_set,particles,atomic_kinds,subsys_section)
+    para_env=>globenv%para_env
 
     CPPrecondition(.NOT.ASSOCIATED(small_subsystem),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(big_subsys),cp_failure_level,routineP,error,failure)
@@ -271,7 +273,7 @@ CONTAINS
        ! 7. Pack everything into the molecular types
        !-----------------------------------------------------------------------------
        CALL topology_connectivity_pack(molecule_kind_set,molecule_set,&
-            topology,globenv,subsys_section=subsys_section,error=error)
+            topology,para_env,subsys_section=subsys_section,error=error)
 
 
        !-----------------------------------------------------------------------------
@@ -279,7 +281,7 @@ CONTAINS
        ! 8. Pack everything into the atomic types
        !-----------------------------------------------------------------------------
        CALL topology_coordinate_pack(particle_set,atomic_kind_set,&
-            molecule_kind_set,molecule_set,topology,globenv,subsys_section=subsys_section,&
+            molecule_kind_set,molecule_set,topology,para_env,subsys_section=subsys_section,&
             force_env_section=force_env_section,error=error)
 
        !-----------------------------------------------------------------------------

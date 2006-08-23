@@ -29,6 +29,7 @@ MODULE fist_force
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_units,                        ONLY: cp_unit_from_cp2k
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE ewald_environment_types,         ONLY: ewald_env_get,&
@@ -141,6 +142,7 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv,  debug , force_env_se
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(distribution_1d_type), POINTER      :: local_molecules, &
                                                 local_particles
     TYPE(ewald_environment_type), POINTER    :: ewald_env
@@ -159,6 +161,7 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv,  debug , force_env_se
   failure = .FALSE.
   NULLIFY(logger)
   logger => cp_error_get_logger(error)
+  para_env=>globenv%para_env
 
   NULLIFY(fist_section,thermo,particle_set,local_molecules,local_particles,atomic_kind_set,&
           molecule_kind_set,molecule_set,fist_nonbond_env,cell,ewald_pw,ewald_env,fist_section,print_section)
@@ -228,11 +231,11 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv,  debug , force_env_se
   END IF
 
 !  compute density for EAM 
-  CALL density_nonbond ( fist_nonbond_env, particle_set, cell, globenv )
+  CALL density_nonbond ( fist_nonbond_env, particle_set, cell, para_env )
 
 ! compute embedding function and manybody energy 
   CALL energy_manybody ( fist_nonbond_env, atomic_kind_set, &
-                         local_particles, particle_set, pot_manybody, globenv )
+                         local_particles, particle_set, pot_manybody, para_env )
 
 ! nonbond contribution + manybody forces
   CALL force_nonbond ( fist_nonbond_env, particle_set, cell, &
@@ -266,7 +269,7 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv,  debug , force_env_se
         fg_coulomb = 0.0_dp
         CALL pme_evaluate ( ewald_env, ewald_pw, cell, particle_set, &
                             vg_coulomb, fg_coulomb, pv_g , force_env_section, error)
-        CALL mp_sum ( fg_coulomb, globenv%para_env%group ) 
+        CALL mp_sum ( fg_coulomb, para_env%group ) 
      CASE ( do_ewald_spme )
         ! Parallelisation over grids --> allocate all atoms
         ALLOCATE ( fg_coulomb ( 3, natoms ), STAT=stat )
@@ -274,15 +277,15 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv,  debug , force_env_se
         fg_coulomb = 0.0_dp
         CALL spme_evaluate ( ewald_env, ewald_pw, cell, particle_set, &
                              fg_coulomb, vg_coulomb, pv_g, force_env_section, error)
-        CALL mp_sum ( fg_coulomb, globenv%para_env%group ) 
+        CALL mp_sum ( fg_coulomb, para_env%group ) 
         
      END SELECT
 
      CALL bonded_correct_gaussian ( atomic_kind_set, local_particles, &
                                     particle_set, ewald_env, &
                                     thermo % e_bonded, pv_bc )
-     IF ( ( first_time ) .AND. ( globenv%para_env%ionode ) ) &
-     CALL ewald_print ( globenv % scr, cell, vg_coulomb, &
+     IF ( ( first_time ) .AND. ( para_env%ionode ) ) &
+     CALL ewald_print ( globenv%scr, cell, vg_coulomb, &
                        thermo % e_self, thermo % e_neut, thermo % e_bonded )
 
   END IF
@@ -331,7 +334,7 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv,  debug , force_env_se
 !
   thermo % pot = pot_nonbond + pot_bond + pot_bend + pot_torsion + pot_onef + &
                  pot_imptors + pot_urey_bradley + pot_manybody
-  CALL mp_sum ( thermo % pot, globenv%para_env%group )
+  CALL mp_sum ( thermo % pot, para_env%group )
 !
 ! add g-space contributions if needed
   IF ( ewald_type /= do_ewald_none ) THEN
@@ -397,7 +400,7 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv,  debug , force_env_se
   IF ( ewald_type == do_ewald_none ) THEN
      virial % pv_virial = pv_nonbond + pv_bond + pv_bend + &
                           pv_torsion + pv_imptors + pv_urey_bradley
-     CALL mp_sum ( virial % pv_virial, globenv%para_env%group )
+     CALL mp_sum ( virial % pv_virial, para_env%group )
   ELSE
      ident = 0.0_dp
      DO i = 1, 3
@@ -407,7 +410,7 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv,  debug , force_env_se
      virial % pv_virial = pv_nonbond + pv_bond + pv_bend + &
                           pv_torsion + pv_imptors + pv_urey_bradley +pv_bc
 
-     CALL mp_sum ( virial % pv_virial, globenv%para_env%group )
+     CALL mp_sum ( virial % pv_virial, para_env%group )
 
      virial % pv_virial = virial % pv_virial + &
                           ident * thermo % e_neut / cell % deth
@@ -415,7 +418,7 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv,  debug , force_env_se
   END IF
 
 ! Sum total forces
-  CALL mp_sum ( f_total, globenv%para_env%group )
+  CALL mp_sum ( f_total, para_env%group )
 
 ! Assign to particle_set
   SELECT CASE ( ewald_type )
@@ -443,35 +446,35 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv,  debug , force_env_se
 !
 
   IF ( PRESENT ( debug )  ) THEN
-     CALL mp_sum ( pot_nonbond, globenv%para_env%group )
+     CALL mp_sum ( pot_nonbond, para_env%group )
      debug % pot_nonbond = pot_nonbond
-     CALL mp_sum ( pot_bond, globenv%para_env%group )
+     CALL mp_sum ( pot_bond, para_env%group )
      debug % pot_bond = pot_bond
-     CALL mp_sum ( pot_bend, globenv%para_env%group )
+     CALL mp_sum ( pot_bend, para_env%group )
      debug % pot_bend = pot_bend
-     CALL mp_sum ( pot_torsion, globenv%para_env%group )
+     CALL mp_sum ( pot_torsion, para_env%group )
      debug % pot_torsion = pot_torsion
-     CALL mp_sum ( pot_imptors, globenv%para_env%group )
+     CALL mp_sum ( pot_imptors, para_env%group )
      debug % pot_imptors = pot_imptors
-     CALL mp_sum ( pot_onef, globenv%para_env%group )
+     CALL mp_sum ( pot_onef, para_env%group )
      debug % pot_onef = pot_onef
-     CALL mp_sum ( pot_urey_bradley, globenv%para_env%group )
+     CALL mp_sum ( pot_urey_bradley, para_env%group )
      debug % pot_urey_bradley = pot_urey_bradley
-     CALL mp_sum ( f_nonbond, globenv%para_env%group )
+     CALL mp_sum ( f_nonbond, para_env%group )
      debug % f_nonbond = f_nonbond
-     CALL mp_sum ( pv_nonbond, globenv%para_env%group )
+     CALL mp_sum ( pv_nonbond, para_env%group )
      debug % pv_nonbond = pv_nonbond
-     CALL mp_sum ( pv_bond, globenv%para_env%group )
+     CALL mp_sum ( pv_bond, para_env%group )
      debug % pv_bond = pv_bond
-     CALL mp_sum ( pv_bend, globenv%para_env%group )
+     CALL mp_sum ( pv_bend, para_env%group )
      debug % pv_bend = pv_bend
-     CALL mp_sum ( pv_torsion, globenv%para_env%group )
+     CALL mp_sum ( pv_torsion, para_env%group )
      debug % pv_torsion = pv_torsion
-     CALL mp_sum ( pv_imptors, globenv%para_env%group )
+     CALL mp_sum ( pv_imptors, para_env%group )
      debug % pv_imptors = pv_imptors
-     CALL mp_sum ( pv_onef, globenv%para_env%group )
+     CALL mp_sum ( pv_onef, para_env%group )
      debug % pv_onef = pv_onef
-     CALL mp_sum ( pv_urey_bradley, globenv%para_env%group )
+     CALL mp_sum ( pv_urey_bradley, para_env%group )
      debug % pv_ub = pv_urey_bradley
      SELECT CASE ( ewald_type )
      CASE ( do_ewald_spme, do_ewald_pme )

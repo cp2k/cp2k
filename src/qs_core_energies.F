@@ -35,7 +35,6 @@ MODULE qs_core_energies
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE erf_fn,                          ONLY: erfc
-  USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp,&
                                              dp_size,&
                                              int_size
@@ -168,7 +167,7 @@ CONTAINS
 
   ! ***************************************************************************
 
-  SUBROUTINE calculate_ecore_overlap(qs_env,globenv,calculate_forces,molecular, &
+  SUBROUTINE calculate_ecore_overlap(qs_env,para_env,calculate_forces,molecular, &
                                      E_overlap_core,error)
 
     ! Purpose: Calculate the overlap energy of the core charge distribution.
@@ -181,7 +180,7 @@ CONTAINS
     ! *************************************************************************
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_para_env_type), POINTER          :: para_env
     LOGICAL, INTENT(IN)                      :: calculate_forces
     LOGICAL, INTENT(IN), OPTIONAL            :: molecular
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: E_overlap_core
@@ -241,7 +240,7 @@ CONTAINS
     NULLIFY (particle_set)
     NULLIFY (subcell)
 
-    group = globenv%para_env%group
+    group = para_env%group
 
     only_molecule = .FALSE.
     IF (PRESENT(molecular)) only_molecule = molecular

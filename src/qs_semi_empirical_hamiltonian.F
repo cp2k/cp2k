@@ -27,7 +27,6 @@ MODULE qs_semi_empirical_hamiltonian
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp
   USE nddo_methods,                    ONLY: build_nddo_fock_matrix
   USE particle_types,                  ONLY: particle_type
@@ -75,10 +74,10 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE build_se_core_matrix(qs_env,globenv,calculate_forces,error)
+  SUBROUTINE build_se_core_matrix(qs_env,para_env,calculate_forces,error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_para_env_type), POINTER          :: para_env
     LOGICAL, INTENT(IN)                      :: calculate_forces
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -103,7 +102,6 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: sab_orb
@@ -128,17 +126,16 @@ CONTAINS
 
      ! calculate overlap matrix
      IF(calculate_forces) THEN
-       CALL build_overlap_matrix(qs_env=qs_env,globenv=globenv,nderivative=1,error=error)
+       CALL build_overlap_matrix(qs_env=qs_env,para_env=para_env,nderivative=1,error=error)
      ELSE
-       CALL build_overlap_matrix(qs_env=qs_env,globenv=globenv,error=error)
+       CALL build_overlap_matrix(qs_env=qs_env,para_env=para_env,error=error)
      END IF
 
      CALL get_qs_env(qs_env=qs_env,&
                      matrix_h=matrix_h,&
                      matrix_s=matrix_s,&
                      atomic_kind_set=atomic_kind_set,&
-                     dft_control=dft_control,&
-                     para_env=para_env)
+                     dft_control=dft_control)
 
      IF(calculate_forces) THEN
        CALL get_qs_env(qs_env=qs_env,&
@@ -273,7 +270,7 @@ CONTAINS
                  SELECT CASE (dft_control%qs_control%method)
                     CASE DEFAULT
                       CALL stop_program(routineN,moduleN,__LINE__,&
-                                      "Method not available",globenv)
+                                      "Method not available",para_env)
                     CASE ("EHT")
                       DO i=1,SIZE(h_blocka,1)
                         h_blocka(i,i)=h_blocka(i,i)+ha(i)
@@ -382,7 +379,7 @@ CONTAINS
          qs_env%input,"DFT%PRINT%AO_MATRICES/CORE_HAMILTONIAN",error=error),cp_p_file)) THEN
        iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/CORE_HAMILTONIAN",&
             extension=".Log",error=error)
-       CALL write_sparse_matrix(matrix_h(1)%matrix,4,6,qs_env,globenv,&
+       CALL write_sparse_matrix(matrix_h(1)%matrix,4,6,qs_env,para_env,&
              scale=evolt,output_unit=iw)
        CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
             "DFT%PRINT%AO_MATRICES/CORE_HAMILTONIAN", error=error)

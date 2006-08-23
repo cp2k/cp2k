@@ -32,6 +32,7 @@ MODULE bfgs_optimizer
                                              cp_print_key_finished_output,&
                                              cp_print_key_unit_nr,&
                                              cp_rm_iter_level
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsystem_p_type
   USE force_env_types,                 ONLY: force_env_get,&
@@ -109,6 +110,7 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
     TYPE(particle_list_type), POINTER        :: particles
@@ -117,11 +119,12 @@ CONTAINS
 
     NULLIFY(logger, g)
     logger => cp_error_get_logger(error)
+    para_env=>globenv%para_env
 
     CALL cp_add_iter_level(logger%iter_info,"GEO_OPT",ihandle,error)
     CALL timeset(routineN,"I","",handle)
 
-    ionode      = globenv%para_env%mepos==globenv%para_env%source
+    ionode      = para_env%mepos==para_env%source
     maxiter     = gopt_param%max_iter
     hesrest     = gopt_param%hesrest
     conv        = .FALSE.
@@ -216,7 +219,7 @@ CONTAINS
     CALL cp_eval_at(gopt_env, x0, etot, g, gopt_env%force_env%para_env%mepos,&
             gopt_env%force_env%para_env, force_env_section, error)
     !MK Hm, it seems that here only the root process has the correct gradient for all atoms
-    CALL mp_bcast(g,globenv%para_env%source,globenv%para_env%group)
+    CALL mp_bcast(g,para_env%source,para_env%group)
     CALL apply_fixed_atom_constraint(force_env,g)
 
     ! Print info at time 0
@@ -290,7 +293,7 @@ CONTAINS
              END IF
 
           END IF
-          CALL mp_bcast(hes,globenv%para_env%source,globenv%para_env%group)        
+          CALL mp_bcast(hes,para_env%source,para_env%group)        
        ELSE IF( it > 1 ) THEN        
           DO indf = 1, ndf
              dx(indf) = x0(indf) - xold(indf)
@@ -339,7 +342,7 @@ CONTAINS
        CALL cp_eval_at(gopt_env, x0, etot, g, gopt_env%force_env%para_env%mepos,&
             gopt_env%force_env%para_env, force_env_section, error)
        !MK Hm, it seems that here only the root process has the correct gradient for all atoms
-       CALL mp_bcast(g,globenv%para_env%source,globenv%para_env%group)
+       CALL mp_bcast(g,para_env%source,para_env%group)
        CALL apply_fixed_atom_constraint(force_env,g)
        ediff = etot - eold
 

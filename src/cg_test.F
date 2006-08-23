@@ -60,7 +60,7 @@ SUBROUTINE clebsch_gordon_test ( globenv )
                                                 tend, tstart
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: b1, b2, b3, wa
 
-  iw =globenv % scr
+  iw =globenv%scr
 
   IF ( globenv%para_env%ionode ) THEN
 

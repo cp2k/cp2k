@@ -34,8 +34,7 @@ MODULE global_types
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE input_section_types,             ONLY: section_vals_release,&
                                              section_vals_type
-  USE kinds,                           ONLY: default_path_length,&
-                                             default_string_length,&
+  USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE machine,                         ONLY: m_walltime
   USE parallel_rng_types,              ONLY: delete_rng_stream,&
@@ -78,8 +77,7 @@ MODULE global_types
 
   ! Public subroutines
 
-  PUBLIC :: cp_para_env_from_globenv,&
-            globenv_create,&
+  PUBLIC :: globenv_create,&
             globenv_retain,&
             globenv_release
 
@@ -180,7 +178,7 @@ CONTAINS
        last_globenv_id=last_globenv_id+1
        globenv%id_nr=last_globenv_id
        globenv%ref_count=1
-       globenv%para_env=> para_env
+       globenv%para_env => para_env
        globenv%close_output_unit=.FALSE.
        IF(PRESENT(close_output_unit))globenv%close_output_unit=close_output_unit
        CALL cp_para_env_retain(para_env,error=error)
@@ -269,7 +267,7 @@ SUBROUTINE globenv_release(globenv, error)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: stat
-    LOGICAL                                  :: failure,was_ionode
+    LOGICAL                                  :: failure, was_ionode
 
   failure=.FALSE.
   
@@ -292,45 +290,6 @@ SUBROUTINE globenv_release(globenv, error)
   END IF
   NULLIFY(globenv)
 END SUBROUTINE globenv_release
-!***************************************************************************
-
-!!****f* global_types/cp_para_env_from_globenv [1.0] *
-!!
-!!   NAME
-!!     cp_para_env_from_globenv
-!!
-!!   FUNCTION
-!!     returns the parallel environment stored in the global environment
-!!     gives a warning if not initialized
-!!
-!!   NOTES
-!!     -
-!!
-!!   INPUTS
-!!     - globenv: the global environment that contains the para_env
-!!     - error: variable to control error logging, stopping,... 
-!!       see module cp_error_handling 
-!!
-!!   AUTHOR
-!!     Fawzi Mohamed
-!!
-!!*** **********************************************************************
-FUNCTION cp_para_env_from_globenv(globenv, error) RESULT(res)
-    TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-    TYPE(cp_para_env_type), POINTER          :: res
-
-    CHARACTER(len=*), PARAMETER :: routineN = 'cp_para_env_from_globenv', &
-      routineP = moduleN//':'//routineN
-
-    LOGICAL                                  :: failure
-
-  failure=.FALSE.
-  
-  CPPrecondition(ASSOCIATED(globenv%para_env),cp_failure_level,routineP,error,failure)
-  res => globenv%para_env
-END FUNCTION cp_para_env_from_globenv
 !***************************************************************************
 
 END MODULE global_types

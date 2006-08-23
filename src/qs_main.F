@@ -27,6 +27,7 @@
 
 MODULE qs_main
   USE cell_types,                      ONLY: cell_type
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsystem_types,              ONLY: cp_subsystem_type
   USE force_env_methods,               ONLY: force_env_create
   USE force_env_types,                 ONLY: force_env_p_type,&
@@ -97,15 +98,17 @@ CONTAINS
 
     INTEGER                                  :: handle
     LOGICAL                                  :: failure
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(force_env_p_type), DIMENSION(:), &
       POINTER                                :: sub_force_env
     TYPE(qs_environment_type), POINTER       :: qs_env
 
     CALL timeset(routineN,"I","",handle)
+    para_env=>globenv%para_env
     failure = .FALSE.
     NULLIFY(qs_env, sub_force_env)
     !Reference qs_env 
-    CALL qs_env_create(qs_env,globenv%para_env)
+    CALL qs_env_create(qs_env,para_env)
     CALL qs_init( qs_env, globenv, subsystem=subsystem, cell=cell, cell_ref=cell_ref,&
                   qmmm=qmmm, qmmm_periodic=qmmm_periodic,&
                   force_env_section=force_env_section, error=error )

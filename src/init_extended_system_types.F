@@ -22,6 +22,7 @@
 MODULE init_extended_system_types
 
   USE cell_types,                      ONLY: cell_type
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_type
   USE extended_system_types,           ONLY: lnhc_parameters_type,&
@@ -345,6 +346,7 @@ CONTAINS
                                                 nconstraint, nfree
     LOGICAL                                  :: explicit, restart
     REAL(KIND=dp), DIMENSION(:), POINTER     :: buffer
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: work_section2
 
 !------------------------------------------------------------------------------
@@ -354,6 +356,7 @@ CONTAINS
 ! multiple thermostats etc...simpar % nfree will be set
 ! to zero in nhc_particle_setup.f)
 
+    para_env=>globenv%para_env
     NULLIFY(buffer, work_section2)
     simpar % nfree = 6 - SUM ( box % perd ( 1:3 ) )
     explicit = .FALSE.
@@ -446,8 +449,8 @@ CONTAINS
 
     nfree = 3*natom - nconstraint - simpar%nfree
 
-    IF (globenv%para_env%ionode.AND.globenv%print_level > 2) THEN
-       iw = globenv % scr
+    IF (para_env%ionode.AND.globenv%print_level > 2) THEN
+       iw = globenv%scr
        WRITE ( iw, '( /, A )' ) ' Calculation of degrees of freedom'
        WRITE ( iw, '( T48, A, T71, I10 )' ) '       Number of atoms:', natom
        WRITE ( iw, '( T48, A, T71, I10 )' ) ' Number of constraints:', nconstraint

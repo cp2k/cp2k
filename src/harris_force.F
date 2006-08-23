@@ -35,6 +35,7 @@ MODULE harris_force
                                              coeff_transform_space,&
                                              coeff_type
   USE cp_control_types,                ONLY: dft_control_type
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE global_types,                    ONLY: global_environment_type
   USE harris_env_types,                ONLY: harris_env_get,&
                                              harris_env_type
@@ -156,6 +157,7 @@ CONTAINS
                                                 v_tau_rspace
     TYPE(coeff_type), POINTER                :: rho_core
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(harris_force_type), POINTER         :: harris_force
     TYPE(particle_type), DIMENSION(:), &
@@ -184,6 +186,7 @@ CONTAINS
             pw_env, auxbas_pw_pool, rho_core, cell, dft_control, xc_section, &
             atomic_kind_set, particle_set, deriv_set, rho_set, my_rho_r, &
             v_xc, matrix_h, harris_force, rho_r, ks_env, poisson_env, input)
+    para_env=>globenv%para_env
     logger => cp_error_get_logger(error)
 
     CPPrecondition(ASSOCIATED(qs_env), cp_failure_level, routineP, error, failure)
@@ -227,16 +230,16 @@ CONTAINS
       CALL build_core_hamiltonian_matrix(qs_env=qs_env, globenv=globenv, &
                                          calculate_forces=.TRUE.,error=error)
       CALL calculate_ecore_self(qs_env)
-      CALL calculate_ecore_overlap(qs_env, globenv, &
+      CALL calculate_ecore_overlap(qs_env, para_env, &
                                            calculate_forces=.TRUE.,&
                                            error=error)
 
       DO ikind = 1,SIZE(force)
-        CALL mp_sum(force(ikind)%kinetic, globenv%para_env%group)
-        CALL mp_sum(force(ikind)%overlap, globenv%para_env%group)
-        CALL mp_sum(force(ikind)%gth_ppl, globenv%para_env%group)
-        CALL mp_sum(force(ikind)%gth_ppnl, globenv%para_env%group)
-        CALL mp_sum(force(ikind)%core_overlap, globenv%para_env%group)
+        CALL mp_sum(force(ikind)%kinetic, para_env%group)
+        CALL mp_sum(force(ikind)%overlap, para_env%group)
+        CALL mp_sum(force(ikind)%gth_ppl, para_env%group)
+        CALL mp_sum(force(ikind)%gth_ppnl, para_env%group)
+        CALL mp_sum(force(ikind)%core_overlap, para_env%group)
       END DO
 
       DO iatom = 1, natom
@@ -290,7 +293,7 @@ CONTAINS
       END DO
 
       DO ikind = 1,SIZE(force)
-        CALL mp_sum(force(ikind)%rho_elec, globenv%para_env%group)
+        CALL mp_sum(force(ikind)%rho_elec, para_env%group)
       END DO
 
       DO iatom = 1, natom
@@ -378,7 +381,7 @@ CONTAINS
       END IF
 
       DO ikind = 1,SIZE(force)
-        CALL mp_sum(force(ikind)%rho_elec, globenv%para_env%group)
+        CALL mp_sum(force(ikind)%rho_elec, para_env%group)
       END DO
 
       DO iatom = 1, natom
@@ -422,7 +425,7 @@ CONTAINS
       CALL pw_pool_give_back_coeff(auxbas_pw_pool, v_hartree_rspace, error=error)
 
       DO ikind = 1,SIZE(force)
-        CALL mp_sum(force(ikind)%rho_core, globenv%para_env%group)
+        CALL mp_sum(force(ikind)%rho_core, para_env%group)
       END DO
       
       DO iatom = 1, natom
@@ -536,6 +539,7 @@ CONTAINS
                                                 v_tau_rspace
     TYPE(coeff_type), POINTER                :: rho_core
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(harris_force_type), POINTER         :: harris_force
     TYPE(particle_type), DIMENSION(:), &
@@ -557,6 +561,7 @@ CONTAINS
 !   ------------------------------------------------------------------------
 
     CALL timeset(routineN, "I", "", handle)
+    para_env=>globenv%para_env
 
     failure = .FALSE.
     NULLIFY(force, force_tmp, v_rspace_new, v_tau_rspace, rho, matrix_ks, &
@@ -607,10 +612,10 @@ CONTAINS
                                          calculate_forces=.TRUE.,error=error)
 
       DO ikind = 1,SIZE(force)
-        CALL mp_sum(force(ikind)%kinetic, globenv%para_env%group)
-        CALL mp_sum(force(ikind)%overlap, globenv%para_env%group)
-        CALL mp_sum(force(ikind)%gth_ppl, globenv%para_env%group)
-        CALL mp_sum(force(ikind)%gth_ppnl, globenv%para_env%group)
+        CALL mp_sum(force(ikind)%kinetic, para_env%group)
+        CALL mp_sum(force(ikind)%overlap, para_env%group)
+        CALL mp_sum(force(ikind)%gth_ppl, para_env%group)
+        CALL mp_sum(force(ikind)%gth_ppnl, para_env%group)
       END DO
 
       DO iatom = 1, natom
@@ -665,7 +670,7 @@ CONTAINS
       END DO
 
       DO ikind = 1,SIZE(force)
-        CALL mp_sum(force(ikind)%rho_elec, globenv%para_env%group)
+        CALL mp_sum(force(ikind)%rho_elec, para_env%group)
       END DO
 
       DO iatom = 1, natom
@@ -688,7 +693,7 @@ CONTAINS
       CALL integrate_v_core_rspace(v_hartree_rspace, qs_env)
 
       DO ikind = 1,SIZE(force)
-        CALL mp_sum(force(ikind)%rho_core, globenv%para_env%group)
+        CALL mp_sum(force(ikind)%rho_core, para_env%group)
       END DO
       
       DO iatom = 1, natom
@@ -773,7 +778,7 @@ CONTAINS
       END IF
 
       DO ikind = 1,SIZE(force)
-        CALL mp_sum(force(ikind)%rho_elec, globenv%para_env%group)
+        CALL mp_sum(force(ikind)%rho_elec, para_env%group)
       END DO
 
       DO iatom = 1, natom
@@ -813,7 +818,7 @@ CONTAINS
       CALL integrate_v_core_rspace(v_hartree_rspace, qs_env)
 
       DO ikind = 1,SIZE(force)
-        CALL mp_sum(force(ikind)%rho_core, globenv%para_env%group)
+        CALL mp_sum(force(ikind)%rho_core, para_env%group)
       END DO
       
       DO iatom = 1, natom
@@ -907,7 +912,7 @@ CONTAINS
       END IF
 
       DO ikind = 1,SIZE(force)
-        CALL mp_sum(force(ikind)%rho_elec, globenv%para_env%group)
+        CALL mp_sum(force(ikind)%rho_elec, para_env%group)
       END DO
 
       DO iatom = 1, natom
@@ -918,7 +923,7 @@ CONTAINS
 
       CALL zero_qs_force(force)
 
-      CALL calculate_ecore_overlap(qs_env=qs_env, globenv=globenv, &
+      CALL calculate_ecore_overlap(qs_env=qs_env, para_env=para_env, &
                                    calculate_forces=.TRUE., E_overlap_core=E_overlap_core,&
                                    error=error)
 
@@ -935,7 +940,7 @@ CONTAINS
       harris_force%f_total(:) = 0.0_dp
 
       DO ikind = 1,SIZE(force)
-        CALL mp_sum(force(ikind)%core_overlap, globenv%para_env%group)
+        CALL mp_sum(force(ikind)%core_overlap, para_env%group)
       END DO
 
       DO iatom = 1, natom
@@ -1031,6 +1036,7 @@ CONTAINS
                                                 v_hartree_rspace
     TYPE(coeff_type), DIMENSION(:), POINTER  :: rho_r, v_rspace_new, &
                                                 v_tau_rspace
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(harris_env_type), POINTER           :: harris_env
     TYPE(harris_force_type), POINTER         :: harris_force
@@ -1053,6 +1059,7 @@ CONTAINS
     CALL timeset(routineN, "I", "", handle)
 
     failure = .FALSE.
+    para_env=>globenv%para_env
     NULLIFY(harris_env, harris_force, force, force_tmp, particle_set, &
             v_rspace_new, v_tau_rspace, rho_r, my_rho_r, v_xc, dft_control, &
             cell, deriv_set, rho_set, auxbas_pw_pool, matrix_ks, pw_env, &
@@ -1121,7 +1128,7 @@ CONTAINS
       END DO
 
       DO ikind = 1,SIZE(force)
-        CALL mp_sum(force(ikind)%rho_elec, globenv%para_env%group)
+        CALL mp_sum(force(ikind)%rho_elec, para_env%group)
       END DO
 
       DO iatom = 1, natom
@@ -1152,7 +1159,7 @@ CONTAINS
       CALL pw_pool_give_back_coeff(auxbas_pw_pool, v_hartree_rspace, error=error)
 
       DO ikind = 1,SIZE(force)
-        CALL mp_sum(force(ikind)%rho_elec, globenv%para_env%group)
+        CALL mp_sum(force(ikind)%rho_elec, para_env%group)
       END DO
 
       DO iatom = 1, natom
@@ -1183,7 +1190,7 @@ CONTAINS
       END DO
 
       DO ikind = 1,SIZE(force)
-        CALL mp_sum(force(ikind)%rho_elec, globenv%para_env%group)
+        CALL mp_sum(force(ikind)%rho_elec, para_env%group)
       END DO
 
       DO iatom = 1, natom
@@ -1261,7 +1268,7 @@ CONTAINS
       END IF
 
       DO ikind = 1,SIZE(force)
-        CALL mp_sum(force(ikind)%rho_elec, globenv%para_env%group)
+        CALL mp_sum(force(ikind)%rho_elec, para_env%group)
       END DO
 
       DO iatom = 1, natom

@@ -31,14 +31,13 @@ MODULE cp_ddapc_types
                                              ddapc_eval_gfunc,&
                                              ewald_ddapc_pot,&
                                              solvation_ddapc_pot
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE ewald_spline_util,               ONLY: Setup_Ewald_Spline
-  USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: use_multipole
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
-  USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
   USE particle_types,                  ONLY: particle_type
@@ -135,9 +134,9 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: gcut
     INTEGER, INTENT(IN)                      :: iw
     REAL(KIND=dp), INTENT(IN)                :: Vol
-    TYPE(section_vals_type), POINTER         :: param_section,&
-                                                force_env_section
+    TYPE(section_vals_type), POINTER         :: param_section
     LOGICAL, INTENT(in)                      :: only_charge
+    TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -336,34 +335,31 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_ddapc_ewald_create(cp_ddapc_ewald, qmmm, qmmm_periodic,qm_cell,&
-       force_env_section, globenv, error)
+       force_env_section, para_env, error)
     TYPE(cp_ddapc_ewald_type), POINTER       :: cp_ddapc_ewald
     LOGICAL, INTENT(IN)                      :: qmmm, qmmm_periodic
     TYPE(cell_type), POINTER                 :: qm_cell
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_ddapc_ewald_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: my_val, npts(3), stat, output_unit
+    INTEGER                                  :: my_val, npts(3), output_unit, &
+                                                stat
     INTEGER, DIMENSION(:), POINTER           :: ngrids
-    LOGICAL                                  :: analyt, failure,&
-         solvation_model, explicit, ionode, my_qmmm_periodic
+    LOGICAL                                  :: analyt, explicit, failure, &
+                                                ionode, my_qmmm_periodic, &
+                                                solvation_model
     REAL(KIND=dp)                            :: hmat(3,3)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: gx, gy, gz, LG
     TYPE(cell_type), POINTER                 :: dummy_cell, mm_cell
-    TYPE(section_vals_type), POINTER         :: cell_section,&
-                                                grid_print_section, &
-                                                multipole_section,&
-                                                poisson_section,&
-                                                qmmm_periodic_section,&
-                                                solvation_section
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    
+    TYPE(section_vals_type), POINTER :: cell_section, grid_print_section, &
+      multipole_section, poisson_section, qmmm_periodic_section, &
+      solvation_section
 
     failure = .FALSE.
     CPPrecondition(.NOT.ASSOCIATED(cp_ddapc_ewald),cp_failure_level,routineP,error,failure)
@@ -439,7 +435,7 @@ CONTAINS
     grid_print_section=> section_vals_get_subs_vals(force_env_section,"PRINT%GRID_INFORMATION",error=error)
     CALL Setup_Ewald_Spline(pw_grid=cp_ddapc_ewald%pw_grid_qm,pw_pool=cp_ddapc_ewald%pw_pool_qm,&
          coeff=cp_ddapc_ewald%coeff_qm, LG=LG, gx=gx, gy=gy, gz=gz, hmat=hmat, npts=npts,&
-         param_section=multipole_section,tag="ddapc",para_env=globenv%para_env,print_section=grid_print_section, error=error)
+         param_section=multipole_section,tag="ddapc",para_env=para_env,print_section=grid_print_section, error=error)
     DEALLOCATE(LG, stat=stat)
     CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     DEALLOCATE(gx, stat=stat)
@@ -459,7 +455,7 @@ CONTAINS
        grid_print_section=> section_vals_get_subs_vals(force_env_section,"PRINT%GRID_INFORMATION",error=error)
        CALL Setup_Ewald_Spline(pw_grid=cp_ddapc_ewald%pw_grid_mm,pw_pool=cp_ddapc_ewald%pw_pool_mm,&
             coeff=cp_ddapc_ewald%coeff_mm, LG=LG, gx=gx, gy=gy, gz=gz, hmat=hmat, npts=npts,&
-            param_section=multipole_section,tag="ddapc",para_env=globenv%para_env, &
+            param_section=multipole_section,tag="ddapc",para_env=para_env, &
             print_section=grid_print_section, error=error) 
        DEALLOCATE(LG, stat=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)

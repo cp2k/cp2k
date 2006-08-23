@@ -30,6 +30,7 @@ MODULE fist_environment
                                              write_cell
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsystem_methods,            ONLY: cp_subsys_read_colvar
   USE cp_subsystem_types,              ONLY: cp_subsys_create,&
                                              cp_subsys_release,&
@@ -61,7 +62,6 @@ MODULE fist_environment
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: dp
-  USE machine,                         ONLY: m_flush
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_create,&
                                              mol_kind_new_list_release,&
                                              mol_kind_new_list_type
@@ -136,6 +136,7 @@ SUBROUTINE fist_init ( fist_env, globenv, force_env_section, error )
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell, cell_ref
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsystem_type), POINTER         :: subsystem
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
@@ -155,7 +156,7 @@ SUBROUTINE fist_init ( fist_env, globenv, force_env_section, error )
 
   CALL timeset(routineN,"I",'',handle)
   failure = .FALSE.
-  NULLIFY(logger)
+  para_env=>globenv%para_env
   logger => cp_error_get_logger(error)  
 
   NULLIFY ( subsystem, molecule_kind_set, molecule_set, atomic_kind_set,&
@@ -179,7 +180,7 @@ SUBROUTINE fist_init ( fist_env, globenv, force_env_section, error )
   CALL cp_print_key_finished_output(iw,logger,mm_section,&
        "PRINT%PROGRAM_BANNER",error=error)             
 
-  CALL cp_subsys_create ( subsystem, para_env = globenv % para_env, error = error )
+  CALL cp_subsys_create ( subsystem, para_env = para_env, error = error )
 
   ! read colvars and add to subsystem
   colvar_section => section_vals_get_subs_vals(force_env_section,&
@@ -194,7 +195,7 @@ SUBROUTINE fist_init ( fist_env, globenv, force_env_section, error )
   CALL write_cell ( cell, force_env_section, cell_ref, error)
 
 ! Create the ewald environment
-  CALL ewald_env_create ( ewald_env, globenv % para_env, error )
+  CALL ewald_env_create ( ewald_env, para_env, error )
 
 ! Read the input section and set the ewald_env ***
   CALL read_ewald_section ( ewald_env, globenv, ewald_section=ewald_section,error=error )

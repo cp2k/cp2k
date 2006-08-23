@@ -34,6 +34,7 @@ MODULE eip_environment
                                              get_cell,&
                                              read_cell,&
                                              write_cell
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsystem_methods,            ONLY: cp_subsys_read_colvar
   USE cp_subsystem_types,              ONLY: cp_subsys_create,&
                                              cp_subsys_release,&
@@ -129,6 +130,7 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell, cell_ref
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsystem_type), POINTER         :: subsystem
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
     TYPE(mol_new_list_type), POINTER         :: molecules
@@ -143,6 +145,7 @@ CONTAINS
                                                 eip_section
 
     CALL timeset(routineN, "I", "", handle)
+    para_env=>globenv%para_env
 
     failure = .FALSE.
   
@@ -171,7 +174,7 @@ CONTAINS
       CALL get_cell(cell=cell, abc=abc)
       CALL write_cell(cell=cell, force_env_section=force_env_section,error=error)
 
-      CALL cp_subsys_create(subsystem, para_env=globenv%para_env, error=error)
+      CALL cp_subsys_create(subsystem, para_env=para_env, error=error)
       CALL cp_subsys_read_colvar(subsys=subsystem, colvar_section=colvar_section, &
                                  globenv=globenv, error=error)
 

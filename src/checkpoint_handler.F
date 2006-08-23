@@ -20,12 +20,13 @@
 !******************************************************************************
 
 MODULE checkpoint_handler
-
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE global_types,                    ONLY: global_environment_type
+  USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_cputime,&
                                              m_flush,&
@@ -66,6 +67,7 @@ CONTAINS
 
     INTEGER                                  :: iw
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
@@ -73,18 +75,18 @@ CONTAINS
          extension=".Log",error=error)
 !   ---------------------------------------------------------------------------
 !   *** Wait for ionode and empty IO buffer ***
-    
+    para_env=>globenv%para_env 
     IF (iw>0) WRITE(iw,*)checkpoint
-    IF (globenv%para_env%ionode) CALL m_flush(globenv%scr)
-    CALL mp_sync(globenv%para_env%group)
+    IF (para_env%ionode) CALL m_flush(globenv%scr)
+    CALL mp_sync(para_env%group)
 
 !   *** Write checkpoint informations ***
 
     CALL write_cputime(checkpoint,globenv,error)
     CALL write_memory(checkpoint,globenv,error)
 
-    IF (globenv%para_env%ionode) CALL m_flush(globenv%scr)
-    CALL mp_sync(globenv%para_env%group)
+    IF (para_env%ionode) CALL m_flush(globenv%scr)
+    CALL mp_sync(para_env%group)
     CALL cp_print_key_finished_output(iw,logger,globenv%input_file,&
          "GLOBAL%PERFORMANCE/ROUTINES",error=error)    
   END SUBROUTINE write_checkpoint_information
@@ -110,18 +112,20 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: myconvertedstring
     LOGICAL                                  :: ionode
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
 
     NULLIFY(logger)
+    para_env=>globenv%para_env
     logger => cp_error_get_logger(error)
     IF (BTEST(cp_print_key_should_output(logger%iter_info,globenv%input_file,&
          "GLOBAL%PERFORMANCE/CPUTIME",error=error),cp_p_file)) THEN
        iw = cp_print_key_unit_nr(logger,globenv%input_file,"GLOBAL%PERFORMANCE/CPUTIME",&
             extension=".Log",error=error)
 
-       group = globenv%para_env%group
-       ionode = globenv%para_env%ionode
-       npe = globenv%para_env%num_pe
-       mype = globenv%para_env%mepos
+       group = para_env%group
+       ionode = para_env%ionode
+       npe = para_env%num_pe
+       mype = para_env%mepos
        output_unit = iw
        
        ALLOCATE(myconvertedstring(LEN(string2),npe))
@@ -150,7 +154,7 @@ CONTAINS
 
 !!*****
 !******************************************************************************
-  SUBROUTINE Pwarning(message, globenv, error)
+  SUBROUTINE Pwarning(message, input_file, error)
 
 !   Purpose: Write warning messages
 
@@ -159,7 +163,7 @@ CONTAINS
 !   ***************************************************************************
 
     CHARACTER(LEN=*), INTENT(IN)             :: message
-    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(section_vals_type), POINTER         :: input_file
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=1024)                      :: my_message
@@ -168,10 +172,8 @@ CONTAINS
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
-    iw = cp_print_key_unit_nr(logger,globenv%input_file,"GLOBAL%WARNINGS",&
+    iw = cp_print_key_unit_nr(logger,input_file,"GLOBAL%WARNINGS",&
          extension=".Log",error=error)
-!   ---------------------------------------------------------------------------
-    
     IF (iw>0) THEN
        my_message = message(1:MIN(LEN(message),1024))
        CALL compress(my_message)
@@ -184,7 +186,7 @@ CONTAINS
        END DO
        WRITE(iw,'(/)')
     END IF
-    CALL cp_print_key_finished_output(iw,logger,globenv%input_file,&
+    CALL cp_print_key_finished_output(iw,logger,input_file,&
          "GLOBAL%WARNINGS",error=error)    
   END SUBROUTINE Pwarning
 

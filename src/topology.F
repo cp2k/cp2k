@@ -25,6 +25,7 @@ MODULE topology
   USE colvar_types,                    ONLY: colvar_p_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: &
        do_conn_g87, do_conn_g96, do_conn_generate, do_conn_mol_set, &
@@ -129,6 +130,7 @@ CONTAINS
     INTEGER                                  :: handle, iw
     LOGICAL                                  :: failure, my_qmmm
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: cell_section, &
                                                 constraint_section, &
                                                 subsys_section, &
@@ -138,6 +140,7 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
+    para_env=>globenv%para_env
     CALL timeset(routineN,'I','',handle)
 
     NULLIFY(cell_section,subsys_section)
@@ -197,7 +200,7 @@ CONTAINS
     ! 7. Pack everything into the molecular types
     !-----------------------------------------------------------------------------
     CALL topology_connectivity_pack(molecule_kind_set,molecule_set,&
-         topology,globenv,subsys_section,error)
+         topology,para_env,subsys_section,error)
     !-----------------------------------------------------------------------------
     ! Teo 12.2004:
     ! 
@@ -217,12 +220,12 @@ CONTAINS
     IF (my_qmmm) THEN
        CALL topology_coordinate_pack(particle_set,atomic_kind_set,&
             molecule_kind_set,molecule_set,&
-            topology,globenv, my_qmmm, qmmm_env, subsys_section,force_env_section=force_env_section,&
+            topology,para_env, my_qmmm, qmmm_env, subsys_section,force_env_section=force_env_section,&
             error=error)
     ELSE 
        CALL topology_coordinate_pack(particle_set,atomic_kind_set,&
             molecule_kind_set,molecule_set,&
-            topology,globenv,subsys_section=subsys_section,force_env_section=force_env_section,&
+            topology,para_env,subsys_section=subsys_section,force_env_section=force_env_section,&
             error=error)
     END IF
     !-----------------------------------------------------------------------------
@@ -231,10 +234,10 @@ CONTAINS
     !-----------------------------------------------------------------------------
     IF (my_qmmm) THEN
        CALL topology_constraint_pack(molecule_kind_set,molecule_set,&
-            topology,qmmm_env,particle_set,globenv,subsys_section,error)
+            topology,qmmm_env,particle_set,globenv%input_file,para_env,subsys_section,error)
     ELSE
        CALL topology_constraint_pack(molecule_kind_set,molecule_set,&
-            topology,particle_set=particle_set, globenv=globenv,&
+            topology,particle_set=particle_set,input_file=globenv%input_file, para_env=para_env,&
             subsys_section=subsys_section,error=error)
     END IF
 
@@ -243,8 +246,8 @@ CONTAINS
     ! 10. Dump the topology informations
     !-----------------------------------------------------------------------------
     IF(topology%dump_topology) THEN
-       CALL write_topology_psf(topology,globenv,subsys_section,error)
-       CALL write_coordinate_pdb(topology,globenv,subsys_section,error)
+       CALL write_topology_psf(topology,para_env,subsys_section,error)
+       CALL write_coordinate_pdb(topology,para_env,subsys_section,error)
     END IF
 
 
@@ -297,11 +300,13 @@ CONTAINS
                                                 n_rep, nmol
     LOGICAL                                  :: failure, my_qmmm
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: section
 
     failure = .FALSE.
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
+    para_env=>globenv%para_env
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO",&
          extension=".mmLog",error=error)
     CALL timeset(routineN,'I','',handle)
@@ -325,55 +330,55 @@ CONTAINS
          CALL section_vals_val_get(section,"CONN_FILE",c_val=filename,&
                                     i_rep_section=i_rep,error=error)
          DO imol=1,nmol
-           CALL read_topology_psf(filename,topology,globenv,subsys_section,error)
+           CALL read_topology_psf(filename,topology,para_env,subsys_section,error)
          END DO
        END DO
-       CALL topology_generate_molecule(topology,my_qmmm,qmmm_env,globenv,subsys_section,error)
+       CALL topology_generate_molecule(topology,my_qmmm,qmmm_env,para_env,subsys_section,error)
        IF(topology%molecules_check) &
             CALL topology_molecules_check(topology,globenv,subsys_section,error)
     CASE (do_conn_g96,do_conn_g87)
        CALL pre_read_topology_gromos(topology,subsys_section,error)
-       CALL read_topology_gromos(topology%conn_file_name,topology,globenv,subsys_section,error)
-       CALL topology_generate_molecule(topology,my_qmmm,qmmm_env,globenv,subsys_section,error)
+       CALL read_topology_gromos(topology%conn_file_name,topology,para_env,subsys_section,error)
+       CALL topology_generate_molecule(topology,my_qmmm,qmmm_env,para_env,subsys_section,error)
        IF(topology%molecules_check) &
             CALL topology_molecules_check(topology,globenv,subsys_section,error)
     CASE (do_conn_psf)
        CALL pre_read_topology_psf(topology,subsys_section,error)
-       CALL read_topology_psf(topology%conn_file_name,topology,globenv,subsys_section,error)
-       CALL topology_generate_molecule(topology,my_qmmm,qmmm_env,globenv,subsys_section,error)
+       CALL read_topology_psf(topology%conn_file_name,topology,para_env,subsys_section,error)
+       CALL topology_generate_molecule(topology,my_qmmm,qmmm_env,para_env,subsys_section,error)
        IF(topology%molecules_check) &
             CALL topology_molecules_check(topology,globenv,subsys_section,error)
     CASE (do_conn_generate)
-       CALL topology_set_atm_mass(topology,globenv,subsys_section,error)
-       CALL topology_generate_bond(topology,globenv,subsys_section,error)
-       CALL topology_generate_bend(topology,globenv,subsys_section,error)
-       CALL topology_generate_ub(topology,globenv,subsys_section,error)
-       CALL topology_generate_dihe(topology,globenv,subsys_section,error)
-       CALL topology_generate_impr(topology,globenv,subsys_section,error)
-       CALL topology_generate_onfo(topology,globenv,subsys_section,error)
-       CALL topology_generate_molecule(topology,my_qmmm,qmmm_env,globenv,subsys_section,error)
+       CALL topology_set_atm_mass(topology,para_env,subsys_section,error)
+       CALL topology_generate_bond(topology,para_env,subsys_section,error)
+       CALL topology_generate_bend(topology,para_env,subsys_section,error)
+       CALL topology_generate_ub(topology,para_env,subsys_section,error)
+       CALL topology_generate_dihe(topology,para_env,subsys_section,error)
+       CALL topology_generate_impr(topology,para_env,subsys_section,error)
+       CALL topology_generate_onfo(topology,para_env,subsys_section,error)
+       CALL topology_generate_molecule(topology,my_qmmm,qmmm_env,para_env,subsys_section,error)
        IF(topology%molecules_check) &
             CALL topology_molecules_check(topology,globenv,subsys_section,error)
        IF(topology%reorder_atom) THEN
-          CALL topology_reorder_atoms(topology,globenv,subsys_section,error)
-          CALL topology_set_atm_mass(topology,globenv,subsys_section,error)
-          CALL topology_generate_bond(topology,globenv,subsys_section,error)
-          CALL topology_generate_bend(topology,globenv,subsys_section,error)
-          CALL topology_generate_ub(topology,globenv,subsys_section,error)
-          CALL topology_generate_dihe(topology,globenv,subsys_section,error)
-          CALL topology_generate_impr(topology,globenv,subsys_section,error)
-          CALL topology_generate_onfo(topology,globenv,subsys_section,error)
-          CALL topology_generate_molecule(topology,my_qmmm,qmmm_env,globenv,subsys_section,error)
+          CALL topology_reorder_atoms(topology,para_env,subsys_section,error)
+          CALL topology_set_atm_mass(topology,para_env,subsys_section,error)
+          CALL topology_generate_bond(topology,para_env,subsys_section,error)
+          CALL topology_generate_bend(topology,para_env,subsys_section,error)
+          CALL topology_generate_ub(topology,para_env,subsys_section,error)
+          CALL topology_generate_dihe(topology,para_env,subsys_section,error)
+          CALL topology_generate_impr(topology,para_env,subsys_section,error)
+          CALL topology_generate_onfo(topology,para_env,subsys_section,error)
+          CALL topology_generate_molecule(topology,my_qmmm,qmmm_env,para_env,subsys_section,error)
        END IF
     CASE (do_conn_off)
-       CALL topology_set_atm_mass(topology,globenv,subsys_section,error)
-       !CALL topology_generate_bond(topology,globenv,subsys_section,error) 
-       CALL topology_generate_bend(topology,globenv,subsys_section,error)
-       CALL topology_generate_ub(topology,globenv,subsys_section,error)
-       CALL topology_generate_dihe(topology,globenv,subsys_section,error)
-       CALL topology_generate_impr(topology,globenv,subsys_section,error)
-       CALL topology_generate_onfo(topology,globenv,subsys_section,error)
-       CALL topology_generate_molecule(topology,my_qmmm,qmmm_env,globenv,subsys_section,error)
+       CALL topology_set_atm_mass(topology,para_env,subsys_section,error)
+       !CALL topology_generate_bond(topology,para_env,subsys_section,error) 
+       CALL topology_generate_bend(topology,para_env,subsys_section,error)
+       CALL topology_generate_ub(topology,para_env,subsys_section,error)
+       CALL topology_generate_dihe(topology,para_env,subsys_section,error)
+       CALL topology_generate_impr(topology,para_env,subsys_section,error)
+       CALL topology_generate_onfo(topology,para_env,subsys_section,error)
+       CALL topology_generate_molecule(topology,my_qmmm,qmmm_env,para_env,subsys_section,error)
     CASE DEFAULT
        CALL stop_program ("connectivity_control",&
             "no default")
@@ -427,10 +432,12 @@ CONTAINS
                                                 j, stat
     LOGICAL                                  :: failure, found
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
 
     failure = .FALSE.
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
+    para_env=>globenv%para_env
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO",&
          extension=".mmLog",error=error)
     CALL timeset(routineN,'I','',handle)
@@ -439,7 +446,7 @@ CONTAINS
     ! 1. If reading in from external file, make sure its there first
     !-----------------------------------------------------------------------------
     IF(topology%coordinate) THEN
-       IF(globenv%para_env%ionode) THEN
+       IF(para_env%ionode) THEN
           INQUIRE(FILE=topology%coord_file_name,EXIST=found)
           IF(found) THEN
           ELSE
@@ -454,13 +461,13 @@ CONTAINS
     CALL timeset(routineN//"_READ_COORDINATE",'I','',handle2)
     SELECT CASE (topology%coord_type)
     CASE (do_coord_g96)
-       CALL read_coordinate_g96 (topology,globenv,subsys_section,error)
+       CALL read_coordinate_g96 (topology,para_env,subsys_section,error)
        CALL read_atoms_input ( topology, globenv, overwrite=.TRUE., subsys_section=subsys_section,error=error)
     CASE (do_coord_pdb)
-       CALL read_coordinate_pdb (topology,globenv,subsys_section,error)
+       CALL read_coordinate_pdb (topology,para_env,subsys_section,error)
        CALL read_atoms_input ( topology, globenv, overwrite=.TRUE., subsys_section=subsys_section,error=error)
     CASE (do_coord_xyz)
-       CALL read_coordinate_xyz (topology,globenv,subsys_section,error)
+       CALL read_coordinate_xyz (topology,para_env,subsys_section,error)
        CALL read_atoms_input ( topology, globenv, overwrite=.TRUE., subsys_section=subsys_section,error=error)
     CASE DEFAULT
        CALL read_atoms_input ( topology, globenv,  subsys_section=subsys_section, error=error)

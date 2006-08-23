@@ -36,6 +36,7 @@ MODULE harris_metropolis_mc
                                              cp_print_key_finished_output,&
                                              cp_print_key_unit_nr,&
                                              cp_rm_iter_level
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsys_release,&
                                              cp_subsystem_p_type,&
@@ -213,6 +214,7 @@ CONTAINS
     INTEGER                                  :: handle, mc_prog_name_id, &
                                                 md_method, method_name_id, &
                                                 stat
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
     TYPE(cp_subsystem_type), POINTER         :: subsystem
@@ -229,6 +231,7 @@ CONTAINS
          subsys, subsystem, fist_env)
 
     CALL timeset(routineN, "I", "", handle)
+    para_env=>globenv%para_env
 
     force_env_section => force_env%force_env_section
     hmc_section => section_vals_get_subs_vals(globenv%input_file, &
@@ -260,7 +263,7 @@ CONTAINS
     IF (mc_prog_name_id .NE. force_env%method_name_id) THEN
       SELECT CASE (force_env%method_name_id)
       CASE (do_fist)
-        CALL fist_env_create(fist_env, para_env = globenv%para_env)
+        CALL fist_env_create(fist_env, para_env = para_env)
         CALL set_fist_env(fist_env, qmmm=.FALSE., error=error)
 
         ! *** Read the input and the database files and perform further  ***
@@ -281,7 +284,7 @@ CONTAINS
 
         CALL fist_env_release (fist_env, error = error)
       CASE (do_kg)
-        CALL kg_env_create(kg_env, para_env=globenv%para_env, &
+        CALL kg_env_create(kg_env, para_env=para_env, &
                            error=error)
 
         CALL kg_init(kg_env, globenv, force_env_section, error)
@@ -300,7 +303,7 @@ CONTAINS
 
         CALL kg_env_release(kg_env, error=error)
       CASE (do_qs)
-        CALL qs_env_create(qs_env, globenv%para_env)
+        CALL qs_env_create(qs_env, para_env)
          
         !   *** Read the input and the database files and perform further  ***
         !   *** initializations for the setup of the QUICKSTEP environment ***
@@ -483,6 +486,7 @@ CONTAINS
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: cell, cell_ref
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -524,6 +528,7 @@ CONTAINS
 ! -------------------------------------------------------------------------
 
     CALL timeset(routineN, "I", "", handle)
+    para_env=>globenv%para_env
     NULLIFY(force_env_section, motion_section,  subsys_section, md_approach_nr,&
             accepted_md)
     motion_section => section_vals_get_subs_vals(globenv%input_file,"MOTION",error=error)
@@ -732,7 +737,7 @@ CONTAINS
        ! end loop over number of beads
     END DO
 
-    CALL md_env_create(md_env, globenv%para_env, error=error)
+    CALL md_env_create(md_env, para_env, error=error)
 
     CALL set_md_env(md_env=md_env, &
          simpar=simpar, &
@@ -932,7 +937,7 @@ CONTAINS
             END IF
          END IF
 
-         IF (globenv%para_env%ionode .AND. globenv%print_level >= 1) THEN
+         IF (para_env%ionode .AND. globenv%print_level >= 1) THEN
             iw = globenv%scr
             WRITE(iw, *) ""; WRITE(iw, *) ""
             WRITE(iw, *) "Kinetic Energy =", Ekin_prev, " & Potential Energy = ", Epot_prev
@@ -1098,7 +1103,7 @@ CONTAINS
          accepted = .TRUE.
        ELSE
          ! Metropolis Monte Carlo acceptance criterion
-         ionode = globenv%para_env%ionode
+         ionode = para_env%ionode
          iw = globenv%scr
          IF (lpsc) THEN
            ! direct accept
@@ -1153,7 +1158,7 @@ CONTAINS
                     e_kinetic = e_kinetic + 0.5_dp*mass*v2
                  END DO
                END DO
-               CALL mp_sum(e_kinetic, globenv%para_env%group) !FM loop on all particles and avoid sum?
+               CALL mp_sum(e_kinetic, para_env%group) !FM loop on all particles and avoid sum?
 
                temperature = 2.0_dp*e_kinetic/REAL(simpar%nfree,dp)
              END IF
@@ -1255,7 +1260,7 @@ CONTAINS
                     e_kinetic = e_kinetic + 0.5_dp*mass*v2
                  END DO
                END DO
-               CALL mp_sum(e_kinetic, globenv%para_env%group) !FM loop on all particles and avoid sum?
+               CALL mp_sum(e_kinetic, para_env%group) !FM loop on all particles and avoid sum?
 
                temperature = 2.0_dp*e_kinetic/REAL(simpar%nfree,dp)
              END IF
@@ -1338,7 +1343,7 @@ CONTAINS
                !MK solution, obviously.
 
                iw = globenv%scr
-               IF (globenv%para_env%ionode .AND. globenv%print_level >= 1) THEN
+               IF (para_env%ionode .AND. globenv%print_level >= 1) THEN
                   WRITE ( iw, '( A, A, A )' ) ' **********************', &
                        ' begin of velocity initialization ', '***********************'
                END IF
@@ -1347,7 +1352,7 @@ CONTAINS
 
                ! initializing the velocities
 
-               IF (globenv%para_env%ionode) THEN
+               IF (para_env%ionode) THEN
 
                  ! Build a list of all fixed atoms (if there any)
 
@@ -1417,11 +1422,11 @@ CONTAINS
 
 #if defined(__parallel)
                DO i = 1,SIZE(particles%els)
-                  CALL mp_bcast(particles%els(i)%v, globenv%para_env%source, globenv%para_env%group)
+                  CALL mp_bcast(particles%els(i)%v, para_env%source, para_env%group)
                END DO
 #endif
                temp = 0.0_dp
-               IF (globenv%para_env%ionode .AND. globenv%print_level >= 1) THEN
+               IF (para_env%ionode .AND. globenv%print_level >= 1) THEN
                   IF (simpar % nfree == 0) THEN
                      temp = 2.0_dp * akin / REAL(1, KIND=dp) ! Should always be zero...
                   ELSE
@@ -1633,6 +1638,7 @@ CONTAINS
     REAL(KIND=dp) :: Econs, Ekin_new, Ekin_prev, Epot_new, Epot_prev, &
       new_lpsc_energy, prev_lpsc_energy, time_iter_start, time_iter_stop
     REAL(KIND=dp), POINTER                   :: used_time
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(eip_environment_type), POINTER      :: eip_env
     TYPE(force_env_p_type), DIMENSION(:), &
       POINTER                                :: force_env_p
@@ -1645,7 +1651,7 @@ CONTAINS
 !   ------------------------------------------------------------------------
 
     CALL timeset(routineN, "I", "", handle)
-
+    para_env=>globenv%para_env
     NULLIFY(force_env_p, itimes, used_time, wf_history, qs_env, tbmd_env, &
             eip_env, tbmd_ener, harris_energy)
 
@@ -1762,7 +1768,7 @@ CONTAINS
             END IF
           END IF
 
-          IF (globenv%para_env%ionode .AND. globenv%print_level >= 1) THEN
+          IF (para_env%ionode .AND. globenv%print_level >= 1) THEN
             iw = globenv%scr
             WRITE(iw, *) ""; WRITE(iw, *) ""
             WRITE(iw, *) "Kinetic MD Energy =", Ekin_prev, " & Potential MD Energy = ", Epot_prev
@@ -1816,7 +1822,7 @@ CONTAINS
             END IF
           END IF
 
-          ionode = globenv%para_env%ionode
+          ionode = para_env%ionode
           iw = globenv%scr
           IF (ionode .AND. globenv%print_level >= 1) THEN
             WRITE(iw, *) ""; WRITE(iw, *) ""

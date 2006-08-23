@@ -26,6 +26,7 @@ MODULE qs_ot_scf
                                              cp_fm_set_all,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: &
@@ -79,11 +80,13 @@ CONTAINS
     INTEGER                                  :: handle, ispin, ls_method, &
                                                 nspin, ot_method
     LOGICAL                                  :: explicit
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: ot_section
 
 ! executable
 
     CALL timeset("ot_scf_read_input","I","",handle)
+    para_env=>globenv%para_env
 
     ! decide default settings
     CALL qs_ot_settings_init(qs_ot_env(1)%settings)
@@ -147,7 +150,7 @@ CONTAINS
 
     ! write OT output
 
-    IF (globenv%para_env%ionode) THEN
+    IF (para_env%ionode) THEN
     WRITE(globenv%scr,'(A)') " "
     WRITE(globenv%scr,'(A)') "  ----------------------------------- OT --------------------------------------"
     WRITE(globenv%scr,'(A)') " "

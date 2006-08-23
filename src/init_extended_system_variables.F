@@ -18,6 +18,7 @@
 !!   SOURCE
 !******************************************************************************
 MODULE init_extended_system_variables
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE extended_system_types,           ONLY: lnhc_parameters_type,&
                                              npt_info_type
   USE global_types,                    ONLY: global_environment_type
@@ -72,6 +73,9 @@ SUBROUTINE init_nhc_variables ( nhc,tau_nhc,temp_ext, globenv )
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: rn_need_per_proc
     REAL(KIND=dp)                            :: akin, temp, v
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: array_of_rn
+    TYPE(cp_para_env_type), POINTER          :: para_env
+
+    para_env=>globenv%para_env
 
 ! first initializing the mass of the nhc variables
 
@@ -85,12 +89,12 @@ SUBROUTINE init_nhc_variables ( nhc,tau_nhc,temp_ext, globenv )
     CASE ( 'REP_REP' )  ! for NPT 
     CASE DEFAULT
       rannumneed = nhc%num_nhc*nhc%nhc_len
-      ALLOCATE ( rn_need_per_proc( globenv%para_env%num_pe ), STAT = isos )
+      ALLOCATE ( rn_need_per_proc( para_env%num_pe ), STAT = isos )
       IF ( isos /= 0 ) CALL stop_program ( 'initialize_nhc', &
                                     'failed to allocate rn_need_per_proc')
       rn_need_per_proc ( : ) = 0
 
-      CALL mp_allgather ( rannumneed, rn_need_per_proc, globenv%para_env%group )
+      CALL mp_allgather ( rannumneed, rn_need_per_proc, para_env%group )
 
       IF (nhc % dis_type=='INTER_REP') THEN
         tot_rn = rn_need_per_proc(1)
@@ -110,7 +114,7 @@ SUBROUTINE init_nhc_variables ( nhc,tau_nhc,temp_ext, globenv )
 
   SELECT CASE ( nhc % dis_type )
     CASE ( 'REP_REP' ) ! for NPT
-      IF ( globenv%para_env%ionode ) THEN
+      IF ( para_env%ionode ) THEN
 ! Map deterministically determined random number to nhc % v
         DO i = 1, nhc % num_nhc
            DO j = 1, nhc % nhc_len
@@ -150,9 +154,9 @@ SUBROUTINE init_nhc_variables ( nhc,tau_nhc,temp_ext, globenv )
 ! Broadcast
       DO i = 1, SIZE ( nhc % nvt, 1 )
         DO j = 1, SIZE ( nhc % nvt, 2 )
-          CALL mp_bcast ( nhc % nvt ( i, j ) % v, globenv%para_env%source, globenv%para_env%group )
-          CALL mp_bcast ( nhc % nvt ( i, j ) % eta, globenv%para_env%source, globenv%para_env%group )
-          CALL mp_bcast ( nhc % nvt ( i, j ) % f, globenv%para_env%source, globenv%para_env%group )
+          CALL mp_bcast ( nhc % nvt ( i, j ) % v, para_env%source, para_env%group )
+          CALL mp_bcast ( nhc % nvt ( i, j ) % eta, para_env%source, para_env%group )
+          CALL mp_bcast ( nhc % nvt ( i, j ) % f, para_env%source, para_env%group )
         END DO
       END DO
 
@@ -184,8 +188,8 @@ SUBROUTINE init_nhc_variables ( nhc,tau_nhc,temp_ext, globenv )
       END DO
       number = nhc % num_nhc
 
-      IF (nhc % dis_type=='DIS_REP') CALL mp_sum(akin,globenv%para_env%group)
-      IF (nhc % dis_type=='DIS_REP') CALL mp_sum(number,globenv%para_env%group)
+      IF (nhc % dis_type=='DIS_REP') CALL mp_sum(akin,para_env%group)
+      IF (nhc % dis_type=='DIS_REP') CALL mp_sum(number,para_env%group)
 
 ! scale velocities to get the correct initial temperature
       temp = 2.0_dp*akin/REAL(number)
@@ -244,9 +248,12 @@ SUBROUTINE init_barostat_variables ( npt, tau_cell, temp_ext, deth, nfree, ensem
 
     INTEGER                                  :: i, j, number
     REAL(KIND=dp)                            :: akin, temp, v
+    TYPE(cp_para_env_type), POINTER          :: para_env
 
 !------------------------------------------------------------------------------
 ! first initializing the mass of the nhc variables
+
+  para_env=>globenv%para_env
 
   SELECT CASE ( ensemble )
   CASE ( npt_i_ensemble )
@@ -262,7 +269,7 @@ SUBROUTINE init_barostat_variables ( npt, tau_cell, temp_ext, deth, nfree, ensem
 !          * temp_ext * tau_cell ** 2
   END SELECT
 
-  IF ( globenv%para_env%ionode ) THEN
+  IF ( para_env%ionode ) THEN
 ! initializing velocities
     DO i = 1, SIZE ( npt,1)
        DO j = i, SIZE ( npt,2)
@@ -311,7 +318,7 @@ SUBROUTINE init_barostat_variables ( npt, tau_cell, temp_ext, deth, nfree, ensem
 ! Broadcast
   DO i = 1, SIZE ( npt, 1 )
     DO j = 1, SIZE ( npt, 2 )
-       CALL mp_bcast ( npt ( i, j ) % v, globenv%para_env%source, globenv%para_env%group )
+       CALL mp_bcast ( npt ( i, j ) % v, para_env%source, para_env%group )
     END DO
   END DO
 

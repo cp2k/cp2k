@@ -30,9 +30,9 @@ MODULE tbmd_hamiltonian
   USE cell_types,                      ONLY: cell_type,&
                                              get_cell,&
                                              scaled_to_real
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsystem_types,              ONLY: cp_subsystem_type
   USE distribution_2d_types,           ONLY: distribution_2d_type
-  USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp
   USE message_passing,                 ONLY: mp_sum
   USE particle_types,                  ONLY: particle_type
@@ -108,9 +108,9 @@ CONTAINS
 !!     01.2006 initial create [tdk]
 !!
 !!*** **********************************************************************
-  SUBROUTINE tbmd_build_hamiltonian(tbmd_env, globenv, derivative, error)
+  SUBROUTINE tbmd_build_hamiltonian(tbmd_env, para_env, derivative, error)
     TYPE(tbmd_environment_type), POINTER     :: tbmd_env
-    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_para_env_type), POINTER          :: para_env
     LOGICAL, INTENT(IN)                      :: derivative
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
@@ -492,7 +492,7 @@ CONTAINS
                         dn = 1.0_dp/distance * (1.0_dp - cos_temp*cos_temp)
                       CASE DEFAULT
                         CALL stop_program(routineN, moduleN, __LINE__, &
-                             "Invalid matrix derivative dimension", globenv)
+                             "Invalid matrix derivative dimension", para_env)
                     END SELECT
 
                     ! Scaling function
@@ -589,8 +589,8 @@ CONTAINS
 
       END DO
 
-      CALL mp_sum(tbmd_energy%E_repulsion, globenv%para_env%group)
-      CALL mp_sum(tbmd_force%f_repulsion, globenv%para_env%group)
+      CALL mp_sum(tbmd_energy%E_repulsion, para_env%group)
+      CALL mp_sum(tbmd_force%f_repulsion, para_env%group)
 
     END IF
 

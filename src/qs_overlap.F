@@ -32,8 +32,8 @@ MODULE qs_overlap
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE distribution_2d_types,           ONLY: distribution_2d_type
-  USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp,&
                                              dp_size,&
                                              int_size
@@ -89,7 +89,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE build_overlap_matrix(qs_env,globenv,nderivative,error)
+  SUBROUTINE build_overlap_matrix(qs_env,para_env,nderivative,error)
 
 !   Purpose: Calculation of the overlap matrix over Cartesian Gaussian
 !            functions.
@@ -99,7 +99,7 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER, INTENT(IN), OPTIONAL            :: nderivative
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -451,7 +451,7 @@ CONTAINS
 
 !   *** Print the overlap matrix distribution ***
 
-    CALL write_matrix_distribution(matrix_s(1)%matrix,qs_env%input,globenv,error)
+    CALL write_matrix_distribution(matrix_s(1)%matrix,qs_env%input,para_env,error)
 
 !   *** Print the overlap matrix, if requested ***
 
@@ -459,11 +459,11 @@ CONTAINS
          qs_env%input,"DFT%PRINT%AO_MATRICES/OVERLAP",error=error),cp_p_file)) THEN
        iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/OVERLAP",&
             extension=".Log",error=error)
-       CALL write_sparse_matrix(matrix_s(1)%matrix,4,6,qs_env,globenv,output_unit=iw)
+       CALL write_sparse_matrix(matrix_s(1)%matrix,4,6,qs_env,para_env,output_unit=iw)
        IF (BTEST(cp_print_key_should_output(logger%iter_info,&
             qs_env%input,"DFT%PRINT%AO_MATRICES/DERIVATIVES",error=error),cp_p_file)) THEN
           DO i=2,maxder
-             CALL write_sparse_matrix(matrix_s(i)%matrix,4,6,qs_env,globenv,output_unit=iw)
+             CALL write_sparse_matrix(matrix_s(i)%matrix,4,6,qs_env,para_env,output_unit=iw)
           END DO
        END IF
        CALL cp_print_key_finished_output(iw,logger,qs_env%input,&

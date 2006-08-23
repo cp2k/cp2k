@@ -21,6 +21,7 @@
 
 MODULE qs_energy
   USE cp_control_types,                ONLY: dft_control_type
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE global_types,                    ONLY: global_environment_type
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
@@ -77,6 +78,7 @@ CONTAINS
 
     INTEGER                                  :: handle
     LOGICAL                                  :: right_iteration_level
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(section_vals_type), POINTER         :: input
 
@@ -84,15 +86,17 @@ CONTAINS
 
     CALL timeset(routineN,"I","",handle)
 
+    para_env=>globenv%para_env
+
     CALL get_qs_env(qs_env=qs_env,input=input, dft_control=dft_control, &
                     error=error)
 
-    CALL build_qs_neighbor_lists(qs_env,globenv,force_env_section=input,error=error)
+    CALL build_qs_neighbor_lists(qs_env,para_env,force_env_section=input,error=error)
 
 
     ! *** Calculate the overlap and the core Hamiltonian integral matrix ***
     IF ( dft_control%qs_control%semi_empirical ) THEN
-       CALL build_se_core_matrix(qs_env=qs_env, globenv=globenv,&
+       CALL build_se_core_matrix(qs_env=qs_env, para_env=para_env,&
                                  calculate_forces=.FALSE.,error=error)
        CALL qs_env_update_s_mstruct(qs_env)
     ELSE
@@ -100,7 +104,7 @@ CONTAINS
                                           calculate_forces=.FALSE.,error=error)
        CALL qs_env_update_s_mstruct(qs_env)
        CALL calculate_ecore_self(qs_env)
-       CALL calculate_ecore_overlap(qs_env, globenv, &
+       CALL calculate_ecore_overlap(qs_env, para_env, &
                                       calculate_forces=.FALSE.,error=error)
     END IF
 

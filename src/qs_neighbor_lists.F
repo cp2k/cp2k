@@ -40,12 +40,12 @@ MODULE qs_neighbor_lists
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE distribution_2d_types,           ONLY: distribution_2d_type
   USE external_potential_types,        ONLY: all_potential_type,&
                                              get_potential,&
                                              gth_potential_type
-  USE global_types,                    ONLY: global_environment_type
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
@@ -128,7 +128,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE build_qs_neighbor_lists(qs_env,globenv,molecular,&
+  SUBROUTINE build_qs_neighbor_lists(qs_env,para_env,molecular,&
                                      force_env_section,error)
 
     ! Purpose: Build all the required neighbor lists for Quickstep.
@@ -139,7 +139,7 @@ CONTAINS
     ! *************************************************************************
 
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_para_env_type), POINTER          :: para_env
     LOGICAL, OPTIONAL                        :: molecular
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
@@ -612,7 +612,7 @@ CONTAINS
                                 log_filename=.FALSE.,&
                                 file_position="REWIND",&
                                 error=error)
-      CALL write_neighbor_lists(sab_orb,particle_set,cell,globenv,iw,&
+      CALL write_neighbor_lists(sab_orb,particle_set,cell,para_env,iw,&
                                 "ORBITAL ORBITAL",error)
       CALL cp_print_key_finished_output(unit_nr=iw,&
                                         logger=logger,&
@@ -667,7 +667,7 @@ CONTAINS
                                     log_filename=.FALSE.,&
                                     file_position="REWIND",&
                                     error=error)
-          CALL write_neighbor_lists(sac_ppl,particle_set,cell,globenv,iw,&
+          CALL write_neighbor_lists(sac_ppl,particle_set,cell,para_env,iw,&
                                     "ORBITAL GTH-PPL",error)
           CALL cp_print_key_finished_output(unit_nr=iw,&
                                             logger=logger,&
@@ -705,7 +705,7 @@ CONTAINS
                                     log_filename=.FALSE.,&
                                     file_position="REWIND",&
                                     error=error)
-          CALL write_neighbor_lists(sac_ppnl,particle_set,cell,globenv,iw,&
+          CALL write_neighbor_lists(sac_ppnl,particle_set,cell,para_env,iw,&
                                     "ORBITAL(A) GTH-PPNL",error)
           CALL cp_print_key_finished_output(unit_nr=iw,&
                                             logger=logger,&
@@ -729,7 +729,7 @@ CONTAINS
                                     log_filename=.FALSE.,&
                                     file_position="REWIND",&
                                     error=error)
-          CALL write_neighbor_lists(sbc_ppnl,particle_set,cell,globenv,iw,&
+          CALL write_neighbor_lists(sbc_ppnl,particle_set,cell,para_env,iw,&
                                     "ORBITAL(B) GTH-PPNL",error)
           CALL cp_print_key_finished_output(unit_nr=iw,&
                                             logger=logger,&
@@ -774,7 +774,7 @@ CONTAINS
                                     log_filename=.FALSE.,&
                                     file_position="REWIND",&
                                     error=error)
-          CALL write_neighbor_lists(sac_oce,particle_set,cell,globenv,iw,&
+          CALL write_neighbor_lists(sac_oce,particle_set,cell,para_env,iw,&
                                     "ORBITAL(A) PAW-PRJ",error)
           CALL cp_print_key_finished_output(unit_nr=iw,&
                                             logger=logger,&
@@ -798,7 +798,7 @@ CONTAINS
                                     log_filename=.FALSE.,&
                                     file_position="REWIND",&
                                     error=error)
-          CALL write_neighbor_lists(sbc_oce,particle_set,cell,globenv,iw,&
+          CALL write_neighbor_lists(sbc_oce,particle_set,cell,para_env,iw,&
                                     "ORBITAL(B) PAW-PRJ",error)
           CALL cp_print_key_finished_output(unit_nr=iw,&
                                             logger=logger,&
@@ -840,7 +840,7 @@ CONTAINS
                                   log_filename=.FALSE.,&
                                   file_position="REWIND",&
                                   error=error)
-        CALL write_neighbor_lists(sab_2c,particle_set,cell,globenv,iw,&
+        CALL write_neighbor_lists(sab_2c,particle_set,cell,para_env,iw,&
                                   "HARTREE INTERACTIONS",error)
         CALL cp_print_key_finished_output(unit_nr=iw,&
                                           logger=logger,&
@@ -885,7 +885,7 @@ CONTAINS
                                   log_filename=.FALSE.,&
                                   file_position="REWIND",&
                                   error=error)
-        CALL write_neighbor_lists(sab_2c,particle_set,cell,globenv,iw,&
+        CALL write_neighbor_lists(sab_2c,particle_set,cell,para_env,iw,&
                                   "TWO-CENTER ORBITAL V_HARTREE_LOCAL",error)
         CALL cp_print_key_finished_output(unit_nr=iw,&
                                           logger=logger,&
@@ -941,7 +941,7 @@ CONTAINS
                                   log_filename=.FALSE.,&
                                   file_position="REWIND",&
                                   error=error)
-        CALL write_neighbor_lists(sac_3c,particle_set,cell,globenv,iw,&
+        CALL write_neighbor_lists(sac_3c,particle_set,cell,para_env,iw,&
                                   "THREE-CENTER ORBITAL(A) V_HARTREE_LOCAL",error)
         CALL cp_print_key_finished_output(unit_nr=iw,&
                                           logger=logger,&
@@ -965,7 +965,7 @@ CONTAINS
                                   log_filename=.FALSE.,&
                                   file_position="REWIND",&
                                   error=error)
-        CALL write_neighbor_lists(sac_3c,particle_set,cell,globenv,iw,&
+        CALL write_neighbor_lists(sac_3c,particle_set,cell,para_env,iw,&
                                   "THREE-CENTER ORBITAL(B) V_HARTREE_LOCAL",error)
         CALL cp_print_key_finished_output(unit_nr=iw,&
                                           logger=logger,&
@@ -989,7 +989,7 @@ CONTAINS
                                 print_key_path=print_key_path,&
                                 extension=".out",&
                                 error=error)
-      CALL write_distribution(sab_orb,atomic_kind_set,iw,globenv,error)
+      CALL write_distribution(sab_orb,atomic_kind_set,iw,para_env,error)
       CALL cp_print_key_finished_output(unit_nr=iw,&
                                         logger=logger,&
                                         basis_section=force_env_section,&
@@ -1813,7 +1813,6 @@ CONTAINS
       natom_c, natom_local_a, nkind
     INTEGER, DIMENSION(3)                    :: cell_a, cell_c, ncell, &
                                                 nsubcell, periodic
-    INTEGER, DIMENSION(:), POINTER           :: list
     LOGICAL                                  :: cell000, exclude
     REAL(dp)                                 :: rac2, rac2_max, rac_max, &
                                                 subcells, unit_of_length
@@ -1850,7 +1849,6 @@ CONTAINS
     END DO
 
     exclude = .FALSE.
-    NULLIFY (list)
 
     ! Load informations about the simulation cell
 
@@ -2770,7 +2768,7 @@ CONTAINS
 
   ! ***************************************************************************
 
-  SUBROUTINE write_distribution(ab,atomic_kind_set,output_unit,globenv,error)
+  SUBROUTINE write_distribution(ab,atomic_kind_set,output_unit,para_env,error)
 
     ! Purpose: Print the distribution of the simple pair neighbor list.
 
@@ -2783,7 +2781,7 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     INTEGER, INTENT(in)                      :: output_unit
-    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -2801,9 +2799,9 @@ CONTAINS
 
 ! -------------------------------------------------------------------------
 
-    group = globenv%para_env%group
-    mype = globenv%para_env%mepos + 1
-    npe = globenv%para_env%num_pe
+    group = para_env%group
+    mype = para_env%mepos + 1
+    npe = para_env%num_pe
 
     ! Allocate work storage
 
@@ -2900,7 +2898,7 @@ CONTAINS
 
   ! ***************************************************************************
 
-  SUBROUTINE write_neighbor_lists(ab,particle_set,cell,globenv,output_unit,&
+  SUBROUTINE write_neighbor_lists(ab,particle_set,cell,para_env,output_unit,&
                                   name,error)
 
     ! Purpose: Write a set of neighbor lists to the output unit.
@@ -2916,7 +2914,7 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER, INTENT(IN)                      :: output_unit
     CHARACTER(LEN=*), INTENT(IN)             :: name
     TYPE(cp_error_type), INTENT(inout), &
@@ -2937,7 +2935,7 @@ CONTAINS
 
 ! -------------------------------------------------------------------------
 
-    mype = globenv%para_env%mepos
+    mype = para_env%mepos
 
     CALL get_cell(cell=cell,&
                   unit_of_length=unit_of_length,&

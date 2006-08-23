@@ -5,6 +5,7 @@
 
 MODULE farming_methods
   USE cp_files,                        ONLY: get_unit_number
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE farming_types,                   ONLY: farming_env_type
   USE global_types,                    ONLY: global_environment_type
   USE input_section_types,             ONLY: section_vals_get,&
@@ -35,9 +36,11 @@ CONTAINS
     INTEGER                                  :: i, iunit, n_rep_val, stat
     INTEGER, DIMENSION(:), POINTER           :: i_vals
     LOGICAL                                  :: failure, found
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: farming_section, jobs_section
 
     failure=.FALSE.
+   para_env=>globenv%para_env
 
    farming_env%group_size_wish_set=.FALSE.
    farming_env%ngroup_wish_set    =.FALSE.
@@ -99,7 +102,7 @@ CONTAINS
       END DO
    END IF
 
-   IF (globenv%para_env%ionode .AND. .NOT. failure) THEN
+   IF (para_env%ionode .AND. .NOT. failure) THEN
         WRITE(globenv%scr,FMT="(T2,A,T71,I10)") "FARMING| Number of jobs found",farming_env%njobs
         IF (farming_env%ngroup_wish_set) THEN
            WRITE(globenv%scr,FMT="(T2,A,T71,I10)") "FARMING| Ngroup wish:",farming_env%ngroup_wish
@@ -110,10 +113,10 @@ CONTAINS
                  WRITE(globenv%scr,FMT='(I4)',ADVANCE="NO") farming_env%group_partition(i)
               END DO
               WRITE(globenv%scr,*)
-              IF (SUM(farming_env%group_partition).NE.globenv%para_env%num_pe) THEN
+              IF (SUM(farming_env%group_partition).NE.para_env%num_pe) THEN
                  WRITE(globenv%scr,FMT="(T2,A,T61,I10,T71,I10)") &
                      "FARMING| WARNING : partition CPUs not equal actual number ", &
-                     globenv%para_env%num_pe, SUM(farming_env%group_partition)
+                     para_env%num_pe, SUM(farming_env%group_partition)
                  WRITE(globenv%scr,FMT="(T2,A)") "FARMING|          partition data ignored" ! any better idea ??
                  DEALLOCATE(farming_env%group_partition)
               ENDIF
@@ -156,7 +159,7 @@ CONTAINS
            CLOSE(iunit,IOSTAT=stat)
         ENDIF
     ENDIF
-    CALL mp_bcast(farming_env%restart_n,globenv%para_env%source,globenv%para_env%group)
+    CALL mp_bcast(farming_env%restart_n,para_env%source,para_env%group)
 
   END SUBROUTINE
 

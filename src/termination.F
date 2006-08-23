@@ -30,6 +30,7 @@ MODULE termination
 
   USE cp_files,                        ONLY: close_file,&
                                              open_file
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_walltime
@@ -289,18 +290,18 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
 
-  SUBROUTINE stop_program_old(routine,error_message,globenv)
+  SUBROUTINE stop_program_old(routine,error_message,para_env)
 
     CHARACTER(LEN=*), INTENT(IN)             :: routine, error_message
-    TYPE(global_environment_type), &
-      OPTIONAL, POINTER                      :: globenv
+    TYPE(cp_para_env_type), OPTIONAL, &
+      POINTER                                :: para_env
 
     LOGICAL                                  :: ionode
 
 !   ---------------------------------------------------------------------------
 
-    IF (PRESENT(globenv)) THEN
-      ionode = globenv%para_env%ionode
+    IF (PRESENT(para_env)) THEN
+      ionode = para_env%ionode
     ELSE
       ionode = .TRUE.
     END IF
@@ -314,26 +315,27 @@ CONTAINS
       CALL mp_abort()
     END IF
 
+
   END SUBROUTINE stop_program_old
 
 ! *****************************************************************************
 
   SUBROUTINE stop_program_new(routineN,moduleN,line_number,&
-                              error_message,globenv)
+                              error_message,para_env)
 
     CHARACTER(LEN=*), INTENT(IN)             :: routineN, moduleN
     INTEGER, INTENT(IN)                      :: line_number
     CHARACTER(LEN=*), INTENT(IN)             :: error_message
-    TYPE(global_environment_type), &
-      OPTIONAL, POINTER                      :: globenv
+    TYPE(cp_para_env_type), OPTIONAL, &
+      POINTER                                :: para_env
 
     CHARACTER(LEN=80)                        :: message
     LOGICAL                                  :: ionode
 
 !   ---------------------------------------------------------------------------
 
-    IF (PRESENT(globenv)) THEN
-      ionode = globenv%para_env%ionode
+    IF (PRESENT(para_env)) THEN
+      ionode = para_env%ionode
     ELSE
       ionode = .TRUE.
     END IF

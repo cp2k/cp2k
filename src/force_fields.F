@@ -37,6 +37,7 @@ MODULE force_fields
   USE cp_files,                        ONLY: open_file
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_parser,                       ONLY: cp_parser_type,&
                                              parser_create,&
                                              parser_get_next_line,&
@@ -164,12 +165,13 @@ CONTAINS
     INTEGER                                  :: handle, iw
     LOGICAL                                  :: failure, found
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(force_field_type)                   :: ff_type
 
     CALL timeset(routineN,'I','',handle)
     failure = .FALSE.
-    NULLIFY(logger)
     logger => cp_error_get_logger(error)
+    para_env=> globenv%para_env
     iw = cp_print_key_unit_nr(logger,mm_section,"PRINT%FF_INFO",&
          extension=".mmLog",error=error)
 
@@ -192,7 +194,7 @@ CONTAINS
     ! 3. If reading in from external file, make sure its there first
     !-----------------------------------------------------------------------------
     IF(ff_type%ff_type/="OFF") THEN
-       IF(globenv%para_env%ionode) THEN
+       IF(para_env%ionode) THEN
           INQUIRE(FILE=ff_type%ff_file_name,EXIST=found)
           IF(found) THEN
           ELSE
@@ -1222,6 +1224,7 @@ CONTAINS
     LOGICAL                                  :: failure, found
     REAL(KIND=dp)                            :: cost2, csq, sdet
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_parser_type), POINTER            :: parser
     TYPE(gromos_info_type), POINTER          :: gro_info
 
@@ -1230,6 +1233,7 @@ CONTAINS
     CALL timeset(routineN,'I','',handle)
     failure = .FALSE.
     NULLIFY(logger,parser)
+    para_env=>globenv%para_env
     logger => cp_error_get_logger(error)
     iw = cp_print_key_unit_nr(logger,mm_section,"PRINT%FF_INFO",&
          extension=".mmLog",error=error)
@@ -1265,7 +1269,7 @@ CONTAINS
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! ATOMTYPENAME SECTION
     IF(iw>0) WRITE(iw,'(T2,A)') 'GTOP_INFO| Parsing the ATOMTYPENAME section'    
-    CALL parser_create(parser,ff_type%ff_file_name,para_env=globenv%para_env)
+    CALL parser_create(parser,ff_type%ff_file_name,para_env=para_env)
     label = TRIM(avail_section(4))
     CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
     IF(found) THEN
@@ -1292,7 +1296,7 @@ CONTAINS
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! SOLVENTCONSTR SECTION
     IF(iw>0) WRITE(iw,'(T2,A)') 'GROMOS_FF| Parsing the SOLVENTATOM section'    
-    CALL parser_create(parser,ff_type%ff_file_name,para_env=globenv%para_env)
+    CALL parser_create(parser,ff_type%ff_file_name,para_env=para_env)
 
     label = TRIM(avail_section(21))
     CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
@@ -1314,7 +1318,7 @@ CONTAINS
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-    CALL parser_create(parser,ff_type%ff_file_name,para_env=globenv%para_env)
+    CALL parser_create(parser,ff_type%ff_file_name,para_env=para_env)
 
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -1464,7 +1468,7 @@ CONTAINS
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! LJPARAMETERS SECTION
     IF(iw>0) WRITE(iw,'(T2,A)') 'GROMOS_FF| Parsing the LJPARAMETERS section'    
-    CALL parser_create(parser,ff_type%ff_file_name,para_env=globenv%para_env)
+    CALL parser_create(parser,ff_type%ff_file_name,para_env=para_env)
     label = TRIM(avail_section(19))
     CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
     IF(found) THEN
@@ -1568,11 +1572,13 @@ CONTAINS
     LOGICAL                                  :: failure, found
     TYPE(charmm_info_type), POINTER          :: chm_info
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_parser_type), POINTER            :: parser
 
     CALL timeset(routineN,'I','',handle)
     failure = .FALSE.
     NULLIFY(logger,parser)
+    para_env=>globenv%para_env
     logger => cp_error_get_logger(error)
     iw = cp_print_key_unit_nr(logger,mm_section,"PRINT%FF_INFO",&
          extension=".mmLog",error=error)
@@ -1607,7 +1613,7 @@ CONTAINS
     !-----------------------------------------------------------------------------
     nbond = 0
     DO ilab = 1, SIZE(bond_section)
-       CALL parser_create(parser,ff_type%ff_file_name,para_env=globenv%para_env)
+       CALL parser_create(parser,ff_type%ff_file_name,para_env=para_env)
        label = TRIM(bond_section(ilab))
        DO 
           CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
@@ -1662,7 +1668,7 @@ CONTAINS
     nbend = 0
     nub = 0
     DO ilab = 1, SIZE(angl_section)
-       CALL parser_create(parser,ff_type%ff_file_name,para_env=globenv%para_env)
+       CALL parser_create(parser,ff_type%ff_file_name,para_env=para_env)
        label = TRIM(angl_section(ilab))
        DO 
           CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
@@ -1740,7 +1746,7 @@ CONTAINS
     !-----------------------------------------------------------------------------
     ntorsion = 0
     DO ilab = 1, SIZE(thet_section)
-       CALL parser_create(parser,ff_type%ff_file_name,para_env=globenv%para_env)
+       CALL parser_create(parser,ff_type%ff_file_name,para_env=para_env)
        label = TRIM(thet_section(ilab))
        DO 
           CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
@@ -1804,7 +1810,7 @@ CONTAINS
     !-----------------------------------------------------------------------------
     nimpr = 0
     DO ilab = 1, SIZE(impr_section)
-       CALL parser_create(parser,ff_type%ff_file_name,para_env=globenv%para_env)
+       CALL parser_create(parser,ff_type%ff_file_name,para_env=para_env)
        label = TRIM(impr_section(ilab))
        DO 
           CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
@@ -1862,7 +1868,7 @@ CONTAINS
     nnonbond = 0
     nonfo = 0
     DO ilab = 1, SIZE(nbon_section)
-       CALL parser_create(parser,ff_type%ff_file_name,para_env=globenv%para_env)
+       CALL parser_create(parser,ff_type%ff_file_name,para_env=para_env)
        label = TRIM(nbon_section(ilab))
        DO 
           CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
@@ -2612,7 +2618,7 @@ CONTAINS
                    bond_list(j)%bond_kind%k(1) = chm_info%bond_k(k)
                    bond_list(j)%bond_kind%r0   = chm_info%bond_r0(k)
                    IF (found) CALL Pwarning("Multiple Bond declarations: "//TRIM(name_atm_a)//&
-                        " and "//TRIM(name_atm_b)//" overwriting!",globenv,error)
+                        " and "//TRIM(name_atm_b)//" overwriting!",globenv%input_file,error)
                    found = .TRUE.
                    EXIT
                 END IF
@@ -2630,7 +2636,7 @@ CONTAINS
                    bond_list(j)%bond_kind%k(:) = inp_info%bond_k(:,k)
                    bond_list(j)%bond_kind%r0   = inp_info%bond_r0(k)
                    IF (found) CALL Pwarning("Multiple Bond declarations: "//TRIM(name_atm_a)//&
-                        " and "//TRIM(name_atm_b)//" overwriting!",globenv,error)
+                        " and "//TRIM(name_atm_b)//" overwriting!",globenv%input_file,error)
                    found = .TRUE.
                    EXIT
                 END IF
@@ -2721,7 +2727,7 @@ CONTAINS
                    bend_list(j)%bend_kind%k      = chm_info%bend_k(k)
                    bend_list(j)%bend_kind%theta0 = chm_info%bend_theta0(k)
                    IF (found) CALL Pwarning("Multiple Bend declarations: "//TRIM(name_atm_a)//&
-                        ","//TRIM(name_atm_b)//" and "//TRIM(name_atm_c)//" overwriting!",globenv,error)
+                        ","//TRIM(name_atm_b)//" and "//TRIM(name_atm_c)//" overwriting!",globenv%input_file,error)
                    found = .TRUE.
                    EXIT
                 END IF
@@ -2741,7 +2747,7 @@ CONTAINS
                    bend_list(j)%bend_kind%k      = inp_info%bend_k(k)
                    bend_list(j)%bend_kind%theta0 = inp_info%bend_theta0(k)
                    IF (found) CALL Pwarning("Multiple Bend declarations: "//TRIM(name_atm_a)//&
-                        ","//TRIM(name_atm_b)//" and "//TRIM(name_atm_c)//" overwriting!",globenv,error)
+                        ","//TRIM(name_atm_b)//" and "//TRIM(name_atm_c)//" overwriting!",globenv%input_file,error)
                    found = .TRUE.
                    EXIT
                 END IF
@@ -2815,7 +2821,7 @@ CONTAINS
                    IF(iw>0) WRITE(iw,*) "    Found UB ",TRIM(name_atm_a)," ",&
                         TRIM(name_atm_b)," ",TRIM(name_atm_c)
                    IF (found) CALL Pwarning("Multiple UB declarations: "//TRIM(name_atm_a)//&
-                        ","//TRIM(name_atm_b)//" and "//TRIM(name_atm_c)//" overwriting!",globenv,error)
+                        ","//TRIM(name_atm_b)//" and "//TRIM(name_atm_c)//" overwriting!",globenv%input_file,error)
                    found = .TRUE.
                    EXIT
                 END IF
@@ -2835,7 +2841,7 @@ CONTAINS
                    ub_list(j)%ub_kind%k      = inp_info%ub_k(k)
                    ub_list(j)%ub_kind%r0     = inp_info%ub_r0(k)
                    IF (found) CALL Pwarning("Multiple UB declarations: "//TRIM(name_atm_a)//&
-                        ","//TRIM(name_atm_b)//" and "//TRIM(name_atm_c)//" overwriting!",globenv,error)
+                        ","//TRIM(name_atm_b)//" and "//TRIM(name_atm_c)//" overwriting!",globenv%input_file,error)
                    found = .TRUE.
                    EXIT
                 END IF
@@ -3121,7 +3127,7 @@ CONTAINS
                    impr_list(j)%impr_kind%phi0 = chm_info%impr_phi0(k)
                    IF (found) CALL Pwarning("Multiple Improper declarations: "//TRIM(name_atm_a)//&
                         ","//TRIM(name_atm_b)//","//TRIM(name_atm_c)//" and "//TRIM(name_atm_d)//&
-                        " overwriting!",globenv,error)
+                        " overwriting!",globenv%input_file,error)
                    found = .TRUE.
                    EXIT
                 END IF
@@ -3141,7 +3147,7 @@ CONTAINS
                       impr_list(j)%impr_kind%phi0 = chm_info%impr_phi0(k)
                       IF (found) CALL Pwarning("Multiple Improper declarations: "//TRIM(name_atm_a)//&
                            ","//TRIM(name_atm_b)//","//TRIM(name_atm_c)//" and "//TRIM(name_atm_d)//&
-                           " overwriting!",globenv,error)
+                           " overwriting!",globenv%input_file,error)
                       found = .TRUE.
                       EXIT
                    END IF
@@ -3165,7 +3171,7 @@ CONTAINS
                    impr_list(j)%impr_kind%phi0 = inp_info%impr_phi0(k)
                    IF (found) CALL Pwarning("Multiple Improper declarations: "//TRIM(name_atm_a)//&
                         ","//TRIM(name_atm_b)//","//TRIM(name_atm_c)//" and "//TRIM(name_atm_d)//&
-                        " overwriting!",globenv,error)
+                        " overwriting!",globenv%input_file,error)
                    found = .TRUE.
                    EXIT
                 END IF
@@ -3222,7 +3228,7 @@ CONTAINS
              IF(TRIM(ff_type%chm_info%charge_atm(j))==atmname) THEN
                 charge(i) = ff_type%chm_info%charge(j)
                 IF (found) CALL Pwarning("Multiple charge declarations: "//TRIM(atmname)//&
-                     " overwriting!",globenv,error)
+                     " overwriting!",globenv%input_file,error)
                 found = .TRUE.
              END IF
           END DO
@@ -3234,7 +3240,7 @@ CONTAINS
              IF(TRIM(ff_type%inp_info%charge_atm(j))==atmname) THEN
                 charge(i) = ff_type%inp_info%charge(j)
                 IF (found) CALL Pwarning("Multiple charge declarations: "//TRIM(atmname)//&
-                     " overwriting!",globenv,error)
+                     " overwriting!",globenv%input_file,error)
                 found = .TRUE.
              END IF
           END DO
@@ -3338,7 +3344,7 @@ CONTAINS
                   SQRT(gro_info%nonbond_c12_14(ii)*gro_info%nonbond_c12_14(jj))
                 potparm_bond%pot(i,j)%pot%rcutsq     = (10.0_dp*bohr)**2
                 IF (found) CALL Pwarning("Multiple Lennard-Jones declarations: "//TRIM(name_atm_a)//&
-                     " and "//TRIM(name_atm_b)//" overwriting!",globenv,error)
+                     " and "//TRIM(name_atm_b)//" overwriting!",globenv%input_file,error)
                 found = .TRUE.
              END IF
           END IF
@@ -3404,7 +3410,7 @@ CONTAINS
                 potparm_bond%pot(i,j)%pot%lj%sigma12 = 0.25_dp*rmin**12
                 potparm_bond%pot(i,j)%pot%rcutsq     = (10.0_dp*bohr)**2
                 IF (found) CALL Pwarning("Multiple Lennard-Jones declarations: "//TRIM(name_atm_a)//&
-                     " and "//TRIM(name_atm_b)//" overwriting!",globenv,error)
+                     " and "//TRIM(name_atm_b)//" overwriting!",globenv%input_file,error)
                 found = .TRUE.
              END IF
           END IF
@@ -3420,7 +3426,7 @@ CONTAINS
                      (TRIM(name_atm_a)==TRIM(inp_info%nonbonded14%pot(k)%pot%at2))) ) THEN
                    CALL pair_potential_single_copy(inp_info%nonbonded14%pot(k)%pot,potparm_bond%pot(i,j)%pot,error)
                    IF (found) CALL Pwarning("Multiple Lennard-Jones declarations: "//TRIM(name_atm_a)//&
-                        " and "//TRIM(name_atm_b)//" overwriting!",globenv,error)
+                        " and "//TRIM(name_atm_b)//" overwriting!",globenv%input_file,error)
                    IF(iw>0) WRITE(iw,*) "    FOUND ",TRIM(name_atm_a)," ",TRIM(name_atm_b)
                    found = .TRUE.
                    EXIT
@@ -3448,7 +3454,7 @@ CONTAINS
                               potparm_bond%pot(i,j)%pot,error)
                          IF (found) CALL Pwarning("Multiple Lennard-Jones declarations: "//TRIM(name_atm_a)//&
                               " and "//TRIM(name_atm_b)//" overwriting with QM/MM forcefield specifications",&
-                              globenv,error)
+                              globenv%input_file,error)
                          IF(iw>0) WRITE(iw,*) "    FOUND ",TRIM(name_atm_a),&
                               " ",TRIM(name_atm_b)
                          found = .TRUE.
@@ -3589,7 +3595,7 @@ CONTAINS
                 potparm_nonbond%pot(i,j)%pot%rcutsq     = (10.0_dp*bohr)**2
                 IF (found) CALL Pwarning("Multiple Lennard-Jones declarations: "//TRIM(name_atm_a)//&
                      " and "//TRIM(name_atm_b)//" overwriting!",&
-                     globenv,error)
+                     globenv%input_file,error)
                 found = .TRUE.
              END IF
           END IF
@@ -3626,7 +3632,7 @@ CONTAINS
                 potparm_nonbond%pot(i,j)%pot%rcutsq     = (10.0_dp*bohr)**2
                 IF (found) CALL Pwarning("Multiple Lennard-Jones declarations: "//TRIM(name_atm_a)//&
                      " and "//TRIM(name_atm_b)//" overwriting!",&
-                     globenv,error)
+                     globenv%input_file,error)
                 found = .TRUE.
              END IF
           END IF
@@ -3645,7 +3651,7 @@ CONTAINS
                    CALL pair_potential_single_copy(inp_info%nonbonded%pot(k)%pot,potparm_nonbond%pot(i,j)%pot,error)
                    IF (found) CALL Pwarning("Multiple Lennard-Jones declarations: "//TRIM(name_atm_a)//&
                         " and "//TRIM(name_atm_b)//" overwriting!",&
-                        globenv,error)
+                        globenv%input_file,error)
                    IF(iw>0) WRITE(iw,*) "    FOUND ",TRIM(name_atm_a),&
                         " ",TRIM(name_atm_b)
                    found = .TRUE.
@@ -3673,7 +3679,7 @@ CONTAINS
                               potparm_nonbond%pot(i,j)%pot,error)
                          IF (found) CALL Pwarning("Multiple Lennard-Jones declarations: "//TRIM(name_atm_a)//&
                               " and "//TRIM(name_atm_b)//" overwriting with QM/MM forcefield specifications",&
-                              globenv,error)
+                              globenv%input_file,error)
                          IF(iw>0) WRITE(iw,*) "    FOUND ",TRIM(name_atm_a),&
                               " ",TRIM(name_atm_b)
                          found = .TRUE.
@@ -4659,16 +4665,17 @@ CONTAINS
     REAL(KINd=dp), DIMENSION(:), POINTER     :: frho, frhop, phi, phip, rho, &
                                                 rhop, rhoval, rval
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
 
     CALL timeset(routineN,'I','',handle)
     failure = .FALSE.
-    NULLIFY(logger)
     logger => cp_error_get_logger(error)
+    para_env=>globenv%para_env
     iw = cp_print_key_unit_nr(logger,mm_section,"PRINT%FF_INFO",&
          extension=".mmLog",error=error)
     NULLIFY ( rval, rhoval, phi, phip, frho, frhop, rho, rhop )
     IF (.NOT.failure) THEN
-       IF ( globenv%para_env%ionode ) THEN
+       IF ( para_env%ionode ) THEN
           ALLOCATE ( rho ( 5000 ), STAT = stat )
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           rho=0.0_dp
@@ -4731,37 +4738,37 @@ CONTAINS
           IF (iw>0) WRITE ( iw, * ) 'Finished EAM data'
           CLOSE ( unit_number )
        ENDIF
-       CALL mp_bcast ( drar, globenv%para_env%source, globenv % para_env % group )
-       CALL mp_bcast ( drhoar, globenv % para_env % source, globenv % para_env % group )
-       CALL mp_bcast ( acutal, globenv % para_env % source, globenv % para_env % group )
+       CALL mp_bcast ( drar, para_env%source, para_env % group )
+       CALL mp_bcast ( drhoar, para_env % source, para_env % group )
+       CALL mp_bcast ( acutal, para_env % source, para_env % group )
 
        eam % drar = drar
        eam % drhoar = drhoar
        eam % acutal = acutal
 
        CALL reallocate ( rho, 1, 5000 )
-       CALL mp_bcast ( rho, globenv%para_env%source, globenv%para_env%group )
+       CALL mp_bcast ( rho, para_env%source, para_env%group )
 
        CALL reallocate ( rhop, 1, 5000 )
-       CALL mp_bcast ( rhop, globenv%para_env%source, globenv%para_env%group )
+       CALL mp_bcast ( rhop, para_env%source, para_env%group )
 
        CALL reallocate ( rval, 1, 5000 )
-       CALL mp_bcast ( rval, globenv%para_env%source, globenv%para_env%group )
+       CALL mp_bcast ( rval, para_env%source, para_env%group )
 
        CALL reallocate ( rhoval, 1, 5000 )
-       CALL mp_bcast ( rhoval, globenv%para_env%source, globenv%para_env%group )
+       CALL mp_bcast ( rhoval, para_env%source, para_env%group )
 
        CALL reallocate ( phi, 1, 5000 )
-       CALL mp_bcast ( phi, globenv%para_env%source, globenv%para_env%group )
+       CALL mp_bcast ( phi, para_env%source, para_env%group )
 
        CALL reallocate ( phip, 1, 5000 )
-       CALL mp_bcast ( phip, globenv%para_env%source, globenv%para_env%group )
+       CALL mp_bcast ( phip, para_env%source, para_env%group )
 
        CALL reallocate ( frho, 1, 5000 )
-       CALL mp_bcast ( frho, globenv%para_env%source, globenv%para_env%group )
+       CALL mp_bcast ( frho, para_env%source, para_env%group )
 
        CALL reallocate ( frhop, 1, 5000 )
-       CALL mp_bcast ( frhop, globenv%para_env%source, globenv%para_env%group )
+       CALL mp_bcast ( frhop, para_env%source, para_env%group )
 
        eam % rho    = rho 
        eam % rhop   = rhop 

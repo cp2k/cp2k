@@ -320,6 +320,7 @@ CONTAINS
     REAL(dp), DIMENSION(:), POINTER          :: diis_ev_global
     REAL(dp), DIMENSION(:, :), POINTER       :: diis_m1_global, diis_m2_global
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(kg_fm_p_type), POINTER              :: kg_fm
     TYPE(kg_sub_pw_env_type), POINTER        :: kg_sub_pw_env
@@ -341,7 +342,7 @@ CONTAINS
     NULLIFY(rho, matrix_h, matrix_ks, matrix_p, matrix_s, kg_fm)
     NULLIFY(dft_section,scf_section,kg_section)
     NULLIFY(logger)
-
+    para_env=>globenv%para_env
     logger => cp_error_get_logger(error)
     t1 = m_walltime()
     failure=.FALSE.
@@ -451,7 +452,7 @@ CONTAINS
                qs_env%input,"DFT%PRINT%AO_MATRICES/DENSITY",error=error),cp_p_file)) THEN
              iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/DENSITY",&
                   extension=".Log",error=error)
-             CALL write_sparse_matrix(matrix_p(ispin)%matrix,4,6,qs_env,globenv,output_unit=iw)
+             CALL write_sparse_matrix(matrix_p(ispin)%matrix,4,6,qs_env,para_env,output_unit=iw)
              CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
                   "DFT%PRINT%AO_MATRICES/DENSITY", error=error)
           END IF
@@ -460,7 +461,7 @@ CONTAINS
                qs_env%input,"DFT%PRINT%AO_MATRICES/KOHN_SHAM_MATRIX",error=error),cp_p_file)) THEN
              iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/KOHN_SHAM_MATRIX",&
                   extension=".Log",error=error)
-             CALL write_sparse_matrix(matrix_ks(ispin)%matrix,4,6,qs_env,globenv,output_unit=iw)
+             CALL write_sparse_matrix(matrix_ks(ispin)%matrix,4,6,qs_env,para_env,output_unit=iw)
              CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
                   "DFT%PRINT%AO_MATRICES/KOHN_SHAM_MATRIX", error=error)             
           END IF
@@ -822,6 +823,7 @@ CONTAINS
     INTEGER                                  :: handle, ndep, output_unit
     LOGICAL                                  :: do_ortho, failure
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_sm_pool_p_type), DIMENSION(:), &
       POINTER                                :: S_sm_pools
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -840,6 +842,7 @@ CONTAINS
 
     NULLIFY(dft_control,kg_fm,scf_control)
     NULLIFY(qs_env,ks_env,matrix_ks)
+    para_env=>globenv%para_env
 
     failure=.FALSE.
     do_ortho = .TRUE.
@@ -897,7 +900,7 @@ CONTAINS
       ! update ecore
       CALL calculate_ecore_self(qs_env)
 
-      CALL calculate_ecore_overlap(qs_env,globenv,dft_control%forces,molecular=.TRUE.,&
+      CALL calculate_ecore_overlap(qs_env,para_env,dft_control%forces,molecular=.TRUE.,&
            error=error)
       output_unit=cp_print_key_unit_nr(logger,scf_section,"PRINT%DETAILED_ENERGY",&
            extension=".scfLog",error=error)

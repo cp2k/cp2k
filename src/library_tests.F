@@ -130,9 +130,11 @@ CONTAINS
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     INTEGER                                  :: iw
+    TYPE(cp_para_env_type), POINTER          :: para_env
 
-    iw = globenv % scr
-    IF ( globenv%para_env%ionode ) THEN
+    iw = globenv%scr
+    para_env=>globenv%para_env
+    IF ( para_env%ionode ) THEN
        WRITE ( iw, '(T2,79("*"))' )
        WRITE ( iw, '(A,T31,A,T80,A)' ) ' *',' PERFORMANCE TESTS ','*'
        WRITE ( iw, '(T2,79("*"))' )
@@ -152,7 +154,7 @@ CONTAINS
     !
     IF ( runtest ( 7 ) /= 0 ) CALL rs_test ( globenv, error )
     !
-    IF ( runtest ( 8 ) /= 0 ) CALL mpi_test ( globenv%para_env%group )
+    IF ( runtest ( 8 ) /= 0 ) CALL mpi_test ( para_env%group )
 
     IF (runtest(9) /= 0) THEN
       CALL rng_test(runtest(9),globenv,error)
@@ -210,11 +212,13 @@ SUBROUTINE test_input ( globenv , error)
 
     INTEGER                                  :: iw
     INTEGER, DIMENSION(:), POINTER           :: i_vals
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: test_section
 
 !
 
-  iw = globenv % scr
+  iw = globenv%scr
+  para_env=>globenv%para_env
 !..defaults
   runtest = 0
   max_memory = 256.e6_dp
@@ -233,7 +237,7 @@ SUBROUTINE test_input ( globenv , error)
   runtest(10)=i_vals(1)
   runtest(11) = MIN(MAX(1,i_vals(2)),i_vals(1))
 
-  CALL mp_sync(globenv%para_env%group)
+  CALL mp_sync(para_env%group)
 END SUBROUTINE test_input
 
 !******************************************************************************
@@ -264,12 +268,14 @@ SUBROUTINE copy_test ( globenv )
     INTEGER                                  :: i, ierr, iw, j, len, ntim, siz
     REAL(KIND=dp)                            :: perf, t, tend, tstart
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: ca, cb
+    TYPE(cp_para_env_type), POINTER          :: para_env
 
 ! test for copy --> Cache size
 
   siz = ABS ( runtest ( 1 ) )
-  iw = globenv % scr
-  IF ( globenv%para_env%ionode ) WRITE ( iw, '(//,A,/)' ) " Test of copy ( F95 ) "
+  iw = globenv%scr
+  para_env=>globenv%para_env
+  IF ( para_env%ionode ) WRITE ( iw, '(//,A,/)' ) " Test of copy ( F95 ) "
   DO i = 6, 24
     len = 2**i
     IF ( 8.0_dp * REAL ( len,KIND=dp) > max_memory * 0.5_dp ) EXIT
@@ -296,7 +302,7 @@ SUBROUTINE copy_test ( globenv )
        perf = 0.0_dp
     END IF
 
-    IF ( globenv%para_env%ionode ) THEN
+    IF ( para_env%ionode ) THEN
       WRITE ( iw, '(A,i2,i10,A,T59,F14.4,A)' ) " Copy test:   Size = 2^",i, &
        len/1024," Kwords",perf," Mcopy/s"
     END IF
@@ -306,7 +312,7 @@ SUBROUTINE copy_test ( globenv )
     DEALLOCATE ( cb , STAT = ierr )
     IF ( ierr /= 0 ) CALL stop_memory ( "lib_test", "cb" )
   END DO
-  CALL mp_sync(globenv%para_env%group)
+  CALL mp_sync(para_env%group)
 END SUBROUTINE copy_test
 
 !******************************************************************************
@@ -334,12 +340,14 @@ SUBROUTINE matmul_test ( globenv )
     REAL(KIND=dp)                            :: perf, t, tend, tstart, xdum
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: ma, mb, mc
+    TYPE(cp_para_env_type), POINTER          :: para_env
 
 ! test for matrix multpies
 
+  para_env=>globenv%para_env
   siz = ABS ( runtest ( 2 ) )
-  iw = globenv % scr
-  IF ( globenv%para_env%ionode ) WRITE ( iw, '(//,A,/)' ) " Test of matmul ( F95 ) "
+  iw = globenv%scr
+  IF ( para_env%ionode ) WRITE ( iw, '(//,A,/)' ) " Test of matmul ( F95 ) "
   DO i = 4, 10, 2
     len = 2**i + 1
     IF ( 8.0_dp * REAL ( len*len,KIND=dp) > max_memory * 0.3_dp ) EXIT
@@ -365,7 +373,7 @@ SUBROUTINE matmul_test ( globenv )
     tend = m_cputime ( )
     t = tend - tstart + threshold
     perf = REAL ( ntim,KIND=dp) * 2.0_dp * REAL ( len,KIND=dp)**3 * 1.e-6_dp / t
-    IF ( globenv%para_env%ionode ) THEN
+    IF ( para_env%ionode ) THEN
       WRITE ( iw, '(A,i6,T59,F14.4,A)' ) &
        " Matrix multiply test: c = a * b         Size = ",len, perf," Mflop/s"
     END IF
@@ -382,7 +390,7 @@ SUBROUTINE matmul_test ( globenv )
        perf = 0.0_dp
     END IF
 
-    IF ( globenv%para_env%ionode ) THEN
+    IF ( para_env%ionode ) THEN
       WRITE ( iw, '(A,i6,T59,F14.4,A)' ) &
        " Matrix multiply test: a = a * b         Size = ",len, perf," Mflop/s"
     END IF
@@ -400,7 +408,7 @@ SUBROUTINE matmul_test ( globenv )
        perf = 0.0_dp
     END IF
 
-    IF ( globenv%para_env%ionode ) THEN
+    IF ( para_env%ionode ) THEN
       WRITE ( iw, '(A,i6,T59,F14.4,A)' ) &
        " Matrix multiply test: c = a * b(T)      Size = ",len, perf," Mflop/s"
     END IF
@@ -418,7 +426,7 @@ SUBROUTINE matmul_test ( globenv )
        perf = 0.0_dp
     END IF
 
-    IF ( globenv%para_env%ionode ) THEN
+    IF ( para_env%ionode ) THEN
       WRITE ( iw, '(A,i6,T59,F14.4,A)' ) &
        " Matrix multiply test: c = a(T) * b      Size = ",len, perf," Mflop/s"
     END IF
@@ -432,7 +440,7 @@ SUBROUTINE matmul_test ( globenv )
   END DO
 
 ! test for matrix multpies
-  IF ( globenv%para_env%ionode ) WRITE ( iw, '(//,A,/)' ) " Test of matmul ( BLAS ) "
+  IF ( para_env%ionode ) WRITE ( iw, '(//,A,/)' ) " Test of matmul ( BLAS ) "
   DO i = 4, 10, 2
     len = 2**i + 1
     IF ( 8.0_dp * REAL ( len*len,KIND=dp) > max_memory * 0.3_dp ) EXIT
@@ -463,7 +471,7 @@ SUBROUTINE matmul_test ( globenv )
        perf = 0.0_dp
     END IF
 
-    IF ( globenv%para_env%ionode ) THEN
+    IF ( para_env%ionode ) THEN
       WRITE ( iw, '(A,i6,T59,F14.4,A)' ) &
        " Matrix multiply test: c = a * b         Size = ",len, perf," Mflop/s"
     END IF
@@ -480,7 +488,7 @@ SUBROUTINE matmul_test ( globenv )
        perf = 0.0_dp
     END IF
 
-    IF ( globenv%para_env%ionode ) THEN
+    IF ( para_env%ionode ) THEN
       WRITE ( iw, '(A,i6,T59,F14.4,A)' ) &
        " Matrix multiply test: a = a * b         Size = ",len, perf," Mflop/s"
     END IF
@@ -497,7 +505,7 @@ SUBROUTINE matmul_test ( globenv )
        perf = 0.0_dp
     END IF
 
-    IF ( globenv%para_env%ionode ) THEN
+    IF ( para_env%ionode ) THEN
       WRITE ( iw, '(A,i6,T59,F14.4,A)' ) &
        " Matrix multiply test: c = a * b(T)      Size = ",len, perf," Mflop/s"
     END IF
@@ -514,7 +522,7 @@ SUBROUTINE matmul_test ( globenv )
        perf = 0.0_dp
     END IF
 
-    IF ( globenv%para_env%ionode ) THEN
+    IF ( para_env%ionode ) THEN
       WRITE ( iw, '(A,i6,T59,F14.4,A)' ) &
        " Matrix multiply test: c = a(T) * b      Size = ",len, perf," Mflop/s"
     END IF
@@ -526,7 +534,7 @@ SUBROUTINE matmul_test ( globenv )
     DEALLOCATE ( mc , STAT = ierr )
     IF ( ierr /= 0 ) CALL stop_memory ( "lib_test", "mc" )
   END DO
-  CALL mp_sync(globenv%para_env%group)
+  CALL mp_sync(para_env%group)
 END SUBROUTINE matmul_test
 
 !******************************************************************************
@@ -560,11 +568,13 @@ SUBROUTINE fft_test ( globenv )
                                                 tend, tstart
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: ra
+    TYPE(cp_para_env_type), POINTER          :: para_env
 
 ! test for 3d FFT
 
-  iw = globenv % scr
-  IF ( globenv%para_env%ionode ) WRITE ( iw, '(//,A,/)' ) " Test of 3D-FFT "
+  para_env=>globenv%para_env
+  iw = globenv%scr
+  IF ( para_env%ionode ) WRITE ( iw, '(//,A,/)' ) " Test of 3D-FFT "
   siz = ABS ( runtest ( 3 ) )
 
   DO iall = 1, 100
@@ -629,7 +639,7 @@ SUBROUTINE fft_test ( globenv )
              perf = 0.0_dp
           END IF
 
-          IF ( globenv%para_env%ionode ) THEN
+          IF ( para_env%ionode ) THEN
             WRITE ( iw, '(T2,A,A,i6,T59,F14.4,A)' ) &
              ADJUSTR(method)," test (in-place)    Size = ",len, perf," Mflop/s"
           END IF
@@ -639,7 +649,7 @@ SUBROUTINE fft_test ( globenv )
           IF ( ierr /= 0 ) CALL stop_memory ( "lib_test", "ra" )
         END IF
       END DO
-      IF ( globenv%para_env%ionode ) WRITE ( iw, * )
+      IF ( para_env%ionode ) WRITE ( iw, * )
 ! test if input data is preserved
       len = 24
       n = len
@@ -660,11 +670,11 @@ SUBROUTINE fft_test ( globenv )
       CALL fft3d ( FWFFT, n, ca, cb )
       tdiff = MAXVAL ( ABS ( ca - cc ) )
       IF ( tdiff > 1.0E-12_dp ) THEN
-        IF ( globenv%para_env%ionode ) &
+        IF ( para_env%ionode ) &
         WRITE ( iw, '(T2,A,A,A)' ) ADJUSTR(method),"         FWFFT ", &
                "             Input array is changed in out-of-place FFT !"
       ELSE
-        IF ( globenv%para_env%ionode ) &
+        IF ( para_env%ionode ) &
         WRITE ( iw, '(T2,A,A,A)' ) ADJUSTR(method),"         FWFFT ", &
                "         Input array is not changed in out-of-place FFT !"
       END IF
@@ -672,15 +682,15 @@ SUBROUTINE fft_test ( globenv )
       CALL fft3d ( BWFFT, n, ca, cb )
       tdiff = MAXVAL ( ABS ( ca - cc ) )
       IF ( tdiff > 1.0E-12_dp ) THEN
-        IF ( globenv%para_env%ionode ) &
+        IF ( para_env%ionode ) &
         WRITE ( iw, '(T2,A,A,A)' ) ADJUSTR(method),"         BWFFT ", &
                "             Input array is changed in out-of-place FFT !"
       ELSE
-        IF ( globenv%para_env%ionode ) &
+        IF ( para_env%ionode ) &
         WRITE ( iw, '(T2,A,A,A)' ) ADJUSTR(method),"         BWFFT ", &
                "         Input array is not changed in out-of-place FFT !"
       END IF
-      IF ( globenv%para_env%ionode ) WRITE ( iw, * )
+      IF ( para_env%ionode ) WRITE ( iw, * )
 
       DEALLOCATE ( ra , STAT = ierr )
       IF ( ierr /= 0 ) CALL stop_memory ( "lib_test", "ra" )
@@ -724,10 +734,13 @@ SUBROUTINE pw_fft_test ( globenv )
                                                 perf, r, t, tend, tim, tstart
     TYPE(cell_type), POINTER                 :: box
     TYPE(coeff_type)                         :: ca, cb, cc
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(pw_grid_type), POINTER              :: grid
     TYPE(section_vals_type), POINTER         :: print_section
 
 !..the unit cell
+
+    para_env=>globenv%para_env
 
   NULLIFY(box,grid)
   CALL cell_create(box)
@@ -736,7 +749,7 @@ SUBROUTINE pw_fft_test ( globenv )
   CALL get_hinv ( box )
 
 !..set fft lib
-  CALL init_fft ( globenv % default_fft_library )
+  CALL init_fft ( globenv%default_fft_library )
 
   ntim = 4
   tim = 1.0_dp
@@ -747,7 +760,7 @@ SUBROUTINE pw_fft_test ( globenv )
   np ( 3 ) = NINT ( r * 0.666_dp )
 
 !..Test 1
-  CALL pw_grid_create ( grid, globenv%para_env%group )
+  CALL pw_grid_create ( grid, para_env%group )
   grid % grid_span = FULLSPACE
   grid % bounds ( 1, : ) = -np / 2
   grid % bounds ( 2, : ) = ( np - 1 ) / 2
@@ -755,7 +768,7 @@ SUBROUTINE pw_fft_test ( globenv )
   print_section=>section_vals_get_subs_vals(globenv%input_file, &
                         "TEST%PRINT%GRID_INFORMATION")
   CALL pw_grid_setup ( box, grid, print_section, &
-                       rs_dims=(/globenv%para_env%num_pe,1/) )
+                       rs_dims=(/para_env%num_pe,1/) )
   no = grid % npts
 
   CALL coeff_allocate ( ca, grid, COMPLEXDATA1D )
@@ -788,8 +801,8 @@ SUBROUTINE pw_fft_test ( globenv )
 
   em = MAXVAL ( ABS ( ca % pw % cc ( : ) - cc % pw % cc ( : ) ) )
   et = SUM ( ABS ( ca % pw % cc ( : ) - cc % pw % cc ( : ) ) )
-  CALL mp_sum ( et, globenv%para_env%group )
-  CALL mp_max ( em, globenv%para_env%group )
+  CALL mp_sum ( et, para_env%group )
+  CALL mp_max ( em, para_env%group )
 
   IF ( em > toler .OR. et > toler ) THEN
     CALL coeff_transform_space ( ca, cb, .TRUE. )
@@ -802,8 +815,8 @@ SUBROUTINE pw_fft_test ( globenv )
  
   CALL pw_grid_release ( grid )
 
-  IF ( globenv%para_env%ionode ) THEN
-    iw = globenv % scr
+  IF ( para_env%ionode ) THEN
+    iw = globenv%scr
     WRITE ( iw, * )
     WRITE ( iw, '(A,T67,E14.6)' ) " Parallel FFT Tests: Maximal Error ", em
     WRITE ( iw, '(A,T67,E14.6)' ) " Parallel FFT Tests: Total Error ", et
@@ -813,13 +826,13 @@ SUBROUTINE pw_fft_test ( globenv )
   END IF
 
 !..Test 2
-  CALL pw_grid_create ( grid, globenv%para_env%group )
+  CALL pw_grid_create ( grid, para_env%group )
   grid % grid_span = HALFSPACE
   grid % bounds ( 1, : ) = -np / 2
   grid % bounds ( 2, : ) = ( np - 1 ) / 2
 
   CALL pw_grid_setup ( box, grid, print_section, &
-                       rs_dims=(/globenv%para_env%num_pe,1/) )
+                       rs_dims=(/para_env%num_pe,1/) )
   no = grid % npts
 
   CALL coeff_allocate ( ca, grid, COMPLEXDATA1D )
@@ -852,8 +865,8 @@ SUBROUTINE pw_fft_test ( globenv )
 
   em = MAXVAL ( ABS ( ca % pw % cc ( : ) - cc % pw % cc ( : ) ) )
   et = SUM ( ABS ( ca % pw % cc ( : ) - cc % pw % cc ( : ) ) )
-  CALL mp_sum ( et, globenv%para_env%group )
-  CALL mp_max ( em, globenv%para_env%group )
+  CALL mp_sum ( et, para_env%group )
+  CALL mp_max ( em, para_env%group )
 
   IF ( em > toler .OR. et > toler ) THEN
     CALL coeff_transform_space ( ca, cb, .TRUE. )
@@ -866,8 +879,8 @@ SUBROUTINE pw_fft_test ( globenv )
  
   CALL pw_grid_release ( grid )
 
-  IF ( globenv%para_env%ionode ) THEN
-    iw = globenv % scr
+  IF ( para_env%ionode ) THEN
+    iw = globenv%scr
     WRITE ( iw, * )
     WRITE ( iw, '(A,T67,E14.6)' ) " Parallel FFT Tests: Maximal Error ", em
     WRITE ( iw, '(A,T67,E14.6)' ) " Parallel FFT Tests: Total Error ", et
@@ -877,7 +890,7 @@ SUBROUTINE pw_fft_test ( globenv )
   END IF
 
 !..Test 3
-  CALL pw_grid_create ( grid, globenv%para_env%group )
+  CALL pw_grid_create ( grid, para_env%group )
   grid % grid_span = FULLSPACE
 
   CALL pw_find_cutoff ( np, box, cutoff )
@@ -885,7 +898,7 @@ SUBROUTINE pw_fft_test ( globenv )
  ! CALL pw_find_cutoff ( grid % bounds, box % h_inv, cutoff )
 
   CALL pw_grid_setup ( box, grid, print_section, cutoff = cutoff, &
-                       rs_dims=(/globenv%para_env%num_pe,1/) )
+                       rs_dims=(/para_env%num_pe,1/) )
   no = grid % npts
 
   CALL coeff_allocate ( ca, grid, COMPLEXDATA1D )
@@ -918,8 +931,8 @@ SUBROUTINE pw_fft_test ( globenv )
 
   em = MAXVAL ( ABS ( ca % pw % cc ( : ) - cc % pw % cc ( : ) ) )
   et = SUM ( ABS ( ca % pw % cc ( : ) - cc % pw % cc ( : ) ) )
-  CALL mp_sum ( et, globenv%para_env%group )
-  CALL mp_max ( em, globenv%para_env%group )
+  CALL mp_sum ( et, para_env%group )
+  CALL mp_max ( em, para_env%group )
 
   IF ( em > toler .OR. et > toler ) THEN
     CALL coeff_transform_space ( ca, cb, .TRUE. )
@@ -932,8 +945,8 @@ SUBROUTINE pw_fft_test ( globenv )
  
   CALL pw_grid_release ( grid )
 
-  IF ( globenv%para_env%ionode ) THEN
-    iw = globenv % scr
+  IF ( para_env%ionode ) THEN
+    iw = globenv%scr
     WRITE ( iw, * )
     WRITE ( iw, '(A,T67,E14.6)' ) " Parallel FFT Tests: Maximal Error ", em
     WRITE ( iw, '(A,T67,E14.6)' ) " Parallel FFT Tests: Total Error ", et
@@ -943,14 +956,14 @@ SUBROUTINE pw_fft_test ( globenv )
   END IF
 
 !..Test 4
-  CALL pw_grid_create ( grid , globenv%para_env%group )
+  CALL pw_grid_create ( grid , para_env%group )
   grid % grid_span = HALFSPACE
   CALL pw_find_cutoff ( np, box, cutoff )
   cutoff = cutoff * cutoff
 !  CALL pw_find_cutoff ( grid%bounds, box%h_inv, cutoff )
 
   CALL pw_grid_setup ( box, grid, print_section,  &
-                       rs_dims=(/globenv%para_env%num_pe,1/) )
+                       rs_dims=(/para_env%num_pe,1/) )
   no = grid % npts
 
   CALL coeff_allocate ( ca, grid, COMPLEXDATA1D )
@@ -983,8 +996,8 @@ SUBROUTINE pw_fft_test ( globenv )
 
   em = MAXVAL ( ABS ( ca % pw % cc ( : ) - cc % pw % cc ( : ) ) )
   et = SUM ( ABS ( ca % pw % cc ( : ) - cc % pw % cc ( : ) ) )
-  CALL mp_sum ( et, globenv%para_env%group )
-  CALL mp_max ( em, globenv%para_env%group )
+  CALL mp_sum ( et, para_env%group )
+  CALL mp_max ( em, para_env%group )
 
   IF ( em > toler .OR. et > toler ) THEN
     CALL coeff_transform_space ( ca, cb, .TRUE. )
@@ -997,8 +1010,8 @@ SUBROUTINE pw_fft_test ( globenv )
  
   CALL pw_grid_release ( grid )
 
-  IF ( globenv%para_env%ionode ) THEN
-    iw = globenv % scr
+  IF ( para_env%ionode ) THEN
+    iw = globenv%scr
     WRITE ( iw, * )
     WRITE ( iw, '(A,T67,E14.6)' ) " Parallel FFT Tests: Maximal Error ", em
     WRITE ( iw, '(A,T67,E14.6)' ) " Parallel FFT Tests: Total Error ", et
@@ -1407,11 +1420,13 @@ END SUBROUTINE simple_copy
     LOGICAL                                  :: ionode
     REAL(KIND=dp)                            :: t, tend, tmax, tmin, tstart, &
                                                 tsum, tsum2
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(rng_stream_type), POINTER           :: rng_stream
 
 ! -------------------------------------------------------------------------
 
-    ionode = globenv%para_env%ionode
+    para_env=>globenv%para_env
+    ionode = para_env%ionode
     output_unit = globenv%scr
 
     NULLIFY (rng_stream)
@@ -1525,11 +1540,11 @@ END SUBROUTINE simple_copy
 
 ! -------------------------------------------------------------------------
 
-    group = globenv%para_env%group
-    ionode = globenv%para_env%ionode
+    group = para_env%group
+    ionode = para_env%ionode
     output_unit = globenv%scr
-    source = globenv%para_env%source
-    para_env => globenv%para_env
+    source = para_env%source
+    para_env=>globenv%para_env
     n = ABS(nrow_global)
 
     IF (ionode) THEN

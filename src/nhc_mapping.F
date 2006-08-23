@@ -23,6 +23,7 @@
 MODULE nhc_mapping
 
   USE colvar_types,                    ONLY: colvar_counters
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_type,&
                                              get_dyn_coeff
@@ -85,14 +86,16 @@ SUBROUTINE nhc_to_barostat_mapping ( simpar, nhc, globenv )
     TYPE(global_environment_type), POINTER   :: globenv
 
     INTEGER                                  :: i, isos, iw, number
+    TYPE(cp_para_env_type), POINTER          :: para_env
 
 ! begin local definitions
 !
 
-  iw = globenv % scr
+  para_env=>globenv%para_env
+  iw = globenv%scr
 !
   nhc % dis_type = 'NONE'
-  IF ( globenv%para_env%num_pe > 1 ) nhc % dis_type = 'REP_REP'
+  IF ( para_env%num_pe > 1 ) nhc % dis_type = 'REP_REP'
   SELECT CASE (simpar%ensemble)
   CASE  DEFAULT
     ALLOCATE ( nhc % nvt ( 0, 0 ), STAT = isos )
@@ -214,12 +217,14 @@ SUBROUTINE nhc_to_particle_mapping ( simpar, local_molecules, molecule_set, &
     INTEGER, DIMENSION(:), POINTER           :: massive_atom_list
     LOGICAL                                  :: have_global, nointer, noneflag
     TYPE(colvar_counters)                    :: ncolv
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
 
 !------------------------------------------------------------------------------
 
-  iw = globenv % scr
+  para_env=>globenv%para_env
+  iw = globenv%scr
   NULLIFY ( massive_atom_list ) 
 
   SELECT CASE ( simpar % ensemble )
@@ -295,7 +300,7 @@ SUBROUTINE nhc_to_particle_mapping ( simpar, local_molecules, molecule_set, &
 ! from different processors
 !
     nhc % dis_type = 'NONE'
-    IF ( globenv%para_env%num_pe > 1 ) THEN
+    IF ( para_env%num_pe > 1 ) THEN
       IF ( nointer ) THEN
         nhc % dis_type = 'DIS_REP' ! DIStributed thermostats, no interaction
 ! we only count thermostats on this processor
@@ -405,7 +410,7 @@ SUBROUTINE nhc_to_particle_mapping ( simpar, local_molecules, molecule_set, &
     IF ( have_global ) number = 1
 
     CALL massive_list_generate ( molecule_set, molecule_kind_set, &
-                                 local_molecules, globenv, massive_atom_list ) 
+                                 local_molecules, para_env, massive_atom_list ) 
 ! DEAL WITH DIS & GLOBAL CASE
     icount = 0
     IF ( nhc % dis_type == 'NONE' .OR. nhc % dis_type == 'DIS_REP' ) THEN
@@ -455,7 +460,7 @@ SUBROUTINE nhc_to_particle_mapping ( simpar, local_molecules, molecule_set, &
 
 ! Communicate the total_number thermostat
     number_total = number
-    CALL mp_sum ( number_total, globenv%para_env%group )
+    CALL mp_sum ( number_total, para_env%group )
 
 ! DEAL WITH DIS & MASSIVE CASE
     IF ( nhc % dis_type == 'NONE' .OR. nhc % dis_type == 'DIS_REP' ) THEN
@@ -589,7 +594,7 @@ SUBROUTINE nhc_to_particle_mapping ( simpar, local_molecules, molecule_set, &
 
 ! if thermostats are replicated but molecules distributed, we have to
 ! sum s_kin over all processors
-    IF ( nhc % dis_type == 'INTER_REP' ) CALL mp_sum ( nhc % s_kin, globenv%para_env%group )
+    IF ( nhc % dis_type == 'INTER_REP' ) CALL mp_sum ( nhc % s_kin, para_env%group )
 
 !
 ! Now that we know how many there are stick this into nhc%static%nkt
@@ -663,11 +668,13 @@ END SUBROUTINE nhc_to_particle_mapping
                                                 nkind, number
     LOGICAL                                  :: nointer
     REAL(KIND=dp)                            :: kg_coeff_temp
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: kg_coeff_section, nose_section
 
 !------------------------------------------------------------------------------
 
-  iw = globenv % scr
+  iw = globenv%scr
+  para_env=>globenv%para_env
   
   kg_coeff_section => section_vals_get_subs_vals(globenv%input_file,&
        "MOTION%MD")
@@ -717,7 +724,7 @@ END SUBROUTINE nhc_to_particle_mapping
 
 ! coefficients are local. communications needed only with GLOBAL
     nhc % dis_type = 'NONE'
-    IF ( globenv%para_env%num_pe > 1 ) THEN
+    IF ( para_env%num_pe > 1 ) THEN
       IF ( nointer ) THEN
         nhc % dis_type = 'DIS_REP'
       ELSE
@@ -781,7 +788,7 @@ END SUBROUTINE nhc_to_particle_mapping
 
 ! if thermostats are replicated but molecules distributed, we have to
 ! sum s_kin over all processors
-    IF ( nhc % dis_type == 'INTER_REP' ) CALL mp_sum ( nhc % s_kin, globenv%para_env%group )
+    IF ( nhc % dis_type == 'INTER_REP' ) CALL mp_sum ( nhc % s_kin, para_env%group )
 
 !
 ! Now that we know how many there are stick this into nhc % static % nkt
@@ -802,11 +809,11 @@ END SUBROUTINE nhc_to_particle_mapping
 
 !******************************************************************************
  SUBROUTINE massive_list_generate ( molecule_set, molecule_kind_set, &
-                                    local_molecules, globenv, massive_atom_list ) 
+                                    local_molecules, para_env, massive_atom_list ) 
     TYPE(molecule_type), POINTER             :: molecule_set( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
     TYPE(distribution_1d_type), POINTER      :: local_molecules
-    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER, POINTER                         :: massive_atom_list( : )
 
     INTEGER :: first_atom, i, ikind, imol, iproc, isos, j, k, natom, ncount, &
@@ -840,10 +847,10 @@ END SUBROUTINE nhc_to_particle_mapping
     END DO
   END DO
 
-  ALLOCATE(array_num_massive_atm(globenv%para_env%num_pe), STAT = isos )
+  ALLOCATE(array_num_massive_atm(para_env%num_pe), STAT = isos )
   IF ( isos /= 0 ) CALL stop_memory ( 'nhc_particle_setup', &
-       'array_num_massive_atm', globenv%para_env%num_pe )
-  CALL mp_allgather(num_massive_atm_local,array_num_massive_atm,globenv%para_env%group)
+       'array_num_massive_atm', para_env%num_pe )
+  CALL mp_allgather(num_massive_atm_local,array_num_massive_atm,para_env%group)
 
   num_massive_atm = SUM(array_num_massive_atm)
   ALLOCATE(massive_atom_list(num_massive_atm), STAT = isos )
@@ -851,19 +858,19 @@ END SUBROUTINE nhc_to_particle_mapping
        'massive_atom_list', num_massive_atm )
 
   offset = 0
-  DO iproc=1,globenv%para_env%num_pe
+  DO iproc=1,para_env%num_pe
     ncount = array_num_massive_atm(iproc)
     ALLOCATE(work(ncount), STAT = isos )
      IF ( isos /= 0 ) CALL stop_memory ( 'nhc_particle_setup', &
        'work', ncount )
-    IF(globenv%para_env%mepos == (iproc-1)) THEN
+    IF(para_env%mepos == (iproc-1)) THEN
       DO i=1,ncount
         work(i) = local_atm_list(i)
       END DO
     ELSE
       work(:) = 0
     END IF
-    CALL mp_bcast(work,iproc-1,globenv%para_env%group)
+    CALL mp_bcast(work,iproc-1,para_env%group)
     DO i=1,ncount
       massive_atom_list(offset+i) = work(i)
     END DO

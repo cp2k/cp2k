@@ -28,6 +28,7 @@ MODULE dynamical_coeff_types
                                              unit_convert_type
   USE cp_files,                        ONLY: close_file,&
                                              open_file
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE distribution_1d_types,           ONLY: distribution_1d_release,&
                                              distribution_1d_retain,&
                                              distribution_1d_type
@@ -434,14 +435,16 @@ SUBROUTINE dyn_coeff_set_initialize(dyn_coeff_set,globenv,work_section,skipvel,e
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: mbuffer
     REAL(kind=dp)                            :: kg_coeff_target_temp
     REAL(KIND=dp), DIMENSION(:), POINTER     :: buffer
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dyn_coeff_type), POINTER            :: coeffs
     TYPE(section_vals_type), POINTER         :: coeff_section, &
                                                 storage_section, work_section2
 
 !***************************************************************************
 
-  group=globenv%para_env%group
-  source=globenv%para_env%source
+  para_env=>globenv%para_env
+  group=para_env%group
+  source=para_env%source
   restart = .FALSE.
   my_skipvel = .FALSE.
   IF (PRESENT(skipvel)) my_skipvel = skipvel
@@ -493,7 +496,7 @@ SUBROUTINE dyn_coeff_set_initialize(dyn_coeff_set,globenv,work_section,skipvel,e
   ALLOCATE(mbuffer(nel_tot,ncoef_atom_max),stat=stat) 
   IF(stat/=0) CALL stop_memory('routineP','mbuffer',nel_tot*ncoef_atom_max)
   mbuffer(:,:)=0.0_dp 
-  CALL dyn_coeff_set_init_masses(dyn_coeff_set,mbuffer,storage_section,globenv,error)
+  CALL dyn_coeff_set_init_masses(dyn_coeff_set,mbuffer,storage_section,para_env,error)
 
 
   work_section2 => section_vals_get_subs_vals(work_section,"COORD",error=error)
@@ -547,13 +550,13 @@ END SUBROUTINE dyn_coeff_set_initialize
 
 
 !!*************************************************************************
-  SUBROUTINE dyn_coeff_set_init_masses(dyn_coeff_set,mbuffer,storage_section,globenv,error)
+  SUBROUTINE dyn_coeff_set_init_masses(dyn_coeff_set,mbuffer,storage_section,para_env,error)
 
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: mbuffer
     TYPE(section_vals_type), POINTER         :: storage_section
-    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -568,8 +571,8 @@ END SUBROUTINE dyn_coeff_set_initialize
     REAL(dp), ALLOCATABLE, DIMENSION(:)      :: ckind, nel_kind
     TYPE(dyn_coeff_type), POINTER            :: coeffs
 
-    group=globenv%para_env%group
-    source=globenv%para_env%source
+    group=para_env%group
+    source=para_env%source
     nkind=SIZE(dyn_coeff_set%coeffs_of_kind)
 
     IF (dyn_coeff_set%mass_storage /= dyn_coeff_mass_global) THEN
@@ -577,7 +580,7 @@ END SUBROUTINE dyn_coeff_set_initialize
        IF (stat /= 0) CALL stop_memory(routineP,"index")
        INDEX(:)=0
 
-       IF (globenv%para_env%ionode) THEN
+       IF (para_env%ionode) THEN
           CALL open_file(file_name=section_get_cval(storage_section,"FILENAME",error=error),&
                file_action="READ",&
                file_form="FORMATTED",&
@@ -594,7 +597,7 @@ END SUBROUTINE dyn_coeff_set_initialize
              ALLOCATE(nel_kind(nkind),stat=stat) 
              IF(stat/=0) CALL stop_memory('routineP','nel_kind',nkind)
           END IF
-          IF (globenv%para_env%ionode) THEN
+          IF (para_env%ionode) THEN
              READ (cmass_unit,*) ckind(1:nkind)
              READ (cmass_unit,*) nel_kind(1:nkind)
           END IF
@@ -604,7 +607,7 @@ END SUBROUTINE dyn_coeff_set_initialize
              IF(.NOT.ASSOCIATED(coeffs)) CYCLE
              coeffs%masses(:,:)=ckind(ikind)
           END DO
-          IF (globenv%para_env%ionode) THEN
+          IF (para_env%ionode) THEN
              ioff=0
              DO ikind=1,nkind
                 istart=ioff+1
@@ -621,7 +624,7 @@ END SUBROUTINE dyn_coeff_set_initialize
           DEALLOCATE(nel_kind,STAT=stat)
           IF (stat /= 0) CALL stop_memory(routineP,"nel_kind")
        CASE (dyn_coeff_mass_atom)
-          IF (globenv%para_env%ionode) THEN
+          IF (para_env%ionode) THEN
              DO i=1,dyn_coeff_set%nel_tot 
                 READ (cmass_unit,*) INDEX(i),mbuffer(i,1:1)
              END DO
@@ -642,7 +645,7 @@ END SUBROUTINE dyn_coeff_set_initialize
              END IF
           END DO
        CASE (dyn_coeff_mass_coeff)
-          IF (globenv%para_env%ionode) THEN
+          IF (para_env%ionode) THEN
              DO i=1,dyn_coeff_set%nel_tot
                 READ (cmass_unit,*) INDEX(i),mbuffer(i,1:dyn_coeff_set%ncoef_atom_max)
              END DO
@@ -662,7 +665,7 @@ END SUBROUTINE dyn_coeff_set_initialize
              END IF
           END DO
        END SELECT
-       IF (globenv%para_env%ionode) THEN
+       IF (para_env%ionode) THEN
           CALL close_file(unit_number=cmass_unit)
        END IF
        DEALLOCATE (index,STAT=stat)
@@ -689,12 +692,14 @@ SUBROUTINE dyn_coeff_set_init_vel(kg_coeff_target_temp,dyn_coeff_set,mbuffer,glo
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: vbuffer
     REAL(KIND=dp)                            :: denom, ekin, scale, &
                                                 temp_coefs, vcom
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dyn_coeff_type), POINTER            :: coeffs
     TYPE(unit_convert_type), POINTER         :: unit
 
   NULLIFY (coeffs,unit)
+  para_env=>globenv%para_env
   gmass=(dyn_coeff_set%mass_storage==dyn_coeff_mass_global)
-  group = globenv%para_env%group
+  group = para_env%group
 
   nkind=SIZE(dyn_coeff_set%coeffs_of_kind)      
   vcom=0._dp
@@ -710,7 +715,7 @@ SUBROUTINE dyn_coeff_set_init_vel(kg_coeff_target_temp,dyn_coeff_set,mbuffer,glo
 
 ! calculate com velocities
 
-  IF (globenv%para_env%ionode) THEN
+  IF (para_env%ionode) THEN
     DO iel=1,dyn_coeff_set%nel_tot
       DO icoef=1,dyn_coeff_set%ncoef_atom_max
         vbuffer(iel,icoef) = next_random_number(globenv%gaussian_rng_stream)
@@ -768,7 +773,7 @@ SUBROUTINE dyn_coeff_set_init_vel(kg_coeff_target_temp,dyn_coeff_set,mbuffer,glo
     vcom=vcom/denom
 
   END IF
-  CALL mp_bcast(vbuffer,globenv%para_env%source,group)
+  CALL mp_bcast(vbuffer,para_env%source,group)
 
   DO ikind=1, nkind
     n_els_of_kind(ikind) = dyn_coeff_set%distribution%n_el(ikind)
@@ -796,7 +801,7 @@ SUBROUTINE dyn_coeff_set_init_vel(kg_coeff_target_temp,dyn_coeff_set,mbuffer,glo
   DEALLOCATE(n_els_of_kind,STAT=istat)
   IF (istat /= 0) CALL stop_memory(routineP,"n_els_of_kind")
    
-  IF ( globenv % para_env % ionode .AND. globenv % print_level > 1 ) THEN
+  IF ( para_env % ionode .AND. globenv%print_level > 1 ) THEN
      CALL get_cp2k_units ( unit )
      temp_coefs = 2.0_dp * ekin / REAL ( dyn_coeff_set%ncoef_tot, dp )
      WRITE ( globenv%scr, '( A, T61, F18.2, A2 )' ) &

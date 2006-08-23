@@ -25,6 +25,7 @@
 !****************************************************************************
 MODULE qmmm_gaussian_input
   USE cell_types,                      ONLY: cell_type
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_parser,                       ONLY: cp_parser_type,&
                                              parser_create,&
                                              parser_get_object,&
@@ -97,15 +98,17 @@ CONTAINS
                                                 Nval, stat
     LOGICAL                                  :: failure, Found, Found_Radius
     REAL(KIND=dp)                            :: fconv, my_radius, Radius
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_parser_type), POINTER            :: parser
 
+    para_env=>globenv%para_env
     Nval = SIZE(qmmm_gaussian_fns)
     Ival = 0
     CALL section_vals_val_get(qmmm_section,"MM_POTENTIAL_FILE_NAME",&
          c_val=mm_potential_file_name,error=error)
 
     NULLIFY(parser)
-    CALL parser_create(parser,mm_potential_file_name,para_env=globenv%para_env)
+    CALL parser_create(parser,mm_potential_file_name,para_env=para_env)
 
     search_loop: DO
        Ftarget = "&MM_FIT_POT"
@@ -178,7 +181,7 @@ CONTAINS
        ELSE
 !       *** Stop program, if the end of file is reached ***
           WRITE(*,'(A,F12.6,A)')"Discrepancies in Radius: ",Radius," definition." 
-          CALL stop_program(routineN,moduleN,__LINE__,"Radius Value not found in MM_POTENTIAL file",globenv)
+          CALL stop_program(routineN,moduleN,__LINE__,"Radius Value not found in MM_POTENTIAL file",para_env)
        END IF
        
     END DO search_loop

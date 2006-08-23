@@ -25,6 +25,7 @@ MODULE mc_control
                                              get_cell
   USE cp_files,                        ONLY: close_file,&
                                              open_file
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsystem_p_type
   USE environment,                     ONLY: cp2k_read
@@ -394,6 +395,7 @@ SUBROUTINE mc_create_force_env ( force_env, globenv_old,input_file_name,&
     INTEGER                                  :: i_val, method_name_id, &
                                                 nforce_eval
     LOGICAL                                  :: failure
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_type), POINTER              :: input_structure
     TYPE(section_vals_type), POINTER         :: force_env_section, input_file
@@ -408,9 +410,10 @@ SUBROUTINE mc_create_force_env ( force_env, globenv_old,input_file_name,&
       ! init globenv with the data
       CALL globenv_create(globenv, para_env=globenv_old%para_env,output_unit=globenv_old%scr, &
            error=error)
+      para_env=>globenv%para_env
 
     ! parse the input
-      input_file => create_cp2k_input_reading(input_file_name,para_env=globenv%para_env,error=error)
+      input_file => create_cp2k_input_reading(input_file_name,para_env=para_env,error=error)
       globenv%input_file => input_file
       NULLIFY(input_file)
 

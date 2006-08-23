@@ -22,6 +22,7 @@
 
 MODULE kg_main
 
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE force_env_methods,               ONLY: force_env_create
   USE force_env_types,                 ONLY: force_env_type
   USE global_types,                    ONLY: global_environment_type
@@ -80,12 +81,14 @@ CONTAINS
 
     INTEGER                                  :: handle
     LOGICAL                                  :: failure
+    TYPE(cp_para_env_type), POINTER          :: para_env
 
 !   ---------------------------------------------------------------------------
 
     CALL timeset(routineN,"I","",handle)
+    para_env=>globenv%para_env
     failure=.FALSE.
-    CALL kg_env_create(kg_env,para_env=globenv%para_env,error=error)
+    CALL kg_env_create(kg_env,para_env=para_env,error=error)
 !   CALL cp_error_check(error,failure)
 
     IF (.NOT. failure) CALL kg_init( kg_env, globenv, force_env_section,error )

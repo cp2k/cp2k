@@ -411,15 +411,17 @@ SUBROUTINE read_ewald_section ( ewald_env, globenv, ewald_section, error )
 
     INTEGER                                  :: iw
     REAL(KIND=dp)                            :: dummy
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(unit_convert_type), POINTER         :: units
 
-  iw = globenv % scr
+  iw = globenv%scr
+  para_env=>globenv%para_env
   NULLIFY( units)
   CALL get_cp2k_units ( units )
   CALL read_ewald_section1(ewald_env, ewald_section, error)
 
   !..end of parsing the input section
-  IF ( globenv%para_env%ionode .AND. globenv % print_level .NE. SILENT) THEN
+  IF ( para_env%ionode .AND. globenv%print_level .NE. SILENT) THEN
      IF ( ewald_env % ewald_type /= do_ewald_none ) THEN
         dummy = cp_unit_from_cp2k(ewald_env % alpha,"angstrom^-1") 
         WRITE ( iw, '( A,T67,A14 )' ) ' Ewald| Summation is done by:', &

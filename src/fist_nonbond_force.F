@@ -26,6 +26,7 @@ MODULE fist_nonbond_force
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind
   USE cell_types,                      ONLY: cell_type
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE ewald_environment_types,         ONLY: ewald_env_get,&
                                              ewald_environment_type
@@ -34,7 +35,6 @@ MODULE fist_nonbond_force
   USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_get,&
                                              fist_nonbond_env_type,&
                                              pos_type
-  USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp,&
                                              dp_size
   USE mathconstants,                   ONLY: pi
@@ -186,14 +186,14 @@ CONTAINS
 
   !******************************************************************************
 
-  SUBROUTINE density_nonbond ( fist_nonbond_env, particle_set, cell, globenv )
+  SUBROUTINE density_nonbond ( fist_nonbond_env, particle_set, cell, para_env )
     ! Computes the density term for manybody empirical potentials (e.g. EAM )
     !
     TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
     TYPE(particle_type), DIMENSION(:), &
       INTENT(INOUT)                          :: particle_set
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_para_env_type), POINTER          :: para_env
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'density_nonbond'
 
@@ -259,7 +259,7 @@ CONTAINS
              END DO
           END SELECT
        END DO
-       CALL mp_sum( rho, globenv%para_env%group )
+       CALL mp_sum( rho, para_env%group )
        DO iparticle=1,nparticle
           particle_set(iparticle)%rho = rho(iparticle)
        END DO
@@ -273,7 +273,7 @@ CONTAINS
   END SUBROUTINE density_nonbond
   !******************************************************************************
   SUBROUTINE energy_manybody ( fist_nonbond_env, atomic_kind_set, &
-       local_particles, particle_set, pot_manybody, globenv )
+       local_particles, particle_set, pot_manybody, para_env )
 
     ! computes the embedding contribution to the energy 
 
@@ -282,7 +282,7 @@ CONTAINS
     TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(particle_type), POINTER             :: particle_set( : )
     REAL(dp), INTENT(INOUT)                  :: pot_manybody
-    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_para_env_type), POINTER          :: para_env
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'energy_manybody'
 
@@ -327,7 +327,7 @@ CONTAINS
              pot_manybody = pot_manybody + embed
           END DO
           ! communicate data
-          CALL mp_sum( fembed, globenv%para_env%group )
+          CALL mp_sum( fembed, para_env%group )
           DO iparticle=1,nparticle
              particle_set(iparticle)%f_embed = fembed(iparticle)
           END DO

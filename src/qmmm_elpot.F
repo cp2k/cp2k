@@ -27,8 +27,8 @@ MODULE qmmm_elpot
   USE cell_types,                      ONLY: cell_type
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_should_output
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE erf_fn,                          ONLY: erf
-  USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: do_qmmm_gauss,&
                                              do_qmmm_grid
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
@@ -80,7 +80,7 @@ CONTAINS
 !!
 !!*** ********************************************************************** 
   SUBROUTINE qmmm_potential_init(qmmm_coupl_type, mm_el_pot_radius, potentials,&
-    pgfs, qm_cell_small, mm_cell, globenv, pw_env, compatibility, print_section,&
+    pgfs, qm_cell_small, mm_cell, para_env, pw_env, compatibility, print_section,&
     error)
     INTEGER, INTENT(IN)                      :: qmmm_coupl_type
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mm_el_pot_radius
@@ -89,7 +89,7 @@ CONTAINS
     TYPE(qmmm_gaussian_p_type), &
       DIMENSION(:), POINTER                  :: pgfs
     TYPE(cell_type), POINTER                 :: qm_cell_small, mm_cell
-    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(pw_env_type), POINTER               :: pw_env
     LOGICAL, INTENT(IN)                      :: compatibility
     TYPE(section_vals_type), POINTER         :: print_section
@@ -203,7 +203,7 @@ CONTAINS
              myind = INDEX(FileName," ")
              CPPostcondition(myind /= 1,cp_failure_level,routineP,error,failure)
              WRITE(Filename(myind:),'(A1,F4.2)')"_",rc
-             IF (globenv%para_env%ionode) THEN 
+             IF (para_env%ionode) THEN 
                 OPEN(UNIT=21,FILE=FileName)
                 WRITE(21,'(A)')"# MM ELECTROSTATIC POTENTIAL - UNIDIMENSIONAL - ATOMIC UNITS"
                 WRITE(21,'(A,T10,A,T30,A)')"#","Xval","ElecPot"
@@ -251,7 +251,7 @@ CONTAINS
              myind = INDEX(FileName," ")
              CPPostcondition(myind /= 1,cp_failure_level,routineP,error,failure)
              WRITE(Filename(myind:),'(A1,F4.2)')"_",rc
-             IF (globenv%para_env%ionode) THEN 
+             IF (para_env%ionode) THEN 
                 OPEN(UNIT=21,FILE=FileName)
                 WRITE(21,'(A)')"# MM ELECTROSTATIC POTENTIAL - UNIDIMENSIONAL - ATOMIC UNITS"
                 WRITE(21,'(A,T10,A,T30,A,T211,A)')"#","Xval","Gaussians","LongRange"

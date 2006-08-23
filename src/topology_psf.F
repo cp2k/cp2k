@@ -25,13 +25,13 @@ MODULE topology_psf
                                              open_file
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_parser,                       ONLY: cp_parser_type,&
                                              parser_create,&
                                              parser_get_next_line,&
                                              parser_get_object,&
                                              parser_release,&
                                              parser_search_string
-  USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: do_skip_14
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: default_string_length,&
@@ -145,12 +145,11 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
 
-  SUBROUTINE read_topology_psf (filename,topology,globenv,subsys_section, error)
+  SUBROUTINE read_topology_psf (filename,topology,para_env,subsys_section, error)
     CHARACTER(LEN=*), INTENT(IN)             :: filename
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
-    TYPE(global_environment_type), &
-      OPTIONAL, POINTER                      :: globenv
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -175,7 +174,7 @@ CONTAINS
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/PSF_INFO",&
          extension=".subsysLog",error=error)    
     CALL timeset(routineN,'I','',handle)
-    CALL parser_create(parser,filename,para_env=globenv%para_env)
+    CALL parser_create(parser,filename,para_env=para_env)
     
     atom_info => topology%atom_info
     conn_info => topology%conn_info
@@ -491,11 +490,10 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
 
-  SUBROUTINE write_topology_psf (topology,globenv,subsys_section,error)
+  SUBROUTINE write_topology_psf (topology,para_env,subsys_section,error)
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
-    TYPE(global_environment_type), &
-      OPTIONAL, POINTER                      :: globenv
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error

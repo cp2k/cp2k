@@ -223,9 +223,9 @@ RECURSIVE SUBROUTINE force_env_calc_energy_force ( force_env, &
         END IF
      CASE (use_tbmd_force)
         IF (.NOT. need_f) THEN
-          CALL tbmd_energies(force_env%tbmd_env, force_env%globenv, error=error)
+          CALL tbmd_energies(force_env%tbmd_env, force_env%para_env, error=error)
         ELSE
-          CALL tbmd_forces(force_env%tbmd_env, force_env%globenv, error=error)
+          CALL tbmd_forces(force_env%tbmd_env, force_env%para_env, error=error)
         END IF
      CASE (use_eip_force)
         IF (force_env%eip_env%eip_model == use_lenosky_eip) THEN
@@ -338,7 +338,7 @@ SUBROUTINE force_env_create(force_env,globenv,fist_env,qs_env,kg_env,&
      
      force_env%globenv => globenv
      CALL globenv_retain(force_env%globenv,error=error)
-     force_env%para_env => globenv%para_env
+     force_env%para_env=>globenv%para_env
      CALL cp_para_env_retain(force_env%para_env, error=error)
      ! Force_env_section
      CALL section_vals_retain(force_env_section,error=error)

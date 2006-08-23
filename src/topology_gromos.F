@@ -23,13 +23,13 @@ MODULE topology_gromos
                                              open_file
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_parser,                       ONLY: cp_parser_type,&
                                              parser_create,&
                                              parser_get_next_line,&
                                              parser_get_object,&
                                              parser_release,&
                                              parser_search_string
-  USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: do_skip_14
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: default_string_length,&
@@ -141,12 +141,11 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
 
-  SUBROUTINE read_topology_gromos (file_name,topology,globenv,subsys_section, error)
+  SUBROUTINE read_topology_gromos (file_name,topology,para_env,subsys_section, error)
     CHARACTER(LEN=*), INTENT(IN)             :: file_name
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
-    TYPE(global_environment_type), &
-      OPTIONAL, POINTER                      :: globenv
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -211,7 +210,7 @@ CONTAINS
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! TITLE SECTION
     IF(iw>0) WRITE(iw,'(T2,A)') 'GTOP_INFO| Parsing the TITLE section'    
-    CALL parser_create(parser,file_name,para_env=globenv%para_env)
+    CALL parser_create(parser,file_name,para_env=para_env)
     label = TRIM(avail_section(1))
     CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
     IF(found) THEN
@@ -226,7 +225,7 @@ CONTAINS
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! TOPPHYSCON SECTION
     IF(iw>0) WRITE(iw,'(T2,A)') 'GTOP_INFO| Parsing the TOPPHYSCON section'    
-    CALL parser_create(parser,file_name,para_env=globenv%para_env)
+    CALL parser_create(parser,file_name,para_env=para_env)
     label = TRIM(avail_section(2))
     CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
     IF(found) THEN
@@ -241,7 +240,7 @@ CONTAINS
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! TOPVERSION SECTION
     IF(iw>0) WRITE(iw,'(T2,A)') 'GTOP_INFO| Parsing the TOPVERSION section'    
-    CALL parser_create(parser,file_name,para_env=globenv%para_env)
+    CALL parser_create(parser,file_name,para_env=para_env)
     label = TRIM(avail_section(3))
     CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
     IF(found) THEN
@@ -263,7 +262,7 @@ CONTAINS
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! ATOMTYPENAME SECTION
     IF(iw>0) WRITE(iw,'(T2,A)') 'GTOP_INFO| Parsing the ATOMTYPENAME section'    
-    CALL parser_create(parser,file_name,para_env=globenv%para_env)
+    CALL parser_create(parser,file_name,para_env=para_env)
     label = TRIM(avail_section(4))
     CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
     IF(found) THEN
@@ -280,7 +279,7 @@ CONTAINS
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! RESNAME SECTION
     IF(iw>0) WRITE(iw,'(T2,A)') 'GTOP_INFO| Parsing the RESNAME section'    
-    CALL parser_create(parser,file_name,para_env=globenv%para_env)
+    CALL parser_create(parser,file_name,para_env=para_env)
     label = TRIM(avail_section(5))
     CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
     IF(found) THEN
@@ -298,7 +297,7 @@ CONTAINS
     ! SOLUTEATOM SECTION
     iresid=1
     IF(iw>0) WRITE(iw,'(T2,A)') 'GTOP_INFO| Parsing the SOLUTEATOM section'    
-    CALL parser_create(parser,file_name,para_env=globenv%para_env)
+    CALL parser_create(parser,file_name,para_env=para_env)
     label = TRIM(avail_section(6))
     CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
     IF(found) THEN
@@ -367,7 +366,7 @@ CONTAINS
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 
-    CALL parser_create(parser,file_name,para_env=globenv%para_env)
+    CALL parser_create(parser,file_name,para_env=para_env)
 
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -610,7 +609,7 @@ CONTAINS
 
     NULLIFY(na,am,ac,ba,bb)
 
-    CALL parser_create(parser,file_name,para_env=globenv%para_env)
+    CALL parser_create(parser,file_name,para_env=para_env)
     label = TRIM(avail_section(20))
     CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
     IF(found) THEN
@@ -735,11 +734,10 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
 
-  SUBROUTINE write_topology_gromos (topology,globenv,subsys_section,error)
+  SUBROUTINE write_topology_gromos (topology,para_env,subsys_section,error)
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
-    TYPE(global_environment_type), &
-      OPTIONAL, POINTER                      :: globenv
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -897,10 +895,9 @@ CONTAINS
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
 
-  SUBROUTINE read_coordinate_g96 (topology,globenv,subsys_section,error)
+  SUBROUTINE read_coordinate_g96 (topology,para_env,subsys_section,error)
     TYPE(topology_parameters_type)           :: topology
-    TYPE(global_environment_type), &
-      OPTIONAL, POINTER                      :: globenv
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -952,7 +949,7 @@ CONTAINS
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     ! TITLE SECTION
     IF(iw>0) WRITE(iw,'(T2,A)') 'G96_INFO| Parsing the TITLE section'    
-    CALL parser_create(parser,topology%coord_file_name,para_env=globenv%para_env)
+    CALL parser_create(parser,topology%coord_file_name,para_env=para_env)
     label = TRIM(avail_section(1))
     CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
     IF(found) THEN
@@ -978,7 +975,7 @@ CONTAINS
     ! POSITION SECTION
     natom=0
     IF(iw>0) WRITE(iw,'(T2,A)') 'G96_INFO| Parsing the POSITION section'    
-    CALL parser_create(parser,topology%coord_file_name,para_env=globenv%para_env)
+    CALL parser_create(parser,topology%coord_file_name,para_env=para_env)
     label = TRIM(avail_section(3))
     CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
     IF(found) THEN
@@ -1025,7 +1022,7 @@ CONTAINS
 ! ikuo - don't have a velocity section in topology_type yet...
 !   natom=0
 !   IF(iw>0) WRITE(iw,'(T2,A)') 'G96_INFO| Parsing the VELOCITY section'    
-!   CALL parser_create(parser,topology%coord_file_name,para_env=globenv%para_env)
+!   CALL parser_create(parser,topology%coord_file_name,para_env=para_env)
 !   label = TRIM(avail_section(3))
 !   CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
 !   IF(found) THEN

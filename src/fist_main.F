@@ -20,6 +20,7 @@
 !******************************************************************************
 
 MODULE fist_main
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE fist_environment,                ONLY: fist_init
   USE fist_environment_types,          ONLY: fist_env_create,&
                                              fist_env_release,&
@@ -100,17 +101,19 @@ SUBROUTINE fist_create_force_env ( force_env, globenv, qmmm, qmmm_env, force_env
 
     INTEGER                                  :: handle
     LOGICAL                                  :: myqmmm
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(fist_environment_type), POINTER     :: fist_env
 
 !------------------------------------------------------------------------------
 
   CALL timeset(routineN,"I","",handle)
+  para_env=>globenv%para_env
   myqmmm=.FALSE.
   IF (PRESENT(qmmm)) THEN
      myqmmm=qmmm
   END IF
 
-  CALL fist_env_create( fist_env, para_env = globenv%para_env )
+  CALL fist_env_create( fist_env, para_env = para_env )
   IF (PRESENT(qmmm_env)) THEN
      CALL set_fist_env (fist_env, qmmm=myqmmm, qmmm_env=qmmm_env, error=error)
   ELSE

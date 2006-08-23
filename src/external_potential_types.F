@@ -23,13 +23,13 @@ MODULE external_potential_types
 
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_should_output
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_parser,                       ONLY: cp_parser_type,&
                                              parser_create,&
                                              parser_get_object,&
                                              parser_release,&
                                              parser_search_string,&
                                              parser_test_next_token
-  USE global_types,                    ONLY: global_environment_type
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
@@ -883,7 +883,7 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE read_all_potential(element_symbol,potential_name,potential,&
-                                zeff_correction, globenv, dft_section, error)
+                                zeff_correction, para_env, dft_section, error)
 
 !   Purpose: Read an atomic all-electron potential data set.
 
@@ -894,7 +894,7 @@ CONTAINS
     CHARACTER(LEN=*), INTENT(IN)             :: element_symbol, potential_name
     TYPE(all_potential_type), POINTER        :: potential
     REAL(KIND=dp)                            :: zeff_correction
-    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: dft_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -926,7 +926,7 @@ CONTAINS
     CALL section_vals_val_get(dft_section,"POTENTIAL_FILE_NAME",&
          c_val=potential_file_name,error=error)
     CALL parser_create(parser,potential_file_name,&
-         para_env=globenv%para_env,error=error)
+         para_env=para_env,error=error)
 
 !   *** Search for the requested potential in the potential file   ***
 !   *** until the potential is found or the end of file is reached ***
@@ -1013,7 +1013,7 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE read_elp_potential(element_symbol,potential_name,potential,&
-                                globenv,dft_section,error)
+                                para_env,dft_section,error)
 
 !   Purpose: Read an effective charge potential data set.
 !   History: creation 22-09-2002, GT
@@ -1022,7 +1022,7 @@ CONTAINS
 
     CHARACTER(LEN=*), INTENT(IN)             :: element_symbol, potential_name
     TYPE(elp_potential_type), POINTER        :: potential
-    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: dft_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -1056,7 +1056,7 @@ CONTAINS
     CALL section_vals_val_get(dft_section,"POTENTIAL_FILE_NAME",&
          c_val=potential_file_name,error=error)
     CALL parser_create(parser,potential_file_name,&
-         para_env=globenv%para_env,error=error)
+         para_env=para_env,error=error)
 
 !   *** Search for the requested potential in the potential file   ***
 !   *** until the potential is found or the end of file is reached ***
@@ -1147,7 +1147,7 @@ CONTAINS
                           "The requested atomic potential <"//&
                           TRIM(potential_name)//&
                           "> was not found in the potential file <"//&
-                          TRIM(potential_file_name)//">",globenv)
+                          TRIM(potential_file_name)//">",para_env)
 
       END IF
 
@@ -1160,7 +1160,7 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE read_gth_potential(element_symbol,potential_name,potential,&
-                                zeff_correction, globenv, dft_section, error)
+                                zeff_correction, para_env, dft_section, error)
 
 !   Purpose: Read an atomic GTH potential data set.
 
@@ -1176,7 +1176,7 @@ CONTAINS
     CHARACTER(LEN=*), INTENT(IN)             :: element_symbol, potential_name
     TYPE(gth_potential_type), POINTER        :: potential
     REAL(KIND=dp), INTENT(IN)                :: zeff_correction
-    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: dft_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -1215,7 +1215,7 @@ CONTAINS
     CALL section_vals_val_get(dft_section,"POTENTIAL_FILE_NAME",&
          c_val=potential_file_name,error=error)
     CALL parser_create(parser,potential_file_name,&
-         para_env=globenv%para_env,error=error)
+         para_env=para_env,error=error)
 
 !   *** Search for the requested potential in the potential file   ***
 !   *** until the potential is found or the end of file is reached ***
@@ -1386,7 +1386,7 @@ CONTAINS
                           "The requested atomic potential <"//&
                           TRIM(potential_name)//&
                           "> was not found in the potential file <"//&
-                          TRIM(potential_file_name)//">",globenv)
+                          TRIM(potential_file_name)//">",para_env)
 
       END IF
 

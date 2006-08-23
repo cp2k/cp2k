@@ -23,6 +23,7 @@ MODULE memory_utilities
 
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_should_output
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
@@ -1060,15 +1061,17 @@ CONTAINS
     CHARACTER(LEN=LEN_TRIM(checkpoint)+7)    :: string
     INTEGER                                  :: group, ipe, mype, npe
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
 
     NULLIFY(logger)
+    para_env=>globenv%para_env
     logger => cp_error_get_logger(error)
     IF (BTEST(cp_print_key_should_output(logger%iter_info,globenv%input_file,&
          "GLOBAL%PERFORMANCE/MEMORY",error=error),cp_p_file)) THEN
 
-       group = globenv%para_env%group
-       npe = globenv%para_env%num_pe
-       mype = globenv%para_env%mepos
+       group = para_env%group
+       npe = para_env%num_pe
+       mype = para_env%mepos
 
        DO ipe=0,npe-1
           WRITE (UNIT=string,FMT="(I6,A)") ipe,":"//TRIM(checkpoint)

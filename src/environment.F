@@ -27,6 +27,7 @@ MODULE environment
                                              open_file
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE fft_tools,                       ONLY: fft3d,&
                                              init_fft
   USE gamma,                           ONLY: deallocate_md_ftable
@@ -53,7 +54,6 @@ MODULE environment
                                              m_hostnm
   USE message_passing,                 ONLY: add_mp_perf_env,&
                                              describe_mp_perf_env,&
-                                             mp_bcast,&
                                              mp_sum,&
                                              rm_mp_perf_env
   USE orbital_pointers,                ONLY: deallocate_orbital_pointers
@@ -160,6 +160,7 @@ CONTAINS
     INTEGER, DIMENSION(:), ALLOCATABLE   :: all_pid
     INTEGER, DIMENSION(:,:), ALLOCATABLE :: all_host
     TYPE(cp_logger_type), POINTER :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
 
 #if defined(__HPM)
 #include "f_hpm.h"    
@@ -167,6 +168,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
+    para_env=>globenv%para_env
     CALL m_getpid(pid)
     CALL m_getlog(user_name)
     CALL m_hostnm(host_name)
@@ -179,7 +181,7 @@ CONTAINS
 
 !   *** Set the default logical output and error unit number ***
 !   *** write to screen in case of error on non-io nodes, and hope this is appropriate
-    IF (globenv%para_env%ionode) THEN
+    IF (para_env%ionode) THEN
        CALL set_error_unit(globenv%scr)
     ELSE
        CALL set_error_unit(6)
@@ -187,19 +189,19 @@ CONTAINS
 
 !   *** Init the default logger 
 
-    IF (globenv%para_env%source==globenv%para_env%mepos) THEN
+    IF (para_env%source==para_env%mepos) THEN
        output_unit=globenv%scr
     ELSE
        output_unit=-1
     END IF
     NULLIFY(logger)
-    CALL cp_logger_create(logger,para_env=globenv%para_env,&
+    CALL cp_logger_create(logger,para_env=para_env,&
          default_global_unit_nr=output_unit, &
          close_global_unit_on_dealloc=.FALSE.)
     CALL cp_add_default_logger(logger)
     CALL cp_logger_release(logger)
 
-    ionode = globenv%para_env%ionode
+    ionode = para_env%ionode
 
     IF (ionode) THEN
 
@@ -210,24 +212,24 @@ CONTAINS
 
 !   *** Print a list of all started processes ***
 
-    ALLOCATE (all_pid(globenv%para_env%num_pe),STAT=istat)
+    ALLOCATE (all_pid(para_env%num_pe),STAT=istat)
     IF (istat /= 0) THEN
       CALL stop_memory(routineN,moduleN,__LINE__,"all_pid",&
-                       globenv%para_env%num_pe*int_size)
+                       para_env%num_pe*int_size)
     END IF
     all_pid(:) = 0
-    all_pid(globenv%para_env%mepos+1) = pid
-    CALL mp_sum(all_pid,globenv%para_env%group)
-    ALLOCATE (all_host(30,globenv%para_env%num_pe),STAT=istat)
+    all_pid(para_env%mepos+1) = pid
+    CALL mp_sum(all_pid,para_env%group)
+    ALLOCATE (all_host(30,para_env%num_pe),STAT=istat)
     IF (istat /= 0) THEN
       CALL stop_memory(routineN,moduleN,__LINE__,"all_host",&
-                       30*globenv%para_env%num_pe*int_size)
+                       30*para_env%num_pe*int_size)
     END IF
     all_host(:,:) = 0
-    CALL string_to_ascii(host_name,all_host(:,globenv%para_env%mepos+1))
-    CALL mp_sum(all_host,globenv%para_env%group)
-    IF (globenv%para_env%ionode) THEN
-      DO ipe=1,globenv%para_env%num_pe
+    CALL string_to_ascii(host_name,all_host(:,para_env%mepos+1))
+    CALL mp_sum(all_host,para_env%group)
+    IF (para_env%ionode) THEN
+      DO ipe=1,para_env%num_pe
         CALL ascii_to_string(all_host(:,ipe),string)
         WRITE (UNIT=globenv%scr,FMT="(T2,A,T63,I8,T71,I10)")&
           TRIM(user_name)//"@"//TRIM(string)//&
@@ -325,7 +327,7 @@ SUBROUTINE cp2k_read(globenv,error)
 #if defined(__HPM)
     IF (BTEST(cp_print_key_should_output(logger%iter_info,&
          globenv%input_file,"GLOBAL%PERFORMANCE/HPM",error=error),cp_p_file)) THEN
-        CALL f_hpminit(globenv%para_env%mepos,"CP2K") 
+        CALL f_hpminit(para_env%mepos,"CP2K") 
         use_HPM = .TRUE.
     ENDIF
 #endif
@@ -400,6 +402,7 @@ SUBROUTINE cp2k_read(globenv,error)
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(3, 2)           :: initial_seed
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
 
 ! -------------------------------------------------------------------------
 
@@ -407,6 +410,7 @@ SUBROUTINE cp2k_read(globenv,error)
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
+    para_env=>globenv%para_env
 
     IF (.NOT.failure) THEN
 
@@ -436,7 +440,7 @@ SUBROUTINE cp2k_read(globenv,error)
       iw = cp_print_key_unit_nr(logger,globenv%input_file,"GLOBAL%PRINT/RNG_CHECK",&
                                 extension=".Log",error=error)
       IF (iw > 0) THEN
-        CALL check_rng(iw,globenv%para_env%ionode,error)
+        CALL check_rng(iw,para_env%ionode,error)
       END IF
       CALL cp_print_key_finished_output(iw,logger,globenv%input_file,&
                                         "GLOBAL%PRINT/RNG_CHECK",&
@@ -493,6 +497,7 @@ SUBROUTINE cp2k_read(globenv,error)
                                                 nforce_eval, num_threads, &
                                                 output_unit
     LOGICAL                                  :: ata, failure, trace
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: dft_section, &
                                                 force_env_sections, &
                                                 global_section, qmmm_section, &
@@ -503,6 +508,7 @@ SUBROUTINE cp2k_read(globenv,error)
     failure = .FALSE.
     trace = .FALSE.
     NULLIFY(dft_section,global_section)
+    para_env=>globenv%para_env
 
     global_section => section_vals_get_subs_vals(globenv%input_file,"GLOBAL",error=error)
     CALL section_vals_val_get(global_section,"BLACS_GRID",i_val=globenv%blacs_grid_layout,error=error)
@@ -516,7 +522,7 @@ SUBROUTINE cp2k_read(globenv,error)
     force_env_sections => section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL",error=error)
     CALL section_vals_get(force_env_sections, n_repetition=nforce_eval, error=error)
      
-    IF(trace) CALL trace_debug("start",groupid=globenv%para_env%group)
+    IF(trace) CALL trace_debug("start",groupid=para_env%group)
 
     IF (globenv%run_type_id == 0) THEN
        SELECT CASE (globenv%prog_name_id)
@@ -547,18 +553,18 @@ SUBROUTINE cp2k_read(globenv,error)
 
     IF(globenv%prog_name_id == do_farming .AND. globenv%run_type_id /= none_run) THEN
        CALL stop_program(routineN,moduleN,__LINE__,&
-               " FARMING program supports only NONE as run type",globenv)
+               " FARMING program supports only NONE as run type",para_env)
     ENDIF
 
     IF( globenv%prog_name_id == do_test .AND. globenv%run_type_id /= none_run) &
        CALL stop_program(routineN,moduleN,__LINE__,&
-               "TEST program supports only NONE as run type",globenv)
+               "TEST program supports only NONE as run type",para_env)
 
     num_threads=1
 !$omp parallel
 !$ num_threads = omp_get_num_threads()
 !$omp end parallel
-    IF (globenv%para_env%ionode.AND.(globenv%print_level > 0)) THEN
+    IF (para_env%ionode.AND.(globenv%print_level > 0)) THEN
       output_unit = globenv%scr
       WRITE (UNIT=output_unit,FMT=*)      
       DO iforce_eval = 1, nforce_eval
@@ -614,10 +620,10 @@ SUBROUTINE cp2k_read(globenv,error)
       WRITE (UNIT=output_unit,FMT="(T2,A,T75,I6)")&
         start_section_label//"| Global print level",globenv%print_level,&
         start_section_label//"| Total number of message passing processes",&
-                             globenv%para_env%num_pe,&
+                             para_env%num_pe,&
         start_section_label//"| Number of threads for this process",&
                              num_threads,&
-        start_section_label//"| This output is from process",globenv%para_env%mepos
+        start_section_label//"| This output is from process",para_env%mepos
       WRITE (UNIT=output_unit,FMT='()')
 
     END IF
@@ -654,12 +660,13 @@ SUBROUTINE cp2k_read(globenv,error)
     INTEGER                                  :: stat
     INTEGER, DIMENSION(3)                    :: n
     LOGICAL                                  :: was_present
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: global_section
 
 !   ---------------------------------------------------------------------------
 
     was_present = .FALSE.
-
+    para_env=>globenv%para_env
     global_section => section_vals_get_subs_vals(globenv%input_file,"GLOBAL",error=error)
     CALL section_vals_get(global_section,explicit=was_present,error=error)
     CALL read_global_section(globenv)
@@ -673,7 +680,7 @@ SUBROUTINE cp2k_read(globenv,error)
     zz(:,:,:) = 0.0_dp
     CALL fft3d(1,n,zz,status=stat)
     IF (stat /= 0) THEN
-      IF (globenv%para_env%ionode) THEN
+      IF (para_env%ionode) THEN
          WRITE(globenv%scr,'(A,A,T55,A)') &
            " WARNING : FFT library "//TRIM(globenv%default_fft_library)//&
            " is not available "," Trying FFTSG as a default"
@@ -686,7 +693,7 @@ SUBROUTINE cp2k_read(globenv,error)
            CALL stop_program(routineN,moduleN,__LINE__,&
                              "The default FFT library <"//&
                              TRIM(globenv%default_fft_library)//&
-                             "> is not available",globenv)
+                             "> is not available",para_env)
       ENDIF
     END IF
 
@@ -729,6 +736,7 @@ SUBROUTINE cp2k_read(globenv,error)
     LOGICAL                            :: delete_it,failure
     TYPE(cp_logger_type), POINTER      :: logger
     REAL(KIND=dp)                      :: r_timings
+    TYPE(cp_para_env_type), POINTER          :: para_env
 #if defined(__HPM)
 #include "f_hpm.h"
 #endif
@@ -745,6 +753,7 @@ SUBROUTINE cp2k_read(globenv,error)
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
+    para_env=>globenv%para_env
     CALL deallocate_spherical_harmonics()
     CALL deallocate_orbital_pointers()
     CALL deallocate_md_ftable()
@@ -752,14 +761,14 @@ SUBROUTINE cp2k_read(globenv,error)
     ! Write message passing performance info
 
     IF (.NOT. failure) THEN
-       CALL describe_mp_perf_env ( globenv%para_env%group,globenv%scr )
+       CALL describe_mp_perf_env ( para_env%group,globenv%scr )
     ENDIF
     CALL rm_mp_perf_env()
 
 #if defined(__HPM)
     IF (BTEST(cp_print_key_should_output(logger%iter_info,&
          globenv%input_file,"GLOBAL%PERFORMANCE/HPM",error=error),cp_p_file)) THEN
-       CALL f_hpmterminate(globenv%para_env%group) 
+       CALL f_hpmterminate(para_env%group) 
        use_HPM=.FALSE.
     ENDIF
 #endif
@@ -779,7 +788,7 @@ SUBROUTINE cp2k_read(globenv,error)
 
     CALL rm_timer_env()
 
-    IF (globenv%para_env%ionode) THEN
+    IF (para_env%ionode) THEN
 
       iw = globenv%scr
 
@@ -798,7 +807,7 @@ SUBROUTINE cp2k_read(globenv,error)
 
       ! Just a choice, do not print the final banner if there is a failure
 
-      IF (globenv%para_env%ionode .AND. .NOT. failure) THEN
+      IF (para_env%ionode .AND. .NOT. failure) THEN
         WRITE (UNIT=iw,&
                FMT="(A,T55,A26,/,A,T51,A30,/,A,T51,A30,/,A,T71,I10)")&
           "  **** **** ******  **  PROGRAM ENDED AT   ",ADJUSTR(datx),&

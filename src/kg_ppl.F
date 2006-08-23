@@ -28,6 +28,7 @@ MODULE kg_ppl
                                              get_atomic_kind_set
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE dynamical_coeff_types,           ONLY: dyn_coeff_distributed,&
                                              dyn_coeff_set_type,&
@@ -155,6 +156,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:,:,:,:), ALLOCATABLE :: ai_work
     REAL(KIND=dp), DIMENSION(:), POINTER :: my_alpha
     REAL(KIND=dp), DIMENSION(:,:), POINTER :: my_c 
+    TYPE(cp_para_env_type), POINTER          :: para_env
 !   ---------------------------------------------------------------------------
 
     CALL timeset(routineN,"I","",handle)
@@ -163,9 +165,9 @@ CONTAINS
     NULLIFY(orb_basis_set,particle_set,sac_ppl,set_radius_a,rpgfa,sphi_a,zeta)
     NULLIFY(sac_ppl_neighbor_list,sac_ppl_neighbor_node,atom_list,first_sgfa)
     NULLIFY(la_max,la_min,npgfa,nsgfa,energy,force,local_particles,my_alpha)
-
-    group = globenv%para_env%group
-    ionode = globenv%para_env%ionode
+    para_env=>globenv%para_env
+    group = para_env%group
+    ionode = para_env%ionode
     output_unit = globenv%scr
 
     CALL get_kg_env(kg_env=kg_env,&
@@ -667,6 +669,7 @@ CONTAINS
     TYPE(vppl_type), DIMENSION(:), ALLOCATABLE :: vppl
 
     REAL(KIND=dp), DIMENSION(:,:,:,:), ALLOCATABLE :: ai_work
+    TYPE(cp_para_env_type), POINTER          :: para_env
 
 !   ---------------------------------------------------------------------------
 
@@ -677,9 +680,9 @@ CONTAINS
     NULLIFY(sac_ppl_neighbor_list,sac_ppl_neighbor_node,atom_list,first_sgfa)
     NULLIFY(la_max,la_min,npgfa,nsgfa,energy,force,local_particles)
     NULLIFY(dyn_coeff_set,local_coeffs)
-
-    group = globenv%para_env%group
-    ionode = globenv%para_env%ionode
+    para_env=>globenv%para_env
+    group = para_env%group
+    ionode = para_env%ionode
     output_unit = globenv%scr
 
     CALL get_kg_env(kg_env=kg_env,&

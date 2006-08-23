@@ -50,6 +50,7 @@ MODULE qs_scf_post
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_rs_pool_types,                ONLY: cp_rs_pool_type,&
                                              rs_pool_create_rs,&
                                              rs_pool_give_back_rs
@@ -155,7 +156,6 @@ CONTAINS
 !!     collects possible post - scf calculations and prints info / computes properties.
 !!
 !!   NOTES
-!!     globenv should be eliminated
 !!     this function changes mo_eigenvectors and mo_eigenvalues, depending on the print keys.
 !!     In particular, MO_CUBES causes the MOs to be rotated to make them eigenstates of the KS
 !!     matrix, and mo_eigenvalues is updated accordingly. This can, for unconverged wavefunctions,
@@ -165,7 +165,6 @@ CONTAINS
 !!   ARGUMENTS
 !!     - scf_env: the scf_env whose info should be written out
 !!     - qs_env: the qs_env in which the qs_env lives
-!!     - globenv: the global environement (should be removed)
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
 !!
@@ -248,11 +247,13 @@ CONTAINS
     TYPE(gth_potential_type), POINTER        :: gth_potential
     TYPE(preconditioner_type), POINTER       :: preconditioner
     TYPE(cp_subsystem_type), POINTER :: subsys
+    TYPE(cp_para_env_type), POINTER          :: para_env
 
  
     CALL timeset(routineN,"I",'',handle)
 
 ! writes the data that is already available in qs_env 
+    para_env=>globenv%para_env
     CALL write_available_results(qs_env,globenv,error)
 
     failure=.FALSE.
@@ -293,7 +294,7 @@ CONTAINS
                error=error)
           mulliken_title="  Mulliken charges : iteration level: " &
                                 //cp_iter_string(logger%iter_info, print_key)
-          CALL mulliken_charges(rho%rho_ao,matrix_s(1)%matrix,globenv%para_env,particle_set, &
+          CALL mulliken_charges(rho%rho_ao,matrix_s(1)%matrix,para_env,particle_set, &
                                   unit_nr,mulliken_title)
 
           CALL cp_print_key_finished_output(unit_nr, logger,input,&
@@ -856,6 +857,7 @@ CONTAINS
     TYPE(realspace_grid_type), POINTER       :: rs
     INTEGER            :: handle, iw
     CHARACTER(LEN=default_string_length)     :: filename
+    TYPE(cp_para_env_type), POINTER          :: para_env
 
     CALL timeset(routineN,handle)
     failure=.FALSE.
@@ -863,6 +865,7 @@ CONTAINS
             mos,atomic_kind_set,particle_set,rho,&
             ks_rmpv,matrix_s,scf_control,dft_section,&
             molecule_set,input,particles,subsys)
+    para_env=>globenv%para_env
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
     IF (ionode) output_unit= cp_logger_get_default_unit_nr(logger)
@@ -1017,7 +1020,7 @@ CONTAINS
           iw = cp_print_key_unit_nr(logger,input,"DFT%PRINT%AO_MATRICES/DENSITY",&
                extension=".Log",error=error)
           DO ispin=1,dft_control%nspins
-             CALL write_sparse_matrix(rho%rho_ao(ispin)%matrix,4,6,qs_env,globenv,output_unit=iw)
+             CALL write_sparse_matrix(rho%rho_ao(ispin)%matrix,4,6,qs_env,para_env,output_unit=iw)
           END DO
           CALL cp_print_key_finished_output(iw,logger,input,&
                "DFT%PRINT%AO_MATRICES/DENSITY", error=error)
@@ -1032,7 +1035,7 @@ CONTAINS
           CALL qs_ks_did_change(qs_env%ks_env,rho_changed=.TRUE.)
           iw = cp_print_key_unit_nr(logger,input,"DFT%PRINT%AO_MATRICES/KOHN_SHAM_MATRIX",&
                extension=".Log",error=error)
-          CALL Write_sparse_matrix(ks_rmpv(1)%matrix,4,6,Qs_env,Globenv,output_unit=iw)
+          CALL Write_sparse_matrix(ks_rmpv(1)%matrix,4,6,Qs_env,para_env,output_unit=iw)
           CALL cp_print_key_finished_output(iw,logger,input,&
                "DFT%PRINT%AO_MATRICES/KOHN_SHAM_MATRIX", error=error)
        END IF

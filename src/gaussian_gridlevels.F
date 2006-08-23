@@ -20,7 +20,7 @@
 MODULE gaussian_gridlevels
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
-  USE global_types,                    ONLY: global_environment_type
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE input_section_types,             ONLY: section_vals_release,&
                                              section_vals_retain,&
                                              section_vals_type
@@ -69,10 +69,10 @@ CONTAINS
        CALL section_vals_retain(print_section)
   END SUBROUTINE
  
-SUBROUTINE destroy_gaussian_gridlevel(gridlevel_info,globenv,error)
+SUBROUTINE destroy_gaussian_gridlevel(gridlevel_info,para_env,error)
     TYPE(gridlevel_info_type)                :: gridlevel_info
-    TYPE(global_environment_type), &
-      OPTIONAL, POINTER                      :: globenv
+    TYPE(cp_para_env_type), OPTIONAL, &
+      POINTER                                :: para_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -84,8 +84,8 @@ SUBROUTINE destroy_gaussian_gridlevel(gridlevel_info,globenv,error)
 
   NULLIFY(logger)
   logger => cp_error_get_logger(error)
-  IF (PRESENT(globenv)) THEN
-     group=globenv%para_env%group
+  IF (PRESENT(para_env)) THEN
+     group=para_env%group
   ELSE
      group=logger%para_env%group
   END IF

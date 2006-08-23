@@ -31,11 +31,11 @@ MODULE kg_neighbor_lists
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE external_potential_types,        ONLY: elp_potential_type,&
                                              get_potential,&
                                              gth_potential_type
-  USE global_types,                    ONLY: global_environment_type
   USE input_section_types,             ONLY: section_vals_type
   USE kg_environment_types,            ONLY: get_kg_env,&
                                              kg_environment_type,&
@@ -75,9 +75,9 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE build_kg_neighbor_lists(kg_env,globenv,error)
+  SUBROUTINE build_kg_neighbor_lists(kg_env,para_env,error)
     TYPE(kg_environment_type), POINTER       :: kg_env
-    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -95,11 +95,11 @@ CONTAINS
 
     SELECT CASE (qs_control%method)
     CASE ("KG_POL")
-      CALL build_kg_neighbor_lists1(kg_env,globenv,kg_env%input,error)
+      CALL build_kg_neighbor_lists1(kg_env,para_env,kg_env%input,error)
     CASE ("KG_NOPOL")
-      CALL build_kg_neighbor_lists1(kg_env,globenv,kg_env%input,error)
+      CALL build_kg_neighbor_lists1(kg_env,para_env,kg_env%input,error)
     CASE ("KG_GPW")
-      CALL build_kg_neighbor_lists2(kg_env,globenv,kg_env%input,error)
+      CALL build_kg_neighbor_lists2(kg_env,para_env,kg_env%input,error)
     CASE DEFAULT
       CALL stop_program(routineN,moduleN,__LINE__,"method unknown")
     END SELECT
@@ -110,10 +110,10 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE build_kg_neighbor_lists1(kg_env,globenv,force_env_section,error)
+  SUBROUTINE build_kg_neighbor_lists1(kg_env,para_env,force_env_section,error)
 
     TYPE(kg_environment_type), POINTER       :: kg_env
-    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -360,7 +360,7 @@ CONTAINS
                                     log_filename=.FALSE.,&
                                     file_position="REWIND",&
                                     error=error)
-          CALL write_neighbor_lists(sac_ppl,particle_set,cell,globenv,iw,&
+          CALL write_neighbor_lists(sac_ppl,particle_set,cell,para_env,iw,&
                                     "ORBITAL GTH-PPL",error)
           CALL cp_print_key_finished_output(unit_nr=iw,&
                                             logger=logger,&
@@ -396,7 +396,7 @@ CONTAINS
                                     log_filename=.FALSE.,&
                                     file_position="REWIND",&
                                     error=error)
-          CALL write_neighbor_lists(sac_ppl,particle_set,cell,globenv,iw,&
+          CALL write_neighbor_lists(sac_ppl,particle_set,cell,para_env,iw,&
                                     "AUXILIARY ORBITAL GTH-PPL",error)
           CALL cp_print_key_finished_output(unit_nr=iw,&
                                             logger=logger,&
@@ -475,10 +475,10 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE build_kg_neighbor_lists2(kg_env,globenv,force_env_section,error)
+  SUBROUTINE build_kg_neighbor_lists2(kg_env,para_env,force_env_section,error)
 
     TYPE(kg_environment_type), POINTER       :: kg_env
-    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -498,7 +498,7 @@ CONTAINS
                     sub_qs_env=qs_env)
 
     IF(ASSOCIATED(qs_env)) THEN
-      CALL build_qs_neighbor_lists(qs_env,globenv,.TRUE.,force_env_section,error=error)
+      CALL build_qs_neighbor_lists(qs_env,para_env,.TRUE.,force_env_section,error=error)
     ELSE
       CALL stop_program(routineN,moduleN,__LINE__,&
                         "sub_qs_env not defined")

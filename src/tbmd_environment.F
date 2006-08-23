@@ -38,6 +38,7 @@ MODULE tbmd_environment
   USE cp_blacs_env,                    ONLY: cp_blacs_env_create
   USE cp_fm_struct,                    ONLY: optimal_blacs_col_block_size,&
                                              optimal_blacs_row_block_size
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsystem_methods,            ONLY: cp_subsys_read_colvar
   USE cp_subsystem_types,              ONLY: cp_subsys_create,&
                                              cp_subsys_release,&
@@ -149,6 +150,7 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell, cell_ref
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsystem_type), POINTER         :: subsystem
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
     TYPE(mol_new_list_type), POINTER         :: molecules
@@ -165,6 +167,8 @@ CONTAINS
 !   ------------------------------------------------------------------------
 
     CALL timeset(routineN, "I", "", handle)
+
+    para_env=>globenv%para_env
 
     failure = .FALSE.
   
@@ -185,7 +189,7 @@ CONTAINS
                                                  "TBMD", error=error)
 
       CALL tbmd_env_set(tbmd_env=tbmd_env, tbmd_input=tbmd_section, &
-                        force_env_input=force_env_section, para_env=globenv%para_env, &
+                        force_env_input=force_env_section, para_env=para_env, &
                         error=error)
 
       CALL cp_blacs_env_create(blacs_env=tbmd_env%blacs_env, para_env=tbmd_env%para_env, &
@@ -197,7 +201,7 @@ CONTAINS
       CALL get_cell(cell=cell, abc=abc)
       CALL write_cell(cell=cell, force_env_section=force_env_section,error=error)
 
-      CALL cp_subsys_create(subsystem, para_env=globenv%para_env, error=error)
+      CALL cp_subsys_create(subsystem, para_env=para_env, error=error)
       CALL cp_subsys_read_colvar(subsystem, colvar_section, globenv, error=error)
 
       CALL topology_control(atomic_kind_set, particle_set, &
@@ -282,6 +286,7 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind_ptr
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(distribution_1d_type), POINTER      :: local_molecules, &
                                                 local_particles
     TYPE(mo_set_type), POINTER               :: mos
@@ -300,6 +305,7 @@ CONTAINS
 !   ------------------------------------------------------------------------
 
     CALL timeset(routineN, "I", "", handle)
+    para_env=>globenv%para_env
 
     NULLIFY(atomic_kind_set, molecule_kind_set, molecule_set, particle_set, &
             tbmd_energy, tbmd_force, tbmd_model, local_molecules, &
@@ -380,7 +386,7 @@ CONTAINS
                       subsystem=subsystem, local_molecules=local_molecules, &
                       local_particles=local_particles, cell=cell, &
                       cell_ref=cell_ref, use_ref_cell=use_ref_cell, &
-                      para_env=globenv%para_env, mos=mos, error=error)
+                      para_env=para_env, mos=mos, error=error)
 
     CALL tbmd_init_tb_model(tbmd_env=tbmd_env, globenv=globenv, error=error)
     CALL tbmd_init_tb_neighbor_list(tbmd_env=tbmd_env, globenv=globenv, &

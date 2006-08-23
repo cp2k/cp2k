@@ -168,6 +168,7 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell, cell_ref
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(distribution_1d_type), POINTER      :: local_molecules, &
                                                 local_particles
@@ -187,8 +188,8 @@ CONTAINS
                                                 qs_section, work_section
 
     CALL timeset(routineN,"I",'',handle)
-
-    ionode = globenv%para_env%ionode
+    para_env=>globenv%para_env
+    ionode = para_env%ionode
     output_unit = globenv%scr
     was_present = .FALSE.
     
@@ -258,8 +259,8 @@ CONTAINS
     ! Read/write the atomic kind set
     kind_section => section_vals_get_subs_vals(force_env_section,&
          "SUBSYS%KIND",error=error)
-    CALL read_atomic_kind_set(atomic_kind_set,kind_section,globenv,force_env_section,error)
-    CALL check_atomic_kind_set(atomic_kind_set,dft_control,globenv,&
+    CALL read_atomic_kind_set(atomic_kind_set,kind_section,para_env,force_env_section,error)
+    CALL check_atomic_kind_set(atomic_kind_set,dft_control,para_env,&
          force_env_section=kg_env%input,error=error)
     CALL write_gto_basis_sets(atomic_kind_set,kg_env%input,error)
 
@@ -284,7 +285,7 @@ CONTAINS
     CALL init_md_ftable(maxl)
 
     ! Initialise/print the atomic/molecular kind set
-    CALL init_atomic_kind_set(atomic_kind_set,globenv,force_env_section=force_env_section,&
+    CALL init_atomic_kind_set(atomic_kind_set,para_env,force_env_section=force_env_section,&
                               method=dft_control%qs_control%method)
     CALL write_atomic_kind_set(atomic_kind_set,kg_env%input,error)
     CALL write_molecule_kind_set(molecule_kind_set,force_env_section,error)

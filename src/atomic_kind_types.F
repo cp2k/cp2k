@@ -35,12 +35,12 @@ MODULE atomic_kind_types
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE external_potential_types,        ONLY: &
        all_potential_type, allocate_potential, deallocate_potential, &
        elp_potential_type, get_potential, gth_potential_type, init_potential, &
        read_potential, set_default_all_potential, set_potential, &
        write_potential
-  USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: do_fist,&
                                              do_kg,&
                                              do_qs
@@ -899,7 +899,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE init_atomic_kind(atomic_kind,globenv,force_env_section,method)
+  SUBROUTINE init_atomic_kind(atomic_kind,para_env,force_env_section,method)
 
 !   Purpose: Initialise an atomic kind data set.
 
@@ -909,7 +909,7 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: force_env_section
     CHARACTER(LEN=10), INTENT(IN), OPTIONAL  :: method
 
@@ -969,7 +969,7 @@ CONTAINS
     ELSE
 
       CALL stop_program(routineN,moduleN,__LINE__,&
-                        "The pointer atomic_kind is not associated",globenv)
+                        "The pointer atomic_kind is not associated",para_env)
       
    END IF
 
@@ -977,18 +977,18 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE init_atomic_kind_set(atomic_kind_set,globenv,force_env_section,method)
+  SUBROUTINE init_atomic_kind_set(atomic_kind_set,para_env,force_env_section,method)
 
 !   Purpose: Initialise an atomic kind set data set.
 
 !   History: - Creation (17.01.2002,MK)
-!            - 20.09.2002 globenv passed (gt)
+!            - 20.09.2002 para_env passed (gt)
 
 !   ***************************************************************************
 
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: force_env_section
     CHARACTER(LEN=10), INTENT(IN), OPTIONAL  :: method
 
@@ -1005,7 +1005,7 @@ CONTAINS
 
       DO ikind=1,nkind
         atomic_kind => atomic_kind_set(ikind)
-        CALL init_atomic_kind(atomic_kind,globenv,force_env_section=force_env_section,&
+        CALL init_atomic_kind(atomic_kind,para_env,force_env_section=force_env_section,&
              method=method)
       END DO
 
@@ -1013,7 +1013,7 @@ CONTAINS
 
       CALL stop_program(routineN,moduleN,__LINE__,&
                         "The pointer atomic_kind_set is not associated",&
-                        globenv)
+                        para_env)
 
     END IF
 
@@ -1097,7 +1097,7 @@ CONTAINS
 
   ! ***************************************************************************
 
-  SUBROUTINE read_atomic_kind(atomic_kind,kind_section,globenv,force_env_section,error)
+  SUBROUTINE read_atomic_kind(atomic_kind,kind_section,para_env,force_env_section,error)
 
 !   Purpose: Read an atomic kind data set from the input file.
 
@@ -1108,7 +1108,7 @@ CONTAINS
 
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(section_vals_type), POINTER         :: kind_section
-    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -1324,7 +1324,7 @@ CONTAINS
                         TRIM(atomic_kind%name)//">. Specify a valid "//&
                         "element symbol in the input section <KIND "//&
                         TRIM(atomic_kind%name)//"> or select a valid "//&
-                        "element symbol for the atomic kind name",globenv)
+                        "element symbol for the atomic kind name",para_env)
     END IF
 
 !   *** Allocate and initialise the orbital basis set data set structure ***
@@ -1333,7 +1333,7 @@ CONTAINS
     IF (orb_basis_set_name /= '') THEN
       CALL allocate_gto_basis_set(atomic_kind%orb_basis_set)
       CALL read_gto_basis_set(atomic_kind%element_symbol,orb_basis_set_name,&
-                              atomic_kind%orb_basis_set,globenv,force_env_section,error)
+                              atomic_kind%orb_basis_set,para_env,force_env_section,error)
       CALL set_gto_basis_set(gto_basis_set=atomic_kind%orb_basis_set,&
                              norm_type=norb)
     END IF
@@ -1344,7 +1344,7 @@ CONTAINS
 
       CALL allocate_gto_basis_set(atomic_kind%aux_basis_set)
       CALL read_gto_basis_set(atomic_kind%element_symbol,aux_basis_set_name,&
-                              atomic_kind%aux_basis_set,globenv,force_env_section,error)
+                              atomic_kind%aux_basis_set,para_env,force_env_section,error)
       CALL set_gto_basis_set(gto_basis_set=atomic_kind%aux_basis_set,&
                              norm_type=naux)
     END IF
@@ -1367,7 +1367,7 @@ CONTAINS
       CASE ("ALL")
         CALL allocate_potential(atomic_kind%all_potential)
         CALL read_potential(atomic_kind%element_symbol,potential_name,&
-                            atomic_kind%all_potential,zeff_correction,globenv,&
+                            atomic_kind%all_potential,zeff_correction,para_env,&
                             dft_section,error)
         CALL set_potential(atomic_kind%all_potential,z=z)
         CALL get_atomic_kind(atomic_kind,elec_conf=elec_conf)
@@ -1394,7 +1394,7 @@ CONTAINS
         ELSE
           CALL allocate_potential(atomic_kind%gth_potential)
           CALL read_potential(atomic_kind%element_symbol,potential_name,&
-                              atomic_kind%gth_potential,zeff_correction,globenv,&
+                              atomic_kind%gth_potential,zeff_correction,para_env,&
                               dft_section,error)
           CALL set_potential(atomic_kind%gth_potential,z=z)
           CALL get_atomic_kind(atomic_kind,elec_conf=elec_conf)
@@ -1406,14 +1406,14 @@ CONTAINS
       CASE ("ELP")
         CALL allocate_potential(atomic_kind%elp_potential)
         CALL read_potential(atomic_kind%element_symbol,potential_name,&
-                            atomic_kind%elp_potential,globenv,&
+                            atomic_kind%elp_potential,para_env,&
                             dft_section,error)
       CASE DEFAULT
         CALL stop_program(routineN,moduleN,__LINE__,&
                           "An invalid potential type <"//&
                           TRIM(potential_name)//"> was specified "//&
                           "for the atomic kind <"//&
-                          TRIM(atomic_kind%name),globenv)
+                          TRIM(atomic_kind%name),para_env)
       END SELECT
 
     ELSE
@@ -1444,7 +1444,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE read_atomic_kind_set(atomic_kind_set,kind_section,globenv,force_env_section,error)
+  SUBROUTINE read_atomic_kind_set(atomic_kind_set,kind_section,para_env,force_env_section,error)
 
 !   Purpose: Read an atomic kind set data set from the input file.
 
@@ -1455,7 +1455,7 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(section_vals_type), POINTER         :: kind_section
-    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -1473,13 +1473,13 @@ CONTAINS
 
       DO ikind=1,nkind
         atomic_kind => atomic_kind_set(ikind)
-        CALL read_atomic_kind(atomic_kind,kind_section,globenv,force_env_section, error)
+        CALL read_atomic_kind(atomic_kind,kind_section,para_env,force_env_section, error)
       END DO
     ELSE
 
       CALL stop_program(routineN,moduleN,__LINE__,&
                         "The pointer atomic_kind_set is not associated",&
-                        globenv)
+                        para_env)
 
     END IF
 
@@ -1487,12 +1487,12 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE check_atomic_kind(atomic_kind,dft_control,globenv,&
+  SUBROUTINE check_atomic_kind(atomic_kind,dft_control,para_env,&
                                force_env_section,error)
 
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(dft_control_type), INTENT(IN)       :: dft_control
-    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -1523,7 +1523,7 @@ CONTAINS
     IF (method_name_id == do_qs) THEN
       IF (z < 0) THEN
         CALL stop_program(routineN,moduleN,__LINE__,&
-                     "No valid element is assign to the atomic kind ",globenv)
+                     "No valid element is assign to the atomic kind ",para_env)
       END IF
       IF (.NOT.dft_control%qs_control%semi_empirical) THEN
         IF ((.NOT.ASSOCIATED(gth_potential)).AND.&
@@ -1532,12 +1532,12 @@ CONTAINS
             (mass > 0.0_dp)) THEN
           CALL stop_program(routineN,moduleN,__LINE__,&
                       "No potential type was defined for the "//&
-                      "atomic kind <"//TRIM(atomic_kind%name)//">",globenv)
+                      "atomic kind <"//TRIM(atomic_kind%name)//">",para_env)
         END IF
         IF (.NOT.ASSOCIATED(orb_basis_set)) THEN
           CALL stop_program(routineN,moduleN,__LINE__,&
                       "No basis set type was defined for the "//&
-                      "atomic kind <"//TRIM(atomic_kind%name)//">",globenv)
+                      "atomic kind <"//TRIM(atomic_kind%name)//">",para_env)
         END IF
       ELSE
         CALL get_atomic_kind(atomic_kind,se_parameter=se_parameter)
@@ -1567,12 +1567,12 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE check_atomic_kind_set(atomic_kind_set,dft_control,globenv,force_env_section,error)
+  SUBROUTINE check_atomic_kind_set(atomic_kind_set,dft_control,para_env,force_env_section,error)
 
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(dft_control_type), INTENT(IN)       :: dft_control
-    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -1588,12 +1588,12 @@ CONTAINS
       nkind = SIZE(atomic_kind_set)
       DO ikind=1,nkind
         atomic_kind => atomic_kind_set(ikind)
-        CALL check_atomic_kind(atomic_kind,dft_control,globenv,force_env_section,error)
+        CALL check_atomic_kind(atomic_kind,dft_control,para_env,force_env_section,error)
       END DO
     ELSE
       CALL stop_program(routineN,moduleN,__LINE__,&
                         "The pointer atomic_kind_set is not associated",&
-                        globenv)
+                        para_env)
     END IF
 
   END SUBROUTINE check_atomic_kind_set

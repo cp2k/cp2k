@@ -48,8 +48,8 @@ MODULE tbmd_neighbor_lists
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
-  USE global_types,                    ONLY: global_environment_type
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
@@ -117,7 +117,6 @@ CONTAINS
 !!     - cell: The simulation cell
 !!     - tbmd_neighbor_list_env: The TBMD neighbor-list environment
 !!     - force_env_section: Pointer to the force environment input section
-!!     - globenv: The global environment
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling
 !!
@@ -130,7 +129,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE tbmd_neighbor_list_control(atomic_kind_set, particle_set, &
                                         local_particles, cell, &
-                                        tbmd_neighbor_list_env, globenv, &
+                                        tbmd_neighbor_list_env, para_env, &
                                         force_env_section, error)
 
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -141,7 +140,7 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     TYPE(tbmd_neighbor_list_env_type), &
       POINTER                                :: tbmd_neighbor_list_env
-    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -202,7 +201,7 @@ CONTAINS
         END DO
       END DO
 
-      CALL mp_max(dr2_max, globenv%para_env%group)
+      CALL mp_max(dr2_max, para_env%group)
 
       IF (dr2_max > 0.25_dp*verlet_skin**2) THEN
         DO iparticle = 1,nparticle
@@ -233,7 +232,7 @@ CONTAINS
                                      tbmd_neighbor_list=tbmd_neighbor_list, &
                                      build_from_scratch=build_from_scratch, &
                                      force_env_section=force_env_section, &
-                                     globenv=globenv, error=error)
+                                     para_env=para_env, error=error)
 
       IF ( counter > 0 ) THEN
         num_update = num_update + 1
@@ -253,12 +252,12 @@ CONTAINS
                                       num_update=num_update, &
                                       last_update=last_update, error=error)
 
-      IF ((globenv%print_level >= 2).AND.(globenv%para_env%ionode)) THEN
-        WRITE(UNIT=globenv%scr, &
-              FMT="(/,T2,A,/,T52,A,/,A,T31,A,T49,2(1X,F15.2),/,T2,A,/)")&
-          REPEAT("*",79),"INSTANTANEOUS        AVERAGES",&
-          " LIST UPDATES[steps]","= ", lup, aup, REPEAT("*",79)
-      END IF
+      ! IF ((globenv%print_level >= 2).AND.(para_env%ionode)) THEN
+      !   WRITE(UNIT=globenv%scr, &
+      !         FMT="(/,T2,A,/,T52,A,/,A,T31,A,T49,2(1X,F15.2),/,T2,A,/)")&
+      !     REPEAT("*",79),"INSTANTANEOUS        AVERAGES",&
+      !     " LIST UPDATES[steps]","= ", lup, aup, REPEAT("*",79)
+      ! END IF
     END IF
 
     counter = counter + 1
@@ -293,7 +292,6 @@ CONTAINS
 !!     - build_from_scratch: Logical which indicates if the neighbor list can
 !!                           be updated or has to be constructed from scratch
 !!     - force_env_section: Pointer to the force environment input section
-!!     - globenv: The global environment
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling
 !!
@@ -306,7 +304,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE build_tbmd_neighbor_lists(atomic_kind_set, particle_set, &
                                        local_particles, cell, r_max, &
-                                       tbmd_neighbor_list, globenv, &
+                                       tbmd_neighbor_list, para_env, &
                                        build_from_scratch, force_env_section, &
                                        error)
 
@@ -319,7 +317,7 @@ CONTAINS
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: r_max
     TYPE(neighbor_list_set_p_type), &
       DIMENSION(:), POINTER                  :: tbmd_neighbor_list
-    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_para_env_type), POINTER          :: para_env
     LOGICAL, INTENT(IN)                      :: build_from_scratch
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(INOUT), &
@@ -452,7 +450,7 @@ CONTAINS
                                  "TBMD%PRINT%NEIGHBOR_LISTS", &
                                  extension=".mmLog", error=error)
        CALL write_neighbor_lists(tbmd_neighbor_list,particle_set,cell,&
-                                 globenv,iw,"TIGHT-BINDING NEIGHBOR LISTS",&
+                                 para_env,iw,"TIGHT-BINDING NEIGHBOR LISTS",&
                                  error)
        CALL cp_print_key_finished_output(iw, logger, force_env_section, &
                                          "TBMD%PRINT%NEIGHBOR_LISTS", &
@@ -467,7 +465,7 @@ CONTAINS
                                  "PRINT%DISTRIBUTION", extension=".mmLog", &
                                  error=error)
        CALL write_distribution(tbmd_neighbor_list, atomic_kind_set, iw, &
-                               globenv, error=error)
+                               para_env, error=error)
        CALL cp_print_key_finished_output(iw, logger, force_env_section, &
                                          "PRINT%DISTRIBUTION", error=error)
     END IF
@@ -918,7 +916,7 @@ CONTAINS
 
   ! ***************************************************************************
 
-  SUBROUTINE write_distribution(ab,atomic_kind_set,output_unit,globenv,error)
+  SUBROUTINE write_distribution(ab,atomic_kind_set,output_unit,para_env,error)
 
     ! Purpose: Print the distribution of the simple pair neighbor list.
 
@@ -931,7 +929,7 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     INTEGER, INTENT(in)                      :: output_unit
-    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -949,9 +947,9 @@ CONTAINS
 
 ! -------------------------------------------------------------------------
 
-    group = globenv%para_env%group
-    mype = globenv%para_env%mepos + 1
-    npe = globenv%para_env%num_pe
+    group = para_env%group
+    mype = para_env%mepos + 1
+    npe = para_env%num_pe
 
     ! Allocate work storage
 
@@ -1048,7 +1046,7 @@ CONTAINS
 
   ! ***************************************************************************
 
-  SUBROUTINE write_neighbor_lists(ab,particle_set,cell,globenv,output_unit,&
+  SUBROUTINE write_neighbor_lists(ab,particle_set,cell,para_env,output_unit,&
                                   name,error)
 
     ! Purpose: Write a set of neighbor lists to the output unit.
@@ -1064,7 +1062,7 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER, INTENT(IN)                      :: output_unit
     CHARACTER(LEN=*), INTENT(IN)             :: name
     TYPE(cp_error_type), INTENT(inout), &
@@ -1085,7 +1083,7 @@ CONTAINS
 
 ! -------------------------------------------------------------------------
 
-    mype = globenv%para_env%mepos
+    mype = para_env%mepos
 
     CALL get_cell(cell=cell,&
                   unit_of_length=unit_of_length,&

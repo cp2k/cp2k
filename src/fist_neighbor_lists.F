@@ -39,13 +39,13 @@ MODULE fist_neighbor_lists
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE fist_neighbor_list_types,        ONLY: fist_neighbor_add,&
                                              fist_neighbor_deallocate,&
                                              fist_neighbor_init,&
                                              fist_neighbor_type,&
                                              neighbor_kind_pairs_type
-  USE global_types,                    ONLY: global_environment_type
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
@@ -102,7 +102,7 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE build_fist_neighbor_lists(atomic_kind_set,particle_set,&
-       local_particles,cell,r_max, r_minsq, nonbonded,globenv,&
+       local_particles,cell,r_max, r_minsq, nonbonded,para_env,&
        build_from_scratch,force_env_section,error)
 
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -113,7 +113,7 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: r_max, r_minsq
     TYPE(fist_neighbor_type), POINTER        :: nonbonded
-    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_para_env_type), POINTER          :: para_env
     LOGICAL, INTENT(IN)                      :: build_from_scratch
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
@@ -208,7 +208,7 @@ CONTAINS
             log_filename=.FALSE.,&
             file_position="REWIND",&
             error=error)
-       CALL write_neighbor_lists(nonbonded,particle_set,cell,globenv,iw,&
+       CALL write_neighbor_lists(nonbonded,particle_set,cell,para_env,iw,&
             "NONBONDED NEIGHBOR LISTS",error)
        CALL cp_print_key_finished_output(unit_nr=iw,&
             logger=logger,&
@@ -749,14 +749,14 @@ CONTAINS
 !!     08.2006 created [tlaino]
 !!
 !!*** **********************************************************************
-  SUBROUTINE write_neighbor_lists(nonbonded,particle_set,cell,globenv,output_unit,&
+  SUBROUTINE write_neighbor_lists(nonbonded,particle_set,cell,para_env,output_unit,&
                                   name,error)
 
     TYPE(fist_neighbor_type), POINTER        :: nonbonded
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER, INTENT(IN)                      :: output_unit
     CHARACTER(LEN=*), INTENT(IN)             :: name
     TYPE(cp_error_type), INTENT(inout), &
@@ -771,7 +771,7 @@ CONTAINS
     REAL(dp), DIMENSION(3)                   :: cell_v, ra, rab, rb
     TYPE(neighbor_kind_pairs_type), POINTER  :: neighbor_kind_pair
 
-    mype = globenv%para_env%mepos
+    mype = para_env%mepos
     CALL get_cell(cell=cell,&
                   unit_of_length=unit_of_length,&
                   unit_of_length_name=unit_of_length_name)

@@ -456,7 +456,7 @@ SUBROUTINE ot_new_sd_direction(qs_ot_env)
        ENDDO
        IF (qs_ot_env(1)%gnorm .LT. 0.0_dp) THEN
            ! XXXX needs logger feature
-           ! XXXX IF (globenv%para_env%ionode) &    ! fatal error, should use a different preconditioner
+           ! XXXX IF (para_env%ionode) &    ! fatal error, should use a different preconditioner
            ! XXXX  write(globenv%scr,*) "WARNING Preconditioner not positive definite !"
            WRITE(6,*) "WARNING Preconditioner not positive definite !"
        ENDIF
@@ -539,7 +539,7 @@ SUBROUTINE ot_new_cg_direction(qs_ot_env)
        ENDDO
        IF (qs_ot_env(1)%gnorm .LT. 0.0_dp) THEN
           ! XXXX needs logger feature
-          ! XXX IF (globenv%para_env%ionode) &    ! fatal error, should use a different preconditioner
+          ! XXX IF (para_env%ionode) &    ! fatal error, should use a different preconditioner
           ! XXX   write(globenv%scr,*) "WARNING Preconditioner not positive definite !"
           WRITE(6,*) "WARNING Preconditioner not positive definite !"
        ENDIF
@@ -656,7 +656,7 @@ SUBROUTINE ot_diis_step(qs_ot_env)
        ENDDO
        IF (qs_ot_env(1)%gnorm .LT. 0.0_dp) THEN
            ! XXX needs logger feature
-           ! XXX IF (globenv%para_env%ionode) &    ! fatal error, should use a different preconditioner
+           ! XXX IF (para_env%ionode) &    ! fatal error, should use a different preconditioner
            ! XXX  write(globenv%scr,*) "WARNING Preconditioner not positive definite !"
            WRITE(6,*) "WARNING Preconditioner not positive definite !"
        ENDIF

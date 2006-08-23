@@ -494,7 +494,7 @@ CONTAINS
     logger => cp_error_get_logger(error)
  
     IF(localized_wfn_control%loc_rootfname==" ") THEN
-      CALL xstring ( globenv % project_name, ia, ie )
+      CALL xstring ( globenv%project_name, ia, ie )
       DO ispin = 1,nspins
          localized_wfn_control%spreads_file_name(ispin) = globenv%project_name(ia:ie)//&
                  '_spreads_s'//TRIM(ADJUSTL(cp_to_string(ispin)))

@@ -38,6 +38,7 @@ MODULE topology_util
   USE convert_units,                   ONLY: convert_to_cp2k_units
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE external_potential_types,        ONLY: allocate_potential,&
                                              elp_potential_type,&
                                              get_potential,&
@@ -133,11 +134,10 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE topology_reorder_atoms(topology,globenv,subsys_section,error)
+  SUBROUTINE topology_reorder_atoms(topology,para_env,subsys_section,error)
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
-    TYPE(global_environment_type), &
-      OPTIONAL, POINTER                      :: globenv
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -322,14 +322,13 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE topology_generate_molecule(topology,qmmm,qmmm_env,globenv,subsys_section,error)
+  SUBROUTINE topology_generate_molecule(topology,qmmm,qmmm_env,para_env,subsys_section,error)
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
     LOGICAL, INTENT(in), OPTIONAL            :: qmmm
     TYPE(qmmm_env_mm_type), OPTIONAL, &
       POINTER                                :: qmmm_env
-    TYPE(global_environment_type), &
-      OPTIONAL, POINTER                      :: globenv
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -741,11 +740,10 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE topology_set_atm_mass(topology,globenv,subsys_section,error)
+  SUBROUTINE topology_set_atm_mass(topology,para_env,subsys_section,error)
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
-    TYPE(global_environment_type), &
-      OPTIONAL, POINTER                      :: globenv
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -837,11 +835,10 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE topology_generate_bond(topology,globenv,subsys_section,error)
+  SUBROUTINE topology_generate_bond(topology,para_env,subsys_section,error)
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
-    TYPE(global_environment_type), &
-      OPTIONAL, POINTER                      :: globenv
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -932,7 +929,7 @@ CONTAINS
             conn_info%bond_a,&
             conn_info%bond_b,&
             topology%bondparm_type,&
-            globenv)
+            para_env)
        IF (iw>0) THEN
           WRITE(iw,'(A,I6)')"Total number of generated bonds :: ",SIZE(conn_info%bond_a)
           ! Dump info on the computed bonds
@@ -998,11 +995,10 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE topology_generate_bend(topology,globenv,subsys_section,error)
+  SUBROUTINE topology_generate_bend(topology,para_env,subsys_section,error)
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
-    TYPE(global_environment_type), &
-      OPTIONAL, POINTER                      :: globenv
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -1143,11 +1139,10 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE topology_generate_ub(topology,globenv,subsys_section,error)
+  SUBROUTINE topology_generate_ub(topology,para_env,subsys_section,error)
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
-    TYPE(global_environment_type), &
-      OPTIONAL, POINTER                      :: globenv
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -1204,11 +1199,10 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE topology_generate_dihe(topology,globenv,subsys_section,error)
+  SUBROUTINE topology_generate_dihe(topology,para_env,subsys_section,error)
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
-    TYPE(global_environment_type), &
-      OPTIONAL, POINTER                      :: globenv
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -1356,11 +1350,10 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE topology_generate_impr(topology,globenv,subsys_section,error)
+  SUBROUTINE topology_generate_impr(topology,para_env,subsys_section,error)
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
-    TYPE(global_environment_type), &
-      OPTIONAL, POINTER                      :: globenv
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -1455,11 +1448,10 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE topology_generate_onfo(topology,globenv,subsys_section,error)
+  SUBROUTINE topology_generate_onfo(topology,para_env,subsys_section,error)
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
-    TYPE(global_environment_type), &
-      OPTIONAL, POINTER                      :: globenv
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -1514,15 +1506,14 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
   SUBROUTINE topology_connectivity_pack(molecule_kind_set,molecule_set,&
-       topology,globenv,subsys_section,error)
+       topology,para_env,subsys_section,error)
     TYPE(molecule_kind_type), DIMENSION(:), &
       POINTER                                :: molecule_kind_set
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
-    TYPE(global_environment_type), &
-      OPTIONAL, POINTER                      :: globenv
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -2385,7 +2376,7 @@ CONTAINS
 !!*** *************************************************************************
 
   SUBROUTINE topology_coordinate_pack (particle_set,atomic_kind_set,&
-       molecule_kind_set,molecule_set,topology,globenv,qmmm,qmmm_env,&
+       molecule_kind_set,molecule_set,topology,para_env,qmmm,qmmm_env,&
        subsys_section,force_env_section,error)
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -2397,8 +2388,7 @@ CONTAINS
       POINTER                                :: molecule_set
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
-    TYPE(global_environment_type), &
-      OPTIONAL, POINTER                      :: globenv
+    TYPE(cp_para_env_type), POINTER          :: para_env
     LOGICAL, INTENT(IN), OPTIONAL            :: qmmm
     TYPE(qmmm_env_mm_type), OPTIONAL, &
       POINTER                                :: qmmm_env
@@ -2920,7 +2910,7 @@ CONTAINS
 !!*** *************************************************************************
 
   SUBROUTINE topology_constraint_pack ( molecule_kind_set,molecule_set,&
-       topology,qmmm_env,particle_set,globenv,subsys_section,error)
+       topology,qmmm_env,particle_set,input_file,para_env,subsys_section,error)
     TYPE(molecule_kind_type), DIMENSION(:), &
       POINTER                                :: molecule_kind_set
     TYPE(molecule_type), DIMENSION(:), &
@@ -2931,8 +2921,8 @@ CONTAINS
       POINTER                                :: qmmm_env
     TYPE(particle_type), DIMENSION(:), &
       OPTIONAL, POINTER                      :: particle_set
-    TYPE(global_environment_type), &
-      OPTIONAL, POINTER                      :: globenv
+    TYPE(section_vals_type), POINTER         :: input_file
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -2989,7 +2979,7 @@ CONTAINS
     CALL timeset(routineN,'I','',handle)
     
     cons_info => topology%cons_info
-    hbonds_section => section_vals_get_subs_vals(globenv%input_file,&
+    hbonds_section => section_vals_get_subs_vals(input_file,&
          "MOTION%CONSTRAINT%HBONDS",error=error)
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
@@ -3679,11 +3669,11 @@ CONTAINS
     END IF
     IF (.NOT.found) THEN
        IF (iwarn > 0) THEN
-          CALL Pwarning("No element specification provided for type:"//element_in//".",globenv, error)
+          CALL Pwarning("No element specification provided for type:"//element_in//".",globenv%input_file, error)
           iwarn = iwarn - 1
           IF (iwarn == 0) THEN
              CALL Pwarning("Further Output regarding unknown element types will be suppressed!",&
-                  globenv,error)
+                  globenv%input_file,error)
           END IF
        END IF
     END IF

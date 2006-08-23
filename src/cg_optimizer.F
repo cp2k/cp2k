@@ -31,6 +31,7 @@ MODULE cg_optimizer
                                              cp_print_key_finished_output,&
                                              cp_print_key_unit_nr,&
                                              cp_rm_iter_level
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsystem_p_type
   USE force_env_types,                 ONLY: force_env_get,&
@@ -106,6 +107,7 @@ CONTAINS
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
     TYPE(particle_list_type), POINTER        :: particles
@@ -113,12 +115,12 @@ CONTAINS
       POINTER                                :: particle_set
 
     CALL timeset(routineN,"I","",handle)   
-    NULLIFY(logger)
+    para_env=>globenv%para_env
     logger => cp_error_get_logger(error)
     CALL cp_add_iter_level(logger%iter_info,"GEO_OPT",ihandle,error)
     failure = .FALSE.
     IF (.NOT.failure) THEN
-       ionode      = globenv%para_env%source==globenv%para_env%mepos
+       ionode      = para_env%source==para_env%mepos
        output_unit = cp_print_key_unit_nr(logger,globenv%input_file,&
          "MOTION%GEOOPT%PRINT%PROGRAM_RUN_INFO",&
          extension=".geoLog",error=error)
@@ -211,6 +213,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: g, h, xi
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
     TYPE(particle_list_type), POINTER        :: particles
@@ -218,6 +221,7 @@ CONTAINS
       POINTER                                :: particle_set
 
     failure = .FALSE.
+    para_env=>globenv%para_env
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
     NULLIFY(g, h, xi)
@@ -275,7 +279,7 @@ CONTAINS
                wildcard=wildcard)
           CALL check_converg(SIZE(x0),x0-xold,xi,ionode,output_unit,conv,gopt_param)
           wildcard = "   CG"
-          IF (globenv%para_env%ionode) THEN
+          IF (para_env%ionode) THEN
              dataunit = cp_print_key_unit_nr(logger,globenv%input_file,&
                   "MOTION%PRINT%TRAJECTORY",extension=".xyz",error=error)
              IF (dataunit>0) THEN

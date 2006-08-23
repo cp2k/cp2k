@@ -26,6 +26,7 @@ MODULE md
   USE cp2k_units,                      ONLY: get_cp2k_units,&
                                              unit_convert_type
   USE cp_output_handling,              ONLY: cp_print_key_generate_filename
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_units,                        ONLY: cp_unit_from_cp2k
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: &
@@ -202,15 +203,17 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: iprint
     REAL(kind=dp)                            :: tmp_r
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: md_section, motion_section, &
                                                 print_key
     TYPE(unit_convert_type), POINTER         :: unit
 
     NULLIFY(logger)
+    para_env=>globenv%para_env
     logger => cp_error_get_logger(error)
     NULLIFY(unit, md_section, motion_section, print_key)
     CALL set_md_defaults(simpar, globenv)
-    iw = globenv % scr
+    iw = globenv%scr
 
     motion_section => section_vals_get_subs_vals(globenv%input_file,&
          "MOTION",error=error)
@@ -218,7 +221,7 @@ CONTAINS
          "MD",error=error)
     CALL read_md_new_section(simpar, globenv,  md_section, subsys_section, error)
 
-    IF (globenv%para_env%ionode.AND.(globenv%print_level >= 0)) THEN
+    IF (para_env%ionode.AND.(globenv%print_level >= 0)) THEN
        WRITE (iw, *)
     END IF
 
@@ -233,7 +236,7 @@ CONTAINS
 
     IF (globenv%run_type_id == hmc_run .OR. globenv%run_type_id == ldmc_run) THEN
 
-       IF (globenv%para_env%ionode.AND.(globenv%print_level >= 0)) THEN
+       IF (para_env%ionode.AND.(globenv%print_level >= 0)) THEN
           WRITE ( iw, '( A,T71,I10 )' ) ' HMC| Number of Harris LD steps per MC cycle ', &
                simpar%ld_steps
           WRITE ( iw, '( A,T71,F10.2 )' ) ' HMC| Temperature correction value alpha ', &
@@ -300,7 +303,7 @@ CONTAINS
 
       simpar%var_w = 2.0_dp*simpar%temp_ext*simpar%dt*simpar%gamma
 
-      IF (globenv%para_env%ionode.AND.(globenv%print_level >= 0)) THEN
+      IF (para_env%ionode.AND.(globenv%print_level >= 0)) THEN
         tmp_r = cp_unit_from_cp2k(simpar%gamma,"fs^-1",error=error)
         WRITE (UNIT=iw,FMT="(T2,A,T71,ES10.3)")&
           "LD| Gamma [1/fs] ",tmp_r,&
@@ -312,7 +315,7 @@ CONTAINS
     !MK End setup Langevin dynamics
 
     !..write some information to output
-    IF (globenv%para_env%ionode .AND. globenv % print_level>=0) THEN
+    IF (para_env%ionode .AND. globenv%print_level>=0) THEN
        CALL get_cp2k_units ( unit )
        WRITE ( iw, '( A )' ) ' MD| Molecular Dynamics Protocol '
        WRITE ( iw, '( A,T61,A )' ) ' MD| Output Format ', &
@@ -697,6 +700,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3)              :: v, vcom, vcom_new
     REAL(KIND=dp), DIMENSION(:), POINTER     :: vel
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(fixd_constraint_type), &
       DIMENSION(:), POINTER                  :: fixd_list
     TYPE(molecule_kind_type), DIMENSION(:), &
@@ -708,7 +712,9 @@ CONTAINS
 
     CALL timeset(routineN,"I","",handle)
 
-    iw = globenv % scr
+    para_env=>globenv%para_env
+
+    iw = globenv%scr
     IF (iw>0) THEN
        WRITE ( iw, '( A, A, A )' ) ' **********************', &
             ' begin of velocity initialization ', '***********************'
@@ -782,7 +788,7 @@ CONTAINS
        vcom_new=vcom
     ELSE
        ! initializing velocities
-       IF (globenv%para_env%ionode) THEN
+       IF (para_env%ionode) THEN
           ! computing the COM velocities
           DO i = 1, natoms
              atomic_kind => part ( i ) % atomic_kind
@@ -851,9 +857,9 @@ CONTAINS
           END DO
        END IF
 #if defined(__parallel)
-       CALL mp_bcast ( mass_tot, globenv%para_env%source, globenv%para_env%group )
+       CALL mp_bcast ( mass_tot, para_env%source, para_env%group )
        DO i = 1, natoms
-          CALL mp_bcast ( part ( i ) % v, globenv%para_env%source, globenv%para_env%group )
+          CALL mp_bcast ( part ( i ) % v, para_env%source, para_env%group )
        END DO
 #endif
     END IF

@@ -175,7 +175,7 @@ CONTAINS
          mm_link_atoms, mm_link_scale_factor, qmmm_links, added_charges, &
          fist_scale_charge_link, print_section,  &
          print_gen, logger, mm_el_pot_radius_corr, super_cell)
-    para_env => globenv%para_env
+    para_env=>globenv%para_env
     iw = globenv%scr
     logger => cp_error_get_logger(error)
     IF (.NOT. failure) THEN
@@ -228,7 +228,7 @@ CONTAINS
           qmmm_env_qm%periodic = .FALSE.
           CALL Pwarning("QMMM PERIODIC CALCULATION WITH NONE COUPLING WAS REQUESTED! "//&
                         "SWITCHING OFF THE PERIODIC KEYWORD SINCE PERIODIC AND NON-PERIODIC "//&
-                        "CALCULATION WITH NONE COUPLING REPRESENT THE SAME METHOD!",globenv, error)
+                        "CALCULATION WITH NONE COUPLING REPRESENT THE SAME METHOD!",globenv%input_file, error)
        END IF
 
        ! First Initialize Fist...
@@ -363,7 +363,7 @@ CONTAINS
        CALL qmmm_init_potential(qmmm_env_qm=qmmm_env_qm,&
                                 qm_cell_small=qm_cell_small,&
                                 mm_cell=mm_cell,&
-                                globenv=globenv,&
+                                para_env=para_env,&
                                 qs_env=qs_env,&
                                 added_charges=qmmm_env_qm%added_charges,&
                                 print_section=print_section,&
@@ -382,7 +382,7 @@ CONTAINS
        CALL qmmm_init_periodic_potential(qmmm_env_qm=qmmm_env_qm,&
                                 qm_cell_small=qm_cell_small,&
                                 mm_cell=mm_cell,&
-                                globenv=globenv,&
+                                para_env=para_env,&
                                 qs_env=qs_env,&
                                 added_charges=qmmm_env_qm%added_charges,&
                                 qmmm_periodic=qmmm_periodic,&
@@ -766,11 +766,11 @@ CONTAINS
   !!     1.2005 created [tlaino]
   !!
   !!*************************************************************************
- SUBROUTINE qmmm_init_potential(qmmm_env_qm, qm_cell_small, mm_cell, globenv, qs_env,&
+ SUBROUTINE qmmm_init_potential(qmmm_env_qm, qm_cell_small, mm_cell, para_env, qs_env,&
                                 added_charges, print_section, error)
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env_qm
     TYPE(cell_type), POINTER                 :: qm_cell_small, mm_cell
-    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(add_set_type), POINTER              :: added_charges
     TYPE(section_vals_type), POINTER         :: print_section
@@ -783,7 +783,7 @@ CONTAINS
                             pgfs=qmmm_env_qm%pgfs,&
                             qm_cell_small=qm_cell_small,&
                             mm_cell=mm_cell,&
-                            globenv=globenv,&
+                            para_env=para_env,&
                             pw_env=qs_env%pw_env,&
                             compatibility=qmmm_env_qm%compatibility,&
                             print_section=print_section,&
@@ -797,7 +797,7 @@ CONTAINS
                                pgfs=added_charges%pgfs,&
                                qm_cell_small=qm_cell_small,&
                                mm_cell=mm_cell,&
-                               globenv=globenv,&
+                               para_env=para_env,&
                                pw_env=qs_env%pw_env,&
                                compatibility=qmmm_env_qm%compatibility,&
                                print_section=print_section,&
@@ -828,11 +828,11 @@ CONTAINS
   !!     7.2005 created [tlaino]
   !!
   !!*************************************************************************
- SUBROUTINE qmmm_init_periodic_potential(qmmm_env_qm, qm_cell_small, mm_cell, globenv, qs_env,&
+ SUBROUTINE qmmm_init_periodic_potential(qmmm_env_qm, qm_cell_small, mm_cell, para_env, qs_env,&
                                          added_charges, qmmm_periodic, print_section, mm_atom_chrg, error)
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env_qm
     TYPE(cell_type), POINTER                 :: qm_cell_small, mm_cell
-    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(add_set_type), POINTER              :: added_charges
     TYPE(section_vals_type), POINTER         :: qmmm_periodic, print_section
@@ -853,7 +853,7 @@ CONTAINS
                                 pgfs=qmmm_env_qm%pgfs,&
                                 qm_cell_small=qm_cell_small,&
                                 mm_cell=mm_cell,&
-                                globenv=globenv,&
+                                para_env=para_env,&
                                 compatibility=qmmm_env_qm%compatibility,&
                                 qmmm_periodic=qmmm_periodic,&
                                 print_section=print_section,&
@@ -871,7 +871,7 @@ CONTAINS
                                    pgfs=added_charges%pgfs,&
                                    qm_cell_small=qm_cell_small,&
                                    mm_cell=mm_cell,&
-                                   globenv=globenv,&
+                                   para_env=para_env,&
                                    compatibility=qmmm_env_qm%compatibility,&
                                    qmmm_periodic=qmmm_periodic,&
                                    print_section=print_section,&

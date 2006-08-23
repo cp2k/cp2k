@@ -23,12 +23,12 @@ MODULE basis_set_types
   USE ai_coulomb,                      ONLY: coulomb2
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_should_output
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_parser,                       ONLY: cp_parser_type,&
                                              parser_create,&
                                              parser_get_object,&
                                              parser_release,&
                                              parser_search_string
-  USE global_types,                    ONLY: global_environment_type
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
@@ -809,7 +809,7 @@ CONTAINS
   ! ***************************************************************************
 
   SUBROUTINE read_gto_basis_set(element_symbol,basis_set_name,gto_basis_set,&
-                                globenv,force_env_section,error)
+                                para_env,force_env_section,error)
 
     ! Read a Gaussian-type orbital (GTO) basis set from the database file.
 
@@ -817,7 +817,7 @@ CONTAINS
 
     CHARACTER(LEN=*), INTENT(IN)             :: element_symbol, basis_set_name
     TYPE(gto_basis_set_type), POINTER        :: gto_basis_set
-    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -854,7 +854,7 @@ CONTAINS
     CALL section_vals_val_get(force_env_section,"DFT%BASIS_SET_FILE_NAME",&
          c_val=basis_set_file_name)
     NULLIFY(parser)
-    CALL parser_create(parser,basis_set_file_name,para_env=globenv%para_env)
+    CALL parser_create(parser,basis_set_file_name,para_env=para_env)
 
     ! Search for the requested basis set in the basis set file
     ! until the basis set is found or the end of file is reached
@@ -1067,7 +1067,7 @@ CONTAINS
                           "The requested basis set <"//TRIM(bsname)//&
                           "> for element <"//TRIM(symbol)//"> was not "//&
                           "found in the basis set file <"//&
-                          TRIM(basis_set_file_name)//">",globenv)
+                          TRIM(basis_set_file_name)//">",para_env)
 
       END IF
 

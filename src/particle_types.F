@@ -34,7 +34,7 @@ MODULE particle_types
                                              pbc
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
-  USE global_types,                    ONLY: global_environment_type
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE input_constants,                 ONLY: do_bondparm_covalent,&
                                              do_bondparm_vdw,&
                                              dump_atomic,&
@@ -771,7 +771,7 @@ END SUBROUTINE clone_particle
 ! *****************************************************************************
   
   SUBROUTINE generate_particle_distances(r,molname,cell,radius,bondparm_factor,&
-       bond_a,bond_b,bondparm_type,globenv)
+       bond_a,bond_b,bondparm_type,para_env)
 
     REAL(KIND=dp), POINTER                   :: r(:,:)
     CHARACTER(LEN=default_string_length), &
@@ -781,7 +781,7 @@ END SUBROUTINE clone_particle
     REAL(KIND=dp)                            :: bondparm_factor
     INTEGER, POINTER                         :: bond_a(:), bond_b(:)
     INTEGER                                  :: bondparm_type
-    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_para_env_type), POINTER          :: para_env
 
     INTEGER, PARAMETER                       :: nblock = 1000
 
@@ -806,7 +806,7 @@ END SUBROUTINE clone_particle
     nbond = 0
     natom = SIZE(r,2)
     DO iatom=1,natom
-       DO jatom=iatom+1+globenv%para_env%mepos,natom,globenv%para_env%num_pe
+       DO jatom=iatom+1+para_env%mepos,natom,para_env%num_pe
           !Teo 07.2006
           !Check that iatom and jatom belong to the same molecule
           !if not skip the bond generation
@@ -854,10 +854,10 @@ END SUBROUTINE clone_particle
     !Put together the difference pieces for the bond
 
     !Determine the total number of bonds
-    ALLOCATE(nbond_loc(globenv%para_env%num_pe),STAT=istat)
+    ALLOCATE(nbond_loc(para_env%num_pe),STAT=istat)
     IF(istat/=0) CALL stop_program('topology_generate_bond','nbond_loc')
     nbond_loc(:)=0
-    CALL mp_allgather(nbond,nbond_loc,globenv%para_env%group)
+    CALL mp_allgather(nbond,nbond_loc,para_env%group)
     nbond = SUM(nbond_loc)
 
     !Reallocate those memory
@@ -870,18 +870,18 @@ END SUBROUTINE clone_particle
 
     workload=0
     !Gather everything
-    DO iproc=0,globenv%para_env%num_pe-1
+    DO iproc=0,para_env%num_pe-1
        CALL reallocate(ttbond_a,1,nbond_loc(iproc+1))
        CALL reallocate(ttbond_b,1,nbond_loc(iproc+1))
-       IF(iproc==globenv%para_env%mepos) THEN
+       IF(iproc==para_env%mepos) THEN
           ttbond_a(:) = tbond_a(:)
           ttbond_b(:) = tbond_b(:)
        ELSE
           ttbond_a(:) = 0
           ttbond_b(:) = 0
        ENDIF
-       CALL mp_bcast(ttbond_a,iproc,globenv%para_env%group)
-       CALL mp_bcast(ttbond_b,iproc,globenv%para_env%group)
+       CALL mp_bcast(ttbond_a,iproc,para_env%group)
+       CALL mp_bcast(ttbond_b,iproc,para_env%group)
        bond_a(workload+1:workload+nbond_loc(iproc+1)) = ttbond_a(1:nbond_loc(iproc+1))
        bond_b(workload+1:workload+nbond_loc(iproc+1)) = ttbond_b(1:nbond_loc(iproc+1))
        workload=workload+nbond_loc(iproc+1)

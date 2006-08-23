@@ -34,11 +34,11 @@ MODULE tbmd_force
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsystem_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
-  USE global_types,                    ONLY: global_environment_type
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp
   USE machine,                         ONLY: m_flush
@@ -113,7 +113,6 @@ CONTAINS
 !!
 !!   INPUTS
 !!     - tbmd_env: The tbmd environment of matter
-!!     - globenv: The global environment
 !!     - orthogonal_basis: Logical which indicates in the underlying
 !!                         basis-set is assumed to be orthogonal or not.
 !!     - error: variable to control error logging, stopping,... 
@@ -126,9 +125,9 @@ CONTAINS
 !!     01.2006 initial create [tdk]
 !!
 !!*** **********************************************************************
-  SUBROUTINE tbmd_forces(tbmd_env, globenv, orthogonal_basis, error)
+  SUBROUTINE tbmd_forces(tbmd_env, para_env, orthogonal_basis, error)
     TYPE(tbmd_environment_type), POINTER     :: tbmd_env
-    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_para_env_type), POINTER          :: para_env
     LOGICAL, INTENT(IN), OPTIONAL            :: orthogonal_basis
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
@@ -206,14 +205,14 @@ CONTAINS
                                       particle_set=particle_set, &
                                       local_particles=local_particles, cell=cell, &
                                       tbmd_neighbor_list_env=tbmd_neighbor_list_env, &
-                                      globenv=globenv, &
+                                      para_env=para_env, &
                                       force_env_section=force_env_section, error=error)
 
       natom = SIZE(particle_set)
       CALL tbmd_force_clear(tbmd_env%tbmd_force, natom=natom, error=error)
       CALL tbmd_energy_clear(tbmd_env%tbmd_energy, error=error)
 
-      CALL tbmd_build_hamiltonian(tbmd_env=tbmd_env, globenv=globenv, derivative=.TRUE., &
+      CALL tbmd_build_hamiltonian(tbmd_env=tbmd_env, para_env=para_env, derivative=.TRUE., &
                                   error=error)
 
       natom = SIZE(particle_set)
@@ -260,7 +259,7 @@ CONTAINS
       CALL cp_sm_sm_trace(matrix1=tbmd_env%matrix_p, matrix2=tbmd_env%matrix_h, &
                           trace=tbmd_env%tbmd_energy%E_bandstructure, &
                           para_env=tbmd_env%para_env, error=error)
-      CALL mp_sum(tbmd_env%tbmd_energy%E_bandstructure, globenv%para_env%group)
+      CALL mp_sum(tbmd_env%tbmd_energy%E_bandstructure, para_env%group)
 
       ! F=Tr[p*(dH/dR)]
       DO i = 1,3
@@ -272,7 +271,7 @@ CONTAINS
          tbmd_env%tbmd_force%f_bandstruct(:,i) = (-1)*trace_vec_ptr(:)
 
       END DO
-      CALL mp_sum(tbmd_env%tbmd_force%f_bandstruct, globenv%para_env%group)
+      CALL mp_sum(tbmd_env%tbmd_force%f_bandstruct, para_env%group)
 
 
       !CALL get_part_ke(md_env, tbmd_energy%E_kinetic, int_grp=globalenv%para_env%group)
@@ -295,7 +294,7 @@ CONTAINS
       END DO
 
       ! sum all contributions to energy over calculated parts on all processors
-      CALL mp_sum(ekin, globenv%para_env%group)
+      CALL mp_sum(ekin, para_env%group)
       tbmd_env%tbmd_energy%E_kinetic = ekin
 
       tbmd_env%tbmd_energy%E_tb = tbmd_env%tbmd_energy%E_kinetic &
@@ -315,7 +314,7 @@ CONTAINS
         iw = cp_print_key_unit_nr(logger,force_env_section, "TBMD%PRINT%H-MATRIX", &
                                   extension=".mmLog", error=error)
 
-        CALL tbmd_print_hamiltonian(tbmd_env, globenv=globenv, output_unit=iw, error=error)
+        CALL tbmd_print_hamiltonian(tbmd_env, para_env=para_env, output_unit=iw, error=error)
         CALL cp_print_key_finished_output(iw, logger, force_env_section, &
                                           "TBMD%PRINT%H-MATRIX", error=error)
       END IF
@@ -325,7 +324,7 @@ CONTAINS
         iw = cp_print_key_unit_nr(logger,force_env_section, "TBMD%PRINT%SPARSITY", &
                                   extension=".mmLog", error=error)
 
-        CALL tbmd_print_hamiltonian_pattern(tbmd_env, globenv=globenv, output_unit=iw, &
+        CALL tbmd_print_hamiltonian_pattern(tbmd_env, para_env=para_env, output_unit=iw, &
                                             error=error)
         CALL cp_print_key_finished_output(iw, logger, force_env_section, &
                                           "TBMD%PRINT%SPARSITY", error=error)
@@ -336,7 +335,7 @@ CONTAINS
         iw = cp_print_key_unit_nr(logger,force_env_section, "TBMD%PRINT%H-MATRIX_DERIV", &
                                   extension=".mmLog", error=error)
 
-        CALL tbmd_pdh(tbmd_env, globenv=globenv, output_unit=iw, &
+        CALL tbmd_pdh(tbmd_env, para_env=para_env, output_unit=iw, &
                                           error=error)
         CALL cp_print_key_finished_output(iw, logger, force_env_section, &
                                           "TBMD%PRINT%H-MATRIX_DERIV", error=error)
@@ -347,7 +346,7 @@ CONTAINS
         iw = cp_print_key_unit_nr(logger,force_env_section, "TBMD%PRINT%SPARSITY_DERIV", &
                                   extension=".mmLog", error=error)
 
-        CALL tbmd_pdh_pattern(tbmd_env, globenv=globenv, output_unit=iw, &
+        CALL tbmd_pdh_pattern(tbmd_env, para_env=para_env, output_unit=iw, &
                                             error=error)
         CALL cp_print_key_finished_output(iw, logger, force_env_section, &
                                           "TBMD%PRINT%SPARSITY_DERIV", error=error)
@@ -509,7 +508,6 @@ CONTAINS
 !!
 !!   INPUTS
 !!     - tbmd_env: The tbmd environment of matter
-!!     - globenv: The global environment
 !!     - output_unit: The output unit
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling
@@ -521,9 +519,9 @@ CONTAINS
 !!     02.2006 initial create [tdk]
 !!
 !!*** **********************************************************************
-  SUBROUTINE tbmd_pdh(tbmd_env, globenv, output_unit, error)
+  SUBROUTINE tbmd_pdh(tbmd_env, para_env, output_unit, error)
     TYPE(tbmd_environment_type), POINTER     :: tbmd_env
-    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER, INTENT(IN)                      :: output_unit
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
@@ -546,7 +544,7 @@ CONTAINS
 
       DO k = 1,3
         sparse_matrix => tbmd_env%matrix_dh(k)%matrix
-        group = globenv%para_env%group
+        group = para_env%group
 
         CALL get_matrix_info(matrix=sparse_matrix, &
                              matrix_name=matrix_name, &
@@ -562,7 +560,7 @@ CONTAINS
           CALL symmetrize_matrix(matrix, "anti_upper_to_lower")
         ELSE IF (matrix_symmetry /= "none") THEN
           CALL stop_program(routineN, moduleN, __LINE__, &
-                            "Invalid matrix structure", globenv)
+                            "Invalid matrix structure", para_env)
         END IF
 
         CALL mp_sum(matrix, group)
@@ -584,7 +582,7 @@ CONTAINS
             WRITE (output_unit,*) "Derivative of the H-Matrix w.r.t. the coordinates in z-direction"
           CASE DEFAULT
             CALL stop_program(routineN, moduleN, __LINE__, &
-                 "Invalid matrix derivative dimension", globenv)
+                 "Invalid matrix derivative dimension", para_env)
         END SELECT
 
 !     *** Write the variable format strings ***
@@ -627,7 +625,6 @@ CONTAINS
 !!
 !!   INPUTS
 !!     - tbmd_env: The tbmd environment of matter
-!!     - globenv: The global environment
 !!     - output_unit: The output unit
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling
@@ -639,10 +636,10 @@ CONTAINS
 !!     02.2006 initial create [tdk]
 !!
 !!*** **********************************************************************
-  SUBROUTINE tbmd_pdh_pattern(tbmd_env, globenv, output_unit, &
+  SUBROUTINE tbmd_pdh_pattern(tbmd_env, para_env, output_unit, &
                                                   error)
     TYPE(tbmd_environment_type), POINTER     :: tbmd_env
-    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER, INTENT(IN)                      :: output_unit
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
@@ -666,7 +663,7 @@ CONTAINS
 
       DO k = 1,3
         sparse_matrix => tbmd_env%matrix_dh(k)%matrix
-        group = globenv%para_env%group
+        group = para_env%group
 
         CALL get_matrix_info(matrix=sparse_matrix, &
                              matrix_name=matrix_name, &
@@ -682,7 +679,7 @@ CONTAINS
           CALL symmetrize_matrix(matrix, "anti_upper_to_lower")
         ELSE IF (matrix_symmetry /= "none") THEN
           CALL stop_program(routineN, moduleN, __LINE__, &
-                            "Invalid matrix structure", globenv)
+                            "Invalid matrix structure", para_env)
         END IF
 
         CALL mp_sum(matrix, group)
@@ -710,7 +707,7 @@ CONTAINS
                                   " w.r.t. the coordinates in z-direction"
           CASE DEFAULT
             CALL stop_program(routineN, moduleN, __LINE__, &
-                 "Invalid matrix derivative dimension", globenv)
+                 "Invalid matrix derivative dimension", para_env)
         END SELECT
 
 !     *** Write the variable format strings ***

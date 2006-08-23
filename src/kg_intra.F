@@ -29,6 +29,7 @@ MODULE kg_intra
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
   USE cell_types,                      ONLY: cell_type
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE erf_fn,                          ONLY: erf
   USE global_types,                    ONLY: global_environment_type
@@ -93,6 +94,7 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: box
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
     TYPE(kg_force_type), DIMENSION(:), &
@@ -103,9 +105,9 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     CALL timeset("calculate_ebond_corr","I","",handle)
-
-    group = globenv%para_env%group
-    ionode = globenv%para_env%ionode
+    para_env=>globenv%para_env
+    group = para_env%group
+    ionode = para_env%ionode
     output_unit = globenv%scr
     prefac = (1.0_dp/pi)**1.5_dp
 

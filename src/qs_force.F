@@ -28,6 +28,7 @@ MODULE qs_force
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE global_types,                    ONLY: MEDIUM,&
                                              global_environment_type
   USE harris_env_types,                ONLY: harris_env_set,&
@@ -120,6 +121,7 @@ CONTAINS
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mo_derivs
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(harris_env_type), POINTER           :: harris_env
     TYPE(harris_force_type), POINTER         :: harris_force
@@ -144,6 +146,7 @@ CONTAINS
     failure = .FALSE.
     NULLIFY (logger)
     logger => cp_error_get_logger(error)
+    para_env=>globenv%para_env
 
     NULLIFY (atomic_kind_set)
     NULLIFY (dft_control)
@@ -270,7 +273,7 @@ CONTAINS
              qs_env%input,"DFT%PRINT%AO_MATRICES/W_MATRIX",error=error),cp_p_file)) THEN
            iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/W_MATRIX",&
                 extension=".Log",error=error)
-           CALL write_sparse_matrix(matrix_w(ispin)%matrix,4,6,qs_env,globenv,output_unit=iw)
+           CALL write_sparse_matrix(matrix_w(ispin)%matrix,4,6,qs_env,para_env,output_unit=iw)
            CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
                 "DFT%PRINT%AO_MATRICES/W_MATRIX", error=error)
         END IF
@@ -282,7 +285,7 @@ CONTAINS
 !   *** from an eventual mulliken restraint
     IF (dft_control%qs_control%mulliken_restraint) THEN
         CALL mulliken_restraint(dft_control%qs_control%mulliken_restraint_control, &
-                                globenv%para_env,matrix_s(1)%matrix, rho%rho_ao,w_matrix=matrix_w)
+                                para_env,matrix_s(1)%matrix, rho%rho_ao,w_matrix=matrix_w)
     ENDIF
     CALL set_qs_env(qs_env=qs_env,matrix_w=matrix_w)
 
@@ -290,14 +293,14 @@ CONTAINS
     IF (.NOT. harris_flag) THEN ! harris computes the forces differenctly
       !*** compute core forces (also overwrites matrix_w) ***
       IF (dft_control%qs_control%semi_empirical) THEN
-        CALL build_se_core_matrix(qs_env=qs_env,globenv=globenv,&
+        CALL build_se_core_matrix(qs_env=qs_env,para_env=para_env,&
                                   calculate_forces=.TRUE.,error=error)
       ELSE
         CALL build_core_hamiltonian_matrix(qs_env=qs_env,&
                                            globenv=globenv,&
                                            calculate_forces=.TRUE.,error=error)
         CALL calculate_ecore_self(qs_env)
-        CALL calculate_ecore_overlap(qs_env, globenv, &
+        CALL calculate_ecore_overlap(qs_env, para_env, &
                                              calculate_forces=.TRUE.,&
                                              error=error)
       END IF
@@ -311,18 +314,18 @@ CONTAINS
 
       !  *** replicate forces ***
       DO ikind=1,SIZE(force)
-        CALL mp_sum(force(ikind)%overlap,globenv%para_env%group)
-        CALL mp_sum(force(ikind)%kinetic,globenv%para_env%group)
-        CALL mp_sum(force(ikind)%gth_ppl,globenv%para_env%group)
-        CALL mp_sum(force(ikind)%gth_ppnl,globenv%para_env%group)
-        CALL mp_sum(force(ikind)%all_potential,globenv%para_env%group)
-        CALL mp_sum(force(ikind)%core_overlap,globenv%para_env%group)
-        CALL mp_sum(force(ikind)%rho_core,globenv%para_env%group)
-        CALL mp_sum(force(ikind)%rho_elec,globenv%para_env%group)
-        CALL mp_sum(force(ikind)%vhxc_atom,globenv%para_env%group)
-        CALL mp_sum(force(ikind)%g0s_Vh_elec,globenv%para_env%group)
-        CALL mp_sum(force(ikind)%hartree_2c,globenv%para_env%group)
-        CALL mp_sum(force(ikind)%hartree_3c,globenv%para_env%group)
+        CALL mp_sum(force(ikind)%overlap,para_env%group)
+        CALL mp_sum(force(ikind)%kinetic,para_env%group)
+        CALL mp_sum(force(ikind)%gth_ppl,para_env%group)
+        CALL mp_sum(force(ikind)%gth_ppnl,para_env%group)
+        CALL mp_sum(force(ikind)%all_potential,para_env%group)
+        CALL mp_sum(force(ikind)%core_overlap,para_env%group)
+        CALL mp_sum(force(ikind)%rho_core,para_env%group)
+        CALL mp_sum(force(ikind)%rho_elec,para_env%group)
+        CALL mp_sum(force(ikind)%vhxc_atom,para_env%group)
+        CALL mp_sum(force(ikind)%g0s_Vh_elec,para_env%group)
+        CALL mp_sum(force(ikind)%hartree_2c,para_env%group)
+        CALL mp_sum(force(ikind)%hartree_3c,para_env%group)
         force(ikind)%total(:,:) = force(ikind)%total(:,:) +&
                                   force(ikind)%core_overlap(:,:) +&
                                   force(ikind)%gth_ppl(:,:) +&
@@ -353,7 +356,7 @@ CONTAINS
 
       !   *** distribute virial ***
       IF (virial%pv_availability) THEN
-        CALL mp_sum(virial%pv_virial,globenv%para_env%group)
+        CALL mp_sum(virial%pv_virial,para_env%group)
       !  *** add the volume terms of the virial ***
         IF (.NOT.virial%pv_numer) THEN
           DO dir=1, 3

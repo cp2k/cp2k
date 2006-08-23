@@ -34,6 +34,7 @@ MODULE kg_force
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_type,&
                                              dyn_coeff_type
   USE global_types,                    ONLY: global_environment_type
@@ -218,6 +219,7 @@ SUBROUTINE kgpol_calculate_forces ( kg_env, globenv, error )
                                                 rhop_g, rhop_r, v1xc_r, &
                                                 v2xc_r, v_gspace, v_rspace, &
                                                 vxc_r
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
     TYPE(dyn_coeff_type), POINTER            :: local_coeffs
@@ -239,7 +241,8 @@ SUBROUTINE kgpol_calculate_forces ( kg_env, globenv, error )
 
   CALL timeset ( 'kgpol_calculate_forces','I',' ',handle )
   failure=.FALSE.
-  ionode=globenv%para_env%ionode
+  para_env=>globenv%para_env
+  ionode=para_env%ionode
   output_unit=globenv%scr
   NULLIFY(force,energy,part,atomic_kind_set,atomic_kind,cell,dft_control,&
           dyn_coeff_set,local_coeffs,rho,rspw,auxbas_pw_pool)
@@ -306,7 +309,7 @@ SUBROUTINE kgpol_calculate_forces ( kg_env, globenv, error )
                               natom_of_kind=natom_of_kind)
   END IF
 
-  CALL build_kg_neighbor_lists(kg_env,globenv,error)
+  CALL build_kg_neighbor_lists(kg_env,para_env,error)
 
 ! initialize forces and energies                    
  
@@ -335,7 +338,7 @@ SUBROUTINE kgpol_calculate_forces ( kg_env, globenv, error )
 ! Calculate the rspace energy of the core charge distribution
 ! and its force contributions
 
-  CALL calculate_ecore_rspace(kg_env,globenv,calculate_forces,error)
+  CALL calculate_ecore_rspace(kg_env,para_env,calculate_forces,error)
 
 ! calculate intramolecular bonded_correction energy  
 
@@ -461,10 +464,10 @@ SUBROUTINE kgpol_calculate_forces ( kg_env, globenv, error )
 ! add up all the forces
 
   DO ikind = 1, nkind         
-    CALL mp_sum(force(ikind)%f_rho,globenv%para_env%group)
-    CALL mp_sum(force(ikind)%f_rspace_core,globenv%para_env%group)
-    CALL mp_sum(force(ikind)%f_hartree_core,globenv%para_env%group)
-    CALL mp_sum(force(ikind)%f_ppl,globenv%para_env%group)
+    CALL mp_sum(force(ikind)%f_rho,para_env%group)
+    CALL mp_sum(force(ikind)%f_rspace_core,para_env%group)
+    CALL mp_sum(force(ikind)%f_hartree_core,para_env%group)
+    CALL mp_sum(force(ikind)%f_ppl,para_env%group)
     force(ikind)%f_total(:,:) = force(ikind)%f_rho(:,:) +&
                                 force(ikind)%f_rspace_core(:,:) +&
                                 force(ikind)%f_hartree_core(:,:) +&
@@ -536,6 +539,7 @@ SUBROUTINE kg_calculate_forces ( kg_env, globenv,error )
     TYPE(cell_type), POINTER                 :: cell
     TYPE(coeff_type), POINTER                :: rho_core, rho_g, rho_r, &
                                                 v_gspace, v_rspace, vxc_r
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(kg_energy_type), POINTER            :: energy
     TYPE(kg_force_type), DIMENSION(:), &
@@ -555,7 +559,8 @@ SUBROUTINE kg_calculate_forces ( kg_env, globenv,error )
 
   CALL timeset ( 'kg_calculate_forces','I',' ',handle )
   failure=.FALSE.
-  ionode=globenv%para_env%ionode
+  para_env=>globenv%para_env
+  ionode=para_env%ionode
   output_unit=globenv%scr
   NULLIFY(force,energy,part,atomic_kind_set,atomic_kind,cell,dft_control,&
           rho,rspw,auxbas_pw_pool)
@@ -604,7 +609,7 @@ SUBROUTINE kg_calculate_forces ( kg_env, globenv,error )
   END IF
 
 
-  CALL build_kg_neighbor_lists(kg_env,globenv,error)
+  CALL build_kg_neighbor_lists(kg_env,para_env,error)
 
 ! initialize forces and energies                    
  
@@ -623,7 +628,7 @@ SUBROUTINE kg_calculate_forces ( kg_env, globenv,error )
 ! Calculate the rspace energy of the core charge distribution
 ! and its force contributions
 
-  CALL calculate_ecore_rspace(kg_env,globenv,calculate_forces,error)
+  CALL calculate_ecore_rspace(kg_env,para_env,calculate_forces,error)
 
 ! calculate intramolecular bonded_correction energy  
 
@@ -719,11 +724,11 @@ SUBROUTINE kg_calculate_forces ( kg_env, globenv,error )
 ! add up all the forces
 
   DO ikind = 1, nkind         
-    CALL mp_sum(force(ikind)%f_rho,globenv%para_env%group)
-    CALL mp_sum(force(ikind)%f_rspace_core,globenv%para_env%group)
-    CALL mp_sum(force(ikind)%f_hartree_core,globenv%para_env%group)
-    CALL mp_sum(force(ikind)%f_ppl,globenv%para_env%group)
-    CALL mp_sum(force(ikind)%f_bc,globenv%para_env%group)
+    CALL mp_sum(force(ikind)%f_rho,para_env%group)
+    CALL mp_sum(force(ikind)%f_rspace_core,para_env%group)
+    CALL mp_sum(force(ikind)%f_hartree_core,para_env%group)
+    CALL mp_sum(force(ikind)%f_ppl,para_env%group)
+    CALL mp_sum(force(ikind)%f_bc,para_env%group)
     force(ikind)%f_total(:,:) = force(ikind)%f_rho(:,:) +&
                                 force(ikind)%f_rspace_core(:,:) +&
                                 force(ikind)%f_hartree_core(:,:) +&
@@ -813,6 +818,7 @@ END SUBROUTINE kg_calculate_forces
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(kg_fm_p_type), POINTER              :: kg_fm
     TYPE(particle_type), DIMENSION(:), &
@@ -829,6 +835,7 @@ END SUBROUTINE kg_calculate_forces
     failure = .FALSE.
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
+    para_env=>globenv%para_env
 
     CALL timeset(routineN,"I","",handle)
 
@@ -908,7 +915,7 @@ END SUBROUTINE kg_calculate_forces
            qs_env%input,"DFT%PRINT%AO_MATRICES/W_MATRIX",error=error),cp_p_file)) THEN
          iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/W_MATRIX",&
               extension=".Log",error=error)
-         CALL write_sparse_matrix(matrix_w(ispin)%matrix,4,6,qs_env,globenv,output_unit=iw)
+         CALL write_sparse_matrix(matrix_w(ispin)%matrix,4,6,qs_env,para_env,output_unit=iw)
          CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
               "DFT%PRINT%AO_MATRICES/W_MATRIX", error=error)         
       END IF
@@ -917,7 +924,7 @@ END SUBROUTINE kg_calculate_forces
 !   *** from an eventual mulliken restraint
     IF (dft_control%qs_control%mulliken_restraint) THEN
         CALL mulliken_restraint(dft_control%qs_control%mulliken_restraint_control, &
-                                globenv%para_env,matrix_s(1)%matrix, rho%rho_ao,w_matrix=matrix_w)
+                                para_env,matrix_s(1)%matrix, rho%rho_ao,w_matrix=matrix_w)
     ENDIF
     CALL set_qs_env(qs_env=qs_env,matrix_w=matrix_w)
 
@@ -936,15 +943,15 @@ END SUBROUTINE kg_calculate_forces
 
 !   *** distribute forces ***
     DO ikind=1,SIZE(force)
-      CALL mp_sum(force(ikind)%overlap,globenv%para_env%group)
-      CALL mp_sum(force(ikind)%kinetic,globenv%para_env%group)
-      CALL mp_sum(force(ikind)%gth_ppl,globenv%para_env%group)
-      CALL mp_sum(force(ikind)%gth_ppnl,globenv%para_env%group)
-      CALL mp_sum(force(ikind)%core_overlap,globenv%para_env%group)
-      CALL mp_sum(force(ikind)%rho_core,globenv%para_env%group)
-      CALL mp_sum(force(ikind)%rho_elec,globenv%para_env%group)
-      CALL mp_sum(force(ikind)%kg_gpw_ekin_mol,globenv%para_env%group)
-      CALL mp_sum(force(ikind)%kg_gpw_pauli,globenv%para_env%group)
+      CALL mp_sum(force(ikind)%overlap,para_env%group)
+      CALL mp_sum(force(ikind)%kinetic,para_env%group)
+      CALL mp_sum(force(ikind)%gth_ppl,para_env%group)
+      CALL mp_sum(force(ikind)%gth_ppnl,para_env%group)
+      CALL mp_sum(force(ikind)%core_overlap,para_env%group)
+      CALL mp_sum(force(ikind)%rho_core,para_env%group)
+      CALL mp_sum(force(ikind)%rho_elec,para_env%group)
+      CALL mp_sum(force(ikind)%kg_gpw_ekin_mol,para_env%group)
+      CALL mp_sum(force(ikind)%kg_gpw_pauli,para_env%group)
       force(ikind)%total(:,:) = force(ikind)%total(:,:) +&
                                 force(ikind)%core_overlap(:,:) +&
                                 force(ikind)%gth_ppl(:,:) +&

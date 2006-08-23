@@ -27,6 +27,7 @@ MODULE kg_energy
                                              coeff_type,&
                                              coeff_zero
   USE cp_control_types,                ONLY: dft_control_type
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_type,&
                                              dyn_coeff_type,&
                                              get_dyn_coeff
@@ -164,6 +165,7 @@ SUBROUTINE kg_only_energies ( kg_env, globenv, force_env_section, error )
     TYPE(cell_type), POINTER                 :: cell
     TYPE(coeff_type), POINTER                :: rho_core, rho_g, rho_r, &
                                                 v_gspace
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(kg_energy_type), POINTER            :: energy
     TYPE(kg_rho_type), POINTER               :: rho
@@ -178,7 +180,8 @@ SUBROUTINE kg_only_energies ( kg_env, globenv, force_env_section, error )
 
   CALL timeset ( 'kg_only_energies','I',' ',handle )
   failure=.FALSE.
-  ionode=globenv%para_env%ionode
+  para_env=>globenv%para_env
+  ionode=para_env%ionode
   output_unit=globenv%scr
   NULLIFY(energy,dft_control,cell,rho)
   NULLIFY(rspw,auxbas_pw_pool,v_gspace,poisson_env)
@@ -200,7 +203,7 @@ SUBROUTINE kg_only_energies ( kg_env, globenv, force_env_section, error )
   stat = 0
   dvol=auxbas_pw_pool%pw_grid%dvol
 
-  CALL build_kg_neighbor_lists(kg_env,globenv,error)
+  CALL build_kg_neighbor_lists(kg_env,para_env,error)
 
 ! initialize energies                    
  
@@ -213,7 +216,7 @@ SUBROUTINE kg_only_energies ( kg_env, globenv, force_env_section, error )
 ! Calculate the rspace energy of the core charge distribution
 ! and its force contributions
 
-  CALL calculate_ecore_rspace(kg_env,globenv,calculate_forces,error)
+  CALL calculate_ecore_rspace(kg_env,para_env,calculate_forces,error)
 
 ! calculate intramolecular bonded_correction energy  
 
@@ -332,6 +335,7 @@ SUBROUTINE kg_std_energies ( kg_env, globenv, error )
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(coeff_type), POINTER                :: vxc_r
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(diis_info_type), POINTER            :: diis_info
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
     TYPE(kg_rspw_type), POINTER              :: rspw
@@ -342,7 +346,8 @@ SUBROUTINE kg_std_energies ( kg_env, globenv, error )
 
   NULLIFY(atomic_kind_set,dyn_coeff_set,diis_info,scf_control)
   NULLIFY(rspw,auxbas_pw_pool,vxc_r)
-  ionode=globenv%para_env%ionode
+  para_env=>globenv%para_env
+  ionode=para_env%ionode
   output_unit=globenv%scr
   stat = 0
   iter = 0
@@ -357,7 +362,7 @@ SUBROUTINE kg_std_energies ( kg_env, globenv, error )
 
   CALL kg_rspw_get(kg_rspw=rspw,auxbas_pw_pool=auxbas_pw_pool,error=error)
    
-  CALL build_kg_neighbor_lists(kg_env,globenv,error)
+  CALL build_kg_neighbor_lists(kg_env,para_env,error)
 
   CALL diis_info_create(diis_info,scf_control%max_diis,dyn_coeff_set)
 
@@ -469,14 +474,16 @@ SUBROUTINE kg_qs_energies ( kg_env, globenv, error )
     CHARACTER(LEN=*), PARAMETER              :: routine = "kg_qs_energies"
 
     INTEGER                                  :: handle
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(qs_environment_type), POINTER       :: qs_env
 
     CALL timeset(routine,"I","",handle)
 
     NULLIFY ( qs_env )
+    para_env=>globenv%para_env
     CALL get_kg_env(kg_env=kg_env,&
                     sub_qs_env=qs_env)
-    CALL build_qs_neighbor_lists(qs_env,globenv,.TRUE.,qs_env%input,error=error)
+    CALL build_qs_neighbor_lists(qs_env,para_env,.TRUE.,qs_env%input,error=error)
 
     ! Calculate the overlap and the core Hamiltonian integral matrix
     CALL build_core_hamiltonian_matrix(qs_env=qs_env,&
@@ -518,6 +525,7 @@ SUBROUTINE init_energy_calculation ( kg_env, vxc_r, globenv, force_env_section, 
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
     TYPE(coeff_type), POINTER                :: rho_core, rho_g, rho_r
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
     TYPE(kg_energy_type), POINTER            :: energy
@@ -533,7 +541,8 @@ SUBROUTINE init_energy_calculation ( kg_env, vxc_r, globenv, force_env_section, 
 
   CALL timeset ( 'init_energy_calculation','I',' ',handle )
   failure=.FALSE.
-  ionode=globenv%para_env%ionode
+  para_env=>globenv%para_env
+  ionode=para_env%ionode
   output_unit=globenv%scr
   NULLIFY(auxbas_pw_pool,energy,atomic_kind_set,dft_control,&
           cell,rho,rspw,scf_control,dyn_coeff_set)
@@ -557,7 +566,7 @@ SUBROUTINE init_energy_calculation ( kg_env, vxc_r, globenv, force_env_section, 
   stat = 0
   dvol=auxbas_pw_pool%pw_grid%dvol
 
-  CALL build_kg_neighbor_lists(kg_env,globenv,error)
+  CALL build_kg_neighbor_lists(kg_env,para_env,error)
 
 ! initialize energies                    
  
@@ -570,7 +579,7 @@ SUBROUTINE init_energy_calculation ( kg_env, vxc_r, globenv, force_env_section, 
 ! Calculate the rspace energy of the core charge distribution
 ! and its force contributions
 
-  CALL calculate_ecore_rspace(kg_env,globenv,calculate_forces,error)
+  CALL calculate_ecore_rspace(kg_env,para_env,calculate_forces,error)
 
 ! calculate intramolecular bonded_correction energy  
 
@@ -639,6 +648,7 @@ SUBROUTINE calc_c_gradients ( kg_env, vxc_r, maxgrad, globenv, force_env_section
     TYPE(coeff_type), POINTER                :: rho_core, rho_g, rho_r, &
                                                 rhop_g, rhop_r, v1xc_r, &
                                                 v2xc_r, v_gspace, v_rspace
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
     TYPE(dyn_coeff_type), POINTER            :: local_coeffs
@@ -653,8 +663,8 @@ SUBROUTINE calc_c_gradients ( kg_env, vxc_r, maxgrad, globenv, force_env_section
 
     failure = .FALSE.
   CALL timeset ( 'calc_c_gradients','I',' ',handle )
-
-  ionode=globenv%para_env%ionode
+  para_env=>globenv%para_env
+  ionode=para_env%ionode
   output_unit=globenv%scr
   calculate_forces=.FALSE.
 

@@ -29,7 +29,6 @@ MODULE harris_functional
 !coeff_sumup, &
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE global_types,                    ONLY: global_environment_type
   USE harris_energy_types,             ONLY: harris_energy_type
   USE harris_env_types,                ONLY: harris_env_get,&
                                              harris_env_type
@@ -96,8 +95,6 @@ CONTAINS
 !!     - qs_env: The QS environment, on which the Harris 
 !!               functional energy correction should be performed.
 !!     - harris_env: The harris environment in which all results are stored
-!!     - globenv: The global environment which contains the initially parsed
-!!                file and the parallel environment.
 !!     - EII_necessary: Logical flag which indicates if EII has to be 
 !!                      computes or not
 !!     - fast: Logical which prevents some minor double calculations if the
@@ -112,12 +109,12 @@ CONTAINS
 !!     06.2005 initial create [tdk]
 !!
 !!*** **********************************************************************
-  SUBROUTINE harris_energy_correction(qs_env, harris_env, globenv, &
+  SUBROUTINE harris_energy_correction(qs_env, harris_env, para_env, &
                                       EII_necessary, fast, error)
 
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(harris_env_type), POINTER           :: harris_env
-    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_para_env_type), POINTER          :: para_env
     LOGICAL, INTENT(IN), OPTIONAL            :: EII_necessary, fast
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
@@ -237,7 +234,7 @@ CONTAINS
           qs_env%energy%core_overlap = 0.0_dp
           qs_env%energy%core_self = 0.0_dp
 
-          CALL calculate_ecore_overlap(qs_env=qs_env, globenv=globenv, &
+          CALL calculate_ecore_overlap(qs_env=qs_env, para_env=para_env, &
                                        calculate_forces=dft_control%forces, &
                                        E_overlap_core=harris_energy%Ecore_overlap,&
                                        error=error)

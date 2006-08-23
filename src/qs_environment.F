@@ -63,6 +63,7 @@ MODULE qs_environment
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsystem_methods,            ONLY: cp_subsys_read_colvar
   USE cp_subsystem_types,              ONLY: cp_subsys_create,&
                                              cp_subsys_release,&
@@ -180,7 +181,7 @@ CONTAINS
     TYPE(cp_subsystem_type), OPTIONAL, &
       POINTER                                :: subsystem
     TYPE(cell_type), OPTIONAL, POINTER       :: cell, cell_ref
-    LOGICAL, INTENT(IN), OPTIONAL            :: qmmm,qmmm_periodic
+    LOGICAL, INTENT(IN), OPTIONAL            :: qmmm, qmmm_periodic
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -189,12 +190,13 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: harris_flag, my_qmmm, &
-                                                use_ref_cell, my_qmmm_periodic
+                                                my_qmmm_periodic, use_ref_cell
     REAL(kind=dp), DIMENSION(3)              :: abc
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: my_cell, my_cell_ref
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsystem_type), POINTER         :: my_subsystem
     TYPE(mol_kind_new_list_type), POINTER    :: mol_kinds
     TYPE(mol_new_list_type), POINTER         :: mols
@@ -211,6 +213,7 @@ CONTAINS
     NULLIFY(my_subsystem, molecule_kind_set, molecule_set, atomic_kind_set,&
          particle_set,atomic_kinds,particles,mols,mol_kinds,my_cell,my_cell_ref,&
          cell_section, harris_section, kind_section)
+    para_env=>globenv%para_env
 
     cell_section => section_vals_get_subs_vals(force_env_section,&
          "SUBSYS%CELL",error=error)
@@ -247,7 +250,7 @@ CONTAINS
 
 !   *** Setup the grids for the G-space Interpolation if any
     CALL cp_ddapc_ewald_create(qs_env%cp_ddapc_ewald, my_qmmm, my_qmmm_periodic,&
-         my_cell, force_env_section, globenv, error)
+         my_cell, force_env_section, para_env, error)
 
 !   *** Print the cell parameters ***
     CALL write_cell(my_cell,force_env_section,cell_ref=my_cell_ref,error=error)
@@ -257,10 +260,10 @@ CONTAINS
             "SUBSYS%KIND",error=error)
     IF (PRESENT(subsystem)) THEN 
        my_subsystem => subsystem
-       CALL read_atomic_kind_set(my_subsystem%atomic_kinds%els,kind_section,globenv,&
+       CALL read_atomic_kind_set(my_subsystem%atomic_kinds%els,kind_section,para_env,&
             force_env_section,error)
     ELSE
-       CALL cp_subsys_create(my_subsystem,para_env=globenv%para_env,error=error)
+       CALL cp_subsys_create(my_subsystem,para_env=para_env,error=error)
 
        colvar_section => section_vals_get_subs_vals(force_env_section,&
                                  "SUBSYS%COLVAR",error=error)
@@ -274,7 +277,7 @@ CONTAINS
                               my_subsystem%colvar_p,globenv,&
                               force_env_section=force_env_section,error=error)
 
-       CALL read_atomic_kind_set(atomic_kind_set,kind_section,globenv,&
+       CALL read_atomic_kind_set(atomic_kind_set,kind_section,para_env,&
             force_env_section,error)
        
        CALL num_ao_el_per_molecule(molecule_kind_set)
@@ -334,6 +337,7 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(distribution_1d_type), POINTER      :: local_molecules, &
                                                 local_particles
@@ -365,9 +369,10 @@ CONTAINS
 
     CALL timeset(routineN,"I",'',handle)
     NULLIFY(logger)
+    para_env=>globenv%para_env
     logger => cp_error_get_logger(error)
 
-    ionode = globenv%para_env%ionode
+    ionode = para_env%ionode
     IF(ionode) output_unit = globenv%scr
     was_present = .FALSE.
 
@@ -419,7 +424,7 @@ CONTAINS
 
 !   *** Check basis and fill in missing parts ***
 
-    CALL check_atomic_kind_set(atomic_kind_set,dft_control,globenv,&
+    CALL check_atomic_kind_set(atomic_kind_set,dft_control,para_env,&
          force_env_section=qs_env%input,error=error)
 
 !   *** Check that no all-electron potential is present if GPW or GAPW_XC
@@ -454,7 +459,7 @@ CONTAINS
 
 !   *** Initialise the atomic kind set ***
 
-    CALL init_atomic_kind_set(atomic_kind_set,globenv,qs_env%input)
+    CALL init_atomic_kind_set(atomic_kind_set,para_env,qs_env%input)
 
 !   *** Initialise GAPW soft basis and projectors
 
@@ -585,7 +590,7 @@ CONTAINS
       IF(cell%perd(2)==1) rc = MIN(rc,0.5_dp*plane_distance(0,1,0,cell))
       IF(cell%perd(3)==1) rc = MIN(rc,0.5_dp*plane_distance(0,0,1,cell))
       IF (rc /= se_control%rc_interaction) THEN
-         IF (globenv%para_env%ionode) THEN
+         IF (para_env%ionode) THEN
            WRITE(globenv%scr,*)
            WRITE(globenv%scr,'(A,T34,A)')     " WARNING|",&
                                    " Integral interaction cutoff has been redefined"
@@ -713,7 +718,7 @@ CONTAINS
 
     IF (dft_control%roks.AND.(.NOT.scf_control%use_ot)) THEN
       IF (scf_control%roks_scheme == general_roks) THEN
-        IF (globenv%para_env%ionode) THEN
+        IF (para_env%ionode) THEN
           CALL print_message("WARNING: General ROKS scheme is not yet tested",&
                              globenv%scr,2,1,1)
         END IF
@@ -741,11 +746,11 @@ CONTAINS
     ! at as few places as possible, just duplicating the beta orbitals
     IF (dft_control%restricted) THEN
        ! it is really not yet tested till the end ! Joost
-       IF (globenv%para_env%ionode) WRITE(globenv%scr,*) ""
-       IF (globenv%para_env%ionode) WRITE(globenv%scr,*) " **************************************"
-       IF (globenv%para_env%ionode) WRITE(globenv%scr,*) " restricted calculation cutting corners"
-       IF (globenv%para_env%ionode) WRITE(globenv%scr,*) " experimental feature, check code      "
-       IF (globenv%para_env%ionode) WRITE(globenv%scr,*) " **************************************"
+       IF (para_env%ionode) WRITE(globenv%scr,*) ""
+       IF (para_env%ionode) WRITE(globenv%scr,*) " **************************************"
+       IF (para_env%ionode) WRITE(globenv%scr,*) " restricted calculation cutting corners"
+       IF (para_env%ionode) WRITE(globenv%scr,*) " experimental feature, check code      "
+       IF (para_env%ionode) WRITE(globenv%scr,*) " **************************************"
     ENDIF
 
     DO ispin=1,dft_control%nspins
