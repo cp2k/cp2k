@@ -317,7 +317,10 @@ FUNCTION create_cp2k_input_reading(file_path,para_env,error) RESULT(res)
 
     CALL keyword_create(keyword, name="FFT_LIBRARY",&
          variants=s2a("FFT_LIB","FFTLIB"),&
-         description="which fft library to use to perform the ffts",&
+         description="Which fft library to use to perform the ffts."//&
+                     "The available libraries depend on compile time options,"//&
+                     "FFTSG FFTW2 FFTW3 FFTESSL FFTACML FFTMKL FFTSCI could be available."//&
+                     "FFTW3, FFTW2, FFTESSL, FFTSG are (roughly in that order) tested and recommended.",&
          usage="FFT_LIBRARY FFTW",&
          default_c_val="FFTSG",error=error)
     CALL section_add_keyword(section,keyword,error=error)
