@@ -115,7 +115,6 @@ MODULE global_types
      INTEGER :: id_nr, ref_count
      TYPE(cp_para_env_type), POINTER         :: para_env
      TYPE(rng_stream_type), POINTER          :: gaussian_rng_stream
-     CHARACTER(LEN=default_path_length)      :: input_file_name
      CHARACTER(LEN=default_string_length)    :: default_fft_library,&
                                                 project_name
      INTEGER :: group        !! group handle for all processors
@@ -153,7 +152,6 @@ CONTAINS
 !!   ARGUMENTS
 !!     - globenv: the globenv to create
 !!     - para_env: the parallel environment of the globenv
-!!     - input_file_name: the input file name (remove?)
 !!     - output_unit: the output unit
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
@@ -163,11 +161,10 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE globenv_create(globenv, para_env,  output_unit, &
-       input_file_name, close_output_unit, error)
+       close_output_unit, error)
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER, INTENT(in)                      :: output_unit
-    CHARACTER(len=*), INTENT(in), OPTIONAL   :: input_file_name
     LOGICAL, INTENT(in), OPTIONAL            :: close_output_unit
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -190,8 +187,6 @@ CONTAINS
        globenv%close_output_unit=.FALSE.
        IF(PRESENT(close_output_unit))globenv%close_output_unit=close_output_unit
        CALL cp_para_env_retain(para_env,error=error)
-       globenv%input_file_name=""
-       IF (PRESENT(input_file_name)) globenv%input_file_name=input_file_name
        globenv%run_type_id=0
        globenv%default_fft_library="FFTSG"
        globenv%prog_name_id=0

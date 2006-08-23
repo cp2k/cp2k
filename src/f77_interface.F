@@ -638,9 +638,8 @@ END SUBROUTINE f_env_rm_defaults
     my_owns_out_unit=unit_nr/=6
     IF (PRESENT(owns_out_unit)) my_owns_out_unit=owns_out_unit
     CALL globenv_create(globenv, para_env=para_env,&
-         output_unit=unit_nr, input_file_name=input_path,&
-         close_output_unit=my_owns_out_unit)
-    CALL cp2k_init(globenv)
+         output_unit=unit_nr, close_output_unit=my_owns_out_unit)
+    CALL cp2k_init(globenv,input_file_name=input_path)
     logger => cp_get_default_logger()
     ! warning this is dangerous, I did not check that all the subfunctions
     ! support it, the program might crash upon error

@@ -130,13 +130,14 @@ CONTAINS
 !!
 !!**************************************************************************
 
-  SUBROUTINE do_mon_car ( force_env, globenv, error )
+  SUBROUTINE do_mon_car ( force_env, globenv, input_file_name, error )
 
 
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
+    CHARACTER(LEN=*)                         :: input_file_name
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'do_mon_car', &
       routineP = moduleN//':'//routineN
@@ -184,7 +185,7 @@ CONTAINS
                              distribution_type=UNIFORM)
 
 ! read the input of the Monte Carlo section
-      CALL read_mc_section ( mc_par, globenv ,globenv%input_file_name,&
+      CALL read_mc_section ( mc_par, globenv ,input_file_name,&
            globenv%input_file,force_env_section,error)
 
 ! if we're doing a classical simulation, figure out the largest
@@ -264,7 +265,6 @@ CONTAINS
 ! release the old force env and make the new one
          in_use=force_env%in_use
          CALL force_env_release(force_env)
-!         globenv%input_file_name=dat_file
          CALL mc_create_force_env(force_env, globenv, &
               dat_file,error=error)
       ENDIF
@@ -296,7 +296,6 @@ CONTAINS
          IF ( isos /= 0 ) CALL stop_memory ( 'allocstruc', 'mc_par_2', 0 )
  
 ! read the input of the Monte Carlo section
-!         globenv%input_file_name=box2_file
          CALL mc_create_force_env(force_env_2, globenv,&
             box2_file,globenv_new=globenv_2,error=error)
 
@@ -379,7 +378,6 @@ CONTAINS
          IF ( lrestart ) THEN
             CALL read_mc_restart(mc_par_2,force_env_2,iw,rng_stream)
             CALL force_env_release(force_env_2)
-!            globenv%input_file_name=dat_file
             CALL mc_create_force_env(force_env_2, globenv, &
                dat_file,error=error)
          ENDIF
@@ -398,7 +396,6 @@ CONTAINS
             force_env=force_env_2)
 
          CALL get_mc_par(mc_par_2,box2_file=box2_file)
-         globenv%input_file_name=box2_file
          CALL mc_env_release ( mc_env(2)%mc_env, error )
          CALL force_env_release(force_env_2)
          DEALLOCATE ( mc_par_2, STAT = isos )

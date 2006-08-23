@@ -407,7 +407,7 @@ SUBROUTINE mc_create_force_env ( force_env, globenv_old,input_file_name,&
 
       ! init globenv with the data
       CALL globenv_create(globenv, para_env=globenv_old%para_env,output_unit=globenv_old%scr, &
-           input_file_name=TRIM(ADJUSTL(input_file_name)), error=error)
+           error=error)
 
     ! parse the input
       input_file => create_cp2k_input_reading(input_file_name,para_env=globenv%para_env,error=error)
@@ -494,7 +494,6 @@ SUBROUTINE mc_create_bias_force_env (bias_env,force_env,&
       NULLIFY(cell,subsys)
 
 ! create the bias_env from the template file
-!      globenv%input_file_name='bias_template.inp'
       CALL mc_create_force_env(bias_env, globenv, 'bias_template.inp',error=error)
 
 ! grab the coordinates and cell parameters of the old environment
@@ -521,7 +520,6 @@ SUBROUTINE mc_create_bias_force_env (bias_env,force_env,&
          'bias_temp.inp',bias_env,TRIM(fft_lib),print_level)
 
       CALL force_env_release(bias_env,error=error)
-!      globenv%input_file_name='bias_temp.inp'
 
       CALL mc_create_force_env(bias_env, globenv, 'bias_temp.inp',error=error)
 

@@ -47,14 +47,16 @@ MODULE cp_output_handling
                                              keyword_release,&
                                              keyword_type
   USE input_section_types,             ONLY: section_add_keyword,&
+                                             section_add_subsection,&
                                              section_create,&
                                              section_type,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
-                                             section_vals_val_get
+                                             section_vals_val_get, &
+                                             section_release
   USE input_val_types,                 ONLY: val_create,&
                                              val_release,&
-                                             val_type
+                                             val_type, char_t
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp
@@ -207,6 +209,7 @@ CONTAINS
     TYPE(enumeration_type), POINTER          :: enum
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(val_type), POINTER                  :: val
+    TYPE(section_type), POINTER              :: store_section
 
     failure=.FALSE.
 
@@ -303,6 +306,32 @@ CONTAINS
             default_i_val=cp_out_default, error=error)
        CALL section_add_keyword(print_key_section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+
+       ! this section allows the print key to store additional info as part of the input (now input/output)
+       ! this appears useful right now as a way to communicate information upwards.
+       ! I.e. this means that one can call CP2K to execute an input, and store somewhere whatever
+       ! result to be used at a higher level. Very flexible, very 'dangerous'...
+       NULLIFY(store_section)
+       CALL section_create(store_section,name="STORE",&
+          description="A section where print results can be stored",&
+          n_keywords=2, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+          error=error)
+
+       CALL keyword_create(keyword, name="NAME",&
+            description="Specifies what can be stored in this section, if implemented",&
+            type_of_var=char_t,error=error)
+       CALL section_add_keyword(store_section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword,name="VALUE",&
+            description="Whatever real value that needs to be stored (output)",&
+            default_r_val=0.0_dp,repeats=.FALSE.,error=error)
+       CALL section_add_keyword(store_section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL section_add_subsection(print_key_section,store_section,error=error)
+       CALL section_release(store_section,error=error)
+
     END IF
   END SUBROUTINE cp_print_key_section_create
 !***************************************************************************

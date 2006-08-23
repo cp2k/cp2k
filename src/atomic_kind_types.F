@@ -1413,9 +1413,7 @@ CONTAINS
                           "An invalid potential type <"//&
                           TRIM(potential_name)//"> was specified "//&
                           "for the atomic kind <"//&
-                          TRIM(atomic_kind%name)//&
-                          "> in the input file <"//&
-                          TRIM(globenv%input_file_name)//">",globenv)
+                          TRIM(atomic_kind%name),globenv)
       END SELECT
 
     ELSE

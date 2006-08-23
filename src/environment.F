@@ -141,9 +141,10 @@ CONTAINS
 !!******
 !******************************************************************************
 
-  SUBROUTINE cp2k_init(globenv)
+  SUBROUTINE cp2k_init(globenv,input_file_name)
 
     TYPE(global_environment_type), POINTER :: globenv
+    CHARACTER(LEN=*) :: input_file_name
 
     CHARACTER(LEN=*), PARAMETER :: routineN = "cp2k_init"
 
@@ -206,9 +207,6 @@ CONTAINS
       CALL m_getcwd(cwd)
 
     END IF
-
-    CALL mp_bcast(globenv%input_file_name,globenv%source,globenv%group)
-
 
 !   *** Print a list of all started processes ***
 
@@ -278,8 +276,10 @@ CONTAINS
       WRITE (UNIT=output_unit,FMT="(T2,A,T31,A50)")&
         "CP2K| Last CVS entry",&
         ADJUSTR(compile_lastcvs(strstart:strend))
+      WRITE (UNIT=output_unit,FMT="(T2,A,T31,A50)")&
+        "CP2K| Input file name",&
+        ADJUSTR(TRIM(input_file_name))
     END IF
-
 
   END SUBROUTINE cp2k_init
 
@@ -598,8 +598,6 @@ SUBROUTINE cp2k_read(globenv,error)
 
 
  WRITE (UNIT=output_unit,FMT="(T2,A,T41,A)")&
-        start_section_label//"| Input file name",&
-        ADJUSTR(globenv%input_file_name(:40)),&
         start_section_label//"| Method name",&
         ADJUSTR(program_names(globenv%prog_name_id)(:40)),&
         start_section_label//"| Project name",&

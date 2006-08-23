@@ -811,17 +811,13 @@ CONTAINS
 ! of molecules
 
 !      IF(lbias) THEN
-!         globenv%input_file_name=dat_file(insert_box)
          CALL mc_create_force_env(insert_env, globenv, &
               dat_file(insert_box),error=error)
-!         globenv%input_file_name=dat_file(remove_box)
          CALL mc_create_force_env(remove_env, globenv, &
             dat_file(remove_box),error=error)
 !      ELSE
-!         globenv%input_file_name=dat_file(insert_box)
 !         CALL mc_create_force_env(insert_env, globenv, &
 !            dat_file(insert_box),force_env_section,error=error)
-!         globenv%input_file_name=dat_file(remove_box)
 !         CALL mc_create_force_env(remove_env, globenv, &
 !            dat_file(remove_box),force_env_section,error=error)
 !      ENDIF
@@ -928,7 +924,6 @@ CONTAINS
          insert_env_bias => insert_env
          NULLIFY(insert_env)
 !         CALL force_env_release(insert_env)
-!         globenv%input_file_name=dat_file(insert_box)
          CALL mc_create_force_env(insert_env, globenv, &
             dat_file(insert_box),error=error)
          CALL force_env_calc_energy_force(insert_env,&
@@ -943,7 +938,6 @@ CONTAINS
                force_env(remove_box)%force_env,TRIM(fft_lib),print_level)
             remove_env_bias => remove_env
             NULLIFY(remove_env)
-!            globenv%input_file_name=dat_file(remove_box)
             CALL mc_create_force_env(remove_env, globenv, &
                dat_file(remove_box),error=error)
             new_energy(remove_box)=0.0E0_dp
@@ -954,7 +948,6 @@ CONTAINS
                force_env(remove_box)%force_env,TRIM(fft_lib),print_level)
             remove_env_bias => remove_env
             NULLIFY(remove_env)
-!            globenv%input_file_name=dat_file(remove_box)
             CALL mc_create_force_env(remove_env, globenv, &
                dat_file(remove_box),error=error)
             CALL force_env_calc_energy_force(remove_env,calc_force=.FALSE.,error=error)
@@ -1378,7 +1371,6 @@ CONTAINS
 
 !      DO ibox=1,2
 ! make a test environment that we can alter to calculate the energy
-!         globenv%input_file_name=dat_file(ibox)
 !         CALL mc_create_force_env(test_env(ibox)%force_env, globenv, &
 !               dat_file(ibox),error=error)
 
@@ -1495,7 +1487,6 @@ CONTAINS
 
 !         CALL force_env_release(test_env(ibox)%force_env,error=error)
             
-!         globenv%input_file_name=dat_file(ibox)
 !         CALL mc_create_force_env(test_env(ibox)%force_env, globenv, &
 !               dat_file(ibox),error=error)
          

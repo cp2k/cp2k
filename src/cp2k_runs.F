@@ -248,11 +248,11 @@ CONTAINS
           IF (prog_name_id/=do_cp2k) THEN
              ! initial setup (cp2k does in in the creation of the force_env)
              CALL globenv_create(globenv, para_env=para_env,  output_unit=output_unit, &
-                  input_file_name=input_file_name, error=error)
+                  error=error)
              globenv%input_file => input_file
              CALL section_vals_retain(input_file,error=error)
              ! generate all dependent info in globenv
-             CALL cp2k_init ( globenv )
+             CALL cp2k_init ( globenv, input_file_name=input_file_name )
              CALL cp_error_init(suberror)
              CALL cp2k_read(globenv)
              CALL cp2k_setup(globenv,suberror)
@@ -318,7 +318,7 @@ CONTAINS
                   method_name_id  /= do_ep)  &
 
                   CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
-                  "Energy run available only with QS, KG, EP and QMMM programs "//&
+                  "Energy run available only with QS, KG, EP and QMMM methods "//&
 CPSourceFileRef,&
                   suberror,failure)
              SELECT CASE(globenv%run_type_id)
@@ -335,7 +335,7 @@ CPSourceFileRef,&
           CASE (geo_opt_run)
              CALL qs_geo_opt(force_env,globenv,error=suberror)
           CASE (mon_car_run)
-             CALL do_mon_car ( force_env, globenv, error=suberror )
+             CALL do_mon_car ( force_env, globenv, input_file_name, error=suberror )
           CASE (hmc_run, ldmc_run)
              CALL harris_mc_ld(force_env, globenv, error=suberror)
           CASE (electronic_spectra_run)
