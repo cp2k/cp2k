@@ -261,7 +261,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    WRITE (UNIT=output_unit,FMT="(T2,A,/,/,(T2,A))")&
+    WRITE (UNIT=output_unit,FMT="(T2,/,T2,A,/,/,(T2,A))")&
       "*** Fundamental physical constants (SI units) ***",&
       "*** Literature: B. J. Mohr and B. N. Taylor,",&
       "***             CODATA recommended values of the fundamental physical",&
@@ -314,6 +314,7 @@ CONTAINS
       "[a.u.] -> [MHz]",mhz,&
       "[a.u.] -> [1/cm] (wave numbers)",wavenum,&
       "[a.u./Bohr**2] -> [1/cm]",vibfac
+    WRITE (UNIT=output_unit,FMT="(T2,A)") ""
 
 
   END SUBROUTINE write_physcon
