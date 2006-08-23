@@ -178,7 +178,7 @@ SUBROUTINE kg_only_energies ( kg_env, globenv, force_env_section, error )
 
   CALL timeset ( 'kg_only_energies','I',' ',handle )
   failure=.FALSE.
-  ionode=globenv%ionode
+  ionode=globenv%para_env%ionode
   output_unit=globenv%scr
   NULLIFY(energy,dft_control,cell,rho)
   NULLIFY(rspw,auxbas_pw_pool,v_gspace,poisson_env)
@@ -342,7 +342,7 @@ SUBROUTINE kg_std_energies ( kg_env, globenv, error )
 
   NULLIFY(atomic_kind_set,dyn_coeff_set,diis_info,scf_control)
   NULLIFY(rspw,auxbas_pw_pool,vxc_r)
-  ionode=globenv%ionode
+  ionode=globenv%para_env%ionode
   output_unit=globenv%scr
   stat = 0
   iter = 0
@@ -533,7 +533,7 @@ SUBROUTINE init_energy_calculation ( kg_env, vxc_r, globenv, force_env_section, 
 
   CALL timeset ( 'init_energy_calculation','I',' ',handle )
   failure=.FALSE.
-  ionode=globenv%ionode
+  ionode=globenv%para_env%ionode
   output_unit=globenv%scr
   NULLIFY(auxbas_pw_pool,energy,atomic_kind_set,dft_control,&
           cell,rho,rspw,scf_control,dyn_coeff_set)
@@ -654,7 +654,7 @@ SUBROUTINE calc_c_gradients ( kg_env, vxc_r, maxgrad, globenv, force_env_section
     failure = .FALSE.
   CALL timeset ( 'calc_c_gradients','I',' ',handle )
 
-  ionode=globenv%ionode
+  ionode=globenv%para_env%ionode
   output_unit=globenv%scr
   calculate_forces=.FALSE.
 

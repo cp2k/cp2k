@@ -99,7 +99,7 @@ CONTAINS
       END DO
    END IF
 
-   IF (globenv%ionode .AND. .NOT. failure) THEN
+   IF (globenv%para_env%ionode .AND. .NOT. failure) THEN
         WRITE(globenv%scr,FMT="(T2,A,T71,I10)") "FARMING| Number of jobs found",farming_env%njobs
         IF (farming_env%ngroup_wish_set) THEN
            WRITE(globenv%scr,FMT="(T2,A,T71,I10)") "FARMING| Ngroup wish:",farming_env%ngroup_wish
@@ -110,10 +110,10 @@ CONTAINS
                  WRITE(globenv%scr,FMT='(I4)',ADVANCE="NO") farming_env%group_partition(i)
               END DO
               WRITE(globenv%scr,*)
-              IF (SUM(farming_env%group_partition).NE.globenv%num_pe) THEN
+              IF (SUM(farming_env%group_partition).NE.globenv%para_env%num_pe) THEN
                  WRITE(globenv%scr,FMT="(T2,A,T61,I10,T71,I10)") &
                      "FARMING| WARNING : partition CPUs not equal actual number ", &
-                     globenv%num_pe, SUM(farming_env%group_partition)
+                     globenv%para_env%num_pe, SUM(farming_env%group_partition)
                  WRITE(globenv%scr,FMT="(T2,A)") "FARMING|          partition data ignored" ! any better idea ??
                  DEALLOCATE(farming_env%group_partition)
               ENDIF
@@ -156,7 +156,7 @@ CONTAINS
            CLOSE(iunit,IOSTAT=stat)
         ENDIF
     ENDIF
-    CALL mp_bcast(farming_env%restart_n,globenv%source,globenv%group)
+    CALL mp_bcast(farming_env%restart_n,globenv%para_env%source,globenv%para_env%group)
 
   END SUBROUTINE
 

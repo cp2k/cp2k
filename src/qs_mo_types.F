@@ -633,7 +633,7 @@ CONTAINS
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
 
-    IF (globenv%ionode) THEN
+    IF (globenv%para_env%ionode) THEN
 
        CALL section_vals_val_get(dft_section,"RESTART_FILE_NAME",&
             c_val=file_name,error=error)
@@ -726,7 +726,7 @@ CONTAINS
 
       nmo=mo_array(ispin)%mo_set%nmo
 
-      IF (globenv%ionode.AND.(nmo > 0)) THEN
+      IF (globenv%para_env%ionode.AND.(nmo > 0)) THEN
         WRITE (restart_unit) nmo,&
                              mo_array(ispin)%mo_set%homo,&
                              mo_array(ispin)%mo_set%lfomo,&
@@ -742,7 +742,7 @@ CONTAINS
         ! to old ones, and in cases where max_block is different between runs, as might happen during
         ! restarts with a different number of CPUs
         DO j=1,i_block
-           IF (globenv%ionode) WRITE (restart_unit) vecbuffer(1:nao,j)
+           IF (globenv%para_env%ionode) WRITE (restart_unit) vecbuffer(1:nao,j)
         ENDDO
       END DO
 
@@ -751,7 +751,7 @@ CONTAINS
     DEALLOCATE (vecbuffer,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"vecbuffer")
 
-    IF (globenv%ionode) CALL close_file(unit_number=restart_unit)
+    IF (globenv%para_env%ionode) CALL close_file(unit_number=restart_unit)
 
     CALL timestop(0.0_dp,handle)
 
@@ -794,13 +794,13 @@ CONTAINS
 
     CALL timeset(routineN,"I","",handle)
 
-    group = globenv%group
-    source = globenv%source
+    group = globenv%para_env%group
+    source = globenv%para_env%source
 
     nspin = SIZE(mo_array)
     nao = mo_array(1)%mo_set%nao
 
-    IF (globenv%ionode) THEN
+    IF (globenv%para_env%ionode) THEN
 
       CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                                natom=natom,&
@@ -886,7 +886,7 @@ CONTAINS
       mo_array(ispin)%mo_set%occupation_numbers(:) = 0.0_dp
       CALL cp_fm_set_all(mo_array(ispin)%mo_set%mo_coeff,0.0_dp)
 
-      IF (globenv%ionode.AND.(nmo > 0)) THEN
+      IF (globenv%para_env%ionode.AND.(nmo > 0)) THEN
         READ (restart_unit) nmo_read,&
                             mo_array(ispin)%mo_set%homo,&
                             mo_array(ispin)%mo_set%lfomo,&
@@ -922,7 +922,7 @@ CONTAINS
       CALL mp_bcast(mo_array(ispin)%mo_set%occupation_numbers,source,group)
 
       DO i=1,nmo
-        IF (globenv%ionode) THEN
+        IF (globenv%para_env%ionode) THEN
           READ (restart_unit) vecbuffer_read
           ! now, try to assign the read to the real vector
           ! in case the basis set changed this involves some guessing
@@ -988,7 +988,7 @@ CONTAINS
 
       ! Skip extra MOs if there any
 
-      IF (globenv%ionode) THEN
+      IF (globenv%para_env%ionode) THEN
         DO i=nmo+1,nmo_read
           READ (restart_unit) vecbuffer_read
         END DO
@@ -1026,7 +1026,7 @@ CONTAINS
     DEALLOCATE(vecbuffer,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"vecbuffer")
 
-    IF (globenv%ionode) THEN
+    IF (globenv%para_env%ionode) THEN
       DEALLOCATE(vecbuffer_read,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routine,"vecbuffer_read")
       DEALLOCATE(offset_info,STAT=istat)

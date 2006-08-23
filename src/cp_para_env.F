@@ -111,6 +111,7 @@ CONTAINS
          para_env%mepos=mepos
          para_env%num_pe=num_pe
       END IF
+      para_env%ionode=para_env%mepos==para_env%source
     END IF
   END SUBROUTINE cp_para_env_create
 !***************************************************************************
@@ -170,6 +171,7 @@ CONTAINS
       para_env%owns_group=.TRUE.
       IF (PRESENT(source)) para_env%source=source
       CALL cp_para_env_update(para_env,error=error)
+      para_env%ionode=para_env%mepos==para_env%source
     END IF
   END SUBROUTINE cp_para_env_duplicate
 !***************************************************************************
@@ -313,6 +315,7 @@ CONTAINS
     IF (.NOT.failure) THEN
       CALL mp_environ(taskid=para_env%mepos,numtask=para_env%num_pe,&
            groupid=para_env%group)
+      para_env%ionode=para_env%mepos==para_env%source
     END IF
   END SUBROUTINE cp_para_env_update
 !***************************************************************************

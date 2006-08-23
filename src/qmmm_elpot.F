@@ -203,7 +203,7 @@ CONTAINS
              myind = INDEX(FileName," ")
              CPPostcondition(myind /= 1,cp_failure_level,routineP,error,failure)
              WRITE(Filename(myind:),'(A1,F4.2)')"_",rc
-             IF (globenv%ionode) THEN 
+             IF (globenv%para_env%ionode) THEN 
                 OPEN(UNIT=21,FILE=FileName)
                 WRITE(21,'(A)')"# MM ELECTROSTATIC POTENTIAL - UNIDIMENSIONAL - ATOMIC UNITS"
                 WRITE(21,'(A,T10,A,T30,A)')"#","Xval","ElecPot"
@@ -251,7 +251,7 @@ CONTAINS
              myind = INDEX(FileName," ")
              CPPostcondition(myind /= 1,cp_failure_level,routineP,error,failure)
              WRITE(Filename(myind:),'(A1,F4.2)')"_",rc
-             IF (globenv%ionode) THEN 
+             IF (globenv%para_env%ionode) THEN 
                 OPEN(UNIT=21,FILE=FileName)
                 WRITE(21,'(A)')"# MM ELECTROSTATIC POTENTIAL - UNIDIMENSIONAL - ATOMIC UNITS"
                 WRITE(21,'(A,T10,A,T30,A,T211,A)')"#","Xval","Gaussians","LongRange"

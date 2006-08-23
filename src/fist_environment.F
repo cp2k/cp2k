@@ -331,8 +331,6 @@ SUBROUTINE fist_init ( fist_env, globenv, force_env_section, error )
   CALL distribution_1d_release ( local_molecules, error = error )
   CALL ewald_pw_release ( ewald_pw, error )
 
-  IF (globenv%ionode) CALL m_flush(globenv%scr)
-
   CALL timestop(0.0_dp,handle)
 
  END SUBROUTINE fist_init_subsys

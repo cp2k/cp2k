@@ -806,7 +806,7 @@ END SUBROUTINE clone_particle
     nbond = 0
     natom = SIZE(r,2)
     DO iatom=1,natom
-       DO jatom=iatom+1+globenv%mepos,natom,globenv%num_pe
+       DO jatom=iatom+1+globenv%para_env%mepos,natom,globenv%para_env%num_pe
           !Teo 07.2006
           !Check that iatom and jatom belong to the same molecule
           !if not skip the bond generation
@@ -854,10 +854,10 @@ END SUBROUTINE clone_particle
     !Put together the difference pieces for the bond
 
     !Determine the total number of bonds
-    ALLOCATE(nbond_loc(globenv%num_pe),STAT=istat)
+    ALLOCATE(nbond_loc(globenv%para_env%num_pe),STAT=istat)
     IF(istat/=0) CALL stop_program('topology_generate_bond','nbond_loc')
     nbond_loc(:)=0
-    CALL mp_allgather(nbond,nbond_loc,globenv%group)
+    CALL mp_allgather(nbond,nbond_loc,globenv%para_env%group)
     nbond = SUM(nbond_loc)
 
     !Reallocate those memory
@@ -870,18 +870,18 @@ END SUBROUTINE clone_particle
 
     workload=0
     !Gather everything
-    DO iproc=0,globenv%num_pe-1
+    DO iproc=0,globenv%para_env%num_pe-1
        CALL reallocate(ttbond_a,1,nbond_loc(iproc+1))
        CALL reallocate(ttbond_b,1,nbond_loc(iproc+1))
-       IF(iproc==globenv%mepos) THEN
+       IF(iproc==globenv%para_env%mepos) THEN
           ttbond_a(:) = tbond_a(:)
           ttbond_b(:) = tbond_b(:)
        ELSE
           ttbond_a(:) = 0
           ttbond_b(:) = 0
        ENDIF
-       CALL mp_bcast(ttbond_a,iproc,globenv%group)
-       CALL mp_bcast(ttbond_b,iproc,globenv%group)
+       CALL mp_bcast(ttbond_a,iproc,globenv%para_env%group)
+       CALL mp_bcast(ttbond_b,iproc,globenv%para_env%group)
        bond_a(workload+1:workload+nbond_loc(iproc+1)) = ttbond_a(1:nbond_loc(iproc+1))
        bond_b(workload+1:workload+nbond_loc(iproc+1)) = ttbond_b(1:nbond_loc(iproc+1))
        workload=workload+nbond_loc(iproc+1)

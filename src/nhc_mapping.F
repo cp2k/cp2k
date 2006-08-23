@@ -92,7 +92,7 @@ SUBROUTINE nhc_to_barostat_mapping ( simpar, nhc, globenv )
   iw = globenv % scr
 !
   nhc % dis_type = 'NONE'
-  IF ( globenv % num_pe > 1 ) nhc % dis_type = 'REP_REP'
+  IF ( globenv%para_env%num_pe > 1 ) nhc % dis_type = 'REP_REP'
   SELECT CASE (simpar%ensemble)
   CASE  DEFAULT
     ALLOCATE ( nhc % nvt ( 0, 0 ), STAT = isos )
@@ -295,7 +295,7 @@ SUBROUTINE nhc_to_particle_mapping ( simpar, local_molecules, molecule_set, &
 ! from different processors
 !
     nhc % dis_type = 'NONE'
-    IF ( globenv % num_pe > 1 ) THEN
+    IF ( globenv%para_env%num_pe > 1 ) THEN
       IF ( nointer ) THEN
         nhc % dis_type = 'DIS_REP' ! DIStributed thermostats, no interaction
 ! we only count thermostats on this processor
@@ -455,7 +455,7 @@ SUBROUTINE nhc_to_particle_mapping ( simpar, local_molecules, molecule_set, &
 
 ! Communicate the total_number thermostat
     number_total = number
-    CALL mp_sum ( number_total, globenv % group )
+    CALL mp_sum ( number_total, globenv%para_env%group )
 
 ! DEAL WITH DIS & MASSIVE CASE
     IF ( nhc % dis_type == 'NONE' .OR. nhc % dis_type == 'DIS_REP' ) THEN
@@ -589,7 +589,7 @@ SUBROUTINE nhc_to_particle_mapping ( simpar, local_molecules, molecule_set, &
 
 ! if thermostats are replicated but molecules distributed, we have to
 ! sum s_kin over all processors
-    IF ( nhc % dis_type == 'INTER_REP' ) CALL mp_sum ( nhc % s_kin, globenv % group )
+    IF ( nhc % dis_type == 'INTER_REP' ) CALL mp_sum ( nhc % s_kin, globenv%para_env%group )
 
 !
 ! Now that we know how many there are stick this into nhc%static%nkt
@@ -717,7 +717,7 @@ END SUBROUTINE nhc_to_particle_mapping
 
 ! coefficients are local. communications needed only with GLOBAL
     nhc % dis_type = 'NONE'
-    IF ( globenv % num_pe > 1 ) THEN
+    IF ( globenv%para_env%num_pe > 1 ) THEN
       IF ( nointer ) THEN
         nhc % dis_type = 'DIS_REP'
       ELSE
@@ -781,7 +781,7 @@ END SUBROUTINE nhc_to_particle_mapping
 
 ! if thermostats are replicated but molecules distributed, we have to
 ! sum s_kin over all processors
-    IF ( nhc % dis_type == 'INTER_REP' ) CALL mp_sum ( nhc % s_kin, globenv % group )
+    IF ( nhc % dis_type == 'INTER_REP' ) CALL mp_sum ( nhc % s_kin, globenv%para_env%group )
 
 !
 ! Now that we know how many there are stick this into nhc % static % nkt
@@ -840,10 +840,10 @@ END SUBROUTINE nhc_to_particle_mapping
     END DO
   END DO
 
-  ALLOCATE(array_num_massive_atm(globenv%num_pe), STAT = isos )
+  ALLOCATE(array_num_massive_atm(globenv%para_env%num_pe), STAT = isos )
   IF ( isos /= 0 ) CALL stop_memory ( 'nhc_particle_setup', &
-       'array_num_massive_atm', globenv%num_pe )
-  CALL mp_allgather(num_massive_atm_local,array_num_massive_atm,globenv%group)
+       'array_num_massive_atm', globenv%para_env%num_pe )
+  CALL mp_allgather(num_massive_atm_local,array_num_massive_atm,globenv%para_env%group)
 
   num_massive_atm = SUM(array_num_massive_atm)
   ALLOCATE(massive_atom_list(num_massive_atm), STAT = isos )
@@ -851,19 +851,19 @@ END SUBROUTINE nhc_to_particle_mapping
        'massive_atom_list', num_massive_atm )
 
   offset = 0
-  DO iproc=1,globenv%num_pe
+  DO iproc=1,globenv%para_env%num_pe
     ncount = array_num_massive_atm(iproc)
     ALLOCATE(work(ncount), STAT = isos )
      IF ( isos /= 0 ) CALL stop_memory ( 'nhc_particle_setup', &
        'work', ncount )
-    IF(globenv%mepos == (iproc-1)) THEN
+    IF(globenv%para_env%mepos == (iproc-1)) THEN
       DO i=1,ncount
         work(i) = local_atm_list(i)
       END DO
     ELSE
       work(:) = 0
     END IF
-    CALL mp_bcast(work,iproc-1,globenv%group)
+    CALL mp_bcast(work,iproc-1,globenv%para_env%group)
     DO i=1,ncount
       massive_atom_list(offset+i) = work(i)
     END DO

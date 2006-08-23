@@ -192,7 +192,7 @@ CONTAINS
     ! 3. If reading in from external file, make sure its there first
     !-----------------------------------------------------------------------------
     IF(ff_type%ff_type/="OFF") THEN
-       IF(globenv%ionode) THEN
+       IF(globenv%para_env%ionode) THEN
           INQUIRE(FILE=ff_type%ff_file_name,EXIST=found)
           IF(found) THEN
           ELSE
@@ -4668,7 +4668,7 @@ CONTAINS
          extension=".mmLog",error=error)
     NULLIFY ( rval, rhoval, phi, phip, frho, frhop, rho, rhop )
     IF (.NOT.failure) THEN
-       IF ( globenv % ionode ) THEN
+       IF ( globenv%para_env%ionode ) THEN
           ALLOCATE ( rho ( 5000 ), STAT = stat )
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           rho=0.0_dp
@@ -4731,37 +4731,37 @@ CONTAINS
           IF (iw>0) WRITE ( iw, * ) 'Finished EAM data'
           CLOSE ( unit_number )
        ENDIF
-       CALL mp_bcast ( drar, globenv % source, globenv % group )
-       CALL mp_bcast ( drhoar, globenv % source, globenv % group )
-       CALL mp_bcast ( acutal, globenv % source, globenv % group )
+       CALL mp_bcast ( drar, globenv%para_env%source, globenv % para_env % group )
+       CALL mp_bcast ( drhoar, globenv % para_env % source, globenv % para_env % group )
+       CALL mp_bcast ( acutal, globenv % para_env % source, globenv % para_env % group )
 
        eam % drar = drar
        eam % drhoar = drhoar
        eam % acutal = acutal
 
        CALL reallocate ( rho, 1, 5000 )
-       CALL mp_bcast ( rho, globenv % source, globenv % group )
+       CALL mp_bcast ( rho, globenv%para_env%source, globenv%para_env%group )
 
        CALL reallocate ( rhop, 1, 5000 )
-       CALL mp_bcast ( rhop, globenv % source, globenv % group )
+       CALL mp_bcast ( rhop, globenv%para_env%source, globenv%para_env%group )
 
        CALL reallocate ( rval, 1, 5000 )
-       CALL mp_bcast ( rval, globenv % source, globenv % group )
+       CALL mp_bcast ( rval, globenv%para_env%source, globenv%para_env%group )
 
        CALL reallocate ( rhoval, 1, 5000 )
-       CALL mp_bcast ( rhoval, globenv % source, globenv % group )
+       CALL mp_bcast ( rhoval, globenv%para_env%source, globenv%para_env%group )
 
        CALL reallocate ( phi, 1, 5000 )
-       CALL mp_bcast ( phi, globenv % source, globenv % group )
+       CALL mp_bcast ( phi, globenv%para_env%source, globenv%para_env%group )
 
        CALL reallocate ( phip, 1, 5000 )
-       CALL mp_bcast ( phip, globenv % source, globenv % group )
+       CALL mp_bcast ( phip, globenv%para_env%source, globenv%para_env%group )
 
        CALL reallocate ( frho, 1, 5000 )
-       CALL mp_bcast ( frho, globenv % source, globenv % group )
+       CALL mp_bcast ( frho, globenv%para_env%source, globenv%para_env%group )
 
        CALL reallocate ( frhop, 1, 5000 )
-       CALL mp_bcast ( frhop, globenv % source, globenv % group )
+       CALL mp_bcast ( frhop, globenv%para_env%source, globenv%para_env%group )
 
        eam % rho    = rho 
        eam % rhop   = rhop 

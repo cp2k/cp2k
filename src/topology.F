@@ -439,7 +439,7 @@ CONTAINS
     ! 1. If reading in from external file, make sure its there first
     !-----------------------------------------------------------------------------
     IF(topology%coordinate) THEN
-       IF(globenv%ionode) THEN
+       IF(globenv%para_env%ionode) THEN
           INQUIRE(FILE=topology%coord_file_name,EXIST=found)
           IF(found) THEN
           ELSE

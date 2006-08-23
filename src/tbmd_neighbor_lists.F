@@ -202,7 +202,7 @@ CONTAINS
         END DO
       END DO
 
-      CALL mp_max(dr2_max, globenv%group)
+      CALL mp_max(dr2_max, globenv%para_env%group)
 
       IF (dr2_max > 0.25_dp*verlet_skin**2) THEN
         DO iparticle = 1,nparticle
@@ -253,7 +253,7 @@ CONTAINS
                                       num_update=num_update, &
                                       last_update=last_update, error=error)
 
-      IF ((globenv%print_level >= 2).AND.(globenv%ionode)) THEN
+      IF ((globenv%print_level >= 2).AND.(globenv%para_env%ionode)) THEN
         WRITE(UNIT=globenv%scr, &
               FMT="(/,T2,A,/,T52,A,/,A,T31,A,T49,2(1X,F15.2),/,T2,A,/)")&
           REPEAT("*",79),"INSTANTANEOUS        AVERAGES",&
@@ -949,9 +949,9 @@ CONTAINS
 
 ! -------------------------------------------------------------------------
 
-    group = globenv%group
-    mype = globenv%mepos + 1
-    npe = globenv%num_pe
+    group = globenv%para_env%group
+    mype = globenv%para_env%mepos + 1
+    npe = globenv%para_env%num_pe
 
     ! Allocate work storage
 
@@ -1085,7 +1085,7 @@ CONTAINS
 
 ! -------------------------------------------------------------------------
 
-    mype = globenv%mepos
+    mype = globenv%para_env%mepos
 
     CALL get_cell(cell=cell,&
                   unit_of_length=unit_of_length,&

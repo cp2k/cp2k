@@ -70,7 +70,7 @@ MODULE cp_para_types
 !!   SOURCE
   !***************************************************************************
   TYPE cp_para_env_type
-     LOGICAL :: owns_group
+     LOGICAL :: owns_group, ionode
      INTEGER :: mepos, source, num_pe, ref_count
      INTEGER :: group
   END TYPE cp_para_env_type

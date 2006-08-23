@@ -117,16 +117,13 @@ MODULE global_types
      TYPE(rng_stream_type), POINTER          :: gaussian_rng_stream
      CHARACTER(LEN=default_string_length)    :: default_fft_library,&
                                                 project_name
-     INTEGER :: group        !! group handle for all processors
+
+     INTEGER :: scr          !! output unit
+
      INTEGER :: idum         !! random number seed
-     INTEGER :: mepos        !! position number for local processor
-     INTEGER :: num_pe       !! total number of processors
      INTEGER :: print_level  !! how much information is written
      INTEGER :: prog_name_id !! index to define the type of program
      INTEGER :: run_type_id  !! index to define the run_tupe
-     INTEGER :: scr          !! output unit
-     INTEGER :: source       !! processor id for global output node
-     LOGICAL :: ionode       !! this processor performs global output
      INTEGER :: blacs_grid_layout !! will store the user preference for the blacs grid
      REAL(KIND=dp) :: cp2k_start_time, cp2k_target_time
      TYPE(section_vals_type), POINTER :: input_file
@@ -191,14 +188,9 @@ CONTAINS
        globenv%default_fft_library="FFTSG"
        globenv%prog_name_id=0
        globenv%project_name=""
-       globenv%group=para_env%group
        globenv%idum=0                 !! random number seed
-       globenv%mepos=para_env%mepos
-       globenv%num_pe=para_env%num_pe
        globenv%print_level=1
        globenv%scr=output_unit
-       globenv%source=para_env%source
-       globenv%ionode=(para_env%source==para_env%mepos)
        globenv%blacs_grid_layout=BLACS_GRID_SQUARE
        globenv%cp2k_start_time=m_walltime()
        NULLIFY(globenv%input_file)
@@ -277,7 +269,7 @@ SUBROUTINE globenv_release(globenv, error)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: stat
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure,was_ionode
 
   failure=.FALSE.
   
@@ -286,12 +278,13 @@ SUBROUTINE globenv_release(globenv, error)
      globenv%ref_count=globenv%ref_count-1
      IF (globenv%ref_count==0) THEN
         CALL section_vals_release(globenv%input_file,error=error)
+        was_ionode=globenv%para_env%ionode
         CALL cp_para_env_release(globenv%para_env,error=error)
         IF (ASSOCIATED(globenv%gaussian_rng_stream)) THEN
           CALL delete_rng_stream(globenv%gaussian_rng_stream)
         END IF
         IF (globenv%close_output_unit) THEN
-           IF (globenv%ionode) CALL close_file(globenv%scr)
+           IF (was_ionode) CALL close_file(globenv%scr)
         END IF
         DEALLOCATE(globenv,stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)

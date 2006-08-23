@@ -1066,9 +1066,9 @@ CONTAINS
     IF (BTEST(cp_print_key_should_output(logger%iter_info,globenv%input_file,&
          "GLOBAL%PERFORMANCE/MEMORY",error=error),cp_p_file)) THEN
 
-       group = globenv%group
-       npe = globenv%num_pe
-       mype = globenv%mepos
+       group = globenv%para_env%group
+       npe = globenv%para_env%num_pe
+       mype = globenv%para_env%mepos
 
        DO ipe=0,npe-1
           WRITE (UNIT=string,FMT="(I6,A)") ipe,":"//TRIM(checkpoint)

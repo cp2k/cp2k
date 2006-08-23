@@ -142,7 +142,7 @@ SUBROUTINE construct_molecular_states(molecule_set, mo_localized, &
   !-----------------------------------------------------------------------------
   ! 2. 
   !-----------------------------------------------------------------------------
-  IF (globenv%ionode) THEN 
+  IF (globenv%para_env%ionode) THEN 
      unit_report=171
      OPEN(unit_report,FILE="Molecular_DOS")
      WRITE(unit_report,*) SIZE(mo_eigenvalues)," number of states " 
@@ -229,16 +229,16 @@ SUBROUTINE construct_molecular_states(molecule_set, mo_localized, &
 
     CALL cp_fm_syevd ( d, e_vectors, evals )
 
-    IF (globenv%ionode) WRITE(globenv%scr,*)"" 
-    IF (globenv%ionode) WRITE(globenv%scr,*)"MOLECULE ",imol
-    IF (globenv%ionode) WRITE(globenv%scr,*)"NUMBER OF STATES  ", ns
-    IF (globenv%ionode) WRITE(globenv%scr,*)"EIGENVALUES"
-    IF (globenv%ionode) WRITE(globenv%scr,*)"" 
+    IF (globenv%para_env%ionode) WRITE(globenv%scr,*)"" 
+    IF (globenv%para_env%ionode) WRITE(globenv%scr,*)"MOLECULE ",imol
+    IF (globenv%para_env%ionode) WRITE(globenv%scr,*)"NUMBER OF STATES  ", ns
+    IF (globenv%para_env%ionode) WRITE(globenv%scr,*)"EIGENVALUES"
+    IF (globenv%para_env%ionode) WRITE(globenv%scr,*)"" 
 
     DO k=1,ns
-      IF (globenv%ionode) WRITE(globenv%scr,*) evals(k)
+      IF (globenv%para_env%ionode) WRITE(globenv%scr,*) evals(k)
     END DO
-    IF (globenv%ionode) THEN
+    IF (globenv%para_env%ionode) THEN
        WRITE(unit_report,*) imol,ns, " imol, number of states"
        DO k=1,ns
           WRITE(unit_report,*) evals(k)
@@ -264,7 +264,7 @@ SUBROUTINE construct_molecular_states(molecule_set, mo_localized, &
     DO i=1,ns
        DO k=1,ncol_global
           CALL cp_fm_get_element(D_igk,i,k,tmp)
-          IF (globenv%ionode) THEN
+          IF (globenv%para_env%ionode) THEN
              WRITE(unit_report,*) tmp**2
           ENDIF
        ENDDO
@@ -291,12 +291,12 @@ SUBROUTINE construct_molecular_states(molecule_set, mo_localized, &
           unit_nr=cp_print_key_unit_nr(logger,force_env_section,&
                "DFT%PRINT%MOLECULAR_STATES%CUBES",&
                extension=".cube",middle_name=TRIM(filename),log_filename=.FALSE.,error=error)
-          CALL rs_pw_to_cube(wf_r%pw,unit_nr,globenv%ionode,filename,&
+          CALL rs_pw_to_cube(wf_r%pw,unit_nr,globenv%para_env%ionode,filename,&
                stride=section_get_ival(force_env_section,&
                "DFT%PRINT%MOLECULAR_STATES%CUBES%STRIDE"), error=error)
           CALL cp_print_key_finished_output(unit_nr,logger,force_env_section,&
                "DFT%PRINT%MOLECULAR_STATES%CUBES",error=error)
-          IF (globenv%ionode) WRITE(globenv%scr,*) filename
+          IF (globenv%para_env%ionode) WRITE(globenv%scr,*) filename
        END DO
     ENDIF
 
@@ -313,7 +313,7 @@ SUBROUTINE construct_molecular_states(molecule_set, mo_localized, &
   CALL cp_fm_release(smo)
   DEALLOCATE(nstates,STAT=isos)
   IF(isos/=0) CALL stop_memory('construct_molecular_states','nstates')
-  IF (globenv%ionode) CLOSE(unit_report)
+  IF (globenv%para_env%ionode) CLOSE(unit_report)
   !CALL stop_program("molecular_states","checkpoint")
 !------------------------------------------------------------------------------
 END SUBROUTINE construct_molecular_states

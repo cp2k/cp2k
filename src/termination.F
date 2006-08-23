@@ -300,7 +300,7 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     IF (PRESENT(globenv)) THEN
-      ionode = globenv%ionode
+      ionode = globenv%para_env%ionode
     ELSE
       ionode = .TRUE.
     END IF
@@ -333,7 +333,7 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     IF (PRESENT(globenv)) THEN
-      ionode = globenv%ionode
+      ionode = globenv%para_env%ionode
     ELSE
       ionode = .TRUE.
     END IF

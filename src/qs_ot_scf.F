@@ -147,7 +147,7 @@ CONTAINS
 
     ! write OT output
 
-    IF (globenv%ionode) THEN
+    IF (globenv%para_env%ionode) THEN
     WRITE(globenv%scr,'(A)') " "
     WRITE(globenv%scr,'(A)') "  ----------------------------------- OT --------------------------------------"
     WRITE(globenv%scr,'(A)') " "

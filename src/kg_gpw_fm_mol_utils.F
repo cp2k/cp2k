@@ -807,8 +807,8 @@ CONTAINS
 
     failure = .FALSE.
 
-    group = globenv%group
-    source = globenv%source
+    group = globenv%para_env%group
+    source = globenv%para_env%source
 
     method ="KG_GPW"
     nmolecule_kind = SIZE(kg_fm%kg_fm_mol_set)
@@ -817,7 +817,7 @@ CONTAINS
     nao_max = kg_fm%nao_max
     nmo_max = kg_fm%nmo_max
 
-    IF (globenv%ionode) THEN
+    IF (globenv%para_env%ionode) THEN
 
        CALL section_vals_val_get(force_env_section,"DFT%RESTART_FILE_NAME",&
             c_val=file_name,error=error)
@@ -904,7 +904,7 @@ CONTAINS
              ! write them down in the restart
              ! and ciaociao
              imol_found = 1
-             imol_proc = globenv%mepos
+             imol_proc = globenv%para_env%mepos
              CALL get_fm_mol_block(fm_mol_block=mol_block, mos = mos)
              DO ispin = 1,nspins
                 mo_set => mos(ispin)%mo_set
@@ -929,11 +929,11 @@ CONTAINS
       CALL mp_sum(imol_found,group)
 
       IF(imol_found==0 ) THEN
-        IF(globenv%ionode) &
+        IF(globenv%para_env%ionode) &
            WRITE(globenv%scr,*) " WRITE RESTART : ", imol_global, " MOLECULE NOT FOUND ON ANY PROC. "
         CALL stop_program (routineP,"Error ")
       ELSEIF(imol_found >=2 ) THEN
-        IF(globenv%ionode) &
+        IF(globenv%para_env%ionode) &
              WRITE(globenv%scr,*) " WRITE RESTART : ", imol_global, " ON MORE THAN ONE PROC. "
         CALL stop_program (routineP,"Error ")
       ELSE 
@@ -943,7 +943,7 @@ CONTAINS
         CALL mp_sum(occ_buffer,group)
 
         DO ispin = 1,nspins
-         IF(globenv%ionode.AND.(n_mo(ispin)>0)) THEN
+         IF(globenv%para_env%ionode.AND.(n_mo(ispin)>0)) THEN
            WRITE (restart_unit) imol_global , ispin
            WRITE (restart_unit) n_mo(ispin),n_ao,&
                                 nelectron_spin(ispin)
@@ -967,7 +967,7 @@ CONTAINS
     DEALLOCATE(occ_buffer,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-    IF (globenv%ionode) CALL close_file(unit_number=restart_unit)
+    IF (globenv%para_env%ionode) CALL close_file(unit_number=restart_unit)
 
     CALL timestop(0.0_dp,handle)
 
@@ -1051,8 +1051,8 @@ CONTAINS
 
     failure = .FALSE.
 
-    group = globenv%group
-    source = globenv%source
+    group = globenv%para_env%group
+    source = globenv%para_env%source
 
     method ="KG_GPW"
     nmolecule_kind = SIZE(kg_fm%kg_fm_mol_set)
@@ -1061,7 +1061,7 @@ CONTAINS
     nao_max = kg_fm%nao_max
     nmo_max = kg_fm%nmo_max
 
-    IF (globenv%ionode) THEN
+    IF (globenv%para_env%ionode) THEN
 
       CALL section_vals_val_get(force_env_section,"DFT%RESTART_FILE_NAME",&
             c_val=file_name,error=error)
@@ -1153,7 +1153,7 @@ CONTAINS
       CALL dcopy(nmo_max*nspins,0.0_dp,0,eig_buffer(1,1),1)
       CALL dcopy(nmo_max*nspins,0.0_dp,0,occ_buffer(1,1),1)
  
-      IF(globenv%ionode) THEN
+      IF(globenv%para_env%ionode) THEN
         DO ispin = 1,nspins
           READ (restart_unit) imol_global_read , ispin_read
           READ (restart_unit) n_mo_read(ispin),n_ao_read,&
@@ -1188,7 +1188,7 @@ CONTAINS
              ! fill the correct mo_set one spin at a time
              ! and ciaociao
              imol_found = 1
-             imol_proc = globenv%mepos
+             imol_proc = globenv%para_env%mepos
 
              IF(n_ao /= n_ao_read) CALL stop_program(routineP,"RESTART READ: different number of AO")
 
@@ -1226,7 +1226,7 @@ CONTAINS
     DEALLOCATE(occ_buffer,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
-    IF (globenv%ionode) CALL close_file(unit_number=restart_unit)
+    IF (globenv%para_env%ionode) CALL close_file(unit_number=restart_unit)
 
     CALL timestop(0.0_dp,handle)
 

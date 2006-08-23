@@ -84,7 +84,7 @@ MODULE qs_numerical_pressure
        CALL force_env_get(force_env,subsys=subsys,globenv=globenv,error=error)       
        iw = globenv%scr
  
-       IF (globenv%ionode) THEN
+       IF (globenv%para_env%ionode) THEN
        WRITE ( iw, '( /A,A/ )' ) ' **************************** ', &
            'NUMERICAL STRESS ********************************'
        END IF
@@ -155,7 +155,7 @@ MODULE qs_numerical_pressure
          numer_stress(ip) = (numer_energy(1) - numer_energy(2) ) / (2.0_dp*Dx)                
          virial%pv_virial(ip,ip) = (-1.0_dp)*numer_stress(ip) * cell_local%hmat(ip,ip)
          IF (globenv%run_type_id.EQ.qs_debug_run) THEN
-           IF (globenv%ionode) THEN
+           IF (globenv%para_env%ionode) THEN
               WRITE(iw,'(/A/A,I1,A,I1,A,F15.9)')"----- NUMERICAL STRESS -----",&
                 "pv_virial(",ip,",",ip,"): ",virial%pv_virial(ip,ip)
            END IF
@@ -185,7 +185,7 @@ MODULE qs_numerical_pressure
        CALL set_qs_env (force_env % qs_env, ks_env=new_ks_env )
        CALL qs_ks_release ( new_ks_env )
 
-       IF (globenv%ionode) THEN
+       IF (globenv%para_env%ionode) THEN
        WRITE ( iw, '( /A,A/ )' ) ' **************************** ', &
            'NUMERICAL STRESS END *****************************'
        END IF

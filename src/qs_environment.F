@@ -365,7 +365,7 @@ CONTAINS
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
 
-    ionode = globenv%ionode
+    ionode = globenv%para_env%ionode
     IF(ionode) output_unit = globenv%scr
     was_present = .FALSE.
 
@@ -583,7 +583,7 @@ CONTAINS
       IF(cell%perd(2)==1) rc = MIN(rc,0.5_dp*plane_distance(0,1,0,cell))
       IF(cell%perd(3)==1) rc = MIN(rc,0.5_dp*plane_distance(0,0,1,cell))
       IF (rc /= se_control%rc_interaction) THEN
-         IF (globenv%ionode) THEN
+         IF (globenv%para_env%ionode) THEN
            WRITE(globenv%scr,*)
            WRITE(globenv%scr,'(A,T34,A)')     " WARNING|",&
                                    " Integral interaction cutoff has been redefined"
@@ -711,7 +711,7 @@ CONTAINS
 
     IF (dft_control%roks.AND.(.NOT.scf_control%use_ot)) THEN
       IF (scf_control%roks_scheme == general_roks) THEN
-        IF (globenv%ionode) THEN
+        IF (globenv%para_env%ionode) THEN
           CALL print_message("WARNING: General ROKS scheme is not yet tested",&
                              globenv%scr,2,1,1)
         END IF
@@ -739,11 +739,11 @@ CONTAINS
     ! at as few places as possible, just duplicating the beta orbitals
     IF (dft_control%restricted) THEN
        ! it is really not yet tested till the end ! Joost
-       IF (globenv%ionode) WRITE(globenv%scr,*) ""
-       IF (globenv%ionode) WRITE(globenv%scr,*) " **************************************"
-       IF (globenv%ionode) WRITE(globenv%scr,*) " restricted calculation cutting corners"
-       IF (globenv%ionode) WRITE(globenv%scr,*) " experimental feature, check code      "
-       IF (globenv%ionode) WRITE(globenv%scr,*) " **************************************"
+       IF (globenv%para_env%ionode) WRITE(globenv%scr,*) ""
+       IF (globenv%para_env%ionode) WRITE(globenv%scr,*) " **************************************"
+       IF (globenv%para_env%ionode) WRITE(globenv%scr,*) " restricted calculation cutting corners"
+       IF (globenv%para_env%ionode) WRITE(globenv%scr,*) " experimental feature, check code      "
+       IF (globenv%para_env%ionode) WRITE(globenv%scr,*) " **************************************"
     ENDIF
 
     DO ispin=1,dft_control%nspins

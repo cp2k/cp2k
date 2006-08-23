@@ -304,7 +304,7 @@ CONTAINS
        n=SIZE(x0)
        optimizer%m=4
        IF (PRESENT(m)) optimizer%m=m
-       optimizer%master= globenv%source
+       optimizer%master= globenv%para_env%source
        optimizer%para_env => para_env
        CALL cp_para_env_retain(para_env)
        optimizer%obj_funct => obj_funct

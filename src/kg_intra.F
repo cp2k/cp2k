@@ -104,8 +104,8 @@ CONTAINS
 
     CALL timeset("calculate_ebond_corr","I","",handle)
 
-    group = globenv%group
-    ionode = globenv%ionode
+    group = globenv%para_env%group
+    ionode = globenv%para_env%ionode
     output_unit = globenv%scr
     prefac = (1.0_dp/pi)**1.5_dp
 

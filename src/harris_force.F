@@ -232,11 +232,11 @@ CONTAINS
                                            error=error)
 
       DO ikind = 1,SIZE(force)
-        CALL mp_sum(force(ikind)%kinetic, globenv%group)
-        CALL mp_sum(force(ikind)%overlap, globenv%group)
-        CALL mp_sum(force(ikind)%gth_ppl, globenv%group)
-        CALL mp_sum(force(ikind)%gth_ppnl, globenv%group)
-        CALL mp_sum(force(ikind)%core_overlap, globenv%group)
+        CALL mp_sum(force(ikind)%kinetic, globenv%para_env%group)
+        CALL mp_sum(force(ikind)%overlap, globenv%para_env%group)
+        CALL mp_sum(force(ikind)%gth_ppl, globenv%para_env%group)
+        CALL mp_sum(force(ikind)%gth_ppnl, globenv%para_env%group)
+        CALL mp_sum(force(ikind)%core_overlap, globenv%para_env%group)
       END DO
 
       DO iatom = 1, natom
@@ -290,7 +290,7 @@ CONTAINS
       END DO
 
       DO ikind = 1,SIZE(force)
-        CALL mp_sum(force(ikind)%rho_elec, globenv%group)
+        CALL mp_sum(force(ikind)%rho_elec, globenv%para_env%group)
       END DO
 
       DO iatom = 1, natom
@@ -378,7 +378,7 @@ CONTAINS
       END IF
 
       DO ikind = 1,SIZE(force)
-        CALL mp_sum(force(ikind)%rho_elec, globenv%group)
+        CALL mp_sum(force(ikind)%rho_elec, globenv%para_env%group)
       END DO
 
       DO iatom = 1, natom
@@ -422,7 +422,7 @@ CONTAINS
       CALL pw_pool_give_back_coeff(auxbas_pw_pool, v_hartree_rspace, error=error)
 
       DO ikind = 1,SIZE(force)
-        CALL mp_sum(force(ikind)%rho_core, globenv%group)
+        CALL mp_sum(force(ikind)%rho_core, globenv%para_env%group)
       END DO
       
       DO iatom = 1, natom
@@ -607,10 +607,10 @@ CONTAINS
                                          calculate_forces=.TRUE.,error=error)
 
       DO ikind = 1,SIZE(force)
-        CALL mp_sum(force(ikind)%kinetic, globenv%group)
-        CALL mp_sum(force(ikind)%overlap, globenv%group)
-        CALL mp_sum(force(ikind)%gth_ppl, globenv%group)
-        CALL mp_sum(force(ikind)%gth_ppnl, globenv%group)
+        CALL mp_sum(force(ikind)%kinetic, globenv%para_env%group)
+        CALL mp_sum(force(ikind)%overlap, globenv%para_env%group)
+        CALL mp_sum(force(ikind)%gth_ppl, globenv%para_env%group)
+        CALL mp_sum(force(ikind)%gth_ppnl, globenv%para_env%group)
       END DO
 
       DO iatom = 1, natom
@@ -665,7 +665,7 @@ CONTAINS
       END DO
 
       DO ikind = 1,SIZE(force)
-        CALL mp_sum(force(ikind)%rho_elec, globenv%group)
+        CALL mp_sum(force(ikind)%rho_elec, globenv%para_env%group)
       END DO
 
       DO iatom = 1, natom
@@ -688,7 +688,7 @@ CONTAINS
       CALL integrate_v_core_rspace(v_hartree_rspace, qs_env)
 
       DO ikind = 1,SIZE(force)
-        CALL mp_sum(force(ikind)%rho_core, globenv%group)
+        CALL mp_sum(force(ikind)%rho_core, globenv%para_env%group)
       END DO
       
       DO iatom = 1, natom
@@ -773,7 +773,7 @@ CONTAINS
       END IF
 
       DO ikind = 1,SIZE(force)
-        CALL mp_sum(force(ikind)%rho_elec, globenv%group)
+        CALL mp_sum(force(ikind)%rho_elec, globenv%para_env%group)
       END DO
 
       DO iatom = 1, natom
@@ -813,7 +813,7 @@ CONTAINS
       CALL integrate_v_core_rspace(v_hartree_rspace, qs_env)
 
       DO ikind = 1,SIZE(force)
-        CALL mp_sum(force(ikind)%rho_core, globenv%group)
+        CALL mp_sum(force(ikind)%rho_core, globenv%para_env%group)
       END DO
       
       DO iatom = 1, natom
@@ -907,7 +907,7 @@ CONTAINS
       END IF
 
       DO ikind = 1,SIZE(force)
-        CALL mp_sum(force(ikind)%rho_elec, globenv%group)
+        CALL mp_sum(force(ikind)%rho_elec, globenv%para_env%group)
       END DO
 
       DO iatom = 1, natom
@@ -935,7 +935,7 @@ CONTAINS
       harris_force%f_total(:) = 0.0_dp
 
       DO ikind = 1,SIZE(force)
-        CALL mp_sum(force(ikind)%core_overlap, globenv%group)
+        CALL mp_sum(force(ikind)%core_overlap, globenv%para_env%group)
       END DO
 
       DO iatom = 1, natom
@@ -1121,7 +1121,7 @@ CONTAINS
       END DO
 
       DO ikind = 1,SIZE(force)
-        CALL mp_sum(force(ikind)%rho_elec, globenv%group)
+        CALL mp_sum(force(ikind)%rho_elec, globenv%para_env%group)
       END DO
 
       DO iatom = 1, natom
@@ -1152,7 +1152,7 @@ CONTAINS
       CALL pw_pool_give_back_coeff(auxbas_pw_pool, v_hartree_rspace, error=error)
 
       DO ikind = 1,SIZE(force)
-        CALL mp_sum(force(ikind)%rho_elec, globenv%group)
+        CALL mp_sum(force(ikind)%rho_elec, globenv%para_env%group)
       END DO
 
       DO iatom = 1, natom
@@ -1183,7 +1183,7 @@ CONTAINS
       END DO
 
       DO ikind = 1,SIZE(force)
-        CALL mp_sum(force(ikind)%rho_elec, globenv%group)
+        CALL mp_sum(force(ikind)%rho_elec, globenv%para_env%group)
       END DO
 
       DO iatom = 1, natom
@@ -1261,7 +1261,7 @@ CONTAINS
       END IF
 
       DO ikind = 1,SIZE(force)
-        CALL mp_sum(force(ikind)%rho_elec, globenv%group)
+        CALL mp_sum(force(ikind)%rho_elec, globenv%para_env%group)
       END DO
 
       DO iatom = 1, natom

@@ -118,7 +118,7 @@ CONTAINS
     CALL cp_add_iter_level(logger%iter_info,"GEO_OPT",ihandle,error)
     failure = .FALSE.
     IF (.NOT.failure) THEN
-       ionode      = globenv%ionode
+       ionode      = globenv%para_env%source==globenv%para_env%mepos
        output_unit = cp_print_key_unit_nr(logger,globenv%input_file,&
          "MOTION%GEOOPT%PRINT%PROGRAM_RUN_INFO",&
          extension=".geoLog",error=error)
@@ -275,7 +275,7 @@ CONTAINS
                wildcard=wildcard)
           CALL check_converg(SIZE(x0),x0-xold,xi,ionode,output_unit,conv,gopt_param)
           wildcard = "   CG"
-          IF (globenv%ionode) THEN
+          IF (globenv%para_env%ionode) THEN
              dataunit = cp_print_key_unit_nr(logger,globenv%input_file,&
                   "MOTION%PRINT%TRAJECTORY",extension=".xyz",error=error)
              IF (dataunit>0) THEN

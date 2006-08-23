@@ -241,7 +241,7 @@ CONTAINS
     NULLIFY (particle_set)
     NULLIFY (subcell)
 
-    group = globenv%group
+    group = globenv%para_env%group
 
     only_molecule = .FALSE.
     IF (PRESENT(molecular)) only_molecule = molecular

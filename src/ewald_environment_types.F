@@ -419,7 +419,7 @@ SUBROUTINE read_ewald_section ( ewald_env, globenv, ewald_section, error )
   CALL read_ewald_section1(ewald_env, ewald_section, error)
 
   !..end of parsing the input section
-  IF ( globenv % ionode .AND. globenv % print_level .NE. SILENT) THEN
+  IF ( globenv%para_env%ionode .AND. globenv % print_level .NE. SILENT) THEN
      IF ( ewald_env % ewald_type /= do_ewald_none ) THEN
         dummy = cp_unit_from_cp2k(ewald_env % alpha,"angstrom^-1") 
         WRITE ( iw, '( A,T67,A14 )' ) ' Ewald| Summation is done by:', &

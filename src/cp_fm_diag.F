@@ -625,8 +625,8 @@ CONTAINS
     ! Umgebung fuer die Kohn-Sham-Matrix und die Eigenvektoren uebernehmen
 
     context =>  matrix%matrix_struct%context
-    source =    matrix%matrix_struct%para_env%source ! globenv%ionode
-    allgrp =    matrix%matrix_struct%para_env%group ! globenv%ionode
+    source =    matrix%matrix_struct%para_env%source 
+    allgrp =    matrix%matrix_struct%para_env%group 
 
     myprow=context%mepos(1)
     mypcol=context%mepos(2)

@@ -239,7 +239,7 @@ CONTAINS
 
        IF (BTEST(cp_print_key_should_output(logger%iter_info,print_pot,error=error),&
             cp_p_file).AND.logger%para_env%mepos==logger%para_env%source) THEN
-          IF (globenv%ionode) THEN
+          IF (globenv%para_env%ionode) THEN
              iw = globenv%scr
              npt = REAL(ncoarset,KIND=dp)*REAL(ndim,KIND=dp)*REAL(SIZE(mm_atom_index),KIND=dp)
              npl = REAL(ncoarsel,KIND=dp)*REAL(ndim,KIND=dp)*REAL(SIZE(mm_atom_index),KIND=dp)

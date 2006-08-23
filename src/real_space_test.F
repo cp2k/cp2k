@@ -101,7 +101,7 @@ SUBROUTINE rs_test ( globenv, error )
   NULLIFY(pw_a,pw_b,pw_c)
   NULLIFY(box)
   CALL cell_create(box)
-  IF ( globenv % ionode ) &
+  IF ( globenv%para_env%ionode ) &
        WRITE(iw,'(/,A,/)') " Test of Real Space Grid Routines"
   NULLIFY(grid)
 
@@ -122,7 +122,7 @@ SUBROUTINE rs_test ( globenv, error )
 
   np ( : ) =  128
 
-  IF ( globenv % ionode ) THEN
+  IF ( globenv%para_env%ionode ) THEN
     CALL RANDOM_NUMBER ( coord )
     coord = MATMUL ( box % hmat, coord )
     CALL RANDOM_NUMBER ( bval )
@@ -130,9 +130,9 @@ SUBROUTINE rs_test ( globenv, error )
     CALL RANDOM_NUMBER ( bval )
     bval = bval * 0.001_dp
   END IF
-  CALL mp_bcast ( coord, globenv%source, globenv%group )
-  CALL mp_bcast ( bsize, globenv%source, globenv%group )
-  CALL mp_bcast ( bval , globenv%source, globenv%group )
+  CALL mp_bcast ( coord, globenv%para_env%source, globenv%para_env%group )
+  CALL mp_bcast ( bsize, globenv%para_env%source, globenv%para_env%group )
+  CALL mp_bcast ( bval , globenv%para_env%source, globenv%para_env%group )
 
   DO i = 1, nparticle
     s = MATMUL ( box % h_inv, coord ( :, i ) )
@@ -146,7 +146,7 @@ SUBROUTINE rs_test ( globenv, error )
     IF ( refpt ( 3, i ) > np(3) ) refpt ( 3, i ) = refpt ( 3, i ) - np ( 3 )
   END DO
 
-  CALL pw_grid_create ( grid, globenv%group )
+  CALL pw_grid_create ( grid, globenv%para_env%group )
   grid % grid_span = FULLSPACE
   grid % bounds ( 1, : ) = -np / 2
   grid % bounds ( 2, : ) = ( np - 1 ) / 2
@@ -154,12 +154,12 @@ SUBROUTINE rs_test ( globenv, error )
   print_section=>section_vals_get_subs_vals(globenv%input_file, &
                         "TEST%PRINT%GRID_INFORMATION",error=error)
   CALL pw_grid_setup ( box, grid,print_section &
-                       , rs_dims=(/globenv%num_pe,1/) )
+                       , rs_dims=(/globenv%para_env%num_pe,1/) )
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! TEST 1, replicated calculation
 
-  IF ( globenv % ionode ) &
+  IF ( globenv%para_env%ionode ) &
     WRITE(iw,'(///,A,/)') " Start Test 1: Replicated grid, replicated calculation"
   tstart = m_cputime ( )
   CALL rs_grid_create ( rden, grid, -1, error=error)
@@ -191,7 +191,7 @@ SUBROUTINE rs_test ( globenv, error )
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! TEST 2, replicated grid, parallel calculation
 
-  IF ( globenv % ionode ) &
+  IF ( globenv%para_env%ionode ) &
     WRITE(iw,'(/,A,/)') " Start Test 2: Replicated grid, parallel calculation"
   tstart = m_cputime ( )
   CALL rs_grid_create ( rden, grid, -1,  error=error)
@@ -238,7 +238,7 @@ SUBROUTINE rs_test ( globenv, error )
   CALL rs_grid_zero ( rden )
   dir = rden%direction
   IF (dir /= 0) THEN
-     IF ( globenv % ionode ) &
+     IF ( globenv%para_env%ionode ) &
           WRITE(iw,'(/,A,/)') " Start Test 3: Distributed grid, parallel calculation"
      DO i = 1, nparticle
         refco(:,i) = refpt(:,i) + rden%lb(:) - 1
@@ -306,7 +306,7 @@ SUBROUTINE rs_test ( globenv, error )
   t3 = tend - tstart
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  IF ( globenv % ionode ) THEN
+  IF ( globenv%para_env%ionode ) THEN
     WRITE(iw,'(///,A,/)') " Results of Tests"
     WRITE(iw,'(A,T61,F20.4)') " Timing Test 1 [seconds] ",t1
     WRITE(iw,'(A,T61,F20.4)') " Timing Test 2 [seconds] ",t2

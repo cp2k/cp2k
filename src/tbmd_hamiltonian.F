@@ -589,8 +589,8 @@ CONTAINS
 
       END DO
 
-      CALL mp_sum(tbmd_energy%E_repulsion, globenv%group)
-      CALL mp_sum(tbmd_force%f_repulsion, globenv%group)
+      CALL mp_sum(tbmd_energy%E_repulsion, globenv%para_env%group)
+      CALL mp_sum(tbmd_force%f_repulsion, globenv%para_env%group)
 
     END IF
 

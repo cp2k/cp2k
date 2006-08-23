@@ -164,13 +164,13 @@ CONTAINS
     iw = globenv%scr
     CALL timeset(routineN,'I','',handle)
     IF (.NOT.failure) THEN
-       IF((globenv%ionode).AND.(globenv%print_level>0))THEN
+       IF((globenv%para_env%ionode).AND.(globenv%print_level>0))THEN
           WRITE(iw,*) "  Entering qmmm_connectivity_control"
        END IF
        qm_mol_num    = 0
        qm_atom_index => qmmm_env%qm_atom_index
        DO imolecule=1,SIZE(molecule_set)
-          IF ((globenv%ionode).AND.(globenv%print_level>1))&
+          IF ((globenv%para_env%ionode).AND.(globenv%print_level>1))&
                WRITE(iw,*)"Entering molecule number ::",imolecule
           molecule => molecule_set(imolecule)
           CALL get_molecule(molecule,molecule_kind=molecule_kind,&
@@ -183,7 +183,7 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        qm_mol_num    = 0
        DO imolecule=1,SIZE(molecule_set)
-          IF ((globenv%ionode).AND.(globenv%print_level>1))&
+          IF ((globenv%para_env%ionode).AND.(globenv%print_level>1))&
                WRITE(iw,*)"Entering molecule number ::",imolecule
           molecule => molecule_set(imolecule)
           CALL get_molecule(molecule,molecule_kind=molecule_kind,&
@@ -200,7 +200,7 @@ CONTAINS
                 IF (.NOT.ANY(qm_atom_index == i)) detected_link = .TRUE.
              END DO
              IF (detected_link) THEN
-                IF (globenv%ionode) THEN
+                IF (globenv%para_env%ionode) THEN
                     WRITE(iw,fmt='(A)',ADVANCE="NO") " QM/MM link detected..."
                 ENDIF
                 IF (.NOT.qmmm_env%qmmm_link) THEN 
@@ -214,12 +214,12 @@ CONTAINS
        IF (ASSOCIATED(qmmm_env%qm_molecule_index)) DEALLOCATE(qmmm_env%qm_molecule_index)
        NULLIFY(qmmm_env%qm_molecule_index)
        qmmm_env%qm_molecule_index => qm_molecule_index
-       IF((globenv%ionode).AND.(globenv%print_level>0))THEN
+       IF((globenv%para_env%ionode).AND.(globenv%print_level>0))THEN
           WRITE(iw,*) "    QM molecule index ::",qm_molecule_index
           WRITE(iw,*) "  Exiting qmmm_connectivity_control"
        END IF
     END IF
-    IF((globenv%ionode).AND.(globenv%print_level>0))THEN
+    IF((globenv%para_env%ionode).AND.(globenv%print_level>0))THEN
        WRITE(iw,*) "  Leaving qmmm_connectivity_control"
     END IF
     CALL timestop(0.0_dp,handle)

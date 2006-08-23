@@ -102,7 +102,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    group = globenv%group
+    group = globenv%para_env%group
     IF (.NOT.ASSOCIATED(blacs_matrix)) RETURN
     CALL cp_fm_get_info(blacs_matrix,name=matrix_name,&
             nrow_global=nrow_global,ncol_global=ncol_global)
@@ -191,7 +191,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    group = globenv%group
+    group = globenv%para_env%group
 
     IF (output_unit>0) THEN
       CALL m_flush(output_unit)
@@ -313,10 +313,10 @@ CONTAINS
     IF (.NOT.BTEST(cp_print_key_should_output(logger%iter_info,&
          force_env_section,"PRINT%DISTRIBUTION",error=error),cp_p_file)) RETURN
 
-    group = globenv%group
-    ionode = globenv%ionode
-    mype = globenv%mepos + 1
-    npe = globenv%num_pe
+    group = globenv%para_env%group
+    ionode = globenv%para_env%ionode
+    mype = globenv%para_env%mepos + 1
+    npe = globenv%para_env%num_pe
     output_unit = globenv%scr
 
 !   *** Allocate work storage ***
@@ -413,7 +413,7 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    group = globenv%group
+    group = globenv%para_env%group
 
     CALL get_matrix_info(matrix=sparse_matrix,&
                          matrix_name=matrix_name,&

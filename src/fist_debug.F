@@ -119,8 +119,8 @@ SUBROUTINE  debug_control ( force_env, globenv, error)
     TYPE(particle_type), POINTER             :: particle_set( : )
     TYPE(section_vals_type), POINTER         :: force_env_section
 
-  ionode = globenv % ionode
-  group  = globenv % group
+  ionode = globenv%para_env%ionode
+  group  = globenv%para_env%group
   fist_env => force_env % fist_env
 ! associcating local pointers
   CALL get_fist_env ( fist_env, ewald_pw = ewald_pw, ewald_env = ewald_env, &

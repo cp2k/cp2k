@@ -395,7 +395,7 @@ CPSourceFileRef,&
              CALL globenv_release(globenv)
           ELSE
              CALL cp_error_dealloc_ref(suberror)
-             I_was_ionode=globenv%ionode
+             I_was_ionode=globenv%para_env%ionode
              CALL cp2k_finalize(globenv,error)
              CPPostconditionNoFail(globenv%ref_count==1,cp_failure_level,routineP,error)
              CALL globenv_release(globenv)
@@ -458,7 +458,7 @@ CPSourceFileRef,&
     CALL timeset(routineN,'I','',handle)
     NULLIFY(my_parser,g_section,g_data,default_units)
 
-    IF (globenv%ionode) WRITE(globenv%scr,FMT="(T2,A)") "FARMING| Hi, welcome on this farm!"
+    IF (globenv%para_env%ionode) WRITE(globenv%scr,FMT="(T2,A)") "FARMING| Hi, welcome on this farm!"
 
     ALLOCATE(farming_env,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -468,22 +468,22 @@ CPSourceFileRef,&
     CALL farming_parse_input(farming_env,globenv,error)
 
     ! split the current communicator 
-    ALLOCATE(group_distribution(0:globenv%num_pe-1),STAT=stat) 
+    ALLOCATE(group_distribution(0:globenv%para_env%num_pe-1),STAT=stat) 
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     IF (farming_env%group_size_wish_set) THEN
-       CALL mp_comm_split(globenv%group,new_group,ngroups,group_distribution,&
+       CALL mp_comm_split(globenv%para_env%group,new_group,ngroups,group_distribution,&
                subgroup_min_size=farming_env%group_size_wish)
     ELSE IF (farming_env%ngroup_wish_set) THEN
-       CALL mp_comm_split(globenv%group,new_group,ngroups,group_distribution,&
+       CALL mp_comm_split(globenv%para_env%group,new_group,ngroups,group_distribution,&
                n_subgroups=farming_env%ngroup_wish,&
                group_partition=farming_env%group_partition)
     ELSE
        CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
     ENDIF
-    IF (globenv%ionode) THEN
+    IF (globenv%para_env%ionode) THEN
         WRITE(globenv%scr,FMT="(T2,A,T71,I10)") "FARMING| Number of created MPI groups:",ngroups
         WRITE(globenv%scr,FMT="(T2,A)",ADVANCE="NO") "FARMING| Task to group correspondence:"
-        DO i=0,globenv%num_pe-1
+        DO i=0,globenv%para_env%num_pe-1
            IF (MODULO(i,4)==0) WRITE(globenv%scr,*)
            WRITE(globenv%scr,FMT='(A3,I4,A3,I4,A1)',ADVANCE="NO")&
                 "  (",i," : ",group_distribution(i),")"
@@ -504,7 +504,7 @@ CPSourceFileRef,&
     ENDIF
 
     ! and write it now, that's the point where the next job starts, even if this one is running
-    IF (globenv%ionode) THEN
+    IF (globenv%para_env%ionode) THEN
        iunit=get_unit_number()
        OPEN(UNIT=iunit,FILE="RESTARTFARM") 
        WRITE(iunit,*) i_job_to_restart
@@ -515,7 +515,7 @@ CPSourceFileRef,&
     ijob_start=farming_env%restart_n
     ijob_end=ijob_start+n_jobs_to_run-1
 
-    IF (globenv%ionode) THEN
+    IF (globenv%para_env%ionode) THEN
       IF (ijob_end-ijob_start<0) THEN
         WRITE(globenv%scr,FMT="(T2,A)") "FARMING| --- WARNING --- NO JOBS NEED EXECUTION ? "
         WRITE(globenv%scr,FMT="(T2,A)") "FARMING| is the cycle keyword required ?"
@@ -533,7 +533,7 @@ CPSourceFileRef,&
     DO ijob=ijob_start,ijob_end
        i=MODULO(ijob-1,farming_env%njobs)+1
        ! this farms out the jobs
-       IF (MODULO(ijob-1,ngroups)==group_distribution(globenv%mepos)) THEN
+       IF (MODULO(ijob-1,ngroups)==group_distribution(globenv%para_env%mepos)) THEN
           ! change to the new working directory
           CALL m_chdir(TRIM(farming_env%Job_cwd(i)),ierr)
 
@@ -575,7 +575,7 @@ CPSourceFileRef,&
                 output_unit=999 
              ENDIF
           
-              IF (globenv%ionode) WRITE(globenv%scr,FMT="(T2,A,I5.5,A)") " Running Job ",i, &
+              IF (globenv%para_env%ionode) WRITE(globenv%scr,FMT="(T2,A,I5.5,A)") " Running Job ",i, &
                         " output to "//TRIM(farming_env%Job_cwd(i))//"/"//TRIM(output_file)
               run_OK=cp2k_run(TRIM(farming_env%Job_input(i)),output_unit,new_group)
               
@@ -585,14 +585,14 @@ CPSourceFileRef,&
               ENDIF
 
           ELSE ! problem if just one node does not change...
-              IF (globenv%ionode) WRITE(globenv%scr,FMT="(T2,A,A)") &
+              IF (globenv%para_env%ionode) WRITE(globenv%scr,FMT="(T2,A,A)") &
                      " ... Failed to change dir to "//TRIM(farming_env%Job_cwd(i))
           ENDIF
 
           ! change to the original working directory
           CALL m_chdir(TRIM(farming_env%cwd),ierr)
           IF (ierr/=0) THEN
-              IF (globenv%ionode) WRITE(globenv%scr,FMT="(T2,A,A)") &
+              IF (globenv%para_env%ionode) WRITE(globenv%scr,FMT="(T2,A,A)") &
                          " ... Failed to change back home to "//TRIM(farming_env%cwd)
           ENDIF
 
@@ -607,7 +607,7 @@ CPSourceFileRef,&
     ! clean the farming env
     CALL deallocate_farming_env(farming_env)
 
-    CALL mp_sync(globenv%group)
+    CALL mp_sync(globenv%para_env%group)
 
     CALL timestop(0.0_dp,handle)
 

@@ -446,7 +446,7 @@ CONTAINS
 
     nfree = 3*natom - nconstraint - simpar%nfree
 
-    IF (globenv%ionode.AND.globenv%print_level > 2) THEN
+    IF (globenv%para_env%ionode.AND.globenv%print_level > 2) THEN
        iw = globenv % scr
        WRITE ( iw, '( /, A )' ) ' Calculation of degrees of freedom'
        WRITE ( iw, '( T48, A, T71, I10 )' ) '       Number of atoms:', natom

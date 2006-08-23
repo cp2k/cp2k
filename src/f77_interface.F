@@ -655,7 +655,7 @@ END SUBROUTINE f_env_rm_defaults
     CALL section_vals_val_get(input_file,"GLOBAL%ECHO_INPUT",&
          l_val=my_echo,error=error)
     ! echo after check?
-    IF (globenv%ionode.and.my_echo) THEN
+    IF (globenv%para_env%ionode.and.my_echo) THEN
        CALL section_vals_write(input_file,unit_nr=globenv%scr,hide_root=.TRUE.,&
             error=error)
     END IF
@@ -758,7 +758,7 @@ CPSourceFileRef,&
     mp_perf_env => get_mp_perf_env()
     last_f_env_id=last_f_env_id+1
     new_env_id=last_f_env_id
-    CALL mp_max(last_f_env_id,globenv%group)
+    CALL mp_max(last_f_env_id,globenv%para_env%group)
     n_f_envs=n_f_envs+1
     CALL f_env_create(f_envs(n_f_envs)%f_env,template_error=error,&
          timer_env=timer_env,mp_perf_env=mp_perf_env,force_env=force_env,&

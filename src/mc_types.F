@@ -509,9 +509,9 @@ SUBROUTINE read_mc_section ( mc_par, globenv, input_file_name, input_file, force
       mc_par % input_file => input_file
 
 ! set the ionode and mepos
-      mc_par % ionode = globenv % ionode
-      mc_par % group = globenv % group
-      mc_par % source = globenv % source
+      mc_par % ionode = globenv%para_env%ionode
+      mc_par % group = globenv%para_env%group
+      mc_par % source = globenv%para_env%source
 
 !..defaults
       mc_par % rmbond = 0.1d0
@@ -539,7 +539,7 @@ SUBROUTINE read_mc_section ( mc_par, globenv, input_file_name, input_file, force
       END SELECT
  
       iw = globenv % scr
-      IF(globenv%ionode) WRITE ( iw, * )
+      IF(globenv%para_env%ionode) WRITE ( iw, * )
 
 !..filenames
       mc_par % program = input_file_name

@@ -218,7 +218,7 @@ CONTAINS
          "MD",error=error)
     CALL read_md_new_section(simpar, globenv,  md_section, subsys_section, error)
 
-    IF (globenv%ionode.AND.(globenv%print_level >= 0)) THEN
+    IF (globenv%para_env%ionode.AND.(globenv%print_level >= 0)) THEN
        WRITE (iw, *)
     END IF
 
@@ -233,7 +233,7 @@ CONTAINS
 
     IF (globenv%run_type_id == hmc_run .OR. globenv%run_type_id == ldmc_run) THEN
 
-       IF (globenv%ionode.AND.(globenv%print_level >= 0)) THEN
+       IF (globenv%para_env%ionode.AND.(globenv%print_level >= 0)) THEN
           WRITE ( iw, '( A,T71,I10 )' ) ' HMC| Number of Harris LD steps per MC cycle ', &
                simpar%ld_steps
           WRITE ( iw, '( A,T71,F10.2 )' ) ' HMC| Temperature correction value alpha ', &
@@ -300,7 +300,7 @@ CONTAINS
 
       simpar%var_w = 2.0_dp*simpar%temp_ext*simpar%dt*simpar%gamma
 
-      IF (globenv%ionode.AND.(globenv%print_level >= 0)) THEN
+      IF (globenv%para_env%ionode.AND.(globenv%print_level >= 0)) THEN
         tmp_r = cp_unit_from_cp2k(simpar%gamma,"fs^-1",error=error)
         WRITE (UNIT=iw,FMT="(T2,A,T71,ES10.3)")&
           "LD| Gamma [1/fs] ",tmp_r,&
@@ -312,7 +312,7 @@ CONTAINS
     !MK End setup Langevin dynamics
 
     !..write some information to output
-    IF (globenv % ionode .AND. globenv % print_level>=0) THEN
+    IF (globenv%para_env%ionode .AND. globenv % print_level>=0) THEN
        CALL get_cp2k_units ( unit )
        WRITE ( iw, '( A )' ) ' MD| Molecular Dynamics Protocol '
        WRITE ( iw, '( A,T61,A )' ) ' MD| Output Format ', &
@@ -782,7 +782,7 @@ CONTAINS
        vcom_new=vcom
     ELSE
        ! initializing velocities
-       IF (globenv % ionode) THEN
+       IF (globenv%para_env%ionode) THEN
           ! computing the COM velocities
           DO i = 1, natoms
              atomic_kind => part ( i ) % atomic_kind
@@ -851,9 +851,9 @@ CONTAINS
           END DO
        END IF
 #if defined(__parallel)
-       CALL mp_bcast ( mass_tot, globenv % source, globenv % group )
+       CALL mp_bcast ( mass_tot, globenv%para_env%source, globenv%para_env%group )
        DO i = 1, natoms
-          CALL mp_bcast ( part ( i ) % v, globenv % source, globenv % group )
+          CALL mp_bcast ( part ( i ) % v, globenv%para_env%source, globenv%para_env%group )
        END DO
 #endif
     END IF

@@ -75,16 +75,16 @@ CONTAINS
 !   *** Wait for ionode and empty IO buffer ***
     
     IF (iw>0) WRITE(iw,*)checkpoint
-    IF (globenv%ionode) CALL m_flush(globenv%scr)
-    CALL mp_sync(globenv%group)
+    IF (globenv%para_env%ionode) CALL m_flush(globenv%scr)
+    CALL mp_sync(globenv%para_env%group)
 
 !   *** Write checkpoint informations ***
 
     CALL write_cputime(checkpoint,globenv,error)
     CALL write_memory(checkpoint,globenv,error)
 
-    IF (globenv%ionode) CALL m_flush(globenv%scr)
-    CALL mp_sync(globenv%group)
+    IF (globenv%para_env%ionode) CALL m_flush(globenv%scr)
+    CALL mp_sync(globenv%para_env%group)
     CALL cp_print_key_finished_output(iw,logger,globenv%input_file,&
          "GLOBAL%PERFORMANCE/ROUTINES",error=error)    
   END SUBROUTINE write_checkpoint_information
@@ -118,11 +118,11 @@ CONTAINS
        iw = cp_print_key_unit_nr(logger,globenv%input_file,"GLOBAL%PERFORMANCE/CPUTIME",&
             extension=".Log",error=error)
 
-       group = globenv%group
-       ionode = globenv%ionode
-       npe = globenv%num_pe
-       mype = globenv%mepos
-       output_unit = globenv%scr
+       group = globenv%para_env%group
+       ionode = globenv%para_env%ionode
+       npe = globenv%para_env%num_pe
+       mype = globenv%para_env%mepos
+       output_unit = iw
        
        ALLOCATE(myconvertedstring(LEN(string2),npe))
        myconvertedstring=0

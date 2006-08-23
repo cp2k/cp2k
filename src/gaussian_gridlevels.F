@@ -85,7 +85,7 @@ SUBROUTINE destroy_gaussian_gridlevel(gridlevel_info,globenv,error)
   NULLIFY(logger)
   logger => cp_error_get_logger(error)
   IF (PRESENT(globenv)) THEN
-     group=globenv%group
+     group=globenv%para_env%group
   ELSE
      group=logger%para_env%group
   END IF

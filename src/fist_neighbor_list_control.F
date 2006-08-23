@@ -136,7 +136,7 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
     END DO
 
 #if defined(__parallel)
-    CALL mp_max(dr2_max,globenv%group)
+    CALL mp_max(dr2_max,globenv%para_env%group)
 #endif
 
     IF (dr2_max > 0.25_dp*verlet_skin**2) THEN
@@ -206,7 +206,7 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
                               last_update=last_update,&
                               cell_last_update=cell_last_update)
 
-    IF ((globenv%print_level >= 2).AND.(globenv%ionode)) THEN
+    IF ((globenv%print_level >= 2).AND.(globenv%para_env%ionode)) THEN
       WRITE (UNIT=globenv%scr,&
              FMT="(/,T2,A,/,T52,A,/,A,T31,A,T49,2(1X,F15.2),/,T2,A,/)")&
         REPEAT("*",79),"INSTANTANEOUS        AVERAGES",&

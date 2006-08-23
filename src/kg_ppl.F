@@ -164,8 +164,8 @@ CONTAINS
     NULLIFY(sac_ppl_neighbor_list,sac_ppl_neighbor_node,atom_list,first_sgfa)
     NULLIFY(la_max,la_min,npgfa,nsgfa,energy,force,local_particles,my_alpha)
 
-    group = globenv%group
-    ionode = globenv%ionode
+    group = globenv%para_env%group
+    ionode = globenv%para_env%ionode
     output_unit = globenv%scr
 
     CALL get_kg_env(kg_env=kg_env,&
@@ -678,8 +678,8 @@ CONTAINS
     NULLIFY(la_max,la_min,npgfa,nsgfa,energy,force,local_particles)
     NULLIFY(dyn_coeff_set,local_coeffs)
 
-    group = globenv%group
-    ionode = globenv%ionode
+    group = globenv%para_env%group
+    ionode = globenv%para_env%ionode
     output_unit = globenv%scr
 
     CALL get_kg_env(kg_env=kg_env,&

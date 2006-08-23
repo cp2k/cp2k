@@ -249,7 +249,7 @@ CONTAINS
       CALL cp_sm_sm_trace(matrix1=tbmd_env%matrix_p, matrix2=tbmd_env%matrix_h, &
                           trace=tbmd_env%tbmd_energy%E_bandstructure, &
                           para_env=tbmd_env%para_env, error=error)
-      CALL mp_sum(tbmd_env%tbmd_energy%E_bandstructure, globenv%group)
+      CALL mp_sum(tbmd_env%tbmd_energy%E_bandstructure, globenv%para_env%group)
 
 
       !CALL get_part_ke(md_env, tbmd_energy%E_kinetic, int_grp=globalenv%para_env%group)
@@ -459,7 +459,7 @@ CONTAINS
     IF (output_unit > 0) THEN
 
       sparse_matrix => tbmd_env%matrix_h
-      group = globenv%group
+      group = globenv%para_env%group
 
       CALL get_matrix_info(matrix=sparse_matrix, &
                            matrix_name=matrix_name, &
@@ -565,7 +565,7 @@ CONTAINS
     IF (output_unit > 0) THEN
 
       sparse_matrix => tbmd_env%matrix_h
-      group = globenv%group
+      group = globenv%para_env%group
 
       CALL get_matrix_info(matrix=sparse_matrix, &
                            matrix_name=matrix_name, &

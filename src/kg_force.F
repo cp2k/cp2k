@@ -239,7 +239,7 @@ SUBROUTINE kgpol_calculate_forces ( kg_env, globenv, error )
 
   CALL timeset ( 'kgpol_calculate_forces','I',' ',handle )
   failure=.FALSE.
-  ionode=globenv%ionode
+  ionode=globenv%para_env%ionode
   output_unit=globenv%scr
   NULLIFY(force,energy,part,atomic_kind_set,atomic_kind,cell,dft_control,&
           dyn_coeff_set,local_coeffs,rho,rspw,auxbas_pw_pool)
@@ -461,10 +461,10 @@ SUBROUTINE kgpol_calculate_forces ( kg_env, globenv, error )
 ! add up all the forces
 
   DO ikind = 1, nkind         
-    CALL mp_sum(force(ikind)%f_rho,globenv%group)
-    CALL mp_sum(force(ikind)%f_rspace_core,globenv%group)
-    CALL mp_sum(force(ikind)%f_hartree_core,globenv%group)
-    CALL mp_sum(force(ikind)%f_ppl,globenv%group)
+    CALL mp_sum(force(ikind)%f_rho,globenv%para_env%group)
+    CALL mp_sum(force(ikind)%f_rspace_core,globenv%para_env%group)
+    CALL mp_sum(force(ikind)%f_hartree_core,globenv%para_env%group)
+    CALL mp_sum(force(ikind)%f_ppl,globenv%para_env%group)
     force(ikind)%f_total(:,:) = force(ikind)%f_rho(:,:) +&
                                 force(ikind)%f_rspace_core(:,:) +&
                                 force(ikind)%f_hartree_core(:,:) +&
@@ -555,7 +555,7 @@ SUBROUTINE kg_calculate_forces ( kg_env, globenv,error )
 
   CALL timeset ( 'kg_calculate_forces','I',' ',handle )
   failure=.FALSE.
-  ionode=globenv%ionode
+  ionode=globenv%para_env%ionode
   output_unit=globenv%scr
   NULLIFY(force,energy,part,atomic_kind_set,atomic_kind,cell,dft_control,&
           rho,rspw,auxbas_pw_pool)
@@ -719,11 +719,11 @@ SUBROUTINE kg_calculate_forces ( kg_env, globenv,error )
 ! add up all the forces
 
   DO ikind = 1, nkind         
-    CALL mp_sum(force(ikind)%f_rho,globenv%group)
-    CALL mp_sum(force(ikind)%f_rspace_core,globenv%group)
-    CALL mp_sum(force(ikind)%f_hartree_core,globenv%group)
-    CALL mp_sum(force(ikind)%f_ppl,globenv%group)
-    CALL mp_sum(force(ikind)%f_bc,globenv%group)
+    CALL mp_sum(force(ikind)%f_rho,globenv%para_env%group)
+    CALL mp_sum(force(ikind)%f_rspace_core,globenv%para_env%group)
+    CALL mp_sum(force(ikind)%f_hartree_core,globenv%para_env%group)
+    CALL mp_sum(force(ikind)%f_ppl,globenv%para_env%group)
+    CALL mp_sum(force(ikind)%f_bc,globenv%para_env%group)
     force(ikind)%f_total(:,:) = force(ikind)%f_rho(:,:) +&
                                 force(ikind)%f_rspace_core(:,:) +&
                                 force(ikind)%f_hartree_core(:,:) +&
@@ -936,15 +936,15 @@ END SUBROUTINE kg_calculate_forces
 
 !   *** distribute forces ***
     DO ikind=1,SIZE(force)
-      CALL mp_sum(force(ikind)%overlap,globenv%group)
-      CALL mp_sum(force(ikind)%kinetic,globenv%group)
-      CALL mp_sum(force(ikind)%gth_ppl,globenv%group)
-      CALL mp_sum(force(ikind)%gth_ppnl,globenv%group)
-      CALL mp_sum(force(ikind)%core_overlap,globenv%group)
-      CALL mp_sum(force(ikind)%rho_core,globenv%group)
-      CALL mp_sum(force(ikind)%rho_elec,globenv%group)
-      CALL mp_sum(force(ikind)%kg_gpw_ekin_mol,globenv%group)
-      CALL mp_sum(force(ikind)%kg_gpw_pauli,globenv%group)
+      CALL mp_sum(force(ikind)%overlap,globenv%para_env%group)
+      CALL mp_sum(force(ikind)%kinetic,globenv%para_env%group)
+      CALL mp_sum(force(ikind)%gth_ppl,globenv%para_env%group)
+      CALL mp_sum(force(ikind)%gth_ppnl,globenv%para_env%group)
+      CALL mp_sum(force(ikind)%core_overlap,globenv%para_env%group)
+      CALL mp_sum(force(ikind)%rho_core,globenv%para_env%group)
+      CALL mp_sum(force(ikind)%rho_elec,globenv%para_env%group)
+      CALL mp_sum(force(ikind)%kg_gpw_ekin_mol,globenv%para_env%group)
+      CALL mp_sum(force(ikind)%kg_gpw_pauli,globenv%para_env%group)
       force(ikind)%total(:,:) = force(ikind)%total(:,:) +&
                                 force(ikind)%core_overlap(:,:) +&
                                 force(ikind)%gth_ppl(:,:) +&

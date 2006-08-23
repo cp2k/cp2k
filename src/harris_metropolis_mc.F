@@ -932,7 +932,7 @@ CONTAINS
             END IF
          END IF
 
-         IF (globenv%ionode .AND. globenv%print_level >= 1) THEN
+         IF (globenv%para_env%ionode .AND. globenv%print_level >= 1) THEN
             iw = globenv%scr
             WRITE(iw, *) ""; WRITE(iw, *) ""
             WRITE(iw, *) "Kinetic Energy =", Ekin_prev, " & Potential Energy = ", Epot_prev
@@ -1098,7 +1098,7 @@ CONTAINS
          accepted = .TRUE.
        ELSE
          ! Metropolis Monte Carlo acceptance criterion
-         ionode = globenv%ionode
+         ionode = globenv%para_env%ionode
          iw = globenv%scr
          IF (lpsc) THEN
            ! direct accept
@@ -1338,7 +1338,7 @@ CONTAINS
                !MK solution, obviously.
 
                iw = globenv%scr
-               IF (globenv%ionode .AND. globenv%print_level >= 1) THEN
+               IF (globenv%para_env%ionode .AND. globenv%print_level >= 1) THEN
                   WRITE ( iw, '( A, A, A )' ) ' **********************', &
                        ' begin of velocity initialization ', '***********************'
                END IF
@@ -1347,7 +1347,7 @@ CONTAINS
 
                ! initializing the velocities
 
-               IF (globenv%ionode) THEN
+               IF (globenv%para_env%ionode) THEN
 
                  ! Build a list of all fixed atoms (if there any)
 
@@ -1417,11 +1417,11 @@ CONTAINS
 
 #if defined(__parallel)
                DO i = 1,SIZE(particles%els)
-                  CALL mp_bcast(particles%els(i)%v, globenv%source, globenv%group)
+                  CALL mp_bcast(particles%els(i)%v, globenv%para_env%source, globenv%para_env%group)
                END DO
 #endif
                temp = 0.0_dp
-               IF (globenv%ionode .AND. globenv%print_level >= 1) THEN
+               IF (globenv%para_env%ionode .AND. globenv%print_level >= 1) THEN
                   IF (simpar % nfree == 0) THEN
                      temp = 2.0_dp * akin / REAL(1, KIND=dp) ! Should always be zero...
                   ELSE
@@ -1762,7 +1762,7 @@ CONTAINS
             END IF
           END IF
 
-          IF (globenv%ionode .AND. globenv%print_level >= 1) THEN
+          IF (globenv%para_env%ionode .AND. globenv%print_level >= 1) THEN
             iw = globenv%scr
             WRITE(iw, *) ""; WRITE(iw, *) ""
             WRITE(iw, *) "Kinetic MD Energy =", Ekin_prev, " & Potential MD Energy = ", Epot_prev
@@ -1816,7 +1816,7 @@ CONTAINS
             END IF
           END IF
 
-          ionode = globenv%ionode
+          ionode = globenv%para_env%ionode
           iw = globenv%scr
           IF (ionode .AND. globenv%print_level >= 1) THEN
             WRITE(iw, *) ""; WRITE(iw, *) ""

@@ -2801,9 +2801,9 @@ CONTAINS
 
 ! -------------------------------------------------------------------------
 
-    group = globenv%group
-    mype = globenv%mepos + 1
-    npe = globenv%num_pe
+    group = globenv%para_env%group
+    mype = globenv%para_env%mepos + 1
+    npe = globenv%para_env%num_pe
 
     ! Allocate work storage
 
@@ -2937,7 +2937,7 @@ CONTAINS
 
 ! -------------------------------------------------------------------------
 
-    mype = globenv%mepos
+    mype = globenv%para_env%mepos
 
     CALL get_cell(cell=cell,&
                   unit_of_length=unit_of_length,&

@@ -128,7 +128,7 @@ CONTAINS
     NULLIFY (subcell)
     NULLIFY (list)
 
-    group = globenv%group
+    group = globenv%para_env%group
 
     ! Set Verlet skin
 

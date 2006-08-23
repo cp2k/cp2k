@@ -62,7 +62,7 @@ SUBROUTINE clebsch_gordon_test ( globenv )
 
   iw =globenv % scr
 
-  IF ( globenv % ionode ) THEN
+  IF ( globenv%para_env%ionode ) THEN
 
      WRITE(iw,'(/,A,/)') " Test of Clebsch-Gordon Coefficients"
      WRITE(iw,'(T40,A,T77,I4)') " Maximum l value tested:",l

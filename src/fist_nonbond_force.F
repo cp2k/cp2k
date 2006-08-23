@@ -259,7 +259,7 @@ CONTAINS
              END DO
           END SELECT
        END DO
-       CALL mp_sum( rho, globenv % group )
+       CALL mp_sum( rho, globenv%para_env%group )
        DO iparticle=1,nparticle
           particle_set(iparticle)%rho = rho(iparticle)
        END DO
@@ -327,7 +327,7 @@ CONTAINS
              pot_manybody = pot_manybody + embed
           END DO
           ! communicate data
-          CALL mp_sum( fembed, globenv % group )
+          CALL mp_sum( fembed, globenv%para_env%group )
           DO iparticle=1,nparticle
              particle_set(iparticle)%f_embed = fembed(iparticle)
           END DO

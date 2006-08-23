@@ -771,7 +771,7 @@ CONTAINS
     REAL(dp), DIMENSION(3)                   :: cell_v, ra, rab, rb
     TYPE(neighbor_kind_pairs_type), POINTER  :: neighbor_kind_pair
 
-    mype = globenv%mepos
+    mype = globenv%para_env%mepos
     CALL get_cell(cell=cell,&
                   unit_of_length=unit_of_length,&
                   unit_of_length_name=unit_of_length_name)

@@ -173,7 +173,7 @@ CONTAINS
       CALL section_vals_get(force_env_section,n_repetition=isos,error=error)
       CPPostconditionNoFail(isos==1,cp_warning_level,routineP,error)
 ! set some values...will use get_globenv if that ever comes around
-      ionode=globenv % ionode
+      ionode=globenv%para_env%ionode
 
 ! allocating or nullifying local pointers
       ALLOCATE ( mc_par, STAT = isos )

@@ -188,7 +188,7 @@ CONTAINS
 
     CALL timeset(routineN,"I",'',handle)
 
-    ionode = globenv%ionode
+    ionode = globenv%para_env%ionode
     output_unit = globenv%scr
     was_present = .FALSE.
     

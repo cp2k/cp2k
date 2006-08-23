@@ -311,18 +311,18 @@ CONTAINS
 
       !  *** replicate forces ***
       DO ikind=1,SIZE(force)
-        CALL mp_sum(force(ikind)%overlap,globenv%group)
-        CALL mp_sum(force(ikind)%kinetic,globenv%group)
-        CALL mp_sum(force(ikind)%gth_ppl,globenv%group)
-        CALL mp_sum(force(ikind)%gth_ppnl,globenv%group)
-        CALL mp_sum(force(ikind)%all_potential,globenv%group)
-        CALL mp_sum(force(ikind)%core_overlap,globenv%group)
-        CALL mp_sum(force(ikind)%rho_core,globenv%group)
-        CALL mp_sum(force(ikind)%rho_elec,globenv%group)
-        CALL mp_sum(force(ikind)%vhxc_atom,globenv%group)
-        CALL mp_sum(force(ikind)%g0s_Vh_elec,globenv%group)
-        CALL mp_sum(force(ikind)%hartree_2c,globenv%group)
-        CALL mp_sum(force(ikind)%hartree_3c,globenv%group)
+        CALL mp_sum(force(ikind)%overlap,globenv%para_env%group)
+        CALL mp_sum(force(ikind)%kinetic,globenv%para_env%group)
+        CALL mp_sum(force(ikind)%gth_ppl,globenv%para_env%group)
+        CALL mp_sum(force(ikind)%gth_ppnl,globenv%para_env%group)
+        CALL mp_sum(force(ikind)%all_potential,globenv%para_env%group)
+        CALL mp_sum(force(ikind)%core_overlap,globenv%para_env%group)
+        CALL mp_sum(force(ikind)%rho_core,globenv%para_env%group)
+        CALL mp_sum(force(ikind)%rho_elec,globenv%para_env%group)
+        CALL mp_sum(force(ikind)%vhxc_atom,globenv%para_env%group)
+        CALL mp_sum(force(ikind)%g0s_Vh_elec,globenv%para_env%group)
+        CALL mp_sum(force(ikind)%hartree_2c,globenv%para_env%group)
+        CALL mp_sum(force(ikind)%hartree_3c,globenv%para_env%group)
         force(ikind)%total(:,:) = force(ikind)%total(:,:) +&
                                   force(ikind)%core_overlap(:,:) +&
                                   force(ikind)%gth_ppl(:,:) +&
@@ -353,7 +353,7 @@ CONTAINS
 
       !   *** distribute virial ***
       IF (virial%pv_availability) THEN
-        CALL mp_sum(virial%pv_virial,globenv%group)
+        CALL mp_sum(virial%pv_virial,globenv%para_env%group)
       !  *** add the volume terms of the virial ***
         IF (.NOT.virial%pv_numer) THEN
           DO dir=1, 3
