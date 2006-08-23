@@ -29,7 +29,8 @@ MODULE input_cp2k_dft
   USE input_keyword_types,             ONLY: keyword_create,&
                                              keyword_release,&
                                              keyword_type
-  USE input_poisson,                   ONLY: create_poisson_section
+  USE input_poisson,                   ONLY: create_poisson_section,&
+                                             create_multipole_section
   USE input_section_types,             ONLY: section_add_keyword,&
                                              section_add_subsection,&
                                              section_create,&
@@ -360,6 +361,10 @@ CONTAINS
     CALL section_add_subsection(section, subsection, error=error)
     CALL section_release(subsection,error=error)
 
+    CALL create_implicit_solv_section(subsection, error)
+    CALL section_add_subsection(section,subsection,error=error)
+    CALL section_release(subsection,error=error)       
+
     CALL create_xas_section(subsection,error)
     CALL section_add_subsection(section, subsection, error=error)
     CALL section_release(subsection,error=error)
@@ -375,6 +380,167 @@ CONTAINS
   END SUBROUTINE create_dft_section
 !***************************************************************************
 
+!!****f* input_cp2k_dft/create_implicit_solv_section *
+!!
+!!   NAME
+!!     create_implicit_solv_section
+!!
+!!   FUNCTION
+!!     Implicit Solvation Model
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     tlaino
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_implicit_solv_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+         OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_implicit_solv_section', &
+         routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection
+
+    failure=.FALSE.
+
+    NULLIFY(keyword, subsection)
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="SCRF",&
+            description="Adds an implicit solvation model to the DFT calculation."//&
+            " Know also as Self Consistent Reaction Field.",&
+            n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)
+
+       CALL keyword_create(keyword,name="EPS_OUT",&
+            description="Value of the dielectric constant outside the sphere",&
+            usage="EPS_OUT <REAL>",&
+            default_r_val=1.0_dp,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword,name="LMAX",&
+            description="Maximum value of L used in the multipole expansion",&
+            usage="LMAX <INTEGER>",&
+            default_i_val=3,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL create_sphere_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
+       CALL create_multipole_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)       
+
+    END IF
+  END SUBROUTINE create_implicit_solv_section
+
+  SUBROUTINE create_sphere_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+         OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_sphere_section', &
+         routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection
+
+    failure=.FALSE.
+
+    NULLIFY(keyword, subsection)
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="SPHERE",&
+            description="Treats the implicit solvent environment like a sphere",&
+            n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)    
+       
+       CALL keyword_create(keyword,name="RADIUS",&
+            description="Value of the spherical cavity in the dielectric medium",&
+            usage="RADIUS <REAL>",&
+            unit_str="angstrom",&
+            type_of_var=real_t,error=error) 
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)    
+
+       CALL create_center_section(subsection,error)
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)       
+
+    END IF
+  END SUBROUTINE create_sphere_section
+
+  SUBROUTINE create_center_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+         OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_center_section', &
+         routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: subsection
+
+    failure=.FALSE.
+
+    NULLIFY(keyword, subsection)
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="CENTER",&
+            description="Defines the center of the sphere.",&
+            n_keywords=0, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
+            error=error)    
+       
+       CALL keyword_create(keyword,name="XYZ",&
+            description="Coordinates of the center of the sphere",&
+            usage="XYZ <REAL> <REAL> <REAL>",&
+            unit_str="angstrom",&
+            type_of_var=real_t, n_var=3, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword,name="ATOM_LIST",&
+            description="Defines a list of atoms to define the center of the sphere",&
+            usage="ATOM_LIST <INTEGER> .. <INTEGER>",&
+            type_of_var=integer_t, n_var=-1, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword,name="WEIGHT",&
+            description="Defines the weight used to define the center of the sphere"//&
+            " (if ATOM_LIST is provided)",&
+            usage="WEIGHT (UNIT|MASS)",&
+            enum_c_vals=(/"UNIT","MASS"/),&
+            enum_i_vals=(/weight_type_unit,weight_type_mass/),&
+            default_i_val=weight_type_unit,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword,name="FIXED",&
+            description="Specify if the center of the sphere should be fixed or"//&
+            " allowed to move",&
+            usage="FIXED <LOGICAL>",&
+            default_l_val=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+    END IF
+  END SUBROUTINE create_center_section
+  
 !****f* input_cp2k_dft/create_localize_section *
 !!
 !!   NAME
@@ -489,13 +655,6 @@ CONTAINS
            default_i_val=1,error=error)
       CALL section_add_keyword(section,keyword,error=error)
       CALL keyword_release(keyword,error=error)
-
-!      CALL keyword_create(keyword, name="FNAME",&
-!           description="Root of the file names where to store the spectra",&
-!           usage="FNAME loc_orb",&
-!           default_lc_val="loc_orb",error=error)
-!      CALL section_add_keyword(section,keyword,error=error)
-!      CALL keyword_release(keyword,error=error)
 
       CALL section_create(subsection,"PRINT",&
            "printing of information about the localization of the orbitals",&

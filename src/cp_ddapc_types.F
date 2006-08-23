@@ -29,7 +29,8 @@ MODULE cp_ddapc_types
                                              read_cell
   USE cp_ddapc_methods,                ONLY: ddapc_eval_AmI,&
                                              ddapc_eval_gfunc,&
-                                             ewald_ddapc_pot
+                                             ewald_ddapc_pot,&
+                                             solvation_ddapc_pot
   USE ewald_spline_util,               ONLY: Setup_Ewald_Spline
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: use_multipole
@@ -37,6 +38,7 @@ MODULE cp_ddapc_types
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
   USE particle_types,                  ONLY: particle_type
@@ -52,9 +54,12 @@ MODULE cp_ddapc_types
 
   IMPLICIT NONE
   PRIVATE
-  LOGICAL, PRIVATE, PARAMETER :: debug_this_module=.TRUE.
+  LOGICAL, PRIVATE, PARAMETER          :: debug_this_module=.TRUE.
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cp_ddapc_types'  
-  INTEGER, PRIVATE, SAVE :: last_cp_ddapc_id=0
+  INTEGER, PRIVATE, SAVE               :: last_cp_ddapc_id=0
+  INTEGER, PARAMETER, PUBLIC           :: cp_ddapc_decoupling  =0,&
+                                          cp_ddapc_qmmmperiodic=1,&
+                                          cp_ddapc_solvationSph=2
   PUBLIC :: cp_ddapc_type, cp_ddapc_create, cp_ddapc_retain, cp_ddapc_release
   PUBLIC :: cp_ddapc_ewald_type, cp_ddapc_ewald_create, cp_ddapc_ewald_release
 !!****s* cp_ddapc_types/cp_ddapc_type [1.0] *
@@ -88,6 +93,7 @@ MODULE cp_ddapc_types
   END TYPE cp_ddapc_type
   
   TYPE cp_ddapc_ewald_type
+     INTEGER                                    :: task
      TYPE ( pw_pool_type ),             POINTER :: pw_pool_qm, pw_pool_mm
      TYPE ( pw_grid_type ),             POINTER :: pw_grid_qm, pw_grid_mm 
      TYPE ( pw_type ),                  POINTER :: coeff_qm,   coeff_mm
@@ -116,12 +122,11 @@ CONTAINS
 !!     
 !!
 !!*** **********************************************************************
-  SUBROUTINE cp_ddapc_create(cp_ddapc_env, cp_ddapc_ewald, qmmm_periodic,&
+  SUBROUTINE cp_ddapc_create(cp_ddapc_env, cp_ddapc_ewald, &
        particle_set, radii, cell, super_cell, rho_tot_g, gcut, iw, Vol,  &
-       param_section, only_charge, error)
+       param_section, only_charge, force_env_section, error)
     TYPE(cp_ddapc_type), POINTER             :: cp_ddapc_env
     TYPE(cp_ddapc_ewald_type), POINTER       :: cp_ddapc_ewald
-    LOGICAL, INTENT(in)                      :: qmmm_periodic
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     REAL(kind=dp), DIMENSION(:), POINTER     :: radii
@@ -130,7 +135,8 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: gcut
     INTEGER, INTENT(IN)                      :: iw
     REAL(KIND=dp), INTENT(IN)                :: Vol
-    TYPE(section_vals_type), POINTER         :: param_section
+    TYPE(section_vals_type), POINTER         :: param_section,&
+                                                force_env_section
     LOGICAL, INTENT(in)                      :: only_charge
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -140,6 +146,7 @@ CONTAINS
 
     INTEGER                                  :: handle, stat
     LOGICAL                                  :: failure
+    TYPE(section_vals_type), POINTER         :: solvation_section
 
     failure=.FALSE.    
     IF (ASSOCIATED(cp_ddapc_env)) RETURN
@@ -168,17 +175,29 @@ CONTAINS
           !
           ! Evaluate the matrix for the Classical contribution to the coupling/decoupling scheme
           !
-          CALL ewald_ddapc_pot(cp_ddapc_ewald%coeff_qm, .FALSE.,cell, param_section, particle_set,&
+          CALL ewald_ddapc_pot(cp_ddapc_ewald%coeff_qm, 1.0_dp, cell, param_section, particle_set,&
                cp_ddapc_env%Md, radii, error)
           ALLOCATE(cp_ddapc_env%Mt(SIZE(cp_ddapc_env%Md,1),SIZE(cp_ddapc_env%Md,2)),stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          IF (qmmm_periodic) THEN
-             CALL ewald_ddapc_pot(cp_ddapc_ewald%coeff_mm,qmmm_periodic, super_cell, param_section,&
+          SELECT CASE(cp_ddapc_ewald%task)
+          CASE (cp_ddapc_qmmmperiodic)
+             ! QMMM periodic calculation
+             CALL ewald_ddapc_pot(cp_ddapc_ewald%coeff_mm,-1.0_dp, super_cell, param_section,&
                   particle_set, cp_ddapc_env%Mr, radii, error)
              cp_ddapc_env%Mt = cp_ddapc_env%Md + cp_ddapc_env%Mr
-          ELSE
+          CASE (cp_ddapc_solvationSph) 
+             ! Spherical Solvation model
+             solvation_section => section_vals_get_subs_vals(force_env_section,"DFT%SCRF",&
+                  error=error)
+             CALL solvation_ddapc_pot(cp_ddapc_ewald%coeff_mm, cell, solvation_section,&
+                  particle_set, cp_ddapc_env%Mr,  radii, error) 
+             cp_ddapc_env%Mt = cp_ddapc_env%Md + cp_ddapc_env%Mr
+          CASE (cp_ddapc_decoupling)
              cp_ddapc_env%Mt = cp_ddapc_env%Md 
-          END IF
+          CASE DEFAULT
+             ! never reach this point
+             CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+          END SELECT
        END IF
     END IF
     CALL timestop(0.0_dp, handle)
@@ -316,9 +335,10 @@ CONTAINS
 !!     none
 !!
 !!*** **********************************************************************
-  SUBROUTINE cp_ddapc_ewald_create(cp_ddapc_ewald, qmmm, qm_cell, force_env_section, globenv, error)
+  SUBROUTINE cp_ddapc_ewald_create(cp_ddapc_ewald, qmmm, qmmm_periodic,qm_cell,&
+       force_env_section, globenv, error)
     TYPE(cp_ddapc_ewald_type), POINTER       :: cp_ddapc_ewald
-    LOGICAL, INTENT(IN)                      :: qmmm
+    LOGICAL, INTENT(IN)                      :: qmmm, qmmm_periodic
     TYPE(cell_type), POINTER                 :: qm_cell
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(global_environment_type), POINTER   :: globenv
@@ -328,14 +348,22 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cp_ddapc_ewald_create', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: my_val, npts(3), stat
+    INTEGER                                  :: my_val, npts(3), stat, output_unit
     INTEGER, DIMENSION(:), POINTER           :: ngrids
-    LOGICAL                                  :: analyt, failure, qmmm_periodic
+    LOGICAL                                  :: analyt, failure,&
+         solvation_model, explicit, ionode, my_qmmm_periodic
     REAL(KIND=dp)                            :: hmat(3,3)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: gx, gy, gz, LG
     TYPE(cell_type), POINTER                 :: dummy_cell, mm_cell
-    TYPE(section_vals_type), POINTER :: cell_section, grid_print_section, &
-      multipole_section, poisson_section, qmmm_periodic_section
+    TYPE(section_vals_type), POINTER         :: cell_section,&
+                                                grid_print_section, &
+                                                multipole_section,&
+                                                poisson_section,&
+                                                qmmm_periodic_section,&
+                                                solvation_section
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    
 
     failure = .FALSE.
     CPPrecondition(.NOT.ASSOCIATED(cp_ddapc_ewald),cp_failure_level,routineP,error,failure)
@@ -349,10 +377,39 @@ CONTAINS
             cp_ddapc_ewald%coeff_qm)
 
     poisson_section => section_vals_get_subs_vals(force_env_section,"DFT%POISSON", error=error)
+    solvation_section => section_vals_get_subs_vals(force_env_section,"DFT%SCRF", error=error)
     qmmm_periodic_section   => section_vals_get_subs_vals(force_env_section,"QMMM%PERIODIC", error=error)
-    CALL section_vals_get(qmmm_periodic_section,explicit=qmmm_periodic, error=error)
-    qmmm_periodic = qmmm_periodic.AND.qmmm
-    IF (.NOT.qmmm_periodic) THEN
+    CALL section_vals_get(solvation_section,explicit=solvation_model, error=error)
+    my_qmmm_periodic   = qmmm_periodic.AND.qmmm
+    ! Determining the task and further check
+    IF (my_qmmm_periodic.OR.solvation_model) THEN
+       logger => cp_error_get_logger(error)
+       ionode = logger%para_env%mepos==logger%para_env%source
+       IF (ionode) THEN
+          output_unit= cp_logger_get_default_unit_nr(logger)
+       ELSE
+          output_unit = -1
+       END IF
+       
+       CALL section_vals_get(poisson_section,explicit=explicit, error=error)
+       IF (explicit.AND.output_unit>0) THEN
+          WRITE(output_unit,'(A)')"A calculation with the QMMM periodic model or with an implicit"//&
+               " solvent model hs been requested. The explicit POISSON section in DFT section will"//&
+               " be ignored."
+       END IF
+       IF (my_qmmm_periodic.AND.solvation_model) THEN
+          WRITE(output_unit,'(A)')"A calculation with the QMMM periodic model and with an implicit"//&
+               " solvent model hs been requested. The two calculation cannot be performed together"
+          CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+       END IF
+       IF (my_qmmm_periodic)   cp_ddapc_ewald%task = cp_ddapc_qmmmperiodic
+       IF (solvation_model) cp_ddapc_ewald%task = cp_ddapc_solvationSph
+    ELSE
+       cp_ddapc_ewald%task = cp_ddapc_decoupling
+    END IF
+    SELECT CASE(cp_ddapc_ewald%task)
+    CASE (cp_ddapc_decoupling)
+       ! Simple decoupling technique
        CALL section_vals_val_get(poisson_section,"POISSON_SOLVER",i_val=my_val,error=error)
        SELECT CASE (my_val)
        CASE (use_multipole)       
@@ -360,9 +417,17 @@ CONTAINS
        CASE DEFAULT
           RETURN
        END SELECT
-    ELSE
+    CASE(cp_ddapc_qmmmperiodic)
+       ! QMMM periodic
        multipole_section => section_vals_get_subs_vals(qmmm_periodic_section,"MULTIPOLE", error=error)
-    END IF
+    CASE(cp_ddapc_solvationSph)
+       ! Spherical solvation model
+       multipole_section => section_vals_get_subs_vals(solvation_section,"MULTIPOLE", error=error)
+    CASE DEFAULT
+       ! never reach this part
+       CPPrecondition(.FALSE.,cp_failure_level,routineP,error,failure)
+    END SELECT
+    ! Do we do the calculation analytically or interpolating the g-space factor?
     CALL section_vals_val_get(multipole_section,"ANALYTICAL_GTERM",l_val=analyt,error=error)
     IF (analyt) RETURN
     CALL section_vals_val_get(multipole_section,"ngrids", i_vals=ngrids, error=error)       
@@ -384,7 +449,8 @@ CONTAINS
     DEALLOCATE(gz, stat=stat)
     CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     NULLIFY(LG, gx, gy, gz)
-    IF (qmmm_periodic) THEN
+    SELECT CASE(cp_ddapc_ewald%task)
+    CASE (cp_ddapc_qmmmperiodic)
        NULLIFY(mm_cell, dummy_cell)
        cell_section => section_vals_get_subs_vals(force_env_section,"SUBSYS%CELL",error=error)       
        CALL read_cell(mm_cell, dummy_cell, cell_section=cell_section, error=error)
@@ -406,7 +472,7 @@ CONTAINS
        NULLIFY(LG, gx, gy, gz)
        CALL cell_release(dummy_cell, error)
        CALL cell_release(mm_cell, error)
-    END IF
+    END SELECT
 
   END SUBROUTINE cp_ddapc_ewald_create
 

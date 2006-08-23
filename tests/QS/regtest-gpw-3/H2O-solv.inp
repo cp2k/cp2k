@@ -1,0 +1,75 @@
+
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    &SCRF
+      EPS_OUT 80.0
+      LMAX 3 
+      &SPHERE
+        RADIUS [angstrom] 6.0
+        &CENTER
+           XYZ [angstrom] 6.0 6.0 6.0
+        &END
+      &END
+      &MULTIPOLE
+        EWALD_PRECISION 0.00000001
+        RCUT 3.0
+        ANALYTICAL_GTERM
+      &END MULTIPOLE
+    &END
+    &MGRID
+      CUTOFF 50
+    &END MGRID
+    &QS
+      EPS_DEFAULT 1.0E-8
+    &END QS
+    &SCF
+      EPS_SCF 1.0E-4
+      SCF_GUESS ATOMIC
+    &END SCF
+    &XC
+      &XC_FUNCTIONAL Pade
+      &END XC_FUNCTIONAL
+    &END XC
+  &END DFT
+  &SUBSYS
+    &CELL
+      ABC 12.0 12.0 12.0
+      UNIT ANGSTROM
+    &END CELL
+    &COORD
+    O   6.000000    6.000000    6.000000
+    H   6.000000    5.250000    6.520000
+    H   6.000000    6.750000    6.520000
+    &END COORD
+    &KIND H
+      BASIS_SET DZVP-GTH-PADE
+      POTENTIAL GTH-PADE-q1
+    &END KIND
+    &KIND O
+      BASIS_SET DZVP-GTH-PADE
+      POTENTIAL GTH-PADE-q6
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  FFTLIB FFTSG
+
+  PROJECT H2O
+  RUN_TYPE MD
+  PRINT_LEVEL MEDIUM
+&END GLOBAL
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 2
+    TIMESTEP 0.1
+    TEMPERATURE 300.0
+    &NOSE
+      LENGTH 3
+      YOSHIDA 3
+      TIMECON 100.0
+      MTS 2
+    &END NOSE
+  &END MD
+&END MOTION

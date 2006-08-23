@@ -30,9 +30,17 @@ MODULE cp_ddapc_forces
   USE cp2k_units,                      ONLY: get_cp2k_units,&
                                              unit_convert_type
   USE cp_control_types,                ONLY: ddapc_restraint_type
+  USE cp_ddapc_types,                  ONLY: cp_ddapc_create,&
+                                             cp_ddapc_release,&
+                                             cp_ddapc_type,&
+                                             cp_ddapc_decoupling,&  
+                                             cp_ddapc_qmmmperiodic,&
+                                             cp_ddapc_solvationSph
   USE erf_fn,                          ONLY: erfc
   USE input_constants,                 ONLY: do_ddapc_constraint,&
-                                             do_ddapc_restraint
+                                             do_ddapc_restraint,&
+                                             weight_type_unit,&
+                                             weight_type_mass
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
@@ -46,6 +54,8 @@ MODULE cp_ddapc_forces
   USE qs_force_types,                  ONLY: qs_force_type
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE spherical_harmonics,             ONLY: legendre,&
+                                             dlegendre
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -56,7 +66,8 @@ MODULE cp_ddapc_forces
   PUBLIC :: ewald_ddapc_force,&
             reset_ch_pulay,&
             evaluate_restraint_functional,&
-            restraint_functional_force
+            restraint_functional_force,&
+            solvation_ddapc_force
   
 CONTAINS
 
@@ -81,11 +92,13 @@ CONTAINS
 !!     08.2005 created [tlaino]
 !!
 !!*** **********************************************************************
-  RECURSIVE SUBROUTINE ewald_ddapc_force(qs_env, coeff, qmmm_periodic, multipole_section, &
-       particle_set, radii, dq, charges, error)
+  RECURSIVE SUBROUTINE ewald_ddapc_force(qs_env, coeff, apply_qmmm_periodic,&
+       factor, multipole_section, cell, particle_set, radii, dq, charges, error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(pw_type), POINTER                   :: coeff
-    LOGICAL, INTENT(IN)                      :: qmmm_periodic
+    TYPE(cell_type), POINTER                 :: cell
+    REAL(KIND=dp),INTENT(IN)                 :: factor
+    LOGICAL, INTENT(IN)                      :: apply_qmmm_periodic
     TYPE(section_vals_type), POINTER         :: multipole_section
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -103,14 +116,13 @@ CONTAINS
     INTEGER :: handle, ip1, ip2, iparticle1, iparticle2, k1, k2, k3, n_rep, &
       nmax1, nmax2, nmax3, r1, r2, r3, rmax1, rmax2, rmax3, sfact, stat
     LOGICAL                                  :: analyt, failure
-    REAL(KIND=dp)                            :: alpha, dfact, eps, eps0, fac, &
+    REAL(KIND=dp)                            :: alpha, eps, eps0, fac, &
                                                 fac2, fac3, fs, galpha, gsq, &
                                                 gsqi, q1t, q2t, r, rcut, t1, &
                                                 t2, tol, tol1
     REAL(KIND=dp), DIMENSION(3)              :: drvec, fvec, gvec, ra, rb, &
                                                 rvec
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: d_el, M
-    TYPE(cell_type), POINTER                 :: cell
     TYPE(unit_convert_type), POINTER         :: units
 
     failure = .FALSE.
@@ -120,13 +132,7 @@ CONTAINS
        CPPostcondition(PRESENT(charges),cp_failure_level,routineP,error,failure)
        CPPostcondition(ASSOCIATED(radii),cp_failure_level,routineP,error,failure)
        CALL get_cp2k_units ( units )
-       sfact =  1.0_dp
-       IF (qmmm_periodic) THEN 
-          sfact = -1.0_dp
-          CALL get_qs_env(qs_env, super_cell=cell)
-       ELSE
-          CALL get_qs_env(qs_env, cell=cell)
-       END IF
+       sfact =  factor
        rcut = MIN(cell%hmat(1,1),cell%hmat(2,2),cell%hmat(3,3))/2.0_dp
        CALL section_vals_val_get(multipole_section,"RCUT",n_rep_val=n_rep,error=error)
        IF (n_rep==1) CALL section_vals_val_get(multipole_section,"RCUT",r_val=rcut,error=error)
@@ -167,8 +173,6 @@ CONTAINS
              ! Real-Space Contribution
              !
              rvec   = particle_set(iparticle1)%r - particle_set(iparticle2)%r
-             dfact = 1.0_dp
-             IF (iparticle1 == iparticle2) dfact = 0.5_dp
              IF (iparticle1 /= iparticle2) THEN
                 ra = rvec 
                 r  = SQRT(DOT_PRODUCT(ra,ra))
@@ -189,7 +193,7 @@ CONTAINS
                       r  = SQRT(DOT_PRODUCT(ra,ra))
                       IF (r<=rcut) THEN 
                          t1 = erfc(alpha*r) / r
-                         drvec = ra / r * q1t * q2t * fac2 * dfact * sfact
+                         drvec = ra / r * q1t * q2t * fac2 * sfact
                          t2 = -2.0_dp * alpha * EXP(-alpha*alpha*r*r) / (r*rootpi) - t1/r
                          d_el(1:3,iparticle1) = d_el(1:3,iparticle1) - t2 * drvec
                          d_el(1:3,iparticle2) = d_el(1:3,iparticle2) + t2 * drvec
@@ -210,14 +214,14 @@ CONTAINS
                          gsq  = DOT_PRODUCT(gvec,gvec)
                          gsqi = fs/gsq
                          t1   = fac * gsqi * EXP(-galpha*gsq)
-                         t2 = -SIN(DOT_PRODUCT(gvec,rvec)) * t1 * q1t * q2t / eps0 * dfact * sfact
+                         t2 = -SIN(DOT_PRODUCT(gvec,rvec)) * t1 * q1t * q2t / eps0 * sfact
                          d_el(1:3,iparticle1) = d_el(1:3,iparticle1) - t2 * gvec
                          d_el(1:3,iparticle2) = d_el(1:3,iparticle2) + t2 * gvec
                       END DO
                    END DO
                 END DO
              ELSE
-                gvec = Eval_d_Interp_Spl3_pbc( rvec, coeff, error ) * q1t * q2t / eps0 * dfact * sfact
+                gvec = Eval_d_Interp_Spl3_pbc( rvec, coeff, error ) * q1t * q2t / eps0 * sfact
                 d_el(1:3,iparticle1) = d_el(1:3,iparticle1) -  gvec
                 d_el(1:3,iparticle2) = d_el(1:3,iparticle2) +  gvec                
              END IF
@@ -232,7 +236,7 @@ CONTAINS
           END DO
        END DO
        M => qs_env%cp_ddapc_env%Md
-       IF (qmmm_periodic) M => qs_env%cp_ddapc_env%Mr
+       IF (apply_qmmm_periodic) M => qs_env%cp_ddapc_env%Mr
        CALL cp_decpl_ddapc_forces(qs_env, M, charges, dq, d_el, particle_set, error)
        DEALLOCATE(d_el, stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)          
@@ -418,10 +422,8 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dE, order_p
 
-! order parameter (i.e. the sum of the charges of the selected atoms)
-
+    ! order parameter (i.e. the sum of the charges of the selected atoms)
     failure = .FALSE.
-
     order_p = 0.0_dp
     DO I=1,ddapc_restraint_control%natoms
        ind     = (ddapc_restraint_control%atoms(I)-1)*n_gauss
@@ -549,5 +551,176 @@ CONTAINS
     CALL timestop(0.0_dp, handle)
 
   END SUBROUTINE restraint_functional_force 
+
+
+!!****f* cp_ddapc_methods/solvation_ddapc_force [1.0] *
+!!
+!!   NAME
+!!     solvation_ddapc_force
+!!
+!!   FUNCTION
+!!     Evaluates the electrostatic potential due to a simple solvation model
+!!     Spherical cavity in a dieletric medium
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!
+!!   AUTHOR
+!!     Teodoro Laino
+!!
+!!   MODIFICATION HISTORY
+!!     08.2006 created [tlaino]
+!!
+!!*** **********************************************************************
+  SUBROUTINE solvation_ddapc_force(qs_env, cell, solvation_section, particle_set,&
+       radii, dq, charges, error)
+    TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(section_vals_type), POINTER         :: solvation_section
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: radii
+    REAL(KIND=dp), DIMENSION(:, :, :), &
+      OPTIONAL, POINTER                      :: dq
+    REAL(KIND=dp), DIMENSION(:), OPTIONAL, &
+      POINTER                                :: charges
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'solvation_ddapc_force', &
+      routineP = moduleN//':'//routineN
+    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: SolvM
+    LOGICAL :: failure
+    REAL(KIND=dp) :: eps_in, eps_out, Rs, mass, center(3), r1(3), r2(3), rvec(3)
+    REAL(KIND=dp) :: r1s, r2s, pos1, pos2, pos1i, pos2i, dpos1(3), dpos2(3), ptcos
+    REAL(KIND=dp) :: mycos, factor1(3), factor2(3), dcos1(3), dcos2(3), lr
+    REAL(KIND=dp), DIMENSION(:), POINTER   :: R0, pos
+    REAL(KIND=dp), DIMENSION(:,:), POINTER :: LocP
+    INTEGER  :: lmax, n_rep1, n_rep2, weight, i, stat, l, j, idim
+    INTEGER  :: iparticle2, ip2, q2t
+    INTEGER  :: iparticle1, ip1, q1t
+    INTEGER, DIMENSION(:), POINTER :: list
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: d_el, M
+    LOGICAL  :: fixed_center
+
+    failure = .FALSE.
+    fixed_center = .FALSE.
+    IF (.NOT.failure) THEN
+       NULLIFY(d_el, M)
+       eps_in = 1.0_dp
+       CALL section_vals_val_get(solvation_section,"EPS_OUT",r_val=eps_out,error=error)
+       CALL section_vals_val_get(solvation_section,"LMAX",i_val=lmax,error=error)
+       CALL section_vals_val_get(solvation_section,"SPHERE%RADIUS",r_val=Rs,error=error)
+       CALL section_vals_val_get(solvation_section,"SPHERE%CENTER%XYZ",n_rep_val=n_rep1,&
+            error=error)
+       IF (n_rep1/=0) THEN
+          CALL section_vals_val_get(solvation_section,"SPHERE%CENTER%XYZ",r_vals=R0,&
+               error=error)
+          center = R0
+       ELSE
+          CALL section_vals_val_get(solvation_section,"SPHERE%CENTER%ATOM_LIST",&
+               n_rep_val=n_rep2,error=error)
+          IF (n_rep2/=0) THEN
+             CALL section_vals_val_get(solvation_section,"SPHERE%CENTER%ATOM_LIST",i_vals=list,&
+                  error=error)
+             CALL section_vals_val_get(solvation_section,"SPHERE%CENTER%WEIGHT_TYPE",i_val=weight,&
+                  error=error)
+             ALLOCATE(R0(SIZE(list)),stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             SELECT CASE(weight)
+             CASE (weight_type_unit)
+                R0 = 0.0_dp
+                DO i = 1, SIZE(list)
+                   R0 = R0 + particle_set(list(i))%r
+                END DO
+                R0 = R0 / REAL(SIZE(list),KIND=dp)
+             CASE (weight_type_mass)
+                R0 = 0.0_dp
+                mass = 0.0_dp
+                DO i = 1, SIZE(list)
+                   R0 = R0 + particle_set(list(i))%r * particle_set(list(i))%atomic_kind%mass
+                   mass = mass + particle_set(list(i))%atomic_kind%mass
+                END DO
+                R0 = R0 / mass
+             END SELECT
+             center = R0
+             DEALLOCATE(R0, stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure) 
+          END IF
+       END IF
+       CPPostcondition(n_rep1/=0.OR.n_rep2/=0,cp_failure_level,routineP,error,failure)
+       ! Potential calculation
+       ALLOCATE(LocP(0:lmax,SIZE(particle_set)),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(pos(SIZE(particle_set)),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(d_el(3,SIZE(particle_set)), stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       d_el = 0.0_dp
+       ! Determining the single atomic contribution to the dielectric dipole
+       DO i = 1, SIZE(particle_set)
+          rvec = particle_set(i)%r-center
+          r2s  = DOT_PRODUCT(rvec,rvec)
+          r1s  = SQRT(r2s)
+          LocP(:,i) = 0.0_dp
+          IF (r1s/=0.0_dp) THEN
+             DO l = 0, lmax
+                LocP(l,i) = ( r1s**l * REAL(l+1,KIND=dp) * (eps_in-eps_out))/&
+                     (Rs**(2*l+1)*eps_in*(REAL(l,KIND=dp)*eps_in+REAL(l+1,KIND=dp)*eps_out))
+             END DO
+          END IF
+          pos(i) =  r1s
+       END DO
+       ! Computes the full derivatives of the interaction energy
+       DO iparticle1 = 1, SIZE(particle_set)
+          ip1 = (iparticle1-1)*SIZE(radii)          
+          q1t = SUM(charges(ip1+1:ip1+SIZE(radii)))
+          DO iparticle2 = 1, iparticle1
+             ip2 = (iparticle2-1)*SIZE(radii)
+             q2t = SUM(charges(ip2+1:ip2+SIZE(radii)))
+             !
+             r1 = particle_set(iparticle1)%r-center
+             r2 = particle_set(iparticle2)%r-center
+             pos1  = pos(iparticle1)
+             pos2  = pos(iparticle2)
+             factor1 = 0.0_dp
+             factor2 = 0.0_dp             
+             IF (pos1*pos2/=0.0_dp) THEN
+                pos1i = 1.0_dp/pos1
+                pos2i = 1.0_dp/pos1
+                dpos1 = pos1i*r1
+                dpos2 = pos2i*r2
+                ptcos = DOT_PRODUCT(r1,r2)
+                mycos = ptcos/(pos1*pos2)
+                IF (ABS(mycos) > 1.0_dp) mycos = SIGN(1.0_dp, mycos)
+                dcos1 = (r2*(pos1*pos2)-pos2*dpos1*ptcos)/(pos1*pos2)**2
+                dcos2 = (r1*(pos1*pos2)-pos1*dpos2*ptcos)/(pos1*pos2)**2
+                
+                DO l = 1, lmax
+                   lr =  REAL(l,KIND=dp)
+                   factor1 = factor1 + lr*LocP(l,iparticle2)*pos1**(l-1)*legendre(mycos,l,0)*dpos1&
+                        + LocP(l,iparticle2)*pos1**l*dlegendre(mycos,l,0)*dcos1
+                   factor2 = factor2 + lr*LocP(l,iparticle1)*pos2**(l-1)*legendre(mycos,l,0)*dpos2&
+                        + LocP(l,iparticle1)*pos2**l*dlegendre(mycos,l,0)*dcos2
+                END DO
+             END IF
+             factor1 = factor1 * q1t * q2t
+             factor2 = factor2 * q1t * q2t
+             d_el(1:3,iparticle1) = d_el(1:3,iparticle1) + 0.5_dp * factor1
+             d_el(1:3,iparticle2) = d_el(1:3,iparticle2) + 0.5_dp * factor2
+          END DO
+       END DO
+       DEALLOCATE(pos,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE(LocP,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       M => qs_env%cp_ddapc_env%Mr
+       CALL cp_decpl_ddapc_forces(qs_env, M, charges, dq, d_el, particle_set, error)
+       DEALLOCATE(d_el, stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)                 
+    END IF
+  END SUBROUTINE solvation_ddapc_force
 
 END MODULE cp_ddapc_forces

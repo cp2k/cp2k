@@ -181,6 +181,10 @@ FUNCTION create_cp2k_input_reading(file_path,para_env,error) RESULT(res)
        CALL section_add_subsection(root_section,section,error=error)
        CALL section_release(section,error=error)
 
+       CALL create_debug_section(section,error=error)
+       CALL section_add_subsection(root_section,section,error=error)
+       CALL section_release(section,error=error)
+
        CALL create_motion_section(section,error=error)
        CALL section_add_subsection(root_section,section,error=error)
        CALL section_release(section,error=error)
@@ -522,8 +526,6 @@ FUNCTION create_cp2k_input_reading(file_path,para_env,error) RESULT(res)
 
  END SUBROUTINE create_global_section
 
-
-
 !!****f* input_cp2k/create_test_section [1.0] *
 !!
 !!   NAME
@@ -646,6 +648,59 @@ FUNCTION create_cp2k_input_reading(file_path,para_env,error) RESULT(res)
     CALL section_release(print_key,error=error)    
 
   END SUBROUTINE create_test_section
+!***************************************************************************
+
+
+!!****f* input_cp2k/create_debug_section [1.0] *
+!!
+!!   NAME
+!!     
+!!
+!!   FUNCTION
+!!     section to setup debugging parameter
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - section: the section to be created
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_debug_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_debug_section', &
+      routineP = moduleN//':'//routineN
+
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: print_key
+
+    CALL section_create(section,name="debug",&
+         description="Section to setup parameters for debugging runs",&
+         n_keywords=7, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+         error=error)
+
+    NULLIFY(keyword, print_key)
+    CALL keyword_create(keyword, name="numerical_pressure",&
+         description="Computes the numerical tensor",&
+         usage="NUMERICAL_PRESSURE <LOGICAL>",default_l_val=.FALSE., error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+    CALL keyword_create(keyword, name="dx",&
+         description=" Setup the DX parameter to evaluate numerical derivatives",&
+         usage="DX <REAL>",default_r_val=0.001_dp,error=error)
+    CALL section_add_keyword(section,keyword,error=error)
+    CALL keyword_release(keyword,error=error)
+
+  END SUBROUTINE create_debug_section
 !***************************************************************************
 
 !!****f* input_cp2k/create_force_eval_section *

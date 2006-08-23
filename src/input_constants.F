@@ -91,6 +91,9 @@ MODULE input_constants
                                       ALPHA_IMOMM_DEFAULT = 1.38_dp,&
                                       CHARGE_SCALE_FACTOR = 1.00_dp
                                       
+  ! Weight_types
+  INTEGER, PARAMETER, PUBLIC :: weight_type_unit=0,&
+                                weight_type_mass=1
 
   ! Blacs type of distribution 
   INTEGER, PARAMETER, PUBLIC :: blacs_square=1, blacs_row=2, blacs_col=3

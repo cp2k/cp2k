@@ -81,7 +81,6 @@ MODULE cp2k_runs
   USE pint_methods,                    ONLY: do_pint_run
   USE qs_debug,                        ONLY: qs_debug_energy_and_forces
   USE qs_linres_module,                ONLY: linres_calculation
-  USE qs_numerical_pressure,           ONLY: qs_calc_numerical_pressure
   USE qs_tddfpt_module,                ONLY: tddfpt_calculation
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -360,22 +359,17 @@ CPSourceFileRef,&
                   error=suberror)
              CALL linres_calculation(force_env%qs_env, globenv, error=suberror)
           CASE (qs_debug_run)
-             IF( (method_name_id == do_qs) .OR. &
-                  (method_name_id == do_qmmm) .OR. &
-                  (method_name_id == do_ep)) THEN
-                IF((.NOT. method_name_id == do_qmmm).AND.&
-                ( method_name_id == do_qs)) THEN
-                  CALL qs_calc_numerical_pressure(force_env,error=error)           
-                END IF
+             SELECT CASE(method_name_id)
+             CASE(do_qs, do_qmmm, do_ep)
                 CALL qs_debug_energy_and_forces(force_env, globenv, error=suberror)
-             ELSE IF(method_name_id == do_fist) THEN
+             CASE(do_fist)
                 CALL fist_debug_control(force_env, globenv, error=suberror)
-             ELSE
+             CASE DEFAULT
                 CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
                      "Debug run available only with QS, FIST, and QMMM program "//&
 CPSourceFileRef,&
                      suberror,failure)
-             END IF
+             END SELECT
           CASE default
              CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
           END SELECT

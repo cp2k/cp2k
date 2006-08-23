@@ -28,7 +28,8 @@ MODULE cp_ddapc_methods
                                              unit_convert_type
   USE erf_fn,                          ONLY: erfc
   USE input_section_types,             ONLY: section_vals_type,&
-                                             section_vals_val_get
+                                             section_vals_val_get,&
+                                             section_vals_val_set
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
   USE mathlib,                         ONLY: invert_matrix
@@ -38,6 +39,10 @@ MODULE cp_ddapc_methods
   USE pw_types,                        ONLY: pw_type
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE input_constants,                 ONLY: weight_type_unit,&
+                                             weight_type_mass
+  USE spherical_harmonics,             ONLY: legendre
+  USE cp_para_types,                   ONLY: cp_para_env_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -50,7 +55,8 @@ MODULE cp_ddapc_methods
             build_A_matrix,&
             build_der_A_matrix,&
             ddapc_eval_AmI,&
-            ewald_ddapc_pot
+            ewald_ddapc_pot,&
+            solvation_ddapc_pot
 
 CONTAINS
 
@@ -586,10 +592,10 @@ CONTAINS
 !!     08.2005 created [tlaino]
 !!
 !!*** **********************************************************************
-  RECURSIVE SUBROUTINE ewald_ddapc_pot(coeff, qmmm_periodic, cell, multipole_section,&
+  RECURSIVE SUBROUTINE ewald_ddapc_pot(coeff, factor, cell, multipole_section,&
        particle_set, M, radii, error)
     TYPE(pw_type), POINTER                   :: coeff
-    LOGICAL, INTENT(IN)                      :: qmmm_periodic
+    REAL(KIND=dp), INTENT(IN)                :: factor
     TYPE(cell_type), POINTER                 :: cell
     TYPE(section_vals_type), POINTER         :: multipole_section
     TYPE(particle_type), DIMENSION(:), &
@@ -606,7 +612,7 @@ CONTAINS
       ip1, ip2, iparticle1, iparticle2, istart_g, k1, k2, k3, n_rep, ndim, &
       nmax1, nmax2, nmax3, r1, r2, r3, rmax1, rmax2, rmax3, sfact, stat
     LOGICAL                                  :: analyt, failure
-    REAL(KIND=dp) :: alpha, dfact, eps, eps0, ew_neut, fac, fac2, fac3, fs, &
+    REAL(KIND=dp) :: alpha, eps, eps0, ew_neut, fac, fac2, fac3, fs, &
       g_ewald, galpha, gsq, gsqi, my_val, r, r_ewald, rc1, rc12, rc2, rc22, &
       rcut, t1, tol, tol1
     REAL(KIND=dp), DIMENSION(3)              :: fvec, gvec, ra, rb, rvec
@@ -620,10 +626,7 @@ CONTAINS
        CPPostcondition(.NOT.ASSOCIATED(M),cp_failure_level,routineP,error,failure)
        CPPostcondition(ASSOCIATED(radii),cp_failure_level,routineP,error,failure)
        CALL get_cp2k_units ( units )
-       sfact =  1.0_dp
-       IF (qmmm_periodic) THEN 
-          sfact = -1.0_dp
-       END IF
+       sfact = factor
        rcut = MIN(cell%hmat(1,1),cell%hmat(2,2),cell%hmat(3,3))/2.0_dp
        CALL section_vals_val_get(multipole_section,"RCUT",n_rep_val=n_rep,error=error)
        IF (n_rep==1) CALL section_vals_val_get(multipole_section,"RCUT",r_val=rcut,error=error)
@@ -671,8 +674,6 @@ CONTAINS
              my_val = 0.0_dp
              rvec   = particle_set(iparticle1)%r - particle_set(iparticle2)%r
              r_ewald = 0.0_dp
-             dfact = 1.0_dp
-             IF (iparticle1 == iparticle2) dfact = 0.5_dp
              IF (iparticle1 /= iparticle2) THEN
                 ra = rvec 
                 r  = SQRT(DOT_PRODUCT(ra,ra))
@@ -764,5 +765,192 @@ CONTAINS
     END IF
     CALL timestop(0.0_dp,handle)
   END SUBROUTINE ewald_ddapc_pot
+
+!!****f* cp_ddapc_methods/solvation_ddapc_pot [1.0] *
+!!
+!!   NAME
+!!     solvation_ddapc_pot
+!!
+!!   FUNCTION
+!!     Evaluates the electrostatic potential due to a simple solvation model
+!!     Spherical cavity in a dieletric medium
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!
+!!   AUTHOR
+!!     Teodoro Laino
+!!
+!!   MODIFICATION HISTORY
+!!     08.2006 created [tlaino]
+!!
+!!*** **********************************************************************
+  SUBROUTINE solvation_ddapc_pot(coeff, cell, solvation_section, particle_set, M,  radii, error)
+    TYPE(pw_type), POINTER                   :: coeff
+    TYPE(cell_type), POINTER                 :: cell
+    TYPE(section_vals_type), POINTER         :: solvation_section
+    TYPE(particle_type), DIMENSION(:), &
+      POINTER                                :: particle_set
+    REAL(KIND=dp), DIMENSION(:,:), POINTER   :: M
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: radii
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'solvation_ddapc_pot', &
+      routineP = moduleN//':'//routineN
+    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: SolvM
+    LOGICAL :: failure
+    REAL(KIND=dp) :: eps_in, eps_out, Rs, mass, center(3), r1, r2, rvec(3)
+    REAL(KIND=dp) :: mycos, factor
+    REAL(KIND=dp), DIMENSION(:), POINTER   :: R0, pos
+    REAL(KIND=dp), DIMENSION(:,:), POINTER :: LocP, cost
+    INTEGER  :: lmax, n_rep1, n_rep2, weight, i, stat, l, j, ndim, idim
+    INTEGER  :: iparticle2, ip2, idim2, igauss2, output_unit
+    INTEGER  :: iparticle1, ip1, idim1, igauss1, istart_g
+    INTEGER, DIMENSION(:), POINTER :: list
+    LOGICAL  :: fixed_center, ionode
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
+   
+    failure = .FALSE.
+    fixed_center = .FALSE.
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
+    ionode = logger%para_env%mepos==logger%para_env%source
+    output_unit = -1
+    IF (ionode) THEN
+      output_unit= cp_logger_get_default_unit_nr(logger)
+    END IF
+    IF (.NOT.failure) THEN
+       ndim   = SIZE(particle_set) * SIZE(radii)
+       ALLOCATE(M(ndim, ndim), stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure) 
+       M      = 0.0_dp
+       eps_in = 1.0_dp
+       CALL section_vals_val_get(solvation_section,"EPS_OUT",r_val=eps_out,error=error)
+       CALL section_vals_val_get(solvation_section,"LMAX",i_val=lmax,error=error)
+       CALL section_vals_val_get(solvation_section,"SPHERE%RADIUS",r_val=Rs,error=error)
+       CALL section_vals_val_get(solvation_section,"SPHERE%CENTER%XYZ",n_rep_val=n_rep1,&
+            error=error)
+       IF (n_rep1/=0) THEN
+          CALL section_vals_val_get(solvation_section,"SPHERE%CENTER%XYZ",r_vals=R0,&
+               error=error)
+          center = R0
+       ELSE
+          CALL section_vals_val_get(solvation_section,"SPHERE%CENTER%ATOM_LIST",&
+               n_rep_val=n_rep2,error=error)
+          IF (n_rep2/=0) THEN
+             CALL section_vals_val_get(solvation_section,"SPHERE%CENTER%ATOM_LIST",i_vals=list,&
+                  error=error)
+             CALL section_vals_val_get(solvation_section,"SPHERE%CENTER%WEIGHT_TYPE",i_val=weight,&
+                  error=error)
+             ALLOCATE(R0(SIZE(list)),stat=stat)
+             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             SELECT CASE(weight)
+             CASE (weight_type_unit)
+                R0 = 0.0_dp
+                DO i = 1, SIZE(list)
+                   R0 = R0 + particle_set(list(i))%r
+                END DO
+                R0 = R0 / REAL(SIZE(list),KIND=dp)
+             CASE (weight_type_mass)
+                R0 = 0.0_dp
+                mass = 0.0_dp
+                DO i = 1, SIZE(list)
+                   R0 = R0 + particle_set(list(i))%r * particle_set(list(i))%atomic_kind%mass
+                   mass = mass + particle_set(list(i))%atomic_kind%mass
+                END DO
+                R0 = R0 / mass
+             END SELECT
+             center = R0
+             CALL section_vals_val_get(solvation_section,"SPHERE%CENTER%FIXED",l_val=fixed_center,&
+                  error=error)
+             IF (fixed_center) THEN             
+                CALL section_vals_val_set(solvation_section,"SPHERE%CENTER%XYZ",&
+                     r_vals_ptr=R0,error=error)
+             ELSE
+                DEALLOCATE(R0, stat=stat)
+                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure) 
+             END IF
+          END IF
+       END IF
+       CPPostcondition(n_rep1/=0.OR.n_rep2/=0,cp_failure_level,routineP,error,failure)
+       ! Potential calculation
+       ALLOCATE(LocP(0:lmax,SIZE(particle_set)),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(pos(SIZE(particle_set)),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(cost(SIZE(particle_set),SIZE(particle_set)),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ! Determining the single atomic contribution to the dielectric dipole
+       DO i = 1, SIZE(particle_set)
+          rvec = particle_set(i)%r-center
+          r2   = DOT_PRODUCT(rvec,rvec)
+          r1   = SQRT(r2)
+          IF (r1>=Rs) THEN
+             IF (output_unit>0) THEN
+                WRITE(output_unit,'(A,I6,A)')"Atom number :: ",i," is out of the solvation sphere"
+                WRITE(output_unit,'(2(A,F12.6))')"Distance from the center::",r1," Radius of the sphere::",rs
+             END IF
+             CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
+          END IF
+          LocP(:,i) = 0.0_dp
+          IF (r1/=0.0_dp) THEN
+             DO l = 0, lmax
+                LocP(l,i) = ( r1**l * REAL(l+1,KIND=dp) * (eps_in-eps_out))/&
+                     (Rs**(2*l+1)*eps_in*(REAL(l,KIND=dp)*eps_in+REAL(l+1,KIND=dp)*eps_out))
+             END DO
+          ELSE
+             ! limit for r->0
+             LocP(0,i) = (eps_in-eps_out)/(Rs*eps_in*eps_out)
+          END IF
+          pos(i) =  r1
+       END DO
+       ! Particle-Particle potential energy matrix
+       cost = 0.0_dp
+       DO i = 1, SIZE(particle_set)
+          DO j = 1, i
+             factor    = 0.0_dp
+             IF (pos(i)*pos(j)/=0.0_dp) THEN
+                mycos     = DOT_PRODUCT(particle_set(i)%r-center,particle_set(j)%r-center)/(pos(i)*pos(j))
+                IF (ABS(mycos) > 1.0_dp) mycos = SIGN(1.0_dp, mycos)
+                DO l = 0, lmax
+                   factor = factor + LocP(l,i) * pos(j)**l * legendre(mycos,l,0)
+                END DO
+             ELSE
+                factor = LocP(0,i)
+             END IF
+             cost(i,j) = factor
+             cost(j,i) = factor
+          END DO
+       END DO
+       ! Computes the full potential energy matrix
+       idim = 0
+       DO iparticle2 = 1, SIZE(particle_set)
+          ip2  = (iparticle2-1)*SIZE(radii)
+          DO igauss2 = 1, SIZE(radii)
+             idim2 = ip2 + igauss2
+             DO iparticle1 = 1, iparticle2
+                ip1 = (iparticle1-1)*SIZE(radii)
+                istart_g = 1
+                IF (iparticle1==iparticle2) istart_g = igauss2
+                DO igauss1 = istart_g, SIZE(radii)
+                   idim1  = ip1 + igauss1
+                   M(idim1,idim2) = cost(iparticle1,iparticle2)
+                   M(idim2,idim1) = M(idim1,idim2)
+                END DO
+             END DO
+          END DO
+       END DO
+       DEALLOCATE(cost,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE(pos,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE(LocP,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
+  END SUBROUTINE solvation_ddapc_pot
 
 END MODULE cp_ddapc_methods

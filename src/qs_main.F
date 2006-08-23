@@ -80,14 +80,14 @@ CONTAINS
 !! 
 !******************************************************************************
   SUBROUTINE quickstep_create_force_env(force_env,globenv,subsystem,cell,cell_ref,&
-       qmmm, force_env_section, error)
+       qmmm, qmmm_periodic, force_env_section, error)
 
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_subsystem_type), OPTIONAL, &
       POINTER                                :: subsystem
     TYPE(cell_type), OPTIONAL, POINTER       :: cell, cell_ref
-    LOGICAL, INTENT(IN), OPTIONAL            :: qmmm
+    LOGICAL, INTENT(IN), OPTIONAL            :: qmmm, qmmm_periodic
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -107,7 +107,8 @@ CONTAINS
     !Reference qs_env 
     CALL qs_env_create(qs_env,globenv%para_env)
     CALL qs_init( qs_env, globenv, subsystem=subsystem, cell=cell, cell_ref=cell_ref,&
-                  qmmm=qmmm, force_env_section=force_env_section, error=error )
+                  qmmm=qmmm, qmmm_periodic=qmmm_periodic,&
+                  force_env_section=force_env_section, error=error )
     CALL force_env_create(force_env, qs_env=qs_env, globenv=globenv,&
          sub_force_env=sub_force_env, force_env_section=force_env_section,error=error)
     CALL qs_env_release(qs_env,error=error)

@@ -326,7 +326,8 @@ CONTAINS
             sub_subsys_index=qm_subsys_index,&
             sub_atom_kind_name=qm_atom_type, globenv=globenv,force_env_section=force_env_section,error=error)
        CALL quickstep_create_force_env(sub_force_env(2)%force_env,globenv,subsystem=subsys_qm,&
-            cell=qm_cell_small, qmmm=.TRUE., force_env_section=force_env_section, error=error)
+            cell=qm_cell_small, qmmm=.TRUE., qmmm_periodic=qmmm_env_qm%periodic,&
+            force_env_section=force_env_section, error=error)
        CALL cp_subsys_release(subsys_qm,error=error)
        CALL force_env_get(sub_force_env(2)%force_env,qs_env=qs_env,error=error)
        IF (qmmm_env_qm%periodic) THEN 

@@ -43,6 +43,8 @@ MODULE qs_debug
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
   USE particle_types,                  ONLY: particle_type
+  USE qs_numerical_pressure,           ONLY: qs_calc_numerical_pressure
+
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -50,7 +52,7 @@ MODULE qs_debug
   CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_debug'
 
   PUBLIC :: qs_debug_energy_and_forces
-  REAL(KIND=dp), PRIVATE, PARAMETER :: MaxErr = 1.0_dp
+  REAL(KIND=dp), PRIVATE, PARAMETER :: MaxErr = 5.0_dp
 
 CONTAINS
 
@@ -62,12 +64,11 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_debug_energy_and_forces', &
       routineP = moduleN//':'//routineN
-    REAL(kind=dp), PARAMETER                 :: Dx = 0.001_dp
 
     INTEGER                                  :: ip, iseq, isubsys, iw, j, k, &
                                                 stat
-    LOGICAL                                  :: failure, harris_flag
-    REAL(kind=dp)                            :: std_value
+    LOGICAL                                  :: failure, harris_flag, num_pressure
+    REAL(kind=dp)                            :: std_value, dx
     REAL(kind=dp), DIMENSION(2)              :: numer_energy
     REAL(kind=dp), DIMENSION(3)              :: Err, my_maxerr
     REAL(kind=dp), DIMENSION(:, :), POINTER  :: analyt_forces, numer_forces
@@ -85,6 +86,11 @@ CONTAINS
        CALL section_vals_val_get(harris_section, "ACTIVATE", &
                                  l_val=harris_flag, error=error)
 
+       CALL section_vals_val_get(globenv%input_file,"DEBUG%NUMERICAL_PRESSURE",&
+            l_val=num_pressure, error=error)
+       CALL section_vals_val_get(globenv%input_file,"DEBUG%DX",&
+            r_val=dx, error=error)
+       IF (num_pressure) CALL qs_calc_numerical_pressure(force_env,error=error)
        iw = globenv%scr
        ! 
        ! First evaluate energy and forces...
@@ -125,10 +131,10 @@ CONTAINS
                 DO j = 1, 2 
                    particles(ip)%r(k) = std_value - (-1.0_dp)**j * Dx
                    IF (.NOT. harris_flag) THEN
-                     CALL force_env_calc_energy_force(force_env,calc_force=.FALSE.,&
+                     CALL force_env_calc_energy_force(force_env,calc_force=.TRUE.,&
                                                       consistent_energies=.TRUE., error=error)
                    ELSE
-                     CALL force_env_calc_energy_force(force_env,calc_force=.FALSE.,&
+                     CALL force_env_calc_energy_force(force_env,calc_force=.TRUE.,&
                                                       consistent_energies=.FALSE., error=error)
                    END IF
                    CALL force_env_get (force_env, potential_energy=numer_energy(j), error=error)
@@ -170,17 +176,13 @@ CONTAINS
              END DO
              IF (globenv%para_env%ionode) THEN
                  WRITE(iw,100)ip,Analyt_Forces(Ip,1),Err(1),&
-                            Analyt_Forces(Ip,2),Err(2),&
-                            Analyt_Forces(Ip,3),Err(3)
+                                 Analyt_Forces(Ip,2),Err(2),&
+                                 Analyt_Forces(Ip,3),Err(3)
              ENDIF
              my_MaxErr = MaxErr
              IF (ABS(Analyt_Forces(Ip,1)) <= 0.0001_dp ) my_MaxErr(1)=my_MaxErr(1)*5.0_dp
              IF (ABS(Analyt_Forces(Ip,2)) <= 0.0001_dp ) my_MaxErr(2)=my_MaxErr(2)*5.0_dp
              IF (ABS(Analyt_Forces(Ip,3)) <= 0.0001_dp ) my_MaxErr(3)=my_MaxErr(3)*5.0_dp
-             ! ? does the whole of this routine actually work in parallel 
-             IF (globenv%para_env%ionode) THEN
-                WRITE(iw,*)my_MaxErr
-             ENDIF
              CPPostcondition(ABS(Err(1))<=my_MaxErr(1),cp_failure_level,routineP,error,failure)
              CPPostcondition(ABS(Err(2))<=my_MaxErr(2),cp_failure_level,routineP,error,failure)
              CPPostcondition(ABS(Err(3))<=my_MaxErr(3),cp_failure_level,routineP,error,failure)

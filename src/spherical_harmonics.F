@@ -51,7 +51,7 @@ MODULE spherical_harmonics
   PUBLIC :: clebsch_gordon_deallocate, clebsch_gordon_init,&
             clebsch_gordon, clebsch_gordon_getm
   PUBLIC :: dPof1 , drvy_lm
-  PUBLIC :: legendre
+  PUBLIC :: legendre, dlegendre
 
   INTERFACE y_lm
      MODULE PROCEDURE rvy_lm, rry_lm, cvy_lm, ccy_lm
@@ -1070,10 +1070,43 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: l, m
     REAL(KIND=dp)                            :: dplm
 
-  IF ( ABS ( x ) > 1.0_dp ) CALL stop_program("legendre","x value > 1")
+  IF ( ABS ( x ) > 1.0_dp ) CALL stop_program("dlegendre","x value > 1")
   SELECT CASE ( l )
-  CASE ( : 3 )
-    CALL stop_program("dlegendre"," l < 4 no need of dplm")
+  CASE ( 0 )
+    dplm = 0.0_dp
+  CASE ( 1 )
+    SELECT CASE ( ABS ( m ) )
+    CASE DEFAULT
+      CALL stop_program("dlegendre","l = 1 and m value out of bounds")
+    CASE ( 1 )
+      dplm = -x / SQRT ( 1.0_dp - x * x )
+    CASE ( 0 )
+      dplm = 1.0_dp
+    END SELECT
+  CASE ( 2 )
+    SELECT CASE ( ABS ( m ) )
+    CASE DEFAULT
+      CALL stop_program("dlegendre","l = 2 and m value out of bounds")
+    CASE ( 2 )
+      dplm = -6.0_dp * x
+    CASE ( 1 )
+      dplm = 3.0_dp * SQRT ( 1.0_dp - x * x ) - 3.0_dp * x * x / SQRT ( 1.0_dp - x * x )
+    CASE ( 0 )
+      dplm = 3.0_dp * x
+    END SELECT
+  CASE ( 3 )
+    SELECT CASE ( ABS ( m ) )
+    CASE DEFAULT
+      CALL stop_program("dlegendre","l = 3 and m value out of bounds")
+    CASE ( 3 )
+      dplm = -45.0_dp * SQRT( 1.0_dp - x * x ) * x
+    CASE ( 2 )
+      dplm = 15.0_dp * ( 1.0_dp - x * x ) - 30.0_dp * x * x
+    CASE ( 1 )
+      dplm = 15.0_dp * x * SQRT ( 1.0_dp - x * x ) - x / SQRT ( 1.0_dp - x * x ) * ( 7.5_dp * x * x - 1.5_dp ) 
+    CASE ( 0 )
+      dplm = 7.5_dp * x * x - 1.5_dp
+    END SELECT
   CASE ( 4 )
     SELECT CASE ( ABS ( m ) )
     CASE DEFAULT

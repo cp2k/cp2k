@@ -166,7 +166,7 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE qs_init(qs_env,globenv,subsystem,cell,cell_ref,qmmm,&
-       force_env_section,error)
+       qmmm_periodic,force_env_section,error)
 
 !   Purpose: Read the input and the database files for the setup of the
 !            QUICKSTEP environment.
@@ -180,7 +180,7 @@ CONTAINS
     TYPE(cp_subsystem_type), OPTIONAL, &
       POINTER                                :: subsystem
     TYPE(cell_type), OPTIONAL, POINTER       :: cell, cell_ref
-    LOGICAL, INTENT(IN), OPTIONAL            :: qmmm
+    LOGICAL, INTENT(IN), OPTIONAL            :: qmmm,qmmm_periodic
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -189,7 +189,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: harris_flag, my_qmmm, &
-                                                use_ref_cell
+                                                use_ref_cell, my_qmmm_periodic
     REAL(kind=dp), DIMENSION(3)              :: abc
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -219,6 +219,8 @@ CONTAINS
     
     my_qmmm     = .FALSE.
     IF (PRESENT(qmmm)) my_qmmm=qmmm
+    my_qmmm_periodic = .FALSE.
+    IF (PRESENT(qmmm_periodic)) my_qmmm_periodic=qmmm_periodic
 
     harris_flag = .FALSE.
     CALL section_vals_val_get(harris_section, "ACTIVATE", &
@@ -244,8 +246,8 @@ CONTAINS
     CALL get_cell ( my_cell, abc=abc)
 
 !   *** Setup the grids for the G-space Interpolation if any
-    CALL cp_ddapc_ewald_create(qs_env%cp_ddapc_ewald, my_qmmm, my_cell, force_env_section,&
-         globenv, error)
+    CALL cp_ddapc_ewald_create(qs_env%cp_ddapc_ewald, my_qmmm, my_qmmm_periodic,&
+         my_cell, force_env_section, globenv, error)
 
 !   *** Print the cell parameters ***
     CALL write_cell(my_cell,force_env_section,cell_ref=my_cell_ref,error=error)
