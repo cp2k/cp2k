@@ -399,6 +399,7 @@ SUBROUTINE mc_create_force_env ( force_env, globenv_old,input_file_name,&
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_type), POINTER              :: input_structure
     TYPE(section_vals_type), POINTER         :: force_env_section, input_file
+    TYPE(section_vals_type), POINTER         :: root_section
 
 !**************************************************************************
 
@@ -414,23 +415,22 @@ SUBROUTINE mc_create_force_env ( force_env, globenv_old,input_file_name,&
 
     ! parse the input
       input_file => create_cp2k_input_reading(input_file_name,para_env=para_env,error=error)
-      globenv%input_file => input_file
-      NULLIFY(input_file)
+      ROOT_SECTION => input_file
 
-      CALL cp2k_read(globenv)
-      force_env_section => section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL",error=error)
-      CALL section_vals_val_get(globenv%input_file,"GLOBAL%PROGRAM_NAME",i_val=globenv%prog_name_id)
+      CALL cp2k_read(root_section,globenv)
+      force_env_section => section_vals_get_subs_vals(ROOT_SECTION,"FORCE_EVAL",error=error)
+      CALL section_vals_val_get(ROOT_SECTION,"GLOBAL%PROGRAM_NAME",i_val=globenv%prog_name_id)
       CALL section_vals_val_get(force_env_section,"METHOD",i_val=method_name_id,error=error)
       CALL section_vals_get(force_env_section, n_repetition=nforce_eval, error=error)
 
       CPAssert(nforce_eval==1,cp_failure_level,routineP,error,failure)
       SELECT CASE ( method_name_id )
       CASE ( do_fist )
-         CALL fist_create_force_env(force_env, globenv, force_env_section=force_env_section, error=error)
+         CALL fist_create_force_env(force_env, root_section, globenv, force_env_section=force_env_section, error=error)
       CASE ( do_qs )
-         CALL quickstep_create_force_env(force_env, globenv, force_env_section=force_env_section, error=error)
+         CALL quickstep_create_force_env(force_env, root_section, globenv, force_env_section=force_env_section, error=error)
       CASE ( do_kg )
-         CALL kg_create_force_env ( force_env, globenv, force_env_section=force_env_section, error=error)
+         CALL kg_create_force_env ( force_env, root_section, globenv, force_env_section=force_env_section, error=error)
       CASE default
          CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
       END SELECT

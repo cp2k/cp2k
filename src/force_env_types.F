@@ -160,6 +160,7 @@ MODULE force_env_types
      TYPE ( virial_type  ), POINTER                      :: virial
      TYPE ( ep_env_type ), POINTER                       :: ep_env
      TYPE ( section_vals_type), POINTER                  :: force_env_section
+     TYPE ( section_vals_type), POINTER                  :: root_section
      TYPE ( extended_energy_type), POINTER               :: extended_energies
   END TYPE force_env_type
 
@@ -325,6 +326,7 @@ RECURSIVE SUBROUTINE force_env_release(force_env, error)
         CALL qmmm_env_qm_release(force_env%qmmm_env,error=error)
         CALL virial_release(force_env%virial,error=error)
         CALL section_vals_release(force_env%force_env_section,error=error)
+        CALL section_vals_release(force_env%root_section,error=error)
         force_env%ref_count=0
         DEALLOCATE(force_env,stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
@@ -362,7 +364,7 @@ RECURSIVE SUBROUTINE force_env_get(force_env, in_use, &
      fist_env, qs_env, kg_env, meta_env, fp_env, dyn_coeff_set, subsys, para_env, &
      potential_energy, kinetic_energy, cell, cell_ref, sub_force_env, qmmm_env,&
      tbmd_env, eip_env, virial, use_ref_cell, globenv, input,ep_env,&
-          force_env_section,method_name_id,error)
+          force_env_section,method_name_id,root_section,error)
     TYPE(force_env_type), POINTER            :: force_env
     INTEGER, INTENT(out), OPTIONAL           :: in_use
     TYPE(fist_environment_type), OPTIONAL, &
@@ -400,6 +402,7 @@ RECURSIVE SUBROUTINE force_env_get(force_env, in_use, &
     TYPE(section_vals_type), OPTIONAL, &
       POINTER                                :: force_env_section
     INTEGER, INTENT(out), OPTIONAL           :: method_name_id
+    TYPE(section_vals_type), POINTER, OPTIONAL :: root_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -608,6 +611,7 @@ CPSourceFileRef,&
      IF (PRESENT(qmmm_env))      qmmm_env      => force_env%qmmm_env
      IF (PRESENT(virial))        virial        => force_env % virial
      IF (PRESENT(globenv))       globenv       => force_env%globenv
+     IF (PRESENT(root_section))  root_section  => force_env%root_section
      IF (PRESENT(ep_env))        ep_env        => force_env%ep_env
   END IF
 END SUBROUTINE force_env_get

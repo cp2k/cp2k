@@ -133,8 +133,9 @@ CONTAINS
 !!     01.2006 initial create [tdk]
 !!
 !!*** **********************************************************************
-  SUBROUTINE tbmd_init(tbmd_env, globenv, force_env_section, error)
+  SUBROUTINE tbmd_init(tbmd_env, root_section, globenv, force_env_section, error)
     TYPE(tbmd_environment_type), POINTER     :: tbmd_env
+    TYPE(section_vals_type), POINTER         :: root_section
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(INOUT), &
@@ -206,7 +207,7 @@ CONTAINS
 
       CALL topology_control(atomic_kind_set, particle_set, &
                             molecule_kind_set, molecule_set, &
-                            subsystem%colvar_p,globenv, &
+                            subsystem%colvar_p,root_section,globenv, &
                             force_env_section=force_env_section,error=error)
 
       !CALL read_atomic_kind_set(atomic_kind_set, globenv)

@@ -123,8 +123,9 @@ CONTAINS
 !!     05.2004 created [fawzi]
 !!
 !!*** **********************************************************************
-  SUBROUTINE  qmmm_create_force_env(force_env, globenv, force_env_section, error)
+  SUBROUTINE  qmmm_create_force_env(force_env, root_section, globenv, force_env_section, error)
     TYPE(force_env_type), POINTER            :: force_env
+    TYPE(section_vals_type), POINTER         :: root_section
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
@@ -228,14 +229,14 @@ CONTAINS
           qmmm_env_qm%periodic = .FALSE.
           CALL Pwarning("QMMM PERIODIC CALCULATION WITH NONE COUPLING WAS REQUESTED! "//&
                         "SWITCHING OFF THE PERIODIC KEYWORD SINCE PERIODIC AND NON-PERIODIC "//&
-                        "CALCULATION WITH NONE COUPLING REPRESENT THE SAME METHOD!",globenv%input_file, error)
+                        "CALCULATION WITH NONE COUPLING REPRESENT THE SAME METHOD!",ROOT_SECTION, error)
        END IF
 
        ! First Initialize Fist...
  
        CALL section_vals_val_set(force_env_section,"METHOD",i_val=do_fist)
        CALL fist_create_force_env(sub_force_env(1)%force_env, &
-            globenv, qmmm=.TRUE., qmmm_env=qmmm_env_mm, force_env_section=force_env_section,&
+            root_section, globenv, qmmm=.TRUE., qmmm_env=qmmm_env_mm, force_env_section=force_env_section,&
             method_name_id=method_name_id,error=error)
 
        CALL force_env_get(sub_force_env(1)%force_env,subsys=subsys_mm,&
@@ -324,8 +325,9 @@ CONTAINS
             big_subsys=subsys_mm,small_para_env=para_env,&
             small_cell=qm_cell_small,sub_atom_index=qm_atom_index,&
             sub_subsys_index=qm_subsys_index,&
-            sub_atom_kind_name=qm_atom_type, globenv=globenv,force_env_section=force_env_section,error=error)
-       CALL quickstep_create_force_env(sub_force_env(2)%force_env,globenv,subsystem=subsys_qm,&
+            sub_atom_kind_name=qm_atom_type, root_section=root_section, &
+            globenv=globenv,force_env_section=force_env_section,error=error)
+       CALL quickstep_create_force_env(sub_force_env(2)%force_env,root_section,globenv,subsystem=subsys_qm,&
             cell=qm_cell_small, qmmm=.TRUE., qmmm_periodic=qmmm_env_qm%periodic,&
             force_env_section=force_env_section, error=error)
        CALL cp_subsys_release(subsys_qm,error=error)
@@ -399,7 +401,7 @@ CONTAINS
        CALL cell_release(qm_cell_small, error)                       
 
        CALL section_vals_val_set(force_env_section,"METHOD",i_val=do_qmmm)
-       CALL force_env_create(force_env, sub_force_env=sub_force_env,&
+       CALL force_env_create(force_env,root_section, sub_force_env=sub_force_env,&
             qmmm_env=qmmm_env_qm,globenv=globenv, force_env_section= force_env_section,&
             error=error)
        CALL qmmm_env_qm_release(qmmm_env_qm, error)

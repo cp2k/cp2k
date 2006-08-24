@@ -53,7 +53,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE write_checkpoint_information(checkpoint,globenv,error)
+  SUBROUTINE write_checkpoint_information(checkpoint,root_section,para_env,error)
 
 !   Purpose: Write checkpoint information.
 
@@ -62,38 +62,37 @@ CONTAINS
 !   ***************************************************************************
 
     CHARACTER(LEN=*), INTENT(IN)             :: checkpoint
-    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(section_vals_type), POINTER         :: root_section
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     INTEGER                                  :: iw
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_para_env_type), POINTER          :: para_env
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
-    iw = cp_print_key_unit_nr(logger,globenv%input_file,"GLOBAL%PERFORMANCE/ROUTINES",&
+    iw = cp_print_key_unit_nr(logger,ROOT_SECTION,"GLOBAL%PERFORMANCE/ROUTINES",&
          extension=".Log",error=error)
 !   ---------------------------------------------------------------------------
 !   *** Wait for ionode and empty IO buffer ***
-    para_env=>globenv%para_env 
     IF (iw>0) WRITE(iw,*)checkpoint
-    IF (para_env%ionode) CALL m_flush(globenv%scr)
+    IF (iw>0) CALL m_flush(iw)
     CALL mp_sync(para_env%group)
 
 !   *** Write checkpoint informations ***
 
-    CALL write_cputime(checkpoint,globenv,error)
-    CALL write_memory(checkpoint,globenv,error)
+    CALL write_cputime(checkpoint,root_section,para_env,error)
+    CALL write_memory(checkpoint,root_section,para_env,error)
 
-    IF (para_env%ionode) CALL m_flush(globenv%scr)
+    IF (iw>0) CALL m_flush(iw)
     CALL mp_sync(para_env%group)
-    CALL cp_print_key_finished_output(iw,logger,globenv%input_file,&
+    CALL cp_print_key_finished_output(iw,logger,ROOT_SECTION,&
          "GLOBAL%PERFORMANCE/ROUTINES",error=error)    
   END SUBROUTINE write_checkpoint_information
 
 ! *****************************************************************************
 
-  SUBROUTINE write_cputime(checkpoint,globenv,error)
+  SUBROUTINE write_cputime(checkpoint,root_section,para_env,error)
 
 !   Purpose: Write the current CPU time of all processes in seconds.
 
@@ -102,7 +101,8 @@ CONTAINS
 !   ***************************************************************************
 
     CHARACTER(LEN=*), INTENT(IN)             :: checkpoint
-    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(section_vals_type), POINTER         :: root_section
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=LEN_TRIM(checkpoint)+55)   :: string2
@@ -112,14 +112,12 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: myconvertedstring
     LOGICAL                                  :: ionode
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_para_env_type), POINTER          :: para_env
 
     NULLIFY(logger)
-    para_env=>globenv%para_env
     logger => cp_error_get_logger(error)
-    IF (BTEST(cp_print_key_should_output(logger%iter_info,globenv%input_file,&
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,ROOT_SECTION,&
          "GLOBAL%PERFORMANCE/CPUTIME",error=error),cp_p_file)) THEN
-       iw = cp_print_key_unit_nr(logger,globenv%input_file,"GLOBAL%PERFORMANCE/CPUTIME",&
+       iw = cp_print_key_unit_nr(logger,ROOT_SECTION,"GLOBAL%PERFORMANCE/CPUTIME",&
             extension=".Log",error=error)
 
        group = para_env%group
@@ -147,7 +145,7 @@ CONTAINS
           CALL m_flush(output_unit)
        ENDIF       
        DEALLOCATE(myconvertedstring)
-       CALL cp_print_key_finished_output(iw,logger,globenv%input_file,&
+       CALL cp_print_key_finished_output(iw,logger,ROOT_SECTION,&
             "GLOBAL%PERFORMANCE/CPUTIME",error=error)       
     END IF
   END SUBROUTINE write_cputime

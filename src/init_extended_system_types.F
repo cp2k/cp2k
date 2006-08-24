@@ -481,11 +481,12 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
 
-  SUBROUTINE initialize_nhc_coef ( dyn_coeff_set, globenv, nhc, work_section, error )
+  SUBROUTINE initialize_nhc_coef ( dyn_coeff_set, root_section, globenv, nhc, work_section, error )
 
     !  IMPLICIT NONE
 
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
+    TYPE(section_vals_type), POINTER         :: root_section
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(lnhc_parameters_type), &
       INTENT(INOUT)                          :: nhc
@@ -510,7 +511,7 @@ CONTAINS
     NULLIFY(coeff_section,nose_section,buffer,work_section2) 
     explicit  =.FALSE.
     restart = .FALSE.
-    md_new_section => section_vals_get_subs_vals(globenv%input_file,"MOTION%MD")
+    md_new_section => section_vals_get_subs_vals(ROOT_SECTION,"MOTION%MD")
     coeff_section => section_vals_get_subs_vals(md_new_section,"KG_COEFF")
     nose_section => section_vals_get_subs_vals(coeff_section,"nose")
     CALL section_vals_val_get(nose_section,"timecon",r_val=tau_nhc)
@@ -518,7 +519,7 @@ CONTAINS
     CALL section_vals_val_get(md_new_section,"timestep",r_val=dt)
 
     ! fire up the thermostats
-    CALL nhc_to_coef_mapping ( dyn_coeff_set, nhc, globenv )
+    CALL nhc_to_coef_mapping ( dyn_coeff_set, nhc, root_section, globenv )
 
     IF (ASSOCIATED(work_section)) THEN
        work_section2 => section_vals_get_subs_vals(work_section,"VELOCITY",error=error)

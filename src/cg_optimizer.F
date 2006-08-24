@@ -113,15 +113,17 @@ CONTAINS
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(section_vals_type), POINTER         :: root_section
 
     CALL timeset(routineN,"I","",handle)   
     para_env=>globenv%para_env
+    root_section=>force_env%root_section
     logger => cp_error_get_logger(error)
     CALL cp_add_iter_level(logger%iter_info,"GEO_OPT",ihandle,error)
     failure = .FALSE.
     IF (.NOT.failure) THEN
        ionode      = para_env%source==para_env%mepos
-       output_unit = cp_print_key_unit_nr(logger,globenv%input_file,&
+       output_unit = cp_print_key_unit_nr(logger,ROOT_SECTION,&
          "MOTION%GEOOPT%PRINT%PROGRAM_RUN_INFO",&
          extension=".geoLog",error=error)
 
@@ -152,7 +154,7 @@ CONTAINS
 
        CALL write_particle_distances(particle_set,cell,force_env_section,error)
    
-       CALL cp_print_key_finished_output(output_unit,logger,globenv%input_file,&
+       CALL cp_print_key_finished_output(output_unit,logger,ROOT_SECTION,&
             "MOTION%GEOOPT%PRINT%PROGRAM_RUN_INFO", error=error)
     END IF
     CALL cp_rm_iter_level(logger%iter_info,ihandle,error)
@@ -219,8 +221,10 @@ CONTAINS
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(section_vals_type), POINTER         :: root_section
 
     failure = .FALSE.
+    root_section=>force_env%root_section
     para_env=>globenv%para_env
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
@@ -270,7 +274,7 @@ CONTAINS
           END IF
           CALL external_control(should_stop,"GEO",globenv,error)
           IF(should_stop) EXIT
-          CALL write_restart(force_env=force_env,globenv=globenv,force_env_section=force_env_section)
+          CALL write_restart(force_env=force_env,root_section=root_section,force_env_section=force_env_section)
           !
           ! Convergence check
           !       
@@ -280,7 +284,7 @@ CONTAINS
           CALL check_converg(SIZE(x0),x0-xold,xi,ionode,output_unit,conv,gopt_param)
           wildcard = "   CG"
           IF (para_env%ionode) THEN
-             dataunit = cp_print_key_unit_nr(logger,globenv%input_file,&
+             dataunit = cp_print_key_unit_nr(logger,ROOT_SECTION,&
                   "MOTION%PRINT%TRAJECTORY",extension=".xyz",error=error)
              IF (dataunit>0) THEN
                 CALL force_env_get(force_env,&
@@ -295,7 +299,7 @@ CONTAINS
                      dump_xmol,"POS",TRIM(title))
                 CALL m_flush(dataunit)
              END IF
-             CALL cp_print_key_finished_output(dataunit,logger,globenv%input_file,&
+             CALL cp_print_key_finished_output(dataunit,logger,ROOT_SECTION,&
                   "MOTION%PRINT%TRAJECTORY", error=error)
              CALL write_qs_particle_coordinates(particle_set,cell,force_env_section,error)
           END IF

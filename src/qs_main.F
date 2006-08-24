@@ -80,10 +80,11 @@ CONTAINS
 !!    Modified for RESPA (07.2006)  
 !! 
 !******************************************************************************
-  SUBROUTINE quickstep_create_force_env(force_env,globenv,subsystem,cell,cell_ref,&
+  SUBROUTINE quickstep_create_force_env(force_env,root_section,globenv,subsystem,cell,cell_ref,&
        qmmm, qmmm_periodic, force_env_section, error)
 
     TYPE(force_env_type), POINTER            :: force_env
+    TYPE(section_vals_type), POINTER         :: root_section
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_subsystem_type), OPTIONAL, &
       POINTER                                :: subsystem
@@ -109,10 +110,10 @@ CONTAINS
     NULLIFY(qs_env, sub_force_env)
     !Reference qs_env 
     CALL qs_env_create(qs_env,para_env)
-    CALL qs_init( qs_env, globenv, subsystem=subsystem, cell=cell, cell_ref=cell_ref,&
+    CALL qs_init( qs_env, root_section, globenv, subsystem=subsystem, cell=cell, cell_ref=cell_ref,&
                   qmmm=qmmm, qmmm_periodic=qmmm_periodic,&
                   force_env_section=force_env_section, error=error )
-    CALL force_env_create(force_env, qs_env=qs_env, globenv=globenv,&
+    CALL force_env_create(force_env,root_section, qs_env=qs_env, globenv=globenv,&
          sub_force_env=sub_force_env, force_env_section=force_env_section,error=error)
     CALL qs_env_release(qs_env,error=error)
 

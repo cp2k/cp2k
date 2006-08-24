@@ -103,7 +103,7 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
   SUBROUTINE topology_control (atomic_kind_set,particle_set,&
-       molecule_kind_set,molecule_set,colvar_p,globenv, qmmm, qmmm_env,&
+       molecule_kind_set,molecule_set,colvar_p,root_section,globenv, qmmm, qmmm_env,&
        force_env_section,error)
 
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -116,6 +116,7 @@ CONTAINS
       POINTER                                :: molecule_set
     TYPE(colvar_p_type), DIMENSION(:), &
       POINTER                                :: colvar_p
+    TYPE(section_vals_type), POINTER         :: root_section
     TYPE(global_environment_type), POINTER   :: globenv
     LOGICAL, INTENT(IN), OPTIONAL            :: qmmm
     TYPE(qmmm_env_mm_type), OPTIONAL, &
@@ -149,7 +150,7 @@ CONTAINS
          "SUBSYS",error=error)
     cell_section => section_vals_get_subs_vals(subsys_section,&
          "CELL",error=error)
-    constraint_section =>  section_vals_get_subs_vals(globenv%input_file,&
+    constraint_section =>  section_vals_get_subs_vals(ROOT_SECTION,&
          "MOTION%CONSTRAINT",error=error)
     topology_section   =>  section_vals_get_subs_vals(subsys_section,&
          "TOPOLOGY",error=error)
@@ -187,7 +188,7 @@ CONTAINS
     !-----------------------------------------------------------------------------
     ! 5. Read in the coordinates
     !-----------------------------------------------------------------------------
-    CALL coordinate_control(topology,globenv,subsys_section,error)
+    CALL coordinate_control(topology,root_section,para_env,subsys_section,error)
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
@@ -234,10 +235,10 @@ CONTAINS
     !-----------------------------------------------------------------------------
     IF (my_qmmm) THEN
        CALL topology_constraint_pack(molecule_kind_set,molecule_set,&
-            topology,qmmm_env,particle_set,globenv%input_file,para_env,subsys_section,error)
+            topology,qmmm_env,particle_set,ROOT_SECTION,para_env,subsys_section,error)
     ELSE
        CALL topology_constraint_pack(molecule_kind_set,molecule_set,&
-            topology,particle_set=particle_set,input_file=globenv%input_file, para_env=para_env,&
+            topology,particle_set=particle_set,input_file=ROOT_SECTION, para_env=para_env,&
             subsys_section=subsys_section,error=error)
     END IF
 
@@ -412,12 +413,13 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE coordinate_control(topology,globenv,subsys_section,error)
+  SUBROUTINE coordinate_control(topology,root_section,para_env,subsys_section,error)
 
 
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
-    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(section_vals_type), POINTER         :: root_section
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -432,12 +434,10 @@ CONTAINS
                                                 j, stat
     LOGICAL                                  :: failure, found
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_para_env_type), POINTER          :: para_env
 
     failure = .FALSE.
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
-    para_env=>globenv%para_env
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO",&
          extension=".mmLog",error=error)
     CALL timeset(routineN,'I','',handle)
@@ -462,15 +462,15 @@ CONTAINS
     SELECT CASE (topology%coord_type)
     CASE (do_coord_g96)
        CALL read_coordinate_g96 (topology,para_env,subsys_section,error)
-       CALL read_atoms_input ( topology, globenv, overwrite=.TRUE., subsys_section=subsys_section,error=error)
+       CALL read_atoms_input ( topology, root_section, overwrite=.TRUE., subsys_section=subsys_section,error=error)
     CASE (do_coord_pdb)
        CALL read_coordinate_pdb (topology,para_env,subsys_section,error)
-       CALL read_atoms_input ( topology, globenv, overwrite=.TRUE., subsys_section=subsys_section,error=error)
+       CALL read_atoms_input ( topology, root_section, overwrite=.TRUE., subsys_section=subsys_section,error=error)
     CASE (do_coord_xyz)
        CALL read_coordinate_xyz (topology,para_env,subsys_section,error)
-       CALL read_atoms_input ( topology, globenv, overwrite=.TRUE., subsys_section=subsys_section,error=error)
+       CALL read_atoms_input ( topology, root_section, overwrite=.TRUE., subsys_section=subsys_section,error=error)
     CASE DEFAULT
-       CALL read_atoms_input ( topology, globenv,  subsys_section=subsys_section, error=error)
+       CALL read_atoms_input ( topology, root_section,  subsys_section=subsys_section, error=error)
     END SELECT
     CALL timestop(0.0_dp,handle2)
     ! if the e.g. the &COORD block is empty, we don't proceed
@@ -487,7 +487,7 @@ CONTAINS
        id = INDEX(elements(i),"_")-1
        IF (id==-1) id = LEN_TRIM(elements(i))
        element0 = elements(i)(1:id)
-       CALL check_subsys_element(element0,my_element,globenv,subsys_section,error)
+       CALL check_subsys_element(element0,my_element,root_section,subsys_section,error)
        ! Earn time fixing same element labels for same atoms
        DO j = 1, topology%natoms
           IF (TRIM(element0)==TRIM(topology%atom_info%element(j))) THEN

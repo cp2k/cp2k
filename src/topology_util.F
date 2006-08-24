@@ -3613,11 +3613,11 @@ CONTAINS
 !!     12.2005 created [teo]
 !!
 !!*** **********************************************************************
-  SUBROUTINE check_subsys_element(element_in, element_out, globenv, force_env_section, error)
+  SUBROUTINE check_subsys_element(element_in, element_out, root_section, force_env_section, error)
     CHARACTER(len=*), INTENT(IN)             :: element_in
     CHARACTER(len=default_string_length), &
       INTENT(OUT)                            :: element_out
-    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(section_vals_type), POINTER         :: root_section
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -3669,11 +3669,11 @@ CONTAINS
     END IF
     IF (.NOT.found) THEN
        IF (iwarn > 0) THEN
-          CALL Pwarning("No element specification provided for type:"//element_in//".",globenv%input_file, error)
+          CALL Pwarning("No element specification provided for type:"//element_in//".",ROOT_SECTION, error)
           iwarn = iwarn - 1
           IF (iwarn == 0) THEN
              CALL Pwarning("Further Output regarding unknown element types will be suppressed!",&
-                  globenv%input_file,error)
+                  ROOT_SECTION,error)
           END IF
        END IF
     END IF

@@ -609,6 +609,7 @@ END SUBROUTINE f_env_rm_defaults
                                                 fp_section, input_file, &
                                                 metadyn_section
     TYPE(timer_env_type), POINTER            :: timer_env
+    TYPE(section_vals_type), POINTER         :: root_section
 
     failure=.FALSE.
     
@@ -659,13 +660,20 @@ END SUBROUTINE f_env_rm_defaults
        CALL section_vals_write(input_file,unit_nr=globenv%scr,hide_root=.TRUE.,&
             error=error)
     END IF
-    globenv%input_file => input_file
+    ! XXXXXXXXXXXXXXXXXXXXXXXXXXX
+    ! ROOT_SECTION => input_file
+    ! globenv%input_file => input_file
+    ! XXXXXXXXXXXXXXXXXXXXXXXXXXX
     CALL cp_error_check(error,failure)
     IF (.NOT.failure) THEN
        CALL check_cp2k_input(input_file,para_env=para_env,error=error)
        CALL cp_error_check(error,failure)
     END IF
-    NULLIFY(input_file)
+    ! XXXXXXXXXXXXXXXXXXXXXXXXXXX
+    ! NULLIFY(input_file)
+    ! XXXXXXXXXXXXXXXXXXXXXXXXXXX
+    root_section => input_file
+    CALL section_vals_retain(root_section,error)
 
     IF (n_f_envs+1>SIZE(f_envs)) THEN
        f_envs_old => f_envs
@@ -683,13 +691,13 @@ END SUBROUTINE f_env_rm_defaults
 
     IF (.NOT.failure) THEN
        
-       CALL cp2k_read(globenv)
-       CALL cp2k_setup(globenv,error)
+       CALL cp2k_read(root_section,globenv)
+       CALL cp2k_setup(root_section,globenv,error)
        ! Setup all possible force_env
-       force_env_sections => section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL",error=error)
+       force_env_sections => section_vals_get_subs_vals(ROOT_SECTION,"FORCE_EVAL",error=error)
 
        CALL section_vals_get(force_env_sections, n_repetition=nforce_eval, error=error)
-       CALL section_vals_val_get(globenv%input_file,"MOTION%MD%RESPA%FORCE_EVAL_SHELLS",i_vals=i_force_eval,&
+       CALL section_vals_val_get(ROOT_SECTION,"MOTION%MD%RESPA%FORCE_EVAL_SHELLS",i_vals=i_force_eval,&
             ignore_required=.TRUE.,error=error)
        CPPrecondition(SIZE(i_force_eval)==nforce_eval,cp_failure_level,routineP,error,failure)
        DO iforce_eval = 1, nforce_eval
@@ -703,24 +711,24 @@ END SUBROUTINE f_env_rm_defaults
           CASE (do_ep)
              ! does not support multi force_env_sections
              CALL ep_create_force_env ( my_force_env,&
-                  globenv, error = error )
+                  root_section,globenv, error = error )
           CASE (do_fist)
              CALL fist_create_force_env ( my_force_env,&
-                  globenv, force_env_section=force_env_section,  error = error )
+                  root_section,globenv, force_env_section=force_env_section,  error = error )
           CASE (do_kg)
              CALL kg_create_force_env ( my_force_env,&
-                  globenv, force_env_section=force_env_section, error=error)
+                  root_section,globenv, force_env_section=force_env_section, error=error)
           CASE (do_qs)
              CALL quickstep_create_force_env( my_force_env,&
-                  globenv, force_env_section=force_env_section, error=error)
+                  root_section,globenv, force_env_section=force_env_section, error=error)
           CASE (do_qmmm)
              CALL qmmm_create_force_env( my_force_env,&
-                  globenv, force_env_section=force_env_section, error=error)
+                  root_section,globenv, force_env_section=force_env_section, error=error)
           CASE (do_tbmd)
-             CALL tbmd_create_force_env(my_force_env, globenv, &
+             CALL tbmd_create_force_env(my_force_env, root_section, globenv, &
                   force_env_section=force_env_section, error=error)
           CASE (do_eip)
-             CALL eip_create_force_env(my_force_env, globenv, &
+             CALL eip_create_force_env(my_force_env, root_section, globenv, &
                   force_env_section=force_env_section, error=error)
           CASE default
              CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
@@ -729,13 +737,13 @@ END SUBROUTINE f_env_rm_defaults
 CPSourceFileRef,&
                error,failure)
           END SELECT
-          metadyn_section => section_vals_get_subs_vals(globenv%input_file,&
+          metadyn_section => section_vals_get_subs_vals(ROOT_SECTION,&
                "MOTION%METADYN",error=error)
-          CALL metadyn_read(meta_env, globenv, metadyn_section, error=error)
+          CALL metadyn_read(meta_env, root_section, para_env, metadyn_section, error=error)
           CALL force_env_set(my_force_env,meta_env=meta_env,error=error)
           CALL meta_env_release(meta_env,error=error)
           NULLIFY(fp_env)
-          fp_section => section_vals_get_subs_vals(globenv%input_file,&
+          fp_section => section_vals_get_subs_vals(ROOT_SECTION,&
                "MOTION%FLEXIBLE_PARTITIONING",error=error)
           CALL fp_env_create(fp_env,error=error)
           CALL fp_env_read(fp_env,fp_section,error=error)
@@ -765,6 +773,7 @@ CPSourceFileRef,&
          id_nr=last_f_env_id,error=error)
     CALL force_env_release(force_env,error=error)
     CALL globenv_release(globenv,error=error)
+    CALL section_vals_release(root_section,error)
     CALL cp_para_env_release(para_env,error=error)
     CALL f_env_rm_defaults(f_envs(n_f_envs)%f_env,error=error,ierr=ierr)
 
@@ -806,6 +815,7 @@ CPSourceFileRef,&
     TYPE(cp_error_type)                      :: error
     TYPE(f_env_type), POINTER                :: f_env
     TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(section_vals_type), POINTER         :: root_section
 
     failure=.FALSE.
     NULLIFY(f_env)
@@ -819,7 +829,7 @@ CPSourceFileRef,&
        NULLIFY(f_envs(n_f_envs+1)%f_env)
 
        CALL force_env_get(f_env%force_env,globenv=globenv,&
-            error=error)
+            root_section=root_section,error=error)
        CALL cp_error_check(error,failure)
        IF (.NOT.failure) THEN
           CPPrecondition(ASSOCIATED(globenv),cp_failure_level,routineP,error,failure)
@@ -827,7 +837,7 @@ CPSourceFileRef,&
        IF (.NOT.failure) THEN
           CALL globenv_retain(globenv,error=error)
           CALL f_env_dealloc(f_env,error=error)
-          CALL cp2k_finalize(globenv,error)
+          CALL cp2k_finalize(root_section,globenv,error)
           CALL globenv_release(globenv,error=error)
           CALL cp_error_check(error,failure)
           

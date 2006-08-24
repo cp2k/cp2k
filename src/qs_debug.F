@@ -79,19 +79,21 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particles
     TYPE(section_vals_type), POINTER         :: harris_section
+    TYPE(section_vals_type), POINTER         :: root_section
 
     failure = .FALSE.
     NULLIFY(analyt_forces, numer_forces, subsys, particles)
     para_env=>globenv%para_env
+    root_section=>force_env%root_section
     IF (.NOT.failure) THEN
        harris_section => section_vals_get_subs_vals(force_env%force_env_section, &
                                                     "DFT%QS%HARRIS")
        CALL section_vals_val_get(harris_section, "ACTIVATE", &
                                  l_val=harris_flag, error=error)
 
-       CALL section_vals_val_get(globenv%input_file,"DEBUG%NUMERICAL_PRESSURE",&
+       CALL section_vals_val_get(ROOT_SECTION,"DEBUG%NUMERICAL_PRESSURE",&
             l_val=num_pressure, error=error)
-       CALL section_vals_val_get(globenv%input_file,"DEBUG%DX",&
+       CALL section_vals_val_get(ROOT_SECTION,"DEBUG%DX",&
             r_val=dx, error=error)
        IF (num_pressure) CALL qs_calc_numerical_pressure(force_env,error=error)
        iw = globenv%scr

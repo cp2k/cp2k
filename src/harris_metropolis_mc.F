@@ -226,6 +226,7 @@ CONTAINS
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(section_vals_type), POINTER         :: force_env_section, hmc_section
     TYPE(tbmd_environment_type), POINTER     :: tbmd_env
+    TYPE(section_vals_type), POINTER         :: root_section
 
     NULLIFY(force_env_p, hmc_section, kg_env, qs_env, tbmd_env, eip_env, &
          subsys, subsystem, fist_env)
@@ -234,7 +235,8 @@ CONTAINS
     para_env=>globenv%para_env
 
     force_env_section => force_env%force_env_section
-    hmc_section => section_vals_get_subs_vals(globenv%input_file, &
+    root_section => force_env%root_section
+    hmc_section => section_vals_get_subs_vals(ROOT_SECTION, &
          "MOTION%MD%HMC", error=error)
     CALL section_vals_val_get(hmc_section, "MD_METHOD", &
          i_val=md_method, error=error)
@@ -269,7 +271,7 @@ CONTAINS
         ! *** Read the input and the database files and perform further  ***
         ! *** initializations for the setup of the FIST environment ***
 
-        CALL fist_init(fist_env, globenv, force_env%force_env_section,error)
+        CALL fist_init(fist_env,root_section, globenv, force_env%force_env_section,error)
 
         CALL get_fist_env(fist_env=fist_env, subsys=subsystem, error=error)
         CALL cp_subsys_release(subsys=subsystem, error=error)
@@ -287,7 +289,7 @@ CONTAINS
         CALL kg_env_create(kg_env, para_env=para_env, &
                            error=error)
 
-        CALL kg_init(kg_env, globenv, force_env_section, error)
+        CALL kg_init(kg_env, root_section, globenv, force_env_section, error)
 
         CALL cp_subsys_release(subsys=kg_env%subsys, error=error)
 
@@ -307,7 +309,7 @@ CONTAINS
          
         !   *** Read the input and the database files and perform further  ***
         !   *** initializations for the setup of the QUICKSTEP environment ***
-        CALL qs_init(qs_env, globenv, force_env_section=force_env_section, error=error)
+        CALL qs_init(qs_env, root_section, globenv, force_env_section=force_env_section, error=error)
 
         CALL cp_subsys_release(subsys=qs_env%subsys, error=error)
 
@@ -325,7 +327,7 @@ CONTAINS
       CASE (do_tbmd)
         CALL tbmd_env_create(tbmd_env, error=error)
 
-        CALL tbmd_init(tbmd_env, globenv, force_env_section,error=error)
+        CALL tbmd_init(tbmd_env, root_section, globenv, force_env_section,error=error)
 
         CALL cp_subsys_release(subsys=tbmd_env%subsystem, error=error)
 
@@ -343,7 +345,7 @@ CONTAINS
       CASE (do_eip)
         CALL eip_env_create(eip_env, error=error)
 
-        CALL eip_init(eip_env, globenv, force_env_section, error=error)
+        CALL eip_init(eip_env, root_section, globenv, force_env_section, error=error)
 
         CALL cp_subsys_release(subsys=eip_env%subsystem, error=error)
 
@@ -365,7 +367,7 @@ CONTAINS
       END SELECT
       !IF (ASSOCIATED(force_env)) THEN
       !  NULLIFY(meta_env)
-      !  metadyn_section => section_vals_get_subs_vals(globenv%input_file, &
+      !  metadyn_section => section_vals_get_subs_vals(ROOT_SECTION, &
       !                     "MOTION%METADYN", error=suberror)
       !  CALL metadyn_read(meta_env, globenv, metadyn_section, error=suberror)
       !  CALL force_env_set(force_env, meta_env=meta_env, error=suberror)
@@ -524,6 +526,7 @@ CONTAINS
     TYPE(tbmd_energy_type), POINTER          :: tbmd_ener
     TYPE(tbmd_environment_type), POINTER     :: tbmd_env
     TYPE(unit_convert_type), POINTER         :: unit
+    TYPE(section_vals_type), POINTER         :: root_section
 
 ! -------------------------------------------------------------------------
 
@@ -531,7 +534,6 @@ CONTAINS
     para_env=>globenv%para_env
     NULLIFY(force_env_section, motion_section,  subsys_section, md_approach_nr,&
             accepted_md)
-    motion_section => section_vals_get_subs_vals(globenv%input_file,"MOTION",error=error)
     ! will be used to stop if a maximum walltime is given
     md_run_start_time=m_walltime()
 
@@ -575,9 +577,11 @@ CONTAINS
     ! Is assumed that in this place we arrive only with one force_env!
     ! Why must we have always duplicated code around?!?!?@!!@$%@$)%*@)$%*!Q$#%*Y@!#%@!
     ! It's a real mess everytime we need to change the structure of the code!!!!
+    ! Yeah!
     force_env_section => force_env_p(1)%force_env%force_env_section
     subsys_section => section_vals_get_subs_vals(force_env_section,"SUBSYS",error=error)
-    CALL read_md_section(simpar, globenv, subsys_section, error)
+    root_section =>  force_env_p(1)%force_env%root_section
+    CALL read_md_section(simpar, root_section, para_env, globenv, subsys_section, error)
 
     tot_energy = simpar%tot_energy
     ext_temp = simpar%ext_temp
@@ -598,7 +602,7 @@ CONTAINS
     lpsc = simpar%lpsc
     md_method = simpar%md_method
     mc_method = simpar%mc_method
-    motion_section => section_vals_get_subs_vals(globenv%input_file,"MOTION",error=error)
+    motion_section => section_vals_get_subs_vals(ROOT_SECTION,"MOTION",error=error)
     force_env => force_env_p(1)%force_env
     SELECT CASE(mc_method)
     CASE(EIP_MC_method)
@@ -694,11 +698,11 @@ CONTAINS
              NULLIFY(work_section)
              work_section => section_vals_get_subs_vals(motion_section,"MD%KG_COEFF%NOSE",error=error)
              CALL initialize_nhc_coef(dyn_coeff_set(isubsys)%dyn_coeff_set,&
-                                   globenv,extended_type%nhc_coef(ibead),work_section=work_section,error=error)
+                                   root_section,globenv,extended_type%nhc_coef(ibead),work_section=work_section,error=error)
 
              NULLIFY(work_section)
              work_section => section_vals_get_subs_vals(motion_section,"MD%KG_COEFF",error=error)
-             CALL dyn_coeff_set_initialize(dyn_coeff_set(isubsys)%dyn_coeff_set,globenv,&
+             CALL dyn_coeff_set_initialize(dyn_coeff_set(isubsys)%dyn_coeff_set,root_section,para_env,globenv,&
                   work_section=work_section,error=error)
              CALL init_nhc_forces (nhc_coef=extended_type% nhc_coef(ibead),error=error)
           END IF
@@ -817,7 +821,8 @@ CONTAINS
 
     CALL md_energy(md_env, globenv) ! inits the print env at itimes == 0
 
-    CALL write_restart(md_env=md_env,globenv=globenv,force_env_section=force_env_section,&
+    root_section=>force_env_p(1)%force_env%root_section
+    CALL write_restart(md_env=md_env,root_section=root_section,force_env_section=force_env_section,&
               error=error)
 
     IF ((.NOT. drld) .AND. (.NOT. always_accepted) .AND. (.NOT. multiple_scf)) THEN
@@ -1497,7 +1502,7 @@ CONTAINS
             END IF
           END IF
  
-          CALL write_restart(md_env=md_env,globenv=globenv,force_env_section=force_env_section,&
+          CALL write_restart(md_env=md_env,root_section=root_section,force_env_section=force_env_section,&
               error=error)
 
        ELSE
@@ -1550,7 +1555,7 @@ CONTAINS
     used_time = time_iter_stop - time_iter_start
     CALL md_energy(md_env, globenv)
 
-    CALL write_restart(md_env=md_env,globenv=globenv,force_env_section=force_env_section,&
+    CALL write_restart(md_env=md_env,root_section=root_section,force_env_section=force_env_section,&
               error=error)
 
     IF (ionode .AND. globenv%print_level >= 1) THEN

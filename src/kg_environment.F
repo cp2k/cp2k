@@ -147,9 +147,10 @@ CONTAINS
 !!****
 !!*****************************************************************************
 
-  SUBROUTINE kg_init (kg_env,globenv,force_env_section,error)
+  SUBROUTINE kg_init (kg_env,root_section,globenv,force_env_section,error)
 
     TYPE(kg_environment_type), POINTER       :: kg_env
+    TYPE(section_vals_type), POINTER         :: root_section
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
@@ -228,7 +229,7 @@ CONTAINS
          error=error)
 
     ! Read/write the input section with the dft and qs control parameters
-    CALL read_dft_control ( dft_control, globenv, dft_section,error )
+    CALL read_dft_control ( dft_control, root_section,globenv, dft_section,error )
 
 !   *** Read the input section with the Quickstep control parameters ***
     CALL read_qs_section(dft_control%qs_control,globenv,qs_section,error=error)
@@ -253,7 +254,7 @@ CONTAINS
     ! topology
     CALL topology_control (atomic_kind_set,particle_set,&
                            molecule_kind_set,molecule_set,&
-                           kg_env%subsys%colvar_p,globenv, &
+                           kg_env%subsys%colvar_p,root_section,globenv, &
                            force_env_section=force_env_section,error=error)
 
     ! Read/write the atomic kind set
@@ -277,7 +278,7 @@ CONTAINS
     IF (dft_control%forces) maxl = maxl + 1
 
     CALL init_orbital_pointers(maxl)
-    CALL init_spherical_harmonics(maxl,globenv,error)
+    CALL init_spherical_harmonics(maxl,root_section,error)
 
     ! Initialize the pretabulation for the calculation of the
     ! incomplete Gamma function F_n(t) after McMurchie-Davidson
@@ -320,8 +321,8 @@ CONTAINS
                                  atomic_kind_set=atomic_kind_set,&
                                  distribution=local_particles,&
                                  error=error)
-       work_section => section_vals_get_subs_vals(globenv%input_file,"MOTION%MD%KG_COEFF",error=error)
-       CALL dyn_coeff_set_initialize(dyn_coeff_set,globenv,work_section,skipvel=.TRUE.,error=error)         
+       work_section => section_vals_get_subs_vals(ROOT_SECTION,"MOTION%MD%KG_COEFF",error=error)
+       CALL dyn_coeff_set_initialize(dyn_coeff_set,root_section,para_env,globenv,work_section,skipvel=.TRUE.,error=error)         
        CALL set_kg_env (kg_env=kg_env, dyn_coeff_set=dyn_coeff_set) 
        CALL dyn_coeff_set_release(dyn_coeff_set, error=error)
     END IF
@@ -332,7 +333,7 @@ CONTAINS
     ! SCF parameters
     IF ( dft_control % qs_control % method /= "KG_NOPOL" ) THEN
       CALL scf_c_create(scf_control)
-      CALL scf_c_read_parameters(scf_control,globenv,kg_env%input,error=error)
+      CALL scf_c_read_parameters(scf_control,root_section,kg_env%input,error=error)
       CALL scf_c_write_parameters(scf_control,globenv,kg_env%input,error=error)
       CALL set_kg_env(kg_env=kg_env,scf_control=scf_control)
       CALL scf_c_release(scf_control,error=error)  

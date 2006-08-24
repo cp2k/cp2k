@@ -168,11 +168,13 @@ RECURSIVE SUBROUTINE force_env_calc_energy_force ( force_env, &
                                                 need_f
     TYPE(cell_type), POINTER                 :: cell
     TYPE(virial_type), POINTER               :: virial
+    TYPE(section_vals_type), POINTER         :: root_section
 
 !------------------------------------------------------------------------------
 
   failure=.FALSE.
   need_f=.TRUE.
+
   IF (PRESENT(calc_force)) need_f=calc_force
   IF (PRESENT(consistent_energies)) THEN
     energy_consistency = consistent_energies
@@ -217,7 +219,8 @@ RECURSIVE SUBROUTINE force_env_calc_energy_force ( force_env, &
         CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
      CASE ( use_kg_force )
         IF (.NOT.need_f) THEN
-           CALL kg_energies ( force_env%kg_env, force_env%globenv, error=error )
+           root_section=>force_env%root_section
+           CALL kg_energies ( force_env%kg_env,root_section, force_env%globenv, error=error )
         ELSE
            CALL kg_force_control ( force_env%kg_env, force_env%globenv, error=error )
         END IF
@@ -285,10 +288,11 @@ END SUBROUTINE force_env_calc_energy_force
 !!     04.2003 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE force_env_create(force_env,globenv,fist_env,qs_env,kg_env,&
+SUBROUTINE force_env_create(force_env,root_section,globenv,fist_env,qs_env,kg_env,&
                             tbmd_env,meta_env,sub_force_env,qmmm_env,&
                             eip_env,ep_env,force_env_section,error)
     TYPE(force_env_type), POINTER            :: force_env
+    TYPE(section_vals_type), POINTER         :: root_section
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(fist_environment_type), OPTIONAL, &
       POINTER                                :: fist_env
@@ -330,7 +334,7 @@ SUBROUTINE force_env_create(force_env,globenv,fist_env,qs_env,kg_env,&
                force_env%meta_env, force_env%sub_force_env, &
                force_env%qmmm_env, force_env%ep_env, force_env%fp_env, &
                force_env%force_env_section,&
-               force_env%extended_energies)
+               force_env%extended_energies,force_env%root_section)
      last_force_env_id=last_force_env_id+1
      force_env%id_nr=last_force_env_id
      force_env%ref_count=1
@@ -338,11 +342,16 @@ SUBROUTINE force_env_create(force_env,globenv,fist_env,qs_env,kg_env,&
      
      force_env%globenv => globenv
      CALL globenv_retain(force_env%globenv,error=error)
+
+     force_env%root_section => root_section
+     CALL section_vals_retain(root_section,error=error)
+
      force_env%para_env=>globenv%para_env
      CALL cp_para_env_retain(force_env%para_env, error=error)
-     ! Force_env_section
+
      CALL section_vals_retain(force_env_section,error=error)
      force_env%force_env_section => force_env_section    
+
      IF (PRESENT(fist_env)) THEN
         IF (ASSOCIATED(fist_env)) THEN
            CPPrecondition(force_env%in_use==0,cp_failure_level,routineP,error,failure)
@@ -542,8 +551,9 @@ END SUBROUTINE force_env_create
 !!     fawzi
 !!
 !!*** **********************************************************************
-SUBROUTINE ep_create_force_env(force_env, globenv, error)
+SUBROUTINE ep_create_force_env(force_env,root_section, globenv, error)
     TYPE(force_env_type), POINTER            :: force_env
+    TYPE(section_vals_type), POINTER         :: root_section
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -559,11 +569,11 @@ SUBROUTINE ep_create_force_env(force_env, globenv, error)
   
   IF (.NOT. failure) THEN
      NULLIFY(ep_env)
-     CALL ep_env_create(ep_env,globenv=globenv,&
+     CALL ep_env_create(ep_env,root_section,globenv=globenv,&
           error=error)
-     force_env_section=> section_vals_get_subs_vals(globenv%input_file,&
+     force_env_section=> section_vals_get_subs_vals(ROOT_SECTION,&
           "FORCE_EVAL",error=error)
-     CALL force_env_create(force_env,globenv=globenv,ep_env=ep_env,&
+     CALL force_env_create(force_env,root_section,globenv=globenv,ep_env=ep_env,&
           force_env_section = force_env_section, error=error)
      CALL ep_env_release(ep_env,error=error)
   END IF

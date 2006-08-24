@@ -20,7 +20,7 @@
 !!       global type (27.02.2001, MK)
 !!     - JGH (28.11.2001) : added pp_library_path to type
 !!     - Merged with MODULE print_keys (17.01.2002, MK)
-!!     - input_file, reference counting, create (08.2004, fawzi)
+!!     -  reference counting, create (08.2004, fawzi)
 !!     - new (parallel) random number generator (11.03.06,MK)
 !!
 !!   SOURCE
@@ -99,9 +99,6 @@ MODULE global_types
 !!     - id_nr: identification number (unique)
 !!     - ref_count: reference count (see doc/ReferenceCounting.html)
 !!     - para_env: parallel environment
-!!     - input_file: the input file (what you need is probably 
-!!       input_file%root_vals, or a subsection, try to use that not
-!!       the whole input_file
 !!     - handle: handle with the total time of the computation
 !!
 !!     Personally I think that all the other attributes should go away
@@ -124,7 +121,6 @@ MODULE global_types
      INTEGER :: run_type_id  !! index to define the run_tupe
      INTEGER :: blacs_grid_layout !! will store the user preference for the blacs grid
      REAL(KIND=dp) :: cp2k_start_time, cp2k_target_time
-     TYPE(section_vals_type), POINTER :: input_file
      LOGICAL :: close_output_unit
      INTEGER :: handle
   END TYPE global_environment_type
@@ -191,7 +187,6 @@ CONTAINS
        globenv%scr=output_unit
        globenv%blacs_grid_layout=BLACS_GRID_SQUARE
        globenv%cp2k_start_time=m_walltime()
-       NULLIFY(globenv%input_file)
        NULLIFY (globenv%gaussian_rng_stream)
     END IF
   END SUBROUTINE globenv_create
@@ -275,7 +270,6 @@ SUBROUTINE globenv_release(globenv, error)
      CPPrecondition(globenv%ref_count>0,cp_failure_level,routineP,error,failure)
      globenv%ref_count=globenv%ref_count-1
      IF (globenv%ref_count==0) THEN
-        CALL section_vals_release(globenv%input_file,error=error)
         was_ionode=globenv%para_env%ionode
         CALL cp_para_env_release(globenv%para_env,error=error)
         IF (ASSOCIATED(globenv%gaussian_rng_stream)) THEN

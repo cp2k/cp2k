@@ -173,10 +173,14 @@ CONTAINS
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
     TYPE(virial_type), POINTER               :: virial
+    TYPE(section_vals_type), POINTER         :: root_section
 
 !   ---------------------------------------------------------------------------
 
     CALL timeset(routineN,"I","",handle)
+    CPPrecondition(ASSOCIATED(globenv),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(force_env_p),cp_failure_level,routineP,error,failure)
+
     para_env=>globenv%para_env
     failure=.FALSE.
     NULLIFY ( particles, local_molecules, cell, cell_ref, dyn_coeff_set,&
@@ -184,10 +188,9 @@ CONTAINS
     NULLIFY (md_env,molecule_kinds_new, molecules_new, force_env_section,&
          work_section, atomic_kinds, local_particles, t)
     logger => cp_error_get_logger(error)
+    root_section=>force_env_p ( 1 ) % force_env % root_section
 
-    motion_section => section_vals_get_subs_vals(globenv%input_file,"MOTION",error=error)
-    CPPrecondition(ASSOCIATED(globenv),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(force_env_p),cp_failure_level,routineP,error,failure)
+    motion_section => section_vals_get_subs_vals(ROOT_SECTION,"MOTION",error=error)
     nbeads = SIZE ( force_env_p )
     DO i = 1, nbeads
       CPPrecondition ( ASSOCIATED ( force_env_p ( i ) % force_env ), cp_failure_level,routineP,error,failure)
@@ -201,8 +204,8 @@ CONTAINS
     CALL cp_add_iter_level(logger%iter_info,"MD",n_rlevel_new=iter_level,&
          error=error)
     CALL cp_iterate(logger%iter_info,last=.FALSE.,iter_nr=0,error=error)    
-    CALL read_md_section ( simpar, globenv, subsys_section, error )
-    simpar%info_constraint = cp_print_key_unit_nr(logger,globenv%input_file,&
+    CALL read_md_section ( simpar, root_section, para_env, globenv, subsys_section, error )
+    simpar%info_constraint = cp_print_key_unit_nr(logger,ROOT_SECTION,&
          "MOTION%CONSTRAINT%CONSTRAINT_INFO",&
          extension=".shakeLog",log_filename=.FALSE.,error=error)
 
@@ -261,11 +264,12 @@ CONTAINS
              NULLIFY(work_section)
              work_section => section_vals_get_subs_vals(motion_section,"MD%KG_COEFF%NOSE",error=error)
              CALL initialize_nhc_coef(dyn_coeff_set(isubsys)%dyn_coeff_set,&
-                                   globenv,extended_type%nhc_coef(ibead),work_section=work_section,error=error)
+                                   root_section,globenv,extended_type%nhc_coef(ibead), &
+                                   work_section=work_section,error=error)
 
              NULLIFY(work_section)
              work_section => section_vals_get_subs_vals(motion_section,"MD%KG_COEFF",error=error)
-             CALL dyn_coeff_set_initialize(dyn_coeff_set(isubsys)%dyn_coeff_set,globenv,&
+             CALL dyn_coeff_set_initialize(dyn_coeff_set(isubsys)%dyn_coeff_set, root_section, para_env, globenv,&
                   work_section=work_section,error=error)
              CALL init_nhc_forces (nhc_coef=extended_type% nhc_coef(ibead),error=error)
           END IF
@@ -376,7 +380,7 @@ CONTAINS
       used_time = time_iter_stop - time_iter_start
       time_iter_start=time_iter_stop
 
-      CALL md_output(md_env,force_env_section,motion_section,globenv,error)
+      CALL md_output(md_env,force_env_section,motion_section,root_section,globenv,error)
 
     END DO 
 
@@ -392,7 +396,7 @@ CONTAINS
     CALL lnhc_dealloc(extended_type%nhc_coef)
     CALL npt_dealloc(extended_type%npt_info)
     CALL cp_print_key_finished_output(simpar%info_constraint, logger,&
-         globenv%input_file,"MOTION%CONSTRAINT%CONSTRAINT_INFO",error=error)
+         ROOT_SECTION,"MOTION%CONSTRAINT%CONSTRAINT_INFO",error=error)
     DEALLOCATE(simpar,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
@@ -416,10 +420,11 @@ CONTAINS
 !!     03.2006 created [Joost VandeVondele]
 !!
 !!*** **********************************************************************
-SUBROUTINE md_output(md_env,force_env_section,motion_section,globenv,error)
+SUBROUTINE md_output(md_env,force_env_section,motion_section,root_section,globenv,error)
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(section_vals_type), POINTER         :: force_env_section, &
                                                 motion_section
+    TYPE(section_vals_type), POINTER         :: root_section
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -434,7 +439,7 @@ SUBROUTINE md_output(md_env,force_env_section,motion_section,globenv,error)
 
     CALL md_energy ( md_env, globenv, error ) ! also writes trajectories
 
-    CALL write_restart(md_env=md_env,globenv=globenv,force_env_section=force_env_section,&
+    CALL write_restart(md_env=md_env,root_section=root_section,force_env_section=force_env_section,&
                  error=error)
 
     CALL timestop(handle)

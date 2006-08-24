@@ -21,6 +21,7 @@
 
 MODULE memory_utilities
 
+  USE input_section_types,             ONLY: section_vals_type
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_should_output
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -1046,7 +1047,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE write_memory(checkpoint,globenv,error)
+  SUBROUTINE write_memory(checkpoint,root_section,para_env,error)
 
 !   Purpose: Write the current memory size of all processe in KBytes.
 
@@ -1055,18 +1056,17 @@ CONTAINS
 !   ***************************************************************************
 
     CHARACTER(LEN=*), INTENT(IN)             :: checkpoint
-    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(section_vals_type), POINTER         :: root_section
+    TYPE(cp_para_env_type), POINTER   :: para_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=LEN_TRIM(checkpoint)+7)    :: string
     INTEGER                                  :: group, ipe, mype, npe
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_para_env_type), POINTER          :: para_env
 
     NULLIFY(logger)
-    para_env=>globenv%para_env
     logger => cp_error_get_logger(error)
-    IF (BTEST(cp_print_key_should_output(logger%iter_info,globenv%input_file,&
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,ROOT_SECTION,&
          "GLOBAL%PERFORMANCE/MEMORY",error=error),cp_p_file)) THEN
 
        group = para_env%group

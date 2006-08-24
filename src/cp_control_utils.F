@@ -78,8 +78,9 @@ MODULE cp_control_utils
 
 CONTAINS
 
-  SUBROUTINE read_dft_control(dft_control,globenv, dft_section, error)
+  SUBROUTINE read_dft_control(dft_control,root_section,globenv, dft_section, error)
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(section_vals_type), POINTER         :: root_section
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_vals_type), POINTER         :: dft_section
     TYPE(cp_error_type), INTENT(inout), &
@@ -148,7 +149,7 @@ CONTAINS
     CALL section_vals_val_get(dft_section,"POTENTIAL_FILE_NAME",&
          c_val=potential_file_name , error=error)
 
-    tmp_section => section_vals_get_subs_vals(globenv%input_file,"GLOBAL",&
+    tmp_section => section_vals_get_subs_vals(ROOT_SECTION,"GLOBAL",&
          error=error)
     CALL section_vals_val_get(tmp_section,"RUN_TYPE",i_val=run_id,error=error)
     SELECT CASE (run_id)!FM to rm, ugly!!

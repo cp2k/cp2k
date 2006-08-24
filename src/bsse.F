@@ -108,10 +108,12 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: Em
     TYPE(force_env_type), POINTER            :: force_env_loc
     TYPE(section_vals_type), POINTER         :: bsse_section, n_frags
+    TYPE(section_vals_type), POINTER         :: root_section
 
     failure = .FALSE.
     IF (.NOT.failure) THEN
        NULLIFY(bsse_section, n_frags, Em, conf, force_env_loc)
+       root_section => force_env%root_section
        bsse_section => section_vals_get_subs_vals(force_env%force_env_section,"BSSE",error=error)
        n_frags => section_vals_get_subs_vals(bsse_section,"FRAGMENT",error=error)
        CALL section_vals_get(n_frags,explicit=explicit,n_repetition=Num_of_Frag,error=error)
@@ -132,7 +134,7 @@ CONTAINS
        !    
        DO i = 1, SIZE(conf,1)
           CALL eval_bsse_energy(conf(i,:),Em(i),force_env,force_env_loc, n_frags, &
-               globenv, error=error)
+               root_section,globenv, error=error)
        END DO
        CALL dump_bsse_results(conf, Em, num_of_frag, globenv, bsse_section, error)
        DEALLOCATE(Em,   stat=stat)
@@ -165,11 +167,12 @@ CONTAINS
 !!     07.2005 created [tlaino]
 !!
 !!*** ********************************************************************** 
-  SUBROUTINE eval_bsse_energy(conf, Em, force_env, force_env_loc, n_frags, globenv, error)
+  SUBROUTINE eval_bsse_energy(conf, Em, force_env, force_env_loc, n_frags, root_section, globenv, error)
     INTEGER, DIMENSION(:), INTENT(IN)        :: conf
     REAL(KIND=dp), INTENT(OUT)               :: Em
     TYPE(force_env_type), POINTER            :: force_env, force_env_loc
     TYPE(section_vals_type), POINTER         :: n_frags
+    TYPE(section_vals_type), POINTER         :: root_section
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -193,7 +196,7 @@ CONTAINS
        Num_of_sub_frag = COUNT(conf == 1)    
        Num_of_sub_conf = 0
        IF (Num_of_sub_frag == 1) THEN
-          CALL eval_bsse_energy_low(force_env, force_env_loc, conf, conf, n_frags, globenv, Em, error)
+          CALL eval_bsse_energy_low(force_env, force_env_loc, conf, conf, n_frags, root_section, globenv, Em, error)
        ELSE
           my_energy = 0.0_dp
           DO k = 1, Num_of_sub_frag
@@ -208,7 +211,7 @@ CONTAINS
           CALL make_plan_conf(conf, conf_loc)           
           DO i = 1, Num_of_sub_conf
              CALL eval_bsse_energy_low(force_env, force_env_loc, conf, conf_loc(i,:), n_frags,&
-                  globenv, Em_loc(i), error)             
+                  root_section,globenv, Em_loc(i), error)             
           END DO
           ! Energy
           k = COUNT(conf == 1)
@@ -249,10 +252,11 @@ CONTAINS
 !!
 !!*** ********************************************************************** 
   SUBROUTINE eval_bsse_energy_low(force_env, force_env_loc, conf, conf_loc, n_frags, &
-       globenv, energy, error)
+       root_section,globenv, energy, error)
     TYPE(force_env_type), POINTER            :: force_env, force_env_loc
     INTEGER, DIMENSION(:), INTENT(IN)        :: conf, conf_loc
     TYPE(section_vals_type), POINTER         :: n_frags
+    TYPE(section_vals_type), POINTER         :: root_section
     TYPE(global_environment_type), POINTER   :: globenv
     REAL(KIND=dp), INTENT(OUT)               :: energy
     TYPE(cp_error_type), INTENT(inout), &
@@ -360,9 +364,9 @@ CONTAINS
           CALL create_small_subsystem(subsys_loc, big_subsys=subsys,&
                small_para_env=para_env, small_cell=cell,sub_atom_index=atom_index,&
                sub_subsys_index=subsys_index, sub_atom_kind_name=atom_type,&
-               globenv=globenv, force_env_section=force_env_section, error=error)
+               root_section=root_section,globenv=globenv, force_env_section=force_env_section, error=error)
 
-          CALL quickstep_create_force_env(force_env_loc,globenv,subsystem=subsys_loc,&
+          CALL quickstep_create_force_env(force_env_loc,root_section,globenv,subsystem=subsys_loc,&
                force_env_section=force_env_section, error=error)
 
           CALL cp_subsys_release(subsys_loc,error=error)

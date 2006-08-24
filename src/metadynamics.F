@@ -183,9 +183,10 @@ CONTAINS
 !!     04.2004 created
 !!
 !!*** **********************************************************************
-  SUBROUTINE metadyn_read(meta_env,globenv,metadyn_section,error)
+  SUBROUTINE metadyn_read(meta_env,root_section,para_env,metadyn_section,error)
     TYPE(meta_env_type), POINTER             :: meta_env
-    TYPE(global_environment_type)            :: globenv
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(section_vals_type), POINTER         :: root_section
     TYPE(section_vals_type), OPTIONAL, &
       POINTER                                :: metadyn_section
     TYPE(cp_error_type), INTENT(inout), &
@@ -198,16 +199,14 @@ CONTAINS
     LOGICAL                                  :: explicit
     REAL(kind=dp)                            :: dt
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: md_section, metavar_section
 
-    para_env=>globenv%para_env
     logger => cp_error_get_logger(error)
     CALL section_vals_get(metadyn_section,explicit=explicit,error=error)
     IF (.NOT.explicit) RETURN
     CPPreconditionNoFail(.NOT.ASSOCIATED(meta_env),cp_failure_level,routineP,error)  
 
-    md_section => section_vals_get_subs_vals(globenv%input_file,"MOTION%MD",error=error)
+    md_section => section_vals_get_subs_vals(ROOT_SECTION,"MOTION%MD",error=error)
     CALL section_vals_val_get(md_section,"TIMESTEP",r_val=dt,error=error)
 
     metavar_section => section_vals_get_subs_vals(metadyn_section,"METAVAR",error=error)

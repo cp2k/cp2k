@@ -23,8 +23,9 @@ MODULE farming_methods
 
 CONTAINS
 
-  SUBROUTINE farming_parse_input(farming_env,globenv,error)
+  SUBROUTINE farming_parse_input(farming_env,root_section,globenv,error)
     TYPE(farming_env_type), POINTER          :: farming_env
+    TYPE(section_vals_type), POINTER         :: root_section
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
@@ -44,7 +45,7 @@ CONTAINS
 
    farming_env%group_size_wish_set=.FALSE.
    farming_env%ngroup_wish_set    =.FALSE.
-   farming_section => section_vals_get_subs_vals(globenv%input_file,"FARMING",&
+   farming_section => section_vals_get_subs_vals(ROOT_SECTION,"FARMING",&
         error=error)
 
    IF (ASSOCIATED(farming_env%group_partition)) THEN

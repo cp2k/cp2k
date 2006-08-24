@@ -557,9 +557,9 @@ END SUBROUTINE gopt_param_create
 !!     08.2003 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE gopt_param_read(gopt_param, globenv, error)
+SUBROUTINE gopt_param_read(gopt_param, root_section, error)
     TYPE(gopt_param_type), POINTER           :: gopt_param
-    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -576,7 +576,7 @@ SUBROUTINE gopt_param_read(gopt_param, globenv, error)
     END IF
 
     NULLIFY(gopt_section)
-    gopt_section =>  section_vals_get_subs_vals(globenv%input_file,&
+    gopt_section =>  section_vals_get_subs_vals(ROOT_SECTION,&
          "MOTION%GEOOPT",error=error)
     failure=.FALSE.
     IF (.NOT.failure) THEN

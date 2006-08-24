@@ -157,6 +157,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: force_env_section, &
                                                 glob_section, hmc_section, &
                                                 input_file
+    TYPE(section_vals_type), POINTER         :: root_section
 
     cp2k_run_OK = .FALSE.
     failure=.FALSE.
@@ -239,6 +240,7 @@ CONTAINS
              WRITE(unit_nr,'(T15,A)') ""
           ENDIF
        ELSE
+          root_section=>input_file
           CALL section_vals_val_get(input_file,"GLOBAL%PROGRAM_NAME",&
                i_val=prog_name_id,error=error)
           CALL section_vals_val_get(input_file,"GLOBAL%RUN_TYPE",&
@@ -248,13 +250,14 @@ CONTAINS
              ! initial setup (cp2k does in in the creation of the force_env)
              CALL globenv_create(globenv, para_env=para_env,  output_unit=output_unit, &
                   error=error)
-             globenv%input_file => input_file
+             ! XXXXXXXXX
+             ! ROOT_SECTION => input_file
+             ! XXXXXXXXX
              CALL section_vals_retain(input_file,error=error)
-             ! generate all dependent info in globenv
              CALL cp2k_init ( globenv, input_file_name=input_file_name )
              CALL cp_error_init(suberror)
-             CALL cp2k_read(globenv)
-             CALL cp2k_setup(globenv,suberror)
+             CALL cp2k_read(root_section,globenv)
+             CALL cp2k_setup(root_section,globenv,suberror)
           END IF
 
           IF ((run_type_id == hmc_run) .OR. &
@@ -283,7 +286,7 @@ CONTAINS
           END IF
           SELECT CASE (prog_name_id)
           CASE (do_farming)
-             CALL farming_run ( globenv, suberror )
+             CALL farming_run ( root_section, globenv, suberror )
           CASE(do_cp2k)
              CALL create_force_env(new_env_id,input_path=input_file_name,&
                   output_path="__STD_OUT__",mpi_comm=para_env%group,&
@@ -299,7 +302,7 @@ CONTAINS
              CALL section_vals_val_get(force_env%force_env_section,"METHOD",i_val=method_name_id)
 
           CASE (do_test)
-             CALL lib_test(globenv,suberror)
+             CALL lib_test(root_section,globenv,suberror)
           CASE default
              CPAssert(.FALSE.,cp_failure_level,routineP,suberror,failure)
           END SELECT
@@ -307,7 +310,7 @@ CONTAINS
    
           SELECT CASE (globenv%run_type_id)
           CASE (pint_run)
-             CALL do_pint_run(para_env,globenv%input_file,error=suberror)
+             CALL do_pint_run(para_env,ROOT_SECTION,error=suberror)
           CASE (none_run)
              ! do nothing
           CASE (energy_run, energy_force_run)
@@ -386,12 +389,14 @@ CPSourceFileRef,&
              CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
              CALL destroy_force_env(new_env_id,ierr=ierr)
              CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
+             CALL section_vals_release(root_section)
              CALL globenv_release(globenv)
           ELSE
              CALL cp_error_dealloc_ref(suberror)
              I_was_ionode=para_env%ionode
-             CALL cp2k_finalize(globenv,error)
+             CALL cp2k_finalize(root_section,globenv,error)
              CPPostconditionNoFail(globenv%ref_count==1,cp_failure_level,routineP,error)
+             CALL section_vals_release(root_section)
              CALL globenv_release(globenv)
           END IF
        END IF
@@ -426,7 +431,8 @@ CPSourceFileRef,&
 !!   MODIFICATION HISTORY
 !!
 !!*** **********************************************************************
-  RECURSIVE SUBROUTINE farming_run(globenv,error)
+  RECURSIVE SUBROUTINE farming_run(root_section,globenv,error)
+    TYPE(section_vals_type), POINTER         :: root_section
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
@@ -461,7 +467,7 @@ CPSourceFileRef,&
     CALL init_farming_env(farming_env)
     ! remember where we started
     CALL m_getcwd(farming_env%cwd)
-    CALL farming_parse_input(farming_env,globenv,error)
+    CALL farming_parse_input(farming_env,root_section,globenv,error)
 
     ! split the current communicator 
     ALLOCATE(group_distribution(0:para_env%num_pe-1),STAT=stat) 

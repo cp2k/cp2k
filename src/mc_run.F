@@ -167,12 +167,14 @@ CONTAINS
     TYPE(molecule_kind_type), POINTER        :: molecule_kind, molecule_kind_2
     TYPE(rng_stream_type), POINTER           :: rng_stream
     TYPE(section_vals_type), POINTER         :: force_env_section
+    TYPE(section_vals_type), POINTER         :: root_section
 
       NULLIFY(mc_env,mc_par,mc_par_2,force_env_2,rng_stream)
       para_env=>globenv%para_env
 
       iw = globenv%scr
       force_env_section => force_env%force_env_section
+      root_section => force_env%root_section
       CALL section_vals_get(force_env_section,n_repetition=isos,error=error)
       CPPostconditionNoFail(isos==1,cp_warning_level,routineP,error)
 ! set some values...will use get_globenv if that ever comes around
@@ -189,7 +191,7 @@ CONTAINS
 
 ! read the input of the Monte Carlo section
       CALL read_mc_section ( mc_par, globenv ,input_file_name,&
-           globenv%input_file,force_env_section,error)
+           ROOT_SECTION,force_env_section,error)
 
 ! if we're doing a classical simulation, figure out the largest
 ! potential cutoff and write it to the screen
@@ -313,7 +315,7 @@ CONTAINS
          ENDIF
          
          CALL read_mc_section ( mc_par_2, globenv ,box2_file,&
-              globenv_2%input_file,force_env_section,error)
+              root_section,force_env_section,error)
 
 ! determine the total number of molecules and atoms
          CALL force_env_get(force_env_2,subsys=subsys_2,error=error)

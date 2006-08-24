@@ -107,13 +107,15 @@ MODULE geo_opt
     TYPE(gopt_f_type), POINTER               :: gopt_env
     TYPE(gopt_param_type), POINTER           :: gopt_param
     TYPE(section_vals_type), POINTER         :: force_env_section
+    TYPE(section_vals_type), POINTER         :: root_section
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
     CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(globenv),cp_failure_level,routineP,error,failure)
     NULLIFY (gopt_param,force_env_section,gopt_env,x0)
-    CALL gopt_param_read(gopt_param, globenv, error=error)
+    root_section=>force_env%root_section 
+    CALL gopt_param_read(gopt_param, root_section, error=error)
 
     force_env_section => force_env%force_env_section   
     CALL gopt_f_create(gopt_env, force_env=force_env, globenv=globenv)   
@@ -121,7 +123,7 @@ MODULE geo_opt
 
     SELECT CASE (gopt_param%method_id)
     CASE (default_bfgs_method_id)
-       CALL geoopt_bfgs(force_env,gopt_param,globenv,force_env_section,&
+       CALL geoopt_bfgs(force_env,gopt_param,root_section,globenv,force_env_section,&
             gopt_env, x0, error=error)
     CASE (default_lbfgs_method_id)
        CALL gopt_do_opt(force_env,gopt_param,globenv,force_env_section,&
@@ -187,11 +189,13 @@ MODULE geo_opt
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
     TYPE(particle_list_type), POINTER        :: particles
+    TYPE(section_vals_type), POINTER         :: root_section
 
      CALL timeset(routineN,"I","",handle)
      failure=.FALSE.
      NULLIFY( optimizer, para_env, cell, particles, subsys)
      logger => cp_error_get_logger(error)
+     root_section => force_env%root_section
      CALL cp_add_iter_level(logger%iter_info,"GEO_OPT",ihandle,error)
      CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
      CPPrecondition(ASSOCIATED(gopt_param),cp_failure_level,routineP,error,failure)
@@ -207,7 +211,7 @@ MODULE geo_opt
 
         DO i=1,gopt_param%max_iter
            IF (.NOT.cp_opt_gopt_next(optimizer,force_env_section=force_env_section,&
-                input=globenv%input_file,force_env=force_env,gopt_param=gopt_param,&
+                input=ROOT_SECTION,force_env=force_env,gopt_param=gopt_param,&
                 error=error)) EXIT
            ! check for an external exit command 
            CALL external_control(should_stop,"GEO",globenv,error)
@@ -215,7 +219,7 @@ MODULE geo_opt
               CALL cp_opt_gopt_stop(optimizer, error=error)
               EXIT
            END IF
-           CALL write_restart(force_env=force_env,globenv=globenv,force_env_section=force_env_section)
+           CALL write_restart(force_env=force_env,root_section=root_section,force_env_section=force_env_section)
         END DO
 
         ! write out more data for the minimum

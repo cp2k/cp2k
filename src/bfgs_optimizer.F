@@ -78,11 +78,12 @@ CONTAINS
 
 !!*** **********************************************************************
 
-  SUBROUTINE geoopt_bfgs(force_env,gopt_param,globenv,force_env_section,&
+  SUBROUTINE geoopt_bfgs(force_env,gopt_param,root_section,globenv,force_env_section,&
        gopt_env, x0, error)
 
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(gopt_param_type), POINTER           :: gopt_param
+    TYPE(section_vals_type), POINTER         :: root_section
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(gopt_f_type), POINTER               :: gopt_env
@@ -131,7 +132,7 @@ CONTAINS
     rad         = 0.10_dp
     rat         = 0.0_dp
 
-    output_unit = cp_print_key_unit_nr(logger,globenv%input_file,&
+    output_unit = cp_print_key_unit_nr(logger,ROOT_SECTION,&
          "MOTION%GEOOPT%PRINT%PROGRAM_RUN_INFO",&
          extension=".geoLog",error=error)
 
@@ -244,10 +245,10 @@ CONTAINS
        ! check for an external exit command 
        CALL external_control(should_stop,"GEO",globenv,error)
        IF(should_stop) EXIT
-       CALL write_restart(force_env=force_env,globenv=globenv,force_env_section=force_env_section)
+       CALL write_restart(force_env=force_env,root_section=root_section,force_env_section=force_env_section)
 
        IF (ionode) THEN
-         traj_unit = cp_print_key_unit_nr(logger,globenv%input_file,&
+         traj_unit = cp_print_key_unit_nr(logger,ROOT_SECTION,&
                                           "MOTION%PRINT%TRAJECTORY",&
                                           extension=".xyz",&
                                           error=error)
@@ -263,7 +264,7 @@ CONTAINS
                                            dump_xmol,"POS",TRIM(title))
            CALL m_flush(traj_unit)
          END IF
-         CALL cp_print_key_finished_output(traj_unit,logger,globenv%input_file,&
+         CALL cp_print_key_finished_output(traj_unit,logger,ROOT_SECTION,&
                                            "MOTION%PRINT%TRAJECTORY",error=error)
          CALL write_qs_particle_coordinates(particle_set,cell,force_env_section,error)
        END IF
@@ -370,7 +371,7 @@ CONTAINS
     IF(ionode)THEN
        CALL close_file(unit_number=hesunit)
     END IF
-    CALL cp_print_key_finished_output(output_unit,logger,globenv%input_file,&
+    CALL cp_print_key_finished_output(output_unit,logger,ROOT_SECTION,&
          "MOTION%GEOOPT%PRINT%PROGRAM_RUN_INFO", error=error)     
 
     CALL cp_rm_iter_level(logger%iter_info,ihandle,error)

@@ -166,7 +166,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE qs_init(qs_env,globenv,subsystem,cell,cell_ref,qmmm,&
+  SUBROUTINE qs_init(qs_env,root_section,globenv,subsystem,cell,cell_ref,qmmm,&
        qmmm_periodic,force_env_section,error)
 
 !   Purpose: Read the input and the database files for the setup of the
@@ -177,6 +177,7 @@ CONTAINS
 !   ***************************************************************************
 
     TYPE(qs_environment_type), POINTER       :: qs_env
+    TYPE(section_vals_type), POINTER         :: root_section
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_subsystem_type), OPTIONAL, &
       POINTER                                :: subsystem
@@ -274,7 +275,7 @@ CONTAINS
        !   *** the molecule kind, and the molecule data structures         ***
        CALL topology_control (atomic_kind_set,particle_set,&
                               molecule_kind_set,molecule_set,&
-                              my_subsystem%colvar_p,globenv,&
+                              my_subsystem%colvar_p,root_section,globenv,&
                               force_env_section=force_env_section,error=error)
 
        CALL read_atomic_kind_set(atomic_kind_set,kind_section,para_env,&
@@ -295,7 +296,7 @@ CONTAINS
     END IF
 
     CALL qs_init_subsys(qs_env,my_subsystem,my_cell,my_cell_ref,use_ref_cell,&
-         globenv,my_qmmm,harris=harris_flag,error=error)
+         root_section,globenv,my_qmmm,harris=harris_flag,error=error)
 
     IF (.NOT.PRESENT(cell))      CALL cell_release(my_cell,error=error)
     IF (.NOT.PRESENT(cell_ref))  CALL cell_release(my_cell_ref,error=error)
@@ -306,7 +307,7 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE qs_init_subsys(qs_env,subsystem,cell,cell_ref,use_ref_cell,&
-       globenv,qmmm,harris,error)
+       root_section,globenv,qmmm,harris,error)
 
 !   Purpose: Read the input and the database files for the setup of the
 !            QUICKSTEP environment.
@@ -319,6 +320,7 @@ CONTAINS
     TYPE(cp_subsystem_type), POINTER         :: subsystem
     TYPE(cell_type), POINTER                 :: cell, cell_ref
     LOGICAL, INTENT(in)                      :: use_ref_cell
+    TYPE(section_vals_type), POINTER         :: root_section
     TYPE(global_environment_type), POINTER   :: globenv
     LOGICAL, INTENT(in)                      :: qmmm
     LOGICAL, INTENT(IN), OPTIONAL            :: harris
@@ -412,7 +414,7 @@ CONTAINS
 
 !   *** Read the input section with the DFT control parameters ***
 
-    CALL read_dft_control(dft_control,globenv,dft_section)
+    CALL read_dft_control(dft_control,root_section,globenv,dft_section)
     ! ONLY WORKS WITH NEW INPUT
     CALL read_tddfpt_control(dft_control%tddfpt_control,dft_control%nspins,globenv,&
          dft_section,error)
@@ -455,7 +457,7 @@ CONTAINS
     IF (dft_control%forces) maxl = maxl + 1
 
     CALL init_orbital_pointers(maxl)
-    CALL init_spherical_harmonics(maxl,globenv,error)
+    CALL init_spherical_harmonics(maxl,root_section,error)
 
 !   *** Initialise the atomic kind set ***
 
@@ -497,7 +499,7 @@ CONTAINS
 !   *** SCF parameters ***
 
     CALL scf_c_create(scf_control)
-    CALL scf_c_read_parameters(scf_control,globenv,qs_env%input,error=error)
+    CALL scf_c_read_parameters(scf_control,root_section,qs_env%input,error=error)
 
 !   *** Use the just read block sizes to set the optimal values in cp_fm_struct ***
 

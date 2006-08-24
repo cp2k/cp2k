@@ -98,9 +98,10 @@ MODULE kg_energy
 CONTAINS
 
 !******************************************************************************
-SUBROUTINE kg_energies ( kg_env, globenv, error )
+SUBROUTINE kg_energies ( kg_env, root_section, globenv, error )
 
     TYPE(kg_environment_type), POINTER       :: kg_env
+    TYPE(section_vals_type), POINTER         :: root_section
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -119,7 +120,7 @@ SUBROUTINE kg_energies ( kg_env, globenv, error )
 
     ELSE IF ( dft_control % qs_control % method == "KG_POL" ) THEN
 
-      CALL kg_std_energies ( kg_env, globenv, error )
+      CALL kg_std_energies ( kg_env, root_section, globenv, error )
 
     ELSE
 
@@ -318,9 +319,10 @@ END SUBROUTINE kg_only_energies
 !!   MODIFICATION HISTORY
 !!
 !!*** *************************************************************************
-SUBROUTINE kg_std_energies ( kg_env, globenv, error )
+SUBROUTINE kg_std_energies ( kg_env, root_section, globenv, error )
 
     TYPE(kg_environment_type), POINTER       :: kg_env
+    TYPE(section_vals_type), POINTER         :: root_section
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -426,7 +428,7 @@ scf_loop: DO
   DEALLOCATE(vxc_r,stat=stat)
   CPPostconditionNoFail(stat==0,cp_warning_level,routine,error)
   
-  CALL write_restart(kg_env=kg_env, globenv=globenv,force_env_section=kg_env%input,&
+  CALL write_restart(kg_env=kg_env, root_section=root_section,force_env_section=kg_env%input,&
           error=error)
   
   CALL diis_info_destroy(diis_info)

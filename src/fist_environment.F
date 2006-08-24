@@ -116,11 +116,10 @@ CONTAINS
 !!
 !!*** *************************************************************************
 
-SUBROUTINE fist_init ( fist_env, globenv, force_env_section, error )
-
-
+SUBROUTINE fist_init ( fist_env, root_section, globenv, force_env_section, error )
 
     TYPE(fist_environment_type), POINTER     :: fist_env
+    TYPE(section_vals_type), POINTER         :: root_section
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
@@ -206,12 +205,12 @@ SUBROUTINE fist_init ( fist_env, globenv, force_env_section, error )
 
   CALL topology_control ( atomic_kind_set, particle_set,&
                           molecule_kind_set, molecule_set, subsystem%colvar_p,&
-                          globenv, qmmm=qmmm, qmmm_env=qmmm_env,&
+                          root_section,globenv, qmmm=qmmm, qmmm_env=qmmm_env,&
                           force_env_section=force_env_section,error=error)
 
   CALL force_field_control ( atomic_kind_set, particle_set,&
                              molecule_kind_set, molecule_set,&
-                             ewald_env, fist_nonbond_env, globenv, qmmm=qmmm,&
+                             ewald_env, fist_nonbond_env, root_section, para_env, globenv, qmmm=qmmm,&
                              qmmm_env=qmmm_env, mm_section=mm_section, error=error )
 
   CALL particle_list_create ( particles, els_ptr = particle_set, error = error )

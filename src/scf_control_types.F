@@ -398,10 +398,10 @@ CONTAINS
 !!
 !!*****************************************************************************
 
-  SUBROUTINE scf_c_read_parameters(scf_control,globenv,force_env_section,error)
+  SUBROUTINE scf_c_read_parameters(scf_control,root_section,force_env_section,error)
 
     TYPE(scf_control_type), POINTER          :: scf_control
-    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(section_vals_type), POINTER         :: root_section
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -423,7 +423,7 @@ CONTAINS
 
     CPPrecondition(ASSOCIATED(scf_control),cp_failure_level,routineP,error,failure)
     CPPrecondition(scf_control%ref_count>0,cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(globenv%input_file),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(ROOT_SECTION),cp_failure_level,routineP,error,failure)
 
     IF (.NOT.failure) THEN
 

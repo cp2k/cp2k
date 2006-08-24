@@ -128,14 +128,14 @@ CONTAINS
 !!     03.2006 created [Joost VandeVondele]
 !!
 !!*** **********************************************************************
-  SUBROUTINE write_restart(md_env,force_env,kg_env,meta_env,globenv,force_env_section,error)
+  SUBROUTINE write_restart(md_env,force_env,kg_env,meta_env,root_section,force_env_section,error)
     TYPE(md_environment_type), OPTIONAL, &
       POINTER                                :: md_env
     TYPE(force_env_type), OPTIONAL, POINTER  :: force_env
     TYPE(kg_environment_type), OPTIONAL, &
       POINTER                                :: kg_env
     TYPE(meta_env_type), OPTIONAL, POINTER   :: meta_env
-    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(section_vals_type), POINTER         :: root_section
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
@@ -156,17 +156,17 @@ CONTAINS
 
     failure = .FALSE.
     logger => cp_error_get_logger(error)
-    motion_section => section_vals_get_subs_vals(globenv%input_file,"MOTION",error=error)
+    motion_section => section_vals_get_subs_vals(ROOT_SECTION,"MOTION",error=error)
 
     IF (BTEST(cp_print_key_should_output(logger%iter_info,&
            motion_section,keys(1),error=error),cp_p_file) .OR.  &
         BTEST(cp_print_key_should_output(logger%iter_info,&
            motion_section,keys(2),error=error),cp_p_file) ) THEN
 
-       sections => section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL",error=error)
+       sections => section_vals_get_subs_vals(ROOT_SECTION,"FORCE_EVAL",error=error)
        CALL section_vals_get(sections, n_repetition=nforce_eval, error=error)
 
-       CALL update_input(md_env,force_env,kg_env,meta_env,globenv,error)
+       CALL update_input(md_env,force_env,kg_env,meta_env,root_section,error)
 
        CALL m_datum(datx)
        CALL m_getcwd(cwd)
@@ -200,7 +200,7 @@ CONTAINS
                           "# Last CVS entry",&
                           ADJUSTR(compile_lastcvs(strstart:strend))
 
-                 CALL section_vals_write(globenv%input_file,unit_nr=ires,&
+                 CALL section_vals_write(ROOT_SECTION,unit_nr=ires,&
                             hide_root=.TRUE., error=error)
               ENDIF
 
@@ -239,14 +239,14 @@ CONTAINS
 !!     01.2006 created [teo]
 !!
 !!*** **********************************************************************
-  SUBROUTINE update_input(md_env,force_env,kg_env,meta_env,globenv,error)
+  SUBROUTINE update_input(md_env,force_env,kg_env,meta_env,root_section,error)
     TYPE(md_environment_type), OPTIONAL, &
       POINTER                                :: md_env
     TYPE(force_env_type), OPTIONAL, POINTER  :: force_env
     TYPE(kg_environment_type), OPTIONAL, &
       POINTER                                :: kg_env
     TYPE(meta_env_type), OPTIONAL, POINTER   :: meta_env
-    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
@@ -301,14 +301,14 @@ CONTAINS
     !
     ! The real restart setting...
     !
-    motion_section => section_vals_get_subs_vals(globenv%input_file,"MOTION",error=error)
+    motion_section => section_vals_get_subs_vals(ROOT_SECTION,"MOTION",error=error)
     CALL update_motion(motion_section,md_env,my_force_env,my_kg_env,my_meta_env,&
          logger,error)
     !
     ! Update one force_env_section per time..
     !
     IF (ASSOCIATED(my_force_env)) &
-         CALL update_force_eval(force_env=my_force_env,logger=logger,globenv=globenv,error=error)
+         CALL update_force_eval(force_env=my_force_env,logger=logger,root_section=root_section,error=error)
 
     CALL timestop(handle)
 
@@ -902,10 +902,10 @@ CONTAINS
 !!     01.2006 created [teo]
 !!
 !!*** **********************************************************************
-  SUBROUTINE update_force_eval(force_env,logger,globenv,error)
+  SUBROUTINE update_force_eval(force_env,logger,root_section,error)
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
@@ -919,7 +919,7 @@ CONTAINS
 
     NULLIFY(rng_section, subsys_section)
     
-    force_env_sections => section_vals_get_subs_vals(globenv%input_file,"FORCE_EVAL",error=error)
+    force_env_sections => section_vals_get_subs_vals(ROOT_SECTION,"FORCE_EVAL",error=error)
     CALL section_vals_get(force_env_sections, n_repetition=nforce_eval, error=error)       
     DO iforce_eval=1,nforce_eval
        subsys_section => section_vals_get_subs_vals3(force_env_sections,"SUBSYS",&

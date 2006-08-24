@@ -25,6 +25,7 @@
 
 MODULE orbital_transformation_matrices
 
+  USE input_section_types,             ONLY: section_vals_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE global_types,                    ONLY: global_environment_type
@@ -308,7 +309,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE init_spherical_harmonics(maxl,globenv,error)
+  SUBROUTINE init_spherical_harmonics(maxl,root_section,error)
 
 !   Purpose: Initialize or update the orbital transformation matrices.
 
@@ -324,7 +325,7 @@ CONTAINS
 !   ---------------------------------------------------------------------------
 
     INTEGER, INTENT(IN)                      :: maxl
-    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -350,7 +351,7 @@ CONTAINS
 
 !     *** Print the spherical harmonics and   ***
 !     *** the orbital transformation matrices ***
-      output_unit = cp_print_key_unit_nr(logger,globenv%input_file,"GLOBAL%PRINT/SPHERICAL_HARMONICS",&
+      output_unit = cp_print_key_unit_nr(logger,ROOT_SECTION,"GLOBAL%PRINT/SPHERICAL_HARMONICS",&
            extension=".Log",error=error)
        IF (output_unit>0) THEN
 
@@ -375,7 +376,7 @@ CONTAINS
           WRITE (UNIT=output_unit,FMT="(A)") ""
 
        END IF
-       CALL cp_print_key_finished_output(output_unit,logger,globenv%input_file,&
+       CALL cp_print_key_finished_output(output_unit,logger,ROOT_SECTION,&
             "GLOBAL%PRINT/SPHERICAL_HARMONICS",error=error)
 
     END IF

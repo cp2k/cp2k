@@ -655,11 +655,12 @@ END SUBROUTINE nhc_to_particle_mapping
 !!
 !!   SOURCE
 !******************************************************************************
- SUBROUTINE nhc_to_coef_mapping ( dyn_coeff_set, nhc, globenv )
+ SUBROUTINE nhc_to_coef_mapping ( dyn_coeff_set, nhc, root_section, globenv )
 
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
     TYPE(lnhc_parameters_type), &
       INTENT(INOUT)                          :: nhc
+    TYPE(section_vals_type), POINTER         :: root_section
     TYPE(global_environment_type), POINTER   :: globenv
 
     INTEGER                                  :: i, ikind, isos, iw, j, &
@@ -676,7 +677,7 @@ END SUBROUTINE nhc_to_particle_mapping
   iw = globenv%scr
   para_env=>globenv%para_env
   
-  kg_coeff_section => section_vals_get_subs_vals(globenv%input_file,&
+  kg_coeff_section => section_vals_get_subs_vals(ROOT_SECTION,&
        "MOTION%MD")
   kg_coeff_section => section_vals_get_subs_vals(kg_coeff_section,&
        "kg_coeff")

@@ -68,9 +68,10 @@ CONTAINS
 !!*****
 !******************************************************************************
 
-  SUBROUTINE kg_create_force_env(force_env,globenv,force_env_section,error)
+  SUBROUTINE kg_create_force_env(force_env,root_section,globenv,force_env_section,error)
 
     TYPE(force_env_type), POINTER            :: force_env
+    TYPE(section_vals_type), POINTER         :: root_section
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
@@ -91,10 +92,10 @@ CONTAINS
     CALL kg_env_create(kg_env,para_env=para_env,error=error)
 !   CALL cp_error_check(error,failure)
 
-    IF (.NOT. failure) CALL kg_init( kg_env, globenv, force_env_section,error )
+    IF (.NOT. failure) CALL kg_init( kg_env, root_section, globenv, force_env_section,error )
 !   CALL cp_error_check(error,failure)
 
-    IF (.NOT. failure) CALL force_env_create(force_env, kg_env=kg_env, &
+    IF (.NOT. failure) CALL force_env_create(force_env,root_section, kg_env=kg_env, &
          globenv=globenv, force_env_section=force_env_section, error=error)
 !   CALL cp_error_check(error,failure)
 

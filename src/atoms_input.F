@@ -74,12 +74,11 @@ CONTAINS
 !!  INPUTS
 !!*** *************************************************************************
 
-  SUBROUTINE read_atoms_input ( topology, globenv, overwrite, subsys_section, error )
+  SUBROUTINE read_atoms_input ( topology, root_section, overwrite, subsys_section, error )
 
 
     TYPE(topology_parameters_type)           :: topology
-    TYPE(global_environment_type), &
-      OPTIONAL, POINTER                      :: globenv
+    TYPE(section_vals_type), POINTER         :: root_section
     LOGICAL, INTENT(IN), OPTIONAL            :: overwrite
     TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cp_error_type), INTENT(inout), &
@@ -131,7 +130,7 @@ CONTAINS
        CPPostcondition(SIZE(atom_info%r,2)==natom, cp_failure_level, routineP, error, failure)
        CALL Pwarning("Overwriting coordinates. Active coordinates read from &COORD section."//&
             " Active coordinates READ from &COORD section",&
-            globenv%input_file, error)
+            ROOT_SECTION, error)
        DO iatom=1,natom
           ! we use only the first default_string_length characters of each line
           CALL section_vals_val_get(coord_section,"_DEFAULT_KEYWORD_",&

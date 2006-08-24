@@ -124,8 +124,9 @@ CONTAINS
 !!
 !!*** *************************************************************************
   
-  SUBROUTINE lib_test ( globenv, error )
+  SUBROUTINE lib_test ( root_section, globenv, error )
 
+    TYPE(section_vals_type), POINTER         :: root_section
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -140,7 +141,7 @@ CONTAINS
        WRITE ( iw, '(T2,79("*"))' )
     END IF
     !
-    CALL test_input ( globenv )
+    CALL test_input ( root_section, globenv )
     !
     IF ( runtest ( 1 ) /= 0 ) CALL copy_test ( globenv )
     !
@@ -148,11 +149,11 @@ CONTAINS
     !
     IF ( runtest ( 3 ) /= 0 ) CALL fft_test ( globenv )
     !
-    IF ( runtest ( 4 ) /= 0 ) CALL pw_fft_test ( globenv )
+    IF ( runtest ( 4 ) /= 0 ) CALL pw_fft_test ( root_section, globenv )
     !
     IF ( runtest ( 6 ) /= 0 ) CALL clebsch_gordon_test ( globenv )
     !
-    IF ( runtest ( 7 ) /= 0 ) CALL rs_test ( globenv, error )
+    IF ( runtest ( 7 ) /= 0 ) CALL rs_test ( root_section, globenv, error )
     !
     IF ( runtest ( 8 ) /= 0 ) CALL mpi_test ( para_env%group )
 
@@ -204,8 +205,9 @@ CONTAINS
 !!
 !!*** *************************************************************************
 
-SUBROUTINE test_input ( globenv , error)
+SUBROUTINE test_input ( root_section, globenv , error)
 
+    TYPE(section_vals_type), POINTER         :: root_section
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -223,7 +225,7 @@ SUBROUTINE test_input ( globenv , error)
   runtest = 0
   max_memory = 256.e6_dp
 
-  test_section => section_vals_get_subs_vals(globenv%input_file,"TEST",error=error)
+  test_section => section_vals_get_subs_vals(ROOT_SECTION,"TEST",error=error)
   CALL section_vals_val_get(test_section,"memory",r_val=max_memory,error=error)
   CALL section_vals_val_get(test_section,'copy',i_val=runtest ( 1 ),error=error )
   CALL section_vals_val_get(test_section,'matmul',i_val=runtest ( 2 ),error=error )
@@ -722,8 +724,9 @@ END SUBROUTINE fft_test
 !!
 !!*** *************************************************************************
 
-SUBROUTINE pw_fft_test ( globenv )
+SUBROUTINE pw_fft_test ( root_section,globenv )
 
+    TYPE(section_vals_type), POINTER         :: root_section
     TYPE(global_environment_type), POINTER   :: globenv
 
     REAL(KIND=dp), PARAMETER                 :: toler = 1.e-11_dp
@@ -765,7 +768,7 @@ SUBROUTINE pw_fft_test ( globenv )
   grid % bounds ( 1, : ) = -np / 2
   grid % bounds ( 2, : ) = ( np - 1 ) / 2
 
-  print_section=>section_vals_get_subs_vals(globenv%input_file, &
+  print_section=>section_vals_get_subs_vals(ROOT_SECTION, &
                         "TEST%PRINT%GRID_INFORMATION")
   CALL pw_grid_setup ( box, grid, print_section, &
                        rs_dims=(/para_env%num_pe,1/) )

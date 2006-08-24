@@ -33,6 +33,7 @@ MODULE ep_types
                                              globenv_release,&
                                              globenv_retain
   USE input_section_types,             ONLY: section_vals_release,&
+                                             section_vals_retain,&
                                              section_vals_type
   USE kinds,                           ONLY: dp
   USE preconditioner,                  ONLY: destroy_preconditioner,&
@@ -169,6 +170,7 @@ MODULE ep_types
   TYPE ep_env_type
      INTEGER :: id_nr, ref_count, f_env_id,nspins,nat,nmol,nat_per_mol
      TYPE(global_environment_type), POINTER :: globenv
+     TYPE(section_vals_type), POINTER         :: root_section
      TYPE(cp_para_env_type), POINTER :: para_env
      TYPE(section_vals_type), POINTER :: input
      TYPE(replica_env_type), POINTER :: mol_envs
@@ -370,6 +372,7 @@ CONTAINS
           END IF
           CALL cp_para_env_release(ep_env%para_env,error=error)
           CALL section_vals_release(ep_env%input,error=error)
+          CALL section_vals_release(ep_env%root_section,error=error)
           CALL globenv_release(ep_env%globenv,error=error)
           CALL ep_envs_rm_ep_env(ep_env,error=error)
           CALL ep_force_release(ep_env%force,error=error)
@@ -493,8 +496,9 @@ CONTAINS
   !!     11.2002 created [fawzi]
   !!
   !!*** **********************************************************************
-  SUBROUTINE ep_env_create(ep_env,globenv, error)
+  SUBROUTINE ep_env_create(ep_env,root_section,globenv, error)
     TYPE(ep_env_type), POINTER               :: ep_env
+    TYPE(section_vals_type), POINTER         :: root_section
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -524,8 +528,10 @@ CONTAINS
             ep_env%main_p_env,ep_env%sub_p_env,ep_env%m_pi_Hrho_psi0d,&
             ep_env%psi1, ep_env%precond,ep_env%sub_nmo,ep_env%sub_nao,&
             ep_env%full_nmo,ep_env%full_nao,ep_env%input,ep_env%at2sub,&
-            ep_env%force)
+            ep_env%force,ep_env%root_section)
        CALL ep_energy_zero(ep_env%energy)
+       ep_env%root_section => root_section
+       CALL section_vals_retain(root_section,error)
        ep_env%globenv => globenv
        CALL globenv_retain(globenv,error=error)
        ep_env%para_env=>globenv%para_env

@@ -191,9 +191,11 @@ CONTAINS
   !!   NOTES
   !!*** ************************************************************************
 
-  SUBROUTINE read_md_section ( simpar, globenv, subsys_section, error)
+  SUBROUTINE read_md_section ( simpar,root_section, para_env, globenv, subsys_section, error)
     TYPE(simulation_parameters_type), &
       INTENT(OUT)                            :: simpar
+    TYPE(section_vals_type), POINTER         :: root_section
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cp_error_type), INTENT(inout)       :: error
@@ -203,23 +205,21 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: iprint
     REAL(kind=dp)                            :: tmp_r
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: md_section, motion_section, &
                                                 print_key
     TYPE(unit_convert_type), POINTER         :: unit
 
     NULLIFY(logger)
-    para_env=>globenv%para_env
     logger => cp_error_get_logger(error)
     NULLIFY(unit, md_section, motion_section, print_key)
     CALL set_md_defaults(simpar, globenv)
     iw = globenv%scr
 
-    motion_section => section_vals_get_subs_vals(globenv%input_file,&
+    motion_section => section_vals_get_subs_vals(ROOT_SECTION,&
          "MOTION",error=error)
     md_section => section_vals_get_subs_vals(motion_section,&
          "MD",error=error)
-    CALL read_md_new_section(simpar, globenv,  md_section, subsys_section, error)
+    CALL read_md_new_section(simpar, root_section, md_section, subsys_section, error)
 
     IF (para_env%ionode.AND.(globenv%print_level >= 0)) THEN
        WRITE (iw, *)
@@ -437,10 +437,10 @@ CONTAINS
   !!  
   !!
   !!*** *************************************************************************  
-  SUBROUTINE read_md_new_section(simpar, globenv, md_section, subsys_section, error)
+  SUBROUTINE read_md_new_section(simpar, root_section, md_section, subsys_section, error)
     TYPE(simulation_parameters_type), &
       INTENT(INOUT)                          :: simpar
-    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(section_vals_type), POINTER         :: root_section
     TYPE(section_vals_type), POINTER         :: md_section, subsys_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
@@ -466,11 +466,11 @@ CONTAINS
           CALL section_vals_val_get(md_section, "GAMMA", r_val=simpar%gamma, error=error)
        END IF
 
-       tmp_section => section_vals_get_subs_vals(globenv%input_file,"GLOBAL",error=error)
-       CALL section_vals_val_get(globenv%input_file,"MOTION%PRINT%TRAJECTORY%FORMAT", &
+       tmp_section => section_vals_get_subs_vals(ROOT_SECTION,"GLOBAL",error=error)
+       CALL section_vals_val_get(ROOT_SECTION,"MOTION%PRINT%TRAJECTORY%FORMAT", &
             i_val=simpar%output_format,error=error)
 
-       tmp_section => section_vals_get_subs_vals(globenv%input_file,&
+       tmp_section => section_vals_get_subs_vals(ROOT_SECTION,&
             "MOTION%CONSTRAINT",error=error)
        CALL section_vals_get(tmp_section,explicit=explicit,error=error)
        IF (explicit) THEN 

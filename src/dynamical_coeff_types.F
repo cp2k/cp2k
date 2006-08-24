@@ -416,9 +416,11 @@ SUBROUTINE get_dyn_coeff(coeffs,pos,vel,forces,masses,n_els,&
 
 END SUBROUTINE get_dyn_coeff
 !***************************************************************************
-SUBROUTINE dyn_coeff_set_initialize(dyn_coeff_set,globenv,work_section,skipvel,error)         
+SUBROUTINE dyn_coeff_set_initialize(dyn_coeff_set,root_section,para_env,globenv,work_section,skipvel,error)
 
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
+    TYPE(section_vals_type), POINTER         :: root_section
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_vals_type), POINTER         :: work_section
     LOGICAL, INTENT(IN), OPTIONAL            :: skipvel
@@ -435,14 +437,12 @@ SUBROUTINE dyn_coeff_set_initialize(dyn_coeff_set,globenv,work_section,skipvel,e
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: mbuffer
     REAL(kind=dp)                            :: kg_coeff_target_temp
     REAL(KIND=dp), DIMENSION(:), POINTER     :: buffer
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dyn_coeff_type), POINTER            :: coeffs
     TYPE(section_vals_type), POINTER         :: coeff_section, &
                                                 storage_section, work_section2
 
 !***************************************************************************
 
-  para_env=>globenv%para_env
   group=para_env%group
   source=para_env%source
   restart = .FALSE.
@@ -461,7 +461,7 @@ SUBROUTINE dyn_coeff_set_initialize(dyn_coeff_set,globenv,work_section,skipvel,e
   ! get the kg coefficients' parameters from input structure
 
   NULLIFY(coeff_section)
-  coeff_section => section_vals_get_subs_vals(globenv%input_file,"MOTION%MD%KG_COEFF")
+  coeff_section => section_vals_get_subs_vals(ROOT_SECTION,"MOTION%MD%KG_COEFF")
   storage_section =>  section_vals_get_subs_vals(coeff_section,"STORAGE")
   CALL section_vals_val_get(storage_section,"type",i_val=dyn_coeff_set%mass_storage)
   CALL section_vals_val_get(coeff_section,"mass",r_val=dyn_coeff_set%global_mass)
@@ -539,7 +539,8 @@ SUBROUTINE dyn_coeff_set_initialize(dyn_coeff_set,globenv,work_section,skipvel,e
            END IF
         END DO
      ELSE
-        CALL dyn_coeff_set_init_vel(kg_coeff_target_temp,dyn_coeff_set,mbuffer,globenv)   
+        CALL dyn_coeff_set_init_vel(kg_coeff_target_temp,dyn_coeff_set, &
+                                    mbuffer,root_section,para_env,globenv)   
      END IF
   END IF
 
@@ -673,12 +674,15 @@ END SUBROUTINE dyn_coeff_set_initialize
     END IF
   END SUBROUTINE dyn_coeff_set_init_masses
 !*************************************************************************
-SUBROUTINE dyn_coeff_set_init_vel(kg_coeff_target_temp,dyn_coeff_set,mbuffer,globenv)
+SUBROUTINE dyn_coeff_set_init_vel(kg_coeff_target_temp,dyn_coeff_set, &
+                                  mbuffer,root_section,para_env,globenv)
 
     REAL(KIND=dp)                            :: kg_coeff_target_temp
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(IN)                             :: mbuffer
+    TYPE(section_vals_type), POINTER         :: root_section
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dyn_coeff_set_init_vel', &
@@ -692,12 +696,10 @@ SUBROUTINE dyn_coeff_set_init_vel(kg_coeff_target_temp,dyn_coeff_set,mbuffer,glo
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: vbuffer
     REAL(KIND=dp)                            :: denom, ekin, scale, &
                                                 temp_coefs, vcom
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dyn_coeff_type), POINTER            :: coeffs
     TYPE(unit_convert_type), POINTER         :: unit
 
   NULLIFY (coeffs,unit)
-  para_env=>globenv%para_env
   gmass=(dyn_coeff_set%mass_storage==dyn_coeff_mass_global)
   group = para_env%group
 

@@ -151,7 +151,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE create_small_subsystem(small_subsystem,big_subsys,small_cell,&
        small_para_env,sub_atom_index,sub_subsys_index,sub_atom_kind_name,&
-       globenv,force_env_section,error)
+       root_section,globenv,force_env_section,error)
     TYPE(cp_subsystem_type), POINTER         :: small_subsystem
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: big_subsys
@@ -161,6 +161,7 @@ CONTAINS
                                                 sub_subsys_index
     CHARACTER(len=default_string_length), &
       DIMENSION(:), INTENT(in)               :: sub_atom_kind_name
+    TYPE(section_vals_type), POINTER         :: root_section
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
@@ -252,7 +253,7 @@ CONTAINS
           !
           id_ = INDEX(topology%atom_info%label_atmname(iat),"_")-1
           IF ( id_ == -1 ) id_ = LEN_TRIM(topology%atom_info%label_atmname(iat))
-          CALL check_subsys_element(topology%atom_info%label_atmname(iat)(1:id_),my_element,globenv,&
+          CALL check_subsys_element(topology%atom_info%label_atmname(iat)(1:id_),my_element,root_section,&
                subsys_section,error)
           topology%atom_info%element(iat)=my_element 
           topology%atom_info%atm_mass(iat)=0._dp

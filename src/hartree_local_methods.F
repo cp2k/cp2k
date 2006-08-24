@@ -97,7 +97,6 @@ MODULE  hartree_local_methods
     TYPE(atomic_kind_type), DIMENSION(:), &
                                    POINTER   :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atom_kind
-    TYPE(gto_basis_set_type), POINTER        :: orb_basis
     TYPE(ecoul_1center_type), DIMENSION(:),&
                                 POINTER      :: ecoul_1c
     INTEGER, DIMENSION(:), POINTER           :: atom_list
@@ -113,7 +112,6 @@ MODULE  hartree_local_methods
 
     NULLIFY(atomic_kind_set)
     NULLIFY(atom_kind)
-    NULLIFY(orb_basis)
     NULLIFY(atom_list)
     NULLIFY(ecoul_1c)
 

@@ -138,6 +138,7 @@ CONTAINS
       POINTER                                :: simpar
     TYPE(unit_convert_type), POINTER         :: unit
     TYPE(virial_type), POINTER               :: virial
+    TYPE(section_vals_type), POINTER         :: root_section
 
     DATA init        /.TRUE./
     DATA init_traj   /.TRUE./
@@ -162,8 +163,8 @@ CONTAINS
          simpar=simpar,         &
          force_env_p=force_env_p )
 
-
-    motion_section => section_vals_get_subs_vals(globenv%input_file,"MOTION",error=error)
+    root_section=>force_env_p(1)%force_env%root_section
+    motion_section => section_vals_get_subs_vals(ROOT_SECTION,"MOTION",error=error)
 
     CALL force_env_get(force_env=force_env_p(1)%force_env,&
          cell=cell,&
