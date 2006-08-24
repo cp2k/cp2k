@@ -44,7 +44,7 @@ MODULE qs_linres_nmr_current
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
-                                             cp_fm_gemm,&
+                                             cp_fm_gemm, &
                                              cp_fm_scale_and_add
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
@@ -77,8 +77,8 @@ MODULE qs_linres_nmr_current
                                              section_vals_get_subs_vals,&
                                              section_vals_type
   USE kinds,                           ONLY: dp
-  USE l_utils,                         ONLY: finish_l_info,&
-                                             l_info_type,&
+  USE l_utils,                         ONLY: l_info_type,&
+                                             finish_l_info,&
                                              return_l_info
   USE mathconstants,                   ONLY: twopi
   USE memory_utilities,                ONLY: reallocate
@@ -96,11 +96,13 @@ MODULE qs_linres_nmr_current
   USE pw_types,                        ONLY: COMPLEXDATA1D,&
                                              REALDATA3D,&
                                              REALSPACE,&
-                                             RECIPROCALSPACE
-  USE qs_collocate_density,            ONLY: calculate_wavefunction,&
-                                             collocate_pgf_product_rspace,&
+                                             RECIPROCALSPACE,&
+                                             pw_transfer
+  USE qs_collocate_density,            ONLY: collocate_pgf_product_rspace,&
+                                             calculate_total_rho,&
                                              density_on_full_grid,&
-                                             lgrid_type
+                                             lgrid_type,&
+                                             calculate_wavefunction
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_interactions,                 ONLY: exp_radius_very_extended
@@ -215,7 +217,8 @@ CONTAINS
       iii_B, ispin, istat, istate, nao, natom, nmo, nspins, unit_nr
     LOGICAL                                  :: failure, gapw, ionode, uni_occ
     REAL(dp)                                 :: alpha, dk(3), jrho_tot, &
-                                                maxocc, rmu(3), rmu_dk(3), &
+                                                maxocc, my_chi,&
+                                                rmu(3), rmu_dk(3), &
                                                 scale_fac
     REAL(dp), DIMENSION(:), POINTER          :: occupation
     REAL(dp), DIMENSION(:, :), POINTER       :: vecbuf_psi1
@@ -494,7 +497,7 @@ CONTAINS
 !          rgrid(2) = REAL(j-bo(1,2))*dr(2)
 !          DO i =  bo(1,1), bo(2,1)
 !            rgrid(1) = REAL(i-bo(1,1))*dr(1)
-!            write(numj,'(3f12.6,f16.10)')  rgrid(1:3), &
+!            write(numj,'(3f12.6,f20.10)')  rgrid(1:3), &
 !                rho_rspace%pw%cr3d(i,j,k)
 !          END DO
 !        END DO 
@@ -520,8 +523,11 @@ CONTAINS
             DO idir2 = 1,3
               IF(idir /= idir2) THEN
                   ! in reciprocal space multiply (G_idir2(i)/G(i)^2)J_(idir)(G(i))
+
+                  my_chi = 0.0_dp !nmr_env%chi_SI2shiftppm/nmr_env%shift_factor*&
+!                           nmr_env%chi_tensor(idir3,i_B)
                   CALL mult_G_ov_G2_grid(cell,auxbas_pw_pool,rho_gspace,&
-                       pw_gspace_work,idir2,error=error)
+                       pw_gspace_work,idir2,my_chi,error=error)
 
                   ! scale and add to the correct component of the shift column
                    CALL set_vecp_rev(idir,idir2,idir3)
@@ -632,7 +638,7 @@ CONTAINS
         END IF
       END DO  ! i_B
 
- STOP 'chi all'
+ stop 'chi all'
 
 
       IF (BTEST(cp_print_key_should_output(logger%iter_info,nmr_section,&
@@ -725,7 +731,7 @@ CONTAINS
     INTEGER :: ab, bcol, brow, curr_tasks, dir, handle, i, iatom, &
       igrid_level, iiB, iiiB, ijatoms, ijsets, ikind, ilist, inode, ipgf, &
       iset, istat, itask, ithread, j, jatom, jkind, jpgf, jset, k, maxco, &
-      maxsgf, maxsgf_set, n, na1, na2, natom_pairs, nb1, nb2, ncoa, ncob, &
+      maxsgf, maxsgf_set, n, na1, na2, natom_pairs, nb1, nb2, ncoa, ncob,&
       nkind, nlist, nnode, npme, nseta, nsetb, nthread, omp_get_max_threads, &
       omp_get_thread_num, sgfa, sgfb, stat, tp
     INTEGER, DIMENSION(:), POINTER           :: la_max, la_min, lb, lb_max, &
@@ -1483,27 +1489,26 @@ CONTAINS
       routineN = 'collocate_pgf_resp_curr_wrong', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: cmax, coef_max, gridbounds(2,3), i, ico, icoef, ig, istat, &
-      ithread_l, jco, k, l, len1, len2, length, lx, lx_max, lxa, lxb, lxy, &
-      lxy_max, lxyz, lxyz_max, lya, lyb, lza, lzb, offset, start
+    INTEGER :: cmax, coef_max, gridbounds(2,3), i, ico, icoef, ig, istat, ithread_l, &
+      jco, k, l, length, len1, len2, lx, lx_max, lxa, lxb, lxy, lxy_max, lxyz, lxyz_max, &
+      lya, lyb, lza, lzb, offset, start
     INTEGER, DIMENSION(3)                    :: cubecenter, lb_cube, ng, &
                                                 ub_cube
     INTEGER, DIMENSION(:), POINTER           :: ly_max, lz_max, sphere_bounds
     INTEGER, DIMENSION(:, :), POINTER        :: map
-    LOGICAL                                  :: failure, my_map_consistent
+    LOGICAL                                  :: failure,my_map_consistent
     REAL(KIND=dp) :: a, b, binomial_k_lxa, binomial_l_lxb, cutoff, f, pg, &
       prefactor, radius, rpg, xrrb, ya, yap, yb, ybp, yrrb, za, zap, zb, zbp, &
       zetp, zrrb
     REAL(KIND=dp), DIMENSION(3)              :: dr, rap, rb, rboffset, rbp, &
                                                 roffset, rp
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: pzyx_ii, pzyx_iii
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: polx_ii, polx_iii, poly_ii, &
-                                                poly_iii, polz_ii, polz_iii
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: grid
-    REAL(KIND=dp), POINTER                   :: alpha(:,:), dpy(:,:), &
-                                                dpz(:,:), polx(:,:), &
-                                                poly(:,:), polz(:,:), pzyx(:)
+    REAL(KIND=dp), POINTER :: alpha(:,:), dpy(:,:), dpz(:,:), polx(:,:), &
+      poly(:,:), polz(:,:), pzyx(:)
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: pzyx_ii, pzyx_iii
+    REAL(KIND=dp), DIMENSION(:,:), POINTER   :: polx_ii, polx_iii,&
+                                                poly_ii, poly_iii,polz_ii, polz_iii
 
 !   ---------------------------------------------------------------------------
 
@@ -1842,7 +1847,6 @@ CONTAINS
     TYPE(cp_2d_r_p_type), DIMENSION(3)       :: vecbuf
     TYPE(cp_fm_struct_type), POINTER         :: tmp_fm_struct
     TYPE(cp_fm_type), POINTER                :: fm_work, mo_coeff
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_rs_pool_p_type), DIMENSION(:), &
       POINTER                                :: rs_pools
     TYPE(cube_info_type), DIMENSION(:), &
@@ -1852,6 +1856,7 @@ CONTAINS
     TYPE(l_info_type), POINTER               :: l_info
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(pw_env_type), POINTER               :: pw_env
@@ -1995,7 +2000,7 @@ CONTAINS
        END DO 
        sumr = sumr*wf_r%pw%pw_grid%dvol
        sumrm(1:9) = sumrm(1:9)*wf_r%pw%pw_grid%dvol
-        WRITE(*,'(A,10f12.6)') 'integrals  ',  sumr, sumrm(1:9)
+        write(*,'(A,10f12.6)') 'integrals  ',  sumr, sumrm(1:9)
 
      END DO  ! istate
     ELSE 
@@ -2003,7 +2008,7 @@ CONTAINS
        CALL coeff_copy(rho%rho_r(1),wf_r)
 !       CALL pw_transfer(qs_env%rho_core%pw,wf_r%pw)
        dk(1:3) = 10.0_dp
-       WRITE(*,*) ' dk ', dk
+       write(*,*) ' dk ', dk
        sumr  = 0.0_dp
        sumrm = 0.0_dp
        DO iz = lb(3),ub(3)
@@ -2053,7 +2058,7 @@ CONTAINS
        END DO 
        sumr = sumr*wf_r%pw%pw_grid%dvol
        sumrm(1:9) = sumrm(1:9)*wf_r%pw%pw_grid%dvol/2.0_dp
-        WRITE(*,'(A,10f12.6)') 'integrals  ',  sumr, sumrm(1:9)
+        write(*,'(A,10f12.6)') 'integrals  ',  sumr, sumrm(1:9)
 
     END IF
 
@@ -2099,8 +2104,8 @@ CONTAINS
        DO iao = 1,nao
           sumr = sumr + mo_coeff%local_data(iao,istate)*psi1(1)%matrix%local_data(iao,istate)
        END DO
-       WRITE(*,*) 'istate ' , istate, sumr 
-       WRITE(*,*) 'istate  ', istate,  fm_work%local_data(istate,istate)
+       write(*,*) 'istate ' , istate, sumr 
+       write(*,*) 'istate  ', istate,  fm_work%local_data(istate,istate)
      END DO 
 
      DO istate = 1,homo
@@ -2119,17 +2124,17 @@ CONTAINS
                   beta=0.0_dp,matrix_c=fm_work,&
                   error=error)
 
-          WRITE(*,'(A,I4,A,I4,2f12.6)') 'istate  ', istate,' idir ', idir,  fm_work%local_data(istate,istate), sumrm(idir)
+          write(*,'(A,I4,A,I4,2f12.6)') 'istate  ', istate,' idir ', idir,  fm_work%local_data(istate,istate), sumrm(idir)
 !         CALL cp_fm_get_submatrix(psi1(1)%matrix,vecbuf(idir)%array,&
 !                1,istate,nao,1,transpose=.TRUE.,error=error)
 !         DO iao = 1,nao
 !           mom(idir) = mom(idir) + vecbuf(idir)%array(1,iao)
 !         END DO 
        END DO 
-      STOP 'pippo'
+      stop 'pippo'
        
 !       write(*,*) mom(1), mom(2), mom(3)
-      STOP 'pippo'
+      stop 'pippo'
      END DO  ! istate
 
      DO idir = 1,3

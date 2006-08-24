@@ -1144,17 +1144,18 @@ CONTAINS
 !!****f* qs_operators_ao/rRc_xyz_der_ao [1.0] *
 !!
 !!   NAME
-!!     rRc_xyz_op 
+!!     rRc_xyz_der_op 
 !!
 !!   FUNCTION
-!!     Calculation of the components of the multipole operators in the length form
+!!     Calculation of the  multipole operators integrals
 !!     and of its derivatives of the type
 !!     [\mu | op | d(\nu)/dR(\nu)]-[d(\mu)/dR(\mu)| op | \nu]
 !!     by taking the relative position operator r-Rc, with respect a reference point Rc
 !!     The derivative are with respect to the primitive position, 
-!!     and the operator is symmetric and does not depend on R(\mu) or R(\nu)
+!!     The multipole operator is symmetric and if it does not depend on R(\mu) or R(\nu)
 !!     therefore  [\mu | op | d(\nu)/dR(\nu)] = -[d(\mu)/dR(\mu)| op | \nu]
 !!       [\mu|op|d(\nu)/dR]-[d(\mu)/dR|op|\nu]=2[\mu|op|d(\nu)/dR]
+!!     When it is not the case a correction term is needed
 !!   
 !!    The momentum operator [\mu|M|\nu] is symmetric, the number of components is 
 !!    detrermined by the order: 3 for order 1 (x,y,x), 9 for order 2(xx,xy,xz,yy,yz,zz)

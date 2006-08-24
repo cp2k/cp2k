@@ -33,22 +33,31 @@ MODULE qs_linres_nmr_shift
   USE coefficient_types,               ONLY: coeff_type
   USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_trace
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
+                                             cp_fm_scale_and_add,&
+                                             cp_fm_trace
   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                              cp_fm_struct_release,&
                                              cp_fm_struct_type
   USE cp_fm_types,                     ONLY: cp_fm_create,&
                                              cp_fm_get_submatrix,&
+                                             cp_fm_p_type,&
                                              cp_fm_release,&
+                                             cp_fm_set_all,&
                                              cp_fm_set_submatrix,&
+                                             cp_fm_to_fm,&
                                              cp_fm_type
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
-  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply,&
+                                             copy_sm_to_fm 
+  USE input_section_types,             ONLY: section_get_ival,&
+                                             section_get_rval,&
+                                             section_get_lval,&
+                                             section_vals_get_subs_vals,&
                                              section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
@@ -123,28 +132,32 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'chi_soft_analytic', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, idir, idir2, ii, &
-                                                iiB, iii, iiiB, istat, &
-                                                istate, nao
-    LOGICAL                                  :: failure, gapw
-    REAL(dp)                                 :: chi(3), contrib, dk(3)
+    INTEGER :: handle, idir, idir2, ii, iiB, iii, iiiB, istat, istate, nao, nstates(2)
+    LOGICAL :: failure, gapw
+    REAL(dp)      :: chi(3), contrib, contrib2, dk(3)
     REAL(dp), DIMENSION(:), POINTER          :: occupation
-    REAL(dp), DIMENSION(:, :), POINTER       :: vecbuf_0, vecbuf_1_d, &
-                                                vecbuf_1_rxp
+    REAL(dp), DIMENSION(:,:), POINTER        :: vecbuf_0
+    REAL(dp), DIMENSION(:,:), POINTER        :: vecbuf_1_rxp
+    REAL(dp), DIMENSION(:,:), POINTER        :: vecbuf_1_d
     TYPE(cp_2d_r_p_type)                     :: vecbuf_1_p(3)
+    TYPE(cp_2d_r_p_type), DIMENSION(:),&
+      POINTER                                :: centers_set
     TYPE(cp_fm_struct_type), POINTER         :: tmp_fm_struct
     TYPE(cp_fm_type), POINTER :: fm_work2, mo_coeff, momxpsi_istate, &
       psi0_istate, psi_p1_istate, psi_p2_istate, psi_rxp_istate
+    TYPE(cp_fm_p_type), DIMENSION(:,:), &
+      POINTER                                :: psi1_p, psi1_rxp, psi1_D
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s, op_mom_ao
-    TYPE(real_matrix_p_type), &
-      DIMENSION(:, :), POINTER               :: op_mom_der_ao
-
+    TYPE(real_matrix_p_type), DIMENSION(:,:), &
+      POINTER                                :: op_mom_der_ao
 !dbg
+!     INTEGER :: fnum, i, j
+!     TYPE(cp_fm_type), POINTER :: fm_work2
 !dbg
 
     CALL timeset(routineN,"I"," ",handle)
@@ -153,14 +166,19 @@ CONTAINS
 
     NULLIFY(dft_control,matrix_s,mos,para_env)
     NULLIFY(mo_coeff,occupation)
-    NULLIFY(op_mom_ao,op_mom_der_ao)
+    NULLIFY(op_mom_ao,op_mom_der_ao,centers_set)
     NULLIFY(psi0_istate,psi_rxp_istate,psi_p1_istate,psi_p2_istate,momxpsi_istate)
+    NULLIFY(psi1_p, psi1_rxp, psi1_D)
 
     CALL get_qs_env(qs_env=qs_env,&
          dft_control=dft_control,matrix_s=matrix_s,&
          mos=mos,&
          para_env=para_env)
     gapw = dft_control%qs_control%gapw
+
+    CALL get_nmr_env(nmr_env=nmr_env, nao=nao, nstates=nstates, &
+                     centers_set=centers_set,&
+                     psi1_p=psi1_p, psi1_rxp=psi1_rxp, psi1_D=psi1_D  )
 
 !   Allocate sparse matric for dipole, quadrupole and their derivatives => 9x3
 !   Remember the derivatives are antisymmetric
@@ -196,7 +214,7 @@ CONTAINS
 
 !   get ground state MOS
     CALL get_mo_set(mo_set=mos(ispin)%mo_set,mo_coeff=mo_coeff,&
-                    occupation_numbers=occupation, nao=nao)
+                    occupation_numbers=occupation)
 
 !   Allocate full matrices for only one vector
     NULLIFY(tmp_fm_struct)
@@ -209,10 +227,10 @@ CONTAINS
     CALL cp_fm_create (momxpsi_istate, tmp_fm_struct )
     CALL cp_fm_struct_release ( tmp_fm_struct )
 !dbg
-    CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=nao,&
-          ncol_global=nao,para_env=para_env,context=mo_coeff%matrix_struct%context)
-    CALL cp_fm_create (fm_work2, tmp_fm_struct )
-    CALL cp_fm_struct_release ( tmp_fm_struct )
+!    CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=nao,&
+!          ncol_global=nao,para_env=para_env,context=mo_coeff%matrix_struct%context)
+!    CALL cp_fm_create (fm_work2, tmp_fm_struct )
+!    CALL cp_fm_struct_release ( tmp_fm_struct )
 !dbg
   
 
@@ -234,10 +252,10 @@ CONTAINS
     chi = 0.0_dp
 
 !   Start loop over the occupied  states
-    DO istate = 1,nmr_env%nstates(ispin)
+    DO istate = 1,nstates(ispin)
 
 !     Get the Wannier center of the istate-th ground state orbital
-      dk(1:3) = nmr_env%centers_set(ispin)%array(1:3,istate)
+      dk(1:3) = centers_set(ispin)%array(1:3,istate)
 
 !     Compute the multipole integrals for the state istate,
 !     using as reference center the corresponding Wannier center
@@ -247,9 +265,12 @@ CONTAINS
            CALL set_matrix(op_mom_der_ao(idir,idir2)%matrix, 0.0_dp)
          END DO
       END DO
+!dbg
+!  write(*,*) ' state ', istate, dk(1:3)
       CALL rRc_xyz_der_ao(op_mom_ao,op_mom_der_ao,qs_env,dk,order=2,&
            minimum_image=.TRUE.,soft=gapw,error=error)
-
+!  stop 'check derivatives' 
+!dbg
 !dbg
 !       DO idir= 1,9      
 !         fnum = 100+idir
@@ -280,13 +301,13 @@ CONTAINS
 !     Extract from the full MOS matrices of the response functions the coefficients
 !     referring to istate
 !     psi1_rxp_iB_istate
-      CALL cp_fm_get_submatrix(nmr_env%psi1_rxp(ispin,iB)%matrix,&
+      CALL cp_fm_get_submatrix(psi1_rxp(ispin,iB)%matrix,&
            vecbuf_1_rxp,1,istate,nao,1,transpose=.TRUE.,&
            error=error)
 
       IF(nmr_env%full_nmr) THEN
 !     psi1_d_iB_istate
-        CALL cp_fm_get_submatrix(nmr_env%psi1_D(ispin,iB)%matrix,&
+        CALL cp_fm_get_submatrix(psi1_D(ispin,iB)%matrix,&
              vecbuf_1_d,1,istate,nao,1,transpose=.TRUE.,&
              error=error)
         vecbuf_1_rxp(1,1:nao) = vecbuf_1_rxp(1,1:nao) - vecbuf_1_d(1,1:nao)
@@ -296,12 +317,12 @@ CONTAINS
 
 
 !     psi1_p_iiB_istate and psi1_p_iiiB_istate
-      CALL cp_fm_get_submatrix(nmr_env%psi1_p(ispin,iiB)%matrix,&
+      CALL cp_fm_get_submatrix(psi1_p(ispin,iiB)%matrix,&
            vecbuf_1_p(iiB)%array,1,istate,nao,1,transpose=.TRUE.,&
            error=error)
       CALL cp_fm_set_submatrix(psi_p1_istate,vecbuf_1_p(iiB)%array,1,1,&
            nao,1,transpose=.TRUE.,error=error)
-      CALL cp_fm_get_submatrix(nmr_env%psi1_p(ispin,iiiB)%matrix,&
+      CALL cp_fm_get_submatrix(psi1_p(ispin,iiiB)%matrix,&
            vecbuf_1_p(iiiB)%array,1,istate,nao,1,transpose=.TRUE.,&
            error=error)
       CALL cp_fm_set_submatrix(psi_p2_istate,vecbuf_1_p(iiiB)%array,1,1,&
@@ -322,6 +343,7 @@ CONTAINS
 
 !       term: 2[C0| r_ii |d_iii(C1(rxp-D))]-2[C0| r_iii |d_ii(C1(rxp-D))]
 !       the factor 2 should be already included in the matrix elements
+        contrib = 0.0_dp
         CALL cp_sm_fm_multiply(op_mom_der_ao(ii,iii)%matrix,psi_rxp_istate,&
              momxpsi_istate,ncol=1,alpha=1.d0,error=error)
         CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib)
@@ -329,6 +351,7 @@ CONTAINS
 !dbg
 !  write(*,'(2(A,I5),2f12.6)') ' first term a  r',ii,' der',iii, contrib, chi(idir)
 !dbg
+        contrib = 0.0_dp
         CALL cp_sm_fm_multiply(op_mom_der_ao(iii,ii)%matrix,psi_rxp_istate,&
              momxpsi_istate,ncol=1,alpha=1.d0,error=error)
         CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib)
@@ -339,43 +362,76 @@ CONTAINS
 
 !       term: -2[C0| r_ii r_iiB | d_iii(C1(piiiB))] + 2[C0| r_iii r_iiB | d_ii(C1(piiiB))] 
 !       the factor 2 should be already included in the matrix elements
+        contrib = 0.0_dp
         idir2 = ind_m2(ii,iiB)
         CALL cp_sm_fm_multiply(op_mom_der_ao(idir2,iii)%matrix,psi_p2_istate,&
              momxpsi_istate,ncol=1,alpha=1.d0,error=error)
         CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib)
         chi(idir) = chi(idir) - contrib
+        contrib2 = 0.0_dp
+        IF(iiB==iii) THEN
+          CALL cp_sm_fm_multiply(op_mom_ao(ii)%matrix,psi_p2_istate,&
+               momxpsi_istate,ncol=1,alpha=1.d0,error=error)
+          CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib2)
+          chi(idir) = chi(idir) - contrib2
+        END IF
 !dbg
-!  write(*,'(4(A,I5),2f12.6)') ' second term a  idir2 ', idir2, ' r',ii,' r',iiB,' der',iii,-contrib, chi(idir)
+!  write(*,'(4(A,I5),3f12.6)') ' second term a  idir2 ', idir2, ' r',ii,' r',iiB,' der',iii,-contrib,-contrib2, chi(idir)
 !dbg
+
+        contrib = 0.0_dp
         idir2 = ind_m2(iii,iiB)
         CALL cp_sm_fm_multiply(op_mom_der_ao(idir2,ii)%matrix,psi_p2_istate,&
              momxpsi_istate,ncol=1,alpha=1.d0,error=error)
         CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib)
         chi(idir) = chi(idir) + contrib
+        contrib2 = 0.0_dp
+        IF(iiB==ii) THEN
+          CALL cp_sm_fm_multiply(op_mom_ao(iii)%matrix,psi_p2_istate,&
+               momxpsi_istate,ncol=1,alpha=1.d0,error=error)
+          CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib2)
+          chi(idir) = chi(idir) + contrib2
+        END IF
 !dbg
-!  write(*,'(4(A,I5),2f12.6)') ' second term b  idir2 ', idir2, ' r',iii,' r',iiB,' der',ii,contrib, chi(idir)
+!  write(*,'(4(A,I5),3f12.6)') ' second term b  idir2 ', idir2, ' r',iii,' r',iiB,' der',ii,contrib, contrib2, chi(idir)
 !dbg
 
 !       term: 2[C0| r_ii   r_iiiB | d_iii(C1(piiB))] - 2[C0| r_iii r_iiiB | d_ii(C1(piiB))] 
 !       the factor 2 should be already included in the matrix elements
+        contrib = 0.0_dp
         idir2 = ind_m2(ii,iiiB)
         CALL cp_sm_fm_multiply(op_mom_der_ao(idir2,iii)%matrix,psi_p1_istate,&
              momxpsi_istate,ncol=1,alpha=1.d0,error=error)
         CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib)
         chi(idir) = chi(idir) + contrib
+        contrib2 = 0.0_dp
+        IF(iiB==iii) THEN
+          CALL cp_sm_fm_multiply(op_mom_ao(ii)%matrix,psi_p1_istate,&
+               momxpsi_istate,ncol=1,alpha=1.d0,error=error)
+          CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib2)
+          chi(idir) = chi(idir) + contrib2
+        END IF
 !dbg
-!  write(*,'(4(A,I5),2f12.6)') ' third term a  idir2 ', idir2, ' r',ii,' r',iiiB,' der',iii,contrib, chi(idir)
+!  write(*,'(4(A,I5),2f12.6)') ' third term a  idir2 ', idir2, ' r',ii,' r',iiiB,' der',iii,contrib, contrib2, chi(idir)
 !dbg
         idir2 = ind_m2(iii,iiiB)
         CALL cp_sm_fm_multiply(op_mom_der_ao(idir2,ii)%matrix,psi_p1_istate,&
              momxpsi_istate,ncol=1,alpha=1.d0,error=error)
         CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib)
-        chi(idir) = chi(idir) - contrib!
+        chi(idir) = chi(idir) - contrib
+        contrib2 = 0.0_dp
+        IF(iiB==ii) THEN
+          CALL cp_sm_fm_multiply(op_mom_ao(iii)%matrix,psi_p1_istate,&
+               momxpsi_istate,ncol=1,alpha=1.d0,error=error)
+          CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib2)
+          chi(idir) = chi(idir) - contrib2
+        END IF
+
 !dbg
 !  write(*,'(4(A,I5),2f12.6)') ' third term b  idir2 ', idir2, ' r',iii,' r',iiiB,' der',ii,-contrib, chi(idir)
 !dbg
 !dbgdbgdbgdbgdbgdbgdbgdbgdbgdbgdbgdbgdbgdbgdbgdbgdbgdbgdbgdbgdbgdbg
-!   IF(.FALSE.) THEN
+   IF(.FALSE.) THEN
         IF(iii==iiB) THEN
 !         term: -[C0 | r_ii | C1(piiiB)]   
           CALL cp_sm_fm_multiply(op_mom_ao(ii)%matrix,psi_p2_istate,&
@@ -414,7 +470,7 @@ CONTAINS
 !  write(*,'(2(A,I5),2f12.6)') ' fourth term ii=iiiB, r',iii,' C',iiB,-contrib, chi(idir)
 !dbg
         END IF
-!   END IF
+   END IF
 !dbgdbgdbgdbgdbgdbgdbgdbgdbgdbgdbgdbgdbgdbgdbgdbgdbgdbgdbg
       END DO  ! idir
 
@@ -423,7 +479,7 @@ CONTAINS
     WRITE(*,*) "CHI TENSOR : iB =", iB 
     DO idir = 1,3
       nmr_env%chi_tensor(idir,iB) =  nmr_env%chi_tensor(idir,iB)+&
-                                     chi(idir)*nmr_env%chi_factor
+                                     chi(idir)*nmr_env%chi_factor/2.0_dp
       WRITE(*,*)  idir, nmr_env%chi_tensor(idir,iB)
     END DO 
 
@@ -496,7 +552,7 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: cs_atom_list
     LOGICAL                                  :: failure, success
     REAL(dp)                                 :: eps_r, eps_x, R_iatom(3), &
-                                                ra(3), shift_val
+                                               ra(3), shift_val
     REAL(dp), DIMENSION(:, :), POINTER       :: r_nics
     REAL(dp), DIMENSION(:, :, :), POINTER    :: chemical_shift, &
                                                 chemical_shift_nics
@@ -506,6 +562,8 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: interp_section
 
 !dbg
+    INTEGER :: bo(2,3), i, k, j, ig
+    REAL(dp) :: dr(3), rgrid(3), val_grid, val_inter
 !dbg
 
     failure = .FALSE.
@@ -635,7 +693,7 @@ CONTAINS
 !!*** **********************************************************************
 
 
-  SUBROUTINE  mult_G_ov_G2_grid(cell,pw_pool,rho_gspace,funcG_times_rho,idir,error)
+  SUBROUTINE  mult_G_ov_G2_grid(cell,pw_pool,rho_gspace,funcG_times_rho,idir,my_chi,error)
 
 
     TYPE(cell_type), POINTER                 :: cell
@@ -643,6 +701,7 @@ CONTAINS
     TYPE(coeff_type), POINTER                :: rho_gspace
     TYPE(coeff_type)                         :: funcG_times_rho
     INTEGER, INTENT(IN)                      :: idir
+    REAL(dp), INTENT(IN)                     :: my_chi
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -674,6 +733,7 @@ CONTAINS
     
     ng = SIZE(grid % gsq)
     frho%cc(1:ng) = frho%cc(1:ng)*influence_fn % cc  ( 1 : ng )
+    IF ( grid % have_g0 ) frho%cc(1) = my_chi 
 
     CALL pw_pool_give_back_pw(pw_pool,influence_fn,&
          accept_non_compatible=.TRUE.,error=error)
@@ -720,7 +780,7 @@ CONTAINS
                                                 n_nics, nat_print, natom, &
                                                 unit_atoms, unit_nics
     INTEGER, DIMENSION(:), POINTER           :: cs_atom_list
-    LOGICAL                                  :: gapw
+    LOGICAL                                  :: failure, gapw
     REAL(dp) :: chi_aniso, chi_iso, chi_sym(3,3), chi_sym_tot(3,3), &
       chi_tensor(3,3), chi_tensor_loc(3,3), chi_tmp(3,3), eigenv(3), &
       eigenv_tmp(3), rpos(3), shift_nosym(3,3), shift_sym(3,3), shift_tmp(3,3)
@@ -826,9 +886,9 @@ CONTAINS
 
         END IF
 
-        WRITE (unit_atoms,'(/T2,3(A,F15.5))')' PV1=',eigenv(1),&
+        write (unit_atoms,'(/T2,3(A,F15.5))')' PV1=',eigenv(1),&
                  ' PV2=',eigenv(2),' PV3=',eigenv(3)
-        WRITE (unit_atoms,'(T2,A,F15.5,10X,A,F15.5)')&
+        write (unit_atoms,'(T2,A,F15.5,10X,A,F15.5)')&
                  '  iso=',chi_iso,  'aniso=',chi_aniso
 
         CALL dscal(3*3,nmr_env%chi_SI2ppmcgs,chi_sym_tot,1)

@@ -271,7 +271,6 @@ CONTAINS
          DO idir = 1,3
 !!!  This loop should be distributed over the processors
            DO iao = 1,nao
-!!             ck(1:3) = 0.5_dp !nmr_env%basisfun_center(1:3,iao)
              ck(1:3) = basisfun_center(1:3,iao)
              ckdk = pbc(dk,ck,cell)
              vecbuf_Rmdc0(idir)%array(1,iao) = vecbuf_c0(1,iao)*ckdk(idir)
@@ -344,7 +343,7 @@ CONTAINS
 
     INTEGER                                  :: l(3)
 
-     i = 0.0_dp
+     i = 0
      l(1:3) = 0
      IF(ii==0) THEN
        l(iii) = 1

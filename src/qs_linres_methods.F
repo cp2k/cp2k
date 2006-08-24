@@ -25,7 +25,9 @@
 
 MODULE qs_linres_methods
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_fm_basic_linalg,              ONLY: cp_fm_gemm,&
+  USE cp_fm_basic_linalg,              ONLY: cp_fm_column_scale,&
+                                             cp_fm_gemm,&
+                                             cp_fm_scale,&
                                              cp_fm_scale_and_add,&
                                              cp_fm_symm,&
                                              cp_fm_trace
@@ -35,13 +37,14 @@ MODULE qs_linres_methods
                                              fm_pool_create_fm,&
                                              fm_pools_create_fm_vect,&
                                              fm_pools_give_back_fm_vect
-  USE cp_fm_types,                     ONLY: cp_fm_get_element,&
-                                             cp_fm_get_info,&
+  USE cp_fm_types,                     ONLY: cp_fm_get_info,&
+                                             cp_fm_get_element,&
                                              cp_fm_maxabsval,&
                                              cp_fm_p_type,&
                                              cp_fm_release,&
                                              cp_fm_set_all,&
-                                             cp_fm_to_fm
+                                             cp_fm_to_fm,&
+                                             cp_fm_vectorsnorm
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
@@ -188,7 +191,7 @@ CONTAINS
 ! Set all centers to zero just to try
     DO ispin = 1,nspins
     DO istate = 1,SIZE(localized_wfn_control%centers_set(ispin)%array,2)
-      localized_wfn_control%centers_set(ispin)%array(1:3,istate) = 0.0_dp
+      localized_wfn_control%centers_set(ispin)%array(1:3,istate) = 15.11_dp
     END DO
     END DO
 !dbg

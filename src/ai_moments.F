@@ -41,7 +41,7 @@ MODULE ai_moments
 
 ! *****************************************************************************
 
-  USE ai_derivatives,                  ONLY: dabdr
+  USE ai_derivatives,                  ONLY: adbdr, dabdr
   USE ai_overlap_new,                  ONLY: overlap
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
@@ -1297,7 +1297,9 @@ CONTAINS
       DIMENSION(:, :, :)                     :: difmab_tmp
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: mab
-
+!dbg
+    INTEGER :: i, num1, num2,num3 
+!dbg
 !   ---------------------------------------------------------------------------
 
     rab = rbc - rac
@@ -1325,13 +1327,46 @@ CONTAINS
     END IF
     DO imom = 1,ncoset(order)-1
       difmab_tmp = 0.0_dp
-      CALL dabdr(la_max,npgfa,zeta,rpgfa,la_min,&
+!      CALL dabdr(la_max,npgfa,zeta,rpgfa,la_min,&
+!                 lb_max,npgfb,zetb,rpgfb,lb_min,&
+!                 dab,mab(:,:,imom), difmab_tmp(:,:,1),&
+!                 difmab_tmp(:,:,2), difmab_tmp(:,:,3))
+!      difmab(1:lda,1:ldb,imom,1) =  difmab_tmp(1:lda,1:ldb,1)
+!      difmab(1:lda,1:ldb,imom,2) =  difmab_tmp(1:lda,1:ldb,2)
+!      difmab(1:lda,1:ldb,imom,3) =  difmab_tmp(1:lda,1:ldb,3)
+!dbg
+! check block
+!    num1 = 1000+100*imom+10+1
+!    num2 = 1000+100*imom+20+1
+!    num3 = 1000+100*imom+30+1
+!    write(num1,*) ' lda ', lda, ' ldb ', ldb, ' imom ' , imom, ' derivative  x' 
+!    write(num2,*) ' lda ', lda, ' ldb ', ldb, ' imom ' , imom, ' derivative  y' 
+!    write(num3,*) ' lda ', lda, ' ldb ', ldb, ' imom ' , imom, ' derivative  z' 
+!      do i = 1,lda
+!       write(num1,'(I4,50f12.6)') i,  difmab(i,1:ldb,imom,1)
+!       write(num2,'(I4,50f12.6)') i,  difmab(i,1:ldb,imom,2)
+!       write(num3,'(I4,50f12.6)') i,  difmab(i,1:ldb,imom,3)
+!      end do
+      difmab_tmp = 0.0_dp
+      CALL adbdr(la_max,npgfa,zeta,rpgfa,la_min,&
                  lb_max,npgfb,zetb,rpgfb,lb_min,&
                  dab,mab(:,:,imom), difmab_tmp(:,:,1),&
                  difmab_tmp(:,:,2), difmab_tmp(:,:,3))
-      difmab(1:lda,1:ldb,imom,1) =  difmab_tmp(1:lda,1:ldb,1)
-      difmab(1:lda,1:ldb,imom,2) =  difmab_tmp(1:lda,1:ldb,2)
-      difmab(1:lda,1:ldb,imom,3) =  difmab_tmp(1:lda,1:ldb,3)
+      difmab(1:lda,1:ldb,imom,1) =  -difmab_tmp(1:lda,1:ldb,1)
+      difmab(1:lda,1:ldb,imom,2) =  -difmab_tmp(1:lda,1:ldb,2)
+      difmab(1:lda,1:ldb,imom,3) =  -difmab_tmp(1:lda,1:ldb,3)
+!    num1 = 1000+100*imom+10+2
+!    num2 = 1000+100*imom+20+2
+!    num3 = 1000+100*imom+30+2
+!    write(num1,*) ' lda ', lda, ' ldb ', ldb, ' imom ' , imom, ' derivative  x' 
+!    write(num2,*) ' lda ', lda, ' ldb ', ldb, ' imom ' , imom, ' derivative  y' 
+!    write(num3,*) ' lda ', lda, ' ldb ', ldb, ' imom ' , imom, ' derivative  z' 
+!      do i = 1,lda
+!       write(num1,'(I4,50f12.6)') i,  difmab(i,1:ldb,imom,1)
+!       write(num2,'(I4,50f12.6)') i,  difmab(i,1:ldb,imom,2)
+!       write(num3,'(I4,50f12.6)') i,  difmab(i,1:ldb,imom,3)
+!      end do
+!dbg
     END DO
 
     IF(PRESENT(mab_ext)) THEN
