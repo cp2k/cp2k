@@ -402,8 +402,9 @@ END SUBROUTINE ewald_env_release
 !!I---------------------------------------------------------------------------I
 !!   SOURCE
 !******************************************************************************
-SUBROUTINE read_ewald_section ( ewald_env, globenv, ewald_section, error )
+SUBROUTINE read_ewald_section ( ewald_env, para_env, globenv, ewald_section, error )
     TYPE(ewald_environment_type), POINTER    :: ewald_env
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_vals_type), POINTER         :: ewald_section
     TYPE(cp_error_type), INTENT(inout), &
@@ -411,11 +412,9 @@ SUBROUTINE read_ewald_section ( ewald_env, globenv, ewald_section, error )
 
     INTEGER                                  :: iw
     REAL(KIND=dp)                            :: dummy
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(unit_convert_type), POINTER         :: units
 
   iw = globenv%scr
-  para_env=>globenv%para_env
   NULLIFY( units)
   CALL get_cp2k_units ( units )
   CALL read_ewald_section1(ewald_env, ewald_section, error)

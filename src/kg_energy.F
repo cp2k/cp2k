@@ -181,7 +181,7 @@ SUBROUTINE kg_only_energies ( kg_env, globenv, force_env_section, error )
 
   CALL timeset ( 'kg_only_energies','I',' ',handle )
   failure=.FALSE.
-  para_env=>globenv%para_env
+  para_env=>kg_env%para_env
   ionode=para_env%ionode
   output_unit=globenv%scr
   NULLIFY(energy,dft_control,cell,rho)
@@ -348,7 +348,7 @@ SUBROUTINE kg_std_energies ( kg_env, root_section, globenv, error )
 
   NULLIFY(atomic_kind_set,dyn_coeff_set,diis_info,scf_control)
   NULLIFY(rspw,auxbas_pw_pool,vxc_r)
-  para_env=>globenv%para_env
+  para_env=>kg_env%para_env
   ionode=para_env%ionode
   output_unit=globenv%scr
   stat = 0
@@ -482,7 +482,7 @@ SUBROUTINE kg_qs_energies ( kg_env, globenv, error )
     CALL timeset(routine,"I","",handle)
 
     NULLIFY ( qs_env )
-    para_env=>globenv%para_env
+    para_env=>kg_env%para_env
     CALL get_kg_env(kg_env=kg_env,&
                     sub_qs_env=qs_env)
     CALL build_qs_neighbor_lists(qs_env,para_env,.TRUE.,qs_env%input,error=error)
@@ -543,7 +543,7 @@ SUBROUTINE init_energy_calculation ( kg_env, vxc_r, globenv, force_env_section, 
 
   CALL timeset ( 'init_energy_calculation','I',' ',handle )
   failure=.FALSE.
-  para_env=>globenv%para_env
+  para_env=>kg_env%para_env
   ionode=para_env%ionode
   output_unit=globenv%scr
   NULLIFY(auxbas_pw_pool,energy,atomic_kind_set,dft_control,&
@@ -665,7 +665,7 @@ SUBROUTINE calc_c_gradients ( kg_env, vxc_r, maxgrad, globenv, force_env_section
 
     failure = .FALSE.
   CALL timeset ( 'calc_c_gradients','I',' ',handle )
-  para_env=>globenv%para_env
+  para_env=>kg_env%para_env
   ionode=para_env%ionode
   output_unit=globenv%scr
   calculate_forces=.FALSE.

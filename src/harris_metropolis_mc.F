@@ -224,15 +224,15 @@ CONTAINS
       POINTER                                :: force_env_p
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(section_vals_type), POINTER         :: force_env_section, hmc_section
+    TYPE(section_vals_type), POINTER         :: force_env_section, &
+                                                hmc_section, root_section
     TYPE(tbmd_environment_type), POINTER     :: tbmd_env
-    TYPE(section_vals_type), POINTER         :: root_section
 
     NULLIFY(force_env_p, hmc_section, kg_env, qs_env, tbmd_env, eip_env, &
          subsys, subsystem, fist_env)
 
     CALL timeset(routineN, "I", "", handle)
-    para_env=>globenv%para_env
+    para_env=>force_env%para_env
 
     force_env_section => force_env%force_env_section
     root_section => force_env%root_section
@@ -271,7 +271,7 @@ CONTAINS
         ! *** Read the input and the database files and perform further  ***
         ! *** initializations for the setup of the FIST environment ***
 
-        CALL fist_init(fist_env,root_section, globenv, force_env%force_env_section,error)
+        CALL fist_init(fist_env,root_section, para_env, globenv, force_env%force_env_section,error)
 
         CALL get_fist_env(fist_env=fist_env, subsys=subsystem, error=error)
         CALL cp_subsys_release(subsys=subsystem, error=error)
@@ -289,7 +289,7 @@ CONTAINS
         CALL kg_env_create(kg_env, para_env=para_env, &
                            error=error)
 
-        CALL kg_init(kg_env, root_section, globenv, force_env_section, error)
+        CALL kg_init(kg_env, root_section, para_env, globenv, force_env_section, error)
 
         CALL cp_subsys_release(subsys=kg_env%subsys, error=error)
 
@@ -327,7 +327,7 @@ CONTAINS
       CASE (do_tbmd)
         CALL tbmd_env_create(tbmd_env, error=error)
 
-        CALL tbmd_init(tbmd_env, root_section, globenv, force_env_section,error=error)
+        CALL tbmd_init(tbmd_env, root_section, para_env, globenv, force_env_section,error=error)
 
         CALL cp_subsys_release(subsys=tbmd_env%subsystem, error=error)
 
@@ -345,7 +345,7 @@ CONTAINS
       CASE (do_eip)
         CALL eip_env_create(eip_env, error=error)
 
-        CALL eip_init(eip_env, root_section, globenv, force_env_section, error=error)
+        CALL eip_init(eip_env, root_section, para_env, globenv, force_env_section, error=error)
 
         CALL cp_subsys_release(subsys=eip_env%subsystem, error=error)
 
@@ -517,21 +517,17 @@ CONTAINS
     TYPE(reduced_particle_type), &
       DIMENSION(:), POINTER                  :: tmp_particle_set
     TYPE(rng_stream_type), POINTER           :: rng_stream
-    TYPE(section_vals_type), POINTER         :: dft_section, &
-                                                force_env_section, input, &
-                                                motion_section, &
-                                                subsys_section, work_section
+    TYPE(section_vals_type), POINTER :: dft_section, force_env_section, &
+      input, motion_section, root_section, subsys_section, work_section
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
     TYPE(tbmd_energy_type), POINTER          :: tbmd_ener
     TYPE(tbmd_environment_type), POINTER     :: tbmd_env
     TYPE(unit_convert_type), POINTER         :: unit
-    TYPE(section_vals_type), POINTER         :: root_section
 
 ! -------------------------------------------------------------------------
 
     CALL timeset(routineN, "I", "", handle)
-    para_env=>globenv%para_env
     NULLIFY(force_env_section, motion_section,  subsys_section, md_approach_nr,&
             accepted_md)
     ! will be used to stop if a maximum walltime is given
@@ -569,6 +565,7 @@ CONTAINS
     DO i = 1, nbeads
        CPPrecondition(ASSOCIATED(force_env_p(i)%force_env), cp_failure_level, routineP, error, failure)
     END DO
+    para_env=>force_env_p(1)%force_env%para_env
 
     ALLOCATE (simpar,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN, moduleN, __LINE__, &
@@ -680,14 +677,14 @@ CONTAINS
           work_section => section_vals_get_subs_vals(motion_section,"MD%NOSE",error=error)
           CALL initialize_nhc_part(cell,simpar,local_molecules, &
                                    molecules_new%els, molecule_kinds_new%els,&
-                                   globenv, extended_type%nhc_part(ibead),work_section=work_section,error=error)
+                                   para_env,globenv, extended_type%nhc_part(ibead),work_section=work_section,error=error)
           CALL init_nhc_forces ( nhc_part=extended_type%nhc_part(ibead),error=error)
           !
           ! Possibly restart barostat
           !
           NULLIFY(work_section)
           work_section => section_vals_get_subs_vals(motion_section,"MD%BAROSTAT%NOSE",error=error)
-          CALL initialize_nhc_baro(simpar,globenv, extended_type%nhc_baro(ibead),work_section=work_section,error=error)
+          CALL initialize_nhc_baro(simpar,para_env,globenv, extended_type%nhc_baro(ibead),work_section=work_section,error=error)
           CALL init_nhc_forces ( nhc_baro=extended_type%nhc_baro(ibead),error=error)
 
           IF (ASSOCIATED(dyn_coeff_set)) THEN
@@ -698,7 +695,8 @@ CONTAINS
              NULLIFY(work_section)
              work_section => section_vals_get_subs_vals(motion_section,"MD%KG_COEFF%NOSE",error=error)
              CALL initialize_nhc_coef(dyn_coeff_set(isubsys)%dyn_coeff_set,&
-                                   root_section,globenv,extended_type%nhc_coef(ibead),work_section=work_section,error=error)
+                                   root_section,para_env,globenv, &
+                                   extended_type%nhc_coef(ibead),work_section=work_section,error=error)
 
              NULLIFY(work_section)
              work_section => section_vals_get_subs_vals(motion_section,"MD%KG_COEFF",error=error)
@@ -712,7 +710,7 @@ CONTAINS
        !
        NULLIFY(work_section)
        work_section => section_vals_get_subs_vals(motion_section,"MD%BAROSTAT",error=error)
-       CALL initialize_npt (simpar,globenv,extended_type%npt_info,cell,work_section=work_section,error=error)
+       CALL initialize_npt (simpar,para_env,globenv,extended_type%npt_info,cell,work_section=work_section,error=error)
 
        !
        ! Always initialize velocities 
@@ -727,6 +725,7 @@ CONTAINS
           work_section => section_vals_get_subs_vals(subsys_section,"VELOCITY",error=error)
           CALL initialize_velocities(simpar,particles%els,&
                                      molecule_kinds=molecule_kinds_new,&
+                                     para_env=para_env,&
                                      globenv=globenv,&
                                      work_section=work_section,&
                                      error=error)
@@ -819,7 +818,7 @@ CONTAINS
          i_val=myi,error=error)    
     accepted_md = myi
 
-    CALL md_energy(md_env, globenv) ! inits the print env at itimes == 0
+    CALL md_energy(md_env) ! inits the print env at itimes == 0
 
     root_section=>force_env_p(1)%force_env%root_section
     CALL write_restart(md_env=md_env,root_section=root_section,force_env_section=force_env_section,&
@@ -1337,6 +1336,7 @@ CONTAINS
                NULLIFY(work_section)
                CALL initialize_velocities(simpar,particles%els,&
                                           molecule_kinds=molecule_kinds_new,&
+                                          para_env=para_env,&
                                           globenv=globenv,&
                                           work_section=work_section,&
                                           error=error)
@@ -1515,7 +1515,7 @@ CONTAINS
           IF ((qs_env%scf_control%density_guess == restart_guess) .AND. &
                (dft_control%qs_control%wf_interpolation_method_nr == wfi_use_guess_method_nr)) THEN
              dft_section =>  section_vals_get_subs_vals(input,"DFT",error=error)
-             CALL read_mo_set(qs_env%mos, atomic_kind_set, particle_set, globenv,&
+             CALL read_mo_set(qs_env%mos, atomic_kind_set, particle_set, para_env, globenv,&
                   id_nr=1,multiplicity=dft_control%multiplicity,dft_section=dft_section)
           END IF
 
@@ -1553,7 +1553,7 @@ CONTAINS
     END DO
     time_iter_stop = m_walltime()
     used_time = time_iter_stop - time_iter_start
-    CALL md_energy(md_env, globenv)
+    CALL md_energy(md_env)
 
     CALL write_restart(md_env=md_env,root_section=root_section,force_env_section=force_env_section,&
               error=error)
@@ -1656,12 +1656,11 @@ CONTAINS
 !   ------------------------------------------------------------------------
 
     CALL timeset(routineN, "I", "", handle)
-    para_env=>globenv%para_env
     NULLIFY(force_env_p, itimes, used_time, wf_history, qs_env, tbmd_env, &
             eip_env, tbmd_ener, harris_energy)
 
     CALL get_md_env(md_env, force_env_p=force_env_p, itimes=itimes, &
-                    used_time=used_time)
+                    used_time=used_time,para_env=para_env)
 
     time_iter_start=m_walltime()
     nbeads = SIZE(force_env_p)
@@ -1853,7 +1852,7 @@ CONTAINS
       time_iter_stop = m_walltime()
       used_time = time_iter_stop - time_iter_start
       time_iter_start = time_iter_stop
-      CALL md_energy(md_env, globenv, error)
+      CALL md_energy(md_env, error)
       CALL external_control(should_stop,"HMC",globenv,error)
       IF (should_stop) EXIT
 

@@ -33,7 +33,6 @@ MODULE qmmm_electrostatic_methods
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cube_utils,                      ONLY: cube_info_type
-  USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: do_qmmm_gauss,&
                                              do_qmmm_grid,&
                                              do_qmmm_none,&
@@ -109,9 +108,7 @@ CONTAINS
 !!     05.2004 created [tlaino]
 !!
 !!*** **********************************************************************
-  SUBROUTINE  qmmm_el_coupling(globenv,qs_env,qmmm_env,mm_particles,mm_cell,error)
-    TYPE(global_environment_type), &
-      OPTIONAL, POINTER                      :: globenv
+  SUBROUTINE  qmmm_el_coupling(qs_env,qmmm_env,mm_particles,mm_cell,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
     TYPE(particle_type), DIMENSION(:), &

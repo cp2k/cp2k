@@ -25,10 +25,9 @@
 
 MODULE orbital_transformation_matrices
 
-  USE input_section_types,             ONLY: section_vals_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
-  USE global_types,                    ONLY: global_environment_type
+  USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp,&
                                              dp_size,&
                                              int_size
@@ -320,7 +319,6 @@ CONTAINS
 !   List of variables:
 
 !   maxl   : Maximum angular momentum quantum number
-!   globenv: Global environment data structure
 
 !   ---------------------------------------------------------------------------
 

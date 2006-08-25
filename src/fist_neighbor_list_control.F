@@ -67,13 +67,14 @@ CONTAINS
 ! list update, then the list routine is called.
 
 SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
-                          cell, fist_nonbond_env, globenv, force_env_section, error)
+                          cell, fist_nonbond_env, para_env,globenv, force_env_section, error)
 
     TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
     TYPE(particle_type), POINTER             :: particle_set( : )
     TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(cell_type), POINTER                 :: cell
     TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
@@ -91,13 +92,11 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
     REAL(KIND=dp), DIMENSION(3)              :: dr, rab, s, s2r
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: rlist_cutsq, rlist_lowsq
     TYPE(cell_type), POINTER                 :: cell_last_update
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(fist_neighbor_type), POINTER        :: nonbonded
     TYPE(pos_type), DIMENSION(:), POINTER    :: r_last_update, &
                                                 r_last_update_pbc
 
   CALL timeset(routineN,"I"," ",handle )
-    para_env=>globenv%para_env
 
 ! *** Assigning local pointers ***
 

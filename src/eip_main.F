@@ -23,6 +23,7 @@
 !!   SOURCE
 !****************************************************************************
 MODULE eip_main
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE eip_environment,                 ONLY: eip_init
   USE eip_environment_types,           ONLY: eip_env_create,&
                                              eip_env_release,&
@@ -70,11 +71,12 @@ CONTAINS
 !!     03.2006 initial create [tdk]
 !!
 !!*** **********************************************************************
-  SUBROUTINE eip_create_force_env(force_env,root_section, globenv, force_env_section, error)
+  SUBROUTINE eip_create_force_env(force_env,root_section, para_env, globenv, force_env_section, error)
     TYPE(force_env_type), POINTER            :: force_env
+    TYPE(section_vals_type), POINTER         :: root_section
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
@@ -92,10 +94,10 @@ CONTAINS
 
     CALL eip_env_create(eip_env, error=error)
 
-    CALL eip_init(eip_env, root_section, globenv, force_env_section=force_env_section,&
+    CALL eip_init(eip_env, root_section, para_env,globenv, force_env_section=force_env_section,&
          error=error)
 
-    CALL force_env_create(force_env,root_section, eip_env=eip_env, globenv=globenv, &
+    CALL force_env_create(force_env,root_section, eip_env=eip_env, para_env=para_env, globenv=globenv, &
                           force_env_section=force_env_section, error=error)
 
     CALL eip_env_release(eip_env, error=error)

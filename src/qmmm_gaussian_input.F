@@ -31,7 +31,6 @@ MODULE qmmm_gaussian_input
                                              parser_get_object,&
                                              parser_release,&
                                              parser_search_string
-  USE global_types,                    ONLY: global_environment_type
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: default_string_length,&
@@ -77,9 +76,9 @@ CONTAINS
   !!     06.2004 created [tlaino]
   !!
   !!*************************************************************************
-  SUBROUTINE read_mm_potential(globenv, qmmm_gaussian_fns, qm_cell_small,&
+  SUBROUTINE read_mm_potential(para_env, qmmm_gaussian_fns, qm_cell_small,&
                                compatibility, qmmm_section, error)
-    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(qmmm_gaussian_p_type), &
       DIMENSION(:), POINTER                  :: qmmm_gaussian_fns
     TYPE(cell_type), POINTER                 :: qm_cell_small
@@ -98,10 +97,8 @@ CONTAINS
                                                 Nval, stat
     LOGICAL                                  :: failure, Found, Found_Radius
     REAL(KIND=dp)                            :: fconv, my_radius, Radius
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_parser_type), POINTER            :: parser
 
-    para_env=>globenv%para_env
     Nval = SIZE(qmmm_gaussian_fns)
     Ival = 0
     CALL section_vals_val_get(qmmm_section,"MM_POTENTIAL_FILE_NAME",&
@@ -212,9 +209,8 @@ CONTAINS
   !!     07.2005 created [tlaino]
   !!
   !!*************************************************************************
-  SUBROUTINE set_mm_potential(globenv, qmmm_gaussian_fns, qm_cell_small,&
+  SUBROUTINE set_mm_potential(qmmm_gaussian_fns, qm_cell_small,&
                                compatibility, num_geep_gauss, error)
-    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(qmmm_gaussian_p_type), &
       DIMENSION(:), POINTER                  :: qmmm_gaussian_fns
     TYPE(cell_type), POINTER                 :: qm_cell_small

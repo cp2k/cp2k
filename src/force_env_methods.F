@@ -28,6 +28,7 @@ MODULE force_env_methods
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_env,                     ONLY: cp_para_env_retain
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsystem_types,              ONLY: cp_subsys_retain,&
                                              cp_subsystem_p_type
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_retain
@@ -167,8 +168,8 @@ RECURSIVE SUBROUTINE force_env_calc_energy_force ( force_env, &
     LOGICAL                                  :: energy_consistency, failure, &
                                                 need_f
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(virial_type), POINTER               :: virial
     TYPE(section_vals_type), POINTER         :: root_section
+    TYPE(virial_type), POINTER               :: virial
 
 !------------------------------------------------------------------------------
 
@@ -195,7 +196,7 @@ RECURSIVE SUBROUTINE force_env_calc_energy_force ( force_env, &
      
      SELECT CASE ( force_env%in_use )
      CASE ( use_fist_force )
-        CALL fist_force_control( force_env%fist_env,force_env%virial, &
+        CALL fist_force_control( force_env%fist_env,force_env%virial, force_env%para_env, &
                                  force_env%globenv, force_env_section=force_env%force_env_section, error=error)
      CASE (use_ep_force)
         CALL ep_env_calc_e_f(force_env%ep_env,need_f,error=error)
@@ -288,11 +289,12 @@ END SUBROUTINE force_env_calc_energy_force
 !!     04.2003 created [fawzi]
 !!
 !!*** **********************************************************************
-SUBROUTINE force_env_create(force_env,root_section,globenv,fist_env,qs_env,kg_env,&
+SUBROUTINE force_env_create(force_env,root_section,para_env,globenv,fist_env,qs_env,kg_env,&
                             tbmd_env,meta_env,sub_force_env,qmmm_env,&
                             eip_env,ep_env,force_env_section,error)
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(section_vals_type), POINTER         :: root_section
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(fist_environment_type), OPTIONAL, &
       POINTER                                :: fist_env
@@ -346,7 +348,7 @@ SUBROUTINE force_env_create(force_env,root_section,globenv,fist_env,qs_env,kg_en
      force_env%root_section => root_section
      CALL section_vals_retain(root_section,error=error)
 
-     force_env%para_env=>globenv%para_env
+     force_env%para_env=>para_env
      CALL cp_para_env_retain(force_env%para_env, error=error)
 
      CALL section_vals_retain(force_env_section,error=error)
@@ -551,9 +553,10 @@ END SUBROUTINE force_env_create
 !!     fawzi
 !!
 !!*** **********************************************************************
-SUBROUTINE ep_create_force_env(force_env,root_section, globenv, error)
+SUBROUTINE ep_create_force_env(force_env,root_section, para_env, globenv, error)
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(section_vals_type), POINTER         :: root_section
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -569,11 +572,11 @@ SUBROUTINE ep_create_force_env(force_env,root_section, globenv, error)
   
   IF (.NOT. failure) THEN
      NULLIFY(ep_env)
-     CALL ep_env_create(ep_env,root_section,globenv=globenv,&
+     CALL ep_env_create(ep_env,root_section,para_env,globenv=globenv,&
           error=error)
      force_env_section=> section_vals_get_subs_vals(ROOT_SECTION,&
           "FORCE_EVAL",error=error)
-     CALL force_env_create(force_env,root_section,globenv=globenv,ep_env=ep_env,&
+     CALL force_env_create(force_env,root_section,para_env,globenv=globenv,ep_env=ep_env,&
           force_env_section = force_env_section, error=error)
      CALL ep_env_release(ep_env,error=error)
   END IF
@@ -826,8 +829,7 @@ RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,calc_force,only_apply_tras
        qmmm_env=force_env%qmmm_env,error=error)
 
   ! Compute the short range QM/MM Electrostatic Potential
-  CALL qmmm_el_coupling(globenv=force_env%sub_force_env(qs_subsys)%force_env%globenv,&
-       qs_env=force_env%sub_force_env(qs_subsys)%force_env%qs_env,&
+  CALL qmmm_el_coupling( qs_env=force_env%sub_force_env(qs_subsys)%force_env%qs_env,&
        qmmm_env=force_env%qmmm_env,&
        mm_particles=particles_mm,&
        mm_cell=mm_cell,&

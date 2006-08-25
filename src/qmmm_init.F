@@ -123,9 +123,10 @@ CONTAINS
 !!     05.2004 created [fawzi]
 !!
 !!*** **********************************************************************
-  SUBROUTINE  qmmm_create_force_env(force_env, root_section, globenv, force_env_section, error)
+  SUBROUTINE  qmmm_create_force_env(force_env, root_section, para_env, globenv, force_env_section, error)
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(section_vals_type), POINTER         :: root_section
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
@@ -154,7 +155,6 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: mm_cell, qm_cell_small, &
                                                 super_cell
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys_mm
     TYPE(cp_subsystem_type), POINTER         :: subsys_qm
@@ -172,11 +172,10 @@ CONTAINS
 
     NULLIFY(sub_force_env, qm_atom_index, mm_atom_index, qm_atom_type,   &
          qmmm_env_qm, subsys_mm,subsys_qm, mm_cell, qm_cell_small,       &
-         qs_env, para_env, mm_atom_chrg,mm_el_pot_radius, qmmm_env_mm,   &
+         qs_env, mm_atom_chrg,mm_el_pot_radius, qmmm_env_mm,   &
          mm_link_atoms, mm_link_scale_factor, qmmm_links, added_charges, &
          fist_scale_charge_link, print_section,  &
          print_gen, logger, mm_el_pot_radius_corr, super_cell)
-    para_env=>globenv%para_env
     iw = globenv%scr
     logger => cp_error_get_logger(error)
     IF (.NOT. failure) THEN
@@ -236,7 +235,7 @@ CONTAINS
  
        CALL section_vals_val_set(force_env_section,"METHOD",i_val=do_fist)
        CALL fist_create_force_env(sub_force_env(1)%force_env, &
-            root_section, globenv, qmmm=.TRUE., qmmm_env=qmmm_env_mm, force_env_section=force_env_section,&
+            root_section, para_env, globenv, qmmm=.TRUE., qmmm_env=qmmm_env_mm, force_env_section=force_env_section,&
             method_name_id=method_name_id,error=error)
 
        CALL force_env_get(sub_force_env(1)%force_env,subsys=subsys_mm,&
@@ -325,9 +324,9 @@ CONTAINS
             big_subsys=subsys_mm,small_para_env=para_env,&
             small_cell=qm_cell_small,sub_atom_index=qm_atom_index,&
             sub_subsys_index=qm_subsys_index,&
-            sub_atom_kind_name=qm_atom_type, root_section=root_section, &
+            sub_atom_kind_name=qm_atom_type, root_section=root_section, para_env=para_env, &
             globenv=globenv,force_env_section=force_env_section,error=error)
-       CALL quickstep_create_force_env(sub_force_env(2)%force_env,root_section,globenv,subsystem=subsys_qm,&
+       CALL quickstep_create_force_env(sub_force_env(2)%force_env,root_section,para_env,globenv,subsystem=subsys_qm,&
             cell=qm_cell_small, qmmm=.TRUE., qmmm_periodic=qmmm_env_qm%periodic,&
             force_env_section=force_env_section, error=error)
        CALL cp_subsys_release(subsys_qm,error=error)
@@ -352,6 +351,7 @@ CONTAINS
        CALL qmmm_init_gaussian_type (qmmm_env_qm = qmmm_env_qm,&
                                      qm_cell_small=qm_cell_small,&
                                      mm_cell=mm_cell,&
+                                     para_env=para_env,&
                                      globenv=globenv,&
                                      qs_env=qs_env,&
                                      mm_atom_chrg=mm_atom_chrg,&
@@ -402,7 +402,7 @@ CONTAINS
 
        CALL section_vals_val_set(force_env_section,"METHOD",i_val=do_qmmm)
        CALL force_env_create(force_env,root_section, sub_force_env=sub_force_env,&
-            qmmm_env=qmmm_env_qm,globenv=globenv, force_env_section= force_env_section,&
+            qmmm_env=qmmm_env_qm,para_env=para_env,globenv=globenv, force_env_section= force_env_section,&
             error=error)
        CALL qmmm_env_qm_release(qmmm_env_qm, error)
        CALL qmmm_env_mm_release(qmmm_env_mm, error)
@@ -673,11 +673,12 @@ CONTAINS
   !!     1.2005 created [tlaino]
   !!
   !!*************************************************************************
- SUBROUTINE qmmm_init_gaussian_type(qmmm_env_qm, qm_cell_small, mm_cell, globenv,&
+ SUBROUTINE qmmm_init_gaussian_type(qmmm_env_qm, qm_cell_small, mm_cell, para_env, globenv,&
                                     mm_atom_chrg, qs_env, added_charges, print_section, &
                                     qmmm_section, error )
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env_qm
     TYPE(cell_type), POINTER                 :: qm_cell_small, mm_cell
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mm_atom_chrg
     TYPE(qs_environment_type), POINTER       :: qs_env
@@ -703,6 +704,7 @@ CONTAINS
     CALL qmmm_gaussian_initialize(qmmm_gaussian_fns=qmmm_env_qm%pgfs,&
                                   qm_cell_small=qm_cell_small,&
                                   mm_cell=mm_cell,&
+                                  para_env=para_env,&
                                   globenv=globenv,&
                                   pw_env=qs_env%pw_env,&
                                   mm_el_pot_radius=qmmm_env_qm%mm_el_pot_radius,&
@@ -720,6 +722,7 @@ CONTAINS
        CALL qmmm_gaussian_initialize(qmmm_gaussian_fns=added_charges%pgfs,&
                                      qm_cell_small=qm_cell_small,&
                                      mm_cell=mm_cell,&
+                                     para_env=para_env,&
                                      globenv=globenv,&
                                      pw_env=qs_env%pw_env,&
                                      mm_el_pot_radius=added_charges%mm_el_pot_radius,&

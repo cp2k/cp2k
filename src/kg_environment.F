@@ -147,10 +147,11 @@ CONTAINS
 !!****
 !!*****************************************************************************
 
-  SUBROUTINE kg_init (kg_env,root_section,globenv,force_env_section,error)
+  SUBROUTINE kg_init (kg_env,root_section,para_env,globenv,force_env_section,error)
 
     TYPE(kg_environment_type), POINTER       :: kg_env
     TYPE(section_vals_type), POINTER         :: root_section
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
@@ -169,7 +170,6 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell, cell_ref
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(distribution_1d_type), POINTER      :: local_molecules, &
                                                 local_particles
@@ -189,7 +189,6 @@ CONTAINS
                                                 qs_section, work_section
 
     CALL timeset(routineN,"I",'',handle)
-    para_env=>globenv%para_env
     ionode = para_env%ionode
     output_unit = globenv%scr
     was_present = .FALSE.
@@ -254,7 +253,7 @@ CONTAINS
     ! topology
     CALL topology_control (atomic_kind_set,particle_set,&
                            molecule_kind_set,molecule_set,&
-                           kg_env%subsys%colvar_p,root_section,globenv, &
+                           kg_env%subsys%colvar_p,root_section,para_env,globenv, &
                            force_env_section=force_env_section,error=error)
 
     ! Read/write the atomic kind set
@@ -334,7 +333,7 @@ CONTAINS
     IF ( dft_control % qs_control % method /= "KG_NOPOL" ) THEN
       CALL scf_c_create(scf_control)
       CALL scf_c_read_parameters(scf_control,root_section,kg_env%input,error=error)
-      CALL scf_c_write_parameters(scf_control,globenv,kg_env%input,error=error)
+      CALL scf_c_write_parameters(scf_control,kg_env%input,error=error)
       CALL set_kg_env(kg_env=kg_env,scf_control=scf_control)
       CALL scf_c_release(scf_control,error=error)  
     END IF

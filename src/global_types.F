@@ -29,11 +29,7 @@
 MODULE global_types
 
   USE cp_files,                        ONLY: close_file
-  USE cp_para_env,                     ONLY: cp_para_env_release,&
-                                             cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE input_section_types,             ONLY: section_vals_release,&
-                                             section_vals_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE machine,                         ONLY: m_walltime
@@ -98,20 +94,17 @@ MODULE global_types
 !!   ATTRIBUTES
 !!     - id_nr: identification number (unique)
 !!     - ref_count: reference count (see doc/ReferenceCounting.html)
-!!     - para_env: parallel environment
 !!     - handle: handle with the total time of the computation
 !!
 !!     Personally I think that all the other attributes should go away
- !!     (and maybe add  a logger)[fawzi]
+!!     (and maybe add  a logger)[fawzi]
 !!
 !!   SOURCE
 !!
   TYPE global_environment_type
      INTEGER :: id_nr, ref_count
-     TYPE(cp_para_env_type), POINTER         :: para_env
      TYPE(rng_stream_type), POINTER          :: gaussian_rng_stream
-     CHARACTER(LEN=default_string_length)    :: default_fft_library,&
-                                                project_name
+     CHARACTER(LEN=default_string_length)    :: default_fft_library,project_name
 
      INTEGER :: scr          !! output unit
 
@@ -142,7 +135,6 @@ CONTAINS
 !!
 !!   ARGUMENTS
 !!     - globenv: the globenv to create
-!!     - para_env: the parallel environment of the globenv
 !!     - output_unit: the output unit
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
@@ -151,10 +143,9 @@ CONTAINS
 !!     fawzi
 !!
 !!*** **********************************************************************
-  SUBROUTINE globenv_create(globenv, para_env,  output_unit, &
+  SUBROUTINE globenv_create(globenv, output_unit, &
        close_output_unit, error)
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER, INTENT(in)                      :: output_unit
     LOGICAL, INTENT(in), OPTIONAL            :: close_output_unit
     TYPE(cp_error_type), INTENT(inout), &
@@ -174,10 +165,8 @@ CONTAINS
        last_globenv_id=last_globenv_id+1
        globenv%id_nr=last_globenv_id
        globenv%ref_count=1
-       globenv%para_env => para_env
        globenv%close_output_unit=.FALSE.
        IF(PRESENT(close_output_unit))globenv%close_output_unit=close_output_unit
-       CALL cp_para_env_retain(para_env,error=error)
        globenv%run_type_id=0
        globenv%default_fft_library="FFTSG"
        globenv%prog_name_id=0
@@ -253,8 +242,9 @@ END SUBROUTINE globenv_retain
 !!     fawzi
 !!
 !!*** **********************************************************************
-SUBROUTINE globenv_release(globenv, error)
+SUBROUTINE globenv_release(globenv, para_env, error)
     TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -262,7 +252,7 @@ SUBROUTINE globenv_release(globenv, error)
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: stat
-    LOGICAL                                  :: failure, was_ionode
+    LOGICAL                                  :: failure
 
   failure=.FALSE.
   
@@ -270,13 +260,11 @@ SUBROUTINE globenv_release(globenv, error)
      CPPrecondition(globenv%ref_count>0,cp_failure_level,routineP,error,failure)
      globenv%ref_count=globenv%ref_count-1
      IF (globenv%ref_count==0) THEN
-        was_ionode=globenv%para_env%ionode
-        CALL cp_para_env_release(globenv%para_env,error=error)
         IF (ASSOCIATED(globenv%gaussian_rng_stream)) THEN
           CALL delete_rng_stream(globenv%gaussian_rng_stream)
         END IF
         IF (globenv%close_output_unit) THEN
-           IF (was_ionode) CALL close_file(globenv%scr)
+           IF (para_env%ionode) CALL close_file(globenv%scr)
         END IF
         DEALLOCATE(globenv,stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)

@@ -71,8 +71,9 @@ MODULE qs_ot_scf
 
 CONTAINS
 
-  SUBROUTINE ot_scf_read_input(qs_ot_env,globenv,scf_section)
+  SUBROUTINE ot_scf_read_input(qs_ot_env,para_env,globenv,scf_section)
     TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_vals_type), POINTER         :: scf_section
 
@@ -80,13 +81,11 @@ CONTAINS
     INTEGER                                  :: handle, ispin, ls_method, &
                                                 nspin, ot_method
     LOGICAL                                  :: explicit
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: ot_section
 
 ! executable
 
     CALL timeset("ot_scf_read_input","I","",handle)
-    para_env=>globenv%para_env
 
     ! decide default settings
     CALL qs_ot_settings_init(qs_ot_env(1)%settings)

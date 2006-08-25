@@ -49,7 +49,6 @@ MODULE qs_wf_history_methods
   USE cp_sm_pool_types,                ONLY: cp_sm_pool_p_type,&
                                              sm_pool_create_matrix,&
                                              sm_pools_create_matrix_vect
-  USE global_types,                    ONLY: global_environment_type
   USE kg_gpw_fm_mol_types,             ONLY: duplicate_kg_fm_p_type,&
                                              kg_fm_mol_set_create,&
                                              kg_fm_mol_set_release,&
@@ -915,9 +914,8 @@ END FUNCTION wfi_get_method_label
 !!     11.2003 Joost VandeVondele : Implemented Nth order PS extrapolation 
 !!
 !!*** **********************************************************************
-SUBROUTINE wfi_extrapolate(globenv,wf_history, qs_env, dt, extrapolation_method_nr, &
+SUBROUTINE wfi_extrapolate(wf_history, qs_env, dt, extrapolation_method_nr, &
      orthogonal_wf, kg_gpw, kg_fm_mol_set, error)
-    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(qs_wf_history_type), POINTER        :: wf_history
     TYPE(qs_environment_type), POINTER       :: qs_env
     REAL(KIND=dp), INTENT(in)                :: dt

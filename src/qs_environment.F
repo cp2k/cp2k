@@ -214,7 +214,7 @@ CONTAINS
     NULLIFY(my_subsystem, molecule_kind_set, molecule_set, atomic_kind_set,&
          particle_set,atomic_kinds,particles,mols,mol_kinds,my_cell,my_cell_ref,&
          cell_section, harris_section, kind_section)
-    para_env=>globenv%para_env
+    para_env=>qs_env%para_env
 
     cell_section => section_vals_get_subs_vals(force_env_section,&
          "SUBSYS%CELL",error=error)
@@ -275,7 +275,7 @@ CONTAINS
        !   *** the molecule kind, and the molecule data structures         ***
        CALL topology_control (atomic_kind_set,particle_set,&
                               molecule_kind_set,molecule_set,&
-                              my_subsystem%colvar_p,root_section,globenv,&
+                              my_subsystem%colvar_p,root_section,para_env,globenv,&
                               force_env_section=force_env_section,error=error)
 
        CALL read_atomic_kind_set(atomic_kind_set,kind_section,para_env,&
@@ -371,7 +371,7 @@ CONTAINS
 
     CALL timeset(routineN,"I",'',handle)
     NULLIFY(logger)
-    para_env=>globenv%para_env
+    para_env=>qs_env%para_env
     logger => cp_error_get_logger(error)
 
     ionode = para_env%ionode
@@ -833,7 +833,7 @@ CONTAINS
 
     ! Print the SCF parameters
 
-    CALL scf_c_write_parameters(scf_control,globenv,qs_env%input,error=error)
+    CALL scf_c_write_parameters(scf_control,qs_env%input,error=error)
 
     ! Sets up pw_env, qs_charges, mpools ...
 

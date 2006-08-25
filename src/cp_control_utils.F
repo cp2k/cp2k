@@ -183,7 +183,7 @@ CONTAINS
     CALL section_vals_val_get(dft_section,"XAS%_SECTION_PARAMETERS_",&
             l_val=dft_control%do_xas_calculation,error=error)
     IF (dft_control % do_xas_calculation) THEN
-      CALL read_xas_control(dft_control%xas_control,globenv,dft_section,error=error)
+      CALL read_xas_control(dft_control%xas_control,dft_section,error=error)
     END IF
 
 !   *** Read the finite field input section ***

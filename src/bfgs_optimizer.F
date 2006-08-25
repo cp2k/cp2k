@@ -120,7 +120,7 @@ CONTAINS
 
     NULLIFY(logger, g)
     logger => cp_error_get_logger(error)
-    para_env=>globenv%para_env
+    para_env=>force_env%para_env
 
     CALL cp_add_iter_level(logger%iter_info,"GEO_OPT",ihandle,error)
     CALL timeset(routineN,"I","",handle)

@@ -475,12 +475,13 @@ CONTAINS
 !!I---------------------------------------------------------------------------I
 !!*****************************************************************************
 
-SUBROUTINE read_mc_section ( mc_par, globenv, input_file_name, input_file, force_env_section,&
+SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_file, force_env_section,&
      error )
 
 
     TYPE(mc_simulation_parameters_type), &
       INTENT(OUT)                            :: mc_par
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
     CHARACTER(LEN=*), INTENT(IN)             :: input_file_name
     TYPE(section_vals_type), POINTER         :: input_file, force_env_section
@@ -491,13 +492,10 @@ SUBROUTINE read_mc_section ( mc_par, globenv, input_file_name, input_file, force
     INTEGER                                  :: handle, ia, ie, iw, &
                                                 method_name_id, stop_num
     LOGICAL                                  :: failure
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: mc_section
 
 !------------------------------------------------------------------------------
 ! begin the timing of the subroutine
-
-    para_env=>globenv%para_env
 
     CPPrecondition(ASSOCIATED(input_file),cp_failure_level,routineN,error,failure)
 

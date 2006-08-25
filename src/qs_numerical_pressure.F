@@ -84,7 +84,7 @@ MODULE qs_numerical_pressure
        ! Copy atomic positions into pos_ref
        !
        CALL force_env_get(force_env,subsys=subsys,globenv=globenv,error=error)       
-       para_env=>globenv%para_env
+       para_env=>force_env%para_env
        iw = globenv%scr
  
        IF (para_env%ionode) THEN

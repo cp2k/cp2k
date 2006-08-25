@@ -62,10 +62,11 @@ MODULE init_extended_system_variables
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE init_nhc_variables ( nhc,tau_nhc,temp_ext, globenv )
+SUBROUTINE init_nhc_variables ( nhc,tau_nhc,temp_ext, para_env, globenv )
     TYPE(lnhc_parameters_type), &
       INTENT(INOUT)                          :: nhc
     REAL(KIND=dp), INTENT(IN)                :: tau_nhc, temp_ext
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
 
     INTEGER                                  :: i, icount, isos, j, number, &
@@ -73,9 +74,6 @@ SUBROUTINE init_nhc_variables ( nhc,tau_nhc,temp_ext, globenv )
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: rn_need_per_proc
     REAL(KIND=dp)                            :: akin, temp, v
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: array_of_rn
-    TYPE(cp_para_env_type), POINTER          :: para_env
-
-    para_env=>globenv%para_env
 
 ! first initializing the mass of the nhc variables
 
@@ -236,7 +234,7 @@ END SUBROUTINE init_nhc_variables
 !******************************************************************************
 
 SUBROUTINE init_barostat_variables ( npt, tau_cell, temp_ext, deth, nfree, ensemble, &
-                                     cmass, globenv )
+                                     cmass, para_env, globenv )
 
 
     TYPE(npt_info_type), DIMENSION(:, :), &
@@ -244,16 +242,14 @@ SUBROUTINE init_barostat_variables ( npt, tau_cell, temp_ext, deth, nfree, ensem
     REAL(KIND=dp), INTENT(IN)                :: tau_cell, temp_ext, deth
     INTEGER, INTENT(IN)                      :: nfree, ensemble
     REAL(KIND=dp), INTENT(IN)                :: cmass
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
 
     INTEGER                                  :: i, j, number
     REAL(KIND=dp)                            :: akin, temp, v
-    TYPE(cp_para_env_type), POINTER          :: para_env
 
 !------------------------------------------------------------------------------
 ! first initializing the mass of the nhc variables
-
-  para_env=>globenv%para_env
 
   SELECT CASE ( ensemble )
   CASE ( npt_i_ensemble )

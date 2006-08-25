@@ -103,7 +103,7 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
   SUBROUTINE topology_control (atomic_kind_set,particle_set,&
-       molecule_kind_set,molecule_set,colvar_p,root_section,globenv, qmmm, qmmm_env,&
+       molecule_kind_set,molecule_set,colvar_p,root_section,para_env,globenv, qmmm, qmmm_env,&
        force_env_section,error)
 
     TYPE(atomic_kind_type), DIMENSION(:), &
@@ -117,6 +117,7 @@ CONTAINS
     TYPE(colvar_p_type), DIMENSION(:), &
       POINTER                                :: colvar_p
     TYPE(section_vals_type), POINTER         :: root_section
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
     LOGICAL, INTENT(IN), OPTIONAL            :: qmmm
     TYPE(qmmm_env_mm_type), OPTIONAL, &
@@ -131,7 +132,6 @@ CONTAINS
     INTEGER                                  :: handle, iw
     LOGICAL                                  :: failure, my_qmmm
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: cell_section, &
                                                 constraint_section, &
                                                 subsys_section, &
@@ -141,7 +141,6 @@ CONTAINS
     failure = .FALSE.
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
-    para_env=>globenv%para_env
     CALL timeset(routineN,'I','',handle)
 
     NULLIFY(cell_section,subsys_section)
@@ -194,7 +193,7 @@ CONTAINS
     !-----------------------------------------------------------------------------
     ! 6. Read in or generate the molecular connectivity
     !-----------------------------------------------------------------------------
-    CALL connectivity_control(topology,globenv,my_qmmm, qmmm_env, subsys_section,error)
+    CALL connectivity_control(topology,para_env,globenv,my_qmmm, qmmm_env, subsys_section,error)
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
@@ -211,7 +210,7 @@ CONTAINS
     ! 7.bis. Set up the QM/MM linkage (if any)
     !-----------------------------------------------------------------------------
     IF (my_qmmm) THEN
-       CALL qmmm_connectivity_control(topology, globenv, molecule_set, &
+       CALL qmmm_connectivity_control(topology, para_env, globenv, molecule_set, &
             qmmm_env, error)
     END IF
     !-----------------------------------------------------------------------------
@@ -280,10 +279,11 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE connectivity_control(topology,globenv,qmmm,qmmm_env,subsys_section,error)
+  SUBROUTINE connectivity_control(topology,para_env,globenv,qmmm,qmmm_env,subsys_section,error)
 
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), &
       OPTIONAL, POINTER                      :: globenv
     LOGICAL, INTENT(in), OPTIONAL            :: qmmm
@@ -301,13 +301,11 @@ CONTAINS
                                                 n_rep, nmol
     LOGICAL                                  :: failure, my_qmmm
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: section
 
     failure = .FALSE.
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
-    para_env=>globenv%para_env
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO",&
          extension=".mmLog",error=error)
     CALL timeset(routineN,'I','',handle)
@@ -336,19 +334,19 @@ CONTAINS
        END DO
        CALL topology_generate_molecule(topology,my_qmmm,qmmm_env,para_env,subsys_section,error)
        IF(topology%molecules_check) &
-            CALL topology_molecules_check(topology,globenv,subsys_section,error)
+            CALL topology_molecules_check(topology,subsys_section,error)
     CASE (do_conn_g96,do_conn_g87)
        CALL pre_read_topology_gromos(topology,subsys_section,error)
        CALL read_topology_gromos(topology%conn_file_name,topology,para_env,subsys_section,error)
        CALL topology_generate_molecule(topology,my_qmmm,qmmm_env,para_env,subsys_section,error)
        IF(topology%molecules_check) &
-            CALL topology_molecules_check(topology,globenv,subsys_section,error)
+            CALL topology_molecules_check(topology,subsys_section,error)
     CASE (do_conn_psf)
        CALL pre_read_topology_psf(topology,subsys_section,error)
        CALL read_topology_psf(topology%conn_file_name,topology,para_env,subsys_section,error)
        CALL topology_generate_molecule(topology,my_qmmm,qmmm_env,para_env,subsys_section,error)
        IF(topology%molecules_check) &
-            CALL topology_molecules_check(topology,globenv,subsys_section,error)
+            CALL topology_molecules_check(topology,subsys_section,error)
     CASE (do_conn_generate)
        CALL topology_set_atm_mass(topology,para_env,subsys_section,error)
        CALL topology_generate_bond(topology,para_env,subsys_section,error)
@@ -359,7 +357,7 @@ CONTAINS
        CALL topology_generate_onfo(topology,para_env,subsys_section,error)
        CALL topology_generate_molecule(topology,my_qmmm,qmmm_env,para_env,subsys_section,error)
        IF(topology%molecules_check) &
-            CALL topology_molecules_check(topology,globenv,subsys_section,error)
+            CALL topology_molecules_check(topology,subsys_section,error)
        IF(topology%reorder_atom) THEN
           CALL topology_reorder_atoms(topology,para_env,subsys_section,error)
           CALL topology_set_atm_mass(topology,para_env,subsys_section,error)

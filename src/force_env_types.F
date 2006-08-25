@@ -316,8 +316,8 @@ RECURSIVE SUBROUTINE force_env_release(force_env, error)
            DEALLOCATE(force_env%extended_energies,stat=stat)
            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
         END IF
+        CALL globenv_release(force_env%globenv,force_env%para_env,error=error)
         CALL cp_para_env_release(force_env%para_env,error=error)
-        CALL globenv_release(force_env%globenv)
         ! not deallocated
         CPAssert(.NOT.ASSOCIATED(force_env%kg_env),cp_warning_level,routineP,error,failure)
         CPAssert(.NOT.ASSOCIATED(force_env%fist_env),cp_warning_level,routineP,error,failure)
@@ -402,7 +402,8 @@ RECURSIVE SUBROUTINE force_env_get(force_env, in_use, &
     TYPE(section_vals_type), OPTIONAL, &
       POINTER                                :: force_env_section
     INTEGER, INTENT(out), OPTIONAL           :: method_name_id
-    TYPE(section_vals_type), POINTER, OPTIONAL :: root_section
+    TYPE(section_vals_type), OPTIONAL, &
+      POINTER                                :: root_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 

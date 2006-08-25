@@ -23,9 +23,10 @@ MODULE farming_methods
 
 CONTAINS
 
-  SUBROUTINE farming_parse_input(farming_env,root_section,globenv,error)
+  SUBROUTINE farming_parse_input(farming_env,root_section,para_env,globenv,error)
     TYPE(farming_env_type), POINTER          :: farming_env
     TYPE(section_vals_type), POINTER         :: root_section
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
@@ -37,11 +38,9 @@ CONTAINS
     INTEGER                                  :: i, iunit, n_rep_val, stat
     INTEGER, DIMENSION(:), POINTER           :: i_vals
     LOGICAL                                  :: failure, found
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: farming_section, jobs_section
 
     failure=.FALSE.
-   para_env=>globenv%para_env
 
    farming_env%group_size_wish_set=.FALSE.
    farming_env%ngroup_wish_set    =.FALSE.

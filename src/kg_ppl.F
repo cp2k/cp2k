@@ -165,7 +165,7 @@ CONTAINS
     NULLIFY(orb_basis_set,particle_set,sac_ppl,set_radius_a,rpgfa,sphi_a,zeta)
     NULLIFY(sac_ppl_neighbor_list,sac_ppl_neighbor_node,atom_list,first_sgfa)
     NULLIFY(la_max,la_min,npgfa,nsgfa,energy,force,local_particles,my_alpha)
-    para_env=>globenv%para_env
+    para_env=>kg_env%para_env
     group = para_env%group
     ionode = para_env%ionode
     output_unit = globenv%scr
@@ -680,7 +680,7 @@ CONTAINS
     NULLIFY(sac_ppl_neighbor_list,sac_ppl_neighbor_node,atom_list,first_sgfa)
     NULLIFY(la_max,la_min,npgfa,nsgfa,energy,force,local_particles)
     NULLIFY(dyn_coeff_set,local_coeffs)
-    para_env=>globenv%para_env
+    para_env=>kg_env%para_env
     group = para_env%group
     ionode = para_env%ionode
     output_unit = globenv%scr

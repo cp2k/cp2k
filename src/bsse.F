@@ -107,8 +107,8 @@ CONTAINS
     LOGICAL                                  :: explicit, failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: Em
     TYPE(force_env_type), POINTER            :: force_env_loc
-    TYPE(section_vals_type), POINTER         :: bsse_section, n_frags
-    TYPE(section_vals_type), POINTER         :: root_section
+    TYPE(section_vals_type), POINTER         :: bsse_section, n_frags, &
+                                                root_section
 
     failure = .FALSE.
     IF (.NOT.failure) THEN
@@ -171,8 +171,7 @@ CONTAINS
     INTEGER, DIMENSION(:), INTENT(IN)        :: conf
     REAL(KIND=dp), INTENT(OUT)               :: Em
     TYPE(force_env_type), POINTER            :: force_env, force_env_loc
-    TYPE(section_vals_type), POINTER         :: n_frags
-    TYPE(section_vals_type), POINTER         :: root_section
+    TYPE(section_vals_type), POINTER         :: n_frags, root_section
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -255,8 +254,7 @@ CONTAINS
        root_section,globenv, energy, error)
     TYPE(force_env_type), POINTER            :: force_env, force_env_loc
     INTEGER, DIMENSION(:), INTENT(IN)        :: conf, conf_loc
-    TYPE(section_vals_type), POINTER         :: n_frags
-    TYPE(section_vals_type), POINTER         :: root_section
+    TYPE(section_vals_type), POINTER         :: n_frags, root_section
     TYPE(global_environment_type), POINTER   :: globenv
     REAL(KIND=dp), INTENT(OUT)               :: energy
     TYPE(cp_error_type), INTENT(inout), &
@@ -364,9 +362,9 @@ CONTAINS
           CALL create_small_subsystem(subsys_loc, big_subsys=subsys,&
                small_para_env=para_env, small_cell=cell,sub_atom_index=atom_index,&
                sub_subsys_index=subsys_index, sub_atom_kind_name=atom_type,&
-               root_section=root_section,globenv=globenv, force_env_section=force_env_section, error=error)
+               root_section=root_section,para_env=para_env,globenv=globenv, force_env_section=force_env_section, error=error)
 
-          CALL quickstep_create_force_env(force_env_loc,root_section,globenv,subsystem=subsys_loc,&
+          CALL quickstep_create_force_env(force_env_loc,root_section,para_env,globenv,subsystem=subsys_loc,&
                force_env_section=force_env_section, error=error)
 
           CALL cp_subsys_release(subsys_loc,error=error)

@@ -80,11 +80,12 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
 
-  SUBROUTINE initialize_npt ( simpar, globenv, npt_info, box, work_section, error)
+  SUBROUTINE initialize_npt ( simpar, para_env, globenv, npt_info, box, work_section, error)
 
 
     TYPE(simulation_parameters_type), &
       INTENT(INOUT)                          :: simpar
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(npt_info_type), DIMENSION(:, :), &
       POINTER                                :: npt_info
@@ -173,7 +174,7 @@ CONTAINS
     ELSE
        CALL init_barostat_variables ( npt_info, simpar % tau_cell, temp,  &
             box % deth, simpar % nfree, simpar % ensemble, &
-            simpar % cmass, globenv )
+            simpar % cmass, para_env, globenv )
     END IF
   END SUBROUTINE initialize_npt
 
@@ -194,11 +195,12 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
 
-  SUBROUTINE initialize_nhc_baro ( simpar, globenv, nhc, work_section, error )
+  SUBROUTINE initialize_nhc_baro ( simpar, para_env, globenv, nhc, work_section, error )
 
 
     TYPE(simulation_parameters_type), &
       INTENT(INOUT)                          :: simpar
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(lnhc_parameters_type), &
       INTENT(INOUT)                          :: nhc
@@ -219,7 +221,7 @@ CONTAINS
 ! fire up the thermostats, if NPT
 
     NULLIFY(buffer,work_section2)
-    CALL nhc_to_barostat_mapping ( simpar, nhc, globenv )
+    CALL nhc_to_barostat_mapping ( simpar, nhc, para_env, globenv )
     explicit = .FALSE.
     restart = .FALSE.
     ! Set up the Yoshida weights
@@ -301,7 +303,7 @@ CONTAINS
 
        IF ( nhc % nhc_len /= 0 ) &
             CALL init_nhc_variables ( nhc, simpar % tau_nhc,  &
-            temp, globenv )
+            temp, para_env, globenv )
     END IF
 
   END SUBROUTINE initialize_nhc_baro
@@ -323,7 +325,7 @@ CONTAINS
 !******************************************************************************
 
   SUBROUTINE initialize_nhc_part ( box, simpar, local_molecules, molecule, &
-       molecule_kind_set, globenv, nhc, work_section, error)
+       molecule_kind_set, para_env, globenv, nhc, work_section, error)
 
 
     TYPE(cell_type), INTENT(IN)              :: box
@@ -332,6 +334,7 @@ CONTAINS
     TYPE(distribution_1d_type), POINTER      :: local_molecules
     TYPE(molecule_type), POINTER             :: molecule( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(lnhc_parameters_type), &
       INTENT(INOUT)                          :: nhc
@@ -346,7 +349,6 @@ CONTAINS
                                                 nconstraint, nfree
     LOGICAL                                  :: explicit, restart
     REAL(KIND=dp), DIMENSION(:), POINTER     :: buffer
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: work_section2
 
 !------------------------------------------------------------------------------
@@ -356,14 +358,13 @@ CONTAINS
 ! multiple thermostats etc...simpar % nfree will be set
 ! to zero in nhc_particle_setup.f)
 
-    para_env=>globenv%para_env
     NULLIFY(buffer, work_section2)
     simpar % nfree = 6 - SUM ( box % perd ( 1:3 ) )
     explicit = .FALSE.
     restart = .FALSE.
     ! fire up the thermostats, if not NVE
     CALL nhc_to_particle_mapping ( simpar, local_molecules, molecule, &
-         molecule_kind_set, nhc, globenv )
+         molecule_kind_set, nhc, para_env, globenv )
 
     ! Set up the Yoshida weights
     IF ( nhc % nyosh > 0 ) THEN
@@ -439,7 +440,7 @@ CONTAINS
        ! Chain variables
        IF ( nhc % nhc_len /= 0 ) &
             CALL init_nhc_variables ( nhc, simpar % tau_nhc,  &
-            simpar % temp_ext, globenv )
+            simpar % temp_ext, para_env, globenv )
 
     ENDIF
 
@@ -481,12 +482,13 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
 
-  SUBROUTINE initialize_nhc_coef ( dyn_coeff_set, root_section, globenv, nhc, work_section, error )
+  SUBROUTINE initialize_nhc_coef ( dyn_coeff_set, root_section, para_env, globenv, nhc, work_section, error )
 
     !  IMPLICIT NONE
 
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
     TYPE(section_vals_type), POINTER         :: root_section
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(lnhc_parameters_type), &
       INTENT(INOUT)                          :: nhc
@@ -519,7 +521,7 @@ CONTAINS
     CALL section_vals_val_get(md_new_section,"timestep",r_val=dt)
 
     ! fire up the thermostats
-    CALL nhc_to_coef_mapping ( dyn_coeff_set, nhc, root_section, globenv )
+    CALL nhc_to_coef_mapping ( dyn_coeff_set, nhc, root_section, para_env, globenv )
 
     IF (ASSOCIATED(work_section)) THEN
        work_section2 => section_vals_get_subs_vals(work_section,"VELOCITY",error=error)
@@ -586,7 +588,7 @@ CONTAINS
        ELSE
           ! Initializing thermostat forces and velocities for the Nose-Hoover
           ! Chain variables
-          CALL init_nhc_variables (nhc, tau_nhc, kg_coeff_target_temp, globenv)
+          CALL init_nhc_variables (nhc, tau_nhc, kg_coeff_target_temp, para_env, globenv)
           ! Set up the Yoshida weights
           IF ( nhc % nyosh > 0 ) THEN
              ALLOCATE ( nhc % dt_yosh ( 1 : nhc%nyosh ), STAT = isos )

@@ -166,11 +166,11 @@ CONTAINS
                                                 molecule_kinds_new_2
     TYPE(molecule_kind_type), POINTER        :: molecule_kind, molecule_kind_2
     TYPE(rng_stream_type), POINTER           :: rng_stream
-    TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(section_vals_type), POINTER         :: root_section
+    TYPE(section_vals_type), POINTER         :: force_env_section, &
+                                                root_section
 
       NULLIFY(mc_env,mc_par,mc_par_2,force_env_2,rng_stream)
-      para_env=>globenv%para_env
+      para_env=>force_env%para_env
 
       iw = globenv%scr
       force_env_section => force_env%force_env_section
@@ -190,7 +190,7 @@ CONTAINS
                              distribution_type=UNIFORM)
 
 ! read the input of the Monte Carlo section
-      CALL read_mc_section ( mc_par, globenv ,input_file_name,&
+      CALL read_mc_section ( mc_par, para_env, globenv ,input_file_name,&
            ROOT_SECTION,force_env_section,error)
 
 ! if we're doing a classical simulation, figure out the largest
@@ -270,7 +270,7 @@ CONTAINS
 ! release the old force env and make the new one
          in_use=force_env%in_use
          CALL force_env_release(force_env)
-         CALL mc_create_force_env(force_env, globenv, &
+         CALL mc_create_force_env(force_env, para_env, globenv, &
               dat_file,error=error)
       ENDIF
 
@@ -288,7 +288,7 @@ CONTAINS
 ! pull all the information together into one environment
          CALL set_mc_env( mc_env(1)%mc_env, &
             mc_par = mc_par, force_env=force_env)
-         CALL mc_run_ensemble(mc_env,globenv,nboxes,error,rng_stream,force_env_section=force_env_section)
+         CALL mc_run_ensemble(mc_env,para_env, globenv,nboxes,error,rng_stream,force_env_section=force_env_section)
 
       CASE("GEMC")
 
@@ -301,7 +301,7 @@ CONTAINS
          IF ( isos /= 0 ) CALL stop_memory ( 'allocstruc', 'mc_par_2', 0 )
  
 ! read the input of the Monte Carlo section
-         CALL mc_create_force_env(force_env_2, globenv,&
+         CALL mc_create_force_env(force_env_2, para_env, globenv,&
             box2_file,globenv_new=globenv_2,error=error)
 
          IF (ionode) THEN
@@ -314,7 +314,7 @@ CONTAINS
             '*************************************'
          ENDIF
          
-         CALL read_mc_section ( mc_par_2, globenv ,box2_file,&
+         CALL read_mc_section ( mc_par_2, para_env, globenv ,box2_file,&
               root_section,force_env_section,error)
 
 ! determine the total number of molecules and atoms
@@ -383,7 +383,7 @@ CONTAINS
          IF ( lrestart ) THEN
             CALL read_mc_restart(mc_par_2,force_env_2,iw,rng_stream)
             CALL force_env_release(force_env_2)
-            CALL mc_create_force_env(force_env_2, globenv, &
+            CALL mc_create_force_env(force_env_2, para_env, globenv, &
                dat_file,error=error)
          ENDIF
 
@@ -394,7 +394,7 @@ CONTAINS
             force_env=force_env_2)
 
 ! do the calculation
-         CALL mc_run_ensemble(mc_env,globenv,nboxes,error,rng_stream,force_env_section=force_env_section)
+         CALL mc_run_ensemble(mc_env,para_env,globenv,nboxes,error,rng_stream,force_env_section=force_env_section)
 
 ! clean up after ourselves
          CALL get_mc_env( mc_env(2)%mc_env,mc_par=mc_par_2,&
@@ -406,7 +406,7 @@ CONTAINS
          DEALLOCATE ( mc_par_2, STAT = isos )
          CPPostconditionNoFail(isos==0,cp_warning_level,routineP,error)
 
-         CALL globenv_release(globenv_2,error)
+         CALL globenv_release(globenv_2,para_env, error)
       CASE DEFAULT
          IF (ionode) THEN
             WRITE(6,*) "No idea how we got here...input section ",&

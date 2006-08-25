@@ -27,7 +27,6 @@ MODULE scf_control_types
 
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
-  USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: &
        atomic_guess, core_guess, general_roks, high_spin_roks, &
        outer_scf_ddapc_constraint, outer_scf_none, outer_scf_optimizer_diis, &
@@ -386,7 +385,6 @@ CONTAINS
 !!
 !!   INPUTS
 !!     - scf_control: the object that wil contain the values read
-!!     - globenv: to define the file to read
 !!     - error: controls log and error handling
 !!
 !!   AUTHOR
@@ -401,8 +399,8 @@ CONTAINS
   SUBROUTINE scf_c_read_parameters(scf_control,root_section,force_env_section,error)
 
     TYPE(scf_control_type), POINTER          :: scf_control
-    TYPE(section_vals_type), POINTER         :: root_section
-    TYPE(section_vals_type), POINTER         :: force_env_section
+    TYPE(section_vals_type), POINTER         :: root_section, &
+                                                force_env_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -577,7 +575,6 @@ CONTAINS
 !!
 !!   INPUTS
 !!     - scf_control: the object you want to print
-!!     - globenv: to know where to print
 !!     - error: controls log and error handling
 !!
 !!   AUTHOR
@@ -589,10 +586,9 @@ CONTAINS
 !!
 !!*** ************************************************************************
 
-  SUBROUTINE scf_c_write_parameters(scf_control,globenv,force_env_section,error)
+  SUBROUTINE scf_c_write_parameters(scf_control,force_env_section,error)
 
     TYPE(scf_control_type), POINTER          :: scf_control
-    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error

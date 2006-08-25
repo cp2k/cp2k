@@ -36,7 +36,6 @@ MODULE fist_force_numer
                                              neighbor_kind_pairs_type
   USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_get,&
                                              fist_nonbond_env_type
-  USE global_types,                    ONLY: global_environment_type
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp,&
                                              dp_size,&
@@ -2837,7 +2836,7 @@ END SUBROUTINE potential_nonbond
   SUBROUTINE force_nonbond_numer (atomic_kind_set,particle_set,&
                                   local_particles, ewald_env, cell, &
                                   potparm, delta, f_numer,    &
-                                  energy_numer, globenv)
+                                  energy_numer )
 
 !   Purpose: Build all the required neighbor lists for FIST.
 
@@ -2855,7 +2854,6 @@ END SUBROUTINE potential_nonbond
     TYPE(pair_potential_pp_type), POINTER    :: potparm
     REAL(KIND=dp), INTENT(IN)                :: delta
     REAL(KIND=dp), INTENT(INOUT)             :: f_numer( :, : ), energy_numer
-    TYPE(global_environment_type), POINTER   :: globenv
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'force_nonbond_numer'
 

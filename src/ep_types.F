@@ -370,10 +370,10 @@ CONTAINS
              DEALLOCATE(ep_env%at2sub,stat=stat)
              CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
           END IF
+          CALL globenv_release(ep_env%globenv,ep_env%para_env,error=error)
           CALL cp_para_env_release(ep_env%para_env,error=error)
           CALL section_vals_release(ep_env%input,error=error)
           CALL section_vals_release(ep_env%root_section,error=error)
-          CALL globenv_release(ep_env%globenv,error=error)
           CALL ep_envs_rm_ep_env(ep_env,error=error)
           CALL ep_force_release(ep_env%force,error=error)
           DEALLOCATE(ep_env, stat=stat)
@@ -496,9 +496,10 @@ CONTAINS
   !!     11.2002 created [fawzi]
   !!
   !!*** **********************************************************************
-  SUBROUTINE ep_env_create(ep_env,root_section,globenv, error)
+  SUBROUTINE ep_env_create(ep_env,root_section,para_env,globenv, error)
     TYPE(ep_env_type), POINTER               :: ep_env
     TYPE(section_vals_type), POINTER         :: root_section
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -534,7 +535,7 @@ CONTAINS
        CALL section_vals_retain(root_section,error)
        ep_env%globenv => globenv
        CALL globenv_retain(globenv,error=error)
-       ep_env%para_env=>globenv%para_env
+       ep_env%para_env=>para_env
        CALL cp_para_env_retain(ep_env%para_env,error=error)
 
        CALL ep_envs_add_ep_env(ep_env,error=error)

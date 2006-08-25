@@ -135,11 +135,12 @@ CONTAINS
   !!     12.2004 created [tlaino]
   !!
   !***************************************************************************
-  SUBROUTINE qmmm_connectivity_control(topology, globenv, molecule_set,&
+  SUBROUTINE qmmm_connectivity_control(topology, para_env, globenv, molecule_set,&
        qmmm_env, error)
     
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
@@ -156,12 +157,10 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: qm_atom_index, &
                                                 qm_molecule_index
     LOGICAL                                  :: detected_link, failure
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
 
     NULLIFY(qm_atom_index, qm_molecule_index, molecule, molecule_kind)
-    para_env=>globenv%para_env
     failure = .FALSE.
     detected_link = .FALSE.
     iw = globenv%scr

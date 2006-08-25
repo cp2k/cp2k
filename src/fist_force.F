@@ -111,11 +111,12 @@ MODULE fist_force
 !!   SOURCE
 !!******************************************************************************
 
-SUBROUTINE fist_force_control ( fist_env, virial, globenv,  debug , force_env_section, error)
+SUBROUTINE fist_force_control ( fist_env, virial, para_env, globenv,  debug , force_env_section, error)
 
 
     TYPE(fist_environment_type), POINTER     :: fist_env
     TYPE(virial_type), POINTER               :: virial
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(debug_variables_type), &
       INTENT(INOUT), OPTIONAL                :: debug
@@ -142,7 +143,6 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv,  debug , force_env_se
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(distribution_1d_type), POINTER      :: local_molecules, &
                                                 local_particles
     TYPE(ewald_environment_type), POINTER    :: ewald_env
@@ -161,7 +161,6 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv,  debug , force_env_se
   failure = .FALSE.
   NULLIFY(logger)
   logger => cp_error_get_logger(error)
-  para_env=>globenv%para_env
 
   NULLIFY(fist_section,thermo,particle_set,local_molecules,local_particles,atomic_kind_set,&
           molecule_kind_set,molecule_set,fist_nonbond_env,cell,ewald_pw,ewald_env,fist_section,print_section)
@@ -191,7 +190,7 @@ SUBROUTINE fist_force_control ( fist_env, virial, globenv,  debug , force_env_se
 ! first check with list_control to update neighbor lists
 
   CALL list_control ( atomic_kind_set, particle_set, local_particles, &
-                      cell, fist_nonbond_env, globenv, force_env_section, error) 
+                      cell, fist_nonbond_env,para_env, globenv, force_env_section, error) 
 
 !
 ! initial force, energy and pressure tensor arrays

@@ -156,8 +156,7 @@ CONTAINS
     TYPE(section_type), POINTER              :: input_structure
     TYPE(section_vals_type), POINTER         :: force_env_section, &
                                                 glob_section, hmc_section, &
-                                                input_file
-    TYPE(section_vals_type), POINTER         :: root_section
+                                                input_file, root_section
 
     cp2k_run_OK = .FALSE.
     failure=.FALSE.
@@ -248,16 +247,16 @@ CONTAINS
 
           IF (prog_name_id/=do_cp2k) THEN
              ! initial setup (cp2k does in in the creation of the force_env)
-             CALL globenv_create(globenv, para_env=para_env,  output_unit=output_unit, &
+             CALL globenv_create(globenv, output_unit=output_unit, &
                   error=error)
              ! XXXXXXXXX
              ! ROOT_SECTION => input_file
              ! XXXXXXXXX
              CALL section_vals_retain(input_file,error=error)
-             CALL cp2k_init ( globenv, input_file_name=input_file_name )
+             CALL cp2k_init ( para_env,globenv, input_file_name=input_file_name )
              CALL cp_error_init(suberror)
-             CALL cp2k_read(root_section,globenv)
-             CALL cp2k_setup(root_section,globenv,suberror)
+             CALL cp2k_read(root_section,para_env,globenv)
+             CALL cp2k_setup(root_section,para_env, globenv,suberror)
           END IF
 
           IF ((run_type_id == hmc_run) .OR. &
@@ -286,7 +285,7 @@ CONTAINS
           END IF
           SELECT CASE (prog_name_id)
           CASE (do_farming)
-             CALL farming_run ( root_section, globenv, suberror )
+             CALL farming_run ( root_section, para_env, globenv, suberror )
           CASE(do_cp2k)
              CALL create_force_env(new_env_id,input_path=input_file_name,&
                   output_path="__STD_OUT__",mpi_comm=para_env%group,&
@@ -302,7 +301,7 @@ CONTAINS
              CALL section_vals_val_get(force_env%force_env_section,"METHOD",i_val=method_name_id)
 
           CASE (do_test)
-             CALL lib_test(root_section,globenv,suberror)
+             CALL lib_test(root_section,para_env,globenv,suberror)
           CASE default
              CPAssert(.FALSE.,cp_failure_level,routineP,suberror,failure)
           END SELECT
@@ -382,7 +381,7 @@ CPSourceFileRef,&
           IF (prog_name_id==do_cp2k) THEN
              f_env%force_env => force_env ! for mc
              CALL globenv_retain(globenv,error=error)!mc
-             CALL globenv_release(force_env%globenv,error=error) !mc
+             CALL globenv_release(force_env%globenv,para_env,error=error) !mc
              force_env%globenv => globenv !mc
              CALL f_env_rm_defaults(f_env,error=suberror,ierr=ierr,&
                   handle=f_env_handle)
@@ -390,14 +389,14 @@ CPSourceFileRef,&
              CALL destroy_force_env(new_env_id,ierr=ierr)
              CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
              CALL section_vals_release(root_section)
-             CALL globenv_release(globenv)
+             CALL globenv_release(globenv,para_env)
           ELSE
              CALL cp_error_dealloc_ref(suberror)
              I_was_ionode=para_env%ionode
-             CALL cp2k_finalize(root_section,globenv,error)
+             CALL cp2k_finalize(root_section,para_env,globenv,error)
              CPPostconditionNoFail(globenv%ref_count==1,cp_failure_level,routineP,error)
              CALL section_vals_release(root_section)
-             CALL globenv_release(globenv)
+             CALL globenv_release(globenv,para_env)
           END IF
        END IF
 
@@ -431,8 +430,9 @@ CPSourceFileRef,&
 !!   MODIFICATION HISTORY
 !!
 !!*** **********************************************************************
-  RECURSIVE SUBROUTINE farming_run(root_section,globenv,error)
+  RECURSIVE SUBROUTINE farming_run(root_section,para_env, globenv,error)
     TYPE(section_vals_type), POINTER         :: root_section
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
@@ -448,7 +448,6 @@ CPSourceFileRef,&
       output_unit, stat
     INTEGER, DIMENSION(:), POINTER           :: group_distribution
     LOGICAL                                  :: failure, found, run_OK
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_parser_type), POINTER            :: my_parser
     TYPE(cp_unit_set_type), POINTER          :: default_units
     TYPE(farming_env_type), POINTER          :: farming_env
@@ -458,7 +457,6 @@ CPSourceFileRef,&
     failure=.FALSE.
     CALL timeset(routineN,'I','',handle)
     NULLIFY(my_parser,g_section,g_data,default_units)
-    para_env=>globenv%para_env
 
     IF (para_env%ionode) WRITE(globenv%scr,FMT="(T2,A)") "FARMING| Hi, welcome on this farm!"
 
@@ -467,7 +465,7 @@ CPSourceFileRef,&
     CALL init_farming_env(farming_env)
     ! remember where we started
     CALL m_getcwd(farming_env%cwd)
-    CALL farming_parse_input(farming_env,root_section,globenv,error)
+    CALL farming_parse_input(farming_env,root_section,para_env,globenv,error)
 
     ! split the current communicator 
     ALLOCATE(group_distribution(0:para_env%num_pe-1),STAT=stat) 

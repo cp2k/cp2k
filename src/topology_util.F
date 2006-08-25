@@ -43,7 +43,6 @@ MODULE topology_util
                                              elp_potential_type,&
                                              get_potential,&
                                              set_potential
-  USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: &
        do_bondparm_covalent, do_bondparm_vdw, do_conn_g87, do_conn_g96, &
        do_conn_off, do_fist, do_skip_12, do_skip_13, do_skip_14
@@ -3458,11 +3457,9 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE topology_molecules_check(topology,globenv,subsys_section,error)
+  SUBROUTINE topology_molecules_check(topology,subsys_section,error)
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
-    TYPE(global_environment_type), &
-      OPTIONAL, POINTER                      :: globenv
     TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -3617,8 +3614,8 @@ CONTAINS
     CHARACTER(len=*), INTENT(IN)             :: element_in
     CHARACTER(len=default_string_length), &
       INTENT(OUT)                            :: element_out
-    TYPE(section_vals_type), POINTER         :: root_section
-    TYPE(section_vals_type), POINTER         :: force_env_section
+    TYPE(section_vals_type), POINTER         :: root_section, &
+                                                force_env_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 

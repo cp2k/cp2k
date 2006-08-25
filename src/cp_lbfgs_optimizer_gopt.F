@@ -66,7 +66,6 @@ MODULE cp_lbfgs_optimizer_gopt
                                              cp_subsystem_p_type
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
-  USE global_types,                    ONLY: global_environment_type
   USE gopt_f_types,                    ONLY: cp_eval_at,&
                                              gopt_f_release,&
                                              gopt_f_retain,&
@@ -263,7 +262,7 @@ CONTAINS
   SUBROUTINE cp_opt_gopt_create(optimizer, para_env, &
        obj_funct, x0, m, print_every, &
        wanted_relative_f_delta, wanted_projected_gradient,&
-       lower_bound,upper_bound, kind_of_bound, master, max_f_per_iter,globenv,&
+       lower_bound,upper_bound, kind_of_bound, master, max_f_per_iter,&
        error)
     TYPE(cp_lbfgs_opt_gopt_type), POINTER    :: optimizer
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -277,7 +276,6 @@ CONTAINS
     INTEGER, DIMENSION(SIZE(x0)), &
       INTENT(in), OPTIONAL                   :: kind_of_bound
     INTEGER, INTENT(in), OPTIONAL            :: master, max_f_per_iter
-    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 

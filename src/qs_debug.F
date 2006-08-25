@@ -78,12 +78,11 @@ CONTAINS
       DIMENSION(:), POINTER                  :: subsys
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particles
-    TYPE(section_vals_type), POINTER         :: harris_section
-    TYPE(section_vals_type), POINTER         :: root_section
+    TYPE(section_vals_type), POINTER         :: harris_section, root_section
 
     failure = .FALSE.
     NULLIFY(analyt_forces, numer_forces, subsys, particles)
-    para_env=>globenv%para_env
+    para_env=>force_env%para_env
     root_section=>force_env%root_section
     IF (.NOT.failure) THEN
        harris_section => section_vals_get_subs_vals(force_env%force_env_section, &

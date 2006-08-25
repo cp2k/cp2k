@@ -185,7 +185,7 @@ CONTAINS
     !-----------------------------------------------------------------------------
     ! 2. Read in the force field section in the input file if any
     !-----------------------------------------------------------------------------
-    CALL read_force_field_section(ff_type,globenv,mm_section,error)
+    CALL read_force_field_section(ff_type,para_env,globenv,mm_section,error)
 
 
     !-----------------------------------------------------------------------------
@@ -210,9 +210,9 @@ CONTAINS
     IF(ff_type%ff_type/="OFF") THEN
        SELECT CASE (ff_type%ff_type)
        CASE ("CHM")
-          CALL read_force_field_charmm(ff_type,globenv,mm_section,error)
+          CALL read_force_field_charmm(ff_type,para_env,globenv,mm_section,error)
        CASE ("G87","G96")
-          CALL read_force_field_gromos(ff_type,globenv,mm_section,error)
+          CALL read_force_field_gromos(ff_type,para_env,globenv,mm_section,error)
        CASE DEFAULT
           CALL stop_program ("force_field_control","force field type not implemented")
        END SELECT
@@ -273,9 +273,10 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE read_force_field_section1 ( ff_section, mm_section, ff_type, globenv, error )
+  SUBROUTINE read_force_field_section1 ( ff_section, mm_section, ff_type, para_env, globenv, error )
     TYPE(section_vals_type), POINTER         :: ff_section, mm_section
     TYPE(force_field_type), INTENT(INOUT)    :: ff_type
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), &
       OPTIONAL, POINTER                      :: globenv
     TYPE(cp_error_type), INTENT(inout), &
@@ -328,7 +329,7 @@ CONTAINS
           ntot=nlj+nwl
           IF (explicit) THEN
              CALL pair_potential_reallocate(inp_info%nonbonded,1,ntot+neam,eam=.TRUE.,error=error)
-             CALL read_eam_section(inp_info%nonbonded,tmp_section2,ntot,globenv,mm_section,error)
+             CALL read_eam_section(inp_info%nonbonded,tmp_section2,ntot,para_env,globenv,mm_section,error)
           END IF
           tmp_section2 => section_vals_get_subs_vals(tmp_section,"GOODWIN",error=error)
           CALL section_vals_get(tmp_section2,explicit=explicit,n_repetition=ngd,error=error)
@@ -603,10 +604,11 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE read_eam_section(nonbonded, section, start, globenv, mm_section, error)
+  SUBROUTINE read_eam_section(nonbonded, section, start, para_env, globenv, mm_section, error)
     TYPE(pair_potential_p_type), POINTER     :: nonbonded
     TYPE(section_vals_type), POINTER         :: section
     INTEGER, INTENT(IN)                      :: start
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), &
       OPTIONAL, POINTER                      :: globenv
     TYPE(section_vals_type), POINTER         :: mm_section
@@ -631,7 +633,7 @@ CONTAINS
        CALL uppercase(nonbonded%pot(start+isec)%pot %at2)
        CALL section_vals_val_get(section,"PARMFILE",i_rep_section=isec,&
             c_val=nonbonded%pot(start+isec)%pot%eam%eam_file_name,error=error)
-       CALL read_eam_data ( nonbonded%pot(start+isec)%pot%eam, globenv, mm_section,error)
+       CALL read_eam_data ( nonbonded%pot(start+isec)%pot%eam, para_env, globenv, mm_section,error)
        nonbonded%pot(start+isec)%pot%rcutsq  = nonbonded%pot(start+isec)%pot%eam%acutal**2
     END DO
   END SUBROUTINE read_eam_section
@@ -1164,8 +1166,9 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE read_force_field_section ( ff_type , globenv, mm_section, error )
+  SUBROUTINE read_force_field_section ( ff_type , para_env, globenv, mm_section, error )
     TYPE(force_field_type), INTENT(INOUT)    :: ff_type
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), &
       OPTIONAL, POINTER                      :: globenv
     TYPE(section_vals_type), POINTER         :: mm_section
@@ -1177,7 +1180,7 @@ CONTAINS
     NULLIFY(ff_section)
     ff_section => section_vals_get_subs_vals(mm_section,&
          "FORCEFIELD",error=error)
-    CALL read_force_field_section1(ff_section, mm_section, ff_type, globenv, error)
+    CALL read_force_field_section1(ff_section, mm_section, ff_type, para_env, globenv, error)
   END SUBROUTINE read_force_field_section
 
 
@@ -1198,10 +1201,11 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
   
-  SUBROUTINE read_force_field_gromos ( ff_type , globenv, mm_section, error )
+  SUBROUTINE read_force_field_gromos ( ff_type , para_env, globenv, mm_section, error )
 
 
     TYPE(force_field_type), INTENT(INOUT)    :: ff_type
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), &
       OPTIONAL, POINTER                      :: globenv
     TYPE(section_vals_type), POINTER         :: mm_section
@@ -1223,7 +1227,6 @@ CONTAINS
     LOGICAL                                  :: failure, found
     REAL(KIND=dp)                            :: cost2, csq, sdet
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_parser_type), POINTER            :: parser
     TYPE(gromos_info_type), POINTER          :: gro_info
 
@@ -1232,7 +1235,6 @@ CONTAINS
     CALL timeset(routineN,'I','',handle)
     failure = .FALSE.
     NULLIFY(logger,parser)
-    para_env=>globenv%para_env
     logger => cp_error_get_logger(error)
     iw = cp_print_key_unit_nr(logger,mm_section,"PRINT%FF_INFO",&
          extension=".mmLog",error=error)
@@ -1543,10 +1545,11 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
   
-  SUBROUTINE read_force_field_charmm ( ff_type , globenv, mm_section, error )
+  SUBROUTINE read_force_field_charmm ( ff_type, para_env, globenv, mm_section, error )
 
 
     TYPE(force_field_type), INTENT(INOUT)    :: ff_type
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), &
       OPTIONAL, POINTER                      :: globenv
     TYPE(section_vals_type), POINTER         :: mm_section
@@ -1571,13 +1574,11 @@ CONTAINS
     LOGICAL                                  :: failure, found
     TYPE(charmm_info_type), POINTER          :: chm_info
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_parser_type), POINTER            :: parser
 
     CALL timeset(routineN,'I','',handle)
     failure = .FALSE.
     NULLIFY(logger,parser)
-    para_env=>globenv%para_env
     logger => cp_error_get_logger(error)
     iw = cp_print_key_unit_nr(logger,mm_section,"PRINT%FF_INFO",&
          extension=".mmLog",error=error)
@@ -4643,8 +4644,9 @@ CONTAINS
 !!
 !!   INPUTS
 !!*****************************************************************************
-  SUBROUTINE read_eam_data ( eam, globenv , mm_section, error)
+  SUBROUTINE read_eam_data ( eam, para_env, globenv , mm_section, error)
     TYPE(eam_pot_type), POINTER              :: eam
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), &
       OPTIONAL, POINTER                      :: globenv
     TYPE(section_vals_type), POINTER         :: mm_section
@@ -4663,12 +4665,10 @@ CONTAINS
     REAL(KINd=dp), DIMENSION(:), POINTER     :: frho, frhop, phi, phip, rho, &
                                                 rhop, rhoval, rval
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_para_env_type), POINTER          :: para_env
 
     CALL timeset(routineN,'I','',handle)
     failure = .FALSE.
     logger => cp_error_get_logger(error)
-    para_env=>globenv%para_env
     iw = cp_print_key_unit_nr(logger,mm_section,"PRINT%FF_INFO",&
          extension=".mmLog",error=error)
     NULLIFY ( rval, rhoval, phi, phip, frho, frhop, rho, rhop )

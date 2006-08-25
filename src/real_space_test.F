@@ -68,9 +68,10 @@ MODULE real_space_test
 CONTAINS
 
 !******************************************************************************
-SUBROUTINE rs_test ( root_section,globenv, error )
+SUBROUTINE rs_test ( root_section, para_env, globenv, error )
 
     TYPE(section_vals_type), POINTER         :: root_section
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -94,14 +95,12 @@ SUBROUTINE rs_test ( root_section,globenv, error )
     REAL(KIND=dp), DIMENSION(3, nparticle)   :: coord
     REAL(KIND=dp), DIMENSION(nparticle)      :: bval
     TYPE(cell_type), POINTER                 :: box
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(pw_grid_type), POINTER              :: grid
     TYPE(pw_type), POINTER                   :: pw_a, pw_b, pw_c
     TYPE(realspace_grid_type), POINTER       :: rden
     TYPE(section_vals_type), POINTER         :: print_section
 
   iw =globenv%scr
-  para_env=>globenv%para_env
   NULLIFY(pw_a,pw_b,pw_c)
   NULLIFY(box)
   CALL cell_create(box)

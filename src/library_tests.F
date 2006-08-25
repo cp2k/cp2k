@@ -124,45 +124,44 @@ CONTAINS
 !!
 !!*** *************************************************************************
   
-  SUBROUTINE lib_test ( root_section, globenv, error )
+  SUBROUTINE lib_test ( root_section, para_env, globenv, error )
 
     TYPE(section_vals_type), POINTER         :: root_section
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     INTEGER                                  :: iw
-    TYPE(cp_para_env_type), POINTER          :: para_env
 
     iw = globenv%scr
-    para_env=>globenv%para_env
     IF ( para_env%ionode ) THEN
        WRITE ( iw, '(T2,79("*"))' )
        WRITE ( iw, '(A,T31,A,T80,A)' ) ' *',' PERFORMANCE TESTS ','*'
        WRITE ( iw, '(T2,79("*"))' )
     END IF
     !
-    CALL test_input ( root_section, globenv )
+    CALL test_input ( root_section, para_env, globenv )
     !
-    IF ( runtest ( 1 ) /= 0 ) CALL copy_test ( globenv )
+    IF ( runtest ( 1 ) /= 0 ) CALL copy_test ( para_env, globenv )
     !
-    IF ( runtest ( 2 ) /= 0 ) CALL matmul_test ( globenv )
+    IF ( runtest ( 2 ) /= 0 ) CALL matmul_test ( para_env, globenv )
     !
-    IF ( runtest ( 3 ) /= 0 ) CALL fft_test ( globenv )
+    IF ( runtest ( 3 ) /= 0 ) CALL fft_test ( para_env, globenv )
     !
-    IF ( runtest ( 4 ) /= 0 ) CALL pw_fft_test ( root_section, globenv )
+    IF ( runtest ( 4 ) /= 0 ) CALL pw_fft_test ( root_section, para_env, globenv )
     !
-    IF ( runtest ( 6 ) /= 0 ) CALL clebsch_gordon_test ( globenv )
+    IF ( runtest ( 6 ) /= 0 ) CALL clebsch_gordon_test ( para_env, globenv )
     !
-    IF ( runtest ( 7 ) /= 0 ) CALL rs_test ( root_section, globenv, error )
+    IF ( runtest ( 7 ) /= 0 ) CALL rs_test ( root_section, para_env, globenv, error )
     !
     IF ( runtest ( 8 ) /= 0 ) CALL mpi_test ( para_env%group )
 
     IF (runtest(9) /= 0) THEN
-      CALL rng_test(runtest(9),globenv,error)
+      CALL rng_test(runtest(9),para_env, globenv,error)
     END IF
 
     IF (runtest(10) /= 0) THEN
-      CALL eigensolver_test(runtest(10),runtest(11),globenv,error)
+      CALL eigensolver_test(runtest(10),runtest(11),para_env, globenv,error)
     END IF
 
   END SUBROUTINE lib_test
@@ -205,22 +204,21 @@ CONTAINS
 !!
 !!*** *************************************************************************
 
-SUBROUTINE test_input ( root_section, globenv , error)
+SUBROUTINE test_input ( root_section, para_env, globenv , error)
 
     TYPE(section_vals_type), POINTER         :: root_section
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     INTEGER                                  :: iw
     INTEGER, DIMENSION(:), POINTER           :: i_vals
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: test_section
 
 !
 
   iw = globenv%scr
-  para_env=>globenv%para_env
 !..defaults
   runtest = 0
   max_memory = 256.e6_dp
@@ -264,19 +262,18 @@ END SUBROUTINE test_input
 !!
 !!*** *************************************************************************
 
-SUBROUTINE copy_test ( globenv )
+SUBROUTINE copy_test ( para_env, globenv )
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
 
     INTEGER                                  :: i, ierr, iw, j, len, ntim, siz
     REAL(KIND=dp)                            :: perf, t, tend, tstart
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: ca, cb
-    TYPE(cp_para_env_type), POINTER          :: para_env
 
 ! test for copy --> Cache size
 
   siz = ABS ( runtest ( 1 ) )
   iw = globenv%scr
-  para_env=>globenv%para_env
   IF ( para_env%ionode ) WRITE ( iw, '(//,A,/)' ) " Test of copy ( F95 ) "
   DO i = 6, 24
     len = 2**i
@@ -335,18 +332,17 @@ END SUBROUTINE copy_test
 !!
 !!*** *************************************************************************
 
-SUBROUTINE matmul_test ( globenv )
+SUBROUTINE matmul_test ( para_env, globenv )
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
 
     INTEGER                                  :: i, ierr, iw, j, len, ntim, siz
     REAL(KIND=dp)                            :: perf, t, tend, tstart, xdum
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: ma, mb, mc
-    TYPE(cp_para_env_type), POINTER          :: para_env
 
 ! test for matrix multpies
 
-  para_env=>globenv%para_env
   siz = ABS ( runtest ( 2 ) )
   iw = globenv%scr
   IF ( para_env%ionode ) WRITE ( iw, '(//,A,/)' ) " Test of matmul ( F95 ) "
@@ -556,8 +552,9 @@ END SUBROUTINE matmul_test
 !!
 !!*** *************************************************************************
 
-SUBROUTINE fft_test ( globenv )
+SUBROUTINE fft_test ( para_env, globenv )
 
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
 
     INTEGER :: iall, ierr, it, iw, j, len, n(3), &
@@ -570,11 +567,9 @@ SUBROUTINE fft_test ( globenv )
                                                 tend, tstart
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: ra
-    TYPE(cp_para_env_type), POINTER          :: para_env
 
 ! test for 3d FFT
 
-  para_env=>globenv%para_env
   iw = globenv%scr
   IF ( para_env%ionode ) WRITE ( iw, '(//,A,/)' ) " Test of 3D-FFT "
   siz = ABS ( runtest ( 3 ) )
@@ -724,9 +719,10 @@ END SUBROUTINE fft_test
 !!
 !!*** *************************************************************************
 
-SUBROUTINE pw_fft_test ( root_section,globenv )
+SUBROUTINE pw_fft_test ( root_section,para_env, globenv )
 
     TYPE(section_vals_type), POINTER         :: root_section
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
 
     REAL(KIND=dp), PARAMETER                 :: toler = 1.e-11_dp
@@ -737,13 +733,10 @@ SUBROUTINE pw_fft_test ( root_section,globenv )
                                                 perf, r, t, tend, tim, tstart
     TYPE(cell_type), POINTER                 :: box
     TYPE(coeff_type)                         :: ca, cb, cc
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(pw_grid_type), POINTER              :: grid
     TYPE(section_vals_type), POINTER         :: print_section
 
 !..the unit cell
-
-    para_env=>globenv%para_env
 
   NULLIFY(box,grid)
   CALL cell_create(box)
@@ -1411,11 +1404,12 @@ END SUBROUTINE simple_copy
 
   ! ***************************************************************************
 
-  SUBROUTINE rng_test(n,globenv,error)
+  SUBROUTINE rng_test(n,para_env,globenv,error)
 
     ! Test the parallel (pseudo)random number generator (RNG).
 
     INTEGER, INTENT(IN)                      :: n
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -1423,12 +1417,10 @@ END SUBROUTINE simple_copy
     LOGICAL                                  :: ionode
     REAL(KIND=dp)                            :: t, tend, tmax, tmin, tstart, &
                                                 tsum, tsum2
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(rng_stream_type), POINTER           :: rng_stream
 
 ! -------------------------------------------------------------------------
 
-    para_env=>globenv%para_env
     ionode = para_env%ionode
     output_unit = globenv%scr
 
@@ -1520,11 +1512,12 @@ END SUBROUTINE simple_copy
 
   ! ***************************************************************************
 
-  SUBROUTINE eigensolver_test(nrow_global,neig,globenv,error)
+  SUBROUTINE eigensolver_test(nrow_global,neig,para_env,globenv,error)
 
     ! Test eigensolver library routines.
 
     INTEGER, INTENT(IN)                      :: nrow_global, neig
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
@@ -1538,7 +1531,6 @@ END SUBROUTINE simple_copy
     TYPE(cp_blacs_env_type), POINTER         :: blacs_env
     TYPE(cp_fm_struct_type), POINTER         :: fmstruct
     TYPE(cp_fm_type), POINTER                :: eigenvectors, matrix, work
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(rng_stream_type), POINTER           :: rng_stream
 
 ! -------------------------------------------------------------------------
@@ -1547,7 +1539,6 @@ END SUBROUTINE simple_copy
     ionode = para_env%ionode
     output_unit = globenv%scr
     source = para_env%source
-    para_env=>globenv%para_env
     n = ABS(nrow_global)
 
     IF (ionode) THEN

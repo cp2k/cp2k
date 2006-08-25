@@ -116,7 +116,7 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: root_section
 
     CALL timeset(routineN,"I","",handle)   
-    para_env=>globenv%para_env
+    para_env=>force_env%para_env
     root_section=>force_env%root_section
     logger => cp_error_get_logger(error)
     CALL cp_add_iter_level(logger%iter_info,"GEO_OPT",ihandle,error)
@@ -225,7 +225,7 @@ CONTAINS
 
     failure = .FALSE.
     root_section=>force_env%root_section
-    para_env=>globenv%para_env
+    para_env=>force_env%para_env
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
     NULLIFY(g, h, xi)

@@ -23,6 +23,7 @@
 !!   SOURCE
 !****************************************************************************
 MODULE tbmd_main
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE force_env_methods,               ONLY: force_env_create
   USE force_env_types,                 ONLY: force_env_type
   USE global_types,                    ONLY: global_environment_type
@@ -70,9 +71,10 @@ CONTAINS
 !!     01.2006 initial create [tdk]
 !!
 !!*** **********************************************************************
-  SUBROUTINE tbmd_create_force_env(force_env, root_section, globenv, force_env_section, error)
+  SUBROUTINE tbmd_create_force_env(force_env, root_section, para_env, globenv, force_env_section, error)
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(section_vals_type), POINTER         :: root_section
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(INOUT), &
@@ -92,9 +94,9 @@ CONTAINS
 
     CALL tbmd_env_create(tbmd_env, error=error)
 
-    CALL tbmd_init(tbmd_env, root_section, globenv, force_env_section, error=error)
+    CALL tbmd_init(tbmd_env, root_section,para_env, globenv, force_env_section, error=error)
 
-    CALL force_env_create(force_env, root_section, tbmd_env=tbmd_env, globenv=globenv, &
+    CALL force_env_create(force_env, root_section, tbmd_env=tbmd_env, para_env=para_env, globenv=globenv, &
                           force_env_section=force_env_section, error=error)
 
     CALL tbmd_env_release(tbmd_env, error=error)

@@ -32,7 +32,6 @@ MODULE md_energies
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_p_type
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_p_type
-  USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: dump_dcd,&
                                              dump_xmol,&
                                              ensemble_name_types,&
@@ -99,10 +98,9 @@ CONTAINS
 !!
 !!*****************************************************************************
 
-  SUBROUTINE md_energy(md_env, globenv, error)
+  SUBROUTINE md_energy(md_env, error)
 
     TYPE(md_environment_type), POINTER       :: md_env
-    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -133,12 +131,11 @@ CONTAINS
       DIMENSION(:), POINTER                  :: dyn_coeff_set
     TYPE(force_env_p_type), POINTER          :: force_env_p( : )
     TYPE(particle_list_type), POINTER        :: particles
-    TYPE(section_vals_type), POINTER         :: motion_section
+    TYPE(section_vals_type), POINTER         :: motion_section, root_section
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
     TYPE(unit_convert_type), POINTER         :: unit
     TYPE(virial_type), POINTER               :: virial
-    TYPE(section_vals_type), POINTER         :: root_section
 
     DATA init        /.TRUE./
     DATA init_traj   /.TRUE./

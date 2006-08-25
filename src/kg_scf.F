@@ -266,7 +266,7 @@ CONTAINS
            CALL kg_scf_env_release(scf_env)
            CALL get_kg_env(kg_env,scf_env=scf_env,error=error)
         END IF
-        CALL scf_env_do_scf(scf_env,my_kg_env,globenv,error=error)
+        CALL scf_env_do_scf(scf_env,my_kg_env,kg_env%para_env,globenv,error=error)
      END IF
   END SUBROUTINE kg_qs_scf
 !***************************************************************************
@@ -300,10 +300,11 @@ CONTAINS
 !!     fully activated 12-04 MI 
 !!
 !!*** **********************************************************************
-  SUBROUTINE scf_env_do_scf(scf_env,kg_env,globenv,error)
+  SUBROUTINE scf_env_do_scf(scf_env,kg_env,para_env,globenv,error)
 
     TYPE(kg_scf_env_type), POINTER           :: scf_env
     TYPE(kg_environment_type), POINTER       :: kg_env
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -320,7 +321,6 @@ CONTAINS
     REAL(dp), DIMENSION(:), POINTER          :: diis_ev_global
     REAL(dp), DIMENSION(:, :), POINTER       :: diis_m1_global, diis_m2_global
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(kg_fm_p_type), POINTER              :: kg_fm
     TYPE(kg_sub_pw_env_type), POINTER        :: kg_sub_pw_env
@@ -342,7 +342,6 @@ CONTAINS
     NULLIFY(rho, matrix_h, matrix_ks, matrix_p, matrix_s, kg_fm)
     NULLIFY(dft_section,scf_section,kg_section)
     NULLIFY(logger)
-    para_env=>globenv%para_env
     logger => cp_error_get_logger(error)
     t1 = m_walltime()
     failure=.FALSE.
@@ -377,7 +376,7 @@ CONTAINS
     END IF
 
     CALL init_kgscf_run(scf_env=scf_env,kg_env=kg_env,&
-                        globenv=globenv,scf_section=scf_section,error=error)
+                        para_env=para_env,globenv=globenv,scf_section=scf_section,error=error)
     CALL get_qs_env(qs_env=qs_env,&
                     energy=energy,&
                     ks_env=ks_env,&
@@ -664,7 +663,7 @@ CONTAINS
 !   *** Write restart file ***
        IF (scf_control%write_restart_each>0.AND.&
             MODULO(scf_env%iter_count,scf_control%write_restart_each)==0) THEN
-          CALL write_mo_mol_restart(kg_fm,globenv,nspins=dft_control%nspins,id_nr=1,&
+          CALL write_mo_mol_restart(kg_fm,para_env,globenv,nspins=dft_control%nspins,id_nr=1,&
                force_env_section=kg_env%input,error=error)
        END IF
 
@@ -716,7 +715,7 @@ CONTAINS
 
 !   *** Write restart file ***
     IF (scf_control%write_restart_each>=0) THEN
-       CALL write_mo_mol_restart(kg_fm,globenv,nspins=dft_control%nspins,id_nr=1,&
+       CALL write_mo_mol_restart(kg_fm,para_env,globenv,nspins=dft_control%nspins,id_nr=1,&
             force_env_section=kg_env%input,error=error)
     END IF
 
@@ -808,10 +807,11 @@ CONTAINS
 !!     fully activated 12-04 MI 
 !!*** **********************************************************************
  
-  SUBROUTINE init_kgscf_run(scf_env,kg_env,globenv,scf_section,error)
+  SUBROUTINE init_kgscf_run(scf_env,kg_env,para_env,globenv,scf_section,error)
 
     TYPE(kg_scf_env_type), POINTER           :: scf_env
     TYPE(kg_environment_type), POINTER       :: kg_env
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_vals_type), POINTER         :: scf_section
     TYPE(cp_error_type), INTENT(inout), &
@@ -823,7 +823,6 @@ CONTAINS
     INTEGER                                  :: handle, ndep, output_unit
     LOGICAL                                  :: do_ortho, failure
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_sm_pool_p_type), DIMENSION(:), &
       POINTER                                :: S_sm_pools
     TYPE(dft_control_type), POINTER          :: dft_control
@@ -842,7 +841,6 @@ CONTAINS
 
     NULLIFY(dft_control,kg_fm,scf_control)
     NULLIFY(qs_env,ks_env,matrix_ks)
-    para_env=>globenv%para_env
 
     failure=.FALSE.
     do_ortho = .TRUE.
@@ -1226,7 +1224,7 @@ CONTAINS
 
     IF (scf_control%density_guess == restart_guess) THEN
 
-      CALL read_mo_mol_restart(kg_fm,globenv,nspins=nspin,id_nr=1,&
+      CALL read_mo_mol_restart(kg_fm,para_env,globenv,nspins=nspin,id_nr=1,&
            force_env_section=kg_env%input,error=error)
 
       kg_fm_mol_set => kg_fm%kg_fm_mol_set
@@ -1569,7 +1567,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        extrapolation_method_nr=wfi_use_guess_method_nr
        IF (ASSOCIATED(qs_env%wf_history)) THEN
-          CALL wfi_extrapolate(globenv,qs_env%wf_history, &
+          CALL wfi_extrapolate(qs_env%wf_history, &
                qs_env=qs_env, dt=1.0_dp, &
                extrapolation_method_nr=extrapolation_method_nr,&
                orthogonal_wf=orthogonal_wf, kg_gpw=.TRUE. ,&

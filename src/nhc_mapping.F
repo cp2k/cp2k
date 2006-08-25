@@ -76,22 +76,21 @@ CONTAINS
 !!
 !!*** *************************************************************************
 
-SUBROUTINE nhc_to_barostat_mapping ( simpar, nhc, globenv )
+SUBROUTINE nhc_to_barostat_mapping ( simpar, nhc,para_env, globenv )
 ! creates the thermostatting maps use global_mod
 ! begin global declaratation
     TYPE(simulation_parameters_type), &
       INTENT(INOUT)                          :: simpar
     TYPE(lnhc_parameters_type), &
       INTENT(INOUT)                          :: nhc
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
 
     INTEGER                                  :: i, isos, iw, number
-    TYPE(cp_para_env_type), POINTER          :: para_env
 
 ! begin local definitions
 !
 
-  para_env=>globenv%para_env
   iw = globenv%scr
 !
   nhc % dis_type = 'NONE'
@@ -194,7 +193,7 @@ END SUBROUTINE nhc_to_barostat_mapping
 !!*** *************************************************************************
 
 SUBROUTINE nhc_to_particle_mapping ( simpar, local_molecules, molecule_set, &
-                                     molecule_kind_set, nhc, globenv )
+                                     molecule_kind_set, nhc, para_env, globenv )
 
 
     TYPE(simulation_parameters_type), &
@@ -204,6 +203,7 @@ SUBROUTINE nhc_to_particle_mapping ( simpar, local_molecules, molecule_set, &
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
     TYPE(lnhc_parameters_type), &
       INTENT(INOUT)                          :: nhc
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
 
     INTEGER :: atm_offset, atom_increment, finish, first_atom, i, icount, &
@@ -217,13 +217,11 @@ SUBROUTINE nhc_to_particle_mapping ( simpar, local_molecules, molecule_set, &
     INTEGER, DIMENSION(:), POINTER           :: massive_atom_list
     LOGICAL                                  :: have_global, nointer, noneflag
     TYPE(colvar_counters)                    :: ncolv
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
 
 !------------------------------------------------------------------------------
 
-  para_env=>globenv%para_env
   iw = globenv%scr
   NULLIFY ( massive_atom_list ) 
 
@@ -655,12 +653,13 @@ END SUBROUTINE nhc_to_particle_mapping
 !!
 !!   SOURCE
 !******************************************************************************
- SUBROUTINE nhc_to_coef_mapping ( dyn_coeff_set, nhc, root_section, globenv )
+ SUBROUTINE nhc_to_coef_mapping ( dyn_coeff_set, nhc, root_section, para_env, globenv )
 
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
     TYPE(lnhc_parameters_type), &
       INTENT(INOUT)                          :: nhc
     TYPE(section_vals_type), POINTER         :: root_section
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
 
     INTEGER                                  :: i, ikind, isos, iw, j, &
@@ -669,13 +668,11 @@ END SUBROUTINE nhc_to_particle_mapping
                                                 nkind, number
     LOGICAL                                  :: nointer
     REAL(KIND=dp)                            :: kg_coeff_temp
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: kg_coeff_section, nose_section
 
 !------------------------------------------------------------------------------
 
   iw = globenv%scr
-  para_env=>globenv%para_env
   
   kg_coeff_section => section_vals_get_subs_vals(ROOT_SECTION,&
        "MOTION%MD")

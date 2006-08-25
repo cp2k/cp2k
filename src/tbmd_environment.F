@@ -133,9 +133,10 @@ CONTAINS
 !!     01.2006 initial create [tdk]
 !!
 !!*** **********************************************************************
-  SUBROUTINE tbmd_init(tbmd_env, root_section, globenv, force_env_section, error)
+  SUBROUTINE tbmd_init(tbmd_env, root_section,para_env, globenv, force_env_section, error)
     TYPE(tbmd_environment_type), POINTER     :: tbmd_env
     TYPE(section_vals_type), POINTER         :: root_section
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(INOUT), &
@@ -151,7 +152,6 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell, cell_ref
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsystem_type), POINTER         :: subsystem
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
     TYPE(mol_new_list_type), POINTER         :: molecules
@@ -168,8 +168,6 @@ CONTAINS
 !   ------------------------------------------------------------------------
 
     CALL timeset(routineN, "I", "", handle)
-
-    para_env=>globenv%para_env
 
     failure = .FALSE.
   
@@ -207,7 +205,7 @@ CONTAINS
 
       CALL topology_control(atomic_kind_set, particle_set, &
                             molecule_kind_set, molecule_set, &
-                            subsystem%colvar_p,root_section,globenv, &
+                            subsystem%colvar_p,root_section,para_env,globenv, &
                             force_env_section=force_env_section,error=error)
 
       !CALL read_atomic_kind_set(atomic_kind_set, globenv)
@@ -306,7 +304,7 @@ CONTAINS
 !   ------------------------------------------------------------------------
 
     CALL timeset(routineN, "I", "", handle)
-    para_env=>globenv%para_env
+    para_env=>tbmd_env%para_env
 
     NULLIFY(atomic_kind_set, molecule_kind_set, molecule_set, particle_set, &
             tbmd_energy, tbmd_force, tbmd_model, local_molecules, &

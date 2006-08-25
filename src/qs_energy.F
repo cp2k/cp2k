@@ -86,7 +86,7 @@ CONTAINS
 
     CALL timeset(routineN,"I","",handle)
 
-    para_env=>globenv%para_env
+    para_env=>qs_env%para_env
 
     CALL get_qs_env(qs_env=qs_env,input=input, dft_control=dft_control, &
                     error=error)

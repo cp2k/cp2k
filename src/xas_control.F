@@ -22,7 +22,6 @@ MODULE xas_control
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
-  USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: xas_1s_type,&
                                              xas_dscf,&
                                              xas_tddft,&
@@ -125,7 +124,6 @@ CONTAINS
 !!
 !!   INPUTS
 !!      xas_control :  control variables
-!!      globenv : global variables
 !!      error
 !!
 !!   MODIFICATION HISTORY
@@ -133,10 +131,9 @@ CONTAINS
 !!
 !!   SOURCE
 !!*** **********************************************************************
-  SUBROUTINE read_xas_control(xas_control,globenv,dft_section,error)
+  SUBROUTINE read_xas_control(xas_control,dft_section,error)
 
     TYPE(xas_control_type)                   :: xas_control
-    TYPE(global_environment_type)            :: globenv
     TYPE(section_vals_type), POINTER         :: dft_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -326,7 +323,6 @@ CONTAINS
 !!
 !!   INPUTS
 !!      xas_control :  control variables
-!!      globenv : global variables
 !!      error
 !!
 !!   MODIFICATION HISTORY

@@ -116,10 +116,11 @@ CONTAINS
 !!
 !!*** *************************************************************************
 
-SUBROUTINE fist_init ( fist_env, root_section, globenv, force_env_section, error )
+SUBROUTINE fist_init ( fist_env, root_section,para_env, globenv, force_env_section, error )
 
     TYPE(fist_environment_type), POINTER     :: fist_env
     TYPE(section_vals_type), POINTER         :: root_section
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
@@ -135,7 +136,6 @@ SUBROUTINE fist_init ( fist_env, root_section, globenv, force_env_section, error
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell, cell_ref
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsystem_type), POINTER         :: subsystem
     TYPE(ewald_environment_type), POINTER    :: ewald_env
     TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
@@ -155,7 +155,6 @@ SUBROUTINE fist_init ( fist_env, root_section, globenv, force_env_section, error
 
   CALL timeset(routineN,"I",'',handle)
   failure = .FALSE.
-  para_env=>globenv%para_env
   logger => cp_error_get_logger(error)  
 
   NULLIFY ( subsystem, molecule_kind_set, molecule_set, atomic_kind_set,&
@@ -197,7 +196,7 @@ SUBROUTINE fist_init ( fist_env, root_section, globenv, force_env_section, error
   CALL ewald_env_create ( ewald_env, para_env, error )
 
 ! Read the input section and set the ewald_env ***
-  CALL read_ewald_section ( ewald_env, globenv, ewald_section=ewald_section,error=error )
+  CALL read_ewald_section ( ewald_env, para_env, globenv, ewald_section=ewald_section,error=error )
   CALL ewald_env_set(ewald_env, poisson_section=poisson_section, error=error)
 
 ! topology
@@ -205,7 +204,7 @@ SUBROUTINE fist_init ( fist_env, root_section, globenv, force_env_section, error
 
   CALL topology_control ( atomic_kind_set, particle_set,&
                           molecule_kind_set, molecule_set, subsystem%colvar_p,&
-                          root_section,globenv, qmmm=qmmm, qmmm_env=qmmm_env,&
+                          root_section,para_env,globenv, qmmm=qmmm, qmmm_env=qmmm_env,&
                           force_env_section=force_env_section,error=error)
 
   CALL force_field_control ( atomic_kind_set, particle_set,&

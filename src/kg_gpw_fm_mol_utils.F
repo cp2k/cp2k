@@ -766,9 +766,10 @@ CONTAINS
 !!
 !!*** **********************************************************************
 
-  SUBROUTINE write_mo_mol_restart(kg_fm,globenv,nspins,id_nr,force_env_section,error)
+  SUBROUTINE write_mo_mol_restart(kg_fm,para_env,globenv,nspins,id_nr,force_env_section,error)
 
     TYPE(kg_fm_p_type)                       :: kg_fm
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
     INTEGER, INTENT(IN)                      :: nspins, id_nr
     TYPE(section_vals_type), POINTER         :: force_env_section
@@ -794,7 +795,6 @@ CONTAINS
     REAL(dp), DIMENSION(:), POINTER          :: eigenvalues, &
                                                 occupation_numbers
     REAL(dp), DIMENSION(:, :), POINTER       :: mo
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(fm_mol_blocks_type), DIMENSION(:), &
       POINTER                                :: mol_blocks
     TYPE(fm_mol_blocks_type), POINTER        :: mol_block
@@ -809,7 +809,6 @@ CONTAINS
 
     failure = .FALSE.
 
-    para_env=>globenv%para_env
     group = para_env%group
     source = para_env%source
 
@@ -1008,9 +1007,10 @@ CONTAINS
 !!
 !!*** **********************************************************************
 
-  SUBROUTINE read_mo_mol_restart(kg_fm,globenv,nspins,id_nr,force_env_section,error)
+  SUBROUTINE read_mo_mol_restart(kg_fm,para_env,globenv,nspins,id_nr,force_env_section,error)
 
     TYPE(kg_fm_p_type)                       :: kg_fm
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
     INTEGER, INTENT(IN)                      :: nspins, id_nr
     TYPE(section_vals_type), POINTER         :: force_env_section
@@ -1040,7 +1040,6 @@ CONTAINS
     REAL(dp), DIMENSION(:), POINTER          :: eigenvalues, &
                                                 occupation_numbers
     REAL(dp), DIMENSION(:, :), POINTER       :: mo
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(fm_mol_blocks_type), DIMENSION(:), &
       POINTER                                :: mol_blocks
     TYPE(fm_mol_blocks_type), POINTER        :: mol_block
@@ -1053,7 +1052,6 @@ CONTAINS
 
     CALL timeset(routineN,"I","",handle)
 
-    para_env=>globenv%para_env
 
     failure = .FALSE.
 

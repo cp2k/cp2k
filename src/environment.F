@@ -141,7 +141,7 @@ CONTAINS
 !!******
 !******************************************************************************
 
-  SUBROUTINE cp2k_init(globenv,input_file_name)
+  SUBROUTINE cp2k_init(para_env,globenv,input_file_name)
 
     TYPE(global_environment_type), POINTER :: globenv
     CHARACTER(LEN=*) :: input_file_name
@@ -168,7 +168,6 @@ CONTAINS
 
 !   ---------------------------------------------------------------------------
 
-    para_env=>globenv%para_env
     CALL m_getpid(pid)
     CALL m_getlog(user_name)
     CALL m_hostnm(host_name)
@@ -309,9 +308,10 @@ CONTAINS
 !!     fawzi
 !!
 !!*** **********************************************************************
-SUBROUTINE cp2k_read(root_section,globenv,error)
+SUBROUTINE cp2k_read(root_section,para_env,globenv,error)
 
     TYPE(section_vals_type), POINTER         :: root_section
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -336,7 +336,7 @@ SUBROUTINE cp2k_read(root_section,globenv,error)
 
 !   *** Read the CP2K section ***
 
-    CALL read_cp2k_section(root_section,globenv)
+    CALL read_cp2k_section(root_section,para_env,globenv)
 
     ! try to use better names for the local log if it is not too late
     CALL section_vals_val_get(ROOT_SECTION,"GLOBAL%OUTPUT_FILE_NAME",&
@@ -391,9 +391,10 @@ SUBROUTINE cp2k_read(root_section,globenv,error)
 !!
 !!*** **********************************************************************
 
-  SUBROUTINE cp2k_setup(root_section,globenv,error)
+  SUBROUTINE cp2k_setup(root_section,para_env,globenv,error)
 
     TYPE(section_vals_type), POINTER         :: root_section
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -405,7 +406,6 @@ SUBROUTINE cp2k_read(root_section,globenv,error)
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(3, 2)           :: initial_seed
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(cp_para_env_type), POINTER          :: para_env
 
 ! -------------------------------------------------------------------------
 
@@ -413,7 +413,6 @@ SUBROUTINE cp2k_read(root_section,globenv,error)
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
-    para_env=>globenv%para_env
 
     IF (.NOT.failure) THEN
 
@@ -484,9 +483,10 @@ SUBROUTINE cp2k_read(root_section,globenv,error)
 !!
 !!******
 !******************************************************************************
-  SUBROUTINE read_global_section(root_section,globenv,error)
+  SUBROUTINE read_global_section(root_section,para_env,globenv,error)
 
     TYPE(section_vals_type), POINTER         :: root_section
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -501,7 +501,6 @@ SUBROUTINE cp2k_read(root_section,globenv,error)
                                                 nforce_eval, num_threads, &
                                                 output_unit
     LOGICAL                                  :: ata, failure, trace
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: dft_section, &
                                                 force_env_sections, &
                                                 global_section, qmmm_section, &
@@ -512,7 +511,6 @@ SUBROUTINE cp2k_read(root_section,globenv,error)
     failure = .FALSE.
     trace = .FALSE.
     NULLIFY(dft_section,global_section)
-    para_env=>globenv%para_env
 
     global_section => section_vals_get_subs_vals(ROOT_SECTION,"GLOBAL",error=error)
     CALL section_vals_val_get(global_section,"BLACS_GRID",i_val=globenv%blacs_grid_layout,error=error)
@@ -651,9 +649,10 @@ SUBROUTINE cp2k_read(root_section,globenv,error)
 !!******
 !******************************************************************************
 
-  SUBROUTINE read_cp2k_section(root_section,globenv,error)
+  SUBROUTINE read_cp2k_section(root_section,para_env,globenv,error)
 
     TYPE(section_vals_type), POINTER         :: root_section
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -665,16 +664,14 @@ SUBROUTINE cp2k_read(root_section,globenv,error)
     INTEGER                                  :: stat
     INTEGER, DIMENSION(3)                    :: n
     LOGICAL                                  :: was_present
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: global_section
 
 !   ---------------------------------------------------------------------------
 
     was_present = .FALSE.
-    para_env=>globenv%para_env
     global_section => section_vals_get_subs_vals(ROOT_SECTION,"GLOBAL",error=error)
     CALL section_vals_get(global_section,explicit=was_present,error=error)
-    CALL read_global_section(root_section,globenv)
+    CALL read_global_section(root_section,para_env,globenv)
 
 !   *** Initialize FFT library ***
     CALL init_fft(fftlib=TRIM(globenv%default_fft_library),&
@@ -729,7 +726,7 @@ SUBROUTINE cp2k_read(root_section,globenv,error)
 !!******
 !******************************************************************************
 
-  SUBROUTINE cp2k_finalize(root_section,globenv,error)
+  SUBROUTINE cp2k_finalize(root_section,para_env,globenv,error)
 
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(global_environment_type), POINTER :: globenv
@@ -759,7 +756,6 @@ SUBROUTINE cp2k_read(root_section,globenv,error)
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
-    para_env=>globenv%para_env
     CALL deallocate_spherical_harmonics()
     CALL deallocate_orbital_pointers()
     CALL deallocate_md_ftable()

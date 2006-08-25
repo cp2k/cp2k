@@ -186,7 +186,7 @@ CONTAINS
             pw_env, auxbas_pw_pool, rho_core, cell, dft_control, xc_section, &
             atomic_kind_set, particle_set, deriv_set, rho_set, my_rho_r, &
             v_xc, matrix_h, harris_force, rho_r, ks_env, poisson_env, input)
-    para_env=>globenv%para_env
+    para_env=>qs_env%para_env
     logger => cp_error_get_logger(error)
 
     CPPrecondition(ASSOCIATED(qs_env), cp_failure_level, routineP, error, failure)
@@ -561,7 +561,7 @@ CONTAINS
 !   ------------------------------------------------------------------------
 
     CALL timeset(routineN, "I", "", handle)
-    para_env=>globenv%para_env
+    para_env=>qs_env%para_env
 
     failure = .FALSE.
     NULLIFY(force, force_tmp, v_rspace_new, v_tau_rspace, rho, matrix_ks, &
@@ -1013,9 +1013,8 @@ CONTAINS
 !!     11.2005 initial create [tdk]
 !!
 !!*** **********************************************************************
-  SUBROUTINE harris_calc_nsc_force(qs_env, globenv, error)
+  SUBROUTINE harris_calc_nsc_force(qs_env, error)
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
@@ -1059,7 +1058,7 @@ CONTAINS
     CALL timeset(routineN, "I", "", handle)
 
     failure = .FALSE.
-    para_env=>globenv%para_env
+    para_env=>qs_env%para_env
     NULLIFY(harris_env, harris_force, force, force_tmp, particle_set, &
             v_rspace_new, v_tau_rspace, rho_r, my_rho_r, v_xc, dft_control, &
             cell, deriv_set, rho_set, auxbas_pw_pool, matrix_ks, pw_env, &

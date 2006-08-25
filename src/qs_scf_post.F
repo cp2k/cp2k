@@ -253,7 +253,7 @@ CONTAINS
     CALL timeset(routineN,"I",'',handle)
 
 ! writes the data that is already available in qs_env 
-    para_env=>globenv%para_env
+    para_env=>qs_env%para_env
     CALL write_available_results(qs_env,globenv,error)
 
     failure=.FALSE.
@@ -865,7 +865,7 @@ CONTAINS
             mos,atomic_kind_set,particle_set,rho,&
             ks_rmpv,matrix_s,scf_control,dft_section,&
             molecule_set,input,particles,subsys)
-    para_env=>globenv%para_env
+    para_env=>qs_env%para_env
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
     IF (ionode) output_unit= cp_logger_get_default_unit_nr(logger)

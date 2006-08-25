@@ -80,11 +80,12 @@ CONTAINS
 !!    Modified for RESPA (07.2006)  
 !! 
 !******************************************************************************
-  SUBROUTINE quickstep_create_force_env(force_env,root_section,globenv,subsystem,cell,cell_ref,&
+  SUBROUTINE quickstep_create_force_env(force_env,root_section,para_env,globenv,subsystem,cell,cell_ref,&
        qmmm, qmmm_periodic, force_env_section, error)
 
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(section_vals_type), POINTER         :: root_section
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_subsystem_type), OPTIONAL, &
       POINTER                                :: subsystem
@@ -99,13 +100,11 @@ CONTAINS
 
     INTEGER                                  :: handle
     LOGICAL                                  :: failure
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(force_env_p_type), DIMENSION(:), &
       POINTER                                :: sub_force_env
     TYPE(qs_environment_type), POINTER       :: qs_env
 
     CALL timeset(routineN,"I","",handle)
-    para_env=>globenv%para_env
     failure = .FALSE.
     NULLIFY(qs_env, sub_force_env)
     !Reference qs_env 
@@ -113,7 +112,7 @@ CONTAINS
     CALL qs_init( qs_env, root_section, globenv, subsystem=subsystem, cell=cell, cell_ref=cell_ref,&
                   qmmm=qmmm, qmmm_periodic=qmmm_periodic,&
                   force_env_section=force_env_section, error=error )
-    CALL force_env_create(force_env,root_section, qs_env=qs_env, globenv=globenv,&
+    CALL force_env_create(force_env,root_section, qs_env=qs_env, para_env=para_env, globenv=globenv,&
          sub_force_env=sub_force_env, force_env_section=force_env_section,error=error)
     CALL qs_env_release(qs_env,error=error)
 

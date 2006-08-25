@@ -106,8 +106,8 @@ MODULE geo_opt
     REAL(KIND=dp), DIMENSION(:), POINTER     :: x0
     TYPE(gopt_f_type), POINTER               :: gopt_env
     TYPE(gopt_param_type), POINTER           :: gopt_param
-    TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(section_vals_type), POINTER         :: root_section
+    TYPE(section_vals_type), POINTER         :: force_env_section, &
+                                                root_section
 
     failure = .FALSE.
     CALL timeset(routineN,handle)
@@ -207,7 +207,7 @@ MODULE geo_opt
         CALL cp_opt_gopt_create(optimizer, para_env=para_env, &
              obj_funct=gopt_env, x0=x0, wanted_relative_f_delta=gopt_param%wanted_rel_f_error,&
              wanted_projected_gradient=gopt_param%wanted_proj_gradient, m=gopt_param%max_h_rank,&
-             max_f_per_iter=gopt_param%max_f_per_iter, globenv=globenv, error=error)
+             max_f_per_iter=gopt_param%max_f_per_iter, error=error)
 
         DO i=1,gopt_param%max_iter
            IF (.NOT.cp_opt_gopt_next(optimizer,force_env_section=force_env_section,&

@@ -121,7 +121,7 @@ SUBROUTINE  debug_control ( force_env, globenv, error)
     TYPE(particle_type), POINTER             :: particle_set( : )
     TYPE(section_vals_type), POINTER         :: force_env_section
 
-  para_env=>globenv%para_env
+  para_env=>force_env%para_env
   ionode = para_env%ionode
   group  = para_env%group
   fist_env => force_env % fist_env
@@ -195,7 +195,7 @@ SUBROUTINE  debug_control ( force_env, globenv, error)
    dbg % pot_urey_bradley   = 0.0_dp
 
 ! Call to analytical force routine:
-  CALL fist_force_control ( fist_env, force_env%virial, globenv, &
+  CALL fist_force_control ( fist_env, force_env%virial, para_env, globenv, &
                              debug = dbg, force_env_section=force_env%force_env_section,&
                              error=error )
 
@@ -226,7 +226,7 @@ SUBROUTINE  debug_control ( force_env, globenv, error)
 
   CALL force_nonbond_numer ( atomic_kind_set, particle_set, local_particles, &
                              ewald_env, cell, potparm, delta, f_numer, &
-                             energy_numer, globenv )
+                             energy_numer)
   CALL mp_sum( f_numer, group )
   CALL mp_sum( energy_numer, group )
   IF ( ionode )  THEN

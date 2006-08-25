@@ -31,6 +31,7 @@ MODULE mc_ge_moves
                                              cell_release,&
                                              cell_type,&
                                              get_cell
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
                                              cp_subsys_set,&
                                              cp_subsystem_p_type,&
@@ -480,7 +481,7 @@ CONTAINS
 
   SUBROUTINE mc_ge_swap_move(mc_par,force_env,bias_env,moves,&
                 energy_check,r_old,old_energy,&
-                globenv,bias_energy_old,rng_stream,force_env_section,error)
+                para_env,globenv,bias_energy_old,rng_stream,force_env_section,error)
 
 !   ***************************************************************************
 
@@ -496,6 +497,7 @@ CONTAINS
       INTENT(INOUT)                          :: r_old
     REAL(KIND=dp), DIMENSION(1:2), &
       INTENT(INOUT)                          :: old_energy
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
     REAL(KIND=dp), DIMENSION(1:2), &
       INTENT(INOUT)                          :: bias_energy_old
@@ -811,9 +813,9 @@ CONTAINS
 ! of molecules
 
 !      IF(lbias) THEN
-         CALL mc_create_force_env(insert_env, globenv, &
+         CALL mc_create_force_env(insert_env, para_env, globenv, &
               dat_file(insert_box),error=error)
-         CALL mc_create_force_env(remove_env, globenv, &
+         CALL mc_create_force_env(remove_env, para_env, globenv, &
             dat_file(remove_box),error=error)
 !      ELSE
 !         CALL mc_create_force_env(insert_env, globenv, &
@@ -924,7 +926,7 @@ CONTAINS
          insert_env_bias => insert_env
          NULLIFY(insert_env)
 !         CALL force_env_release(insert_env)
-         CALL mc_create_force_env(insert_env, globenv, &
+         CALL mc_create_force_env(insert_env, para_env, globenv, &
             dat_file(insert_box),error=error)
          CALL force_env_calc_energy_force(insert_env,&
             calc_force=.FALSE.,error=error)
@@ -938,7 +940,7 @@ CONTAINS
                force_env(remove_box)%force_env,TRIM(fft_lib),print_level)
             remove_env_bias => remove_env
             NULLIFY(remove_env)
-            CALL mc_create_force_env(remove_env, globenv, &
+            CALL mc_create_force_env(remove_env, para_env, globenv, &
                dat_file(remove_box),error=error)
             new_energy(remove_box)=0.0E0_dp
             bias_energy_new(remove_box)=0.0E0_dp
@@ -948,7 +950,7 @@ CONTAINS
                force_env(remove_box)%force_env,TRIM(fft_lib),print_level)
             remove_env_bias => remove_env
             NULLIFY(remove_env)
-            CALL mc_create_force_env(remove_env, globenv, &
+            CALL mc_create_force_env(remove_env, para_env, globenv, &
                dat_file(remove_box),error=error)
             CALL force_env_calc_energy_force(remove_env,calc_force=.FALSE.,error=error)
             CALL force_env_get(remove_env,&

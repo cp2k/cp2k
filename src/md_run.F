@@ -168,12 +168,11 @@ CONTAINS
     TYPE(mol_new_list_type), POINTER         :: molecules_new
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(section_vals_type), POINTER         :: force_env_section, &
-                                                motion_section, &
+                                                motion_section, root_section, &
                                                 subsys_section, work_section
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
     TYPE(virial_type), POINTER               :: virial
-    TYPE(section_vals_type), POINTER         :: root_section
 
 !   ---------------------------------------------------------------------------
 
@@ -181,7 +180,6 @@ CONTAINS
     CPPrecondition(ASSOCIATED(globenv),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(force_env_p),cp_failure_level,routineP,error,failure)
 
-    para_env=>globenv%para_env
     failure=.FALSE.
     NULLIFY ( particles, local_molecules, cell, cell_ref, dyn_coeff_set,&
               simpar,itimes,used_time,subsys,motion_section )
@@ -189,6 +187,7 @@ CONTAINS
          work_section, atomic_kinds, local_particles, t)
     logger => cp_error_get_logger(error)
     root_section=>force_env_p ( 1 ) % force_env % root_section
+    para_env=>force_env_p ( 1 ) % force_env % para_env
 
     motion_section => section_vals_get_subs_vals(ROOT_SECTION,"MOTION",error=error)
     nbeads = SIZE ( force_env_p )
@@ -248,13 +247,13 @@ CONTAINS
           work_section => section_vals_get_subs_vals(motion_section,"MD%NOSE",error=error)
           CALL initialize_nhc_part(cell,simpar,local_molecules, &
                                    molecules_new%els, molecule_kinds_new%els,&
-                                   globenv, extended_type%nhc_part(ibead),work_section=work_section,error=error)
+                                   para_env, globenv, extended_type%nhc_part(ibead),work_section=work_section,error=error)
           !
           ! Possibly restart barostat
           !
           NULLIFY(work_section)
           work_section => section_vals_get_subs_vals(motion_section,"MD%BAROSTAT%NOSE",error=error)
-          CALL initialize_nhc_baro(simpar,globenv, extended_type%nhc_baro(ibead),work_section=work_section,error=error)
+          CALL initialize_nhc_baro(simpar,para_env,globenv, extended_type%nhc_baro(ibead),work_section=work_section,error=error)
 
           IF (ASSOCIATED(dyn_coeff_set)) THEN
              !
@@ -264,7 +263,7 @@ CONTAINS
              NULLIFY(work_section)
              work_section => section_vals_get_subs_vals(motion_section,"MD%KG_COEFF%NOSE",error=error)
              CALL initialize_nhc_coef(dyn_coeff_set(isubsys)%dyn_coeff_set,&
-                                   root_section,globenv,extended_type%nhc_coef(ibead), &
+                                   root_section,para_env,globenv,extended_type%nhc_coef(ibead), &
                                    work_section=work_section,error=error)
 
              NULLIFY(work_section)
@@ -279,7 +278,7 @@ CONTAINS
        !
        NULLIFY(work_section)
        work_section => section_vals_get_subs_vals(motion_section,"MD%BAROSTAT",error=error)
-       CALL initialize_npt (simpar,globenv,extended_type%npt_info,cell,work_section=work_section,error=error)
+       CALL initialize_npt (simpar,para_env,globenv,extended_type%npt_info,cell,work_section=work_section,error=error)
 
        CALL virial_set ( virial,pv_availability=simpar%pv_availability,&
                          pv_numer=simpar%pv_numerical)
@@ -299,6 +298,7 @@ CONTAINS
          work_section => section_vals_get_subs_vals(subsys_section,"VELOCITY",error=error)
          CALL initialize_velocities(simpar,particles%els,&
                                     molecule_kinds=molecule_kinds_new,&
+                                    para_env=para_env,&
                                     globenv=globenv,&
                                     work_section=work_section,&
                                     error=error)
@@ -363,7 +363,7 @@ CONTAINS
 
     CALL section_vals_val_get(motion_section,"MD%STEP_START_VAL",i_val=itimes,error=error)
     CALL section_vals_val_get(motion_section,"MD%TIME_START_VAL",r_val=t,error=error)
-    CALL md_energy ( md_env, globenv, error ) ! inits the print env at itimes == 0
+    CALL md_energy ( md_env, error ) ! inits the print env at itimes == 0
 
     DO istep=1,simpar%nsteps
       itimes = itimes + 1
@@ -423,8 +423,7 @@ CONTAINS
 SUBROUTINE md_output(md_env,force_env_section,motion_section,root_section,globenv,error)
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(section_vals_type), POINTER         :: force_env_section, &
-                                                motion_section
-    TYPE(section_vals_type), POINTER         :: root_section
+                                                motion_section, root_section
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -437,7 +436,7 @@ SUBROUTINE md_output(md_env,force_env_section,motion_section,root_section,globen
     CALL timeset(routineN,handle)
 
 
-    CALL md_energy ( md_env, globenv, error ) ! also writes trajectories
+    CALL md_energy ( md_env, error ) ! also writes trajectories
 
     CALL write_restart(md_env=md_env,root_section=root_section,force_env_section=force_env_section,&
                  error=error)

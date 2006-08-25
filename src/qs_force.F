@@ -146,7 +146,7 @@ CONTAINS
     failure = .FALSE.
     NULLIFY (logger)
     logger => cp_error_get_logger(error)
-    para_env=>globenv%para_env
+    para_env=>qs_env%para_env
 
     NULLIFY (atomic_kind_set)
     NULLIFY (dft_control)

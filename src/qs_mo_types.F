@@ -761,7 +761,7 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE read_mo_set_from_restart(mo_array,atomic_kind_set,particle_set,&
-                                      globenv,id_nr,multiplicity,dft_section,error)
+                                      para_env,globenv,id_nr,multiplicity,dft_section,error)
 
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
@@ -769,6 +769,7 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
     INTEGER, INTENT(in)                      :: id_nr, multiplicity
     TYPE(section_vals_type), POINTER         :: dft_section
@@ -788,14 +789,12 @@ CONTAINS
     INTEGER, DIMENSION(:, :, :), POINTER     :: nso_info, offset_info
     LOGICAL                                  :: did_change, use_this
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: vecbuffer, vecbuffer_read
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
 
 !   *** Local paramters ***
 !   ---------------------------------------------------------------------------
 
     CALL timeset(routineN,"I","",handle)
-    para_env=>globenv%para_env
     group = para_env%group
     source = para_env%source
 

@@ -440,8 +440,8 @@ CONTAINS
   SUBROUTINE read_md_new_section(simpar, root_section, md_section, subsys_section, error)
     TYPE(simulation_parameters_type), &
       INTENT(INOUT)                          :: simpar
-    TYPE(section_vals_type), POINTER         :: root_section
-    TYPE(section_vals_type), POINTER         :: md_section, subsys_section
+    TYPE(section_vals_type), POINTER         :: root_section, md_section, &
+                                                subsys_section
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_md_new_section', &
@@ -675,13 +675,14 @@ CONTAINS
   !!
   !!*** *************************************************************************
 
-  SUBROUTINE initialize_velocities(simpar,part,globenv,molecule_kinds,&
+  SUBROUTINE initialize_velocities(simpar,part,para_env,globenv,molecule_kinds,&
                                    work_section,error)
 
     TYPE(simulation_parameters_type), &
       INTENT(INOUT)                          :: simpar
     TYPE(particle_type), DIMENSION(:), &
       INTENT(INOUT)                          :: part
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
     TYPE(section_vals_type), POINTER         :: work_section
@@ -700,7 +701,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3)              :: v, vcom, vcom_new
     REAL(KIND=dp), DIMENSION(:), POINTER     :: vel
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(fixd_constraint_type), &
       DIMENSION(:), POINTER                  :: fixd_list
     TYPE(molecule_kind_type), DIMENSION(:), &
@@ -711,8 +711,6 @@ CONTAINS
 ! -------------------------------------------------------------------------
 
     CALL timeset(routineN,"I","",handle)
-
-    para_env=>globenv%para_env
 
     iw = globenv%scr
     IF (iw>0) THEN

@@ -706,7 +706,7 @@ CONTAINS
     NULLIFY(ks_env, mos, mo_coeff, dft_control,matrix_ks,matrix_s)
 
     CALL timeset(routineN,"I","",handle)
-    para_env=>globenv%para_env
+    para_env=>qs_env%para_env
 
     CALL build_qs_neighbor_lists(qs_env,para_env,force_env_section=qs_env%input,error=error)
 
@@ -1784,8 +1784,8 @@ CONTAINS
          blacs_env)
 
     globenv => ep_env%globenv
-    para_env=>globenv%para_env
     qs_env => ep_env%main_qs_env
+    para_env=>qs_env%para_env
 
     CALL cp_error_init(suberror,template_error=error)
 

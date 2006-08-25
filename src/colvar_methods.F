@@ -36,7 +36,6 @@ MODULE colvar_methods
                                              cp_subsystem_type
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
-  USE global_types,                    ONLY: global_environment_type
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -88,11 +87,10 @@ CONTAINS
   !!     04.2004 created [alessandro laio and fawzi mohamed]
   !!
   !!*** **********************************************************************
-  SUBROUTINE colvar_read(colvar, icol, colvar_section, globenv, error)
+  SUBROUTINE colvar_read(colvar, icol, colvar_section, error)
     TYPE(colvar_type), POINTER               :: colvar
     INTEGER, INTENT(IN)                      :: icol
     TYPE(section_vals_type), POINTER         :: colvar_section
-    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 

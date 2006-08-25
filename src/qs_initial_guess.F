@@ -215,7 +215,7 @@ CONTAINS
     IF (density_guess == restart_guess) THEN
 
        CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set)
-       CALL read_mo_set(mo_array,atomic_kind_set,particle_set,globenv,&
+       CALL read_mo_set(mo_array,atomic_kind_set,particle_set,qs_env%para_env,globenv,&
             id_nr=id_nr,multiplicity=dft_control%multiplicity,dft_section=dft_section,error=error)
 
        DO ispin=1,nspin

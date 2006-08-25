@@ -388,12 +388,12 @@ CONTAINS
             scf_control,logger,qs_charges,ks_env,mos,atomic_kind_set, &
             particle_set,harris_env,dft_section,input,&
             scf_section)
-    para_env=>globenv%para_env
 
     CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(qs_env%ref_count>0,cp_failure_level,routineP,error,failure)
+    para_env=>qs_env%para_env
 
     logger => cp_error_get_logger(error)
     t1 = m_walltime()
@@ -1162,6 +1162,7 @@ END SUBROUTINE qs_scf_print_summary
     LOGICAL                                  :: do_rotation, failure, &
                                                 has_unit_metric
     TYPE(cp_fm_type), POINTER                :: mo_coeff
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
@@ -1181,6 +1182,7 @@ END SUBROUTINE qs_scf_print_summary
     CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(qs_env%ref_count>0,cp_failure_level,routineP,error,failure)
+    para_env=>qs_env%para_env
 
     CALL get_qs_env(qs_env=qs_env,&
          scf_control=scf_control,&
@@ -1239,7 +1241,7 @@ END SUBROUTINE qs_scf_print_summary
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
           ! XXX Joost XXX should disentangle reading input from this part
-          CALL ot_scf_read_input(scf_env%qs_ot_env,globenv,scf_section)
+          CALL ot_scf_read_input(scf_env%qs_ot_env,para_env,globenv,scf_section)
 
           ! keep a note that we are restricted
           IF (dft_control%restricted) THEN
@@ -1407,12 +1409,12 @@ END SUBROUTINE qs_scf_print_summary
     failure=.FALSE.
     my_transition_potential = .FALSE.
     logger => cp_error_get_logger(error)
-    para_env=>globenv%para_env
     
     CPPrecondition(ASSOCIATED(scf_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(scf_env%ref_count>0,cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(qs_env),cp_failure_level,routineP,error,failure)
     CPPrecondition(qs_env%ref_count>0,cp_failure_level,routineP,error,failure)
+    para_env=>qs_env%para_env
 
     CALL scf_env_check_i_alloc(scf_env=scf_env, qs_env=qs_env,&
          error=error)
@@ -1829,7 +1831,7 @@ END SUBROUTINE qs_scf_print_summary
     IF (.NOT.failure) THEN
        extrapolation_method_nr=wfi_use_guess_method_nr
        IF (ASSOCIATED(qs_env%wf_history)) THEN
-          CALL wfi_extrapolate(globenv,qs_env%wf_history, &
+          CALL wfi_extrapolate(qs_env%wf_history, &
                qs_env=qs_env, dt=1.0_dp, &
                extrapolation_method_nr=extrapolation_method_nr,&
                orthogonal_wf=orthogonal_wf, error=error)

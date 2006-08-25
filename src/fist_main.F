@@ -82,13 +82,14 @@ CONTAINS
 !!
 !!*** *************************************************************************
 
-SUBROUTINE fist_create_force_env ( force_env, root_section, globenv, qmmm, qmmm_env, &
+SUBROUTINE fist_create_force_env ( force_env, root_section, para_env,globenv, qmmm, qmmm_env, &
                                    force_env_section, method_name_id,error )
 
 
 ! Argument
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(section_vals_type), POINTER         :: root_section
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
     LOGICAL, OPTIONAL                        :: qmmm
     TYPE(qmmm_env_mm_type), OPTIONAL, &
@@ -103,13 +104,11 @@ SUBROUTINE fist_create_force_env ( force_env, root_section, globenv, qmmm, qmmm_
 
     INTEGER                                  :: handle
     LOGICAL                                  :: myqmmm
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(fist_environment_type), POINTER     :: fist_env
 
 !------------------------------------------------------------------------------
 
   CALL timeset(routineN,"I","",handle)
-  para_env=>globenv%para_env
   myqmmm=.FALSE.
   IF (PRESENT(qmmm)) THEN
      myqmmm=qmmm
@@ -126,10 +125,10 @@ SUBROUTINE fist_create_force_env ( force_env, root_section, globenv, qmmm, qmmm_
 ! *** Read the input and the database files and perform further  ***
 ! *** initializations for the setup of the FIST environment ***
 
-  CALL fist_init ( fist_env, root_section, globenv, force_env_section, error )
+  CALL fist_init ( fist_env, root_section, para_env, globenv, force_env_section, error )
 
   CALL force_env_create ( force_env, root_section, fist_env = fist_env, &
-                          globenv = globenv, &
+                          para_env = para_env, globenv = globenv, &
                           force_env_section=force_env_section, error = error )
 
   CALL fist_env_release ( fist_env, error = error )

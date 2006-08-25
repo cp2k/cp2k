@@ -114,7 +114,7 @@ CONTAINS
     IF (.NOT. failure) THEN
        DO ig= 1, ncol
           NULLIFY(subsys%colvar_p(ig)%colvar)
-          CALL colvar_read(subsys%colvar_p(ig)%colvar,ig,colvar_section, globenv, error=error)
+          CALL colvar_read(subsys%colvar_p(ig)%colvar,ig,colvar_section,  error=error)
        ENDDO
     ENDIF
   END SUBROUTINE cp_subsys_read_colvar
@@ -151,7 +151,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE create_small_subsystem(small_subsystem,big_subsys,small_cell,&
        small_para_env,sub_atom_index,sub_subsys_index,sub_atom_kind_name,&
-       root_section,globenv,force_env_section,error)
+       root_section,para_env,globenv,force_env_section,error)
     TYPE(cp_subsystem_type), POINTER         :: small_subsystem
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: big_subsys
@@ -162,6 +162,7 @@ CONTAINS
     CHARACTER(len=default_string_length), &
       DIMENSION(:), INTENT(in)               :: sub_atom_kind_name
     TYPE(section_vals_type), POINTER         :: root_section
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
@@ -176,7 +177,6 @@ CONTAINS
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(mol_kind_new_list_type), POINTER    :: mol_kinds
     TYPE(mol_new_list_type), POINTER         :: mols
     TYPE(molecule_kind_type), DIMENSION(:), &
@@ -192,7 +192,6 @@ CONTAINS
     failure=.FALSE.
     NULLIFY(mol_kinds,mols,particles,atomic_kinds, atomic_kind_set, particle_set, &
          molecule_kind_set,molecule_set,particles,atomic_kinds,subsys_section)
-    para_env=>globenv%para_env
 
     CPPrecondition(.NOT.ASSOCIATED(small_subsystem),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(big_subsys),cp_failure_level,routineP,error,failure)
@@ -266,7 +265,7 @@ CONTAINS
        !-----------------------------------------------------------------------------
        ! 5. Read in or generate the molecular connectivity
        !-----------------------------------------------------------------------------
-       CALL connectivity_control(topology,globenv,subsys_section=subsys_section,error=error)
+       CALL connectivity_control(topology,para_env,globenv,subsys_section=subsys_section,error=error)
 
 
        !-----------------------------------------------------------------------------

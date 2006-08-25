@@ -241,7 +241,7 @@ SUBROUTINE kgpol_calculate_forces ( kg_env, globenv, error )
 
   CALL timeset ( 'kgpol_calculate_forces','I',' ',handle )
   failure=.FALSE.
-  para_env=>globenv%para_env
+  para_env=>kg_env%para_env
   ionode=para_env%ionode
   output_unit=globenv%scr
   NULLIFY(force,energy,part,atomic_kind_set,atomic_kind,cell,dft_control,&
@@ -559,7 +559,7 @@ SUBROUTINE kg_calculate_forces ( kg_env, globenv,error )
 
   CALL timeset ( 'kg_calculate_forces','I',' ',handle )
   failure=.FALSE.
-  para_env=>globenv%para_env
+  para_env=>kg_env%para_env
   ionode=para_env%ionode
   output_unit=globenv%scr
   NULLIFY(force,energy,part,atomic_kind_set,atomic_kind,cell,dft_control,&
@@ -835,12 +835,12 @@ END SUBROUTINE kg_calculate_forces
     failure = .FALSE.
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
-    para_env=>globenv%para_env
 
     CALL timeset(routineN,"I","",handle)
 
     failure = .FALSE.
     CPPrecondition(ASSOCIATED(kg_env),cp_failure_level,routineP,error,failure)
+    para_env=>kg_env%para_env
 
     NULLIFY( qs_env , kg_fm )
     CALL get_kg_env(kg_env=kg_env, sub_qs_env=qs_env, kg_fm_set=kg_fm, error=error)
