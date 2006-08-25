@@ -26,9 +26,10 @@ MODULE qs_ot_scf
                                              cp_fm_set_all,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
+  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+                                             cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply
-  USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: &
        ot_ls_2pnt, ot_ls_3pnt, ot_ls_gold, ot_ls_none, ot_mini_cg, &
        ot_mini_diis, ot_mini_sd, ot_precond_full_all, &
@@ -55,6 +56,7 @@ MODULE qs_ot_scf
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
 
@@ -71,21 +73,27 @@ MODULE qs_ot_scf
 
 CONTAINS
 
-  SUBROUTINE ot_scf_read_input(qs_ot_env,para_env,globenv,scf_section)
+  SUBROUTINE ot_scf_read_input(qs_ot_env,para_env,scf_section,error)
     TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_vals_type), POINTER         :: scf_section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
     CHARACTER(LEN=40)                        :: value
     INTEGER                                  :: handle, ispin, ls_method, &
-                                                nspin, ot_method
+                                                nspin, ot_method, output_unit
     LOGICAL                                  :: explicit
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: ot_section
 
 ! executable
 
     CALL timeset("ot_scf_read_input","I","",handle)
+
+    logger => cp_error_get_logger(error)
+    output_unit=cp_print_key_unit_nr(logger,scf_section,"PRINT%PROGRAM_RUN_INFO",&
+                                         extension=".log",error=error)
 
     ! decide default settings
     CALL qs_ot_settings_init(qs_ot_env(1)%settings)
@@ -149,75 +157,78 @@ CONTAINS
 
     ! write OT output
 
-    IF (para_env%ionode) THEN
-    WRITE(globenv%scr,'(A)') " "
-    WRITE(globenv%scr,'(A)') "  ----------------------------------- OT --------------------------------------"
-    WRITE(globenv%scr,'(A)') " "
-    WRITE(globenv%scr,'(A)') "  An efficient orbital transformation method "
-    WRITE(globenv%scr,'(A)') "  for electronic structure calculations "
-    WRITE(globenv%scr,'(A)') "  Joost VandeVondele and Juerg Hutter"
-    WRITE(globenv%scr,'(A)') "  J. Chem. Phys. 118, 4365, 2003"
-    WRITE(globenv%scr,'(A)') " "
-    WRITE(globenv%scr,'(A,L2)') "  Allowing for rotations: ",qs_ot_env(1)%settings%do_rotation
+    IF (output_unit>0) THEN
+    WRITE(output_unit,'(A)') " "
+    WRITE(output_unit,'(A)') "  ----------------------------------- OT --------------------------------------"
+    WRITE(output_unit,'(A)') " "
+    WRITE(output_unit,'(A)') "  An efficient orbital transformation method "
+    WRITE(output_unit,'(A)') "  for electronic structure calculations "
+    WRITE(output_unit,'(A)') "  Joost VandeVondele and Juerg Hutter"
+    WRITE(output_unit,'(A)') "  J. Chem. Phys. 118, 4365, 2003"
+    WRITE(output_unit,'(A)') " "
+    WRITE(output_unit,'(A,L2)') "  Allowing for rotations: ",qs_ot_env(1)%settings%do_rotation
     SELECT CASE (qs_ot_env(1)%settings%OT_METHOD)
     CASE ("SD")
-         WRITE(globenv%scr,'(A)') "  minimizer      : SD                  : steepest descent"
+         WRITE(output_unit,'(A)') "  minimizer      : SD                  : steepest descent"
     CASE ("CG")
-         WRITE(globenv%scr,'(A)') "  minimizer      : CG                  : conjugate gradient"
+         WRITE(output_unit,'(A)') "  minimizer      : CG                  : conjugate gradient"
     CASE ("DIIS")
-         WRITE(globenv%scr,'(A)') "  minimizer      : DIIS                : direct inversion in the iterative subspace"
-         WRITE(globenv%scr,'(A,I3,A)') "                            using      : - ",qs_ot_env(1)%settings%diis_m," diis vectors"
+         WRITE(output_unit,'(A)') "  minimizer      : DIIS                : direct inversion in the iterative subspace"
+         WRITE(output_unit,'(A,I3,A)') "                            using      : - ",qs_ot_env(1)%settings%diis_m," diis vectors"
          IF (qs_ot_env(1)%settings%safer_diis) THEN
-            WRITE(globenv%scr,'(A,I3,A)') "                                    - safer DIIS on"
+            WRITE(output_unit,'(A,I3,A)') "                                    - safer DIIS on"
          ELSE
-            WRITE(globenv%scr,'(A,I3,A)') "                                    - safer DIIS off"
+            WRITE(output_unit,'(A,I3,A)') "                                    - safer DIIS off"
          ENDIF
     CASE DEFAULT
-         WRITE(globenv%scr,'(3A)') "  minimizer      :      ",qs_ot_env(1)%settings%OT_METHOD," : UNKNOWN"
+         WRITE(output_unit,'(3A)') "  minimizer      :      ",qs_ot_env(1)%settings%OT_METHOD," : UNKNOWN"
     END SELECT
     SELECT CASE (qs_ot_env(1)%settings%preconditioner_name)
     CASE ("FULL_SINGLE")
-         WRITE(globenv%scr,'(A)') "  preconditioner : FULL_SINGLE         : diagonalization based "
+         WRITE(output_unit,'(A)') "  preconditioner : FULL_SINGLE         : diagonalization based "
     CASE ("FULL_SINGLE_INVERSE")
-         WRITE(globenv%scr,'(A)') "  preconditioner : FULL_SINGLE_INVERSE : cholesky inversion of H + eS "
+         WRITE(output_unit,'(A)') "  preconditioner : FULL_SINGLE_INVERSE : cholesky inversion of H + eS "
     CASE ("FULL_ALL")
-         WRITE(globenv%scr,'(A)') "  preconditioner : FULL_ALL            : diagonalization, state selective "
+         WRITE(output_unit,'(A)') "  preconditioner : FULL_ALL            : diagonalization, state selective "
     CASE ("FULL_KINETIC")
-         WRITE(globenv%scr,'(A)') "  preconditioner : FULL_KINETIC        : cholesky inversion of T + eS"
+         WRITE(output_unit,'(A)') "  preconditioner : FULL_KINETIC        : cholesky inversion of T + eS"
     CASE ("FULL_S_INVERSE")
-         WRITE(globenv%scr,'(A)') "  preconditioner : FULL_S_INVERSE      : cholesky inversion of S"
+         WRITE(output_unit,'(A)') "  preconditioner : FULL_S_INVERSE      : cholesky inversion of S"
     CASE ("SPARSE_DIAG")
-         WRITE(globenv%scr,'(A)')  &
+         WRITE(output_unit,'(A)')  &
            "  preconditioner : SPARSE_DIAG    : diagonal atomic block diagonalization"
     CASE ("NONE")
-         WRITE(globenv%scr,'(A)') "  preconditioner : NONE  "
+         WRITE(output_unit,'(A)') "  preconditioner : NONE  "
     CASE DEFAULT 
-         WRITE(globenv%scr,'(3A)') "  preconditioner : ",qs_ot_env(1)%settings%preconditioner_name," : UNKNOWN"
+         WRITE(output_unit,'(3A)') "  preconditioner : ",qs_ot_env(1)%settings%preconditioner_name," : UNKNOWN"
     END SELECT
     IF (qs_ot_env(1)%settings%OT_METHOD .EQ."SD".OR.qs_ot_env(1)%settings%OT_METHOD.EQ."CG") THEN
        SELECT CASE (qs_ot_env(1)%settings%line_search_method)
          CASE ("2PNT")
-                    WRITE(globenv%scr,'(A)') "  line search    : 2PNT           : 2 energies, one gradient "
+                    WRITE(output_unit,'(A)') "  line search    : 2PNT           : 2 energies, one gradient "
          CASE ("3PNT")
-                    WRITE(globenv%scr,'(A)') "  line search    : 3PNT           : 3 energies "
+                    WRITE(output_unit,'(A)') "  line search    : 3PNT           : 3 energies "
          CASE ("GOLD")
-                    WRITE(globenv%scr,'(A)') "  line search    : GOLD           : bracketing and golden section search "
-                    WRITE(globenv%scr,'(A,F14.8)') "                   target relative accuracy : ", &
+                    WRITE(output_unit,'(A)') "  line search    : GOLD           : bracketing and golden section search "
+                    WRITE(output_unit,'(A,F14.8)') "                   target relative accuracy : ", &
                                qs_ot_env(1)%settings%gold_target
          CASE ("NONE")
-                    WRITE(globenv%scr,'(A)') "  line search    : NONE "
+                    WRITE(output_unit,'(A)') "  line search    : NONE "
          CASE DEFAULT
-                    WRITE(globenv%scr,'(3A)') "  line search : ", &
+                    WRITE(output_unit,'(3A)') "  line search : ", &
                                qs_ot_env(1)%settings%line_search_method," : UNKNOWN"
        END SELECT
-       WRITE(globenv%scr,'(A,F14.8)') "  stepsize       :",qs_ot_env(1)%settings%ds_min
-       WRITE(globenv%scr,'(A,F14.8)') "  energy_gap     :",qs_ot_env(1)%settings%energy_gap
-       WRITE(globenv%scr,'(A,E14.5)') "  eps_taylor     :",qs_ot_env(1)%settings%eps_taylor
-       WRITE(globenv%scr,'(A,I14)') "  max_taylor     :",qs_ot_env(1)%settings%max_taylor
-       WRITE(globenv%scr,'(A)') "  "
-       WRITE(globenv%scr,'(A)') "  ----------------------------------- OT --------------------------------------"
+       WRITE(output_unit,'(A,F14.8)') "  stepsize       :",qs_ot_env(1)%settings%ds_min
+       WRITE(output_unit,'(A,F14.8)') "  energy_gap     :",qs_ot_env(1)%settings%energy_gap
+       WRITE(output_unit,'(A,E14.5)') "  eps_taylor     :",qs_ot_env(1)%settings%eps_taylor
+       WRITE(output_unit,'(A,I14)') "  max_taylor     :",qs_ot_env(1)%settings%max_taylor
+       WRITE(output_unit,'(A)') "  "
+       WRITE(output_unit,'(A)') "  ----------------------------------- OT --------------------------------------"
     ENDIF
  END IF
+
+    CALL cp_print_key_finished_output(output_unit,logger,scf_section,&
+         "PRINT%PROGRAM_RUN_INFO", error=error)
 
     ! copy the ot settings type so it is identical 
     nspin=SIZE(qs_ot_env)

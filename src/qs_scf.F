@@ -1241,7 +1241,7 @@ END SUBROUTINE qs_scf_print_summary
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 
           ! XXX Joost XXX should disentangle reading input from this part
-          CALL ot_scf_read_input(scf_env%qs_ot_env,para_env,globenv,scf_section)
+          CALL ot_scf_read_input(scf_env%qs_ot_env,para_env,scf_section,error)
 
           ! keep a note that we are restricted
           IF (dft_control%restricted) THEN
