@@ -31,7 +31,7 @@ MODULE kg_gpw_correction
   USE input_constants,                 ONLY: sic_none,&
                                              xc_funct_no_shortcut
   USE input_section_types,             ONLY: &
-       section_vals_create, section_vals_duplicate, &
+       section_vals_create, section_vals_duplicate, section_vals_get, &
        section_vals_get_subs_vals, section_vals_release, section_vals_retain, &
        section_vals_set_subs_vals, section_vals_type, section_vals_val_get, &
        section_vals_val_set
@@ -128,11 +128,12 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: handle, iat_kind, iat_mol, iatom, ikind, imol, imolecule_kind, &
-      ispin, istat, nat_mol, natom, nmol_local, nmolecule_kind, nspins, &
-      sic_method_id
+      ispin, istat, ke_sections, nat_mol, natom, nmol_local, nmolecule_kind, &
+      nspins, sic_method_id
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
     INTEGER, DIMENSION(:), POINTER           :: i_atom, i_kind
-    LOGICAL                                  :: failure, my_calculate_forces, &
+    LOGICAL                                  :: failure, is_set, &
+                                                my_calculate_forces, &
                                                 my_just_energy
     REAL(dp)                                 :: ekin_imol
     REAL(dp), DIMENSION(:, :), POINTER       :: forces_mol, r_mbox
@@ -182,21 +183,64 @@ CONTAINS
     xc_section => section_vals_get_subs_vals(input,"DFT%XC",error=error)
     xc_fun_section => section_vals_get_subs_vals(xc_section,&
          "XC_FUNCTIONAL",error=error)
-    kef_section => section_vals_get_subs_vals(xc_fun_section,"KE_GGA",error=error)
 
     CALL section_vals_duplicate(xc_section,xc_section_kg,error=error)
 
-    NULLIFY(xc_fun_section_kg)
-    CALL section_vals_create(xc_fun_section_kg,xc_fun_section%section,&
-         error=error)
-    CALL section_vals_retain(xc_fun_section_kg,error=error)
-    CALL section_vals_val_set(xc_fun_section_kg,"_SECTION_PARAMETERS_",&
-         i_val=xc_funct_no_shortcut,error=error)
-    CALL section_vals_set_subs_vals(xc_fun_section_kg,"KE_GGA",&
-         kef_section,error=error)
+    ! Attention, we test for TF, TFW, and KE_GGA sections in turn, only
+    ! the last section detected will be operational for the correction
+    ! this makes sense, as anyway only exactly one section should be available
+    ke_sections = 0
+    NULLIFY(kef_section)
+    kef_section => section_vals_get_subs_vals(xc_fun_section,"TF",error=error)
+    CALL section_vals_get(kef_section, explicit=is_set, error=error)
+    IF(is_set) THEN
+      NULLIFY(xc_fun_section_kg)
+      CALL section_vals_create(xc_fun_section_kg,xc_fun_section%section,&
+           error=error)
+      CALL section_vals_retain(xc_fun_section_kg,error=error)
+      CALL section_vals_val_set(xc_fun_section_kg,"_SECTION_PARAMETERS_",&
+           i_val=xc_funct_no_shortcut,error=error)
+      CALL section_vals_set_subs_vals(xc_fun_section_kg,"TF",&
+           kef_section,error=error)
+      CALL section_vals_set_subs_vals(xc_section_kg,"XC_FUNCTIONAL",&
+           xc_fun_section_kg,error=error)
+      ke_sections = ke_sections + 1
+    END IF
 
-    CALL section_vals_set_subs_vals(xc_section_kg,"XC_FUNCTIONAL",&
-         xc_fun_section_kg,error=error)
+    NULLIFY(kef_section)
+    kef_section => section_vals_get_subs_vals(xc_fun_section,"TFW",error=error)
+    CALL section_vals_get(kef_section, explicit=is_set, error=error)
+    IF(is_set) THEN
+      NULLIFY(xc_fun_section_kg)
+      CALL section_vals_create(xc_fun_section_kg,xc_fun_section%section,&
+           error=error)
+      CALL section_vals_retain(xc_fun_section_kg,error=error)
+      CALL section_vals_val_set(xc_fun_section_kg,"_SECTION_PARAMETERS_",&
+           i_val=xc_funct_no_shortcut,error=error)
+      CALL section_vals_set_subs_vals(xc_fun_section_kg,"TFW",&
+           kef_section,error=error)
+      CALL section_vals_set_subs_vals(xc_section_kg,"XC_FUNCTIONAL",&
+           xc_fun_section_kg,error=error)
+      ke_sections = ke_sections + 1
+    END IF
+
+    NULLIFY(kef_section)
+    kef_section => section_vals_get_subs_vals(xc_fun_section,"KE_GGA",error=error)
+    CALL section_vals_get(kef_section, explicit=is_set, error=error)
+    IF(is_set) THEN
+      NULLIFY(xc_fun_section_kg)
+      CALL section_vals_create(xc_fun_section_kg,xc_fun_section%section,&
+           error=error)
+      CALL section_vals_retain(xc_fun_section_kg,error=error)
+      CALL section_vals_val_set(xc_fun_section_kg,"_SECTION_PARAMETERS_",&
+           i_val=xc_funct_no_shortcut,error=error)
+      CALL section_vals_set_subs_vals(xc_fun_section_kg,"KE_GGA",&
+           kef_section,error=error)
+      CALL section_vals_set_subs_vals(xc_section_kg,"XC_FUNCTIONAL",&
+           xc_fun_section_kg,error=error)
+      ke_sections = ke_sections + 1
+    END IF
+    CPPostcondition(ke_sections==1,cp_failure_level,routineP,error,failure)
 
     ! Sic is not implemented
     CALL section_vals_val_get(input,"DFT%SIC%SIC_METHOD",&
