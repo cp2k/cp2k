@@ -201,6 +201,10 @@ FUNCTION create_cp2k_input_reading(file_path,para_env,error) RESULT(res)
        CALL section_add_subsection(root_section,section,error=error)
        CALL section_release(section,error=error)
 
+       CALL create_vib_section(section,error=error)
+       CALL section_add_subsection(root_section,section,error=error)
+       CALL section_release(section,error=error)
+
        NULLIFY(keyword)
        CALL keyword_create(keyword,name="_DEFAULT_KEYWORD_",&
             description="ignores lines outside sections",&
@@ -930,6 +934,79 @@ FUNCTION create_cp2k_input_reading(file_path,para_env,error) RESULT(res)
 
     END IF
   END SUBROUTINE create_ext_restart_section
+!***************************************************************************
+
+!!****f* input_cp2k/create_vib_section [1.0] *
+!!
+!!   NAME
+!!     create_vib_section
+!!
+!!   FUNCTION
+!!     Creates the exteranal restart section
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - section: the section to create
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!*** **********************************************************************
+  SUBROUTINE create_vib_section(section,error)
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_vib_section', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: print_key
+
+    failure=.FALSE.
+
+    CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+    IF (.NOT. failure) THEN
+       CALL section_create(section,name="VIBRATIONAL_ANALYSIS",&
+            description="Section to setup parameters to perform a Normal Modes analysis.",&
+            n_keywords=1, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
+            error=error)
+       NULLIFY(keyword, print_key)
+       
+       CALL keyword_create(keyword, name="DX",&
+            description="Specify the increment to be used to construct the HESSIAN with "//&
+            "finite difference method",&
+            default_r_val=1.0E-2_dp, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="NPROC_REP",&
+            description="Specify the number of processors to be used per replica "//&
+            "environment (for parallel runs)",&
+            default_i_val=1, error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(keyword, name="FULLY_PERIODIC",&
+            description="Avoids to clean rotations from the Hessian matrix.",&
+            default_l_val=.FALSE., lone_keyword_l_val=.TRUE., error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL cp_print_key_section_create(print_key,"program_run_info",&
+            description="Controls the printing basic info about the vibrational method", &
+            print_level=medium_print_level,each=(/1/),add_last=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(section,print_key,error=error)
+       CALL section_release(print_key,error=error)
+       
+    END IF
+  END SUBROUTINE create_vib_section
 !***************************************************************************
 
 !!****f* input_cp2k/create_farming_section *

@@ -659,7 +659,6 @@ END SUBROUTINE f_env_rm_defaults
     END IF
     ! XXXXXXXXXXXXXXXXXXXXXXXXXXX
     ! ROOT_SECTION => input_file
-    ! globenv%input_file => input_file
     ! XXXXXXXXXXXXXXXXXXXXXXXXXXX
     CALL cp_error_check(error,failure)
     IF (.NOT.failure) THEN
@@ -836,6 +835,7 @@ CPSourceFileRef,&
           CALL globenv_retain(globenv,error=error)
           CALL f_env_dealloc(f_env,error=error)
           CALL cp2k_finalize(root_section,para_env,globenv,error)
+          CALL section_vals_release(root_section)
           CALL globenv_release(globenv,para_env,error=error)
           CALL cp_error_check(error,failure)
           

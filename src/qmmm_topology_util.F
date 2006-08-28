@@ -199,9 +199,7 @@ CONTAINS
                 IF (.NOT.ANY(qm_atom_index == i)) detected_link = .TRUE.
              END DO
              IF (detected_link) THEN
-                IF (para_env%ionode) THEN
-                    WRITE(iw,fmt='(A)',ADVANCE="NO") " QM/MM link detected..."
-                ENDIF
+                IF (iw>0) WRITE(iw,fmt='(A)',ADVANCE="NO") " QM/MM link detected..."
                 IF (.NOT.qmmm_env%qmmm_link) THEN 
                    IF (iw>0) WRITE(iw,fmt='(A)')" Missing LINK section in input file!!"
                    CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)

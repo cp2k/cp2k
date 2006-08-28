@@ -429,6 +429,7 @@ OBJECTS_GENERIC =\
  topology_xyz.o\
  util.o\
  velocity_verlet_control.o\
+ vibrational_analysis.o\
  virial_methods.o\
  virial_types.o\
  whittaker.o\

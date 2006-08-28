@@ -119,3 +119,6 @@ mol_amber.inp             2
 acn_respa.inp             2
 #JAC 
 JAC.inp                   2
+#vibrational analysis
+wat_freq.inp              8
+wat_freq_norot.inp        8

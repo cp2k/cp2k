@@ -101,7 +101,8 @@ MODULE particle_types
             write_qs_particle_coordinates,&
             write_particle_distances,&
             write_particle_coordinates,&
-            write_structure_data
+            write_structure_data,&
+            write_particle_matrix
 
 !!***
 ! *****************************************************************************
@@ -747,26 +748,48 @@ END SUBROUTINE clone_particle
       WRITE (UNIT=iw,FMT="(/,/,T2,A)")&
         "INTERATOMIC DISTANCES IN "//TRIM(unit_of_length_name)
 
-      DO jatom=1,natom,5
-        from = jatom
-        to = MIN(from+4,natom)
-        WRITE (UNIT=iw,FMT="(/,T2,11X,5(4X,I5,4X))")&
-          (icol,icol=from,to)
-        DO iatom=1,natom
-          CALL get_atomic_kind(atomic_kind=particle_set(iatom)%atomic_kind,&
-                               kind_number=ikind,&
-                               element_symbol=element_symbol)
-          WRITE (UNIT=iw,FMT="(T2,I5,2X,A2,2X,5(1X,F12.6))")&
-            iatom,element_symbol,&
-            (distance_matrix(iatom,icol),icol=from,to)
-        END DO
-      END DO
+      CALL write_particle_matrix(distance_matrix,particle_set,iw,error=error)
 
     END IF
 
     CALL cp_print_key_finished_output(iw,logger,force_env_section,&
          "SUBSYS%PRINT%INTERATOMIC_DISTANCES", error=error)
   END SUBROUTINE write_particle_distances
+
+! *****************************************************************************
+
+  SUBROUTINE write_particle_matrix(matrix,particle_set,iw,el_per_part,error)
+    REAL(KIND=dp), DIMENSION(:,:)               :: matrix
+    INTEGER ,INTENT(IN)                         :: iw
+    INTEGER, INTENT(IN), OPTIONAL               :: el_per_part
+    TYPE(particle_type), DIMENSION(:), &
+         POINTER                                :: particle_set
+    TYPE(cp_error_type), INTENT(INOUT), &
+         OPTIONAL                               :: error
+
+    INTEGER :: jatom, natom, from, to, icol, iatom, my_el_per_part, katom
+    CHARACTER (LEN=2) :: element_symbol
+    
+    my_el_per_part = 1
+    IF (PRESENT(el_per_part)) my_el_per_part = el_per_part
+    natom = SIZE(particle_set)*my_el_per_part
+    DO jatom=1,natom,5
+       from = jatom
+       to = MIN(from+4,natom)
+       WRITE (UNIT=iw,FMT="(/,T2,11X,5(4X,I5,4X))")&
+            (icol,icol=from,to)
+       DO iatom=1,natom
+          katom = iatom/my_el_per_part
+          IF (MOD(iatom,my_el_per_part)/=0) katom = katom+1
+          CALL get_atomic_kind(atomic_kind=particle_set(katom)%atomic_kind,&
+               element_symbol=element_symbol)
+          WRITE (UNIT=iw,FMT="(T2,I5,2X,A2,2X,5(1X,F12.6))")&
+               iatom,element_symbol,&
+               (matrix(iatom,icol),icol=from,to)
+       END DO
+    END DO
+    
+  END SUBROUTINE write_particle_matrix
 
 ! *****************************************************************************
   

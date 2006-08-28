@@ -169,9 +169,10 @@ MODULE input_constants
                                 linear_response_run=10,&
                                 pint_run=11,&
                                 ldmc_run=12,&
-                                hmc_run=13
+                                hmc_run=13,&
+                                vib_anal=14
   
-  CHARACTER (LEN=default_string_length), PARAMETER, DIMENSION(22), PUBLIC :: run_type_names=&
+  CHARACTER (LEN=default_string_length), PARAMETER, DIMENSION(24), PUBLIC :: run_type_names=&
        (/"NONE                     ",&
          "ENERGY                   ",&
          "ENERGY_FORCE             ",&
@@ -193,9 +194,11 @@ MODULE input_constants
          "LANGEVIN_MONTECARLO      ",&   !
          "HYBRID_MONTECARLO        ",&   !
          "ELECTRONIC_SPECTRA       ",&   !
-         "LINEAR_RESPONSE          " /)  !
+         "LINEAR_RESPONSE          ",&   !
+         "VIBRATIONAL_ANALYSIS     ",&   !
+         "NORMAL_MODES             " /)  !
 
-  INTEGER, PARAMETER, PUBLIC, DIMENSION(22) :: run_type_index=&
+  INTEGER, PARAMETER, PUBLIC, DIMENSION(24) :: run_type_index=&
        (/ none_run,& 
           energy_run,&
           energy_force_run,&
@@ -217,7 +220,9 @@ MODULE input_constants
           ldmc_run,&
           hmc_run,&
           electronic_spectra_run,&
-          linear_response_run /)
+          linear_response_run,&
+          vib_anal,&
+          vib_anal/)
 
   INTEGER, PARAMETER, PUBLIC :: atomic_guess=1,restart_guess=2,random_guess=3,&
        core_guess=4, densities_guess=5

@@ -3,6 +3,8 @@
 # e.g. 0 means do not compare anything, running is enough
 #      1 compares the last total energy in the file
 #      for details see cp2k/tools/do_regtest
+#normal mode analysis
+H2-vib.inp         8
 # test thermostats
 H2O-2.inp          1
 H2O-3.inp          1

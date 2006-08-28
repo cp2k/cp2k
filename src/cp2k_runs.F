@@ -3,7 +3,6 @@
 !   Copyright (C) 2004-2006  CP2K developers group
 !-----------------------------------------------------------------------------!
 
-
 MODULE cp2k_runs
  
   USE bsse,                            ONLY: do_bsse_calculation
@@ -49,25 +48,55 @@ MODULE cp2k_runs
                                              globenv_release,&
                                              globenv_retain
   USE harris_metropolis_mc,            ONLY: harris_mc_ld
-  USE input_constants,                 ONLY: &
-       EIP_MC_method, Harris_MC_method, KG_DFT_MC_method, QS_MC_method, &
-       SE_MC_method, TBMD_MC_method, bsse_run, do_cp2k, do_eip, do_ep, &
-       do_farming, do_fist, do_kg, do_qmmm, do_qs, do_tbmd, do_test, &
-       electronic_spectra_run, energy_force_run, energy_run, geo_opt_run, &
-       hmc_run, ldmc_run, linear_response_run, mol_dyn_run, mon_car_run, &
-       none_run, pint_run, qs_debug_run
+  USE input_constants,                 ONLY: EIP_MC_method,&
+                                             Harris_MC_method,&
+                                             KG_DFT_MC_method,&
+                                             QS_MC_method, &
+                                             SE_MC_method,&
+                                             TBMD_MC_method,&
+                                             bsse_run,&
+                                             vib_anal,&
+                                             do_cp2k,&
+                                             do_eip,&
+                                             do_ep,&
+                                             do_farming,&
+                                             do_fist,&
+                                             do_kg,&
+                                             do_qmmm,&
+                                             do_qs,&
+                                             do_tbmd,&
+                                             do_test,&
+                                             electronic_spectra_run,&
+                                             energy_force_run,&
+                                             energy_run,&
+                                             geo_opt_run,&
+                                             hmc_run,&
+                                             ldmc_run,&
+                                             linear_response_run,&
+                                             mol_dyn_run,&
+                                             mon_car_run,&
+                                             none_run,&
+                                             pint_run,&
+                                             qs_debug_run
   USE input_cp2k,                      ONLY: create_cp2k_input_reading,&
                                              create_cp2k_root_section,&
                                              create_global_section
   USE input_cp2k_check,                ONLY: check_cp2k_input
   USE input_keyword_types,             ONLY: keyword_release
   USE input_parsing,                   ONLY: section_vals_parse
-  USE input_section_types,             ONLY: &
-       section_describe_html, section_describe_index_html, section_release, &
-       section_type, section_typo_match, section_vals_create, &
-       section_vals_get_subs_vals, section_vals_release, section_vals_retain, &
-       section_vals_type, section_vals_val_get, section_vals_write, &
-       write_section_xml
+  USE input_section_types,             ONLY: section_describe_html,&
+                                             section_describe_index_html,&
+                                             section_release, &
+                                             section_type,&
+                                             section_typo_match,&
+                                             section_vals_create,&
+                                             section_vals_get_subs_vals,&
+                                             section_vals_release,&
+                                             section_vals_retain,&
+                                             section_vals_type,&
+                                             section_vals_val_get,&
+                                             section_vals_write,&
+                                             write_section_xml
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp
@@ -86,6 +115,8 @@ MODULE cp2k_runs
   USE qs_tddfpt_module,                ONLY: tddfpt_calculation
   USE timings,                         ONLY: timeset,&
                                              timestop
+  USE vibrational_analysis,            ONLY: vb_anal
+
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -373,6 +404,8 @@ CPSourceFileRef,&
 CPSourceFileRef,&
                      suberror,failure)
              END SELECT
+          CASE (vib_anal)
+             CALL vb_anal(ROOT_SECTION,para_env,error=suberror)
           CASE default
              CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
           END SELECT
@@ -389,7 +422,6 @@ CPSourceFileRef,&
              CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
              CALL destroy_force_env(new_env_id,ierr=ierr)
              CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
-             CALL section_vals_release(root_section)
              CALL globenv_release(globenv,para_env)
           ELSE
              CALL cp_error_dealloc_ref(suberror)
