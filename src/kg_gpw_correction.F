@@ -32,7 +32,7 @@ MODULE kg_gpw_correction
                                              xc_funct_no_shortcut
   USE input_section_types,             ONLY: &
        section_vals_create, section_vals_duplicate, section_vals_get, &
-       section_vals_get_subs_vals, section_vals_release, section_vals_retain, &
+       section_vals_get_subs_vals, section_vals_release, &
        section_vals_set_subs_vals, section_vals_type, section_vals_val_get, &
        section_vals_val_set
   USE kg_gpw_collocate_den,            ONLY: integrate_mol_potential
@@ -197,7 +197,6 @@ CONTAINS
       NULLIFY(xc_fun_section_kg)
       CALL section_vals_create(xc_fun_section_kg,xc_fun_section%section,&
            error=error)
-      CALL section_vals_retain(xc_fun_section_kg,error=error)
       CALL section_vals_val_set(xc_fun_section_kg,"_SECTION_PARAMETERS_",&
            i_val=xc_funct_no_shortcut,error=error)
       CALL section_vals_set_subs_vals(xc_fun_section_kg,"TF",&
@@ -214,7 +213,6 @@ CONTAINS
       NULLIFY(xc_fun_section_kg)
       CALL section_vals_create(xc_fun_section_kg,xc_fun_section%section,&
            error=error)
-      CALL section_vals_retain(xc_fun_section_kg,error=error)
       CALL section_vals_val_set(xc_fun_section_kg,"_SECTION_PARAMETERS_",&
            i_val=xc_funct_no_shortcut,error=error)
       CALL section_vals_set_subs_vals(xc_fun_section_kg,"TFW",&
@@ -231,7 +229,6 @@ CONTAINS
       NULLIFY(xc_fun_section_kg)
       CALL section_vals_create(xc_fun_section_kg,xc_fun_section%section,&
            error=error)
-      CALL section_vals_retain(xc_fun_section_kg,error=error)
       CALL section_vals_val_set(xc_fun_section_kg,"_SECTION_PARAMETERS_",&
            i_val=xc_funct_no_shortcut,error=error)
       CALL section_vals_set_subs_vals(xc_fun_section_kg,"KE_GGA",&
