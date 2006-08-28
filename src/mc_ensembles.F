@@ -424,7 +424,7 @@ CONTAINS
                CALL mc_volume_move( mc_par(1)%mc_par,&
                   force_env(1)%force_env,&
                   moves(1)%moves,move_updates(1)%moves,&
-                  nnstep,old_energy(1),globenv,&
+                  nnstep,old_energy(1),&
                   energy_check(1),r_old(:,:,1),iw,discrete_array(:,:),&
                   rng_stream,error=error)
 

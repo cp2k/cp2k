@@ -36,7 +36,6 @@ MODULE mc_moves
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type,&
                                              use_fist_force
-  USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: mc_hardcut
   USE kinds,                           ONLY: dp,&
                                              dp_size
@@ -993,7 +992,6 @@ CONTAINS
 !!     - nnstep: the total number of "outer moves" already performed
 !!     - old_energy: the energy of the last accepted move involving an
 !!                   unbiased calculation
-!!     - globenv: the global simulation parameters
 !!     - energy_check: the running total of how much the energy has changed
 !!                     since the initial configuration
 !!     - r_old: the coordinates of the last accepted move involving an
@@ -1012,7 +1010,7 @@ CONTAINS
 !!*****************************************************************************
 
   SUBROUTINE mc_volume_move ( mc_par,force_env, moves,move_updates,&
-                        nnstep,old_energy,globenv,&
+                        nnstep,old_energy,&
                         energy_check,r_old,iw,discrete_array,rng_stream,error)
 
 !   ***************************************************************************
@@ -1022,9 +1020,7 @@ CONTAINS
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(mc_moves_type), POINTER             :: moves, move_updates
     INTEGER, INTENT(IN)                      :: nnstep
-    REAL(KIND=dp), INTENT(INOUT)             :: old_energy
-    TYPE(global_environment_type), POINTER   :: globenv
-    REAL(KIND=dp), INTENT(INOUT)             :: energy_check
+    REAL(KIND=dp), INTENT(INOUT)             :: old_energy, energy_check
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: r_old
     INTEGER, INTENT(IN)                      :: iw

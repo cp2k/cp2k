@@ -37,7 +37,6 @@ MODULE cp_subsystem_methods
                                              cp_subsys_set,&
                                              cp_subsystem_p_type,&
                                              cp_subsystem_type
-  USE global_types,                    ONLY: global_environment_type
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type
@@ -94,10 +93,9 @@ CONTAINS
 !!     2006.01 Joost VandeVondele
 !!
 !!*** **********************************************************************
-  SUBROUTINE cp_subsys_read_colvar(subsys,colvar_section,globenv,error)
+  SUBROUTINE cp_subsys_read_colvar(subsys,colvar_section,error)
     TYPE(cp_subsystem_type), POINTER         :: subsys
     TYPE(section_vals_type), POINTER         :: colvar_section
-    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -138,7 +136,6 @@ CONTAINS
 !!     - sub_atom_index: indexes of the atoms that should be in small_subsys
 !!     - sub_subsys_index: indexes of the subsys of big_subsys from which
 !!       the corresponding atom should be taken
-!!     - globenv: place where to find the input file
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
 !!

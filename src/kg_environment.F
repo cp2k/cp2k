@@ -241,7 +241,7 @@ CONTAINS
     ! read colvars and add to subsystem
     colvar_section => section_vals_get_subs_vals(force_env_section,&
                               "SUBSYS%COLVAR",error=error)
-    CALL cp_subsys_read_colvar( kg_env%subsys, colvar_section, globenv, error=error)
+    CALL cp_subsys_read_colvar( kg_env%subsys, colvar_section, error=error)
 
 !   *** Read the input section with the cell parameters
     CALL read_cell ( cell, cell_ref, use_ref_cell=use_ref_cell,&

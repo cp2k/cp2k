@@ -317,7 +317,7 @@ CONTAINS
           END IF
           SELECT CASE (prog_name_id)
           CASE (do_farming)
-             CALL farming_run ( root_section, para_env, globenv, suberror )
+             CALL farming_run ( root_section, para_env, suberror )
           CASE(do_cp2k)
              CALL create_force_env(new_env_id,input_path=input_file_name,&
                   output_path="__STD_OUT__",mpi_comm=para_env%group,&
@@ -463,10 +463,9 @@ CPSourceFileRef,&
 !!   MODIFICATION HISTORY
 !!
 !!*** **********************************************************************
-  RECURSIVE SUBROUTINE farming_run(root_section,para_env, globenv,error)
+  RECURSIVE SUBROUTINE farming_run(root_section,para_env, error)
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 

@@ -268,7 +268,7 @@ CONTAINS
 
        colvar_section => section_vals_get_subs_vals(force_env_section,&
                                  "SUBSYS%COLVAR",error=error)
-       CALL cp_subsys_read_colvar( my_subsystem, colvar_section, globenv, error=error)
+       CALL cp_subsys_read_colvar( my_subsystem, colvar_section, error=error)
 
 
        !   *** Read the particle coordinates and allocate the atomic kind, ***
