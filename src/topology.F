@@ -181,7 +181,7 @@ CONTAINS
     !-----------------------------------------------------------------------------
     ! 4. Read in the constraints section
     !-----------------------------------------------------------------------------
-    CALL read_constraints_section(topology,globenv,colvar_p,constraint_section,error)
+    CALL read_constraints_section(topology,colvar_p,constraint_section,error)
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
@@ -193,7 +193,7 @@ CONTAINS
     !-----------------------------------------------------------------------------
     ! 6. Read in or generate the molecular connectivity
     !-----------------------------------------------------------------------------
-    CALL connectivity_control(topology,para_env,globenv,my_qmmm, qmmm_env, subsys_section,error)
+    CALL connectivity_control(topology,para_env,my_qmmm, qmmm_env, subsys_section,error)
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
@@ -210,8 +210,8 @@ CONTAINS
     ! 7.bis. Set up the QM/MM linkage (if any)
     !-----------------------------------------------------------------------------
     IF (my_qmmm) THEN
-       CALL qmmm_connectivity_control(topology, para_env, globenv, molecule_set, &
-            qmmm_env, error)
+       CALL qmmm_connectivity_control(topology, para_env,  molecule_set, &
+            qmmm_env, subsys_section, error)
     END IF
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
@@ -279,13 +279,11 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE connectivity_control(topology,para_env,globenv,qmmm,qmmm_env,subsys_section,error)
+  SUBROUTINE connectivity_control(topology,para_env,qmmm,qmmm_env,subsys_section,error)
 
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(global_environment_type), &
-      OPTIONAL, POINTER                      :: globenv
     LOGICAL, INTENT(in), OPTIONAL            :: qmmm
     TYPE(qmmm_env_mm_type), OPTIONAL, &
       POINTER                                :: qmmm_env
@@ -384,7 +382,7 @@ CONTAINS
     END SELECT
 
     IF (my_qmmm) THEN
-       CALL qmmm_coordinate_control(topology, globenv, qmmm_env,subsys_section, error)
+       CALL qmmm_coordinate_control(topology, qmmm_env,subsys_section, error)
     END IF
     CALL timestop(0.0_dp,handle)
     CALL cp_print_key_finished_output(iw,logger,subsys_section,&

@@ -62,11 +62,10 @@ CONTAINS
   !!     11.2004 created [tlaino]
   !!
   !***************************************************************************
-  SUBROUTINE qmmm_coordinate_control(topology, globenv, qmmm_env, subsys_section, error)
+  SUBROUTINE qmmm_coordinate_control(topology, qmmm_env, subsys_section, error)
     
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
-    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(qmmm_env_mm_type), POINTER          :: qmmm_env
     TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cp_error_type), INTENT(inout), &
@@ -135,16 +134,16 @@ CONTAINS
   !!     12.2004 created [tlaino]
   !!
   !***************************************************************************
-  SUBROUTINE qmmm_connectivity_control(topology, para_env, globenv, molecule_set,&
-       qmmm_env, error)
+  SUBROUTINE qmmm_connectivity_control(topology, para_env, molecule_set,&
+       qmmm_env, subsys_section, error)
     
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
     TYPE(qmmm_env_mm_type), POINTER          :: qmmm_env
+    TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -157,23 +156,22 @@ CONTAINS
     INTEGER, DIMENSION(:), POINTER           :: qm_atom_index, &
                                                 qm_molecule_index
     LOGICAL                                  :: detected_link, failure
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(molecule_type), POINTER             :: molecule
 
     NULLIFY(qm_atom_index, qm_molecule_index, molecule, molecule_kind)
     failure = .FALSE.
     detected_link = .FALSE.
-    iw = globenv%scr
+    logger => cp_error_get_logger(error)
+    iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/UTIL_INFO",&
+         extension=".subsysLog",error=error)
     CALL timeset(routineN,'I','',handle)
     IF (.NOT.failure) THEN
-       IF((para_env%ionode).AND.(globenv%print_level>0))THEN
-          WRITE(iw,*) "  Entering qmmm_connectivity_control"
-       END IF
        qm_mol_num    = 0
        qm_atom_index => qmmm_env%qm_atom_index
        DO imolecule=1,SIZE(molecule_set)
-          IF ((para_env%ionode).AND.(globenv%print_level>1))&
-               WRITE(iw,*)"Entering molecule number ::",imolecule
+          IF (iw>0) WRITE(iw,*)"Entering molecule number ::",imolecule
           molecule => molecule_set(imolecule)
           CALL get_molecule(molecule,molecule_kind=molecule_kind,&
                first_atom=first_atom,last_atom=last_atom)
@@ -185,8 +183,7 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        qm_mol_num    = 0
        DO imolecule=1,SIZE(molecule_set)
-          IF ((para_env%ionode).AND.(globenv%print_level>1))&
-               WRITE(iw,*)"Entering molecule number ::",imolecule
+          IF (iw>0) WRITE(iw,*)"Entering molecule number ::",imolecule
           molecule => molecule_set(imolecule)
           CALL get_molecule(molecule,molecule_kind=molecule_kind,&
                first_atom=first_atom,last_atom=last_atom)
@@ -206,7 +203,7 @@ CONTAINS
                     WRITE(iw,fmt='(A)',ADVANCE="NO") " QM/MM link detected..."
                 ENDIF
                 IF (.NOT.qmmm_env%qmmm_link) THEN 
-                   WRITE(iw,fmt='(A)')" Missing LINK section in input file!!"
+                   IF (iw>0) WRITE(iw,fmt='(A)')" Missing LINK section in input file!!"
                    CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
                 END IF
              END IF
@@ -216,14 +213,10 @@ CONTAINS
        IF (ASSOCIATED(qmmm_env%qm_molecule_index)) DEALLOCATE(qmmm_env%qm_molecule_index)
        NULLIFY(qmmm_env%qm_molecule_index)
        qmmm_env%qm_molecule_index => qm_molecule_index
-       IF((para_env%ionode).AND.(globenv%print_level>0))THEN
-          WRITE(iw,*) "    QM molecule index ::",qm_molecule_index
-          WRITE(iw,*) "  Exiting qmmm_connectivity_control"
-       END IF
+       IF(iw>0) WRITE(iw,*) "    QM molecule index ::",qm_molecule_index
     END IF
-    IF((para_env%ionode).AND.(globenv%print_level>0))THEN
-       WRITE(iw,*) "  Leaving qmmm_connectivity_control"
-    END IF
+    CALL cp_print_key_finished_output(iw,logger,subsys_section,&
+                                     "PRINT%TOPOLOGY_INFO/UTIL_INFO",error=error)
     CALL timestop(0.0_dp,handle)
 
   END SUBROUTINE qmmm_connectivity_control

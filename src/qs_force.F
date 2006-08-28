@@ -29,8 +29,7 @@ MODULE qs_force
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE global_types,                    ONLY: MEDIUM,&
-                                             global_environment_type
+  USE global_types,                    ONLY: global_environment_type
   USE harris_env_types,                ONLY: harris_env_set,&
                                              harris_env_type
   USE harris_force,                    ONLY: harris_force_correction
@@ -372,13 +371,13 @@ CONTAINS
       output_unit = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%DERIVATIVES",&
            extension=".Log",error=error)
       IF(dft_control%qs_control%semi_empirical .AND. obasis) THEN
-        CALL write_forces(force,atomic_kind_set,2,globenv,output_unit=output_unit)
+        CALL write_forces(force,atomic_kind_set,2,output_unit=output_unit)
       ELSEIF(gapw) THEN
-        CALL write_forces(force,atomic_kind_set,1,globenv,output_unit=output_unit)
+        CALL write_forces(force,atomic_kind_set,1,output_unit=output_unit)
       ELSEIF (virial%pv_availability) THEN
-        CALL write_forces(force,atomic_kind_set,0,globenv,virial,output_unit=output_unit)
+        CALL write_forces(force,atomic_kind_set,0,virial,output_unit=output_unit)
       ELSE
-        CALL write_forces(force,atomic_kind_set,0,globenv,output_unit=output_unit)
+        CALL write_forces(force,atomic_kind_set,0,output_unit=output_unit)
       END IF
       CALL cp_print_key_finished_output(output_unit,logger,qs_env%input,&
            "DFT%PRINT%DERIVATIVES",error=error)  
@@ -407,7 +406,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE write_forces(qs_force,atomic_kind_set,ftype,globenv,virial,output_unit)
+  SUBROUTINE write_forces(qs_force,atomic_kind_set,ftype,virial,output_unit)
 
 !   Purpose: Write a Quickstep force data structure to
 
@@ -420,7 +419,6 @@ CONTAINS
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     INTEGER, INTENT(IN)                      :: ftype
-    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(virial_type), OPTIONAL, POINTER     :: virial
     INTEGER, INTENT(IN)                      :: output_unit
 
@@ -493,12 +491,6 @@ CONTAINS
        
        grand_total(:) = 0.0_dp
        
-       IF (globenv%print_level <= MEDIUM) THEN
-          my_ftype=-1
-       ELSE
-          my_ftype=ftype
-       ENDIF
-!MK
        my_ftype = ftype
 
        SELECT CASE (my_ftype)

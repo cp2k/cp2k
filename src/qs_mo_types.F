@@ -51,8 +51,7 @@ MODULE qs_mo_types
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE global_types,                    ONLY: LOW,&
-                                             global_environment_type
+  USE global_types,                    ONLY: global_environment_type
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: default_path_length,&
@@ -761,7 +760,7 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE read_mo_set_from_restart(mo_array,atomic_kind_set,particle_set,&
-                                      para_env,globenv,id_nr,multiplicity,dft_section,error)
+                                      para_env,id_nr,multiplicity,dft_section,error)
 
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
@@ -770,7 +769,6 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(global_environment_type), POINTER   :: globenv
     INTEGER, INTENT(in)                      :: id_nr, multiplicity
     TYPE(section_vals_type), POINTER         :: dft_section
     TYPE(cp_error_type), INTENT(inout), &
@@ -789,6 +787,7 @@ CONTAINS
     INTEGER, DIMENSION(:, :, :), POINTER     :: nso_info, offset_info
     LOGICAL                                  :: did_change, use_this
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: vecbuffer, vecbuffer_read
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
 
 !   *** Local paramters ***
@@ -797,6 +796,7 @@ CONTAINS
     CALL timeset(routineN,"I","",handle)
     group = para_env%group
     source = para_env%source
+    logger=>cp_error_get_logger()
 
     nspin = SIZE(mo_array)
     nao = mo_array(1)%mo_set%nao
@@ -822,11 +822,8 @@ CONTAINS
       READ (restart_unit) natom_read,nspin_read,nao_read,nset_max,nshell_max
 
       ! we should allow for restarting with different spin settings
-!      IF (nspin_read /= nspin) THEN
-!        CALL stop_program(routine,"nspin is not equal (program this !!)")
-!      END IF
       IF (nspin_read /= nspin) THEN
-        WRITE(globenv%scr,*)  "READ RESTART : WARNING : nspin is not equal "
+        WRITE(cp_logger_get_default_unit_nr(logger),*)  "READ RESTART : WARNING : nspin is not equal "
       END IF
 
       IF (natom_read /= natom) THEN
@@ -850,7 +847,7 @@ CONTAINS
                                        nshell_max*nset_max*natom_read*int_size)
 
       IF (nao_read /= nao) THEN
-        WRITE(globenv%scr,*) " READ RESTART : WARNING : DIFFERENT # AOs ",nao,nao_read
+        WRITE(cp_logger_get_default_unit_nr(logger),*) " READ RESTART : WARNING : DIFFERENT # AOs ",nao,nao_read
         did_change=.TRUE.
       END IF
 
@@ -958,12 +955,9 @@ CONTAINS
                 DO iso=1,nso(lshell)
                   IF (use_this) THEN
                     IF (offset_read-1+iso.LT.1 .OR. offset_read-1+iso.GT.nao_read) THEN
-                      ! this indicates a bug
-                      ! IF (did_change) WRITE(globenv%scr,*) "-?-",irow,offset_read-1+iso
                       vecbuffer(1,irow)=0.0_dp
                     ELSE
                       vecbuffer(1,irow)=vecbuffer_read(1,offset_read-1+iso)
-                      ! IF (did_change) WRITE(globenv%scr,*) "   ",irow,offset_read-1+iso
                     END IF
                   ELSE
                     vecbuffer(1,irow) = 0.0_dp
@@ -995,11 +989,8 @@ CONTAINS
         END DO
       END IF
 
-      IF (globenv%print_level > LOW) THEN
-        CALL write_mo_set(mo_array(ispin)%mo_set,atomic_kind_set,particle_set,&
+      CALL write_mo_set(mo_array(ispin)%mo_set,atomic_kind_set,particle_set,&
                           4,6,dft_section,error=error)
-      END IF
-
 
       IF(ispin==1 .AND. nspin_read<nspin) THEN
 

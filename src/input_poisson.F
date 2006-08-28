@@ -436,6 +436,7 @@ SUBROUTINE create_ewald_section(section,error)
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
+    TYPE(section_type), POINTER              :: print_key, subsection
 
   failure=.FALSE.
   
@@ -446,7 +447,7 @@ SUBROUTINE create_ewald_section(section,error)
          n_keywords=7, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
          error=error)
 
-    NULLIFY(keyword)
+    NULLIFY(keyword,print_key,subsection)
     CALL keyword_create(keyword, name="EWALD_TYPE",&
          description="The type of ewald you want to perform."//&
          " EWALD is the standard non-fft based ewald."//&
@@ -488,6 +489,21 @@ SUBROUTINE create_ewald_section(section,error)
          usage="epsilon 1e-6", default_r_val=1.e-6_dp,error=error)
     CALL section_add_keyword(section,keyword,error=error)
     CALL keyword_release(keyword,error=error)
+
+       NULLIFY(subsection)
+       CALL section_create(subsection,name="PRINT",&
+            description="Controls printing of Ewald properties",&
+            n_keywords=0, n_subsections=1, repeats=.TRUE., required=.FALSE.,&
+            error=error)
+       NULLIFY(print_key)
+       CALL cp_print_key_section_create(print_key,"PROGRAM_RUN_INFO",&
+            description="controls the printing of ewald setup",&
+            print_level=low_print_level,each=(/1/),add_last=(/1/),filename="__STD_OUT__",&
+            error=error)
+       CALL section_add_subsection(subsection,print_key,error=error)
+       CALL section_release(print_key,error=error)
+       CALL section_add_subsection(section,subsection,error=error)
+       CALL section_release(subsection,error=error)
 
   END IF
 END SUBROUTINE create_ewald_section

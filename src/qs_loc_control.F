@@ -487,11 +487,8 @@ CONTAINS
 
     INTEGER                                  :: ia, ie, ispin, istat
     LOGICAL                                  :: failure
-    TYPE(cp_logger_type), POINTER            :: logger
 
     failure = .FALSE.
-    NULLIFY(logger)
-    logger => cp_error_get_logger(error)
  
     IF(localized_wfn_control%loc_rootfname==" ") THEN
       CALL xstring ( globenv%project_name, ia, ie )

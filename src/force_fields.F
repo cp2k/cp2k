@@ -210,9 +210,9 @@ CONTAINS
     IF(ff_type%ff_type/="OFF") THEN
        SELECT CASE (ff_type%ff_type)
        CASE ("CHM")
-          CALL read_force_field_charmm(ff_type,para_env,globenv,mm_section,error)
+          CALL read_force_field_charmm(ff_type,para_env,mm_section,error)
        CASE ("G87","G96")
-          CALL read_force_field_gromos(ff_type,para_env,globenv,mm_section,error)
+          CALL read_force_field_gromos(ff_type,para_env,mm_section,error)
        CASE DEFAULT
           CALL stop_program ("force_field_control","force field type not implemented")
        END SELECT
@@ -235,14 +235,14 @@ CONTAINS
     !-----------------------------------------------------------------------------
     CALL force_field_qeff_output (particle_set,atomic_kind_set,&
          molecule_kind_set,molecule_set,&
-         globenv,mm_section, error=error)
+         mm_section, error=error)
 
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 7. Clean up "UNSET" bond,bend,UB,TORSION,IMPR,ONFO kinds
     !-----------------------------------------------------------------------------
-    CALL clean_intra_force_kind (molecule_kind_set,globenv,mm_section,error)
+    CALL clean_intra_force_kind (molecule_kind_set,mm_section,error)
 
 
     !-----------------------------------------------------------------------------
@@ -329,7 +329,7 @@ CONTAINS
           ntot=nlj+nwl
           IF (explicit) THEN
              CALL pair_potential_reallocate(inp_info%nonbonded,1,ntot+neam,eam=.TRUE.,error=error)
-             CALL read_eam_section(inp_info%nonbonded,tmp_section2,ntot,para_env,globenv,mm_section,error)
+             CALL read_eam_section(inp_info%nonbonded,tmp_section2,ntot,para_env,mm_section,error)
           END IF
           tmp_section2 => section_vals_get_subs_vals(tmp_section,"GOODWIN",error=error)
           CALL section_vals_get(tmp_section2,explicit=explicit,n_repetition=ngd,error=error)
@@ -604,13 +604,11 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE read_eam_section(nonbonded, section, start, para_env, globenv, mm_section, error)
+  SUBROUTINE read_eam_section(nonbonded, section, start, para_env, mm_section, error)
     TYPE(pair_potential_p_type), POINTER     :: nonbonded
     TYPE(section_vals_type), POINTER         :: section
     INTEGER, INTENT(IN)                      :: start
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(global_environment_type), &
-      OPTIONAL, POINTER                      :: globenv
     TYPE(section_vals_type), POINTER         :: mm_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -633,7 +631,7 @@ CONTAINS
        CALL uppercase(nonbonded%pot(start+isec)%pot %at2)
        CALL section_vals_val_get(section,"PARMFILE",i_rep_section=isec,&
             c_val=nonbonded%pot(start+isec)%pot%eam%eam_file_name,error=error)
-       CALL read_eam_data ( nonbonded%pot(start+isec)%pot%eam, para_env, globenv, mm_section,error)
+       CALL read_eam_data ( nonbonded%pot(start+isec)%pot%eam, para_env,  mm_section,error)
        nonbonded%pot(start+isec)%pot%rcutsq  = nonbonded%pot(start+isec)%pot%eam%acutal**2
     END DO
   END SUBROUTINE read_eam_section
@@ -1166,7 +1164,7 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE read_force_field_section ( ff_type , para_env, globenv, mm_section, error )
+  SUBROUTINE read_force_field_section ( ff_type , para_env, globenv,  mm_section, error )
     TYPE(force_field_type), INTENT(INOUT)    :: ff_type
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), &
@@ -1201,13 +1199,11 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
   
-  SUBROUTINE read_force_field_gromos ( ff_type , para_env, globenv, mm_section, error )
+  SUBROUTINE read_force_field_gromos ( ff_type , para_env,  mm_section, error )
 
 
     TYPE(force_field_type), INTENT(INOUT)    :: ff_type
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(global_environment_type), &
-      OPTIONAL, POINTER                      :: globenv
     TYPE(section_vals_type), POINTER         :: mm_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -1545,13 +1541,11 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
   
-  SUBROUTINE read_force_field_charmm ( ff_type, para_env, globenv, mm_section, error )
+  SUBROUTINE read_force_field_charmm ( ff_type, para_env, mm_section, error )
 
 
     TYPE(force_field_type), INTENT(INOUT)    :: ff_type
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(global_environment_type), &
-      OPTIONAL, POINTER                      :: globenv
     TYPE(section_vals_type), POINTER         :: mm_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -3790,7 +3784,7 @@ CONTAINS
 !!   INPUTS
 !!*****************************************************************************
   SUBROUTINE force_field_qeff_output (particle_set,atomic_kind_set,&
-       molecule_kind_set,molecule_set,globenv,mm_section,error)
+       molecule_kind_set,molecule_set,mm_section,error)
 
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
@@ -3800,8 +3794,6 @@ CONTAINS
       POINTER                                :: molecule_kind_set
     TYPE(molecule_type), DIMENSION(:), &
       POINTER                                :: molecule_set
-    TYPE(global_environment_type), &
-      OPTIONAL, POINTER                      :: globenv
     TYPE(section_vals_type), POINTER         :: mm_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -3886,12 +3878,10 @@ CONTAINS
 !!
 !!   INPUTS
 !!*****************************************************************************
-  SUBROUTINE clean_intra_force_kind (molecule_kind_set,globenv,mm_section,error)
+  SUBROUTINE clean_intra_force_kind (molecule_kind_set,mm_section,error)
 
     TYPE(molecule_kind_type), DIMENSION(:), &
       POINTER                                :: molecule_kind_set
-    TYPE(global_environment_type), &
-      OPTIONAL, POINTER                      :: globenv
     TYPE(section_vals_type), POINTER         :: mm_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -4644,11 +4634,9 @@ CONTAINS
 !!
 !!   INPUTS
 !!*****************************************************************************
-  SUBROUTINE read_eam_data ( eam, para_env, globenv , mm_section, error)
+  SUBROUTINE read_eam_data ( eam, para_env, mm_section, error)
     TYPE(eam_pot_type), POINTER              :: eam
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(global_environment_type), &
-      OPTIONAL, POINTER                      :: globenv
     TYPE(section_vals_type), POINTER         :: mm_section
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error

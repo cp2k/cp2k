@@ -68,6 +68,7 @@ MODULE qs_numerical_pressure
     REAL(kind=dp), DIMENSION(3)              :: numer_stress = 0.0_dp
     REAL(kind=dp), DIMENSION(:, :), POINTER  :: pos_ref
     TYPE(cell_type), POINTER                 :: cell, cell_local, cell_ref
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
@@ -79,15 +80,16 @@ MODULE qs_numerical_pressure
 
     NULLIFY(cell_local)
     failure = .FALSE.
+    logger=>cp_error_get_logger(error)
     IF (.NOT.failure) THEN
        !
        ! Copy atomic positions into pos_ref
        !
        CALL force_env_get(force_env,subsys=subsys,globenv=globenv,error=error)       
        para_env=>force_env%para_env
-       iw = globenv%scr
+       iw = cp_logger_get_default_unit_nr(logger)
  
-       IF (para_env%ionode) THEN
+       IF (iw>0) THEN
        WRITE ( iw, '( /A,A/ )' ) ' **************************** ', &
            'NUMERICAL STRESS ********************************'
        END IF

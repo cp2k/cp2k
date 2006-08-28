@@ -282,8 +282,7 @@ CONTAINS
 
        END IF
 
-       CALL init_scf_run(scf_env=scf_env, qs_env=qs_env, globenv=globenv, &
-                                      scf_section=scf_section, error=error)
+       CALL init_scf_run(scf_env=scf_env, qs_env=qs_env, scf_section=scf_section, error=error)
 
        CALL scf_env_do_scf(scf_env=scf_env, qs_env=qs_env, globenv=globenv, &
                            converged=converged, should_stop=should_stop, error=error)
@@ -295,7 +294,7 @@ CONTAINS
        
        ! *** compute properties that depend on the converged wavefunction
        IF ( .NOT. ( should_stop .OR. dft_control%qs_control%semi_empirical ) ) THEN
-              CALL scf_post_calculation(dft_section, scf_env, qs_env, globenv, error)
+              CALL scf_post_calculation(dft_section, scf_env, qs_env, error)
        END IF
        
        ! *** cleanup
@@ -440,8 +439,7 @@ CONTAINS
     scf_env%outer_scf%iter_count=0
     scf_outer_loop: DO
 
-       CALL init_scf_loop(scf_env=scf_env, qs_env=qs_env, globenv=globenv, &
-                           scf_section=scf_section, error=error)
+       CALL init_scf_loop(scf_env=scf_env, qs_env=qs_env, scf_section=scf_section, error=error)
 
        !   Some flags needed to be set at the beginning of the loop
        diis_step = .FALSE.
@@ -1145,11 +1143,10 @@ END SUBROUTINE qs_scf_print_summary
 !!     03.2006 created [Joost VandeVondele]
 !!
 !!*** **********************************************************************
-  SUBROUTINE init_scf_loop(scf_env,qs_env,globenv,scf_section,error)
+  SUBROUTINE init_scf_loop(scf_env,qs_env,scf_section,error)
 
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_vals_type), POINTER         :: scf_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -1371,11 +1368,10 @@ END SUBROUTINE qs_scf_print_summary
 !!     03.2006 created [Joost VandeVondele]
 !!
 !!*** **********************************************************************
-  SUBROUTINE init_scf_run(scf_env, qs_env, globenv, scf_section,error)
+  SUBROUTINE init_scf_run(scf_env, qs_env, scf_section,error)
 
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_vals_type), POINTER         :: scf_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -1517,7 +1513,7 @@ END SUBROUTINE qs_scf_print_summary
         CALL loc_initialize_rho(qs_env,error=error)  
     ELSE
       CALL scf_env_initial_rho_setup(scf_env,qs_env=qs_env,&
-           globenv=globenv, scf_section=scf_section, error=error)
+           scf_section=scf_section, error=error)
     END IF
 
     ! Frozen density approximation
@@ -1799,10 +1795,9 @@ END SUBROUTINE qs_scf_print_summary
 !!     02.2003 created [fawzi]
 !!
 !!*** **********************************************************************
-  SUBROUTINE scf_env_initial_rho_setup(scf_env, qs_env, globenv, scf_section, error)
+  SUBROUTINE scf_env_initial_rho_setup(scf_env, qs_env, scf_section, error)
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_vals_type), POINTER         :: scf_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -1859,8 +1854,7 @@ END SUBROUTINE qs_scf_print_summary
        CALL cp_print_key_finished_output(output_unit,logger,scf_section,&
             "PRINT%PROGRAM_RUN_INFO", error=error)
        IF (extrapolation_method_nr==wfi_use_guess_method_nr) THEN
-          CALL calculate_first_density_matrix(scf_env=scf_env,qs_env=qs_env,&
-               globenv=globenv, error=error)
+          CALL calculate_first_density_matrix(scf_env=scf_env,qs_env=qs_env,error=error)
           IF (.NOT.(qs_env%scf_control%density_guess==densities_guess)) THEN
             CALL qs_rho_update_rho(qs_env%rho,qs_env=qs_env, error=error)
 !MK

@@ -78,10 +78,9 @@ MODULE cp_control_utils
 
 CONTAINS
 
-  SUBROUTINE read_dft_control(dft_control,root_section,globenv, dft_section, error)
+  SUBROUTINE read_dft_control(dft_control,root_section, dft_section, error)
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(section_vals_type), POINTER         :: root_section
-    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_vals_type), POINTER         :: dft_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -159,7 +158,7 @@ CONTAINS
     CASE (mol_dyn_run,hmc_run,ldmc_run,energy_force_run,geo_opt_run,qs_debug_run,pint_run)
       dft_control%forces = .TRUE.
     CASE DEFAULT
-      CALL stop_program(routine,"unknown run type "//TRIM(run_type_names(globenv%run_type_id)))
+      CALL stop_program(routine,"unknown run type ")
     END SELECT
  
 !   *** Read the input section ***
@@ -200,10 +199,9 @@ CONTAINS
   END SUBROUTINE read_dft_control
 
 ! *****************************************************************************
-  SUBROUTINE read_mgrid_section(qs_control,globenv,dft_section,error)
+  SUBROUTINE read_mgrid_section(qs_control,dft_section,error)
 
     TYPE(qs_control_type), INTENT(INOUT)     :: qs_control
-    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_vals_type), POINTER         :: dft_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -300,10 +298,9 @@ CONTAINS
 
   END SUBROUTINE read_mgrid_section
 
-  SUBROUTINE read_qs_section(qs_control,globenv,qs_section,error)
+  SUBROUTINE read_qs_section(qs_control,qs_section,error)
 
     TYPE(qs_control_type), INTENT(INOUT)     :: qs_control
-    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_vals_type), POINTER         :: qs_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -542,10 +539,9 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE read_tddfpt_control(t_control,nspins,globenv, dft_section,error)
+  SUBROUTINE read_tddfpt_control(t_control,nspins,dft_section,error)
     TYPE(tddfpt_control_type)                :: t_control
     INTEGER, INTENT(IN)                      :: nspins
-    TYPE(global_environment_type)            :: globenv
     TYPE(section_vals_type), POINTER         :: dft_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error

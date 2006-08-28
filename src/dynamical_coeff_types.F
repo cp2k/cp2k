@@ -28,6 +28,8 @@ MODULE dynamical_coeff_types
                                              unit_convert_type
   USE cp_files,                        ONLY: close_file,&
                                              open_file
+  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+                                             cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE distribution_1d_types,           ONLY: distribution_1d_release,&
                                              distribution_1d_retain,&
@@ -675,7 +677,7 @@ END SUBROUTINE dyn_coeff_set_initialize
   END SUBROUTINE dyn_coeff_set_init_masses
 !*************************************************************************
 SUBROUTINE dyn_coeff_set_init_vel(kg_coeff_target_temp,dyn_coeff_set, &
-                                  mbuffer,root_section,para_env,globenv)
+                                  mbuffer,root_section,para_env,globenv,error)
 
     REAL(KIND=dp)                            :: kg_coeff_target_temp
     TYPE(dyn_coeff_set_type), POINTER        :: dyn_coeff_set
@@ -684,18 +686,21 @@ SUBROUTINE dyn_coeff_set_init_vel(kg_coeff_target_temp,dyn_coeff_set, &
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'dyn_coeff_set_init_vel', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: group, iatom, icoef, iel, &
                                                 ikind, ioff, istat, nkind, &
-                                                offset, stat
+                                                offset, output_unit, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: n_els_of_kind
     LOGICAL                                  :: gmass
     REAL(dp), ALLOCATABLE, DIMENSION(:, :)   :: vbuffer
     REAL(KIND=dp)                            :: denom, ekin, scale, &
                                                 temp_coefs, vcom
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(dyn_coeff_type), POINTER            :: coeffs
     TYPE(unit_convert_type), POINTER         :: unit
 
@@ -802,15 +807,23 @@ SUBROUTINE dyn_coeff_set_init_vel(kg_coeff_target_temp,dyn_coeff_set, &
   IF (istat /= 0) CALL stop_memory(routineP,"vbuffer")
   DEALLOCATE(n_els_of_kind,STAT=istat)
   IF (istat /= 0) CALL stop_memory(routineP,"n_els_of_kind")
+
+
+  logger => cp_error_get_logger(error)
+  output_unit=cp_print_key_unit_nr(logger,root_section,"MOTION%MD%PRINT%PROGRAM_RUN_INFO",&
+                                         extension=".log",error=error)
    
-  IF ( para_env % ionode .AND. globenv%print_level > 1 ) THEN
+  IF ( output_unit>0 ) THEN
      CALL get_cp2k_units ( unit )
      temp_coefs = 2.0_dp * ekin / REAL ( dyn_coeff_set%ncoef_tot, dp )
-     WRITE ( globenv%scr, '( A, T61, F18.2, A2 )' ) &
+     WRITE ( output_unit, '( A, T61, F18.2, A2 )' ) &
           ' Initial Coef Temperature ', temp_coefs / unit % kelvin, " K"
-     WRITE ( globenv%scr, '( A, T61, F20.12 )' ) &
+     WRITE ( output_unit, '( A, T61, F20.12 )' ) &
           'Coefs Centre of mass velocity ', vcom
   END IF
+
+          CALL cp_print_key_finished_output(output_unit,logger,root_section,&
+               "MOTION%MD%PRINT%PROGRAM_RUN_INFO", error=error)
 
 END SUBROUTINE dyn_coeff_set_init_vel
 !*****************************************************************************

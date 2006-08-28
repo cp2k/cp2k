@@ -83,12 +83,11 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE calculate_rho0_ppl(kg_env,globenv,calculate_forces,error)
+  SUBROUTINE calculate_rho0_ppl(kg_env,calculate_forces,error)
 
 !   ***************************************************************************
 
     TYPE(kg_environment_type), POINTER       :: kg_env
-    TYPE(global_environment_type), POINTER   :: globenv
     LOGICAL, INTENT(IN)                      :: calculate_forces
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -157,6 +156,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER :: my_alpha
     REAL(KIND=dp), DIMENSION(:,:), POINTER :: my_c 
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_logger_type), POINTER            :: logger
 !   ---------------------------------------------------------------------------
 
     CALL timeset(routineN,"I","",handle)
@@ -168,7 +168,8 @@ CONTAINS
     para_env=>kg_env%para_env
     group = para_env%group
     ionode = para_env%ionode
-    output_unit = globenv%scr
+    logger=>cp_error_get_logger(error)
+    output_unit = cp_logger_get_default_unit_nr(logger)
 
     CALL get_kg_env(kg_env=kg_env,&
                     atomic_kind_set=atomic_kind_set,&
@@ -596,12 +597,11 @@ CONTAINS
   END SUBROUTINE calculate_rho0_ppl
 ! *****************************************************************************
 
-  SUBROUTINE calculate_drho_ppl(kg_env,globenv,calculate_forces,error)
+  SUBROUTINE calculate_drho_ppl(kg_env,calculate_forces,error)
 
 !   ***************************************************************************
 
     TYPE(kg_environment_type), POINTER       :: kg_env
-    TYPE(global_environment_type), POINTER   :: globenv
     LOGICAL, INTENT(IN)                      :: calculate_forces
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -670,6 +670,7 @@ CONTAINS
 
     REAL(KIND=dp), DIMENSION(:,:,:,:), ALLOCATABLE :: ai_work
     TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_logger_type), POINTER            :: logger
 
 !   ---------------------------------------------------------------------------
 
@@ -683,7 +684,9 @@ CONTAINS
     para_env=>kg_env%para_env
     group = para_env%group
     ionode = para_env%ionode
-    output_unit = globenv%scr
+    logger=>cp_error_get_logger(error)
+    output_unit = cp_logger_get_default_unit_nr(logger)
+
 
     CALL get_kg_env(kg_env=kg_env,&
                     atomic_kind_set=atomic_kind_set,&

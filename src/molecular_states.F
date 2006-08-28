@@ -85,7 +85,7 @@ CONTAINS
 
 SUBROUTINE construct_molecular_states(molecule_set, mo_localized, &
                                    mo_coeff, mo_eigenvalues, &
-                                   Hks,matrix_S,globenv,qs_env,wf_r,wf_g,&
+                                   Hks,matrix_S,qs_env,wf_r,wf_g,&
                                    force_env_section, error)
 
 
@@ -94,7 +94,6 @@ SUBROUTINE construct_molecular_states(molecule_set, mo_localized, &
     TYPE(cp_fm_type), POINTER                :: mo_localized, mo_coeff
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mo_eigenvalues
     TYPE(real_matrix_type), POINTER          :: Hks, matrix_S
-    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(coeff_type), INTENT(INOUT)          :: wf_r, wf_g
     TYPE(section_vals_type), POINTER         :: force_env_section
@@ -104,8 +103,8 @@ SUBROUTINE construct_molecular_states(molecule_set, mo_localized, &
     CHARACTER(LEN=default_string_length)     :: filename
     INTEGER                                  :: i, imol, iproc, isos, j, k, &
                                                 ncol_global, nproc, &
-                                                nrow_global, ns, unit_nr, &
-                                                unit_report
+                                                nrow_global, ns, output_unit, &
+                                                unit_nr, unit_report
     INTEGER, DIMENSION(:), POINTER           :: ind
     INTEGER, POINTER                         :: nstates(:), states(:)
     LOGICAL                                  :: failure
@@ -127,6 +126,7 @@ SUBROUTINE construct_molecular_states(molecule_set, mo_localized, &
     failure = .FALSE.
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
+    output_unit = cp_logger_get_default_unit_nr(logger)
 !-------------------------------------------------------------------------------
 !-------------------------------------------------------------------------------
 !-----------------------------------------------------------------------------
@@ -229,14 +229,14 @@ SUBROUTINE construct_molecular_states(molecule_set, mo_localized, &
 
     CALL cp_fm_syevd ( d, e_vectors, evals )
 
-    IF (para_env%ionode) WRITE(globenv%scr,*)"" 
-    IF (para_env%ionode) WRITE(globenv%scr,*)"MOLECULE ",imol
-    IF (para_env%ionode) WRITE(globenv%scr,*)"NUMBER OF STATES  ", ns
-    IF (para_env%ionode) WRITE(globenv%scr,*)"EIGENVALUES"
-    IF (para_env%ionode) WRITE(globenv%scr,*)"" 
+    IF (para_env%ionode) WRITE(output_unit,*)"" 
+    IF (para_env%ionode) WRITE(output_unit,*)"MOLECULE ",imol
+    IF (para_env%ionode) WRITE(output_unit,*)"NUMBER OF STATES  ", ns
+    IF (para_env%ionode) WRITE(output_unit,*)"EIGENVALUES"
+    IF (para_env%ionode) WRITE(output_unit,*)"" 
 
     DO k=1,ns
-      IF (para_env%ionode) WRITE(globenv%scr,*) evals(k)
+      IF (para_env%ionode) WRITE(output_unit,*) evals(k)
     END DO
     IF (para_env%ionode) THEN
        WRITE(unit_report,*) imol,ns, " imol, number of states"
@@ -296,7 +296,7 @@ SUBROUTINE construct_molecular_states(molecule_set, mo_localized, &
                "DFT%PRINT%MOLECULAR_STATES%CUBES%STRIDE"), error=error)
           CALL cp_print_key_finished_output(unit_nr,logger,force_env_section,&
                "DFT%PRINT%MOLECULAR_STATES%CUBES",error=error)
-          IF (para_env%ionode) WRITE(globenv%scr,*) filename
+          IF (para_env%ionode) WRITE(output_unit,*) filename
        END DO
     ENDIF
 

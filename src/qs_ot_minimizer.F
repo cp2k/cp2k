@@ -35,6 +35,7 @@ MODULE qs_ot_minimizer
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
 
@@ -438,13 +439,17 @@ END SUBROUTINE do_line_search_none
 ! also updates the gradient for line search
 !
 
-SUBROUTINE ot_new_sd_direction(qs_ot_env)
+SUBROUTINE ot_new_sd_direction(qs_ot_env,error)
     TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
     INTEGER                                  :: ispin, itmp, k, n, nspin
     REAL(KIND=dp)                            :: tmp
+    TYPE(cp_logger_type), POINTER            :: logger
 
    nspin=SIZE(qs_ot_env)
+   logger=>cp_error_get_logger(error)
    IF (ASSOCIATED(qs_ot_env(1)%preconditioner)) THEN
        IF (.NOT. qs_ot_env(1)%use_dx) CALL stop_program("OT SD","use dx ")
        qs_ot_env(1)%gnorm=0.0_dp
@@ -455,10 +460,8 @@ SUBROUTINE ot_new_sd_direction(qs_ot_env)
           qs_ot_env(1)%gnorm=qs_ot_env(1)%gnorm+tmp
        ENDDO
        IF (qs_ot_env(1)%gnorm .LT. 0.0_dp) THEN
-           ! XXXX needs logger feature
-           ! XXXX IF (para_env%ionode) &    ! fatal error, should use a different preconditioner
-           ! XXXX  write(globenv%scr,*) "WARNING Preconditioner not positive definite !"
-           WRITE(6,*) "WARNING Preconditioner not positive definite !"
+           logger=>cp_error_get_logger(error)
+           WRITE(cp_logger_get_default_unit_nr(logger),*) "WARNING Preconditioner not positive definite !"
        ENDIF
        DO ispin=1,nspin
           CALL cp_fm_scale_and_add(-1.0_dp,qs_ot_env(ispin)%matrix_dx)  
@@ -505,14 +508,18 @@ END SUBROUTINE ot_new_sd_direction
 ! using the preconditioner if associated
 ! also updates the gradient for line search
 !
-SUBROUTINE ot_new_cg_direction(qs_ot_env)
+SUBROUTINE ot_new_cg_direction(qs_ot_env,error)
     TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
     INTEGER                                  :: ispin, itmp, k, n, nspin
     REAL(KIND=dp)                            :: beta_pr, gnorm_cross, &
                                                 test_down, tmp
+    TYPE(cp_logger_type), POINTER            :: logger
 
    nspin=SIZE(qs_ot_env)
+   logger=>cp_error_get_logger(error)
 
    gnorm_cross=0.0_dp 
    DO ispin=1,nspin
@@ -538,10 +545,7 @@ SUBROUTINE ot_new_cg_direction(qs_ot_env)
           qs_ot_env(1)%gnorm=qs_ot_env(1)%gnorm+tmp
        ENDDO
        IF (qs_ot_env(1)%gnorm .LT. 0.0_dp) THEN
-          ! XXXX needs logger feature
-          ! XXX IF (para_env%ionode) &    ! fatal error, should use a different preconditioner
-          ! XXX   write(globenv%scr,*) "WARNING Preconditioner not positive definite !"
-          WRITE(6,*) "WARNING Preconditioner not positive definite !"
+          WRITE(cp_logger_get_default_unit_nr(logger),*) "WARNING Preconditioner not positive definite !"
        ENDIF
        DO ispin=1,nspin
           CALL cp_fm_to_fm(qs_ot_env(ispin)%matrix_gx_old,qs_ot_env(ispin)%matrix_gx)
@@ -614,13 +618,16 @@ SUBROUTINE ot_new_cg_direction(qs_ot_env)
 
 END SUBROUTINE ot_new_cg_direction
 
-SUBROUTINE ot_diis_step(qs_ot_env)
+SUBROUTINE ot_diis_step(qs_ot_env,error)
     TYPE(qs_ot_type), DIMENSION(:), POINTER  :: qs_ot_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
     INTEGER                                  :: diis_bound, diis_m, i, info, &
                                                 ispin, itmp, j, k, n, nspin
     REAL(KIND=dp)                            :: overlap, tmp, tr_xnew_gx, &
                                                 tr_xold_gx
+    TYPE(cp_logger_type), POINTER            :: logger
 
    nspin=SIZE(qs_ot_env)
 
@@ -655,10 +662,7 @@ SUBROUTINE ot_diis_step(qs_ot_env)
            qs_ot_env(1)%gnorm=qs_ot_env(1)%gnorm+tmp
        ENDDO
        IF (qs_ot_env(1)%gnorm .LT. 0.0_dp) THEN
-           ! XXX needs logger feature
-           ! XXX IF (para_env%ionode) &    ! fatal error, should use a different preconditioner
-           ! XXX  write(globenv%scr,*) "WARNING Preconditioner not positive definite !"
-           WRITE(6,*) "WARNING Preconditioner not positive definite !"
+           WRITE(cp_logger_get_default_unit_nr(logger),*) "WARNING Preconditioner not positive definite !"
        ENDIF
        DO ispin=1,nspin
            CALL cp_fm_scale_and_add(-qs_ot_env(1)%ds_min,qs_ot_env(ispin)%matrix_h_e(j)%matrix)

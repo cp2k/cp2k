@@ -518,7 +518,8 @@ CONTAINS
       DIMENSION(:), POINTER                  :: tmp_particle_set
     TYPE(rng_stream_type), POINTER           :: rng_stream
     TYPE(section_vals_type), POINTER :: dft_section, force_env_section, &
-      input, motion_section, root_section, subsys_section, work_section
+      input, motion_section, print_section, root_section, subsys_section, &
+      work_section
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
     TYPE(tbmd_energy_type), POINTER          :: tbmd_ener
@@ -600,6 +601,11 @@ CONTAINS
     md_method = simpar%md_method
     mc_method = simpar%mc_method
     motion_section => section_vals_get_subs_vals(ROOT_SECTION,"MOTION",error=error)
+    
+
+    iw=cp_print_key_unit_nr(logger,motion_section,"MD%PRINT%PROGRAM_RUN_INFO",&
+                                                  extension=".log",error=error)
+
     force_env => force_env_p(1)%force_env
     SELECT CASE(mc_method)
     CASE(EIP_MC_method)
@@ -673,11 +679,12 @@ CONTAINS
           !
           ! Possibly restart Nose particles
           !
-          NULLIFY(work_section)
           work_section => section_vals_get_subs_vals(motion_section,"MD%NOSE",error=error)
+          print_section => section_vals_get_subs_vals(motion_section,"MD%PRINT",error=error)
           CALL initialize_nhc_part(cell,simpar,local_molecules, &
                                    molecules_new%els, molecule_kinds_new%els,&
-                                   para_env,globenv, extended_type%nhc_part(ibead),work_section=work_section,error=error)
+                                   para_env,globenv, extended_type%nhc_part(ibead),&
+                                   print_section=print_section,nose_section=work_section,error=error)
           CALL init_nhc_forces ( nhc_part=extended_type%nhc_part(ibead),error=error)
           !
           ! Possibly restart barostat
@@ -723,10 +730,12 @@ CONTAINS
                              error=error)
           NULLIFY(work_section)
           work_section => section_vals_get_subs_vals(subsys_section,"VELOCITY",error=error)
+          print_section => section_vals_get_subs_vals(motion_section,"MD%PRINT",error=error)
           CALL initialize_velocities(simpar,particles%els,&
                                      molecule_kinds=molecule_kinds_new,&
                                      para_env=para_env,&
                                      globenv=globenv,&
+                                     print_section=print_section,&
                                      work_section=work_section,&
                                      error=error)
        END DO
@@ -941,13 +950,14 @@ CONTAINS
             END IF
          END IF
 
-         IF (para_env%ionode .AND. globenv%print_level >= 1) THEN
-            iw = globenv%scr
-            WRITE(iw, *) ""; WRITE(iw, *) ""
+         IF ( iw > 0 ) THEN
+            WRITE(iw, *) ""
+            WRITE(iw, *) ""
             WRITE(iw, *) "Kinetic Energy =", Ekin_prev, " & Potential Energy = ", Epot_prev
             WRITE(iw, *) "prev_ldmc_energy =", prev_ldmc_energy
          END IF
-         !END IF
+
+
        END IF
 
        SELECT CASE(md_method)
@@ -1107,8 +1117,6 @@ CONTAINS
          accepted = .TRUE.
        ELSE
          ! Metropolis Monte Carlo acceptance criterion
-         ionode = para_env%ionode
-         iw = globenv%scr
          IF (lpsc) THEN
            ! direct accept
            dftMC_diff = new_ldmc_energy - prev_ldmc_energy
@@ -1119,7 +1127,7 @@ CONTAINS
              accept = accept + 1
              acceptance_rate = 100*(DBLE(accept)/DBLE(accept+reject))
              prob = 1.0_dp
-             IF (ionode .AND. globenv%print_level >= 1) THEN
+             IF ( iw > 0 ) THEN
                WRITE(iw, *) ""
                WRITE(iw, *) "Kinetic DFT-Energy =", Ekin_new, " & Potential DFT-Energy = ", Epot_new
                WRITE(iw, *) ""
@@ -1180,7 +1188,7 @@ CONTAINS
                accepted_md = accepted_md+1
                accept = accept + 1
                acceptance_rate = 100*(DBLE(accept)/DBLE(accept+reject))
-               IF (ionode .AND. globenv%print_level >= 1) THEN
+               IF ( iw > 0 ) THEN
                  WRITE(iw, *) ""
 
                  WRITE(iw, *) ""
@@ -1197,7 +1205,7 @@ CONTAINS
                accepted = .FALSE.
                reject = reject + 1
                acceptance_rate = 100*(DBLE(accept)/DBLE(accept+reject))
-               IF (ionode .AND. globenv%print_level >= 1) THEN
+               IF ( iw > 0 ) THEN
                  WRITE(iw, *) ""
 
                  WRITE(iw, *) ""
@@ -1221,7 +1229,7 @@ CONTAINS
              accept = accept + 1
              acceptance_rate = 100*(DBLE(accept)/DBLE(accept+reject))
              prob = 1.0_dp
-             IF (ionode .AND. globenv%print_level >= 1) THEN
+             IF ( iw > 0 ) THEN
                WRITE(iw, *) ""
                WRITE(iw, *) "Kinetic Energy =", Ekin_new, " & Potential Energy = ", Epot_new
                WRITE(iw, *) ""
@@ -1284,7 +1292,7 @@ CONTAINS
                accepted_md = accepted_md+1
                accept = accept + 1
                acceptance_rate = 100*(DBLE(accept)/DBLE(accept+reject))
-               IF (ionode .AND. globenv%print_level >= 1) THEN
+               IF ( iw > 0 ) THEN
                  WRITE(iw, *) ""
 
                  WRITE(iw, *) ""
@@ -1301,7 +1309,7 @@ CONTAINS
                accepted = .FALSE.
                reject = reject + 1
                acceptance_rate = 100*(DBLE(accept)/DBLE(accept+reject))
-               IF (ionode .AND. globenv%print_level >= 1) THEN
+               IF ( iw > 0 ) THEN
                  WRITE(iw, *) ""
 
                  WRITE(iw, *) ""
@@ -1338,6 +1346,7 @@ CONTAINS
                                           molecule_kinds=molecule_kinds_new,&
                                           para_env=para_env,&
                                           globenv=globenv,&
+                                          print_section=print_section,&
                                           work_section=work_section,&
                                           error=error)
             ELSE
@@ -1347,8 +1356,7 @@ CONTAINS
                !MK A proper modularization of initialize_velocities would be the better
                !MK solution, obviously.
 
-               iw = globenv%scr
-               IF (para_env%ionode .AND. globenv%print_level >= 1) THEN
+               IF ( iw > 0 ) THEN
                   WRITE ( iw, '( A, A, A )' ) ' **********************', &
                        ' begin of velocity initialization ', '***********************'
                END IF
@@ -1431,7 +1439,7 @@ CONTAINS
                END DO
 #endif
                temp = 0.0_dp
-               IF (para_env%ionode .AND. globenv%print_level >= 1) THEN
+               IF ( iw > 0 ) THEN
                   IF (simpar % nfree == 0) THEN
                      temp = 2.0_dp * akin / REAL(1, KIND=dp) ! Should always be zero...
                   ELSE
@@ -1515,7 +1523,7 @@ CONTAINS
           IF ((qs_env%scf_control%density_guess == restart_guess) .AND. &
                (dft_control%qs_control%wf_interpolation_method_nr == wfi_use_guess_method_nr)) THEN
              dft_section =>  section_vals_get_subs_vals(input,"DFT",error=error)
-             CALL read_mo_set(qs_env%mos, atomic_kind_set, particle_set, para_env, globenv,&
+             CALL read_mo_set(qs_env%mos, atomic_kind_set, particle_set, para_env, &
                   id_nr=1,multiplicity=dft_control%multiplicity,dft_section=dft_section)
           END IF
 
@@ -1558,12 +1566,15 @@ CONTAINS
     CALL write_restart(md_env=md_env,root_section=root_section,force_env_section=force_env_section,&
               error=error)
 
-    IF (ionode .AND. globenv%print_level >= 1) THEN
-       accept = accept+1
+    IF ( iw > 0 ) THEN
+       accept = accept+1 ! XXXXXXXXXXXXXX what is this ??
        acceptance_rate = 100*(DBLE(accept)/DBLE(accept+reject))
        WRITE(iw, *) "Final acceptance ratio =", acceptance_rate, "%"
        WRITE(iw, *) "accepts =", accept, "  rejects =", reject
     END IF
+
+    CALL cp_print_key_finished_output(iw,logger,motion_section,&
+                                         "MD%PRINT%PROGRAM_RUN_INFO", error=error)
 
     CALL cp_rm_iter_level(logger%iter_info,n_rlevel_att=iter_level,&
          error=error)
@@ -1638,8 +1649,7 @@ CONTAINS
     INTEGER :: handle, harris_max_scf_tmp, ibead, iter, iw, max_scf_aspc_tmp, &
       max_scf_tmp, method_name_id, nbeads
     INTEGER, POINTER                         :: itimes
-    LOGICAL                                  :: ionode, should_stop, &
-                                                tot_energy
+    LOGICAL                                  :: should_stop, tot_energy
     REAL(KIND=dp) :: Econs, Ekin_new, Ekin_prev, Epot_new, Epot_prev, &
       new_lpsc_energy, prev_lpsc_energy, time_iter_start, time_iter_stop
     REAL(KIND=dp), POINTER                   :: used_time
@@ -1772,9 +1782,9 @@ CONTAINS
             END IF
           END IF
 
-          IF (para_env%ionode .AND. globenv%print_level >= 1) THEN
-            iw = globenv%scr
-            WRITE(iw, *) ""; WRITE(iw, *) ""
+          IF (iw>0) THEN
+            WRITE(iw, *) ""
+            WRITE(iw, *) ""
             WRITE(iw, *) "Kinetic MD Energy =", Ekin_prev, " & Potential MD Energy = ", Epot_prev
             WRITE(iw, *) "prev_lpsc_energy =", prev_lpsc_energy
           END IF
@@ -1826,9 +1836,7 @@ CONTAINS
             END IF
           END IF
 
-          ionode = para_env%ionode
-          iw = globenv%scr
-          IF (ionode .AND. globenv%print_level >= 1) THEN
+          IF ( iw > 0 ) THEN
             WRITE(iw, *) ""; WRITE(iw, *) ""
             WRITE(iw, *) "Kinetic MD Energy =", Ekin_new, " & Potential MD Energy = ", Epot_new
             WRITE(iw, *) ""

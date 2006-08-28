@@ -153,6 +153,7 @@ CONTAINS
                                                 pmtrans, pmvolume, pressure, &
                                                 rcut, temp
     REAL(KIND=dp), DIMENSION(1:3)            :: conf_prob
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys, subsys_2
@@ -171,8 +172,8 @@ CONTAINS
 
       NULLIFY(mc_env,mc_par,mc_par_2,force_env_2,rng_stream)
       para_env=>force_env%para_env
-
-      iw = globenv%scr
+      logger=>cp_error_get_logger(error)
+      iw = cp_logger_get_default_unit_nr(logger)
       force_env_section => force_env%force_env_section
       root_section => force_env%root_section
       CALL section_vals_get(force_env_section,n_repetition=isos,error=error)

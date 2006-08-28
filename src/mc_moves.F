@@ -1040,7 +1040,8 @@ CONTAINS
     CHARACTER(LEN=200)                       :: fft_lib
     CHARACTER(LEN=40)                        :: dat_file
     INTEGER :: cl, group, handle, i, iatom, icurrent, iside, iside_change, &
-      istat, iunit, natoms, nchain, nunits, nunits_tot, print_level, source
+      istat, iunit, natoms, nchain, nunits, nunits_tot, output_unit, &
+      print_level, source
     LOGICAL                                  :: ionode, ldiscrete, lincrease, &
                                                 loverlap, ltoo_small
     REAL(KIND=dp) :: BETA, discrete_step, energy_term, new_energy, pressure, &
@@ -1054,6 +1055,7 @@ CONTAINS
                                                 old_cell_length
     REAL(KIND=dp), DIMENSION(1:3, 1:3)       :: hmat_test
     TYPE(cell_type), POINTER                 :: cell, cell_old, cell_test
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: oldsys
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds_new
@@ -1074,7 +1076,9 @@ CONTAINS
          nunits_tot=nunits_tot,dat_file=dat_file,&
          rmvolume=rmvolume,nunits=nunits,pressure=pressure,cl=cl,&
          fft_lib=fft_lib,discrete_step=discrete_step,&
-         ldiscrete=ldiscrete,print_level=print_level)
+         ldiscrete=ldiscrete)
+
+      print_level = 1 ! hack, printlevel is for print_keys
 
 ! nullify some pointers
 !      NULLIFY(particles_old,particles_test,cell_old,oldsys,&
@@ -1237,7 +1241,9 @@ CONTAINS
          IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
             "mass")
 
-         IF(ionode) WRITE(globenv%scr,*) &
+         logger=>cp_error_get_logger(error)
+         output_unit=cp_logger_get_default_unit_nr(logger)
+         IF(output_unit>0) WRITE(output_unit,*) &
             "Volume move rejected due to overlap.",vol_dis
 !     end the timing
          CALL timestop(0.0E0_dp,handle)

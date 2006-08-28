@@ -141,10 +141,11 @@ CONTAINS
 !!******
 !******************************************************************************
 
-  SUBROUTINE cp2k_init(para_env,globenv,input_file_name)
+  SUBROUTINE cp2k_init(para_env,output_unit,globenv,input_file_name)
 
     TYPE(global_environment_type), POINTER :: globenv
     CHARACTER(LEN=*) :: input_file_name
+    INTEGER  :: output_unit
 
     CHARACTER(LEN=*), PARAMETER :: routineN = "cp2k_init"
 
@@ -153,7 +154,7 @@ CONTAINS
     CHARACTER(LEN=default_path_length) :: cwd
     CHARACTER(LEN=30)                  :: host_name,string,user_name
     CHARACTER(LEN=26)                  :: datx
-    INTEGER                            :: ipe,istat,l,output_unit,pid,&
+    INTEGER                            :: ipe,istat,l,my_output_unit,pid,&
                                           strstart,strend
     LOGICAL           :: ionode
 
@@ -181,7 +182,7 @@ CONTAINS
 !   *** Set the default logical output and error unit number ***
 !   *** write to screen in case of error on non-io nodes, and hope this is appropriate
     IF (para_env%ionode) THEN
-       CALL set_error_unit(globenv%scr)
+       CALL set_error_unit(output_unit)
     ELSE
        CALL set_error_unit(6)
     ENDIF
@@ -189,9 +190,9 @@ CONTAINS
 !   *** Init the default logger 
 
     IF (para_env%source==para_env%mepos) THEN
-       output_unit=globenv%scr
+       my_output_unit=output_unit
     ELSE
-       output_unit=-1
+       my_output_unit=-1
     END IF
     NULLIFY(logger)
     CALL cp_logger_create(logger,para_env=para_env,&
@@ -230,7 +231,7 @@ CONTAINS
     IF (para_env%ionode) THEN
       DO ipe=1,para_env%num_pe
         CALL ascii_to_string(all_host(:,ipe),string)
-        WRITE (UNIT=globenv%scr,FMT="(T2,A,T63,I8,T71,I10)")&
+        WRITE (UNIT=my_output_unit,FMT="(T2,A,T63,I8,T71,I10)")&
           TRIM(user_name)//"@"//TRIM(string)//&
           " has created process number",ipe-1,all_pid(ipe)
       END DO
@@ -248,36 +249,35 @@ CONTAINS
 !   *** Initialize timing ***
 
     CALL timeset ("CP2K","I","",globenv%handle)
-    output_unit=globenv%scr
 
     IF (ionode) THEN
-      WRITE (UNIT=output_unit,&
+      WRITE (UNIT=my_output_unit,&
              FMT="(/,A,T55,A26,/,A,T51,A30,/,A,T51,A30,/,A,T71,I10)")&
         "  **** **** ******  **  PROGRAM STARTED AT ",ADJUSTR(datx),&
         " ***** ** ***  *** **   PROGRAM STARTED ON ",ADJUSTR(host_name),&
         " **    ****   ******    PROGRAM STARTED BY ",ADJUSTR(user_name),&
         " ***** **    ** ** **   PROGRAM PROCESS ID ",pid
-      WRITE (UNIT=output_unit,FMT="(A,T44,A37)")&
+      WRITE (UNIT=my_output_unit,FMT="(A,T44,A37)")&
         "  **** **  *******  **  PROGRAM STARTED IN ",ADJUSTR(cwd(1:37))
       DO l=38,LEN_TRIM(cwd),37
-        WRITE (UNIT=output_unit,FMT="(T44,A)")&
+        WRITE (UNIT=my_output_unit,FMT="(T44,A)")&
           cwd(l:MIN(LEN_TRIM(cwd),l+36))
       END DO
-      WRITE (UNIT=output_unit,FMT="(/,T2,A,T31,A50)")&
+      WRITE (UNIT=my_output_unit,FMT="(/,T2,A,T31,A50)")&
         "CP2K| Program compiled at",&
         ADJUSTR(compile_date(1:MIN(50,LEN(compile_date))))
-      WRITE (UNIT=output_unit,FMT="(T2,A,T31,A50)")&
+      WRITE (UNIT=my_output_unit,FMT="(T2,A,T31,A50)")&
         "CP2K| Program compiled on",&
         ADJUSTR(compile_host(1:MIN(50,LEN(compile_host))))
-      WRITE (UNIT=output_unit,FMT="(T2,A,T31,A50)")&
+      WRITE (UNIT=my_output_unit,FMT="(T2,A,T31,A50)")&
         "CP2K| Program compiled for",&
         ADJUSTR(compile_arch(1:MIN(50,LEN(compile_arch))))
       strend=MAX(1,LEN(compile_lastcvs)-2)
       strstart=MAX(2,strend-50)
-      WRITE (UNIT=output_unit,FMT="(T2,A,T31,A50)")&
+      WRITE (UNIT=my_output_unit,FMT="(T2,A,T31,A50)")&
         "CP2K| Last CVS entry",&
         ADJUSTR(compile_lastcvs(strstart:strend))
-      WRITE (UNIT=output_unit,FMT="(T2,A,T31,A50)")&
+      WRITE (UNIT=my_output_unit,FMT="(T2,A,T31,A50)")&
         "CP2K| Input file name",&
         ADJUSTR(TRIM(input_file_name))
     END IF
@@ -352,7 +352,7 @@ SUBROUTINE cp2k_read(root_section,para_env,globenv,error)
             local_filename=TRIM(c_val)//"_localLog")
     END IF
     logger%iter_info%project_name=c_val
-    logger%iter_info%print_level=globenv%print_level
+    CALL section_vals_val_get(ROOT_SECTION,"GLOBAL%PRINT_LEVEL",i_val=logger%iter_info%print_level,error=error)
 
     iw = cp_print_key_unit_nr(logger,ROOT_SECTION,"GLOBAL%PRINT/BASIC_DATA_TYPES",&
          extension=".Log",error=error)
@@ -499,8 +499,9 @@ SUBROUTINE cp2k_read(root_section,para_env,globenv,error)
       restart_file_name
     INTEGER                                  :: iforce_eval, method_name_id, &
                                                 nforce_eval, num_threads, &
-                                                output_unit
+                                                output_unit, print_level
     LOGICAL                                  :: ata, failure, trace
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: dft_section, &
                                                 force_env_sections, &
                                                 global_section, qmmm_section, &
@@ -515,7 +516,7 @@ SUBROUTINE cp2k_read(root_section,para_env,globenv,error)
     global_section => section_vals_get_subs_vals(ROOT_SECTION,"GLOBAL",error=error)
     CALL section_vals_val_get(global_section,"BLACS_GRID",i_val=globenv%blacs_grid_layout,error=error)
     CALL section_vals_val_get(global_section,"FFT_LIBRARY",c_val=globenv%default_fft_library,error=error)
-    CALL section_vals_val_get(global_section,"PRINT_LEVEL",i_val=globenv%print_level,error=error)
+    CALL section_vals_val_get(global_section,"PRINT_LEVEL",i_val=print_level,error=error)
     CALL section_vals_val_get(global_section,"PROGRAM_NAME",i_val=globenv%prog_name_id,error=error)
     CALL section_vals_val_get(global_section,"PROJECT_NAME",c_val=globenv%project_name,error=error)
     CALL section_vals_val_get(global_section,"RUN_TYPE",i_val=globenv%run_type_id,error=error)
@@ -523,6 +524,9 @@ SUBROUTINE cp2k_read(root_section,para_env,globenv,error)
     CALL section_vals_val_get(global_section,"TRACE",l_val=trace,error=error)
     force_env_sections => section_vals_get_subs_vals(ROOT_SECTION,"FORCE_EVAL",error=error)
     CALL section_vals_get(force_env_sections, n_repetition=nforce_eval, error=error)
+    logger=>cp_error_get_logger(error)
+    output_unit=cp_print_key_unit_nr(logger,global_section,"PROGRAM_RUN_INFO",&
+                                         extension=".log",error=error)
      
     IF(trace) CALL trace_debug("start",groupid=para_env%group)
 
@@ -566,8 +570,7 @@ SUBROUTINE cp2k_read(root_section,para_env,globenv,error)
 !$omp parallel
 !$ num_threads = omp_get_num_threads()
 !$omp end parallel
-    IF (para_env%ionode.AND.(globenv%print_level > 0)) THEN
-      output_unit = globenv%scr
+    IF (output_unit > 0 ) THEN
       WRITE (UNIT=output_unit,FMT=*)      
       DO iforce_eval = 1, nforce_eval
          dft_section => section_vals_get_subs_vals3(force_env_sections,"DFT",&
@@ -620,7 +623,7 @@ SUBROUTINE cp2k_read(root_section,para_env,globenv,error)
         start_section_label//"| All-to-all communication in single precision",ata
 
       WRITE (UNIT=output_unit,FMT="(T2,A,T75,I6)")&
-        start_section_label//"| Global print level",globenv%print_level,&
+        start_section_label//"| Global print level",print_level,&
         start_section_label//"| Total number of message passing processes",&
                              para_env%num_pe,&
         start_section_label//"| Number of threads for this process",&
@@ -629,6 +632,8 @@ SUBROUTINE cp2k_read(root_section,para_env,globenv,error)
       WRITE (UNIT=output_unit,FMT='()')
 
     END IF
+    CALL cp_print_key_finished_output(output_unit,logger,global_section,&
+               "PROGRAM_RUN_INFO", error=error)
 
   END SUBROUTINE read_global_section
 
@@ -661,9 +666,10 @@ SUBROUTINE cp2k_read(root_section,para_env,globenv,error)
                                                 , start_section_label = "CP2K"
 
     COMPLEX(KIND=dp), DIMENSION(4, 4, 4)     :: zz
-    INTEGER                                  :: stat
+    INTEGER                                  :: output_unit, stat
     INTEGER, DIMENSION(3)                    :: n
     LOGICAL                                  :: was_present
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: global_section
 
 !   ---------------------------------------------------------------------------
@@ -672,6 +678,9 @@ SUBROUTINE cp2k_read(root_section,para_env,globenv,error)
     global_section => section_vals_get_subs_vals(ROOT_SECTION,"GLOBAL",error=error)
     CALL section_vals_get(global_section,explicit=was_present,error=error)
     CALL read_global_section(root_section,para_env,globenv)
+    logger => cp_error_get_logger(error)
+    output_unit=cp_print_key_unit_nr(logger,global_section,"PROGRAM_RUN_INFO",&
+                                         extension=".log",error=error)
 
 !   *** Initialize FFT library ***
     CALL init_fft(fftlib=TRIM(globenv%default_fft_library),&
@@ -682,8 +691,8 @@ SUBROUTINE cp2k_read(root_section,para_env,globenv,error)
     zz(:,:,:) = 0.0_dp
     CALL fft3d(1,n,zz,status=stat)
     IF (stat /= 0) THEN
-      IF (para_env%ionode) THEN
-         WRITE(globenv%scr,'(A,A,T55,A)') &
+      IF (output_unit > 0) THEN
+         WRITE(output_unit,'(A,A,T55,A)') &
            " WARNING : FFT library "//TRIM(globenv%default_fft_library)//&
            " is not available "," Trying FFTSG as a default"
       ENDIF
@@ -698,6 +707,9 @@ SUBROUTINE cp2k_read(root_section,para_env,globenv,error)
                              "> is not available",para_env)
       ENDIF
     END IF
+
+    CALL cp_print_key_finished_output(output_unit,logger,global_section,&
+               "PROGRAM_RUN_INFO", error=error)
 
   END SUBROUTINE read_cp2k_section
 
@@ -763,7 +775,11 @@ SUBROUTINE cp2k_read(root_section,para_env,globenv,error)
     ! Write message passing performance info
 
     IF (.NOT. failure) THEN
-       CALL describe_mp_perf_env ( para_env%group,globenv%scr )
+       iw=cp_print_key_unit_nr(logger,root_section,"GLOBAL%PROGRAM_RUN_INFO",&
+                                         extension=".log",error=error)
+       CALL describe_mp_perf_env ( para_env%group,iw )
+       CALL cp_print_key_finished_output(iw,logger,root_section,&
+               "GLOBAL%PROGRAM_RUN_INFO", error=error)
     ENDIF
     CALL rm_mp_perf_env()
 
@@ -791,8 +807,8 @@ SUBROUTINE cp2k_read(root_section,para_env,globenv,error)
     CALL rm_timer_env()
 
     IF (para_env%ionode) THEN
-
-      iw = globenv%scr
+       iw=cp_print_key_unit_nr(logger,root_section,"GLOBAL%PROGRAM_RUN_INFO",&
+                                         extension=".log",error=error)
 
       CALL m_datum(datx)
       CALL m_getcwd(cwd)
@@ -809,7 +825,7 @@ SUBROUTINE cp2k_read(root_section,para_env,globenv,error)
 
       ! Just a choice, do not print the final banner if there is a failure
 
-      IF (para_env%ionode .AND. .NOT. failure) THEN
+      IF (iw>0 .AND. .NOT. failure) THEN
         WRITE (UNIT=iw,&
                FMT="(A,T55,A26,/,A,T51,A30,/,A,T51,A30,/,A,T71,I10)")&
           "  **** **** ******  **  PROGRAM ENDED AT   ",ADJUSTR(datx),&
@@ -822,6 +838,9 @@ SUBROUTINE cp2k_read(root_section,para_env,globenv,error)
           WRITE (UNIT=iw,FMT="(T44,A)") cwd(l:MIN(LEN_TRIM(cwd),l+36))
         END DO
       END IF
+
+      CALL cp_print_key_finished_output(iw,logger,root_section,&
+               "GLOBAL%PROGRAM_RUN_INFO", error=error)
 
     END IF
 

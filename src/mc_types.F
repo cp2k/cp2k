@@ -83,7 +83,6 @@ MODULE mc_types
       INTEGER :: source
       INTEGER :: group
       INTEGER :: iprint
-      INTEGER :: print_level
       LOGICAL :: ldiscrete
       LOGICAL :: lbias
       LOGICAL :: ionode
@@ -189,7 +188,7 @@ CONTAINS
        energy_file,displacement_file,cell_file,dat_file,data_file,box2_file,&
        fft_lib,iprint,rcut,ldiscrete,discrete_step,&
        conf_prob,pmavbmc,pbias,avbmc_atom,avbmc_rmin,avbmc_rmax,rmdihedral,&
-       print_level,input_file)
+       input_file)
 
 ! *****************************************************************************
 !!****s* mc_types.F/get_mc_par
@@ -232,7 +231,6 @@ CONTAINS
     INTEGER, INTENT(OUT), OPTIONAL           :: avbmc_atom
     REAL(KIND=dp), INTENT(OUT), OPTIONAL     :: avbmc_rmin, avbmc_rmax, &
                                                 rmdihedral
-    INTEGER, INTENT(OUT), OPTIONAL           :: print_level
     TYPE(section_vals_type), OPTIONAL, &
       POINTER                                :: input_file
 
@@ -301,7 +299,6 @@ CONTAINS
     IF ( PRESENT ( data_file ) ) data_file = mc_par % data_file
     IF ( PRESENT ( box2_file ) ) box2_file = mc_par % box2_file
     IF ( PRESENT ( fft_lib ) ) fft_lib = mc_par % fft_lib
-    IF ( PRESENT ( print_level ) ) print_level = mc_par % print_level
 
     IF ( PRESENT ( input_file ) ) input_file => mc_par % input_file
 
@@ -492,6 +489,7 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
     INTEGER                                  :: handle, ia, ie, iw, &
                                                 method_name_id, stop_num
     LOGICAL                                  :: failure
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: mc_section
 
 !------------------------------------------------------------------------------
@@ -539,8 +537,9 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
       CASE (do_qs)
          mc_par % iprint = 1
       END SELECT
- 
-      iw = globenv%scr
+
+      logger=>cp_error_get_logger(error) 
+      iw = cp_logger_get_default_unit_nr(logger)
       IF(para_env%ionode) WRITE ( iw, * )
 
 !..filenames
@@ -576,7 +575,6 @@ SUBROUTINE read_mc_section ( mc_par, para_env, globenv, input_file_name, input_f
 ! grab the FFT library name and print level...this is used for writing the dat file
 ! and hopefully will be changed
       mc_par % fft_lib = globenv%default_fft_library
-      mc_par % print_level = globenv%print_level
 
  ! first, grab all the integer values
       CALL section_vals_val_get(mc_section,"NSTEP",i_val=mc_par%nstep,error=error)

@@ -111,13 +111,12 @@ MODULE fist_force
 !!   SOURCE
 !!******************************************************************************
 
-SUBROUTINE fist_force_control ( fist_env, virial, para_env, globenv,  debug , force_env_section, error)
+SUBROUTINE fist_force_control ( fist_env, virial, para_env,  debug , force_env_section, error)
 
 
     TYPE(fist_environment_type), POINTER     :: fist_env
     TYPE(virial_type), POINTER               :: virial
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(debug_variables_type), &
       INTENT(INOUT), OPTIONAL                :: debug
     TYPE(section_vals_type), POINTER         :: force_env_section
@@ -190,7 +189,7 @@ SUBROUTINE fist_force_control ( fist_env, virial, para_env, globenv,  debug , fo
 ! first check with list_control to update neighbor lists
 
   CALL list_control ( atomic_kind_set, particle_set, local_particles, &
-                      cell, fist_nonbond_env,para_env, globenv, force_env_section, error) 
+                      cell, fist_nonbond_env,para_env, iw, force_env_section, error) 
 
 !
 ! initial force, energy and pressure tensor arrays
@@ -283,9 +282,10 @@ SUBROUTINE fist_force_control ( fist_env, virial, para_env, globenv,  debug , fo
      CALL bonded_correct_gaussian ( atomic_kind_set, local_particles, &
                                     particle_set, ewald_env, &
                                     thermo % e_bonded, pv_bc )
-     IF ( ( first_time ) .AND. ( para_env%ionode ) ) &
-     CALL ewald_print ( globenv%scr, cell, vg_coulomb, &
-                       thermo % e_self, thermo % e_neut, thermo % e_bonded )
+     IF (  first_time ) THEN
+           IF (iw > 0 )  CALL ewald_print ( iw , cell, vg_coulomb, &
+                              thermo % e_self, thermo % e_neut, thermo % e_bonded )
+     ENDIF
 
   END IF
 

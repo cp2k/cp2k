@@ -160,12 +160,10 @@ END SUBROUTINE read_topology_section
 !!
 !******************************************************************************
 
-SUBROUTINE read_constraints_section(topology, globenv, colvar_p, constraint_section, error)
+SUBROUTINE read_constraints_section(topology, colvar_p, constraint_section, error)
 
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
-    TYPE(global_environment_type), &
-      OPTIONAL, POINTER                      :: globenv
     TYPE(colvar_p_type), DIMENSION(:), &
       POINTER                                :: colvar_p
     TYPE(section_vals_type), POINTER         :: constraint_section

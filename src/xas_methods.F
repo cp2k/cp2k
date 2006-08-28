@@ -485,10 +485,10 @@ CONTAINS
 !          END IF
 
           CALL init_scf_run(scf_env=scf_env,qs_env=qs_env,&
-                  globenv=globenv, scf_section=scf_section, error=error)
+                  scf_section=scf_section, error=error)
           ! this is not standing optimally here, but for the time being retains functionality
           CALL init_scf_loop(scf_env=scf_env,qs_env=qs_env,&
-                  globenv=globenv, scf_section=scf_section, error=error)
+                  scf_section=scf_section, error=error)
 
           CALL xas_do_tp_scf(xas_control,xas_env,iatom,scf_env,qs_env,globenv,&
                converged,should_stop,error=error)

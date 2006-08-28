@@ -756,7 +756,6 @@ CONTAINS
 !!
 !!   INPUTS
 !!     - kg_fm : containes all the info abut the molecules and the MOof each molecule
-!!     - globenv: parallel distribution and i/o information
 !!     - id_nr: give an index to the restart if =/ 1
 !!
 !!   AURHOR
@@ -766,11 +765,10 @@ CONTAINS
 !!
 !!*** **********************************************************************
 
-  SUBROUTINE write_mo_mol_restart(kg_fm,para_env,globenv,nspins,id_nr,force_env_section,error)
+  SUBROUTINE write_mo_mol_restart(kg_fm,para_env,nspins,id_nr,force_env_section,error)
 
     TYPE(kg_fm_p_type)                       :: kg_fm
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(global_environment_type), POINTER   :: globenv
     INTEGER, INTENT(IN)                      :: nspins, id_nr
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
@@ -784,7 +782,7 @@ CONTAINS
     INTEGER :: group, handle, imo, imol_found, imol_global, imol_local, &
       imol_proc, imolecule_kind, ispin, istat, n_ao, n_mo(2), nao_max, &
       nelectron_global, nelectron_spin(2), nmo_max, nmolecule_global, &
-      nmolecule_kind, nmolecule_local, restart_unit, source
+      nmolecule_kind, nmolecule_local, output_unit, restart_unit, source
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: nao_molkind, natom_molkind, &
                                                 nmol_molkind
     INTEGER, ALLOCATABLE, DIMENSION(:, :)    :: nel_molkind
@@ -795,6 +793,7 @@ CONTAINS
     REAL(dp), DIMENSION(:), POINTER          :: eigenvalues, &
                                                 occupation_numbers
     REAL(dp), DIMENSION(:, :), POINTER       :: mo
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(fm_mol_blocks_type), DIMENSION(:), &
       POINTER                                :: mol_blocks
     TYPE(fm_mol_blocks_type), POINTER        :: mol_block
@@ -811,6 +810,8 @@ CONTAINS
 
     group = para_env%group
     source = para_env%source
+    logger=>cp_error_get_logger(error)
+    output_unit=cp_logger_get_default_unit_nr(logger)
 
     method ="KG_GPW"
     nmolecule_kind = SIZE(kg_fm%kg_fm_mol_set)
@@ -931,12 +932,12 @@ CONTAINS
       CALL mp_sum(imol_found,group)
 
       IF(imol_found==0 ) THEN
-        IF(para_env%ionode) &
-           WRITE(globenv%scr,*) " WRITE RESTART : ", imol_global, " MOLECULE NOT FOUND ON ANY PROC. "
+        IF(output_unit>0) &
+           WRITE(output_unit,*) " WRITE RESTART : ", imol_global, " MOLECULE NOT FOUND ON ANY PROC. "
         CALL stop_program (routineP,"Error ")
       ELSEIF(imol_found >=2 ) THEN
-        IF(para_env%ionode) &
-             WRITE(globenv%scr,*) " WRITE RESTART : ", imol_global, " ON MORE THAN ONE PROC. "
+        IF(output_unit>0) &
+             WRITE(output_unit,*) " WRITE RESTART : ", imol_global, " ON MORE THAN ONE PROC. "
         CALL stop_program (routineP,"Error ")
       ELSE 
 
@@ -995,7 +996,6 @@ CONTAINS
 !!
 !!   INPUTS
 !!     - kg_fm : containes all the info abut the molecules and the MOof each molecule
-!!     - globenv: parallel distribution and i/o information
 !!     - nspins
 !!     - id_nr: give an index to the restart if =/ 1
 !!     - error
@@ -1007,11 +1007,10 @@ CONTAINS
 !!
 !!*** **********************************************************************
 
-  SUBROUTINE read_mo_mol_restart(kg_fm,para_env,globenv,nspins,id_nr,force_env_section,error)
+  SUBROUTINE read_mo_mol_restart(kg_fm,para_env,nspins,id_nr,force_env_section,error)
 
     TYPE(kg_fm_p_type)                       :: kg_fm
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(global_environment_type), POINTER   :: globenv
     INTEGER, INTENT(IN)                      :: nspins, id_nr
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
@@ -1028,7 +1027,7 @@ CONTAINS
       nelectron_global_read, nelectron_spin(2), nmo_max, nmo_min, &
       nmol_kind_global, nmolecule_global, nmolecule_global_read, &
       nmolecule_kind, nmolecule_kind_read, nmolecule_local, nspins_read, &
-      restart_unit, source
+      output_unit, restart_unit, source
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: nao_molkind_read, &
                                                 natom_molkind_read, &
                                                 nmol_molkind_read
@@ -1127,7 +1126,7 @@ CONTAINS
         CPPostcondition(n_ao==nao_molkind_read(imolecule_kind),cp_warning_level,routineP,error,failure)
         CPPostcondition(natom==natom_molkind_read(imolecule_kind),cp_warning_level,routineP,error,failure)
         IF(failure) THEN
-         WRITE(globenv%scr,*) " READ RESTART : molecule kind ",imolecule_kind , " is not consistent "
+         WRITE(output_unit,*) " READ RESTART : molecule kind ",imolecule_kind , " is not consistent "
          CALL stop_program(routineP,"error")
         END IF
       END DO 

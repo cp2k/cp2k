@@ -636,8 +636,8 @@ END SUBROUTINE f_env_rm_defaults
     END IF
     my_owns_out_unit=unit_nr/=6
     IF (PRESENT(owns_out_unit)) my_owns_out_unit=owns_out_unit
-    CALL globenv_create(globenv, output_unit=unit_nr, close_output_unit=my_owns_out_unit)
-    CALL cp2k_init(para_env, globenv, input_file_name=input_path)
+    CALL globenv_create(globenv)
+    CALL cp2k_init(para_env, output_unit=unit_nr, globenv=globenv, input_file_name=input_path)
     logger => cp_get_default_logger()
     ! warning this is dangerous, I did not check that all the subfunctions
     ! support it, the program might crash upon error
@@ -654,8 +654,8 @@ END SUBROUTINE f_env_rm_defaults
          l_val=my_echo,error=error)
     ! echo after check?
     IF (para_env%ionode.and.my_echo) THEN
-       CALL section_vals_write(input_file,unit_nr=globenv%scr,hide_root=.TRUE.,&
-            error=error)
+       CALL section_vals_write(input_file,unit_nr=cp_logger_get_default_unit_nr(logger), &
+               hide_root=.TRUE., error=error)
     END IF
     ! XXXXXXXXXXXXXXXXXXXXXXXXXXX
     ! ROOT_SECTION => input_file

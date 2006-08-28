@@ -23,8 +23,6 @@ MODULE cg_test
 
 ! *****************************************************************************
 
-  USE cp_para_types,                   ONLY: cp_para_env_type
-  USE global_types,                    ONLY: global_environment_type
   USE kinds,                           ONLY: dp
   USE lebedev,                         ONLY: get_number_of_lebedev_grid,&
                                              init_lebedev_grids,&
@@ -35,6 +33,7 @@ MODULE cg_test
                                              clebsch_gordon_init,&
                                              y_lm
   USE termination,                     ONLY: stop_memory
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
 
@@ -47,10 +46,10 @@ MODULE cg_test
 CONTAINS
 
 !******************************************************************************
-SUBROUTINE clebsch_gordon_test ( para_env, globenv )
+SUBROUTINE clebsch_gordon_test (error)
 
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(global_environment_type), POINTER   :: globenv
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
     INTEGER, PARAMETER                       :: l = 7
 
@@ -61,10 +60,12 @@ SUBROUTINE clebsch_gordon_test ( para_env, globenv )
     REAL(KIND=dp)                            :: ca, cga(10), cn, rga(10,21), &
                                                 tend, tstart
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: b1, b2, b3, wa
+    TYPE(cp_logger_type), POINTER            :: logger
 
-  iw =globenv%scr
+    logger=>cp_error_get_logger(error)
+    iw = cp_logger_get_default_unit_nr(logger)  
 
-  IF ( para_env%ionode ) THEN
+    IF ( iw>0 ) THEN
 
      WRITE(iw,'(/,A,/)') " Test of Clebsch-Gordon Coefficients"
      WRITE(iw,'(T40,A,T77,I4)') " Maximum l value tested:",l

@@ -234,7 +234,10 @@ SUBROUTINE read_mc_restart ( mc_par, force_env, iw, rng_stream)
       CALL get_mc_par(mc_par,restart_file_name=restart_file_name,temp=mc_temp,&
          nunits_tot=mc_nunits_tot,ensemble=mc_ensemble,nunits=mc_nunits,&
          ionode=ionode,dat_file=dat_file,nchain=mc_nchain,fft_lib=fft_lib,&
-         group=group,source=source,print_level=print_level)
+         group=group,source=source)
+
+      ! currently a hack, printlevel should be intern to the print_keys
+      print_level = 1
 
       IF(ionode) THEN
 ! open the file and read some simulation parameters
@@ -409,8 +412,7 @@ SUBROUTINE mc_create_force_env ( force_env, para_env, globenv_old,input_file_nam
       NULLIFY(globenv, force_env, force_env_section )
 
       ! init globenv with the data
-      CALL globenv_create(globenv, output_unit=globenv_old%scr, &
-           error=error)
+      CALL globenv_create(globenv, error=error)
 
     ! parse the input
       input_file => create_cp2k_input_reading(input_file_name,para_env=para_env,error=error)

@@ -25,7 +25,9 @@ MODULE md
                                              get_atomic_kind
   USE cp2k_units,                      ONLY: get_cp2k_units,&
                                              unit_convert_type
-  USE cp_output_handling,              ONLY: cp_print_key_generate_filename
+  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+                                             cp_print_key_generate_filename,&
+                                             cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_units,                        ONLY: cp_unit_from_cp2k
   USE global_types,                    ONLY: global_environment_type
@@ -212,18 +214,20 @@ CONTAINS
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
     NULLIFY(unit, md_section, motion_section, print_key)
-    CALL set_md_defaults(simpar, globenv)
-    iw = globenv%scr
+    CALL set_md_defaults(simpar)
 
     motion_section => section_vals_get_subs_vals(ROOT_SECTION,&
          "MOTION",error=error)
     md_section => section_vals_get_subs_vals(motion_section,&
          "MD",error=error)
+
+    logger => cp_error_get_logger(error)
+    iw=cp_print_key_unit_nr(logger,md_section,"PRINT%PROGRAM_RUN_INFO",&
+                                         extension=".log",error=error)
+
     CALL read_md_new_section(simpar, root_section, md_section, subsys_section, error)
 
-    IF (para_env%ionode.AND.(globenv%print_level >= 0)) THEN
-       WRITE (iw, *)
-    END IF
+    IF ( iw > 0 ) WRITE (iw, *)
 
     IF (globenv%run_type_id == ldmc_run) THEN
        simpar%ensemble = langevin_ensemble
@@ -236,7 +240,7 @@ CONTAINS
 
     IF (globenv%run_type_id == hmc_run .OR. globenv%run_type_id == ldmc_run) THEN
 
-       IF (para_env%ionode.AND.(globenv%print_level >= 0)) THEN
+       IF ( iw > 0 ) THEN
           WRITE ( iw, '( A,T71,I10 )' ) ' HMC| Number of Harris LD steps per MC cycle ', &
                simpar%ld_steps
           WRITE ( iw, '( A,T71,F10.2 )' ) ' HMC| Temperature correction value alpha ', &
@@ -303,7 +307,7 @@ CONTAINS
 
       simpar%var_w = 2.0_dp*simpar%temp_ext*simpar%dt*simpar%gamma
 
-      IF (para_env%ionode.AND.(globenv%print_level >= 0)) THEN
+      IF ( iw > 0 ) THEN
         tmp_r = cp_unit_from_cp2k(simpar%gamma,"fs^-1",error=error)
         WRITE (UNIT=iw,FMT="(T2,A,T71,ES10.3)")&
           "LD| Gamma [1/fs] ",tmp_r,&
@@ -315,7 +319,7 @@ CONTAINS
     !MK End setup Langevin dynamics
 
     !..write some information to output
-    IF (para_env%ionode .AND. globenv%print_level>=0) THEN
+    IF ( iw > 0 ) THEN
        CALL get_cp2k_units ( unit )
        WRITE ( iw, '( A )' ) ' MD| Molecular Dynamics Protocol '
        WRITE ( iw, '( A,T61,A )' ) ' MD| Output Format ', &
@@ -417,6 +421,9 @@ CONTAINS
                simpar % cmass
        END IF
     END IF
+
+    CALL cp_print_key_finished_output(iw,logger,md_section,&
+               "PRINT%PROGRAM_RUN_INFO", error=error)
 
   END SUBROUTINE read_md_section
 
@@ -585,10 +592,9 @@ CONTAINS
   !!  
   !!
   !!*** *************************************************************************  
-  SUBROUTINE set_md_defaults(simpar, globenv)
+  SUBROUTINE set_md_defaults(simpar)
     TYPE(simulation_parameters_type), &
       INTENT(OUT)                            :: simpar
-    TYPE(global_environment_type), POINTER   :: globenv
 
     simpar % units % time = 'FS'
     simpar % units % press = 'BAR'
@@ -657,11 +663,10 @@ CONTAINS
   !!     initialize_velocities
   !!
   !!   SYNOPSIS
-  !!     Subroutine initialize_velocities(simpar, part, globenv)
+  !!     Subroutine initialize_velocities(simpar, part)
   !!       Implicit None
   !!       Type(simulation_parameters_type), Intent (IN):: simpar
   !!       Type(particle_type), Intent (INOUT), Dimension(:):: part
-  !!       Type(global_environment_type), pointer:: globenv
   !!     End Subroutine initialize_velocities
   !!
   !!   FUNCTION
@@ -676,7 +681,7 @@ CONTAINS
   !!*** *************************************************************************
 
   SUBROUTINE initialize_velocities(simpar,part,para_env,globenv,molecule_kinds,&
-                                   work_section,error)
+                                   print_section,work_section,error)
 
     TYPE(simulation_parameters_type), &
       INTENT(INOUT)                          :: simpar
@@ -685,7 +690,7 @@ CONTAINS
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds
-    TYPE(section_vals_type), POINTER         :: work_section
+    TYPE(section_vals_type), POINTER         :: print_section, work_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -701,6 +706,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3)              :: v, vcom, vcom_new
     REAL(KIND=dp), DIMENSION(:), POINTER     :: vel
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(fixd_constraint_type), &
       DIMENSION(:), POINTER                  :: fixd_list
     TYPE(molecule_kind_type), DIMENSION(:), &
@@ -712,7 +718,10 @@ CONTAINS
 
     CALL timeset(routineN,"I","",handle)
 
-    iw = globenv%scr
+    logger => cp_error_get_logger(error)
+    iw=cp_print_key_unit_nr(logger,print_section,"PROGRAM_RUN_INFO",&
+                                         extension=".log",error=error)
+
     IF (iw>0) THEN
        WRITE ( iw, '( A, A, A )' ) ' **********************', &
             ' begin of velocity initialization ', '***********************'
@@ -887,6 +896,9 @@ CONTAINS
 
     DEALLOCATE (is_fixed,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,"is_fixed")
+
+    CALL cp_print_key_finished_output(iw,logger,print_section,&
+               "PROGRAM_RUN_INFO", error=error)
 
     CALL timestop(0.0_dp,handle)
 

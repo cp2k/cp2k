@@ -68,11 +68,11 @@ MODULE real_space_test
 CONTAINS
 
 !******************************************************************************
-SUBROUTINE rs_test ( root_section, para_env, globenv, error )
+SUBROUTINE rs_test ( root_section, para_env, iw, error )
 
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(global_environment_type), POINTER   :: globenv
+    INTEGER                                  :: iw
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -80,9 +80,8 @@ SUBROUTINE rs_test ( root_section, para_env, globenv, error )
       routineP = moduleN//':'//routineN
     INTEGER, PARAMETER                       :: nparticle = 5000
 
-    INTEGER                                  :: dir, i, ierr, iw, j, me, &
-                                                memory1, memory2, memory3, n, &
-                                                npme
+    INTEGER                                  :: dir, i, ierr, j, me, memory1, &
+                                                memory2, memory3, n, npme
     INTEGER, DIMENSION(2)                    :: bo
     INTEGER, DIMENSION(3)                    :: no, np, pt
     INTEGER, DIMENSION(3, nparticle)         :: refco, refpt
@@ -100,11 +99,10 @@ SUBROUTINE rs_test ( root_section, para_env, globenv, error )
     TYPE(realspace_grid_type), POINTER       :: rden
     TYPE(section_vals_type), POINTER         :: print_section
 
-  iw =globenv%scr
   NULLIFY(pw_a,pw_b,pw_c)
   NULLIFY(box)
   CALL cell_create(box)
-  IF ( para_env%ionode ) &
+  IF ( iw > 0 ) &
        WRITE(iw,'(/,A,/)') " Test of Real Space Grid Routines"
   NULLIFY(grid)
 

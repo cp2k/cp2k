@@ -167,9 +167,8 @@ CONTAINS
     TYPE(mol_kind_new_list_type), POINTER    :: molecule_kinds_new
     TYPE(mol_new_list_type), POINTER         :: molecules_new
     TYPE(particle_list_type), POINTER        :: particles
-    TYPE(section_vals_type), POINTER         :: force_env_section, &
-                                                motion_section, root_section, &
-                                                subsys_section, work_section
+    TYPE(section_vals_type), POINTER :: force_env_section, motion_section, &
+      print_section, root_section, subsys_section, work_section
     TYPE(simulation_parameters_type), &
       POINTER                                :: simpar
     TYPE(virial_type), POINTER               :: virial
@@ -184,7 +183,7 @@ CONTAINS
     NULLIFY ( particles, local_molecules, cell, cell_ref, dyn_coeff_set,&
               simpar,itimes,used_time,subsys,motion_section )
     NULLIFY (md_env,molecule_kinds_new, molecules_new, force_env_section,&
-         work_section, atomic_kinds, local_particles, t)
+         work_section, print_section, atomic_kinds, local_particles, t)
     logger => cp_error_get_logger(error)
     root_section=>force_env_p ( 1 ) % force_env % root_section
     para_env=>force_env_p ( 1 ) % force_env % para_env
@@ -245,15 +244,18 @@ CONTAINS
           !
           NULLIFY(work_section)
           work_section => section_vals_get_subs_vals(motion_section,"MD%NOSE",error=error)
+          print_section => section_vals_get_subs_vals(motion_section,"MD%PRINT",error=error)
           CALL initialize_nhc_part(cell,simpar,local_molecules, &
                                    molecules_new%els, molecule_kinds_new%els,&
-                                   para_env, globenv, extended_type%nhc_part(ibead),work_section=work_section,error=error)
+                                   para_env, globenv, extended_type%nhc_part(ibead), &
+                                   print_section=print_section,nose_section=work_section,error=error)
           !
           ! Possibly restart barostat
           !
           NULLIFY(work_section)
           work_section => section_vals_get_subs_vals(motion_section,"MD%BAROSTAT%NOSE",error=error)
-          CALL initialize_nhc_baro(simpar,para_env,globenv, extended_type%nhc_baro(ibead),work_section=work_section,error=error)
+          CALL initialize_nhc_baro(simpar,para_env,globenv, extended_type%nhc_baro(ibead),&
+                                   work_section=work_section,error=error)
 
           IF (ASSOCIATED(dyn_coeff_set)) THEN
              !
@@ -296,10 +298,12 @@ CONTAINS
                             error=error)
          NULLIFY (work_section)
          work_section => section_vals_get_subs_vals(subsys_section,"VELOCITY",error=error)
+         print_section => section_vals_get_subs_vals(motion_section,"MD%PRINT",error=error)
          CALL initialize_velocities(simpar,particles%els,&
                                     molecule_kinds=molecule_kinds_new,&
                                     para_env=para_env,&
                                     globenv=globenv,&
+                                    print_section=print_section,&
                                     work_section=work_section,&
                                     error=error)
        END DO
@@ -380,7 +384,7 @@ CONTAINS
       used_time = time_iter_stop - time_iter_start
       time_iter_start=time_iter_stop
 
-      CALL md_output(md_env,force_env_section,motion_section,root_section,globenv,error)
+      CALL md_output(md_env,force_env_section,motion_section,root_section,error)
 
     END DO 
 
@@ -420,11 +424,10 @@ CONTAINS
 !!     03.2006 created [Joost VandeVondele]
 !!
 !!*** **********************************************************************
-SUBROUTINE md_output(md_env,force_env_section,motion_section,root_section,globenv,error)
+SUBROUTINE md_output(md_env,force_env_section,motion_section,root_section,error)
     TYPE(md_environment_type), POINTER       :: md_env
     TYPE(section_vals_type), POINTER         :: force_env_section, &
                                                 motion_section, root_section
-    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 

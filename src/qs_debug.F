@@ -33,6 +33,8 @@
 !!   SOURCE
 !****************************************************************************
 MODULE qs_debug
+  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+                                             cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsystem_types,              ONLY: cp_subsystem_p_type
   USE force_env_methods,               ONLY: force_env_calc_energy_force
@@ -56,9 +58,8 @@ MODULE qs_debug
 
 CONTAINS
 
-  SUBROUTINE qs_debug_energy_and_forces(force_env, globenv, error)
+  SUBROUTINE qs_debug_energy_and_forces(force_env, error)
     TYPE(force_env_type), POINTER            :: force_env
-    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -73,6 +74,7 @@ CONTAINS
     REAL(kind=dp), DIMENSION(2)              :: numer_energy
     REAL(kind=dp), DIMENSION(3)              :: Err, my_maxerr
     REAL(kind=dp), DIMENSION(:, :), POINTER  :: analyt_forces, numer_forces
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
@@ -95,7 +97,9 @@ CONTAINS
        CALL section_vals_val_get(ROOT_SECTION,"DEBUG%DX",&
             r_val=dx, error=error)
        IF (num_pressure) CALL qs_calc_numerical_pressure(force_env,error=error)
-       iw = globenv%scr
+       logger => cp_error_get_logger(error)
+       iw=cp_print_key_unit_nr(logger,root_section,"GLOBAL%PROGRAM_RUN_INFO",&
+                                         extension=".log",error=error)
        ! 
        ! First evaluate energy and forces...
        !
@@ -194,6 +198,8 @@ CONTAINS
        END DO
        IF (ASSOCIATED(analyt_forces)) DEALLOCATE(analyt_forces)
        IF (ASSOCIATED( numer_forces)) DEALLOCATE( numer_forces)
+       CALL cp_print_key_finished_output(iw,logger,root_section,&
+               "GLOBAL%PROGRAM_RUN_INFO", error=error)
     END IF
 100 FORMAT(I5,F15.9," ( ",F7.2," ) ",F15.9," ( ",F7.2," ) ",F15.9," ( ",F7.2," ) ")
   END SUBROUTINE qs_debug_energy_and_forces

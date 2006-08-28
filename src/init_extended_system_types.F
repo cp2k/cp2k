@@ -22,6 +22,8 @@
 MODULE init_extended_system_types
 
   USE cell_types,                      ONLY: cell_type
+  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+                                             cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_type
@@ -221,7 +223,7 @@ CONTAINS
 ! fire up the thermostats, if NPT
 
     NULLIFY(buffer,work_section2)
-    CALL nhc_to_barostat_mapping ( simpar, nhc, para_env, globenv )
+    CALL nhc_to_barostat_mapping ( simpar, nhc, para_env)
     explicit = .FALSE.
     restart = .FALSE.
     ! Set up the Yoshida weights
@@ -325,7 +327,7 @@ CONTAINS
 !******************************************************************************
 
   SUBROUTINE initialize_nhc_part ( box, simpar, local_molecules, molecule, &
-       molecule_kind_set, para_env, globenv, nhc, work_section, error)
+       molecule_kind_set, para_env, globenv, nhc, print_section, nose_section, error)
 
 
     TYPE(cell_type), INTENT(IN)              :: box
@@ -338,7 +340,7 @@ CONTAINS
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(lnhc_parameters_type), &
       INTENT(INOUT)                          :: nhc
-    TYPE(section_vals_type), POINTER         :: work_section
+    TYPE(section_vals_type), POINTER         :: print_section, nose_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -349,6 +351,7 @@ CONTAINS
                                                 nconstraint, nfree
     LOGICAL                                  :: explicit, restart
     REAL(KIND=dp), DIMENSION(:), POINTER     :: buffer
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: work_section2
 
 !------------------------------------------------------------------------------
@@ -364,7 +367,7 @@ CONTAINS
     restart = .FALSE.
     ! fire up the thermostats, if not NVE
     CALL nhc_to_particle_mapping ( simpar, local_molecules, molecule, &
-         molecule_kind_set, nhc, para_env, globenv )
+         molecule_kind_set, nhc, para_env )
 
     ! Set up the Yoshida weights
     IF ( nhc % nyosh > 0 ) THEN
@@ -374,23 +377,23 @@ CONTAINS
        CALL set_yoshida_coef ( nhc, simpar % dt )
     ENDIF
 
-    IF (ASSOCIATED(work_section)) THEN
-       work_section2 => section_vals_get_subs_vals(work_section,"VELOCITY",error=error)
+    IF (ASSOCIATED(nose_section)) THEN
+       work_section2 => section_vals_get_subs_vals(nose_section,"VELOCITY",error=error)
        CALL section_vals_get(work_section2, explicit=explicit, error=error)
        restart=explicit
-       work_section2 => section_vals_get_subs_vals(work_section,"COORD",error=error)
+       work_section2 => section_vals_get_subs_vals(nose_section,"COORD",error=error)
        CALL section_vals_get(work_section2, explicit=explicit, error=error)
        CALL cp_assert(restart.or..not.explicit,cp_failure_level,cp_assertion_failed,routineP,&
             "You need to define both VELOCITY and COORD and MASS and FORCE section (or none) in the NOSE section",&
             error=error)
        restart=explicit.and.restart
-       work_section2 => section_vals_get_subs_vals(work_section,"MASS",error=error)
+       work_section2 => section_vals_get_subs_vals(nose_section,"MASS",error=error)
        CALL section_vals_get(work_section2, explicit=explicit, error=error)
        CALL cp_assert(restart.or..not.explicit,cp_failure_level,cp_assertion_failed,routineP,&
             "You need to define both VELOCITY and COORD and MASS and FORCE section (or none) in the NOSE section",&
             error=error)
        restart=explicit.and.restart
-       work_section2 => section_vals_get_subs_vals(work_section,"FORCE",error=error)
+       work_section2 => section_vals_get_subs_vals(nose_section,"FORCE",error=error)
        CALL section_vals_get(work_section2, explicit=explicit, error=error)
        CALL cp_assert(restart.or..not.explicit,cp_failure_level,cp_assertion_failed,routineP,&
             "You need to define both VELOCITY and COORD and MASS and FORCE section (or none) in the NOSE section",&
@@ -399,7 +402,7 @@ CONTAINS
     END IF
 
     IF (restart) THEN
-       CALL section_vals_val_get(work_section,"COORD%_DEFAULT_KEYWORD_",r_vals=buffer,error=error)
+       CALL section_vals_val_get(nose_section,"COORD%_DEFAULT_KEYWORD_",r_vals=buffer,error=error)
        DO i = 1, SIZE ( nhc % nvt, 2)
           ind = nhc % INDEX(i)
           ind = (ind-1) * nhc % nhc_len
@@ -408,7 +411,7 @@ CONTAINS
              nhc % nvt(j,i) % eta = buffer ( ind )
           END DO
        END DO
-       CALL section_vals_val_get(work_section,"VELOCITY%_DEFAULT_KEYWORD_",r_vals=buffer,error=error)
+       CALL section_vals_val_get(nose_section,"VELOCITY%_DEFAULT_KEYWORD_",r_vals=buffer,error=error)
        DO i = 1, SIZE ( nhc % nvt, 2)
           ind = nhc % INDEX(i)
           ind = (ind-1) * nhc % nhc_len
@@ -417,7 +420,7 @@ CONTAINS
              nhc % nvt(j,i) % v = buffer ( ind )
           END DO
        END DO
-       CALL section_vals_val_get(work_section,"MASS%_DEFAULT_KEYWORD_",r_vals=buffer,error=error)
+       CALL section_vals_val_get(nose_section,"MASS%_DEFAULT_KEYWORD_",r_vals=buffer,error=error)
        DO i = 1, SIZE ( nhc % nvt, 2)
           ind = nhc % INDEX(i)
           ind = (ind-1) * nhc % nhc_len
@@ -426,7 +429,7 @@ CONTAINS
              nhc % nvt(j,i) % mass = buffer ( ind )
           END DO
        END DO
-       CALL section_vals_val_get(work_section,"FORCE%_DEFAULT_KEYWORD_",r_vals=buffer,error=error)
+       CALL section_vals_val_get(nose_section,"FORCE%_DEFAULT_KEYWORD_",r_vals=buffer,error=error)
        DO i = 1, SIZE ( nhc % nvt, 2)
           ind = nhc % INDEX(i)
           ind = (ind-1) * nhc % nhc_len
@@ -450,8 +453,10 @@ CONTAINS
 
     nfree = 3*natom - nconstraint - simpar%nfree
 
-    IF (para_env%ionode.AND.globenv%print_level > 2) THEN
-       iw = globenv%scr
+    logger => cp_error_get_logger(error)
+    iw=cp_print_key_unit_nr(logger,print_section,"PROGRAM_RUN_INFO",&
+                                         extension=".log",error=error)
+    IF ( iw > 0 ) THEN
        WRITE ( iw, '( /, A )' ) ' Calculation of degrees of freedom'
        WRITE ( iw, '( T48, A, T71, I10 )' ) '       Number of atoms:', natom
        WRITE ( iw, '( T48, A, T71, I10 )' ) ' Number of constraints:', nconstraint
@@ -460,6 +465,9 @@ CONTAINS
        WRITE ( iw, '( T48, A, T71, I10 )' ) '    Degrees of freedom:', nfree
        WRITE ( iw, '()' )
     END IF
+
+    CALL cp_print_key_finished_output(iw,logger,print_section,&
+               "PROGRAM_RUN_INFO", error=error)
 
     simpar%nfree = nfree
 
@@ -521,7 +529,7 @@ CONTAINS
     CALL section_vals_val_get(md_new_section,"timestep",r_val=dt)
 
     ! fire up the thermostats
-    CALL nhc_to_coef_mapping ( dyn_coeff_set, nhc, root_section, para_env, globenv )
+    CALL nhc_to_coef_mapping ( dyn_coeff_set, nhc, root_section, para_env )
 
     IF (ASSOCIATED(work_section)) THEN
        work_section2 => section_vals_get_subs_vals(work_section,"VELOCITY",error=error)

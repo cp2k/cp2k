@@ -227,8 +227,10 @@ CONTAINS
          pmtraion=pmtraion,pmtrans=pmtrans,iuptrans=iuptrans,&
          iupvolume=iupvolume,ldiscrete=ldiscrete,&
          lbias=lbias,iprint=iprint,&
-         discrete_step=discrete_step,fft_lib=fft_lib,print_level=print_level,&
+         discrete_step=discrete_step,fft_lib=fft_lib,&
          conf_prob=conf_prob(:,1),pmavbmc=pmavbmc,pbias=pbias)
+
+      print_level = 1 ! hack
 
       IF(nboxes .GT. 1) THEN
          DO ibox=2,nboxes
@@ -249,7 +251,7 @@ CONTAINS
 
 
 ! figure out what the default write unit is
-      iw = globenv%scr
+      iw = cp_logger_get_default_unit_nr()
 
       IF (ionode) THEN
          WRITE(iw,*)

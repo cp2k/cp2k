@@ -10,6 +10,8 @@ MODULE cp2k_runs
   USE cp_files,                        ONLY: close_file,&
                                              get_unit_number,&
                                              open_file
+  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+                                             cp_print_key_unit_nr
   USE cp_para_env,                     ONLY: cp_para_env_create,&
                                              cp_para_env_release,&
                                              cp_para_env_retain
@@ -247,13 +249,12 @@ CONTAINS
 
           IF (prog_name_id/=do_cp2k) THEN
              ! initial setup (cp2k does in in the creation of the force_env)
-             CALL globenv_create(globenv, output_unit=output_unit, &
-                  error=error)
+             CALL globenv_create(globenv, error=error)
              ! XXXXXXXXX
              ! ROOT_SECTION => input_file
              ! XXXXXXXXX
              CALL section_vals_retain(input_file,error=error)
-             CALL cp2k_init ( para_env,globenv, input_file_name=input_file_name )
+             CALL cp2k_init ( para_env, output_unit, globenv, input_file_name=input_file_name )
              CALL cp_error_init(suberror)
              CALL cp2k_read(root_section,para_env,globenv)
              CALL cp2k_setup(root_section,para_env, globenv,suberror)
@@ -363,9 +364,9 @@ CPSourceFileRef,&
           CASE (qs_debug_run)
              SELECT CASE(method_name_id)
              CASE(do_qs, do_qmmm, do_ep)
-                CALL qs_debug_energy_and_forces(force_env, globenv, error=suberror)
+                CALL qs_debug_energy_and_forces(force_env, error=suberror)
              CASE(do_fist)
-                CALL fist_debug_control(force_env, globenv, error=suberror)
+                CALL fist_debug_control(force_env,  error=suberror)
              CASE DEFAULT
                 CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,routineP,&
                      "Debug run available only with QS, FIST, and QMMM program "//&
@@ -448,6 +449,7 @@ CPSourceFileRef,&
       output_unit, stat
     INTEGER, DIMENSION(:), POINTER           :: group_distribution
     LOGICAL                                  :: failure, found, run_OK
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_parser_type), POINTER            :: my_parser
     TYPE(cp_unit_set_type), POINTER          :: default_units
     TYPE(farming_env_type), POINTER          :: farming_env
@@ -458,14 +460,18 @@ CPSourceFileRef,&
     CALL timeset(routineN,'I','',handle)
     NULLIFY(my_parser,g_section,g_data,default_units)
 
-    IF (para_env%ionode) WRITE(globenv%scr,FMT="(T2,A)") "FARMING| Hi, welcome on this farm!"
+    logger => cp_error_get_logger(error)
+    output_unit=cp_print_key_unit_nr(logger,root_section,"GLOBAL%PROGRAM_RUN_INFO",&
+                                         extension=".log",error=error)
+
+    IF (output_unit>0) WRITE(output_unit,FMT="(T2,A)") "FARMING| Hi, welcome on this farm!"
 
     ALLOCATE(farming_env,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     CALL init_farming_env(farming_env)
     ! remember where we started
     CALL m_getcwd(farming_env%cwd)
-    CALL farming_parse_input(farming_env,root_section,para_env,globenv,error)
+    CALL farming_parse_input(farming_env,root_section,para_env,error)
 
     ! split the current communicator 
     ALLOCATE(group_distribution(0:para_env%num_pe-1),STAT=stat) 
@@ -480,15 +486,15 @@ CPSourceFileRef,&
     ELSE
        CPPostcondition(.FALSE.,cp_failure_level,routineP,error,failure)
     ENDIF
-    IF (para_env%ionode) THEN
-        WRITE(globenv%scr,FMT="(T2,A,T71,I10)") "FARMING| Number of created MPI groups:",ngroups
-        WRITE(globenv%scr,FMT="(T2,A)",ADVANCE="NO") "FARMING| Task to group correspondence:"
+    IF (output_unit>0) THEN
+        WRITE(output_unit,FMT="(T2,A,T71,I10)") "FARMING| Number of created MPI groups:",ngroups
+        WRITE(output_unit,FMT="(T2,A)",ADVANCE="NO") "FARMING| Task to group correspondence:"
         DO i=0,para_env%num_pe-1
-           IF (MODULO(i,4)==0) WRITE(globenv%scr,*)
-           WRITE(globenv%scr,FMT='(A3,I4,A3,I4,A1)',ADVANCE="NO")&
+           IF (MODULO(i,4)==0) WRITE(output_unit,*)
+           WRITE(output_unit,FMT='(A3,I4,A3,I4,A1)',ADVANCE="NO")&
                 "  (",i," : ",group_distribution(i),")"
         END DO
-        WRITE(globenv%scr,*)
+        WRITE(output_unit,*)
     ENDIF
 
     ! protect about too many jobs being run in single go. Not more jobs are allowed than the number in the input file
@@ -515,16 +521,16 @@ CPSourceFileRef,&
     ijob_start=farming_env%restart_n
     ijob_end=ijob_start+n_jobs_to_run-1
 
-    IF (para_env%ionode) THEN
+    IF (output_unit>0) THEN
       IF (ijob_end-ijob_start<0) THEN
-        WRITE(globenv%scr,FMT="(T2,A)") "FARMING| --- WARNING --- NO JOBS NEED EXECUTION ? "
-        WRITE(globenv%scr,FMT="(T2,A)") "FARMING| is the cycle keyword required ?"
-        WRITE(globenv%scr,FMT="(T2,A)") "FARMING| or is a stray RESTARTFARM present ?"
+        WRITE(output_unit,FMT="(T2,A)") "FARMING| --- WARNING --- NO JOBS NEED EXECUTION ? "
+        WRITE(output_unit,FMT="(T2,A)") "FARMING| is the cycle keyword required ?"
+        WRITE(output_unit,FMT="(T2,A)") "FARMING| or is a stray RESTARTFARM present ?"
       ELSE
-        WRITE(globenv%scr,FMT="(T2,A)") "FARMING| List of jobs : "
+        WRITE(output_unit,FMT="(T2,A)") "FARMING| List of jobs : "
         DO ijob=ijob_start,ijob_end
          i=MODULO(ijob-1,farming_env%njobs)+1
-         WRITE(globenv%scr,FMT=*) "Job: ",i," Dir: ",TRIM(farming_env%Job_cwd(i))," Input: ", &
+         WRITE(output_unit,FMT=*) "Job: ",i," Dir: ",TRIM(farming_env%Job_cwd(i))," Input: ", &
            TRIM(farming_env%Job_input(i))," MPI group:", MODULO(i-1,ngroups)
         ENDDO
       ENDIF
@@ -575,24 +581,21 @@ CPSourceFileRef,&
                 output_unit=999 
              ENDIF
           
-              IF (para_env%ionode) WRITE(globenv%scr,FMT="(T2,A,I5.5,A)") " Running Job ",i, &
+              IF (output_unit > 0) WRITE(output_unit,FMT="(T2,A,I5.5,A)") " Running Job ",i, &
                         " output to "//TRIM(farming_env%Job_cwd(i))//"/"//TRIM(output_file)
               run_OK=cp2k_run(TRIM(farming_env%Job_input(i)),output_unit,new_group)
               
-              IF (new_rank == 0) THEN
-                  CALL close_file(unit_number=output_unit)
-              ELSE
-              ENDIF
+              IF (new_rank == 0) CALL close_file(unit_number=output_unit)
 
           ELSE ! problem if just one node does not change...
-              IF (para_env%ionode) WRITE(globenv%scr,FMT="(T2,A,A)") &
+              IF (output_unit > 0 ) WRITE(output_unit,FMT="(T2,A,A)") &
                      " ... Failed to change dir to "//TRIM(farming_env%Job_cwd(i))
           ENDIF
 
           ! change to the original working directory
           CALL m_chdir(TRIM(farming_env%cwd),ierr)
           IF (ierr/=0) THEN
-              IF (para_env%ionode) WRITE(globenv%scr,FMT="(T2,A,A)") &
+              IF (output_unit > 0) WRITE(output_unit,FMT="(T2,A,A)") &
                          " ... Failed to change back home to "//TRIM(farming_env%cwd)
           ENDIF
 
@@ -608,6 +611,9 @@ CPSourceFileRef,&
     CALL deallocate_farming_env(farming_env)
 
     CALL mp_sync(para_env%group)
+
+    CALL cp_print_key_finished_output(output_unit,logger,root_section,&
+               "GLOBAL%PROGRAM_RUN_INFO", error=error)
 
     CALL timestop(0.0_dp,handle)
 

@@ -151,7 +151,7 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE create_small_subsystem(small_subsystem,big_subsys,small_cell,&
        small_para_env,sub_atom_index,sub_subsys_index,sub_atom_kind_name,&
-       root_section,para_env,globenv,force_env_section,error)
+       root_section,para_env,force_env_section,error)
     TYPE(cp_subsystem_type), POINTER         :: small_subsystem
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: big_subsys
@@ -163,7 +163,6 @@ CONTAINS
       DIMENSION(:), INTENT(in)               :: sub_atom_kind_name
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -195,7 +194,6 @@ CONTAINS
 
     CPPrecondition(.NOT.ASSOCIATED(small_subsystem),cp_failure_level,routineP,error,failure)
     CPPrecondition(ASSOCIATED(big_subsys),cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(globenv),cp_failure_level,routineP,error,failure)
     CALL cp_assert(big_subsys(1)%subsys%para_env%group==small_para_env%group, &
                    cp_failure_level,cp_assertion_failed,routineP, &
                    "big_subsys(1)%subsys%para_env%group==small_para_env%group", &
@@ -265,7 +263,7 @@ CONTAINS
        !-----------------------------------------------------------------------------
        ! 5. Read in or generate the molecular connectivity
        !-----------------------------------------------------------------------------
-       CALL connectivity_control(topology,para_env,globenv,subsys_section=subsys_section,error=error)
+       CALL connectivity_control(topology,para_env,subsys_section=subsys_section,error=error)
 
 
        !-----------------------------------------------------------------------------

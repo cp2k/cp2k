@@ -45,6 +45,7 @@ MODULE kg_intra
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
+#include "cp_common_uses.h"
 
   IMPLICIT NONE
 
@@ -59,7 +60,7 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE calculate_ebond_corr(kg_env,globenv,e_bc,calculate_forces)
+  SUBROUTINE calculate_ebond_corr(kg_env,e_bc,calculate_forces,error)
 
 !   Purpose: Calculate the overlap energy of the core charge distribution.
 
@@ -69,9 +70,10 @@ CONTAINS
 
 
     TYPE(kg_environment_type), POINTER       :: kg_env
-    TYPE(global_environment_type), POINTER   :: globenv
     REAL(KIND=dp), INTENT(out)               :: e_bc
     LOGICAL, INTENT(IN)                      :: calculate_forces
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: &
       routine = "SUBROUTINE calculate_ebond_corr (MODULE kg_intra)"
@@ -94,6 +96,7 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cell_type), POINTER                 :: box
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(distribution_1d_type), POINTER      :: local_particles
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
@@ -108,7 +111,8 @@ CONTAINS
     para_env=>kg_env%para_env
     group = para_env%group
     ionode = para_env%ionode
-    output_unit = globenv%scr
+    logger=>cp_error_get_logger(error)
+    output_unit = cp_logger_get_default_unit_nr(logger)
     prefac = (1.0_dp/pi)**1.5_dp
 
     CALL get_kg_env(kg_env=kg_env,&

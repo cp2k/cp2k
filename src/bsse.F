@@ -27,8 +27,8 @@
 MODULE bsse
   USE atomic_kind_types,               ONLY: get_atomic_kind
   USE cell_types,                      ONLY: cell_type
-  USE cp_output_handling,              ONLY: cp_p_file,&
-                                             cp_print_key_should_output
+  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+                                             cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsystem_methods,            ONLY: create_small_subsystem
   USE cp_subsystem_types,              ONLY: cp_subsys_get,&
@@ -136,7 +136,7 @@ CONTAINS
           CALL eval_bsse_energy(conf(i,:),Em(i),force_env,force_env_loc, n_frags, &
                root_section,globenv, error=error)
        END DO
-       CALL dump_bsse_results(conf, Em, num_of_frag, globenv, bsse_section, error)
+       CALL dump_bsse_results(conf, Em, num_of_frag,  bsse_section, error)
        DEALLOCATE(Em,   stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DEALLOCATE(conf, stat=stat)
@@ -351,7 +351,7 @@ CONTAINS
              END DO
           END IF
        END DO
-       CALL dump_bsse_info(atom_index, atom_type, conf, conf_loc, globenv, bsse_section, error)
+       CALL dump_bsse_info(atom_index, atom_type, conf, conf_loc, bsse_section, error)
        !
        ! Let's start setting up environments and calculations
        !
@@ -362,7 +362,7 @@ CONTAINS
           CALL create_small_subsystem(subsys_loc, big_subsys=subsys,&
                small_para_env=para_env, small_cell=cell,sub_atom_index=atom_index,&
                sub_subsys_index=subsys_index, sub_atom_kind_name=atom_type,&
-               root_section=root_section,para_env=para_env,globenv=globenv, force_env_section=force_env_section, error=error)
+               root_section=root_section,para_env=para_env,force_env_section=force_env_section, error=error)
 
           CALL quickstep_create_force_env(force_env_loc,root_section,para_env,globenv,subsystem=subsys_loc,&
                force_env_section=force_env_section, error=error)
@@ -412,12 +412,11 @@ CONTAINS
 !!     07.2005 created [tlaino]
 !!
 !!*** ********************************************************************** 
-  SUBROUTINE  dump_bsse_info(atom_index, atom_type, conf, conf_loc, globenv, bsse_section, error)
+  SUBROUTINE  dump_bsse_info(atom_index, atom_type, conf, conf_loc, bsse_section, error)
     INTEGER, DIMENSION(:), POINTER           :: atom_index
     CHARACTER(len=default_string_length), &
       DIMENSION(:), POINTER                  :: atom_type
     INTEGER, DIMENSION(:), INTENT(IN)        :: conf, conf_loc
-    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_vals_type), POINTER         :: bsse_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -429,16 +428,14 @@ CONTAINS
     INTEGER                                  :: i, iw
     LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(section_vals_type), POINTER         :: print_info
 
     failure = .FALSE.
     NULLIFY(logger)
     IF (.NOT.failure) THEN
-       logger => cp_error_get_logger(error)
-       print_info =>  section_vals_get_subs_vals(bsse_section,"PRINT%PROGRAM_RUN_INFO",error=error)
-       IF (BTEST(cp_print_key_should_output(logger%iter_info,print_info,error=error),cp_p_file).AND.&
-            logger%para_env%mepos==logger%para_env%source) THEN
-          iw = globenv%scr
+        logger => cp_error_get_logger(error)
+        iw=cp_print_key_unit_nr(logger,bsse_section,"PRINT%PROGRAM_RUN_INFO",&
+                                         extension=".log",error=error)
+        IF (iw>0) THEN
           WRITE (conf_s,*)conf ;         CALL compress(conf_s,full=.TRUE.)
           WRITE (conf_loc_s,*)conf_loc ; CALL compress(conf_loc_s,full=.TRUE.)
 
@@ -454,14 +451,17 @@ CONTAINS
           END DO
           WRITE (UNIT=iw,FMT="(T2,A)") REPEAT("-",79)
        END IF
+
+       CALL cp_print_key_finished_output(iw,logger,bsse_section,&
+               "PRINT%PROGRAM_RUN_INFO", error=error)
+
     END IF
   END SUBROUTINE dump_bsse_info
 
-  SUBROUTINE  dump_bsse_results(conf, Em,  num_of_frag, globenv, bsse_section, error)
+  SUBROUTINE  dump_bsse_results(conf, Em,  num_of_frag, bsse_section, error)
     INTEGER, DIMENSION(:, :), INTENT(IN)     :: conf
     REAL(KIND=dp), DIMENSION(:), POINTER     :: Em
     INTEGER, INTENT(IN)                      :: num_of_frag
-    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_vals_type), POINTER         :: bsse_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -472,17 +472,15 @@ CONTAINS
     INTEGER                                  :: i, iw
     LOGICAL                                  :: failure
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(section_vals_type), POINTER         :: print_info
 
     failure = .FALSE.
     NULLIFY(logger)
     IF (.NOT.failure) THEN
-       logger => cp_error_get_logger(error)
-       print_info =>  section_vals_get_subs_vals(bsse_section,"PRINT%PROGRAM_RUN_INFO",error=error)
-       IF (BTEST(cp_print_key_should_output(logger%iter_info,print_info,error=error),cp_p_file).AND.&
-            logger%para_env%mepos==logger%para_env%source) THEN
-          iw = globenv%scr
+        logger => cp_error_get_logger(error)
+        iw=cp_print_key_unit_nr(logger,bsse_section,"PRINT%PROGRAM_RUN_INFO",&
+                                         extension=".log",error=error)
 
+        IF (iw>0) THEN
           WRITE (UNIT=iw,FMT="(/,T2,A)") REPEAT("-",79)
           WRITE (UNIT=iw,FMT="(T2,A,T80,A)") "-","-"
           WRITE (UNIT=iw,FMT="(T2,A,T36,A,T80,A)")&
@@ -500,7 +498,11 @@ CONTAINS
           END DO
           WRITE (UNIT=iw,FMT="(T2,A,T20,A,F16.6,T80,A)") "-","BSSE  interaction  energy:",SUM(Em(Num_of_frag+1:)),"-"
           WRITE (UNIT=iw,FMT="(T2,A)") REPEAT("-",79)
-       END IF
+        END IF
+
+        CALL cp_print_key_finished_output(iw,logger,bsse_section,&
+               "PRINT%PROGRAM_RUN_INFO", error=error)
+
     END IF
   END SUBROUTINE dump_bsse_results
 

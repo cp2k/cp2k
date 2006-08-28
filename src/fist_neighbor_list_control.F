@@ -35,7 +35,6 @@ MODULE fist_neighbor_list_control
                                              fist_nonbond_env_set,&
                                              fist_nonbond_env_type,&
                                              pos_type
-  USE global_types,                    ONLY: global_environment_type
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: dp,&
                                              dp_size
@@ -67,7 +66,7 @@ CONTAINS
 ! list update, then the list routine is called.
 
 SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
-                          cell, fist_nonbond_env, para_env,globenv, force_env_section, error)
+                          cell, fist_nonbond_env, para_env,output_unit, force_env_section, error)
 
     TYPE(atomic_kind_type), POINTER          :: atomic_kind_set( : )
     TYPE(particle_type), POINTER             :: particle_set( : )
@@ -75,7 +74,7 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
     TYPE(cell_type), POINTER                 :: cell
     TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(global_environment_type), POINTER   :: globenv
+    INTEGER                                  :: output_unit
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -208,8 +207,8 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
                               last_update=last_update,&
                               cell_last_update=cell_last_update)
 
-    IF ((globenv%print_level >= 2).AND.(para_env%ionode)) THEN
-      WRITE (UNIT=globenv%scr,&
+    IF (output_unit>0) THEN
+      WRITE (UNIT=output_unit,&
              FMT="(/,T2,A,/,T52,A,/,A,T31,A,T49,2(1X,F15.2),/,T2,A,/)")&
         REPEAT("*",79),"INSTANTANEOUS        AVERAGES",&
         " LIST UPDATES[steps]","= ",lup,aup,REPEAT("*",79)

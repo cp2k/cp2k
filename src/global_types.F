@@ -28,7 +28,6 @@
 
 MODULE global_types
 
-  USE cp_files,                        ONLY: close_file
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
@@ -106,15 +105,11 @@ MODULE global_types
      TYPE(rng_stream_type), POINTER          :: gaussian_rng_stream
      CHARACTER(LEN=default_string_length)    :: default_fft_library,project_name
 
-     INTEGER :: scr          !! output unit
-
      INTEGER :: idum         !! random number seed
-     INTEGER :: print_level  !! how much information is written
      INTEGER :: prog_name_id !! index to define the type of program
      INTEGER :: run_type_id  !! index to define the run_tupe
      INTEGER :: blacs_grid_layout !! will store the user preference for the blacs grid
      REAL(KIND=dp) :: cp2k_start_time, cp2k_target_time
-     LOGICAL :: close_output_unit
      INTEGER :: handle
   END TYPE global_environment_type
 !!***
@@ -135,7 +130,6 @@ CONTAINS
 !!
 !!   ARGUMENTS
 !!     - globenv: the globenv to create
-!!     - output_unit: the output unit
 !!     - error: variable to control error logging, stopping,... 
 !!       see module cp_error_handling 
 !!
@@ -143,11 +137,8 @@ CONTAINS
 !!     fawzi
 !!
 !!*** **********************************************************************
-  SUBROUTINE globenv_create(globenv, output_unit, &
-       close_output_unit, error)
+  SUBROUTINE globenv_create(globenv, error)
     TYPE(global_environment_type), POINTER   :: globenv
-    INTEGER, INTENT(in)                      :: output_unit
-    LOGICAL, INTENT(in), OPTIONAL            :: close_output_unit
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -165,15 +156,11 @@ CONTAINS
        last_globenv_id=last_globenv_id+1
        globenv%id_nr=last_globenv_id
        globenv%ref_count=1
-       globenv%close_output_unit=.FALSE.
-       IF(PRESENT(close_output_unit))globenv%close_output_unit=close_output_unit
        globenv%run_type_id=0
        globenv%default_fft_library="FFTSG"
        globenv%prog_name_id=0
        globenv%project_name=""
        globenv%idum=0                 !! random number seed
-       globenv%print_level=1
-       globenv%scr=output_unit
        globenv%blacs_grid_layout=BLACS_GRID_SQUARE
        globenv%cp2k_start_time=m_walltime()
        NULLIFY (globenv%gaussian_rng_stream)
@@ -262,9 +249,6 @@ SUBROUTINE globenv_release(globenv, para_env, error)
      IF (globenv%ref_count==0) THEN
         IF (ASSOCIATED(globenv%gaussian_rng_stream)) THEN
           CALL delete_rng_stream(globenv%gaussian_rng_stream)
-        END IF
-        IF (globenv%close_output_unit) THEN
-           IF (para_env%ionode) CALL close_file(globenv%scr)
         END IF
         DEALLOCATE(globenv,stat=stat)
         CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)

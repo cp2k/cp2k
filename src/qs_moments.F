@@ -108,7 +108,6 @@ CONTAINS
     TYPE(neighbor_list_set_p_type), DIMENSION(:), POINTER :: sab_orb
     TYPE(particle_type), DIMENSION(:), POINTER            :: particle_set
     TYPE(real_matrix_p_type), DIMENSION(:), POINTER       :: matrix_s
-    TYPE(cp_logger_type), POINTER                         :: logger
     INTEGER                                               :: handle
     REAL(KIND = dp)                                       :: rab2, dab 
     LOGICAL                                               :: failure, new_atom_b
@@ -118,8 +117,6 @@ CONTAINS
     IF ( nmoments < 1 ) RETURN
 
     CALL timeset(routineN,"I","",handle)
-    NULLIFY(logger)
-    logger => cp_error_get_logger(error)
 
     failure = .FALSE.
 

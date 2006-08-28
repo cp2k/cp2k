@@ -196,7 +196,7 @@ SUBROUTINE fist_init ( fist_env, root_section,para_env, globenv, force_env_secti
   CALL ewald_env_create ( ewald_env, para_env, error )
 
 ! Read the input section and set the ewald_env ***
-  CALL read_ewald_section ( ewald_env, para_env, globenv, ewald_section=ewald_section,error=error )
+  CALL read_ewald_section ( ewald_env, ewald_section,error )
   CALL ewald_env_set(ewald_env, poisson_section=poisson_section, error=error)
 
 ! topology
@@ -225,7 +225,7 @@ SUBROUTINE fist_init ( fist_env, root_section,para_env, globenv, force_env_secti
 
   
   CALL fist_init_subsys ( fist_env, subsystem, cell, cell_ref, use_ref_cell, &
-                          fist_nonbond_env, ewald_env, globenv, force_env_section,&
+                          fist_nonbond_env, ewald_env, force_env_section,&
                           error )
 
   CALL cell_release(cell,error=error)
@@ -240,7 +240,7 @@ SUBROUTINE fist_init ( fist_env, root_section,para_env, globenv, force_env_secti
 
 !   ***************************************************************************
   SUBROUTINE fist_init_subsys ( fist_env, subsystem, cell, cell_ref, use_ref_cell, &
-                                fist_nonbond_env, ewald_env, globenv, force_env_section,&
+                                fist_nonbond_env, ewald_env, force_env_section,&
                                 error )
 
 !   Purpose: Read the input and the database files for the setup of the
@@ -255,7 +255,6 @@ SUBROUTINE fist_init ( fist_env, root_section,para_env, globenv, force_env_secti
     LOGICAL, INTENT(IN)                      :: use_ref_cell
     TYPE(fist_nonbond_env_type), POINTER     :: fist_nonbond_env
     TYPE(ewald_environment_type), POINTER    :: ewald_env
-    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error

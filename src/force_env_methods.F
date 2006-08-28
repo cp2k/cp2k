@@ -197,7 +197,7 @@ RECURSIVE SUBROUTINE force_env_calc_energy_force ( force_env, &
      SELECT CASE ( force_env%in_use )
      CASE ( use_fist_force )
         CALL fist_force_control( force_env%fist_env,force_env%virial, force_env%para_env, &
-                                 force_env%globenv, force_env_section=force_env%force_env_section, error=error)
+                                 force_env_section=force_env%force_env_section, error=error)
      CASE (use_ep_force)
         CALL ep_env_calc_e_f(force_env%ep_env,need_f,error=error)
      CASE ( use_qs_force )

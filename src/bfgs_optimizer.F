@@ -107,8 +107,6 @@ CONTAINS
       DIMENSION(:, :)                        :: eigvec, hes_mat
     REAL(KIND=dp), DIMENSION(:), POINTER     :: g
     TYPE(atomic_kind_list_type), POINTER     :: atomic_kinds
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -145,7 +143,6 @@ CONTAINS
          particles=particles)
 
     nkind = atomic_kinds%n_els
-    atomic_kind_set => atomic_kinds%els
 
     natom = particles%n_els  
     particle_set => particles%els    

@@ -25,8 +25,8 @@ MODULE qmmm_per_elpot
 !!   SOURCE
 !****************************************************************************  
   USE cell_types,                      ONLY: cell_type
-  USE cp_output_handling,              ONLY: cp_p_file,&
-                                             cp_print_key_should_output
+  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+                                             cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE ewald_spline_util,               ONLY: Setup_Ewald_Spline
   USE input_constants,                 ONLY: do_qmmm_gauss,&
@@ -111,7 +111,6 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: gx, gy, gz, Lg
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(qmmm_gaussian_type), POINTER        :: pgf
-    TYPE(section_vals_type), POINTER         :: print_pot
 
     NULLIFY(Lg, gx, gy, gz)
     ncoarset = PRODUCT(ncp)
@@ -131,7 +130,6 @@ CONTAINS
     ig_start = 1
     n_rep_real = n_rep_real_val
     IF (compatibility) ig_start = 2
-    print_pot => section_vals_get_subs_vals(print_section,"PERIODIC_INFO",error=error)
 
     CPPrecondition(.NOT.ASSOCIATED(per_potentials),cp_failure_level,routineP,error,failure)
     ALLOCATE(per_potentials(SIZE(pgfs)),stat=stat)
@@ -237,10 +235,9 @@ CONTAINS
                                      qmmm_per_section=qmmm_periodic, print_section=print_section,&
                                      error=error)
 
-       IF (BTEST(cp_print_key_should_output(logger%iter_info,print_pot,error=error),&
-            cp_p_file).AND.logger%para_env%mepos==logger%para_env%source) THEN
-          IF (para_env%ionode) THEN
-             iw = 1111111 ! globenv%scr
+       iw=cp_print_key_unit_nr(logger,print_section,"PERIODIC_INFO",&
+                                         extension=".log",error=error)
+       IF ( iw > 0) THEN
              npt = REAL(ncoarset,KIND=dp)*REAL(ndim,KIND=dp)*REAL(SIZE(mm_atom_index),KIND=dp)
              npl = REAL(ncoarsel,KIND=dp)*REAL(ndim,KIND=dp)*REAL(SIZE(mm_atom_index),KIND=dp)
              WRITE (UNIT=iw,FMT="(/,T2,A)") REPEAT("-",79)
@@ -254,8 +251,9 @@ CONTAINS
              WRITE (UNIT=iw,FMT="(T2,A,T10,A,F15.0,T50,A,F15.0,T80,A)")  "-","NFLOP-L ~",npl,&
                   "NFLOP-T ~",npt,"-"
              WRITE (UNIT=iw,FMT="(T2,A)") REPEAT("-",79)
-          END IF
        END IF
+       CALL cp_print_key_finished_output(iw,logger,print_section,&
+               "PERIODIC_INFO", error=error)
 
     END DO Potential_Type
 

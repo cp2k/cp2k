@@ -81,14 +81,13 @@ CONTAINS
 !!     06.2004 created [tlaino]
 !!
 !!*** **********************************************************************  
-  SUBROUTINE qmmm_gaussian_initialize(qmmm_gaussian_fns, para_env, globenv, pw_env,&
+  SUBROUTINE qmmm_gaussian_initialize(qmmm_gaussian_fns, para_env, pw_env,&
        qm_cell_small, mm_cell, mm_el_pot_radius, mm_el_pot_radius_corr,  &
        qmmm_coupl_type, eps_mm_rspace, maxradius, maxchrg, compatibility,&
        print_section, qmmm_section, error)
     TYPE(qmmm_gaussian_p_type), &
       DIMENSION(:), POINTER                  :: qmmm_gaussian_fns
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(pw_env_type), POINTER               :: pw_env
     TYPE(cell_type), POINTER                 :: qm_cell_small, mm_cell
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mm_el_pot_radius, &

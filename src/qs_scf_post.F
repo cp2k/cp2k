@@ -177,12 +177,11 @@ CONTAINS
 !!             started splitting out different subroutines
 !!
 !!*** **********************************************************************
-  SUBROUTINE scf_post_calculation(dft_section, scf_env,qs_env,globenv,error)
+  SUBROUTINE scf_post_calculation(dft_section, scf_env,qs_env,error)
 
     TYPE(section_vals_type), POINTER         :: dft_section
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -254,7 +253,7 @@ CONTAINS
 
 ! writes the data that is already available in qs_env 
     para_env=>qs_env%para_env
-    CALL write_available_results(qs_env,globenv,error)
+    CALL write_available_results(qs_env,error)
 
     failure=.FALSE.
     my_localized_wfn = .FALSE.
@@ -544,7 +543,7 @@ CONTAINS
                                                     mo_coeff, mo_eigenvalues, &
                                                     ks_rmpv ( ispin ) % matrix, &
                                                     matrix_s(1)%matrix, &
-                                                    globenv, qs_env,    &
+                                                    qs_env,    &
                                                     wf_r, wf_g, force_env_section=qs_env%input, error=error)
              ENDIF
              CALL cp_fm_release(mo_localized)
@@ -811,9 +810,8 @@ CONTAINS
 
   ! ***************************************************************************
 
-  SUBROUTINE write_available_results(qs_env,globenv,error)
+  SUBROUTINE write_available_results(qs_env,error)
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 

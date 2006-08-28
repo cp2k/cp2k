@@ -302,7 +302,7 @@ FUNCTION create_cp2k_input_reading(file_path,para_env,error) RESULT(res)
     failure=.FALSE.
     NULLIFY(print_key)
     CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
-    CALL section_create(section,name="global",&
+    CALL section_create(section,name="GLOBAL",&
          description="Section with general information regarding which kind "//&
          "of simulation to perform an parameters for the whole PROGRAM",&
          n_keywords=7, n_subsections=0, repeats=.FALSE., required=.TRUE.,&
@@ -427,6 +427,7 @@ FUNCTION create_cp2k_input_reading(file_path,para_env,error) RESULT(res)
          "Controls the printing of the timing report at the end of CP2K execution", &
          print_level=silent_print_level,filename="__STD_OUT__",&
          error=error)
+
     CALL keyword_create(keyword,"threshold",&
          description="Specify % of CPUTIME above which the contribution will be inserted in the"//&
          " final timing report",&
@@ -436,10 +437,18 @@ FUNCTION create_cp2k_input_reading(file_path,para_env,error) RESULT(res)
     CALL section_add_subsection(section,print_key,error=error)
     CALL section_release(print_key,error=error)
 
+    CALL cp_print_key_section_create(print_key,"PROGRAM_RUN_INFO",&
+            description="controls the printing of ewald setup",&
+            print_level=low_print_level,each=(/1/),add_last=(/1/),filename="__STD_OUT__",&
+            error=error)
+    CALL section_add_subsection(section,print_key,error=error)
+    CALL section_release(print_key,error=error)
+
     CALL cp_print_key_section_create(print_key, "print", description=&
          "controls the printing of physical and mathematical constants", &
          print_level=medium_print_level,filename="__STD_OUT__",&
          error=error)
+
     CALL keyword_create(keyword,"BASIC_DATA_TYPES",&
          description="Controls the printing of the basic data types.",&
          default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
@@ -680,14 +689,13 @@ FUNCTION create_cp2k_input_reading(file_path,para_env,error) RESULT(res)
       routineP = moduleN//':'//routineN
 
     TYPE(keyword_type), POINTER              :: keyword
-    TYPE(section_type), POINTER              :: print_key
 
     CALL section_create(section,name="debug",&
          description="Section to setup parameters for debugging runs",&
          n_keywords=7, n_subsections=0, repeats=.FALSE., required=.FALSE.,&
          error=error)
 
-    NULLIFY(keyword, print_key)
+    NULLIFY(keyword)
     CALL keyword_create(keyword, name="numerical_pressure",&
          description="Computes the numerical tensor",&
          usage="NUMERICAL_PRESSURE <LOGICAL>",default_l_val=.FALSE., error=error)

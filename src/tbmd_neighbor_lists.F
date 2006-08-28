@@ -252,12 +252,6 @@ CONTAINS
                                       num_update=num_update, &
                                       last_update=last_update, error=error)
 
-      ! IF ((globenv%print_level >= 2).AND.(para_env%ionode)) THEN
-      !   WRITE(UNIT=globenv%scr, &
-      !         FMT="(/,T2,A,/,T52,A,/,A,T31,A,T49,2(1X,F15.2),/,T2,A,/)")&
-      !     REPEAT("*",79),"INSTANTANEOUS        AVERAGES",&
-      !     " LIST UPDATES[steps]","= ", lup, aup, REPEAT("*",79)
-      ! END IF
     END IF
 
     counter = counter + 1

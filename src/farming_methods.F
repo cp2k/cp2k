@@ -5,9 +5,10 @@
 
 MODULE farming_methods
   USE cp_files,                        ONLY: get_unit_number
+  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+                                             cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE farming_types,                   ONLY: farming_env_type
-  USE global_types,                    ONLY: global_environment_type
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -23,11 +24,10 @@ MODULE farming_methods
 
 CONTAINS
 
-  SUBROUTINE farming_parse_input(farming_env,root_section,para_env,globenv,error)
+  SUBROUTINE farming_parse_input(farming_env,root_section,para_env,error)
     TYPE(farming_env_type), POINTER          :: farming_env
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
@@ -35,9 +35,11 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=3)                         :: text
-    INTEGER                                  :: i, iunit, n_rep_val, stat
+    INTEGER                                  :: i, iunit, n_rep_val, &
+                                                output_unit, stat
     INTEGER, DIMENSION(:), POINTER           :: i_vals
     LOGICAL                                  :: failure, found
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: farming_section, jobs_section
 
     failure=.FALSE.
@@ -102,43 +104,48 @@ CONTAINS
       END DO
    END IF
 
-   IF (para_env%ionode .AND. .NOT. failure) THEN
-        WRITE(globenv%scr,FMT="(T2,A,T71,I10)") "FARMING| Number of jobs found",farming_env%njobs
+   IF (.NOT. failure) THEN
+     
+      logger => cp_error_get_logger(error)
+      output_unit=cp_print_key_unit_nr(logger,root_section,"GLOBAL%PROGRAM_RUN_INFO",&
+                                         extension=".log",error=error)
+      IF (output_unit > 0) THEN
+        WRITE(output_unit,FMT="(T2,A,T71,I10)") "FARMING| Number of jobs found",farming_env%njobs
         IF (farming_env%ngroup_wish_set) THEN
-           WRITE(globenv%scr,FMT="(T2,A,T71,I10)") "FARMING| Ngroup wish:",farming_env%ngroup_wish
+           WRITE(output_unit,FMT="(T2,A,T71,I10)") "FARMING| Ngroup wish:",farming_env%ngroup_wish
            IF (ASSOCIATED(farming_env%group_partition)) THEN
-              WRITE(globenv%scr,FMT="(T2,A)",ADVANCE="NO") "FARMING| User partition:"
+              WRITE(output_unit,FMT="(T2,A)",ADVANCE="NO") "FARMING| User partition:"
               DO i=0,SIZE(farming_env%group_partition)-1
-                 IF (MODULO(i,4)==0) WRITE(globenv%scr,*)
-                 WRITE(globenv%scr,FMT='(I4)',ADVANCE="NO") farming_env%group_partition(i)
+                 IF (MODULO(i,4)==0) WRITE(output_unit,*)
+                 WRITE(output_unit,FMT='(I4)',ADVANCE="NO") farming_env%group_partition(i)
               END DO
-              WRITE(globenv%scr,*)
+              WRITE(output_unit,*)
               IF (SUM(farming_env%group_partition).NE.para_env%num_pe) THEN
-                 WRITE(globenv%scr,FMT="(T2,A,T61,I10,T71,I10)") &
+                 WRITE(output_unit,FMT="(T2,A,T61,I10,T71,I10)") &
                      "FARMING| WARNING : partition CPUs not equal actual number ", &
                      para_env%num_pe, SUM(farming_env%group_partition)
-                 WRITE(globenv%scr,FMT="(T2,A)") "FARMING|          partition data ignored" ! any better idea ??
+                 WRITE(output_unit,FMT="(T2,A)") "FARMING|          partition data ignored" ! any better idea ??
                  DEALLOCATE(farming_env%group_partition)
               ENDIF
            ENDIF
         ENDIF
         IF (farming_env%group_size_wish_set) THEN
-           WRITE(globenv%scr,FMT="(T2,A,T71,I10)") "FARMING| Group size wish:", &
+           WRITE(output_unit,FMT="(T2,A,T71,I10)") "FARMING| Group size wish:", &
                  farming_env%group_size_wish
         ENDIF
-        WRITE(globenv%scr,FMT="(T2,A,T71,I10)") "FARMING| Max steps      :",farming_env%max_steps
+        WRITE(output_unit,FMT="(T2,A,T71,I10)") "FARMING| Max steps      :",farming_env%max_steps
         IF (farming_env%cycle) THEN
             text="YES"
         ELSE
             text=" NO"
         ENDIF
-        WRITE(globenv%scr,FMT="(T2,A,T78,A3)") "FARMING| Cyclic jobs execution:",text
+        WRITE(output_unit,FMT="(T2,A,T78,A3)") "FARMING| Cyclic jobs execution:",text
         IF (farming_env%restart) THEN
             text="YES"
         ELSE
             text=" NO"
         ENDIF
-        WRITE(globenv%scr,FMT="(T2,A,T78,A3)") "FARMING| Restarting farm:",text
+        WRITE(output_unit,FMT="(T2,A,T78,A3)") "FARMING| Restarting farm:",text
         farming_env%restart_n = 1
         IF (farming_env%restart) THEN
            iunit=get_unit_number()
@@ -146,18 +153,22 @@ CONTAINS
            IF (stat==0) THEN
              READ(UNIT=iunit,FMT=*,IOSTAT=stat) farming_env%restart_n
              IF (stat/=0) THEN
-                WRITE(globenv%scr,"(T2,A)") &
+                WRITE(output_unit,"(T2,A)") &
                      "FARMING| ---- WARNING ---- failed to read from RESTARTFARM, starting at 1"
              ELSE
-                WRITE(globenv%scr,"(T2,A,T71,I10)") &
+                WRITE(output_unit,"(T2,A,T71,I10)") &
                      "FARMING| restarting from RESTARTFARM, starting at ",farming_env%restart_n
              ENDIF
            ELSE
-             WRITE(globenv%scr,"(T2,A)") &
+             WRITE(output_unit,"(T2,A)") &
                      "FARMING| ---- WARNING ---- failed to open RESTARTFARM, starting at 1"
            ENDIF
            CLOSE(iunit,IOSTAT=stat)
         ENDIF
+
+        CALL cp_print_key_finished_output(output_unit,logger,root_section,&
+               "GLOBAL%PROGRAM_RUN_INFO", error=error)
+      ENDIF
     ENDIF
     CALL mp_bcast(farming_env%restart_n,para_env%source,para_env%group)
 

@@ -35,9 +35,7 @@ MODULE qmmm_init
                                              read_cell,&
                                              write_cell
   USE checkpoint_handler,              ONLY: Pwarning
-  USE cp_output_handling,              ONLY: cp_p_file,&
-                                             cp_print_key_finished_output,&
-                                             cp_print_key_should_output,&
+  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsystem_methods,            ONLY: create_small_subsystem
@@ -176,7 +174,6 @@ CONTAINS
          mm_link_atoms, mm_link_scale_factor, qmmm_links, added_charges, &
          fist_scale_charge_link, print_section,  &
          print_gen, logger, mm_el_pot_radius_corr, super_cell)
-    iw = globenv%scr
     logger => cp_error_get_logger(error)
     IF (.NOT. failure) THEN
        ! Input section...
@@ -184,6 +181,8 @@ CONTAINS
        qmmm_periodic => section_vals_get_subs_vals(qmmm_section,"PERIODIC",error=error)
        print_section => section_vals_get_subs_vals(qmmm_section,"PRINT",error=error)
        print_gen => section_vals_get_subs_vals(print_section,"PROGRAM_RUN_INFO",error=error)
+       iw = cp_print_key_unit_nr(logger,print_gen,"", extension=".log",error=error)
+
        ALLOCATE(sub_force_env(2),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DO isubf=1,2
@@ -264,8 +263,7 @@ CONTAINS
        qmmm_env_qm%qmmm_link       = qmmm_link
        qmmm_env_qm%num_qm_atoms = SIZE(qm_atom_index)
        qmmm_env_qm%num_mm_atoms = SIZE(mm_atom_index)
-       IF (BTEST(cp_print_key_should_output(logger%iter_info,print_gen,error=error),cp_p_file).AND.&
-            logger%para_env%mepos==logger%para_env%source) THEN
+       IF ( iw > 0 ) THEN
           WRITE(iw,'(A,I6)')" Number of QM atoms: ",qmmm_env_qm%num_qm_atoms 
           WRITE(iw,'(A,I6)')" Number of MM atoms: ",qmmm_env_qm%num_mm_atoms
           WRITE(iw,'(A)')" QM cell ::"
@@ -303,7 +301,7 @@ CONTAINS
                mm_el_pot_radius_corr, mm_atom_index, qm_cell_small, iw, error=error)
           qmmm_env_qm%qmmm_links    => qmmm_links
 
-          CALL print_qmmm_links(globenv, qmmm_section, qmmm_links, error)
+          CALL print_qmmm_links(qmmm_section, qmmm_links, error)
 
           CALL add_set_release  (qmmm_env_qm%added_charges, error=error)
           CALL move_or_add_atoms(qmmm_section, move_mm_charges, add_mm_charges, &
@@ -316,7 +314,7 @@ CONTAINS
        
        CALL print_qmmm_charges(mm_atom_index, mm_atom_chrg, mm_el_pot_radius,&
                                mm_el_pot_radius_corr, qmmm_env_qm%added_charges,&
-                               globenv, qmmm_section, nocompatibility, error)
+                               qmmm_section, nocompatibility, error)
 
 
        CALL section_vals_val_set(force_env_section,"METHOD",i_val=do_qs)
@@ -325,7 +323,7 @@ CONTAINS
             small_cell=qm_cell_small,sub_atom_index=qm_atom_index,&
             sub_subsys_index=qm_subsys_index,&
             sub_atom_kind_name=qm_atom_type, root_section=root_section, para_env=para_env, &
-            globenv=globenv,force_env_section=force_env_section,error=error)
+            force_env_section=force_env_section,error=error)
        CALL quickstep_create_force_env(sub_force_env(2)%force_env,root_section,para_env,globenv,subsystem=subsys_qm,&
             cell=qm_cell_small, qmmm=.TRUE., qmmm_periodic=qmmm_env_qm%periodic,&
             force_env_section=force_env_section, error=error)
@@ -340,6 +338,7 @@ CONTAINS
           CALL set_qs_env(qs_env, super_cell=super_cell, qmmm_periodic=qmmm_env_qm%periodic, error=error)
           CALL cell_release(super_cell, error=error)
        END IF
+       CALL cp_print_key_finished_output(iw,logger,print_gen,"", error=error)
        iw2 = cp_print_key_unit_nr(logger,qmmm_section,"PRINT%PROGRAM_BANNER",&
             extension=".qmmmLog",error=error)    
        CALL qmmm_header(iw2, iw2>0)
@@ -352,7 +351,6 @@ CONTAINS
                                      qm_cell_small=qm_cell_small,&
                                      mm_cell=mm_cell,&
                                      para_env=para_env,&
-                                     globenv=globenv,&
                                      qs_env=qs_env,&
                                      mm_atom_chrg=mm_atom_chrg,&
                                      added_charges=qmmm_env_qm%added_charges,&
@@ -512,13 +510,12 @@ CONTAINS
 !!
 !!*** **********************************************************************
  SUBROUTINE print_qmmm_charges(mm_atom_index, mm_atom_chrg, mm_el_pot_radius, mm_el_pot_radius_corr,&
-                               added_charges, globenv, qmmm_section, nocompatibility, error)
+                               added_charges, qmmm_section, nocompatibility, error)
     INTEGER, DIMENSION(:), POINTER           :: mm_atom_index
     REAL(dp), DIMENSION(:), POINTER          :: mm_atom_chrg, &
                                                 mm_el_pot_radius, &
                                                 mm_el_pot_radius_corr
     TYPE(add_set_type), POINTER              :: added_charges
-    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_vals_type), POINTER         :: qmmm_section
     LOGICAL, INTENT(IN)                      :: nocompatibility
     TYPE(cp_error_type), INTENT(inout), &
@@ -527,14 +524,12 @@ CONTAINS
     INTEGER                                  :: I, ind1, ind2, IndMM, iw
     REAL(KIND=dp)                            :: qi, qtot, rc, ri
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(section_vals_type), POINTER         :: print_key
 
     qtot = 0.0_dp
-    iw = globenv%scr
     logger => cp_error_get_logger(error)
-    print_key => section_vals_get_subs_vals(qmmm_section,"print%qmmm_charges",error=error)
-    IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file).AND.&
-         logger%para_env%mepos==logger%para_env%source) THEN 
+    iw=cp_print_key_unit_nr(logger,qmmm_section,"PRINT%QMMM_CHARGES",&
+                                         extension=".log",error=error)
+    IF (iw>0) THEN
        WRITE(iw,FMT="(/,T2,A)") REPEAT("-",73)
        WRITE(iw,FMT='(/5X,A)')"MM    POINT CHARGES GENERATING THE QM/MM ELECTROSTATIC POTENTIAL"
        WRITE(iw,FMT="(/,T2,A)") REPEAT("-",73)
@@ -577,6 +572,8 @@ CONTAINS
        WRITE(iw,'(/,T36,A,F12.6)')' TOTAL CHARGE:',qtot
        WRITE(iw,FMT="(/,T2,A,/)") REPEAT("-",73)
     END IF
+    CALL cp_print_key_finished_output(iw,logger,qmmm_section,&
+               "PRINT%QMMM_CHARGES", error=error)
   END SUBROUTINE print_qmmm_charges
 
 !!****f* qmmm_init/print_qmmm_links [1.0] *
@@ -602,8 +599,7 @@ CONTAINS
 !!     01.2005 created [tlaino]
 !!
 !!*** **********************************************************************
- SUBROUTINE print_qmmm_links(globenv, qmmm_section, qmmm_links, error)
-    TYPE(global_environment_type), POINTER   :: globenv
+ SUBROUTINE print_qmmm_links( qmmm_section, qmmm_links, error)
     TYPE(section_vals_type), POINTER         :: qmmm_section
     TYPE(qmmm_links_type), POINTER           :: qmmm_links
     TYPE(cp_error_type), INTENT(inout), &
@@ -612,13 +608,10 @@ CONTAINS
     INTEGER                                  :: i, iw, mm_index, qm_index
     REAL(KIND=dp)                            :: alpha
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(section_vals_type), POINTER         :: print_key
 
-    iw = globenv%scr
     logger => cp_error_get_logger(error)
-    print_key => section_vals_get_subs_vals(qmmm_section,"print%qmmm_link_info",error=error)
-    IF (BTEST(cp_print_key_should_output(logger%iter_info,print_key,error=error),cp_p_file).AND.&
-         logger%para_env%mepos==logger%para_env%source) THEN 
+    iw=cp_print_key_unit_nr(logger,qmmm_section,"PRINT%qmmm_link_info", extension=".log",error=error)
+    IF (iw>0) THEN
        IF (ASSOCIATED(qmmm_links)) THEN
           WRITE(iw,FMT="(/,T2, A)") REPEAT("-",73)
           WRITE(iw,FMT="(/,T31,A)") " QM/MM LINKS "
@@ -649,6 +642,8 @@ CONTAINS
           WRITE(iw,FMT="(/,T2, A)") REPEAT("-",73)          
        END IF
     END IF
+    CALL cp_print_key_finished_output(iw,logger,qmmm_section,&
+               "PRINT%qmmm_link_info", error=error)
   END SUBROUTINE print_qmmm_links
 
   !!****f* qmmm_init/qmmm_init_gaussian_type [1.0] *
@@ -673,13 +668,12 @@ CONTAINS
   !!     1.2005 created [tlaino]
   !!
   !!*************************************************************************
- SUBROUTINE qmmm_init_gaussian_type(qmmm_env_qm, qm_cell_small, mm_cell, para_env, globenv,&
+ SUBROUTINE qmmm_init_gaussian_type(qmmm_env_qm, qm_cell_small, mm_cell, para_env, &
                                     mm_atom_chrg, qs_env, added_charges, print_section, &
                                     qmmm_section, error )
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env_qm
     TYPE(cell_type), POINTER                 :: qm_cell_small, mm_cell
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(global_environment_type), POINTER   :: globenv
     REAL(KIND=dp), DIMENSION(:), POINTER     :: mm_atom_chrg
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(add_set_type), POINTER              :: added_charges
@@ -705,7 +699,6 @@ CONTAINS
                                   qm_cell_small=qm_cell_small,&
                                   mm_cell=mm_cell,&
                                   para_env=para_env,&
-                                  globenv=globenv,&
                                   pw_env=qs_env%pw_env,&
                                   mm_el_pot_radius=qmmm_env_qm%mm_el_pot_radius,&
                                   mm_el_pot_radius_corr=qmmm_env_qm%mm_el_pot_radius_corr,&
@@ -723,7 +716,6 @@ CONTAINS
                                      qm_cell_small=qm_cell_small,&
                                      mm_cell=mm_cell,&
                                      para_env=para_env,&
-                                     globenv=globenv,&
                                      pw_env=qs_env%pw_env,&
                                      mm_el_pot_radius=added_charges%mm_el_pot_radius,&
                                      mm_el_pot_radius_corr=added_charges%mm_el_pot_radius_corr,&

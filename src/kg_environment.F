@@ -190,7 +190,8 @@ CONTAINS
 
     CALL timeset(routineN,"I",'',handle)
     ionode = para_env%ionode
-    output_unit = globenv%scr
+    logger => cp_error_get_logger(error)
+    output_unit = cp_logger_get_default_unit_nr(logger)
     was_present = .FALSE.
     
     ! nullifying  pointers
@@ -228,11 +229,11 @@ CONTAINS
          error=error)
 
     ! Read/write the input section with the dft and qs control parameters
-    CALL read_dft_control ( dft_control, root_section,globenv, dft_section,error )
+    CALL read_dft_control ( dft_control, root_section, dft_section,error )
 
 !   *** Read the input section with the Quickstep control parameters ***
-    CALL read_qs_section(dft_control%qs_control,globenv,qs_section,error=error)
-    CALL read_mgrid_section(dft_control%qs_control,globenv,dft_section,error=error)
+    CALL read_qs_section(dft_control%qs_control,qs_section,error=error)
+    CALL read_mgrid_section(dft_control%qs_control,dft_section,error=error)
 
     CALL write_dft_control ( dft_control, dft_section, error)
     CALL write_qs_control ( dft_control % qs_control, dft_section, error)
@@ -381,7 +382,7 @@ CONTAINS
 
     IF ( kg_gpw ) THEN
       !Sets up qs_env for subsystems             
-      CALL kg_subsys_setup(kg_env,globenv,force_env_section,error)
+      CALL kg_subsys_setup(kg_env,force_env_section,error)
     END IF
 
     IF (ionode) CALL m_flush(output_unit)
@@ -472,12 +473,11 @@ CONTAINS
 
 !******************************************************************************
 
-  SUBROUTINE kg_subsys_setup(kg_env,globenv,force_env_section,error)
+  SUBROUTINE kg_subsys_setup(kg_env,force_env_section,error)
 
 !   We generate a qs_environment for the system
 
     TYPE(kg_environment_type), POINTER       :: kg_env
-    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_vals_type), POINTER         :: force_env_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error

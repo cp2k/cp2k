@@ -375,7 +375,7 @@ CONTAINS
     logger => cp_error_get_logger(error)
 
     ionode = para_env%ionode
-    IF(ionode) output_unit = globenv%scr
+    IF(ionode) output_unit = cp_logger_get_default_unit_nr(logger)
     was_present = .FALSE.
 
     IF (PRESENT(harris)) THEN
@@ -414,15 +414,14 @@ CONTAINS
 
 !   *** Read the input section with the DFT control parameters ***
 
-    CALL read_dft_control(dft_control,root_section,globenv,dft_section)
+    CALL read_dft_control(dft_control,root_section,dft_section)
     ! ONLY WORKS WITH NEW INPUT
-    CALL read_tddfpt_control(dft_control%tddfpt_control,dft_control%nspins,globenv,&
-         dft_section,error)
+    CALL read_tddfpt_control(dft_control%tddfpt_control,dft_control%nspins, dft_section,error)
 
 !   *** Read the input section with the Quickstep control parameters ***
 
-    CALL read_qs_section(dft_control%qs_control,globenv,qs_section,error=error)
-    CALL read_mgrid_section(dft_control%qs_control,globenv,dft_section,error=error)
+    CALL read_qs_section(dft_control%qs_control,qs_section,error=error)
+    CALL read_mgrid_section(dft_control%qs_control,dft_section,error=error)
 
 !   *** Check basis and fill in missing parts ***
 
@@ -593,13 +592,13 @@ CONTAINS
       IF(cell%perd(3)==1) rc = MIN(rc,0.5_dp*plane_distance(0,0,1,cell))
       IF (rc /= se_control%rc_interaction) THEN
          IF (para_env%ionode) THEN
-           WRITE(globenv%scr,*)
-           WRITE(globenv%scr,'(A,T34,A)')     " WARNING|",&
+           WRITE(output_unit,*)
+           WRITE(output_unit,'(A,T34,A)')     " WARNING|",&
                                    " Integral interaction cutoff has been redefined"
-           WRITE(globenv%scr,'(A,T71,F10.3)') " WARNING| Old value [a.u.]",&
+           WRITE(output_unit,'(A,T71,F10.3)') " WARNING| Old value [a.u.]",&
                                    se_control%rc_interaction
-           WRITE(globenv%scr,'(A,T71,F10.3)') " WARNING| New value [a.u.]",rc
-           WRITE(globenv%scr,*)
+           WRITE(output_unit,'(A,T71,F10.3)') " WARNING| New value [a.u.]",rc
+           WRITE(output_unit,*)
          END IF
       END IF
       se_control%rc_interaction = rc
@@ -722,7 +721,7 @@ CONTAINS
       IF (scf_control%roks_scheme == general_roks) THEN
         IF (para_env%ionode) THEN
           CALL print_message("WARNING: General ROKS scheme is not yet tested",&
-                             globenv%scr,2,1,1)
+                             output_unit,2,1,1)
         END IF
       END IF
       IF (scf_control%eps_jacobi /= 0.0_dp) THEN
@@ -748,11 +747,12 @@ CONTAINS
     ! at as few places as possible, just duplicating the beta orbitals
     IF (dft_control%restricted) THEN
        ! it is really not yet tested till the end ! Joost
-       IF (para_env%ionode) WRITE(globenv%scr,*) ""
-       IF (para_env%ionode) WRITE(globenv%scr,*) " **************************************"
-       IF (para_env%ionode) WRITE(globenv%scr,*) " restricted calculation cutting corners"
-       IF (para_env%ionode) WRITE(globenv%scr,*) " experimental feature, check code      "
-       IF (para_env%ionode) WRITE(globenv%scr,*) " **************************************"
+       iw = cp_logger_get_default_unit_nr(logger) 
+       WRITE(iw,*) ""
+       WRITE(iw,*) " **************************************"
+       WRITE(iw,*) " restricted calculation cutting corners"
+       WRITE(iw,*) " experimental feature, check code      "
+       WRITE(iw,*) " **************************************"
     ENDIF
 
     DO ispin=1,dft_control%nspins

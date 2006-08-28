@@ -559,7 +559,10 @@ CONTAINS
       CALL get_mc_par(mc_par(1)%mc_par,ionode=ionode,BETA=BETA,&
          nswapmoves=nswapmoves,group=group,source=source,&
          lbias=lbias,nchain=nchain(1),nunits_tot=nunits_tot(1),&
-         dat_file=dat_file(1),fft_lib=fft_lib,print_level=print_level)
+         dat_file=dat_file(1),fft_lib=fft_lib)
+
+      print_level = 1 
+
       CALL get_mc_par(mc_par(2)%mc_par,nchain=nchain(2),&
          nunits_tot=nunits_tot(2),dat_file=dat_file(2))
 
@@ -1261,7 +1264,9 @@ CONTAINS
       CALL get_mc_par(mc_par(1)%mc_par,ionode=ionode,source=source,&
          group=group,nchain=nchain(1),nunits_tot=nunits_tot(1),&
          dat_file=dat_file(1),rmvolume=rmvolume,&
-         nunits=nunits,BETA=BETA,cl=cl,fft_lib=fft_lib,print_level=print_level)
+         nunits=nunits,BETA=BETA,cl=cl,fft_lib=fft_lib)
+
+      print_level = 1
       CALL get_mc_par(mc_par(2)%mc_par,nchain=nchain(2),&
          nunits_tot=nunits_tot(2),dat_file=dat_file(2))
 

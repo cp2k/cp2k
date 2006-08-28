@@ -120,7 +120,6 @@ CONTAINS
 !!
 !!*************************************************************************
   SUBROUTINE qmmm_forces(qs_env,qmmm_env,mm_particles,calc_force,mm_cell,error)
-!       globenv, error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
     TYPE(particle_type), DIMENSION(:), &
@@ -152,9 +151,6 @@ CONTAINS
     TYPE(qs_rho_type), POINTER               :: rho
     TYPE(section_vals_type), POINTER         :: input_section, &
                                                 interp_section, print_section
-
-!    TYPE(global_environment_type), &
-!      OPTIONAL, POINTER                      :: globenv
 
     CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
@@ -290,7 +286,6 @@ CONTAINS
                Potentials=qmmm_env%Potentials,&
                interp_section=interp_section,&
                mm_cell=mm_cell,&
-!               globenv=globenv,&
                error=error)                              
        ENDIF
        !
@@ -1564,7 +1559,7 @@ CONTAINS
 !!*************************************************************************
   SUBROUTINE qmmm_debug_forces(rho,qs_env,qmmm_env,Analytical_Forces,&
                                mm_particles,mm_atom_index,num_mm_atoms,&
-                               Potentials,interp_section,mm_cell,globenv,error)      
+                               Potentials,interp_section,mm_cell,error)      
     TYPE(pw_type), POINTER                   :: rho
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qmmm_env_qm_type), POINTER          :: qmmm_env
@@ -1577,8 +1572,6 @@ CONTAINS
       POINTER                                :: Potentials
     TYPE(section_vals_type), POINTER         :: interp_section
     TYPE(cell_type), POINTER                 :: mm_cell
-    TYPE(global_environment_type), &
-      OPTIONAL, POINTER                      :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 

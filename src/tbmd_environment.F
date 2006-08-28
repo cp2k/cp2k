@@ -387,9 +387,8 @@ CONTAINS
                       cell_ref=cell_ref, use_ref_cell=use_ref_cell, &
                       para_env=para_env, mos=mos, error=error)
 
-    CALL tbmd_init_tb_model(tbmd_env=tbmd_env, globenv=globenv, error=error)
-    CALL tbmd_init_tb_neighbor_list(tbmd_env=tbmd_env, globenv=globenv, &
-                                    error=error)
+    CALL tbmd_init_tb_model(tbmd_env=tbmd_env, error=error)
+    CALL tbmd_init_tb_neighbor_list(tbmd_env=tbmd_env, error=error)
 
     CALL distribution_1d_release(local_particles, error=error)
     CALL distribution_1d_release(local_molecules, error=error)
@@ -427,9 +426,8 @@ CONTAINS
 !!     01.2006 initial create [tdk]
 !!
 !!*** **********************************************************************
-  SUBROUTINE tbmd_init_tb_neighbor_list(tbmd_env, globenv, error)
+  SUBROUTINE tbmd_init_tb_neighbor_list(tbmd_env, error)
     TYPE(tbmd_environment_type), POINTER     :: tbmd_env
-    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
@@ -504,9 +502,8 @@ CONTAINS
 !!     01.2006 initial create [tdk]
 !!
 !!*** **********************************************************************
-  SUBROUTINE tbmd_init_tb_model(tbmd_env, globenv, error)
+  SUBROUTINE tbmd_init_tb_model(tbmd_env,  error)
     TYPE(tbmd_environment_type), POINTER     :: tbmd_env
-    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 

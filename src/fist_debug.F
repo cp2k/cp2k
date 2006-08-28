@@ -87,17 +87,15 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
 
-SUBROUTINE  debug_control ( force_env, globenv, error)
+SUBROUTINE  debug_control ( force_env, error)
 
     TYPE(force_env_type), POINTER            :: force_env
-    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     INTEGER                                  :: ewald_type, group, i, iatom, &
                                                 ir, isos, iw, iwf, natoms
     INTEGER, DIMENSION(2)                    :: dum
-    LOGICAL                                  :: ionode
     REAL(KIND=dp)                            :: delta, energy_numer, &
                                                 pv_test( 3, 3 )
     REAL(KIND=dp), ALLOCATABLE, &
@@ -105,6 +103,7 @@ SUBROUTINE  debug_control ( force_env, globenv, error)
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(cell_type), POINTER                 :: cell
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(debug_variables_type)               :: dbg
     TYPE(distribution_1d_type), POINTER      :: local_molecules, &
@@ -122,7 +121,6 @@ SUBROUTINE  debug_control ( force_env, globenv, error)
     TYPE(section_vals_type), POINTER         :: force_env_section
 
   para_env=>force_env%para_env
-  ionode = para_env%ionode
   group  = para_env%group
   fist_env => force_env % fist_env
 ! associcating local pointers
@@ -142,10 +140,11 @@ SUBROUTINE  debug_control ( force_env, globenv, error)
   natoms = SIZE ( particle_set )
 
 !------------------------------------------------------------------------------
-  iw = globenv%scr
+  logger=>cp_error_get_logger(error)
+  iw = cp_logger_get_default_unit_nr(logger)
   iwf = 7
   ir = 5
-  IF ( ionode ) THEN
+  IF ( iw > 0 ) THEN
     WRITE ( iw, '( A,A )' ) ' **************************************', &
                           '*****************************************'
     WRITE ( iw, '( 16x,A )' ) '                   BEGIN FIST DEBUG'
@@ -195,7 +194,7 @@ SUBROUTINE  debug_control ( force_env, globenv, error)
    dbg % pot_urey_bradley   = 0.0_dp
 
 ! Call to analytical force routine:
-  CALL fist_force_control ( fist_env, force_env%virial, para_env, globenv, &
+  CALL fist_force_control ( fist_env, force_env%virial, para_env,  &
                              debug = dbg, force_env_section=force_env%force_env_section,&
                              error=error )
 
@@ -208,12 +207,12 @@ SUBROUTINE  debug_control ( force_env, globenv, error)
   
 ! defining delta
   delta = 1.0E-5_dp
-  IF ( ionode ) &
+  IF ( iw>0 ) &
   WRITE ( iw, '( A, T61, G20.12 )' ) ' DELTA = ', delta
 
 ! Debug real-space non-bonded interactions
 
-  IF ( ionode ) THEN
+  IF ( iw > 0  ) THEN
     WRITE ( iw, '( A,A )' ) ' **************************************', &
                             '*****************************************'
     WRITE ( iw, '( 16x,A )' ) 'NON-BONDED CONTRIBUTIONS'
@@ -229,7 +228,7 @@ SUBROUTINE  debug_control ( force_env, globenv, error)
                              energy_numer)
   CALL mp_sum( f_numer, group )
   CALL mp_sum( energy_numer, group )
-  IF ( ionode )  THEN
+  IF ( iw > 0 )  THEN
      WRITE ( iw, '( A, T61, G20.12 )' ) &
           ' E ANA NON-BONDED = ', dbg % pot_nonbond
      WRITE ( iw, '( A, T61, G20.12 )' ) &
@@ -289,7 +288,7 @@ SUBROUTINE  debug_control ( force_env, globenv, error)
 
   CALL mp_sum( pv_test, group )
  
-  IF ( ionode ) THEN
+  IF ( iw > 0 ) THEN
 ! write out the virials
     WRITE ( iw, '( A )' ) ' PV ANA NON-BONDED'
     DO i = 1, 3
@@ -318,7 +317,7 @@ SUBROUTINE  debug_control ( force_env, globenv, error)
                           particle_set, f_numer, energy_numer, delta )
   CALL mp_sum( f_numer, group )
   CALL mp_sum( energy_numer, group )
-  IF ( ionode ) THEN
+  IF ( iw > 0 ) THEN
      WRITE ( iw, '( A, T61, G20.12 )' ) &
        ' E ANA BOND = ', dbg % pot_bond
      WRITE ( iw, '( A, T61, G20.12 )' ) &
@@ -377,7 +376,7 @@ SUBROUTINE  debug_control ( force_env, globenv, error)
    CALL pv_bond_numer ( molecule_set, molecule_kind_set, local_molecules, &
                         particle_set, cell, pv_test, delta )
    CALL mp_sum ( pv_test, group )
-   IF ( ionode ) THEN
+   IF ( iw > 0 ) THEN
 ! write out the virials
      WRITE ( iw, '( A )' ) ' PV ANA BOND'
      DO i = 1, 3
@@ -408,7 +407,7 @@ SUBROUTINE  debug_control ( force_env, globenv, error)
   
   CALL mp_sum( f_numer, group )
   CALL mp_sum( energy_numer, group )
-  IF ( ionode ) THEN
+  IF ( iw > 0 ) THEN
     WRITE ( iw, '( A, T61, G20.12 )' ) &
        ' E ANA UREY-BRADLEY = ', dbg % pot_urey_bradley
     WRITE ( iw, '( A, T61, G20.12 )' ) &
@@ -466,7 +465,7 @@ SUBROUTINE  debug_control ( force_env, globenv, error)
                      particle_set, cell, pv_test, delta )
 
   CALL mp_sum ( pv_test, group )
-  IF ( ionode ) THEN
+  IF ( iw > 0 ) THEN
 ! write out the virials
    WRITE ( iw, '( A )' ) ' PV ANA UREY-BRADLEY'
    DO i = 1, 3
@@ -495,7 +494,7 @@ SUBROUTINE  debug_control ( force_env, globenv, error)
                               particle_set, f_numer, energy_numer, delta )
   CALL mp_sum( f_numer, group )
   CALL mp_sum( energy_numer, group )
-  IF ( ionode ) THEN
+  IF ( iw > 0 ) THEN
     WRITE ( iw, '( A, T61, G20.12 )' ) &
        ' E ANA ONE-FOUR = ', dbg % pot_onef
     WRITE ( iw, '( A, T61, G20.12 )' ) &
@@ -552,7 +551,7 @@ SUBROUTINE  debug_control ( force_env, globenv, error)
   CALL pv_onefour_numer ( molecule_set, molecule_kind_set, local_molecules, &
                           particle_set, cell, pv_test, delta )
   CALL mp_sum ( pv_test, group )
-  IF ( ionode ) THEN
+  IF ( iw > 0 ) THEN
 ! write out the virials
     WRITE ( iw, '( A )' ) ' PV ANA ONE-FOUR'
     DO i = 1, 3
@@ -582,7 +581,7 @@ SUBROUTINE  debug_control ( force_env, globenv, error)
   CALL mp_sum( f_numer, group )
   CALL mp_sum( energy_numer, group )
 
-  IF ( ionode ) THEN
+  IF ( iw > 0 ) THEN
     WRITE ( iw, '( A, T61, G20.12 )' ) &
        ' E ANA BEND = ', dbg % pot_bend
     WRITE ( iw, '( A, T61, G20.12 )' ) &
@@ -638,7 +637,7 @@ SUBROUTINE  debug_control ( force_env, globenv, error)
                        particle_set, cell, pv_test, delta )
   CALL mp_sum ( pv_test, group )
  
-  IF ( ionode ) THEN
+  IF ( iw > 0 ) THEN
 ! write out the virials
     WRITE ( iw, '( A )' ) ' PV ANA BEND'
     DO i = 1, 3
@@ -669,7 +668,7 @@ SUBROUTINE  debug_control ( force_env, globenv, error)
   CALL mp_sum( f_numer, group )
   CALL mp_sum( energy_numer, group )
   
-  IF ( ionode ) THEN
+  IF ( iw > 0 ) THEN
     WRITE ( iw, '( A, T61, G20.12 )' ) &
        ' E ANA TORSION = ', dbg % pot_torsion
     WRITE ( iw, '( A, T61, G20.12 )' ) &
@@ -728,7 +727,7 @@ SUBROUTINE  debug_control ( force_env, globenv, error)
                           particle_set, cell, pv_test, delta )
   CALL mp_sum ( pv_test, group )
 
-  IF ( ionode ) THEN
+  IF ( iw > 0 ) THEN
 ! write out the virials
     WRITE ( iw, '( A )' ) ' PV ANA TORSION'
     DO i = 1, 3
@@ -758,7 +757,7 @@ SUBROUTINE  debug_control ( force_env, globenv, error)
                                   particle_set, f_numer, energy_numer, delta )
   CALL mp_sum( f_numer, group )
   CALL mp_sum( energy_numer, group )
-  IF ( ionode ) THEN
+  IF ( iw > 0 ) THEN
     WRITE ( iw, '( A, T61, G20.12 )' ) &
        ' E ANA TORSION = ', dbg % pot_imptors
     WRITE ( iw, '( A, T61, G20.12 )' ) &
@@ -817,7 +816,7 @@ SUBROUTINE  debug_control ( force_env, globenv, error)
                           particle_set, cell, pv_test, delta )
   CALL mp_sum ( pv_test, group )
 
-  IF ( ionode ) THEN
+  IF ( iw > 0 ) THEN
 ! write out the virials
     WRITE ( iw, '( A )' ) ' PV ANA IMP TORSION'
     DO i = 1, 3
@@ -836,7 +835,7 @@ SUBROUTINE  debug_control ( force_env, globenv, error)
   END IF
 ! Debug g-space
   CALL ewald_env_get ( ewald_env, ewald_type = ewald_type )
-  IF ( ionode ) THEN
+  IF ( iw > 0 ) THEN
     IF ( ewald_type /= do_ewald_none ) THEN
       WRITE ( iw, '( A,A )' ) ' **************************************', &
                               '*****************************************'
@@ -850,11 +849,11 @@ SUBROUTINE  debug_control ( force_env, globenv, error)
     energy_numer = 0.0_dp
     CALL ewald_energy_numer ( ewald_env, ewald_pw, cell, atomic_kind_set, &
                               particle_set, local_particles, energy_numer )
-    IF ( ionode ) &
+    IF ( iw > 0 ) &
     WRITE ( iw, '( A, T61, G20.12 )' ) ' G-SPACE DBG ENERGY = ', &
          energy_numer
   CASE ( do_ewald_pme )
-    IF ( ionode ) &
+    IF ( iw > 0 ) &
     WRITE ( iw, '( A, T61, G20.12 )' ) ' G-SPACE ANA ENERGY = ', &
          dbg % pot_g
   CASE ( do_ewald_spme )
@@ -877,7 +876,7 @@ SUBROUTINE  debug_control ( force_env, globenv, error)
     CALL stop_program ( "fist_debug", " NO SPME debug routines " )
   END SELECT
 ! write out all particle numbers and forces
-  IF ( ionode ) THEN
+  IF ( iw > 0 ) THEN
    WRITE ( iw, '( /,A )' ) &
    ' THE FORCES ON ALL PARTICLES (FILE=gspace)'
    OPEN (UNIT = iwf, FILE = 'gspace', STATUS = 'REPLACE', ACTION = 'WRITE')
@@ -936,7 +935,7 @@ SUBROUTINE  debug_control ( force_env, globenv, error)
   END SELECT
 
 ! write out the virials
-  IF ( ionode ) THEN
+  IF ( iw > 0 ) THEN
    WRITE ( iw, '( A )' ) ' PV NUM G-SPACE'
    DO i = 1, 3
     WRITE ( iw, '( T21,3G20.12 )' ) pv_test(i,:)
@@ -970,7 +969,7 @@ SUBROUTINE  debug_control ( force_env, globenv, error)
   IF ( isos /= 0 ) CALL stop_memory ( "debug_control", "f_ub", 3 * natoms )
   DEALLOCATE ( dbg % f_onef, STAT = isos )
   IF ( isos /= 0 ) CALL stop_memory ( "debug_control", "f_onef", 3 * natoms )
-  IF ( ionode ) THEN
+  IF ( iw > 0 ) THEN
     WRITE ( iw, '( )' )
     WRITE ( iw, '( A,A )' ) ' **************************************', &
                             '*****************************************'

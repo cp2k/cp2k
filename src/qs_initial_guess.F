@@ -108,11 +108,10 @@ CONTAINS
 !!     03.2006 moved here from qs_scf [Joost VandeVondele]
 !!
 !!*** **********************************************************************
-  SUBROUTINE calculate_first_density_matrix(scf_env,qs_env,globenv,error)
+  SUBROUTINE calculate_first_density_matrix(scf_env,qs_env,error)
 
     TYPE(qs_scf_env_type), POINTER           :: scf_env
     TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -215,7 +214,7 @@ CONTAINS
     IF (density_guess == restart_guess) THEN
 
        CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set)
-       CALL read_mo_set(mo_array,atomic_kind_set,particle_set,qs_env%para_env,globenv,&
+       CALL read_mo_set(mo_array,atomic_kind_set,particle_set,qs_env%para_env,&
             id_nr=id_nr,multiplicity=dft_control%multiplicity,dft_section=dft_section,error=error)
 
        DO ispin=1,nspin

@@ -663,7 +663,7 @@ CONTAINS
 !   *** Write restart file ***
        IF (scf_control%write_restart_each>0.AND.&
             MODULO(scf_env%iter_count,scf_control%write_restart_each)==0) THEN
-          CALL write_mo_mol_restart(kg_fm,para_env,globenv,nspins=dft_control%nspins,id_nr=1,&
+          CALL write_mo_mol_restart(kg_fm,para_env,nspins=dft_control%nspins,id_nr=1,&
                force_env_section=kg_env%input,error=error)
        END IF
 
@@ -715,7 +715,7 @@ CONTAINS
 
 !   *** Write restart file ***
     IF (scf_control%write_restart_each>=0) THEN
-       CALL write_mo_mol_restart(kg_fm,para_env,globenv,nspins=dft_control%nspins,id_nr=1,&
+       CALL write_mo_mol_restart(kg_fm,para_env,nspins=dft_control%nspins,id_nr=1,&
             force_env_section=kg_env%input,error=error)
     END IF
 
@@ -1224,7 +1224,7 @@ CONTAINS
 
     IF (scf_control%density_guess == restart_guess) THEN
 
-      CALL read_mo_mol_restart(kg_fm,para_env,globenv,nspins=nspin,id_nr=1,&
+      CALL read_mo_mol_restart(kg_fm,para_env,nspins=nspin,id_nr=1,&
            force_env_section=kg_env%input,error=error)
 
       kg_fm_mol_set => kg_fm%kg_fm_mol_set

@@ -19,6 +19,8 @@
 MODULE ewald_environment_types
   USE cp2k_units,                      ONLY: get_cp2k_units,&
                                              unit_convert_type
+  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+                                             cp_print_key_unit_nr
   USE cp_para_env,                     ONLY: cp_para_env_release,&
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type
@@ -27,8 +29,7 @@ MODULE ewald_environment_types
                                              HIGH,&
                                              LOW,&
                                              MEDIUM,&
-                                             SILENT,&
-                                             global_environment_type
+                                             SILENT
   USE input_constants,                 ONLY: do_ewald_none,&
                                              do_ewald_pme,&
                                              do_ewald_spme,&
@@ -402,25 +403,28 @@ END SUBROUTINE ewald_env_release
 !!I---------------------------------------------------------------------------I
 !!   SOURCE
 !******************************************************************************
-SUBROUTINE read_ewald_section ( ewald_env, para_env, globenv, ewald_section, error )
+SUBROUTINE read_ewald_section ( ewald_env, ewald_section, error )
     TYPE(ewald_environment_type), POINTER    :: ewald_env
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(global_environment_type), POINTER   :: globenv
     TYPE(section_vals_type), POINTER         :: ewald_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     INTEGER                                  :: iw
     REAL(KIND=dp)                            :: dummy
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(unit_convert_type), POINTER         :: units
 
-  iw = globenv%scr
   NULLIFY( units)
   CALL get_cp2k_units ( units )
   CALL read_ewald_section1(ewald_env, ewald_section, error)
 
+  logger=>cp_error_get_logger(error)
+
+  iw=cp_print_key_unit_nr(logger,ewald_section,"PRINT%PROGRAM_RUN_INFO",&
+                                         extension=".log",error=error)
+
   !..end of parsing the input section
-  IF ( para_env%ionode .AND. globenv%print_level .NE. SILENT) THEN
+  IF ( iw > 0 ) THEN
      IF ( ewald_env % ewald_type /= do_ewald_none ) THEN
         dummy = cp_unit_from_cp2k(ewald_env % alpha,"angstrom^-1") 
         WRITE ( iw, '( A,T67,A14 )' ) ' Ewald| Summation is done by:', &
@@ -450,6 +454,9 @@ SUBROUTINE read_ewald_section ( ewald_env, para_env, globenv, ewald_section, err
 
      END IF
   END IF
+
+  CALL cp_print_key_finished_output(iw,logger,ewald_section,&
+               "PRINT%PROGRAM_RUN_INFO", error=error)
 
 END SUBROUTINE read_ewald_section
 

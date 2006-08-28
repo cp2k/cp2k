@@ -52,6 +52,8 @@ MODULE library_tests
                                              cp_fm_set_submatrix,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
+  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+                                             cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
   USE fft_tools,                       ONLY: BWFFT,&
@@ -132,37 +134,43 @@ CONTAINS
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     INTEGER                                  :: iw
+    TYPE(cp_logger_type), POINTER            :: logger
 
-    iw = globenv%scr
-    IF ( para_env%ionode ) THEN
+    logger => cp_error_get_logger(error)
+    iw=cp_print_key_unit_nr(logger,root_section,"GLOBAL%PROGRAM_RUN_INFO",&
+                                         extension=".log",error=error)
+    IF ( iw > 0 ) THEN
        WRITE ( iw, '(T2,79("*"))' )
        WRITE ( iw, '(A,T31,A,T80,A)' ) ' *',' PERFORMANCE TESTS ','*'
        WRITE ( iw, '(T2,79("*"))' )
     END IF
     !
-    CALL test_input ( root_section, para_env, globenv )
+    CALL test_input ( root_section, para_env, iw,globenv )
     !
-    IF ( runtest ( 1 ) /= 0 ) CALL copy_test ( para_env, globenv )
+    IF ( runtest ( 1 ) /= 0 ) CALL copy_test ( para_env, iw,globenv )
     !
-    IF ( runtest ( 2 ) /= 0 ) CALL matmul_test ( para_env, globenv )
+    IF ( runtest ( 2 ) /= 0 ) CALL matmul_test ( para_env, iw,globenv )
     !
-    IF ( runtest ( 3 ) /= 0 ) CALL fft_test ( para_env, globenv )
+    IF ( runtest ( 3 ) /= 0 ) CALL fft_test ( para_env, iw,globenv )
     !
-    IF ( runtest ( 4 ) /= 0 ) CALL pw_fft_test ( root_section, para_env, globenv )
+    IF ( runtest ( 4 ) /= 0 ) CALL pw_fft_test ( root_section, para_env, iw,globenv )
     !
-    IF ( runtest ( 6 ) /= 0 ) CALL clebsch_gordon_test ( para_env, globenv )
+    IF ( runtest ( 6 ) /= 0 ) CALL clebsch_gordon_test ( error )
     !
-    IF ( runtest ( 7 ) /= 0 ) CALL rs_test ( root_section, para_env, globenv, error )
+    IF ( runtest ( 7 ) /= 0 ) CALL rs_test ( root_section, para_env, iw, error )
     !
     IF ( runtest ( 8 ) /= 0 ) CALL mpi_test ( para_env%group )
 
     IF (runtest(9) /= 0) THEN
-      CALL rng_test(runtest(9),para_env, globenv,error)
+      CALL rng_test(runtest(9),para_env, iw,globenv,error)
     END IF
 
     IF (runtest(10) /= 0) THEN
-      CALL eigensolver_test(runtest(10),runtest(11),para_env, globenv,error)
+      CALL eigensolver_test(runtest(10),runtest(11),para_env, iw,globenv,error)
     END IF
+
+    CALL cp_print_key_finished_output(iw,logger,root_section,&
+               "GLOBAL%PROGRAM_RUN_INFO", error=error)
 
   END SUBROUTINE lib_test
 
@@ -204,22 +212,21 @@ CONTAINS
 !!
 !!*** *************************************************************************
 
-SUBROUTINE test_input ( root_section, para_env, globenv , error)
+SUBROUTINE test_input ( root_section, para_env, iw,globenv , error)
 
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
+    INTEGER                                  :: iw
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    INTEGER                                  :: iw
     INTEGER, DIMENSION(:), POINTER           :: i_vals
     TYPE(section_vals_type), POINTER         :: test_section
 
 !
-
-  iw = globenv%scr
 !..defaults
+
   runtest = 0
   max_memory = 256.e6_dp
 
@@ -262,18 +269,18 @@ END SUBROUTINE test_input
 !!
 !!*** *************************************************************************
 
-SUBROUTINE copy_test ( para_env, globenv )
+SUBROUTINE copy_test ( para_env, iw, globenv )
     TYPE(cp_para_env_type), POINTER          :: para_env
+    INTEGER                                  :: iw
     TYPE(global_environment_type), POINTER   :: globenv
 
-    INTEGER                                  :: i, ierr, iw, j, len, ntim, siz
+    INTEGER                                  :: i, ierr, j, len, ntim, siz
     REAL(KIND=dp)                            :: perf, t, tend, tstart
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: ca, cb
 
 ! test for copy --> Cache size
 
   siz = ABS ( runtest ( 1 ) )
-  iw = globenv%scr
   IF ( para_env%ionode ) WRITE ( iw, '(//,A,/)' ) " Test of copy ( F95 ) "
   DO i = 6, 24
     len = 2**i
@@ -332,11 +339,12 @@ END SUBROUTINE copy_test
 !!
 !!*** *************************************************************************
 
-SUBROUTINE matmul_test ( para_env, globenv )
+SUBROUTINE matmul_test ( para_env, iw, globenv )
     TYPE(cp_para_env_type), POINTER          :: para_env
+    INTEGER                                  :: iw
     TYPE(global_environment_type), POINTER   :: globenv
 
-    INTEGER                                  :: i, ierr, iw, j, len, ntim, siz
+    INTEGER                                  :: i, ierr, j, len, ntim, siz
     REAL(KIND=dp)                            :: perf, t, tend, tstart, xdum
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: ma, mb, mc
@@ -344,7 +352,6 @@ SUBROUTINE matmul_test ( para_env, globenv )
 ! test for matrix multpies
 
   siz = ABS ( runtest ( 2 ) )
-  iw = globenv%scr
   IF ( para_env%ionode ) WRITE ( iw, '(//,A,/)' ) " Test of matmul ( F95 ) "
   DO i = 4, 10, 2
     len = 2**i + 1
@@ -552,13 +559,16 @@ END SUBROUTINE matmul_test
 !!
 !!*** *************************************************************************
 
-SUBROUTINE fft_test ( para_env, globenv )
+SUBROUTINE fft_test ( para_env, iw, globenv )
 
     TYPE(cp_para_env_type), POINTER          :: para_env
+    INTEGER                                  :: iw
     TYPE(global_environment_type), POINTER   :: globenv
 
-    INTEGER :: iall, ierr, it, iw, j, len, n(3), &
-      ndate( 3 ) = (/ 12, 48, 96 /), ntim, radix_in, radix_out, siz, stat
+    INTEGER                                  :: iall, ierr, it, j, len, n(3), &
+                                                ndate( 3 ) = (/ 12, 48, 96 /),&
+                                                ntim, radix_in, radix_out, &
+                                                siz, stat
     COMPLEX(KIND=dp), DIMENSION(4, 4, 4)     :: zz
     COMPLEX(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: ca, cb, cc
@@ -570,7 +580,6 @@ SUBROUTINE fft_test ( para_env, globenv )
 
 ! test for 3d FFT
 
-  iw = globenv%scr
   IF ( para_env%ionode ) WRITE ( iw, '(//,A,/)' ) " Test of 3D-FFT "
   siz = ABS ( runtest ( 3 ) )
 
@@ -719,15 +728,16 @@ END SUBROUTINE fft_test
 !!
 !!*** *************************************************************************
 
-SUBROUTINE pw_fft_test ( root_section,para_env, globenv )
+SUBROUTINE pw_fft_test ( root_section,para_env, iw, globenv )
 
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(cp_para_env_type), POINTER          :: para_env
+    INTEGER                                  :: iw
     TYPE(global_environment_type), POINTER   :: globenv
 
     REAL(KIND=dp), PARAMETER                 :: toler = 1.e-11_dp
 
-    INTEGER                                  :: ig, ip, iw, nn, ntim
+    INTEGER                                  :: ig, ip, nn, ntim
     INTEGER, DIMENSION(3)                    :: no, np
     REAL(KIND=dp)                            :: cutoff, em, et, flops, gsq, &
                                                 perf, r, t, tend, tim, tstart
@@ -812,7 +822,6 @@ SUBROUTINE pw_fft_test ( root_section,para_env, globenv )
   CALL pw_grid_release ( grid )
 
   IF ( para_env%ionode ) THEN
-    iw = globenv%scr
     WRITE ( iw, * )
     WRITE ( iw, '(A,T67,E14.6)' ) " Parallel FFT Tests: Maximal Error ", em
     WRITE ( iw, '(A,T67,E14.6)' ) " Parallel FFT Tests: Total Error ", et
@@ -876,7 +885,6 @@ SUBROUTINE pw_fft_test ( root_section,para_env, globenv )
   CALL pw_grid_release ( grid )
 
   IF ( para_env%ionode ) THEN
-    iw = globenv%scr
     WRITE ( iw, * )
     WRITE ( iw, '(A,T67,E14.6)' ) " Parallel FFT Tests: Maximal Error ", em
     WRITE ( iw, '(A,T67,E14.6)' ) " Parallel FFT Tests: Total Error ", et
@@ -942,7 +950,6 @@ SUBROUTINE pw_fft_test ( root_section,para_env, globenv )
   CALL pw_grid_release ( grid )
 
   IF ( para_env%ionode ) THEN
-    iw = globenv%scr
     WRITE ( iw, * )
     WRITE ( iw, '(A,T67,E14.6)' ) " Parallel FFT Tests: Maximal Error ", em
     WRITE ( iw, '(A,T67,E14.6)' ) " Parallel FFT Tests: Total Error ", et
@@ -1007,7 +1014,6 @@ SUBROUTINE pw_fft_test ( root_section,para_env, globenv )
   CALL pw_grid_release ( grid )
 
   IF ( para_env%ionode ) THEN
-    iw = globenv%scr
     WRITE ( iw, * )
     WRITE ( iw, '(A,T67,E14.6)' ) " Parallel FFT Tests: Maximal Error ", em
     WRITE ( iw, '(A,T67,E14.6)' ) " Parallel FFT Tests: Total Error ", et
@@ -1404,16 +1410,17 @@ END SUBROUTINE simple_copy
 
   ! ***************************************************************************
 
-  SUBROUTINE rng_test(n,para_env,globenv,error)
+  SUBROUTINE rng_test(n,para_env,output_unit, globenv,error)
 
     ! Test the parallel (pseudo)random number generator (RNG).
 
     INTEGER, INTENT(IN)                      :: n
     TYPE(cp_para_env_type), POINTER          :: para_env
+    INTEGER                                  :: output_unit
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
-    INTEGER                                  :: i, output_unit
+    INTEGER                                  :: i
     LOGICAL                                  :: ionode
     REAL(KIND=dp)                            :: t, tend, tmax, tmin, tstart, &
                                                 tsum, tsum2
@@ -1422,7 +1429,6 @@ END SUBROUTINE simple_copy
 ! -------------------------------------------------------------------------
 
     ionode = para_env%ionode
-    output_unit = globenv%scr
 
     NULLIFY (rng_stream)
 
@@ -1512,18 +1518,18 @@ END SUBROUTINE simple_copy
 
   ! ***************************************************************************
 
-  SUBROUTINE eigensolver_test(nrow_global,neig,para_env,globenv,error)
+  SUBROUTINE eigensolver_test(nrow_global,neig,para_env,output_unit,globenv,error)
 
     ! Test eigensolver library routines.
 
     INTEGER, INTENT(IN)                      :: nrow_global, neig
     TYPE(cp_para_env_type), POINTER          :: para_env
+    INTEGER                                  :: output_unit
     TYPE(global_environment_type), POINTER   :: globenv
     TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     INTEGER                                  :: group, i, istat, j, n, &
-                                                output_unit, source, &
-                                                unit_number
+                                                source, unit_number
     LOGICAL                                  :: ionode
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: eigenvalues
     REAL(KIND=dp), ALLOCATABLE, &
@@ -1537,7 +1543,6 @@ END SUBROUTINE simple_copy
 
     group = para_env%group
     ionode = para_env%ionode
-    output_unit = globenv%scr
     source = para_env%source
     n = ABS(nrow_global)
 

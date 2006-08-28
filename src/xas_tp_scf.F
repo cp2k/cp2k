@@ -1005,7 +1005,7 @@ CONTAINS
       CALL get_qs_env(qs_env,scf_env=scf_env,error=error)
       dft_control%xas_estate=1
       CALL init_scf_run(scf_env=scf_env,qs_env=qs_env,&
-           globenv=globenv, scf_section=scf_section, error=error)
+           scf_section=scf_section, error=error)
 
       writerestart = scf_control%write_restart_each
       scf_control%write_restart_each = -1
