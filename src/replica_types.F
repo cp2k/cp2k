@@ -319,6 +319,7 @@ SUBROUTINE rep_env_create(rep_env, para_env, input, nrep, prep,&
              rep_env%f(rep_env%ndim+1,nrep), stat=stat)
         CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
 
+        rep_env%r=0._dp
         rep_env%f=0._dp
         rep_env%v=0._dp
         CALL cp_set_vel(rep_env%f_env_id, rep_env%v(:,1), rep_env%ndim, ierr)
