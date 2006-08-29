@@ -37,6 +37,7 @@ MODULE constraint_clv
   USE molecule_types_new,              ONLY: get_molecule,&
                                              local_colvar_constraint_type,&
                                              molecule_type
+  USE message_passing,                 ONLY: mp_sum
   USE particle_list_types,             ONLY: particle_list_type
   USE particle_types,                  ONLY: particle_type
   USE timings,                         ONLY: timeset,&
@@ -95,6 +96,7 @@ CONTAINS
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+    INTEGER, ALLOCATABLE, DIMENSION(:)      :: fixme
 
     failure = .FALSE.
     CALL timeset(routineN,'I','',handle)
@@ -110,6 +112,8 @@ CONTAINS
           nkind             =  molecule_kinds % n_els
           molecule_kind_set => molecule_kinds % els
           particle_set      => particles%els
+          ALLOCATE(fixme(SIZE(particle_set)))
+          fixme=0
 
           Mol_kind:  DO ikind = 1, nkind
              molecule_kind => molecule_kind_set(ikind)
@@ -124,7 +128,8 @@ CONTAINS
                       IF (fixd_list(ii)%fixd == iparticle) THEN
                          IF (.NOT.fixd_list(ii)%restraint%active) THEN
                             ! Constraint
-                            particle_set(iparticle)%f(:) = 0.0_dp
+                            ! particle_set(iparticle)%f(:) = 0.0_dp
+                            fixme(iparticle)=1
                          END IF
                          EXIT
                       END IF
@@ -132,6 +137,14 @@ CONTAINS
                 END DO
              END DO
           END DO Mol_kind
+
+          CALL mp_sum(fixme,force_env%para_env%group)
+
+          DO iparticle=1,SIZE(particle_set)
+             IF (fixme(iparticle)==1) particle_set(iparticle)%f(:)=0.0_dp 
+          ENDDO
+
+          DEALLOCATE(fixme)
 
        END DO
     END IF

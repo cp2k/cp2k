@@ -26,3 +26,8 @@ H2O-qmmm-none-1.inp
 #reset due to numerics
 H2O-qmmm-gauss-4.inp
 H2O-qmmm-none-1.inp
+#due to bug in fixed_atoms
+H2O-qmmm-gauss-14.inp
+H2O-qmmm-gauss-15.inp
+H2O-qmmm-gauss-16.inp
+H2O-qmmm-gauss-17.inp
