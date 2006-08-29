@@ -381,12 +381,11 @@ END SUBROUTINE read_mc_restart
 !!     MJM
 !!
 !!*****************************************************************************
-SUBROUTINE mc_create_force_env ( force_env, para_env, globenv_old,input_file_name,&
+SUBROUTINE mc_create_force_env ( force_env, para_env, input_file_name,&
      globenv_new, error )
 
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(global_environment_type), POINTER   :: globenv_old
     CHARACTER(LEN=*), INTENT(IN)             :: input_file_name
     TYPE(global_environment_type), &
       OPTIONAL, POINTER                      :: globenv_new
@@ -400,14 +399,12 @@ SUBROUTINE mc_create_force_env ( force_env, para_env, globenv_old,input_file_nam
                                                 nforce_eval
     LOGICAL                                  :: failure
     TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(section_type), POINTER              :: input_structure
     TYPE(section_vals_type), POINTER         :: force_env_section, &
-                                                input_file, root_section
+                                                root_section
 
 !**************************************************************************
 
       failure= .FALSE.
-      NULLIFY(input_file, input_structure, globenv)
 
       NULLIFY(globenv, force_env, force_env_section )
 
@@ -415,8 +412,7 @@ SUBROUTINE mc_create_force_env ( force_env, para_env, globenv_old,input_file_nam
       CALL globenv_create(globenv, error=error)
 
     ! parse the input
-      input_file => create_cp2k_input_reading(input_file_name,para_env=para_env,error=error)
-      root_section => input_file
+      root_section => create_cp2k_input_reading(input_file_name,para_env=para_env,error=error)
 
       CALL cp2k_read(root_section,para_env,globenv)
       force_env_section => section_vals_get_subs_vals(root_section,"FORCE_EVAL",error=error)
@@ -438,7 +434,6 @@ SUBROUTINE mc_create_force_env ( force_env, para_env, globenv_old,input_file_nam
          CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
       END SELECT
 ! release some stuff created here
-      CALL section_release(input_structure)    
 
       IF(PRESENT(globenv_new))THEN
          globenv_new => globenv
@@ -501,7 +496,7 @@ SUBROUTINE mc_create_bias_force_env (bias_env,force_env,&
       NULLIFY(cell,subsys)
 
 ! create the bias_env from the template file
-      CALL mc_create_force_env(bias_env, para_env, globenv, 'bias_template.inp',error=error)
+      CALL mc_create_force_env(bias_env, para_env, 'bias_template.inp',error=error)
 
 ! grab the coordinates and cell parameters of the old environment
       CALL force_env_get(force_env,subsys=subsys,cell=cell,&
@@ -528,7 +523,7 @@ SUBROUTINE mc_create_bias_force_env (bias_env,force_env,&
 
       CALL force_env_release(bias_env,error=error)
 
-      CALL mc_create_force_env(bias_env, para_env, globenv, 'bias_temp.inp',error=error)
+      CALL mc_create_force_env(bias_env, para_env, 'bias_temp.inp',error=error)
 
       DEALLOCATE(r,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&

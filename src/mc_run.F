@@ -271,7 +271,7 @@ CONTAINS
 ! release the old force env and make the new one
          in_use=force_env%in_use
          CALL force_env_release(force_env)
-         CALL mc_create_force_env(force_env, para_env, globenv, &
+         CALL mc_create_force_env(force_env, para_env,  &
               dat_file,error=error)
       ENDIF
 
@@ -302,7 +302,7 @@ CONTAINS
          IF ( isos /= 0 ) CALL stop_memory ( 'allocstruc', 'mc_par_2', 0 )
  
 ! read the input of the Monte Carlo section
-         CALL mc_create_force_env(force_env_2, para_env, globenv,&
+         CALL mc_create_force_env(force_env_2, para_env, &
             box2_file,globenv_new=globenv_2,error=error)
 
          IF (ionode) THEN
@@ -384,7 +384,7 @@ CONTAINS
          IF ( lrestart ) THEN
             CALL read_mc_restart(mc_par_2,force_env_2,iw,rng_stream)
             CALL force_env_release(force_env_2)
-            CALL mc_create_force_env(force_env_2, para_env, globenv, &
+            CALL mc_create_force_env(force_env_2, para_env,  &
                dat_file,error=error)
          ENDIF
 

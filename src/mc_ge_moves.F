@@ -816,9 +816,9 @@ CONTAINS
 ! of molecules
 
 !      IF(lbias) THEN
-         CALL mc_create_force_env(insert_env, para_env, globenv, &
+         CALL mc_create_force_env(insert_env, para_env,  &
               dat_file(insert_box),error=error)
-         CALL mc_create_force_env(remove_env, para_env, globenv, &
+         CALL mc_create_force_env(remove_env, para_env,  &
             dat_file(remove_box),error=error)
 !      ELSE
 !         CALL mc_create_force_env(insert_env, globenv, &
@@ -929,7 +929,7 @@ CONTAINS
          insert_env_bias => insert_env
          NULLIFY(insert_env)
 !         CALL force_env_release(insert_env)
-         CALL mc_create_force_env(insert_env, para_env, globenv, &
+         CALL mc_create_force_env(insert_env, para_env,  &
             dat_file(insert_box),error=error)
          CALL force_env_calc_energy_force(insert_env,&
             calc_force=.FALSE.,error=error)
@@ -943,7 +943,7 @@ CONTAINS
                force_env(remove_box)%force_env,TRIM(fft_lib),print_level)
             remove_env_bias => remove_env
             NULLIFY(remove_env)
-            CALL mc_create_force_env(remove_env, para_env, globenv, &
+            CALL mc_create_force_env(remove_env, para_env,  &
                dat_file(remove_box),error=error)
             new_energy(remove_box)=0.0E0_dp
             bias_energy_new(remove_box)=0.0E0_dp
@@ -953,7 +953,7 @@ CONTAINS
                force_env(remove_box)%force_env,TRIM(fft_lib),print_level)
             remove_env_bias => remove_env
             NULLIFY(remove_env)
-            CALL mc_create_force_env(remove_env, para_env, globenv, &
+            CALL mc_create_force_env(remove_env, para_env,  &
                dat_file(remove_box),error=error)
             CALL force_env_calc_energy_force(remove_env,calc_force=.FALSE.,error=error)
             CALL force_env_get(remove_env,&
