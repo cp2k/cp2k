@@ -46,7 +46,7 @@ CONTAINS
 
    farming_env%group_size_wish_set=.FALSE.
    farming_env%ngroup_wish_set    =.FALSE.
-   farming_section => section_vals_get_subs_vals(ROOT_SECTION,"FARMING",&
+   farming_section => section_vals_get_subs_vals(root_section,"FARMING",&
         error=error)
 
    IF (ASSOCIATED(farming_env%group_partition)) THEN

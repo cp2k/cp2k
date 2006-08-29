@@ -521,7 +521,7 @@ CONTAINS
     NULLIFY(coeff_section,nose_section,buffer,work_section2) 
     explicit  =.FALSE.
     restart = .FALSE.
-    md_new_section => section_vals_get_subs_vals(ROOT_SECTION,"MOTION%MD")
+    md_new_section => section_vals_get_subs_vals(root_section,"MOTION%MD")
     coeff_section => section_vals_get_subs_vals(md_new_section,"KG_COEFF")
     nose_section => section_vals_get_subs_vals(coeff_section,"nose")
     CALL section_vals_val_get(nose_section,"timecon",r_val=tau_nhc)

@@ -328,7 +328,7 @@ SUBROUTINE cp2k_read(root_section,para_env,globenv,error)
     logger => cp_get_default_logger()
 #if defined(__HPM)
     IF (BTEST(cp_print_key_should_output(logger%iter_info,&
-         ROOT_SECTION,"GLOBAL%PERFORMANCE/HPM",error=error),cp_p_file)) THEN
+         root_section,"GLOBAL%PERFORMANCE/HPM",error=error),cp_p_file)) THEN
         CALL f_hpminit(para_env%mepos,"CP2K") 
         use_HPM = .TRUE.
     ENDIF
@@ -339,31 +339,31 @@ SUBROUTINE cp2k_read(root_section,para_env,globenv,error)
     CALL read_cp2k_section(root_section,para_env,globenv)
 
     ! try to use better names for the local log if it is not too late
-    CALL section_vals_val_get(ROOT_SECTION,"GLOBAL%OUTPUT_FILE_NAME",&
+    CALL section_vals_val_get(root_section,"GLOBAL%OUTPUT_FILE_NAME",&
          c_val=c_val,error=error)
     IF (c_val/="") THEN
        CALL cp_logger_set(logger,&
             local_filename=TRIM(c_val)//"_localLog")
     END IF
-    CALL section_vals_val_get(ROOT_SECTION,"GLOBAL%PROJECT",&
+    CALL section_vals_val_get(root_section,"GLOBAL%PROJECT",&
          c_val=c_val,error=error)
     IF (c_val/="") THEN
        CALL cp_logger_set(logger,&
             local_filename=TRIM(c_val)//"_localLog")
     END IF
     logger%iter_info%project_name=c_val
-    CALL section_vals_val_get(ROOT_SECTION,"GLOBAL%PRINT_LEVEL",i_val=logger%iter_info%print_level,error=error)
+    CALL section_vals_val_get(root_section,"GLOBAL%PRINT_LEVEL",i_val=logger%iter_info%print_level,error=error)
 
-    iw = cp_print_key_unit_nr(logger,ROOT_SECTION,"GLOBAL%PRINT/BASIC_DATA_TYPES",&
+    iw = cp_print_key_unit_nr(logger,root_section,"GLOBAL%PRINT/BASIC_DATA_TYPES",&
          extension=".Log",error=error)
     IF (iw>0) CALL print_kind_info(iw)
-    CALL cp_print_key_finished_output(iw,logger,ROOT_SECTION,&
+    CALL cp_print_key_finished_output(iw,logger,root_section,&
          "GLOBAL%PRINT/BASIC_DATA_TYPES",error=error)
 
-    iw = cp_print_key_unit_nr(logger,ROOT_SECTION,"GLOBAL%PRINT/PHYSCON",&
+    iw = cp_print_key_unit_nr(logger,root_section,"GLOBAL%PRINT/PHYSCON",&
          extension=".Log",error=error)
     IF (iw>0) CALL write_physcon(iw)
-    CALL cp_print_key_finished_output(iw,logger,ROOT_SECTION,&
+    CALL cp_print_key_finished_output(iw,logger,root_section,&
          "GLOBAL%PRINT/PHYSCON",error=error)    
 
   END SUBROUTINE cp2k_read
@@ -419,18 +419,18 @@ SUBROUTINE cp2k_read(root_section,para_env,globenv,error)
       ! Initialize the parallel random number generator
 
       CALL init_rng()
-      iw = cp_print_key_unit_nr(logger,ROOT_SECTION,"GLOBAL%PRINT/RNG_MATRICES",&
+      iw = cp_print_key_unit_nr(logger,root_section,"GLOBAL%PRINT/RNG_MATRICES",&
                                 extension=".Log",error=error)
       IF (iw > 0) THEN
         CALL write_rng_matrices(iw)
       END IF
-      CALL cp_print_key_finished_output(iw,logger,ROOT_SECTION,&
+      CALL cp_print_key_finished_output(iw,logger,root_section,&
                                         "GLOBAL%PRINT/RNG_MATRICES",&
                                         error=error)
 
       ! Initialize a global normally Gaussian distributed (pseudo)random number stream
 
-      CALL section_vals_val_get(ROOT_SECTION,"GLOBAL%SEED",i_val=input_seed)
+      CALL section_vals_val_get(root_section,"GLOBAL%SEED",i_val=input_seed)
       initial_seed(:,:) = REAL(input_seed,KIND=dp)
       CALL create_rng_stream(rng_stream=globenv%gaussian_rng_stream,&
                              name="Global Gaussian random numbers",&
@@ -439,21 +439,21 @@ SUBROUTINE cp2k_read(root_section,para_env,globenv,error)
                              extended_precision=.TRUE.,&
                              error=error)
 
-      iw = cp_print_key_unit_nr(logger,ROOT_SECTION,"GLOBAL%PRINT/RNG_CHECK",&
+      iw = cp_print_key_unit_nr(logger,root_section,"GLOBAL%PRINT/RNG_CHECK",&
                                 extension=".Log",error=error)
       IF (iw > 0) THEN
         CALL check_rng(iw,para_env%ionode,error)
       END IF
-      CALL cp_print_key_finished_output(iw,logger,ROOT_SECTION,&
+      CALL cp_print_key_finished_output(iw,logger,root_section,&
                                         "GLOBAL%PRINT/RNG_CHECK",&
                                         error=error)
 
-      iw = cp_print_key_unit_nr(logger,ROOT_SECTION,"GLOBAL%PRINT/GLOBAL_GAUSSIAN_RNG",&
+      iw = cp_print_key_unit_nr(logger,root_section,"GLOBAL%PRINT/GLOBAL_GAUSSIAN_RNG",&
                                 extension=".Log",error=error)
       IF (iw > 0) THEN
         CALL write_rng_stream(globenv%gaussian_rng_stream,iw,write_all=.TRUE.,error=error)
       END IF
-      CALL cp_print_key_finished_output(iw,logger,ROOT_SECTION,&
+      CALL cp_print_key_finished_output(iw,logger,root_section,&
                                         "GLOBAL%PRINT/GLOBAL_GAUSSIAN_RNG",&
                                         error=error)
 
@@ -513,7 +513,7 @@ SUBROUTINE cp2k_read(root_section,para_env,globenv,error)
     trace = .FALSE.
     NULLIFY(dft_section,global_section)
 
-    global_section => section_vals_get_subs_vals(ROOT_SECTION,"GLOBAL",error=error)
+    global_section => section_vals_get_subs_vals(root_section,"GLOBAL",error=error)
     CALL section_vals_val_get(global_section,"BLACS_GRID",i_val=globenv%blacs_grid_layout,error=error)
     CALL section_vals_val_get(global_section,"FFT_LIBRARY",c_val=globenv%default_fft_library,error=error)
     CALL section_vals_val_get(global_section,"PRINT_LEVEL",i_val=print_level,error=error)
@@ -522,7 +522,7 @@ SUBROUTINE cp2k_read(root_section,para_env,globenv,error)
     CALL section_vals_val_get(global_section,"RUN_TYPE",i_val=globenv%run_type_id,error=error)
     CALL section_vals_val_get(global_section,"WALLTIME",r_val=globenv%cp2k_target_time,error=error)
     CALL section_vals_val_get(global_section,"TRACE",l_val=trace,error=error)
-    force_env_sections => section_vals_get_subs_vals(ROOT_SECTION,"FORCE_EVAL",error=error)
+    force_env_sections => section_vals_get_subs_vals(root_section,"FORCE_EVAL",error=error)
     CALL section_vals_get(force_env_sections, n_repetition=nforce_eval, error=error)
     logger=>cp_error_get_logger(error)
     output_unit=cp_print_key_unit_nr(logger,global_section,"PROGRAM_RUN_INFO",&
@@ -675,7 +675,7 @@ SUBROUTINE cp2k_read(root_section,para_env,globenv,error)
 !   ---------------------------------------------------------------------------
 
     was_present = .FALSE.
-    global_section => section_vals_get_subs_vals(ROOT_SECTION,"GLOBAL",error=error)
+    global_section => section_vals_get_subs_vals(root_section,"GLOBAL",error=error)
     CALL section_vals_get(global_section,explicit=was_present,error=error)
     CALL read_global_section(root_section,para_env,globenv)
     logger => cp_error_get_logger(error)
@@ -785,7 +785,7 @@ SUBROUTINE cp2k_read(root_section,para_env,globenv,error)
 
 #if defined(__HPM)
     IF (BTEST(cp_print_key_should_output(logger%iter_info,&
-         ROOT_SECTION,"GLOBAL%PERFORMANCE/HPM",error=error),cp_p_file)) THEN
+         root_section,"GLOBAL%PERFORMANCE/HPM",error=error),cp_p_file)) THEN
        CALL f_hpmterminate(para_env%group) 
        use_HPM=.FALSE.
     ENDIF
@@ -794,13 +794,13 @@ SUBROUTINE cp2k_read(root_section,para_env,globenv,error)
     CALL timestop(0.0_dp,globenv%handle) ! corresponding the "CP2K" in cp2k_init
 
     IF (.NOT. failure) THEN
-       iw = cp_print_key_unit_nr(logger,ROOT_SECTION,"GLOBAL%TIMINGS",&
+       iw = cp_print_key_unit_nr(logger,root_section,"GLOBAL%TIMINGS",&
             extension=".Log",error=error)
        IF (iw>0) THEN
-          r_timings = section_get_rval(ROOT_SECTION,"GLOBAL%TIMINGS%THRESHOLD",error)
+          r_timings = section_get_rval(root_section,"GLOBAL%TIMINGS%THRESHOLD",error)
           CALL timeprint(iw,r_timings)
        END IF
-       CALL cp_print_key_finished_output(iw,logger,ROOT_SECTION,&
+       CALL cp_print_key_finished_output(iw,logger,root_section,&
             "GLOBAL%TIMINGS",error=error)
     ENDIF
 

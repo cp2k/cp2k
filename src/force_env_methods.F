@@ -574,7 +574,7 @@ SUBROUTINE ep_create_force_env(force_env,root_section, para_env, globenv, error)
      NULLIFY(ep_env)
      CALL ep_env_create(ep_env,root_section,para_env,globenv=globenv,&
           error=error)
-     force_env_section=> section_vals_get_subs_vals(ROOT_SECTION,&
+     force_env_section=> section_vals_get_subs_vals(root_section,&
           "FORCE_EVAL",error=error)
      CALL force_env_create(force_env,root_section,para_env,globenv=globenv,ep_env=ep_env,&
           force_env_section = force_env_section, error=error)

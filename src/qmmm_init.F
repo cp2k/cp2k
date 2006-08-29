@@ -227,7 +227,7 @@ CONTAINS
           qmmm_env_qm%periodic = .FALSE.
           CALL Pwarning("QMMM PERIODIC CALCULATION WITH NONE COUPLING WAS REQUESTED! "//&
                         "SWITCHING OFF THE PERIODIC KEYWORD SINCE PERIODIC AND NON-PERIODIC "//&
-                        "CALCULATION WITH NONE COUPLING REPRESENT THE SAME METHOD!",ROOT_SECTION, error)
+                        "CALCULATION WITH NONE COUPLING REPRESENT THE SAME METHOD!",root_section, error)
        END IF
 
        ! First Initialize Fist...

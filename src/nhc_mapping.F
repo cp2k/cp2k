@@ -666,7 +666,7 @@ END SUBROUTINE nhc_to_particle_mapping
 
 !------------------------------------------------------------------------------
 
-  kg_coeff_section => section_vals_get_subs_vals(ROOT_SECTION,&
+  kg_coeff_section => section_vals_get_subs_vals(root_section,&
        "MOTION%MD")
   kg_coeff_section => section_vals_get_subs_vals(kg_coeff_section,&
        "kg_coeff")

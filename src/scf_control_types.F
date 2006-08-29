@@ -421,7 +421,7 @@ CONTAINS
 
     CPPrecondition(ASSOCIATED(scf_control),cp_failure_level,routineP,error,failure)
     CPPrecondition(scf_control%ref_count>0,cp_failure_level,routineP,error,failure)
-    CPPrecondition(ASSOCIATED(ROOT_SECTION),cp_failure_level,routineP,error,failure)
+    CPPrecondition(ASSOCIATED(root_section),cp_failure_level,routineP,error,failure)
 
     IF (.NOT.failure) THEN
 

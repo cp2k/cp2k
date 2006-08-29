@@ -188,7 +188,7 @@ CONTAINS
     root_section=>force_env_p ( 1 ) % force_env % root_section
     para_env=>force_env_p ( 1 ) % force_env % para_env
 
-    motion_section => section_vals_get_subs_vals(ROOT_SECTION,"MOTION",error=error)
+    motion_section => section_vals_get_subs_vals(root_section,"MOTION",error=error)
     nbeads = SIZE ( force_env_p )
     DO i = 1, nbeads
       CPPrecondition ( ASSOCIATED ( force_env_p ( i ) % force_env ), cp_failure_level,routineP,error,failure)
@@ -203,7 +203,7 @@ CONTAINS
          error=error)
     CALL cp_iterate(logger%iter_info,last=.FALSE.,iter_nr=0,error=error)    
     CALL read_md_section ( simpar, root_section, para_env, globenv, subsys_section, error )
-    simpar%info_constraint = cp_print_key_unit_nr(logger,ROOT_SECTION,&
+    simpar%info_constraint = cp_print_key_unit_nr(logger,root_section,&
          "MOTION%CONSTRAINT%CONSTRAINT_INFO",&
          extension=".shakeLog",log_filename=.FALSE.,error=error)
 
@@ -400,7 +400,7 @@ CONTAINS
     CALL lnhc_dealloc(extended_type%nhc_coef)
     CALL npt_dealloc(extended_type%npt_info)
     CALL cp_print_key_finished_output(simpar%info_constraint, logger,&
-         ROOT_SECTION,"MOTION%CONSTRAINT%CONSTRAINT_INFO",error=error)
+         root_section,"MOTION%CONSTRAINT%CONSTRAINT_INFO",error=error)
     DEALLOCATE(simpar,STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 

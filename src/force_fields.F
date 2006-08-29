@@ -2611,7 +2611,7 @@ CONTAINS
                    bond_list(j)%bond_kind%k(1) = chm_info%bond_k(k)
                    bond_list(j)%bond_kind%r0   = chm_info%bond_r0(k)
                    IF (found) CALL Pwarning("Multiple Bond declarations: "//TRIM(name_atm_a)//&
-                        " and "//TRIM(name_atm_b)//" overwriting!",ROOT_SECTION,error)
+                        " and "//TRIM(name_atm_b)//" overwriting!",root_section,error)
                    found = .TRUE.
                    EXIT
                 END IF
@@ -2629,7 +2629,7 @@ CONTAINS
                    bond_list(j)%bond_kind%k(:) = inp_info%bond_k(:,k)
                    bond_list(j)%bond_kind%r0   = inp_info%bond_r0(k)
                    IF (found) CALL Pwarning("Multiple Bond declarations: "//TRIM(name_atm_a)//&
-                        " and "//TRIM(name_atm_b)//" overwriting!",ROOT_SECTION,error)
+                        " and "//TRIM(name_atm_b)//" overwriting!",root_section,error)
                    found = .TRUE.
                    EXIT
                 END IF
@@ -2720,7 +2720,7 @@ CONTAINS
                    bend_list(j)%bend_kind%k      = chm_info%bend_k(k)
                    bend_list(j)%bend_kind%theta0 = chm_info%bend_theta0(k)
                    IF (found) CALL Pwarning("Multiple Bend declarations: "//TRIM(name_atm_a)//&
-                        ","//TRIM(name_atm_b)//" and "//TRIM(name_atm_c)//" overwriting!",ROOT_SECTION,error)
+                        ","//TRIM(name_atm_b)//" and "//TRIM(name_atm_c)//" overwriting!",root_section,error)
                    found = .TRUE.
                    EXIT
                 END IF
@@ -2740,7 +2740,7 @@ CONTAINS
                    bend_list(j)%bend_kind%k      = inp_info%bend_k(k)
                    bend_list(j)%bend_kind%theta0 = inp_info%bend_theta0(k)
                    IF (found) CALL Pwarning("Multiple Bend declarations: "//TRIM(name_atm_a)//&
-                        ","//TRIM(name_atm_b)//" and "//TRIM(name_atm_c)//" overwriting!",ROOT_SECTION,error)
+                        ","//TRIM(name_atm_b)//" and "//TRIM(name_atm_c)//" overwriting!",root_section,error)
                    found = .TRUE.
                    EXIT
                 END IF
@@ -2814,7 +2814,7 @@ CONTAINS
                    IF(iw>0) WRITE(iw,*) "    Found UB ",TRIM(name_atm_a)," ",&
                         TRIM(name_atm_b)," ",TRIM(name_atm_c)
                    IF (found) CALL Pwarning("Multiple UB declarations: "//TRIM(name_atm_a)//&
-                        ","//TRIM(name_atm_b)//" and "//TRIM(name_atm_c)//" overwriting!",ROOT_SECTION,error)
+                        ","//TRIM(name_atm_b)//" and "//TRIM(name_atm_c)//" overwriting!",root_section,error)
                    found = .TRUE.
                    EXIT
                 END IF
@@ -2834,7 +2834,7 @@ CONTAINS
                    ub_list(j)%ub_kind%k      = inp_info%ub_k(k)
                    ub_list(j)%ub_kind%r0     = inp_info%ub_r0(k)
                    IF (found) CALL Pwarning("Multiple UB declarations: "//TRIM(name_atm_a)//&
-                        ","//TRIM(name_atm_b)//" and "//TRIM(name_atm_c)//" overwriting!",ROOT_SECTION,error)
+                        ","//TRIM(name_atm_b)//" and "//TRIM(name_atm_c)//" overwriting!",root_section,error)
                    found = .TRUE.
                    EXIT
                 END IF
@@ -3120,7 +3120,7 @@ CONTAINS
                    impr_list(j)%impr_kind%phi0 = chm_info%impr_phi0(k)
                    IF (found) CALL Pwarning("Multiple Improper declarations: "//TRIM(name_atm_a)//&
                         ","//TRIM(name_atm_b)//","//TRIM(name_atm_c)//" and "//TRIM(name_atm_d)//&
-                        " overwriting!",ROOT_SECTION,error)
+                        " overwriting!",root_section,error)
                    found = .TRUE.
                    EXIT
                 END IF
@@ -3140,7 +3140,7 @@ CONTAINS
                       impr_list(j)%impr_kind%phi0 = chm_info%impr_phi0(k)
                       IF (found) CALL Pwarning("Multiple Improper declarations: "//TRIM(name_atm_a)//&
                            ","//TRIM(name_atm_b)//","//TRIM(name_atm_c)//" and "//TRIM(name_atm_d)//&
-                           " overwriting!",ROOT_SECTION,error)
+                           " overwriting!",root_section,error)
                       found = .TRUE.
                       EXIT
                    END IF
@@ -3164,7 +3164,7 @@ CONTAINS
                    impr_list(j)%impr_kind%phi0 = inp_info%impr_phi0(k)
                    IF (found) CALL Pwarning("Multiple Improper declarations: "//TRIM(name_atm_a)//&
                         ","//TRIM(name_atm_b)//","//TRIM(name_atm_c)//" and "//TRIM(name_atm_d)//&
-                        " overwriting!",ROOT_SECTION,error)
+                        " overwriting!",root_section,error)
                    found = .TRUE.
                    EXIT
                 END IF
@@ -3221,7 +3221,7 @@ CONTAINS
              IF(TRIM(ff_type%chm_info%charge_atm(j))==atmname) THEN
                 charge(i) = ff_type%chm_info%charge(j)
                 IF (found) CALL Pwarning("Multiple charge declarations: "//TRIM(atmname)//&
-                     " overwriting!",ROOT_SECTION,error)
+                     " overwriting!",root_section,error)
                 found = .TRUE.
              END IF
           END DO
@@ -3233,7 +3233,7 @@ CONTAINS
              IF(TRIM(ff_type%inp_info%charge_atm(j))==atmname) THEN
                 charge(i) = ff_type%inp_info%charge(j)
                 IF (found) CALL Pwarning("Multiple charge declarations: "//TRIM(atmname)//&
-                     " overwriting!",ROOT_SECTION,error)
+                     " overwriting!",root_section,error)
                 found = .TRUE.
              END IF
           END DO
@@ -3337,7 +3337,7 @@ CONTAINS
                   SQRT(gro_info%nonbond_c12_14(ii)*gro_info%nonbond_c12_14(jj))
                 potparm_bond%pot(i,j)%pot%rcutsq     = (10.0_dp*bohr)**2
                 IF (found) CALL Pwarning("Multiple Lennard-Jones declarations: "//TRIM(name_atm_a)//&
-                     " and "//TRIM(name_atm_b)//" overwriting!",ROOT_SECTION,error)
+                     " and "//TRIM(name_atm_b)//" overwriting!",root_section,error)
                 found = .TRUE.
              END IF
           END IF
@@ -3403,7 +3403,7 @@ CONTAINS
                 potparm_bond%pot(i,j)%pot%lj%sigma12 = 0.25_dp*rmin**12
                 potparm_bond%pot(i,j)%pot%rcutsq     = (10.0_dp*bohr)**2
                 IF (found) CALL Pwarning("Multiple Lennard-Jones declarations: "//TRIM(name_atm_a)//&
-                     " and "//TRIM(name_atm_b)//" overwriting!",ROOT_SECTION,error)
+                     " and "//TRIM(name_atm_b)//" overwriting!",root_section,error)
                 found = .TRUE.
              END IF
           END IF
@@ -3419,7 +3419,7 @@ CONTAINS
                      (TRIM(name_atm_a)==TRIM(inp_info%nonbonded14%pot(k)%pot%at2))) ) THEN
                    CALL pair_potential_single_copy(inp_info%nonbonded14%pot(k)%pot,potparm_bond%pot(i,j)%pot,error)
                    IF (found) CALL Pwarning("Multiple Lennard-Jones declarations: "//TRIM(name_atm_a)//&
-                        " and "//TRIM(name_atm_b)//" overwriting!",ROOT_SECTION,error)
+                        " and "//TRIM(name_atm_b)//" overwriting!",root_section,error)
                    IF(iw>0) WRITE(iw,*) "    FOUND ",TRIM(name_atm_a)," ",TRIM(name_atm_b)
                    found = .TRUE.
                    EXIT
@@ -3447,7 +3447,7 @@ CONTAINS
                               potparm_bond%pot(i,j)%pot,error)
                          IF (found) CALL Pwarning("Multiple Lennard-Jones declarations: "//TRIM(name_atm_a)//&
                               " and "//TRIM(name_atm_b)//" overwriting with QM/MM forcefield specifications",&
-                              ROOT_SECTION,error)
+                              root_section,error)
                          IF(iw>0) WRITE(iw,*) "    FOUND ",TRIM(name_atm_a),&
                               " ",TRIM(name_atm_b)
                          found = .TRUE.
@@ -3588,7 +3588,7 @@ CONTAINS
                 potparm_nonbond%pot(i,j)%pot%rcutsq     = (10.0_dp*bohr)**2
                 IF (found) CALL Pwarning("Multiple Lennard-Jones declarations: "//TRIM(name_atm_a)//&
                      " and "//TRIM(name_atm_b)//" overwriting!",&
-                     ROOT_SECTION,error)
+                     root_section,error)
                 found = .TRUE.
              END IF
           END IF
@@ -3625,7 +3625,7 @@ CONTAINS
                 potparm_nonbond%pot(i,j)%pot%rcutsq     = (10.0_dp*bohr)**2
                 IF (found) CALL Pwarning("Multiple Lennard-Jones declarations: "//TRIM(name_atm_a)//&
                      " and "//TRIM(name_atm_b)//" overwriting!",&
-                     ROOT_SECTION,error)
+                     root_section,error)
                 found = .TRUE.
              END IF
           END IF
@@ -3644,7 +3644,7 @@ CONTAINS
                    CALL pair_potential_single_copy(inp_info%nonbonded%pot(k)%pot,potparm_nonbond%pot(i,j)%pot,error)
                    IF (found) CALL Pwarning("Multiple Lennard-Jones declarations: "//TRIM(name_atm_a)//&
                         " and "//TRIM(name_atm_b)//" overwriting!",&
-                        ROOT_SECTION,error)
+                        root_section,error)
                    IF(iw>0) WRITE(iw,*) "    FOUND ",TRIM(name_atm_a),&
                         " ",TRIM(name_atm_b)
                    found = .TRUE.
@@ -3672,7 +3672,7 @@ CONTAINS
                               potparm_nonbond%pot(i,j)%pot,error)
                          IF (found) CALL Pwarning("Multiple Lennard-Jones declarations: "//TRIM(name_atm_a)//&
                               " and "//TRIM(name_atm_b)//" overwriting with QM/MM forcefield specifications",&
-                              ROOT_SECTION,error)
+                              root_section,error)
                          IF(iw>0) WRITE(iw,*) "    FOUND ",TRIM(name_atm_a),&
                               " ",TRIM(name_atm_b)
                          found = .TRUE.

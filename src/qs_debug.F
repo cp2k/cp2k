@@ -92,9 +92,9 @@ CONTAINS
        CALL section_vals_val_get(harris_section, "ACTIVATE", &
                                  l_val=harris_flag, error=error)
 
-       CALL section_vals_val_get(ROOT_SECTION,"DEBUG%NUMERICAL_PRESSURE",&
+       CALL section_vals_val_get(root_section,"DEBUG%NUMERICAL_PRESSURE",&
             l_val=num_pressure, error=error)
-       CALL section_vals_val_get(ROOT_SECTION,"DEBUG%DX",&
+       CALL section_vals_val_get(root_section,"DEBUG%DX",&
             r_val=dx, error=error)
        IF (num_pressure) CALL qs_calc_numerical_pressure(force_env,error=error)
        logger => cp_error_get_logger(error)

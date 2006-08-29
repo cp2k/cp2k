@@ -152,7 +152,7 @@ SUBROUTINE rs_test ( root_section, para_env, iw, error )
   grid % bounds ( 1, : ) = -np / 2
   grid % bounds ( 2, : ) = ( np - 1 ) / 2
 
-  print_section=>section_vals_get_subs_vals(ROOT_SECTION, &
+  print_section=>section_vals_get_subs_vals(root_section, &
                         "TEST%PRINT%GRID_INFORMATION",error=error)
   CALL pw_grid_setup ( box, grid,print_section &
                        , rs_dims=(/para_env%num_pe,1/) )

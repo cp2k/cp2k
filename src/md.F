@@ -216,7 +216,7 @@ CONTAINS
     NULLIFY(unit, md_section, motion_section, print_key)
     CALL set_md_defaults(simpar)
 
-    motion_section => section_vals_get_subs_vals(ROOT_SECTION,&
+    motion_section => section_vals_get_subs_vals(root_section,&
          "MOTION",error=error)
     md_section => section_vals_get_subs_vals(motion_section,&
          "MD",error=error)
@@ -473,11 +473,11 @@ CONTAINS
           CALL section_vals_val_get(md_section, "GAMMA", r_val=simpar%gamma, error=error)
        END IF
 
-       tmp_section => section_vals_get_subs_vals(ROOT_SECTION,"GLOBAL",error=error)
-       CALL section_vals_val_get(ROOT_SECTION,"MOTION%PRINT%TRAJECTORY%FORMAT", &
+       tmp_section => section_vals_get_subs_vals(root_section,"GLOBAL",error=error)
+       CALL section_vals_val_get(root_section,"MOTION%PRINT%TRAJECTORY%FORMAT", &
             i_val=simpar%output_format,error=error)
 
-       tmp_section => section_vals_get_subs_vals(ROOT_SECTION,&
+       tmp_section => section_vals_get_subs_vals(root_section,&
             "MOTION%CONSTRAINT",error=error)
        CALL section_vals_get(tmp_section,explicit=explicit,error=error)
        IF (explicit) THEN 

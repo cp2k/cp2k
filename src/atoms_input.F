@@ -130,7 +130,7 @@ CONTAINS
        CPPostcondition(SIZE(atom_info%r,2)==natom, cp_failure_level, routineP, error, failure)
        CALL Pwarning("Overwriting coordinates. Active coordinates read from &COORD section."//&
             " Active coordinates READ from &COORD section",&
-            ROOT_SECTION, error)
+            root_section, error)
        DO iatom=1,natom
           ! we use only the first default_string_length characters of each line
           CALL section_vals_val_get(coord_section,"_DEFAULT_KEYWORD_",&

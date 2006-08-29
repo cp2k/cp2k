@@ -130,7 +130,7 @@ CONTAINS
     rad         = 0.10_dp
     rat         = 0.0_dp
 
-    output_unit = cp_print_key_unit_nr(logger,ROOT_SECTION,&
+    output_unit = cp_print_key_unit_nr(logger,root_section,&
          "MOTION%GEOOPT%PRINT%PROGRAM_RUN_INFO",&
          extension=".geoLog",error=error)
 
@@ -245,7 +245,7 @@ CONTAINS
        CALL write_restart(force_env=force_env,root_section=root_section,force_env_section=force_env_section)
 
        IF (ionode) THEN
-         traj_unit = cp_print_key_unit_nr(logger,ROOT_SECTION,&
+         traj_unit = cp_print_key_unit_nr(logger,root_section,&
                                           "MOTION%PRINT%TRAJECTORY",&
                                           extension=".xyz",&
                                           error=error)
@@ -261,7 +261,7 @@ CONTAINS
                                            dump_xmol,"POS",TRIM(title))
            CALL m_flush(traj_unit)
          END IF
-         CALL cp_print_key_finished_output(traj_unit,logger,ROOT_SECTION,&
+         CALL cp_print_key_finished_output(traj_unit,logger,root_section,&
                                            "MOTION%PRINT%TRAJECTORY",error=error)
          CALL write_qs_particle_coordinates(particle_set,cell,force_env_section,error)
        END IF
@@ -368,7 +368,7 @@ CONTAINS
     IF(ionode)THEN
        CALL close_file(unit_number=hesunit)
     END IF
-    CALL cp_print_key_finished_output(output_unit,logger,ROOT_SECTION,&
+    CALL cp_print_key_finished_output(output_unit,logger,root_section,&
          "MOTION%GEOOPT%PRINT%PROGRAM_RUN_INFO", error=error)     
 
     CALL cp_rm_iter_level(logger%iter_info,ihandle,error)

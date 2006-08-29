@@ -211,7 +211,7 @@ MODULE geo_opt
 
         DO i=1,gopt_param%max_iter
            IF (.NOT.cp_opt_gopt_next(optimizer,force_env_section=force_env_section,&
-                input=ROOT_SECTION,force_env=force_env,gopt_param=gopt_param,&
+                input=root_section,force_env=force_env,gopt_param=gopt_param,&
                 error=error)) EXIT
            ! check for an external exit command 
            CALL external_control(should_stop,"GEO",globenv,error)

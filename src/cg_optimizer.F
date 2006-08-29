@@ -123,7 +123,7 @@ CONTAINS
     failure = .FALSE.
     IF (.NOT.failure) THEN
        ionode      = para_env%source==para_env%mepos
-       output_unit = cp_print_key_unit_nr(logger,ROOT_SECTION,&
+       output_unit = cp_print_key_unit_nr(logger,root_section,&
          "MOTION%GEOOPT%PRINT%PROGRAM_RUN_INFO",&
          extension=".geoLog",error=error)
 
@@ -154,7 +154,7 @@ CONTAINS
 
        CALL write_particle_distances(particle_set,cell,force_env_section,error)
    
-       CALL cp_print_key_finished_output(output_unit,logger,ROOT_SECTION,&
+       CALL cp_print_key_finished_output(output_unit,logger,root_section,&
             "MOTION%GEOOPT%PRINT%PROGRAM_RUN_INFO", error=error)
     END IF
     CALL cp_rm_iter_level(logger%iter_info,ihandle,error)
@@ -284,7 +284,7 @@ CONTAINS
           CALL check_converg(SIZE(x0),x0-xold,xi,ionode,output_unit,conv,gopt_param)
           wildcard = "   CG"
           IF (para_env%ionode) THEN
-             dataunit = cp_print_key_unit_nr(logger,ROOT_SECTION,&
+             dataunit = cp_print_key_unit_nr(logger,root_section,&
                   "MOTION%PRINT%TRAJECTORY",extension=".xyz",error=error)
              IF (dataunit>0) THEN
                 CALL force_env_get(force_env,&
@@ -299,7 +299,7 @@ CONTAINS
                      dump_xmol,"POS",TRIM(title))
                 CALL m_flush(dataunit)
              END IF
-             CALL cp_print_key_finished_output(dataunit,logger,ROOT_SECTION,&
+             CALL cp_print_key_finished_output(dataunit,logger,root_section,&
                   "MOTION%PRINT%TRAJECTORY", error=error)
              CALL write_qs_particle_coordinates(particle_set,cell,force_env_section,error)
           END IF

@@ -576,7 +576,7 @@ SUBROUTINE gopt_param_read(gopt_param, root_section, error)
     END IF
 
     NULLIFY(gopt_section)
-    gopt_section =>  section_vals_get_subs_vals(ROOT_SECTION,&
+    gopt_section =>  section_vals_get_subs_vals(root_section,&
          "MOTION%GEOOPT",error=error)
     failure=.FALSE.
     IF (.NOT.failure) THEN

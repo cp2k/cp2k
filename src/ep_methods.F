@@ -477,8 +477,8 @@ CONTAINS
     CPPrecondition(ASSOCIATED(ep_env),cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
        PRINT *, "in ",routineP
-       input => ep_env%ROOT_SECTION
-       PRINT *,"xxx ep_env%ROOT_SECTION ",ep_env%ROOT_SECTION%id_nr
+       input => ep_env%root_section
+       PRINT *,"xxx ep_env%root_section ",ep_env%root_section%id_nr
        para_env => ep_env%para_env
        ! create_main_qs_env
        CALL section_vals_val_set(input,"FORCE_EVAL%METHOD",&
@@ -511,12 +511,12 @@ CONTAINS
        PRINT *,"created main_qs_env ",ep_env%main_qs_env%id_nr
 
        !-       ! reduce memory usage, get rid of an input structure
-       !-       CALL section_vals_retain(ROOT_SECTION,error=error)
-       !-       CALL section_vals_release(ep_env%ROOT_SECTION,error=error)
-       !-       ep_env%ROOT_SECTION => ROOT_SECTION
-       !-       input => ep_env%ROOT_SECTION
+       !-       CALL section_vals_retain(root_section,error=error)
+       !-       CALL section_vals_release(ep_env%root_section,error=error)
+       !-       ep_env%root_section => root_section
+       !-       input => ep_env%root_section
        CALL section_vals_release(ep_env%input,error=error)
-       ep_env%input => section_vals_get_subs_vals(ep_env%ROOT_SECTION,&
+       ep_env%input => section_vals_get_subs_vals(ep_env%root_section,&
             "FORCE_EVAL%EP",error=error)
        CALL section_vals_retain(ep_env%input,error=error)
        !-       CALL globenv_retain(globenv,error=error)

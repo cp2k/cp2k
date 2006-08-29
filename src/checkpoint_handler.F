@@ -71,7 +71,7 @@ CONTAINS
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
-    iw = cp_print_key_unit_nr(logger,ROOT_SECTION,"GLOBAL%PERFORMANCE/ROUTINES",&
+    iw = cp_print_key_unit_nr(logger,root_section,"GLOBAL%PERFORMANCE/ROUTINES",&
          extension=".Log",error=error)
 !   ---------------------------------------------------------------------------
 !   *** Wait for ionode and empty IO buffer ***
@@ -86,7 +86,7 @@ CONTAINS
 
     IF (iw>0) CALL m_flush(iw)
     CALL mp_sync(para_env%group)
-    CALL cp_print_key_finished_output(iw,logger,ROOT_SECTION,&
+    CALL cp_print_key_finished_output(iw,logger,root_section,&
          "GLOBAL%PERFORMANCE/ROUTINES",error=error)    
   END SUBROUTINE write_checkpoint_information
 
@@ -115,9 +115,9 @@ CONTAINS
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
-    IF (BTEST(cp_print_key_should_output(logger%iter_info,ROOT_SECTION,&
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,root_section,&
          "GLOBAL%PERFORMANCE/CPUTIME",error=error),cp_p_file)) THEN
-       iw = cp_print_key_unit_nr(logger,ROOT_SECTION,"GLOBAL%PERFORMANCE/CPUTIME",&
+       iw = cp_print_key_unit_nr(logger,root_section,"GLOBAL%PERFORMANCE/CPUTIME",&
             extension=".Log",error=error)
 
        group = para_env%group
@@ -145,7 +145,7 @@ CONTAINS
           CALL m_flush(output_unit)
        ENDIF       
        DEALLOCATE(myconvertedstring)
-       CALL cp_print_key_finished_output(iw,logger,ROOT_SECTION,&
+       CALL cp_print_key_finished_output(iw,logger,root_section,&
             "GLOBAL%PERFORMANCE/CPUTIME",error=error)       
     END IF
   END SUBROUTINE write_cputime

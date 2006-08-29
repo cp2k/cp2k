@@ -236,7 +236,7 @@ CONTAINS
 
     force_env_section => force_env%force_env_section
     root_section => force_env%root_section
-    hmc_section => section_vals_get_subs_vals(ROOT_SECTION, &
+    hmc_section => section_vals_get_subs_vals(root_section, &
          "MOTION%MD%HMC", error=error)
     CALL section_vals_val_get(hmc_section, "MD_METHOD", &
          i_val=md_method, error=error)
@@ -367,7 +367,7 @@ CONTAINS
       END SELECT
       !IF (ASSOCIATED(force_env)) THEN
       !  NULLIFY(meta_env)
-      !  metadyn_section => section_vals_get_subs_vals(ROOT_SECTION, &
+      !  metadyn_section => section_vals_get_subs_vals(root_section, &
       !                     "MOTION%METADYN", error=suberror)
       !  CALL metadyn_read(meta_env, globenv, metadyn_section, error=suberror)
       !  CALL force_env_set(force_env, meta_env=meta_env, error=suberror)
@@ -600,7 +600,7 @@ CONTAINS
     lpsc = simpar%lpsc
     md_method = simpar%md_method
     mc_method = simpar%mc_method
-    motion_section => section_vals_get_subs_vals(ROOT_SECTION,"MOTION",error=error)
+    motion_section => section_vals_get_subs_vals(root_section,"MOTION",error=error)
     
 
     iw=cp_print_key_unit_nr(logger,motion_section,"MD%PRINT%PROGRAM_RUN_INFO",&

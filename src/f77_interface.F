@@ -658,7 +658,7 @@ END SUBROUTINE f_env_rm_defaults
                hide_root=.TRUE., error=error)
     END IF
     ! XXXXXXXXXXXXXXXXXXXXXXXXXXX
-    ! ROOT_SECTION => input_file
+    ! root_section => input_file
     ! XXXXXXXXXXXXXXXXXXXXXXXXXXX
     CALL cp_error_check(error,failure)
     IF (.NOT.failure) THEN
@@ -690,10 +690,10 @@ END SUBROUTINE f_env_rm_defaults
        CALL cp2k_read(root_section,para_env,globenv)
        CALL cp2k_setup(root_section,para_env,globenv,error)
        ! Setup all possible force_env
-       force_env_sections => section_vals_get_subs_vals(ROOT_SECTION,"FORCE_EVAL",error=error)
+       force_env_sections => section_vals_get_subs_vals(root_section,"FORCE_EVAL",error=error)
 
        CALL section_vals_get(force_env_sections, n_repetition=nforce_eval, error=error)
-       CALL section_vals_val_get(ROOT_SECTION,"MOTION%MD%RESPA%FORCE_EVAL_SHELLS",i_vals=i_force_eval,&
+       CALL section_vals_val_get(root_section,"MOTION%MD%RESPA%FORCE_EVAL_SHELLS",i_vals=i_force_eval,&
             ignore_required=.TRUE.,error=error)
        CPPrecondition(SIZE(i_force_eval)==nforce_eval,cp_failure_level,routineP,error,failure)
        DO iforce_eval = 1, nforce_eval
@@ -733,13 +733,13 @@ END SUBROUTINE f_env_rm_defaults
 CPSourceFileRef,&
                error,failure)
           END SELECT
-          metadyn_section => section_vals_get_subs_vals(ROOT_SECTION,&
+          metadyn_section => section_vals_get_subs_vals(root_section,&
                "MOTION%METADYN",error=error)
           CALL metadyn_read(meta_env, root_section, para_env, metadyn_section, error=error)
           CALL force_env_set(my_force_env,meta_env=meta_env,error=error)
           CALL meta_env_release(meta_env,error=error)
           NULLIFY(fp_env)
-          fp_section => section_vals_get_subs_vals(ROOT_SECTION,&
+          fp_section => section_vals_get_subs_vals(root_section,&
                "MOTION%FLEXIBLE_PARTITIONING",error=error)
           CALL fp_env_create(fp_env,error=error)
           CALL fp_env_read(fp_env,fp_section,error=error)

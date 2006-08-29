@@ -148,7 +148,7 @@ CONTAINS
     CALL section_vals_val_get(dft_section,"POTENTIAL_FILE_NAME",&
          c_val=potential_file_name , error=error)
 
-    tmp_section => section_vals_get_subs_vals(ROOT_SECTION,"GLOBAL",&
+    tmp_section => section_vals_get_subs_vals(root_section,"GLOBAL",&
          error=error)
     CALL section_vals_val_get(tmp_section,"RUN_TYPE",i_val=run_id,error=error)
     SELECT CASE (run_id)!FM to rm, ugly!!

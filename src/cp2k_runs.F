@@ -282,7 +282,7 @@ CONTAINS
              ! initial setup (cp2k does in in the creation of the force_env)
              CALL globenv_create(globenv, error=error)
              ! XXXXXXXXX
-             ! ROOT_SECTION => input_file
+             ! root_section => input_file
              ! XXXXXXXXX
              CALL section_vals_retain(input_file,error=error)
              CALL cp2k_init ( para_env, output_unit, globenv, input_file_name=input_file_name )
@@ -341,7 +341,7 @@ CONTAINS
    
           SELECT CASE (globenv%run_type_id)
           CASE (pint_run)
-             CALL do_pint_run(para_env,ROOT_SECTION,error=suberror)
+             CALL do_pint_run(para_env,root_section,error=suberror)
           CASE (none_run)
              ! do nothing
           CASE (energy_run, energy_force_run)
@@ -405,7 +405,7 @@ CPSourceFileRef,&
                      suberror,failure)
              END SELECT
           CASE (vib_anal)
-             CALL vb_anal(ROOT_SECTION,para_env,error=suberror)
+             CALL vb_anal(root_section,para_env,error=suberror)
           CASE default
              CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
           END SELECT

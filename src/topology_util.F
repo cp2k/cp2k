@@ -3666,11 +3666,11 @@ CONTAINS
     END IF
     IF (.NOT.found) THEN
        IF (iwarn > 0) THEN
-          CALL Pwarning("No element specification provided for type:"//element_in//".",ROOT_SECTION, error)
+          CALL Pwarning("No element specification provided for type:"//element_in//".",root_section, error)
           iwarn = iwarn - 1
           IF (iwarn == 0) THEN
              CALL Pwarning("Further Output regarding unknown element types will be suppressed!",&
-                  ROOT_SECTION,error)
+                  root_section,error)
           END IF
        END IF
     END IF

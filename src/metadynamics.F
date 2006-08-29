@@ -206,7 +206,7 @@ CONTAINS
     IF (.NOT.explicit) RETURN
     CPPreconditionNoFail(.NOT.ASSOCIATED(meta_env),cp_failure_level,routineP,error)  
 
-    md_section => section_vals_get_subs_vals(ROOT_SECTION,"MOTION%MD",error=error)
+    md_section => section_vals_get_subs_vals(root_section,"MOTION%MD",error=error)
     CALL section_vals_val_get(md_section,"TIMESTEP",r_val=dt,error=error)
 
     metavar_section => section_vals_get_subs_vals(metadyn_section,"METAVAR",error=error)

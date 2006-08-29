@@ -156,14 +156,14 @@ CONTAINS
 
     failure = .FALSE.
     logger => cp_error_get_logger(error)
-    motion_section => section_vals_get_subs_vals(ROOT_SECTION,"MOTION",error=error)
+    motion_section => section_vals_get_subs_vals(root_section,"MOTION",error=error)
 
     IF (BTEST(cp_print_key_should_output(logger%iter_info,&
            motion_section,keys(1),error=error),cp_p_file) .OR.  &
         BTEST(cp_print_key_should_output(logger%iter_info,&
            motion_section,keys(2),error=error),cp_p_file) ) THEN
 
-       sections => section_vals_get_subs_vals(ROOT_SECTION,"FORCE_EVAL",error=error)
+       sections => section_vals_get_subs_vals(root_section,"FORCE_EVAL",error=error)
        CALL section_vals_get(sections, n_repetition=nforce_eval, error=error)
 
        CALL update_input(md_env,force_env,kg_env,meta_env,root_section,error)
@@ -200,7 +200,7 @@ CONTAINS
                           "# Last CVS entry",&
                           ADJUSTR(compile_lastcvs(strstart:strend))
 
-                 CALL section_vals_write(ROOT_SECTION,unit_nr=ires,&
+                 CALL section_vals_write(root_section,unit_nr=ires,&
                             hide_root=.TRUE., error=error)
               ENDIF
 
@@ -301,7 +301,7 @@ CONTAINS
     !
     ! The real restart setting...
     !
-    motion_section => section_vals_get_subs_vals(ROOT_SECTION,"MOTION",error=error)
+    motion_section => section_vals_get_subs_vals(root_section,"MOTION",error=error)
     CALL update_motion(motion_section,md_env,my_force_env,my_kg_env,my_meta_env,&
          logger,error)
     !
@@ -919,7 +919,7 @@ CONTAINS
 
     NULLIFY(rng_section, subsys_section)
     
-    force_env_sections => section_vals_get_subs_vals(ROOT_SECTION,"FORCE_EVAL",error=error)
+    force_env_sections => section_vals_get_subs_vals(root_section,"FORCE_EVAL",error=error)
     CALL section_vals_get(force_env_sections, n_repetition=nforce_eval, error=error)       
     DO iforce_eval=1,nforce_eval
        subsys_section => section_vals_get_subs_vals3(force_env_sections,"SUBSYS",&

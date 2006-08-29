@@ -1066,7 +1066,7 @@ CONTAINS
 
     NULLIFY(logger)
     logger => cp_error_get_logger(error)
-    IF (BTEST(cp_print_key_should_output(logger%iter_info,ROOT_SECTION,&
+    IF (BTEST(cp_print_key_should_output(logger%iter_info,root_section,&
          "GLOBAL%PERFORMANCE/MEMORY",error=error),cp_p_file)) THEN
 
        group = para_env%group

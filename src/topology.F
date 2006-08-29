@@ -149,7 +149,7 @@ CONTAINS
          "SUBSYS",error=error)
     cell_section => section_vals_get_subs_vals(subsys_section,&
          "CELL",error=error)
-    constraint_section =>  section_vals_get_subs_vals(ROOT_SECTION,&
+    constraint_section =>  section_vals_get_subs_vals(root_section,&
          "MOTION%CONSTRAINT",error=error)
     topology_section   =>  section_vals_get_subs_vals(subsys_section,&
          "TOPOLOGY",error=error)
@@ -234,10 +234,10 @@ CONTAINS
     !-----------------------------------------------------------------------------
     IF (my_qmmm) THEN
        CALL topology_constraint_pack(molecule_kind_set,molecule_set,&
-            topology,qmmm_env,particle_set,ROOT_SECTION,para_env,subsys_section,error)
+            topology,qmmm_env,particle_set,root_section,para_env,subsys_section,error)
     ELSE
        CALL topology_constraint_pack(molecule_kind_set,molecule_set,&
-            topology,particle_set=particle_set,input_file=ROOT_SECTION, para_env=para_env,&
+            topology,particle_set=particle_set,input_file=root_section, para_env=para_env,&
             subsys_section=subsys_section,error=error)
     END IF
 

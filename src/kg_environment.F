@@ -321,7 +321,7 @@ CONTAINS
                                  atomic_kind_set=atomic_kind_set,&
                                  distribution=local_particles,&
                                  error=error)
-       work_section => section_vals_get_subs_vals(ROOT_SECTION,"MOTION%MD%KG_COEFF",error=error)
+       work_section => section_vals_get_subs_vals(root_section,"MOTION%MD%KG_COEFF",error=error)
        CALL dyn_coeff_set_initialize(dyn_coeff_set,root_section,para_env,globenv,work_section,skipvel=.TRUE.,error=error)         
        CALL set_kg_env (kg_env=kg_env, dyn_coeff_set=dyn_coeff_set) 
        CALL dyn_coeff_set_release(dyn_coeff_set, error=error)

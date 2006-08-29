@@ -349,7 +349,7 @@ CONTAINS
 
 !     *** Print the spherical harmonics and   ***
 !     *** the orbital transformation matrices ***
-      output_unit = cp_print_key_unit_nr(logger,ROOT_SECTION,"GLOBAL%PRINT/SPHERICAL_HARMONICS",&
+      output_unit = cp_print_key_unit_nr(logger,root_section,"GLOBAL%PRINT/SPHERICAL_HARMONICS",&
            extension=".Log",error=error)
        IF (output_unit>0) THEN
 
@@ -374,7 +374,7 @@ CONTAINS
           WRITE (UNIT=output_unit,FMT="(A)") ""
 
        END IF
-       CALL cp_print_key_finished_output(output_unit,logger,ROOT_SECTION,&
+       CALL cp_print_key_finished_output(output_unit,logger,root_section,&
             "GLOBAL%PRINT/SPHERICAL_HARMONICS",error=error)
 
     END IF

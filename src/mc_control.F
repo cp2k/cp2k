@@ -416,11 +416,11 @@ SUBROUTINE mc_create_force_env ( force_env, para_env, globenv_old,input_file_nam
 
     ! parse the input
       input_file => create_cp2k_input_reading(input_file_name,para_env=para_env,error=error)
-      ROOT_SECTION => input_file
+      root_section => input_file
 
       CALL cp2k_read(root_section,para_env,globenv)
-      force_env_section => section_vals_get_subs_vals(ROOT_SECTION,"FORCE_EVAL",error=error)
-      CALL section_vals_val_get(ROOT_SECTION,"GLOBAL%PROGRAM_NAME",i_val=globenv%prog_name_id)
+      force_env_section => section_vals_get_subs_vals(root_section,"FORCE_EVAL",error=error)
+      CALL section_vals_val_get(root_section,"GLOBAL%PROGRAM_NAME",i_val=globenv%prog_name_id)
       CALL section_vals_val_get(force_env_section,"METHOD",i_val=method_name_id,error=error)
       CALL section_vals_get(force_env_section, n_repetition=nforce_eval, error=error)
 

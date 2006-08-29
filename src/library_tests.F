@@ -230,7 +230,7 @@ SUBROUTINE test_input ( root_section, para_env, iw,globenv , error)
   runtest = 0
   max_memory = 256.e6_dp
 
-  test_section => section_vals_get_subs_vals(ROOT_SECTION,"TEST",error=error)
+  test_section => section_vals_get_subs_vals(root_section,"TEST",error=error)
   CALL section_vals_val_get(test_section,"memory",r_val=max_memory,error=error)
   CALL section_vals_val_get(test_section,'copy',i_val=runtest ( 1 ),error=error )
   CALL section_vals_val_get(test_section,'matmul',i_val=runtest ( 2 ),error=error )
@@ -771,7 +771,7 @@ SUBROUTINE pw_fft_test ( root_section,para_env, iw, globenv )
   grid % bounds ( 1, : ) = -np / 2
   grid % bounds ( 2, : ) = ( np - 1 ) / 2
 
-  print_section=>section_vals_get_subs_vals(ROOT_SECTION, &
+  print_section=>section_vals_get_subs_vals(root_section, &
                         "TEST%PRINT%GRID_INFORMATION")
   CALL pw_grid_setup ( box, grid, print_section, &
                        rs_dims=(/para_env%num_pe,1/) )

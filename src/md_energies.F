@@ -161,7 +161,7 @@ CONTAINS
          force_env_p=force_env_p )
 
     root_section=>force_env_p(1)%force_env%root_section
-    motion_section => section_vals_get_subs_vals(ROOT_SECTION,"MOTION",error=error)
+    motion_section => section_vals_get_subs_vals(root_section,"MOTION",error=error)
 
     CALL force_env_get(force_env=force_env_p(1)%force_env,&
          cell=cell,&
