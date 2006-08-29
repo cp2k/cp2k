@@ -45,6 +45,7 @@ MODULE mc_control
                                              section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
+                                             section_vals_release,&
                                              section_vals_val_get
   USE kg_main,                         ONLY: kg_create_force_env
   USE kinds,                           ONLY: dp,&
@@ -405,7 +406,6 @@ SUBROUTINE mc_create_force_env ( force_env, para_env, input_file_name,&
 !**************************************************************************
 
       failure= .FALSE.
-
       NULLIFY(globenv, force_env, force_env_section )
 
       ! init globenv with the data
@@ -423,7 +423,8 @@ SUBROUTINE mc_create_force_env ( force_env, para_env, input_file_name,&
       CPAssert(nforce_eval==1,cp_failure_level,routineP,error,failure)
       SELECT CASE ( method_name_id )
       CASE ( do_fist )
-         CALL fist_create_force_env(force_env, root_section, para_env, globenv, force_env_section=force_env_section, error=error)
+         CALL fist_create_force_env(force_env, root_section, para_env, globenv,&
+                                    force_env_section=force_env_section, error=error)
       CASE ( do_qs )
          CALL quickstep_create_force_env(force_env, root_section,  para_env,globenv, &
                                          force_env_section=force_env_section, error=error)
@@ -433,7 +434,6 @@ SUBROUTINE mc_create_force_env ( force_env, para_env, input_file_name,&
       CASE default
          CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
       END SELECT
-! release some stuff created here
 
       IF(PRESENT(globenv_new))THEN
          globenv_new => globenv
@@ -497,7 +497,6 @@ SUBROUTINE mc_create_bias_force_env (bias_env,force_env,&
 
 ! create the bias_env from the template file
       CALL mc_create_force_env(bias_env, para_env, 'bias_template.inp',error=error)
-
 ! grab the coordinates and cell parameters of the old environment
       CALL force_env_get(force_env,subsys=subsys,cell=cell,&
          error=error)
@@ -521,10 +520,11 @@ SUBROUTINE mc_create_bias_force_env (bias_env,force_env,&
          abc(1:3)*angstrom,&
          'bias_temp.inp',bias_env,TRIM(fft_lib),print_level)
 
+      CALL section_vals_release(bias_env%root_section)
       CALL force_env_release(bias_env,error=error)
 
       CALL mc_create_force_env(bias_env, para_env, 'bias_temp.inp',error=error)
-
+      
       DEALLOCATE(r,STAT=istat)
       IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
                        "r")

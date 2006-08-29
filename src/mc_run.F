@@ -58,7 +58,8 @@ MODULE mc_run
   USE global_types,                    ONLY: global_environment_type,&
                                              globenv_release
   USE input_section_types,             ONLY: section_vals_get,&
-                                             section_vals_type
+                                             section_vals_type,&
+                                             section_vals_release
   USE kinds,                           ONLY: dp
   USE mc_control,                      ONLY: mc_create_force_env,&
                                              read_mc_restart
@@ -271,8 +272,7 @@ CONTAINS
 ! release the old force env and make the new one
          in_use=force_env%in_use
          CALL force_env_release(force_env)
-         CALL mc_create_force_env(force_env, para_env,  &
-              dat_file,error=error)
+         CALL mc_create_force_env(force_env, para_env, dat_file,error=error)
       ENDIF
 
 ! now perform the calculation
@@ -294,16 +294,17 @@ CONTAINS
       CASE("GEMC")
 
          CALL get_mc_par(mc_par,box2_file=box2_file)
-
 ! prepare the second box
 
 ! allocating or nullifying local pointers
          ALLOCATE ( mc_par_2, STAT = isos )
          IF ( isos /= 0 ) CALL stop_memory ( 'allocstruc', 'mc_par_2', 0 )
- 
+
 ! read the input of the Monte Carlo section
-         CALL mc_create_force_env(force_env_2, para_env, &
-            box2_file,globenv_new=globenv_2,error=error)
+         
+         CALL mc_create_force_env(force_env_2, para_env,&
+              box2_file,globenv_new=globenv_2,error=error)
+         CALL section_vals_release(force_env_2%root_section)
 
          IF (ionode) THEN
             WRITE(iw,*)
@@ -384,8 +385,7 @@ CONTAINS
          IF ( lrestart ) THEN
             CALL read_mc_restart(mc_par_2,force_env_2,iw,rng_stream)
             CALL force_env_release(force_env_2)
-            CALL mc_create_force_env(force_env_2, para_env,  &
-               dat_file,error=error)
+            CALL mc_create_force_env(force_env_2, para_env, dat_file,error=error)
          ENDIF
 
 ! pull all the information together into one environment

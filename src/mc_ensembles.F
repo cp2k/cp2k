@@ -34,7 +34,8 @@ MODULE mc_ensembles
                                              force_env_release
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: dump_xmol
-  USE input_section_types,             ONLY: section_vals_type
+  USE input_section_types,             ONLY: section_vals_type,&
+                                             section_vals_release
   USE kinds,                           ONLY: dp,&
                                              dp_size
   USE machine,                         ONLY: m_flush
@@ -437,7 +438,9 @@ CONTAINS
 ! we need a new biasing environment now, if we're into that sort of thing
             IF(lbias) THEN
                DO ibox=1,nboxes
+                  CALL section_vals_release(bias_env(ibox)%force_env%root_section)
                   CALL force_env_release(bias_env(ibox)%force_env,error=error)
+                  !
                   CALL mc_create_bias_force_env(bias_env(ibox)%force_env,&
                      force_env(ibox)%force_env,&
                      para_env,globenv,TRIM(fft_lib),print_level,ionode,force_env_section,error)
@@ -690,15 +693,6 @@ CONTAINS
                         cell(ibox)%cell,com_crd,dump_xmol,'POS',&
                         'BOX ' // TRIM(ADJUSTL(cbox)))
                   ENDIF
-
-! find bond lengths and angle for current water config
-!               IF(nchain(ibox) .NE. 0) THEN
-!                  istep(ibox)=istep(ibox)+1
-!                  CALL get_water_data(force_env(ibox)%force_env,&
-!                     averages(ibox)%averages,&
-!                     istep(ibox),nchain(ibox),data_unit(ibox))
-!               ENDIF
-
                ENDDO
             ENDIF  ! end the things we only do every iprint moves
 
@@ -814,6 +808,7 @@ CONTAINS
             final_energy(ibox)=0.0d0
          ENDIF
          IF (lbias) THEN
+            CALL section_vals_release(bias_env(ibox)%force_env%root_section)
             CALL force_env_release(bias_env(ibox)%force_env,error=error)
          ENDIF
       ENDDO

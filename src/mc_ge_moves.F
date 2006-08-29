@@ -44,7 +44,8 @@ MODULE mc_ge_moves
                                              force_env_type
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: dump_xmol
-  USE input_section_types,             ONLY: section_vals_type
+  USE input_section_types,             ONLY: section_vals_type,&
+                                             section_vals_release
   USE kinds,                           ONLY: dp,&
                                              dp_size
   USE mc_control,                      ONLY: mc_create_force_env
@@ -815,17 +816,8 @@ CONTAINS
 ! now let's create the two new environments with the different number
 ! of molecules
 
-!      IF(lbias) THEN
-         CALL mc_create_force_env(insert_env, para_env,  &
-              dat_file(insert_box),error=error)
-         CALL mc_create_force_env(remove_env, para_env,  &
-            dat_file(remove_box),error=error)
-!      ELSE
-!         CALL mc_create_force_env(insert_env, globenv, &
-!            dat_file(insert_box),force_env_section,error=error)
-!         CALL mc_create_force_env(remove_env, globenv, &
-!            dat_file(remove_box),force_env_section,error=error)
-!      ENDIF
+      CALL mc_create_force_env(insert_env, para_env, dat_file(insert_box),error=error)
+      CALL mc_create_force_env(remove_env, para_env, dat_file(remove_box),error=error)
 
 ! allocate an array we'll need
       ALLOCATE(r_cbmc(1:3,1:ins_atoms),STAT=istat)
@@ -875,6 +867,8 @@ CONTAINS
 
       IF(loverlap_ins .OR. loverlap_rem) THEN
 ! deallocate some stuff
+         CALL section_vals_release(insert_env%root_section)
+         CALL section_vals_release(remove_env%root_section)
          CALL force_env_release(insert_env)
          CALL force_env_release(remove_env)
          DEALLOCATE(r_remove,STAT=istat)
@@ -928,9 +922,9 @@ CONTAINS
             force_env(insert_box)%force_env,TRIM(fft_lib),print_level)
          insert_env_bias => insert_env
          NULLIFY(insert_env)
-!         CALL force_env_release(insert_env)
-         CALL mc_create_force_env(insert_env, para_env,  &
-            dat_file(insert_box),error=error)
+         CALL mc_create_force_env(insert_env, para_env, dat_file(insert_box),error=error)
+!         CALL section_vals_release(insert_env%root_section)
+
          CALL force_env_calc_energy_force(insert_env,&
             calc_force=.FALSE.,error=error)
          CALL force_env_get(insert_env,&
@@ -943,8 +937,7 @@ CONTAINS
                force_env(remove_box)%force_env,TRIM(fft_lib),print_level)
             remove_env_bias => remove_env
             NULLIFY(remove_env)
-            CALL mc_create_force_env(remove_env, para_env,  &
-               dat_file(remove_box),error=error)
+            CALL mc_create_force_env(remove_env, para_env, dat_file(remove_box),error=error)
             new_energy(remove_box)=0.0E0_dp
             bias_energy_new(remove_box)=0.0E0_dp
          ELSE
@@ -953,8 +946,7 @@ CONTAINS
                force_env(remove_box)%force_env,TRIM(fft_lib),print_level)
             remove_env_bias => remove_env
             NULLIFY(remove_env)
-            CALL mc_create_force_env(remove_env, para_env,  &
-               dat_file(remove_box),error=error)
+            CALL mc_create_force_env(remove_env, para_env, dat_file(remove_box),error=error)
             CALL force_env_calc_energy_force(remove_env,calc_force=.FALSE.,error=error)
             CALL force_env_get(remove_env,&
                potential_energy=new_energy(remove_box),error=error)
@@ -1100,33 +1092,47 @@ CONTAINS
             r_old(1:3,ipart,remove_box)=particles_remove%els(ipart)%r(1:3)
          ENDDO         
 
-! insertion box
+         ! Only the root_section of the second subforce_env needs to be released
+         ! The other is pointing to the main force_env and must not be released
+
+         ! insertion box
+         IF (insert_box/=1) THEN
+            CALL section_vals_release(insert_env%root_section)            
+         END IF
+         CALL section_vals_release(force_env(insert_box)%force_env%root_section)
          CALL force_env_release(force_env(insert_box)%force_env)
          force_env(insert_box)%force_env => insert_env
 
-! removal box
+         ! removal box
+         IF (remove_box/=1) THEN
+            CALL section_vals_release(remove_env%root_section)            
+         END IF
+         CALL section_vals_release(force_env(remove_box)%force_env%root_section)
          CALL force_env_release(force_env(remove_box)%force_env)
          force_env(remove_box)%force_env => remove_env
 
+
 ! if we're biasing, update the bias_env
          IF(lbias) THEN
+            CALL section_vals_release(bias_env(insert_box)%force_env%root_section)
+            CALL section_vals_release(bias_env(remove_box)%force_env%root_section)
+
             CALL force_env_release(bias_env(insert_box)%force_env)
             bias_env(insert_box)%force_env => insert_env_bias
             CALL force_env_release(bias_env(remove_box)%force_env)
             bias_env(remove_box)%force_env => remove_env_bias
          ENDIF
 
-
-!         WRITE(6,*) 'iuovnd ',new_energy(:)
-!         WRITE(6,*) 'uovnd ',nchain(:)
       ELSE
 
-!         WRITE(6,*) 'REJECTED'
-
 ! reject the move
+         CALL section_vals_release(insert_env%root_section)
+         CALL section_vals_release(remove_env%root_section)
          CALL force_env_release(insert_env)
          CALL force_env_release(remove_env)
          IF(lbias) THEN
+            CALL section_vals_release(insert_env_bias%root_section)
+            CALL section_vals_release(remove_env_bias%root_section)
             CALL force_env_release(insert_env_bias)
             CALL force_env_release(remove_env_bias)
          ENDIF
@@ -1376,19 +1382,6 @@ CONTAINS
          
       ENDDO
 
-!      DO ibox=1,2
-! make a test environment that we can alter to calculate the energy
-!         CALL mc_create_force_env(test_env(ibox)%force_env, globenv, &
-!               dat_file(ibox),error=error)
-
-! grab the coords so we can change them
-!         CALL force_env_get(test_env(ibox)%force_env,&
-!            subsys=testsys(ibox)%subsys,error=error)
-!         CALL cp_subsys_get(testsys(ibox)%subsys(1)%subsys, &
-!            particles=particles_test(ibox)%list, error=error)
-
-!      ENDDO
-
 ! call a random number to figure out how far we're moving
       IF(ionode) rand=next_random_number(rng_stream)
       CALL mp_bcast(rand,source,group)
@@ -1491,12 +1484,6 @@ CONTAINS
       DO ibox=1,2
          IF(loverlap(ibox)) CYCLE
 ! remake the force environment and calculate the energy
-
-!         CALL force_env_release(test_env(ibox)%force_env,error=error)
-            
-!         CALL mc_create_force_env(test_env(ibox)%force_env, globenv, &
-!               dat_file(ibox),error=error)
-         
          IF (lempty(ibox)) THEN
             new_energy(ibox)=0.0E0_dp
          ELSE
@@ -1573,12 +1560,6 @@ CONTAINS
             ENDDO
             
          ENDDO
-
-! switch the force env to the new env
-!         DO ibox=1,2
-!            CALL force_env_release(force_env(ibox)%force_env,error=error)
-!            force_env(ibox)%force_env => test_env(ibox)%force_env
-!         ENDDO
       ELSE
 
 ! reject the move
@@ -1593,11 +1574,6 @@ CONTAINS
             WRITE(cl,*) prefactor,w
 
          ENDIF
-
-! release some memory
-!         DO i=1,2
-!            CALL force_env_release(test_env(i)%force_env,error=error)
-!         ENDDO
 
 ! reset the cell and particle positions
          DO ibox=1,2
