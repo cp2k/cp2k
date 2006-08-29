@@ -476,7 +476,7 @@ CPSourceFileRef,&
     CHARACTER(LEN=default_path_length)       :: output_file
     CHARACTER(LEN=default_string_length)     :: str
     INTEGER :: handle, i, i_job_to_restart, ierr, ijob, ijob_end, ijob_start, &
-      iunit, n_jobs_to_run, new_group, new_rank, new_size, ngroups, &
+      iunit, n_jobs_to_run, new_group, new_output_unit, new_rank, new_size, ngroups, &
       output_unit, stat
     INTEGER, DIMENSION(:), POINTER           :: group_distribution
     LOGICAL                                  :: failure, found, run_OK
@@ -605,18 +605,18 @@ CPSourceFileRef,&
                         file_action="WRITE",&
                         file_status="UNKNOWN",&
                         file_position="APPEND",&
-                        unit_number=output_unit)
+                        unit_number=new_output_unit)
               ELSE
                 ! this should never be used by cp2k_run, but e.g. still happens, incorrectly, 
                 ! on eror, writes now to fort.999 so that error messages can be recovered and fixed
-                output_unit=999 
-             ENDIF
+                new_output_unit=999
+              ENDIF
           
               IF (output_unit > 0) WRITE(output_unit,FMT="(T2,A,I5.5,A)") " Running Job ",i, &
                         " output to "//TRIM(farming_env%Job_cwd(i))//"/"//TRIM(output_file)
-              run_OK=cp2k_run(TRIM(farming_env%Job_input(i)),output_unit,new_group)
+              run_OK=cp2k_run(TRIM(farming_env%Job_input(i)),new_output_unit,new_group)
               
-              IF (new_rank == 0) CALL close_file(unit_number=output_unit)
+              IF (new_rank == 0) CALL close_file(unit_number=new_output_unit)
 
           ELSE ! problem if just one node does not change...
               IF (output_unit > 0 ) WRITE(output_unit,FMT="(T2,A,A)") &
