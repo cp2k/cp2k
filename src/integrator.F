@@ -73,7 +73,8 @@ MODULE integrator
   USE parallel_rng_types,              ONLY: next_random_number,&
                                              rng_stream_type
   USE particle_list_types,             ONLY: particle_list_type
-  USE particle_types,                  ONLY: particle_type
+  USE particle_types,                  ONLY: particle_type,&
+                                             update_particle_set
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
   USE util,                            ONLY: matmul_3x3,&
@@ -3104,37 +3105,6 @@ SUBROUTINE update_veps ( box, npt, simpar, pv_kin, kin, virial, infree )
 
 END SUBROUTINE update_veps
 
-!******************************************************************************
-SUBROUTINE update_particle_set ( particle_set, int_group,  pos, vel )
-                                
-    TYPE(particle_type), POINTER             :: particle_set( : )
-    INTEGER, INTENT(IN)                      :: int_group
-    REAL(KIND=dp), INTENT(INOUT), OPTIONAL   :: pos( :, : ), vel( :, : )
-
-    INTEGER                                  :: iparticle, nparticle
-
-  nparticle = SIZE ( particle_set )
-
-  IF ( ( PRESENT ( pos ) ).AND. ( .NOT. PRESENT ( vel ) ) ) THEN
-    CALL mp_sum( pos,int_group)
-    DO iparticle=1,nparticle
-      particle_set(iparticle)%r(:) = pos(:,iparticle)
-    END DO
-  ELSEIF ( ( PRESENT ( vel ) ) .AND. ( .NOT. PRESENT ( pos ) ) ) THEN
-    CALL mp_sum( vel,int_group)
-    DO iparticle=1,nparticle
-      particle_set(iparticle)%v(:) = vel(:,iparticle)
-    END DO
-  ELSEIF ( ( PRESENT ( vel ) ) .AND. ( PRESENT ( pos ) ) ) THEN
-    CALL mp_sum( pos,int_group)
-    CALL mp_sum( vel,int_group)
-    DO iparticle=1,nparticle
-      particle_set(iparticle)%v(:) = vel(:,iparticle)
-      particle_set(iparticle)%r(:) = pos(:,iparticle)
-    END DO
-  ENDIF
-
-END SUBROUTINE update_particle_set 
 !!*****
 !******************************************************************************
 !!****** integrator/nve_respa [1.0] *

@@ -154,11 +154,12 @@ CONTAINS
 !******************************************************************************
 
 RECURSIVE SUBROUTINE force_env_calc_energy_force ( force_env, &
-     calc_force, consistent_energies, error)
+     calc_force, consistent_energies, skip_external_control, error)
 
     TYPE(force_env_type), POINTER            :: force_env
     LOGICAL, INTENT(IN), OPTIONAL            :: calc_force, &
-                                                consistent_energies
+                                                consistent_energies,&
+                                                skip_external_control
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -166,7 +167,7 @@ RECURSIVE SUBROUTINE force_env_calc_energy_force ( force_env, &
       routineP = moduleN//':'//routineN
 
     LOGICAL                                  :: energy_consistency, failure, &
-                                                need_f
+                                                need_f, my_skip
     TYPE(cell_type), POINTER                 :: cell
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(virial_type), POINTER               :: virial
@@ -175,7 +176,9 @@ RECURSIVE SUBROUTINE force_env_calc_energy_force ( force_env, &
 
   failure=.FALSE.
   need_f=.TRUE.
-
+  my_skip=.FALSE.
+  IF (PRESENT(skip_external_control)) my_skip = skip_external_control
+ 
   IF (PRESENT(calc_force)) need_f=calc_force
   IF (PRESENT(consistent_energies)) THEN
     energy_consistency = consistent_energies
@@ -243,22 +246,24 @@ RECURSIVE SUBROUTINE force_env_calc_energy_force ( force_env, &
         CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
      END SELECT
 
-     ! Metadynamics 
-     IF (ASSOCIATED(force_env%meta_env)) THEN
-        CALL metadyn_add_forces(force_env%meta_env,force_env, error=error)
-     END IF
-     ! Flexible Partitioning
-     IF (ASSOCIATED(force_env%fp_env)) THEN
-        IF (force_env%fp_env%use_fp) THEN
-           CALL force_env_get(force_env,cell=cell)
-           CALL fp_eval(force_env%fp_env,force_env%subsys, &
-                        cell,error=error)
+     IF (.NOT.my_skip) THEN
+        ! Metadynamics 
+        IF (ASSOCIATED(force_env%meta_env)) THEN
+           CALL metadyn_add_forces(force_env%meta_env,force_env, error=error)
+        END IF
+        ! Flexible Partitioning
+        IF (ASSOCIATED(force_env%fp_env)) THEN
+           IF (force_env%fp_env%use_fp) THEN
+              CALL force_env_get(force_env,cell=cell)
+              CALL fp_eval(force_env%fp_env,force_env%subsys, &
+                   cell,error=error)
+           ENDIF
         ENDIF
-     ENDIF     
-     ! Constraints ONLY of Fixed Atom type
-     CALL fix_atom_control(force_env, error=error)
-     ! All Restraints
-     CALL restraint_control(force_env, error=error)
+        ! Constraints ONLY of Fixed Atom type
+        CALL fix_atom_control(force_env, error=error)
+        ! All Restraints
+        CALL restraint_control(force_env, error=error)
+     END IF
 
   END IF
 END SUBROUTINE force_env_calc_energy_force
@@ -837,7 +842,7 @@ RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,calc_force,only_apply_tras
 
   ! Fist
   CALL force_env_calc_energy_force(force_env%sub_force_env(fist_subsys)%force_env,&
-       calc_force=need_f,error=error)
+       calc_force=need_f,skip_external_control=.TRUE.,error=error)
   !
   ! Print Out information on fist energy calculation...
   !
@@ -847,7 +852,7 @@ RECURSIVE SUBROUTINE qmmm_energy_and_forces(force_env,calc_force,only_apply_tras
   !
   ! QS
   CALL force_env_calc_energy_force(force_env%sub_force_env(qs_subsys)%force_env,&
-       calc_force=need_f,error=error)
+       calc_force=need_f,skip_external_control=.TRUE.,error=error)
   !
   ! Print Out information on QS energy calculation...
   !

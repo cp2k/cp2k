@@ -2551,7 +2551,6 @@ CONTAINS
     !-----------------------------------------------------------------------------
     CALL timeset(routineN//'_bonds2',handle2)
     DO i=1,SIZE(molecule_kind_set)
-       WRITE(*,*) "i = ",i
        molecule_kind => molecule_kind_set(i)
        CALL get_molecule_kind(molecule_kind=molecule_kind,&
             molecule_list=molecule_list,&

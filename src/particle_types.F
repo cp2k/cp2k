@@ -53,7 +53,8 @@ MODULE particle_types
                                              dihedral_angle
   USE memory_utilities,                ONLY: reallocate
   USE message_passing,                 ONLY: mp_allgather,&
-                                             mp_bcast
+                                             mp_bcast,&
+                                             mp_sum
   USE physcon,                         ONLY: angstrom,&
                                              femtoseconds,&
                                              massunit
@@ -102,7 +103,8 @@ MODULE particle_types
             write_particle_distances,&
             write_particle_coordinates,&
             write_structure_data,&
-            write_particle_matrix
+            write_particle_matrix,&
+            update_particle_set
 
 !!***
 ! *****************************************************************************
@@ -1193,5 +1195,62 @@ END SUBROUTINE clone_particle
   END FUNCTION valid_indices
 
   ! ***************************************************************************
+
+  !******************************************************************************
+  SUBROUTINE update_particle_set ( particle_set, int_group,  pos, vel, for, add )
+    
+    TYPE(particle_type), POINTER             :: particle_set( : )
+    INTEGER, INTENT(IN)                      :: int_group
+    REAL(KIND=dp), INTENT(INOUT), OPTIONAL   :: pos( :, : ), vel( :, : ), for(:,:)
+    LOGICAL, INTENT(IN), OPTIONAL            :: add
+    
+    INTEGER                                  :: iparticle, nparticle
+    LOGICAL                                  :: update_pos, update_vel, update_for, my_add
+
+    nparticle  = SIZE ( particle_set )
+    update_pos = PRESENT(pos)
+    update_vel = PRESENT(vel)
+    update_for = PRESENT(for)
+    my_add     = .FALSE.
+    IF (PRESENT(add)) my_add = add
+
+    IF (update_pos) THEN
+       CALL mp_sum( pos,int_group)
+       IF (my_add) THEN
+          DO iparticle=1,nparticle
+             particle_set(iparticle)%r(:) = particle_set(iparticle)%r(:) + pos(:,iparticle)
+          END DO
+       ELSE
+          DO iparticle=1,nparticle
+             particle_set(iparticle)%r(:) = pos(:,iparticle)
+          END DO
+       END IF
+    END IF
+    IF (update_vel) THEN
+       CALL mp_sum( vel,int_group)
+       IF (my_add) THEN
+          DO iparticle=1,nparticle
+             particle_set(iparticle)%v(:) = particle_set(iparticle)%v(:) + vel(:,iparticle)
+          END DO
+       ELSE
+          DO iparticle=1,nparticle
+             particle_set(iparticle)%v(:) = vel(:,iparticle)
+          END DO
+       END IF
+    END IF
+    IF (update_for) THEN
+       CALL mp_sum( for,int_group)
+       IF (my_add) THEN
+          DO iparticle=1,nparticle
+             particle_set(iparticle)%f(:) = particle_set(iparticle)%f(:) + for(:,iparticle)
+          END DO
+       ELSE
+          DO iparticle=1,nparticle
+             particle_set(iparticle)%f(:) = for(:,iparticle)
+          END DO
+       END IF
+    ENDIF
+    
+  END SUBROUTINE update_particle_set
 
 END MODULE particle_types

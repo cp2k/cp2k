@@ -41,7 +41,8 @@ MODULE restraint
                                              local_colvar_constraint_type,&
                                              molecule_type
   USE particle_list_types,             ONLY: particle_list_type
-  USE particle_types,                  ONLY: particle_type
+  USE particle_types,                  ONLY: particle_type,&
+                                             update_particle_set
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -102,6 +103,7 @@ CONTAINS
     TYPE(molecule_type), POINTER             :: molecule, molecule_set( : )
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(particle_type), POINTER             :: particle_set( : )
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:,:) :: force 
 
     failure = .FALSE.
     CALL timeset ( routineN, 'I', ' ', handle )
@@ -123,6 +125,9 @@ CONTAINS
           particle_set      => particles%els
           molecule_set      => molecules % els
           molecule_kind_set => molecule_kinds % els
+          ALLOCATE(force(3,SIZE(particle_set)),stat=stat)
+          CPPrecondition(stat==0, cp_failure_level, routineP, error, failure)
+          force = 0.0_dp
           MOL:  DO ikind = 1, nkind
              ! Fixed Atoms restraint
              
@@ -145,7 +150,7 @@ CONTAINS
                                ! Energy
                                energy_fixd = energy_fixd + k * rab2
                                ! Forces
-                               particle_set(iparticle)%f(:) =  -2.0_dp * k* rab
+                               force(:,iparticle) = force(:,iparticle) - 2.0_dp * k* rab
                             END IF
                             EXIT
                          END IF
@@ -167,17 +172,21 @@ CONTAINS
                 
                 ! 3x3
                 IF ( n3x3con_restraint /= 0 ) CALL restraint_3x3( molecule, particle_set,&
-                     energy_3x3, error )
+                     energy_3x3, force, error )
                 
                 ! 4x6
                 IF ( n4x6con_restraint /= 0 ) CALL restraint_4x6( molecule, particle_set,&
-                     energy_4x6, error )
+                     energy_4x6, force, error )
                 
                 ! collective variables
                 IF ( ncolv%nrestraint /= 0 ) CALL restraint_colv( molecule, particle_set,&
-                     cell, energy_colv, error )
+                     cell, energy_colv, force, error )
              END DO
           END DO MOL
+          CALL update_particle_set(particle_set,force_env%para_env%group,for=force,add=.TRUE.)
+             
+          DEALLOCATE(force,stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END DO
        ! Store restraint energies
        NULLIFY(extended_energies)
@@ -209,11 +218,12 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE restraint_3x3( molecule, particle_set, energy, error )
+  SUBROUTINE restraint_3x3( molecule, particle_set, energy, force, error )
 
     TYPE(molecule_type), POINTER             :: molecule
     TYPE(particle_type), POINTER             :: particle_set( : )
     REAL(KIND=dp), INTENT(INOUT)             :: energy
+    REAL(KIND=dp), INTENT(INOUT), DIMENSION(:,:) :: force 
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -250,12 +260,9 @@ CONTAINS
        ! Update Energy
        energy = energy + k *(tab**2+tac**2+tbc**2)
        ! Update Forces
-       particle_set ( index_a )%f = particle_set ( index_a )%f -&
-            2.0_dp*k*( r0_12/rab*tab+r0_13/rac*tac)
-       particle_set ( index_b )%f = particle_set ( index_b )%f -&
-            2.0_dp*k*(-r0_12/rab*tab+r0_23/rbc*tbc)
-       particle_set ( index_c )%f = particle_set ( index_c )%f -&
-            2.0_dp*k*(-r0_13/rac*tac-r0_23/rbc*tbc)
+       force(:,index_a) = force(:,index_a) - 2.0_dp*k*( r0_12/rab*tab+r0_13/rac*tac)
+       force(:,index_b) = force(:,index_b) - 2.0_dp*k*(-r0_12/rab*tab+r0_23/rbc*tbc)
+       force(:,index_c) = force(:,index_c) - 2.0_dp*k*(-r0_13/rac*tac-r0_23/rbc*tbc)
     END DO
 
   END SUBROUTINE restraint_3x3
@@ -276,11 +283,12 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE restraint_4x6( molecule, particle_set, energy, error )
+  SUBROUTINE restraint_4x6( molecule, particle_set, energy, force, error )
 
     TYPE(molecule_type), POINTER             :: molecule
     TYPE(particle_type), POINTER             :: particle_set( : )
     REAL(KIND=dp), INTENT(INOUT)             :: energy
+    REAL(KIND=dp), INTENT(INOUT), DIMENSION(:,:) :: force 
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -332,14 +340,10 @@ CONTAINS
        ! Update Energy
        energy = energy + k *(tab**2+tac**2+tad**2+tbc**2+tbd**2+tcd**2)
        ! Update Forces
-       particle_set ( index_a )%f = particle_set ( index_a )%f-&
-            2.0_dp*k*( r0_12/rab*tab+r0_13/rac*tac+r0_14/rad*tad)
-       particle_set ( index_b )%f = particle_set ( index_b )%f-&
-            2.0_dp*k*(-r0_12/rab*tab+r0_23/rbc*tbc+r0_24/rbd*tbd)
-       particle_set ( index_c )%f = particle_set ( index_c )%f-&
-            2.0_dp*k*(-r0_13/rac*tac-r0_23/rbc*tbc+r0_34/rcd*tcd)
-       particle_set ( index_d )%f = particle_set ( index_d )%f-&
-            2.0_dp*k*(-r0_14/rad*tad-r0_24/rbd*tbd-r0_34/rcd*tcd)       
+       force(:,index_a) = force(:,index_a)-2.0_dp*k*( r0_12/rab*tab+r0_13/rac*tac+r0_14/rad*tad)
+       force(:,index_b) = force(:,index_b)-2.0_dp*k*(-r0_12/rab*tab+r0_23/rbc*tbc+r0_24/rbd*tbd)
+       force(:,index_c) = force(:,index_c)-2.0_dp*k*(-r0_13/rac*tac-r0_23/rbc*tbc+r0_34/rcd*tcd)
+       force(:,index_d) = force(:,index_d)-2.0_dp*k*(-r0_14/rad*tad-r0_24/rbd*tbd-r0_34/rcd*tcd)       
     END DO
 
   END SUBROUTINE restraint_4x6
@@ -360,12 +364,13 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE restraint_colv( molecule, particle_set, cell, energy, error )
+  SUBROUTINE restraint_colv( molecule, particle_set, cell, energy, force, error )
 
     TYPE(molecule_type), POINTER             :: molecule
     TYPE(particle_type), POINTER             :: particle_set( : )
     TYPE(cell_type), POINTER                 :: cell
     REAL(KIND=dp), INTENT(INOUT)             :: energy
+    REAL(KIND=dp), INTENT(INOUT), DIMENSION(:,:) :: force 
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -398,8 +403,7 @@ CONTAINS
        ! Update Forces
        DO iatm = 1, SIZE( lcolv (iconst) % colvar % i_atom )
           ind = lcolv(iconst) % colvar % i_atom (iatm)
-          particle_set(ind)%f = particle_set(ind)%f &
-               -2.0_dp*k*tab*lcolv(iconst) % colvar % dsdr(:,iatm)
+          force(:,ind) = force(:,ind)-2.0_dp*k*tab*lcolv(iconst) % colvar % dsdr(:,iatm)
        END DO
     END DO
 
