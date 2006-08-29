@@ -131,7 +131,8 @@ CONTAINS
             i_val=prep, error=error)
        CALL section_vals_val_get(input,"VIBRATIONAL_ANALYSIS%FULLY_PERIODIC",&
             l_val=keep_rotations, error=error)
-       nrep = MIN(1,para_env%num_pe/prep)
+       nrep = MAX(1,para_env%num_pe/prep)
+       WRITE(*,*)nrep,para_env%num_pe,prep
        CPPostconditionNoFail(nrep*prep==para_env%num_pe,cp_warning_level,routineP,error)
        ! Create Replica Environments
        CALL rep_env_create(rep_env, para_env=para_env, input=input,&
@@ -173,22 +174,14 @@ CONTAINS
           !
           ! Loop on atoms and coordinates
           !
+          Hessian = HUGE(0.0_dp)
           IF (output_unit>0) WRITE(output_unit,'(/,T2,A)')"VIB| Vibrational Analysis Info"
           DO icoordp = 1, ncoord, nrep
-             icoord = (icoordp-1)*nrep
+             icoord  = icoordp-1
              DO j = 1, nrep
                 rep_env%r(:,j)=pos0
                 IF (icoord+j <= ncoord) THEN
                    rep_env%r(icoord+j,j) = rep_env%r(icoord+j,j) + Dx
-                   ! Dump Info
-                   IF (output_unit>0) THEN
-                      iparticle1 = (icoord+j)/3
-                      IF (MOD(icoord+j,3)/=0) iparticle1=iparticle1+1
-                      WRITE(output_unit,'(T2,A,I5,A,I5,3A)')&
-                           "VIB| REPLICA Nr.",j,"- Energy and Forces for particle:",&
-                           iparticle1,"  coordinate: ",lab(icoord+j-(iparticle1-1)*3),&
-                           " + D"//TRIM(lab(icoord+j-(iparticle1-1)*3))
-                   END IF
                 END IF
              END DO
              CALL rep_env_calc_e_f(rep_env,calc_f=.TRUE.,error=error)
@@ -197,6 +190,13 @@ CONTAINS
                    Hessian(:,icoord+j) = rep_env%f(:rep_env%ndim,j)
                    ! Dump Info
                    IF (output_unit>0) THEN
+                      iparticle1 = (icoord+j)/3
+                      IF (MOD(icoord+j,3)/=0) iparticle1=iparticle1+1
+                      WRITE(output_unit,'(T2,A,I5,A,I5,3A)')&
+                           "VIB| REPLICA Nr.",j,"- Energy and Forces for particle:",&
+                           iparticle1,"  coordinate: ",lab(icoord+j-(iparticle1-1)*3),&
+                           " + D"//TRIM(lab(icoord+j-(iparticle1-1)*3))
+                      !
                       WRITE(output_unit,'(T2,A,T42,A,9X,F15.9)')&
                            "VIB|"," Total Energy: ",rep_env%f(rep_env%ndim+1,j)
                       WRITE(output_unit,'(T2,"VIB|",T10,"ATOM",T33,3(9X,A,7X))')lab(1),lab(2),lab(3)
@@ -208,22 +208,13 @@ CONTAINS
                    END IF
                 END IF
              END DO
-          END DO
+          END DO          
           DO icoordm = 1, ncoord, nrep
-             icoord = (icoordm-1)*nrep
+             icoord  = icoordm-1
              DO j = 1, nrep
                 rep_env%r(:,j)=pos0
                 IF (icoord+j <= ncoord) THEN
                    rep_env%r(icoord+j,j) = rep_env%r(icoord+j,j) - Dx
-                   ! Dump Info
-                   IF (output_unit>0) THEN
-                      iparticle1 = (icoord+j)/3
-                      IF (MOD(icoord+j,3)/=0) iparticle1=iparticle1+1
-                      WRITE(output_unit,'(T2,A,I5,A,I5,3A)')&
-                           "VIB| REPLICA Nr.",j,"- Energy and Forces for particle:",&
-                           iparticle1,"  coordinate: ",lab(icoord+j-(iparticle1-1)*3),&
-                           " - D"//TRIM(lab(icoord+j-(iparticle1-1)*3))
-                   END IF
                 END IF
              END DO
              CALL rep_env_calc_e_f(rep_env,calc_f=.TRUE.,error=error)
@@ -233,6 +224,11 @@ CONTAINS
                    IF (MOD(icoord+j,3)/=0) iparticle1=iparticle1+1
                    ! Dump Info
                    IF (output_unit>0) THEN
+                      WRITE(output_unit,'(T2,A,I5,A,I5,3A)')&
+                           "VIB| REPLICA Nr.",j,"- Energy and Forces for particle:",&
+                           iparticle1,"  coordinate: ",lab(icoord+j-(iparticle1-1)*3),&
+                           " - D"//TRIM(lab(icoord+j-(iparticle1-1)*3))
+                      !
                       WRITE(output_unit,'(T2,A,T42,A,9X,F15.9)')&
                            "VIB|"," Total Energy: ",rep_env%f(rep_env%ndim+1,j)
                       WRITE(output_unit,'(T2,"VIB|",T10,"ATOM",T33,3(9X,A,7X))')lab(1),lab(2),lab(3)
@@ -254,7 +250,7 @@ CONTAINS
                    END DO
                 END IF
              END DO
-          END DO
+          END DO          
           ! Dump Info
           IF (output_unit>0) THEN
              WRITE(output_unit,'(T2,A)')"VIB| Hessian in cartesian coordinates"

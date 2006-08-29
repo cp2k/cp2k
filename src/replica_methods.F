@@ -405,7 +405,7 @@ SUBROUTINE rep_env_calc_e_f_int(rep_env,calc_f,error)
            CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
         END IF
         
-        CALL cp_calc_force(rep_env%f_env_id,rep_env%r,3*rep_env%nat,&
+        CALL cp_calc_force(rep_env%f_env_id,rep_env%r(:,irep),3*rep_env%nat,&
              rep_env%f(3*rep_env%nat+1,irep),rep_env%f(:3*rep_env%nat,irep),&
              my_calc_f,ierr)
         CPPostcondition(ierr==0,cp_failure_level,routineP,error,failure)
