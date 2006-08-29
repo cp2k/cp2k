@@ -204,7 +204,7 @@ CONTAINS
     CHARACTER(LEN=80)                        :: title
     INTEGER                                  :: brent_max_iter, dataunit, &
                                                 its, max_steep_steps, &
-                                                maxiter, stat
+                                                maxiter, stat, handle
     LOGICAL                                  :: conv, failure, &
                                                 Fletcher_Reeves_ON, &
                                                 should_stop, use_fit
@@ -222,6 +222,8 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(section_vals_type), POINTER         :: root_section
+
+    CALL timeset(routineN,handle)   
 
     failure = .FALSE.
     root_section=>force_env%root_section
@@ -344,6 +346,9 @@ CONTAINS
        DEALLOCATE(xi,stat=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
+
+    CALL timestop(handle)
+
   END SUBROUTINE cp_cg_main
 
 !!****f* cg_optimizer/LinMinE [1.0] *
@@ -387,12 +392,14 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'LinMinE', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: loc_iter, odim, stat
+    INTEGER                                  :: loc_iter, odim, stat, handle
     LOGICAL                                  :: failure, should_stop
     REAL(KIND=dp)                            :: ax, bx, fprev, rms_dr, &
                                                 rms_force, scale, xmin, xx
     REAL(KIND=dp), DIMENSION(:), POINTER     :: pcom, xicom
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: hist
+
+    CALL timeset(routineN,handle)
 
     failure = .FALSE.
     NULLIFY(pcom,xicom,hist)
@@ -447,6 +454,8 @@ CONTAINS
           WRITE(UNIT=output_unit,FMT="(T2,A)") REPEAT("*",79)
        END IF       
     END IF
+    CALL timestop(handle)
+
   END SUBROUTINE LinMinE
 
 !!****f* cg_optimizer/LinMin [1.0] *
@@ -489,10 +498,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'LinMin', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
+    INTEGER                                  :: stat,handle
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: ax, bx, xmin, xx
     REAL(KIND=dp), DIMENSION(:), POINTER     :: pcom, xicom
+
+    CALL timeset(routineN,handle)
 
     failure = .FALSE.
     NULLIFY(pcom,xicom)
@@ -519,6 +530,7 @@ CONTAINS
        DEALLOCATE(xicom, stat=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
+    CALL timestop(handle)
   END SUBROUTINE LinMin
 
 !!****f* cg_optimizer/cg_mnbrak [1.0] *
@@ -563,11 +575,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cg_mnbrak', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: loc_iter, odim, stat
+    INTEGER                                  :: loc_iter, odim, stat, handle
     LOGICAL                                  :: failure, hist, should_stop
     REAL(KIND=dp)                            :: dum, fa, fb, fc, fu, gold, q, &
                                                 r, u, ulim
 
+    CALL timeset(routineN,handle)
     failure = .FALSE.
     hist    = PRESENT(histpoint)
     IF (hist) THEN
@@ -713,6 +726,7 @@ CONTAINS
           WRITE(UNIT=output_unit,FMT="(T2,A)") REPEAT("*",79)
        END IF
     END IF
+    CALL timestop(handle)
   END SUBROUTINE cg_mnbrak
 
 !!****f* cg_optimizer/cg_dbrent [1.0] *
@@ -762,13 +776,15 @@ CONTAINS
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: zeps = 1.0E-8_dp
 
-    INTEGER                                  :: iter, loc_iter
+    INTEGER                                  :: iter, loc_iter, handle
     LOGICAL                                  :: failure, ok1, ok2, &
                                                 should_stop, skip0, skip1
     REAL(KIND=dp)                            :: a, b, d, d1, d2, du, dv, dw, &
                                                 dx, e, fu, fv, fw, fx, olde, &
                                                 tol1, tol2, u, u1, u2, v, w, &
                                                 x, xm
+
+    CALL timeset(routineN,handle)
 
     failure = .FALSE.
     IF (.NOT.failure) THEN
@@ -880,6 +896,8 @@ CONTAINS
        xmin=x
        dbrent=fx
     END IF
+    CALL timestop(handle) 
+
   END FUNCTION cg_dbrent
   
 !!****f* cg_optimizer/cg_eval1d [1.0] *
@@ -916,9 +934,11 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cg_eval1d', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
+    INTEGER                                  :: stat, handle
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: xvec
+
+    CALL timeset(routineN,handle)
 
     failure = .FALSE.
     IF (.NOT.failure) THEN
@@ -931,6 +951,9 @@ CONTAINS
        DEALLOCATE(xvec, stat=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
+
+    CALL timestop(handle)
+
   END FUNCTION cg_eval1d
 
 !!****f* cg_optimizer/cg_deval1d [1.0] *
@@ -968,10 +991,12 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cg_deval1d', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat
+    INTEGER                                  :: stat, handle
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: energy
     REAL(KIND=dp), DIMENSION(:), POINTER     :: grad, xvec
+
+    CALL timeset(routineN,handle)
 
     failure = .FALSE.
     IF (.NOT.failure) THEN
@@ -990,6 +1015,9 @@ CONTAINS
        DEALLOCATE(grad, stat=stat)
        CPPrecondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
+
+    CALL timestop(handle)
+
   END FUNCTION cg_deval1d
 
 
