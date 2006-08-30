@@ -70,7 +70,7 @@
       MAXSTEP       3
       EACH_STEP     1
       STATE_TYPE    1s
-      STATE_SEARCH  7
+      STATE_SEARCH  2
       FNAME         CO_xfh_631Gsblyp
       ATOMS_LIST    1
       ATOMS_LIST    2
