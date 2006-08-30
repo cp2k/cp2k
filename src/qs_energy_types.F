@@ -42,6 +42,8 @@ MODULE qs_energy_types
                 hartree_1c,&
                 hartree_2c,&
                 hartree_3c,&
+                e_hartree,& ! contains the hartree energy of electrons only
+                            ! computed if requested
                 kg_gpw_ekin_mol,&
                 qmmm_el,&
                 qmmm_nu,&
@@ -150,6 +152,7 @@ CONTAINS
       qs_energy%qmmm_nu = 0.0_dp
       qs_energy%exc = 0.0_dp
       qs_energy%exc1 = 0.0_dp
+      qs_energy%e_hartree = 0.0_dp
       qs_energy%hartree = 0.0_dp
       qs_energy%hartree_1c = 0.0_dp
       qs_energy%hartree_2c = 0.0_dp

@@ -54,7 +54,10 @@ MODULE qs_ks_methods
                                              cp_fm_set_all,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
-  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+  USE cp_output_handling,              ONLY: cp_iter_string,&
+                                             cp_p_file,&
+                                             cp_print_key_finished_output,&
+                                             cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
@@ -395,7 +398,7 @@ CONTAINS
     CPPrecondition(rho%rho_g_valid,cp_failure_level,routineP,error,failure)
 
     ! Check for GAPW method : additional terms for local densities
-    gapw = dft_control%qs_control%gapw
+    gapw    = dft_control%qs_control%gapw
     gapw_xc = dft_control%qs_control%gapw_xc
     IF(gapw_xc .AND. gapw) CALL cp_assert( .FALSE. , cp_failure_level,cp_assertion_failed,routineP,&
                            " GAPW and GAPW_XC are not compatible",error,failure)
@@ -479,13 +482,21 @@ CONTAINS
 
        END IF
 
+       IF (BTEST(cp_print_key_should_output(logger%iter_info,scf_section,&
+            "PRINT%DETAILED_ENERGY",error=error),cp_p_file).AND.(.NOT.gapw).AND.(.NOT.gapw_xc)) THEN
+          CALL coeff_zero(rho_tot_gspace)
+          CALL calc_rho_tot_gspace(rho_tot_gspace, qs_env, rho, skip_nuclear_density=.TRUE.)
+          CALL pw_poisson_solve(poisson_env,rho_tot_gspace%pw,energy%e_hartree,&
+               v_hartree_gspace%pw)
+          CALL coeff_zero(rho_tot_gspace)
+          CALL coeff_zero(v_hartree_gspace)
+       END IF
+
        CALL calc_rho_tot_gspace(rho_tot_gspace, qs_env, rho)
 
        output_unit = cp_print_key_unit_nr(logger,scf_section,"PRINT%TOTAL_DENSITIES",&
             extension=".scfLog",error=error)       
-
        CALL print_densities(qs_env, rho_tot_gspace, rho, my_rho_xc, output_unit, error)
-
        CALL cp_print_key_finished_output(output_unit,logger,scf_section,&
             "PRINT%TOTAL_DENSITIES", error=error)
 
@@ -843,6 +854,9 @@ CONTAINS
                "Hartree energy:                                ",energy%hartree,&
                "Exchange-correlation energy:                   ",energy%exc
           END IF
+          IF (energy%e_hartree /= 0.0_dp)&
+               WRITE (UNIT=output_unit,FMT="(T3,A,T60,F20.10)")&
+               "Coulomb (electron-electron) energy:            ",energy%e_hartree
           IF(gapw) THEN
              WRITE (UNIT=output_unit,FMT="(/,(T3,A,T60,F20.10))")&
                 "GAPW| Exc from hard and soft atomic rho1:      ",energy%exc1,&
@@ -965,10 +979,11 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE calc_rho_tot_gspace(rho_tot_gspace, qs_env, rho, error)
+  SUBROUTINE calc_rho_tot_gspace(rho_tot_gspace, qs_env, rho, skip_nuclear_density, error)
     TYPE(coeff_type), INTENT(INOUT)          :: rho_tot_gspace
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(qs_rho_type), POINTER               :: rho
+    LOGICAL, INTENT(IN), OPTIONAL            :: skip_nuclear_density
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
@@ -976,26 +991,34 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: ispin
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure, my_skip
     TYPE(coeff_type), POINTER                :: rho0_s_gs, rho_core
     TYPE(qs_charges_type), POINTER           :: qs_charges
+    
 
     NULLIFY (rho_core, rho0_s_gs)
+    my_skip = .FALSE.
+    IF (PRESENT(skip_nuclear_density)) my_skip=skip_nuclear_density
     CALL get_qs_env(qs_env=qs_env,&
                     rho_core=rho_core,&
                     rho0_s_gs=rho0_s_gs,&
                     qs_charges=qs_charges)
     
-    IF(qs_env%dft_control%qs_control%gapw) THEN
-       CPPrecondition(ASSOCIATED(rho0_s_gs),cp_failure_level,routineP,error,failure)
-       CALL coeff_add(rho0_s_gs, rho%rho_g(1), rho_tot_gspace)
+    IF (.NOT.my_skip) THEN
+       IF(qs_env%dft_control%qs_control%gapw) THEN
+          CPPrecondition(ASSOCIATED(rho0_s_gs),cp_failure_level,routineP,error,failure)
+          CALL coeff_add(rho0_s_gs, rho%rho_g(1), rho_tot_gspace)
+       ELSE
+          CALL coeff_add(rho_core, rho%rho_g(1), rho_tot_gspace)
+       END IF
     ELSE
-       CALL coeff_add(rho_core, rho%rho_g(1), rho_tot_gspace)
+       CALL coeff_sumup(rho%rho_g(1), rho_tot_gspace)
     END IF
     DO ispin=2, qs_env%dft_control%nspins
        CALL coeff_sumup(rho%rho_g(ispin), rho_tot_gspace)
     END DO
-    qs_charges%total_rho_gspace = calculate_total_rho(rho_tot_gspace)
+    IF (.NOT.my_skip) &
+         qs_charges%total_rho_gspace = calculate_total_rho(rho_tot_gspace)
 
   END SUBROUTINE calc_rho_tot_gspace
 
@@ -1498,37 +1521,6 @@ SUBROUTINE qs_vxc_create(vxc_rho,vxc_tau, exc, qs_env,&
            END DO
         END IF
      ELSE
-!FM        DO ispin=1,dft_control%nspins
-!FM           CALL pw_pool_create_pw(xc_pw_pool,rho_r(ispin)%pw,&
-!FM                in_space=REALSPACE, use_data=REALDATA3D,error=error)
-!FM           call pw_zero(rho_r(ispin)%pw)
-!FM           CALL pw_prolongate_s3(rho_struct%rho_r(ispin)%pw,rho_r(ispin)%pw,&
-!FM                auxbas_pw_pool,param_section=interp_section,error=error)
-!FM        END DO
-!FM        
-!FM        IF (rho_struct%tau_r_valid) THEN
-!FM           ALLOCATE(tau(dft_control%nspins),stat=stat)
-!FM           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-!FM           DO ispin=1,dft_control%nspins
-!FM              CALL pw_pool_create_pw(xc_pw_pool,tau(ispin)%pw,&
-!FM                   in_space=REALSPACE, use_data=REALDATA3D,error=error)
-!FM              CALL pw_zero(rho_r(ispin)%pw)
-!FM              CALL pw_prolongate_s3(rho_struct%tau_r(ispin)%pw,tau(ispin)%pw,&
-!FM                   auxbas_pw_pool,param_section=interp_section,error=error)
-!FM           END DO
-!FM        END IF
-!FM
-!FM        ! for gradient corrected functional the density in g space might
-!FM        ! be useful so if we have it, we pass it in
-!FM        IF ( rho_struct%rho_g_valid ) THEN
-!FM           ALLOCATE(rho_g(dft_control%nspins),stat=stat)
-!FM           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-!FM           DO ispin=1,dft_control%nspins
-!FM              CALL pw_pool_create_pw(xc_pw_pool,rho_g(ispin)%pw,&
-!FM                   in_space=REALSPACE, use_data=REALDATA3D,error=error)
-!FM              CALL pw_transfer(rho_struct%rho_g(ispin)%pw,rho_g(ispin)%pw)
-!FM           END DO
-!FM        END IF
         CPPrecondition(rho_struct%rho_g_valid,cp_failure_level,routineP,error,failure)
         ALLOCATE(rho_g(dft_control%nspins),stat=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)

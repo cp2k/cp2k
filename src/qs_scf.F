@@ -973,6 +973,10 @@ SUBROUTINE qs_scf_print_summary(output_unit,rho,qs_charges,energy,scf_env,dft_co
             "Core Hamiltonian energy:                       ",energy%core,&
             "Hartree energy:                                ",energy%hartree,&
             "Exchange-correlation energy:                   ",energy%exc
+         IF (energy%e_hartree /= 0.0_dp) &
+              WRITE (UNIT=output_unit,FMT="(T3,A,/,T3,A,T55,F25.14)")&
+              "Coulomb Electron-Electron Interaction Energy ",&
+              "- Already included in the total Hartree term ",energy%e_hartree
          IF(gapw) THEN
            WRITE (UNIT=output_unit,FMT="(/,(T3,A,T55,F25.14))")&
               "GAPW| Exc from hard and soft atomic rho1:      ",energy%exc1,&
