@@ -776,6 +776,15 @@ CONTAINS
             description="Print all derivatives after the DFT calculation", &
             print_level=high_print_level,each=(/1/),filename="__STD_OUT__",&
             error=error)
+
+       CALL keyword_create(keyword=keyword,&
+                           name="ndigits",&
+                           description="Specify the number of digits used to print derivatives",&
+                           default_i_val=6,&
+                           error=error)
+       CALL section_add_keyword(print_key,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL section_add_subsection(section,print_key,error=error)
        CALL section_release(print_key,error=error)       
 

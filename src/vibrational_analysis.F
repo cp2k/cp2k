@@ -13,7 +13,13 @@
 !!     Module performing a vibrational analysis
 !!
 !!   NOTES
-!!     
+!!     Numerical accuracy for parallel runs:
+!!      Each replica starts the SCF run from the one optimized
+!!      in a previous run. It may happen then energies and derivatives
+!!      of a serial run and a parallel run could be slightly different
+!!      'cause of a different starting density matrix.
+!!      Exact results are obtained using:
+!!         EXTRAPOLATION USE_GUESS in QS section (Teo 08.2006)
 !!
 !!   AUTHOR
 !!     Teodoro Laino 08.2006

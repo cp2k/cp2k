@@ -834,6 +834,7 @@ END SUBROUTINE kg_calculate_forces
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, matrix_s, matrix_w
     TYPE(scf_control_type), POINTER          :: scf_control
+    TYPE(section_vals_type), POINTER         :: print_section
 
     failure = .FALSE.
     NULLIFY(logger)
@@ -981,9 +982,11 @@ END SUBROUTINE kg_calculate_forces
     END DO
     output_unit = cp_print_key_unit_nr(logger,kg_env%input,"DFT%PRINT%DERIVATIVES",&
          extension=".Log",error=error)
-    CALL write_forces(force,atomic_kind_set,3,output_unit=output_unit)
-      CALL cp_print_key_finished_output(output_unit,logger,kg_env%input,&
-           "DFT%PRINT%DERIVATIVES",error=error)      
+    print_section => section_vals_get_subs_vals(qs_env%input,"DFT%PRINT%DERIVATIVES",error=error)
+    CALL write_forces(force,atomic_kind_set,3,output_unit=output_unit,&
+         print_section=print_section,error=error)
+    CALL cp_print_key_finished_output(output_unit,logger,kg_env%input,&
+         "DFT%PRINT%DERIVATIVES",error=error)      
 
     CALL deallocate_matrix_set(matrix_w)
     CALL set_qs_env(qs_env=qs_env,matrix_w=matrix_w)

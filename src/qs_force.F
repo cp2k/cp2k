@@ -37,6 +37,14 @@ MODULE qs_force
                                              harris_force_type
   USE kinds,                           ONLY: dp,&
                                              int_size
+  USE input_section_types,             ONLY: section_get_ival,&
+                                             section_vals_get_subs_vals,&
+                                             section_vals_release,&
+                                             section_vals_retain,&
+                                             section_vals_type,&
+                                             section_vals_val_get,&
+                                             section_vals_val_set,&
+                                             section_vals_write
   USE message_passing,                 ONLY: mp_sum
   USE mulliken,                        ONLY: mulliken_restraint
   USE particle_types,                  ONLY: particle_type
@@ -105,9 +113,8 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_forces', &
-      routine = "SUBROUTINE "//routineN//" (MODULE "//moduleN//")"
-
+    CHARACTER(len=*), PARAMETER :: routineN = 'qs_forces', &
+      routineP = moduleN//':'//routineN
     INTEGER                                  :: dir, handle, i, iatom, ikind, &
                                                 ispin, istat, iw, natom, &
                                                 nkind, nspin, output_unit
@@ -138,7 +145,7 @@ CONTAINS
       POINTER                                :: matrix_ks, matrix_s, matrix_w
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(virial_type), POINTER               :: virial
-
+    TYPE(section_vals_type),POINTER          :: print_section
 ! -------------------------------------------------------------------------
 
     CALL timeset(routineN,"I","",handle)
@@ -187,10 +194,10 @@ CONTAINS
     END IF
 
     ALLOCATE (atom_of_kind(natom),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"atom_of_kind",natom*int_size)
+    IF (istat /= 0) CALL stop_memory(routineP,"atom_of_kind",natom*int_size)
 
     ALLOCATE (kind_of(natom),STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"kind_of",natom*int_size)
+    IF (istat /= 0) CALL stop_memory(routineP,"kind_of",natom*int_size)
 
     CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
                              atom_of_kind=atom_of_kind,&
@@ -201,12 +208,12 @@ CONTAINS
        dft_control%forces=.TRUE.
        nkind = SIZE(atomic_kind_set)
        ALLOCATE (natom_of_kind(nkind),STAT=istat)
-       CPPostcondition(istat==0,cp_failure_level,routine,error,failure)
+       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
        CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
             natom_of_kind=natom_of_kind)
       CALL allocate_qs_force(force,natom_of_kind)
       DEALLOCATE (natom_of_kind,STAT=istat)
-      CPPostconditionNoFail(istat==0,cp_warning_level,routine,error)
+      CPPostconditionNoFail(istat==0,cp_warning_level,routineP,error)
       CALL set_qs_env(qs_env,force=force,error=error)
       IF (harris_flag) THEN
          NULLIFY(harris_force)
@@ -370,14 +377,19 @@ CONTAINS
       
       output_unit = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%DERIVATIVES",&
            extension=".Log",error=error)
+      print_section => section_vals_get_subs_vals(qs_env%input,"DFT%PRINT%DERIVATIVES",error=error)
       IF(dft_control%qs_control%semi_empirical .AND. obasis) THEN
-        CALL write_forces(force,atomic_kind_set,2,output_unit=output_unit)
+        CALL write_forces(force,atomic_kind_set,2,output_unit=output_unit,&
+             print_section=print_section,error=error)
       ELSEIF(gapw) THEN
-        CALL write_forces(force,atomic_kind_set,1,output_unit=output_unit)
+        CALL write_forces(force,atomic_kind_set,1,output_unit=output_unit,&
+             print_section=print_section,error=error)
       ELSEIF (virial%pv_availability) THEN
-        CALL write_forces(force,atomic_kind_set,0,virial,output_unit=output_unit)
+        CALL write_forces(force,atomic_kind_set,0,virial,output_unit=output_unit,&
+             print_section=print_section,error=error)
       ELSE
-        CALL write_forces(force,atomic_kind_set,0,output_unit=output_unit)
+        CALL write_forces(force,atomic_kind_set,0,output_unit=output_unit,&
+             print_section=print_section,error=error)
       END IF
       CALL cp_print_key_finished_output(output_unit,logger,qs_env%input,&
            "DFT%PRINT%DERIVATIVES",error=error)  
@@ -395,10 +407,10 @@ CONTAINS
     CALL set_qs_env(qs_env=qs_env,matrix_w=matrix_w)
 
     DEALLOCATE (atom_of_kind,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"atom_of_kind")
+    IF (istat /= 0) CALL stop_memory(routineP,"atom_of_kind")
 
     DEALLOCATE (kind_of,STAT=istat)
-    IF (istat /= 0) CALL stop_memory(routine,"kind_of")
+    IF (istat /= 0) CALL stop_memory(routineP,"kind_of")
 
     CALL timestop(0.0_dp,handle)
 
@@ -406,7 +418,8 @@ CONTAINS
 
 ! *****************************************************************************
 
-  SUBROUTINE write_forces(qs_force,atomic_kind_set,ftype,virial,output_unit)
+  SUBROUTINE write_forces(qs_force,atomic_kind_set,ftype,virial,output_unit,&
+       print_section, error)
 
 !   Purpose: Write a Quickstep force data structure to
 
@@ -421,9 +434,12 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: ftype
     TYPE(virial_type), OPTIONAL, POINTER     :: virial
     INTEGER, INTENT(IN)                      :: output_unit
+    TYPE(section_vals_type),POINTER          :: print_section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: &
-      routine = "SUBROUTINE write_forces (MODULE qs_force_types)"
+    CHARACTER(len=*), PARAMETER :: routineN = 'write_forces', &
+      routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=13)                        :: fmtstr5
     CHARACTER(LEN=15)                        :: fmtstr4
@@ -442,16 +458,16 @@ CONTAINS
     IF (output_unit>0) THEN
 
        IF (.NOT.ASSOCIATED(qs_force)) THEN
-          CALL stop_program(routine,"The qs_force pointer is not associated "//&
+          CALL stop_program(routineP,"The qs_force pointer is not associated "//&
                                     "and cannot be printed")
        END IF
 
        CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
             natom=natom)
        ALLOCATE (atom_of_kind(natom),STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routine,"atom_of_kind",natom*int_size)
+       IF (istat /= 0) CALL stop_memory(routineP,"atom_of_kind",natom*int_size)
        ALLOCATE (kind_of(natom),STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routine,"kind_of",natom*int_size)
+       IF (istat /= 0) CALL stop_memory(routineP,"kind_of",natom*int_size)
        CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
             atom_of_kind=atom_of_kind,&
             kind_of=kind_of)
@@ -465,8 +481,8 @@ CONTAINS
        
        
        !   *** Variable precision output of the forces ***
-       
-       ndigits = 6 
+       CALL section_vals_val_get(print_section,"NDIGITS",&
+            i_val=ndigits,error=error)
        
        fmtstr1 = "(/,/,T2,A,/,/,T3,A,T11,A,T23,A,T40,A1,2(  X,A1))"
        WRITE (UNIT=fmtstr1(41:42),FMT="(I2)") ndigits + 5
@@ -578,10 +594,10 @@ CONTAINS
        END IF
        
        DEALLOCATE (atom_of_kind,STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routine,"atom_of_kind")
+       IF (istat /= 0) CALL stop_memory(routineP,"atom_of_kind")
        
        DEALLOCATE (kind_of,STAT=istat)
-       IF (istat /= 0) CALL stop_memory(routine,"kind_of")
+       IF (istat /= 0) CALL stop_memory(routineP,"kind_of")
     END IF
   END SUBROUTINE write_forces
 
