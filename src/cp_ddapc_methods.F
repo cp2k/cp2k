@@ -32,7 +32,8 @@ MODULE cp_ddapc_methods
                                              section_vals_val_set
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
-  USE mathlib,                         ONLY: invert_matrix
+  USE mathlib,                         ONLY: invert_matrix,&
+                                             diamat_all
   USE message_passing,                 ONLY: mp_sum
   USE particle_types,                  ONLY: particle_type
   USE pw_spline_utils,                 ONLY: Eval_Interp_Spl3_pbc
@@ -95,29 +96,31 @@ CONTAINS
     INTEGER                                  :: handle, ig, igauss, stat
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: g2, gcut2, rc, rc2
+    INTEGER                                  :: s_dim, e_dim
 
     CALL timeset(routineN,"I","",handle)
     gcut2 = gcut * gcut
     failure = .FALSE.
     IF (.NOT.failure) THEN
-       !   
-       ALLOCATE(gfunc(rho_tot_g % pw_grid % first_gne0:rho_tot_g % pw_grid % ngpts_cut_local,&
-            SIZE(radii)), stat=stat)
+       !
+       s_dim = rho_tot_g % pw_grid % first_gne0
+       e_dim = rho_tot_g % pw_grid % ngpts_cut_local
+       ALLOCATE(gfunc(s_dim:e_dim,SIZE(radii)), stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       ALLOCATE(w(rho_tot_g % pw_grid % first_gne0:rho_tot_g % pw_grid % ngpts_cut_local), stat=stat)
+       ALLOCATE(w(s_dim:e_dim), stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        gfunc = 0.0_dp
        w     = 0.0_dp
        DO igauss = 1, SIZE(radii)
           rc  = radii(igauss)
           rc2 = rc*rc
-          DO ig = rho_tot_g % pw_grid % first_gne0, rho_tot_g % pw_grid % ngpts_cut_local
+          DO ig = s_dim, e_dim
              g2 = rho_tot_g % pw_grid % gsq ( ig )
              IF (g2 > gcut2) EXIT
              gfunc(ig,igauss) = EXP(-g2*rc2/4.0_dp)
           END DO
        END DO
-       DO ig = rho_tot_g % pw_grid % first_gne0, rho_tot_g % pw_grid % ngpts_cut_local
+       DO ig = s_dim, e_dim
           g2 = rho_tot_g % pw_grid % gsq ( ig )
           IF (g2 > gcut2) EXIT
           w(ig) = 4.0_dp * pi * (g2 -gcut2)**2/(g2*gcut2)
@@ -169,14 +172,16 @@ CONTAINS
     REAL(KIND=dp)                            :: arg, g2, gcut2, gvec(3), &
                                                 rvec(3), tmp
     REAL(KIND=dp), DIMENSION(:), POINTER     :: my_bv
+    INTEGER                                  :: s_dim, e_dim
 
     failure = .FALSE.
-    NULLIFY(my_bv)
     CALL timeset(routineN,"I","",handle)
-    gcut2 = gcut * gcut
     IF (.NOT.failure) THEN
-       ALLOCATE(my_bv(rho_tot_g % pw_grid % first_gne0:rho_tot_g % pw_grid % ngpts_cut_local),&
-            stat=stat)
+       NULLIFY(my_bv)
+       gcut2 = gcut * gcut
+       s_dim = rho_tot_g % pw_grid % first_gne0
+       e_dim = rho_tot_g % pw_grid % ngpts_cut_local
+       ALLOCATE(my_bv(s_dim:e_dim),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        !   
        idim  = 0
@@ -184,7 +189,7 @@ CONTAINS
           rvec =  particle_set(iparticle)%r
           my_bv = 0.0_dp
           igmax = 0
-          DO ig = rho_tot_g % pw_grid % first_gne0, rho_tot_g % pw_grid % ngpts_cut_local
+          DO ig = s_dim, e_dim
              g2 = rho_tot_g % pw_grid % gsq ( ig )
              IF (g2 > gcut2) EXIT
              igmax = ig
@@ -196,7 +201,7 @@ CONTAINS
           DO igauss = 1, SIZE(radii)
              idim = (iparticle-1)*SIZE(radii)+igauss
              tmp = 0.0_dp
-             DO ig = rho_tot_g % pw_grid % first_gne0, igmax
+             DO ig = s_dim, igmax
                 tmp = tmp + my_bv(ig)* gfunc(ig,igauss)
              END DO
              bv (idim) = tmp
@@ -253,14 +258,17 @@ CONTAINS
     REAL(KIND=dp)                            :: arg, g2, gcut2, gvec(3), &
                                                 rvec1(3), rvec2(3), tmp
     REAL(KIND=dp), DIMENSION(:), POINTER     :: my_Am
+    INTEGER                                  :: s_dim, e_dim
 
     failure = .FALSE.
-    NULLIFY(my_Am)
+
     CALL timeset(routineN,"I","",handle)
-    gcut2 = gcut * gcut
     IF (.NOT. failure) THEN
-       ALLOCATE(my_Am(rho_tot_g % pw_grid % first_gne0:rho_tot_g % pw_grid % ngpts_cut_local),&
-            stat=stat)
+       NULLIFY(my_Am)
+       gcut2 = gcut * gcut
+       s_dim = rho_tot_g % pw_grid % first_gne0
+       e_dim = rho_tot_g % pw_grid % ngpts_cut_local
+       ALLOCATE(my_Am(s_dim:e_dim),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DO iparticle1 = 1, SIZE(particle_set)
           rvec1=particle_set(iparticle1)%r
@@ -268,7 +276,7 @@ CONTAINS
              rvec2=particle_set(iparticle2)%r
              my_Am = 0.0_dp
              igmax = 0
-             DO ig = rho_tot_g % pw_grid % first_gne0, rho_tot_g % pw_grid % ngpts_cut_local
+             DO ig = s_dim, e_dim
                 g2 = rho_tot_g % pw_grid % gsq ( ig )
                 IF (g2 > gcut2) EXIT
                 igmax  = ig
@@ -286,7 +294,7 @@ CONTAINS
                 DO igauss2 = istart_g, SIZE(radii)
                    idim2 = (iparticle2-1)*SIZE(radii)+igauss2
                    tmp = 0.0_dp
-                   DO ig = rho_tot_g % pw_grid % first_gne0, igmax
+                   DO ig = s_dim, igmax
                       tmp = tmp + my_Am(ig)*gfunc(ig,igauss1)*gfunc(ig,igauss2)
                    END DO
                    Am (idim2,idim1) = tmp
@@ -345,14 +353,16 @@ CONTAINS
     REAL(KIND=dp)                            :: arg, g2, gcut2
     REAL(KIND=dp), DIMENSION(3)              :: gvec, rvec, tmp
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: my_dbv
+    INTEGER                                  :: s_dim, e_dim
 
     failure = .FALSE.
-    NULLIFY(my_dbv)
     CALL timeset(routineN,"I","",handle)
-    gcut2 = gcut * gcut
     IF (.NOT.failure) THEN
-       ALLOCATE(my_dbv(rho_tot_g % pw_grid % first_gne0:rho_tot_g % pw_grid % ngpts_cut_local,3),&
-            stat=stat)
+       NULLIFY(my_dbv)
+       gcut2 = gcut * gcut
+       s_dim = rho_tot_g % pw_grid % first_gne0
+       e_dim = rho_tot_g % pw_grid % ngpts_cut_local
+       ALLOCATE(my_dbv(s_dim:e_dim,3),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        idim  = 0
        DO iparticle = 1, SIZE(particle_set)
@@ -360,7 +370,7 @@ CONTAINS
           IF (iparticle /= iparticle0) CYCLE
           my_dbv = 0.0_dp
           igmax  = 0
-          DO ig = rho_tot_g % pw_grid % first_gne0, rho_tot_g % pw_grid % ngpts_cut_local
+          DO ig = s_dim, e_dim
              g2 = rho_tot_g % pw_grid % gsq ( ig )
              IF (g2 > gcut2) EXIT
              igmax  = ig
@@ -372,7 +382,7 @@ CONTAINS
           DO igauss = 1, SIZE(radii)
              idim = (iparticle-1)*SIZE(radii)+igauss
              tmp = 0.0_dp
-             DO ig = rho_tot_g % pw_grid % first_gne0, igmax
+             DO ig = s_dim, igmax
                 tmp = tmp + my_dbv(ig,1:3)*gfunc(ig,igauss)
              END DO
              dbv (idim,1:3) = tmp
@@ -433,14 +443,16 @@ CONTAINS
     REAL(KIND=dp)                            :: arg1, arg2, g2, gcut2
     REAL(KIND=dp), DIMENSION(3)              :: gvec, rvec1, rvec2, tmp
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: my_Am
-
-    NULLIFY(my_Am)
+    INTEGER                                  :: s_dim, e_dim
+    
     failure = .FALSE.
     CALL timeset(routineN,"I","",handle)
-    gcut2 = gcut * gcut
     IF (.NOT. failure) THEN
-       ALLOCATE(my_Am(rho_tot_g % pw_grid % first_gne0:rho_tot_g % pw_grid % ngpts_cut_local,3),&
-            stat=stat)
+       NULLIFY(my_Am)
+       gcut2 = gcut * gcut
+       s_dim = rho_tot_g % pw_grid % first_gne0
+       e_dim = rho_tot_g % pw_grid % ngpts_cut_local
+       ALLOCATE(my_Am(s_dim:e_dim,3),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DO iparticle1 = 1, SIZE(particle_set)
           rvec1 =  particle_set(iparticle1)%r
@@ -449,7 +461,7 @@ CONTAINS
              IF ((iparticle1 /= iparticle0).AND.(iparticle2 /= iparticle0)) CYCLE
              my_Am = 0.0_dp
              igmax = 0
-             DO ig = rho_tot_g % pw_grid % first_gne0, rho_tot_g % pw_grid % ngpts_cut_local
+             DO ig = s_dim, e_dim
                 g2 = rho_tot_g % pw_grid % gsq ( ig )
                 IF (g2 > gcut2) EXIT
                 igmax  = ig
@@ -477,7 +489,7 @@ CONTAINS
                 DO igauss2 = istart_g, SIZE(radii)
                    idim2 = (iparticle2-1)*SIZE(radii)+igauss2
                    tmp = 0.0_dp
-                   DO ig = rho_tot_g % pw_grid % first_gne0, igmax
+                   DO ig = s_dim, igmax
                       tmp = tmp + my_Am(ig,1:3)*gfunc(ig,igauss1)*gfunc(ig,igauss2)*w(ig)
                    END DO
                    dAm (idim1,idim2,1:3) = tmp
@@ -533,10 +545,10 @@ CONTAINS
 
     INTEGER                                  :: handle, ndim, stat
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: inv_error
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: cv
+    REAL(KIND=dp)                            :: inv_error, condition_number
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: cv, AmE
     REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: Am, AmI
+      DIMENSION(:, :)                        :: Am, AmI, Amw
 
     failure = .FALSE.
     CALL timeset(routineN,"I","",handle)
@@ -553,11 +565,32 @@ CONTAINS
        Am  = 0.0_dp
        AmI = 0.0_dp
        cv  = 1.0_dp/Vol
-       CALL build_A_matrix(Am, gfunc, w, particle_set, radii, rho_tot_g, gcut, error);  Am = Am /(Vol*Vol)
+       CALL build_A_matrix(Am, gfunc, w, particle_set, radii, rho_tot_g, gcut, error)
+       Am = Am / (Vol*Vol)
        CALL mp_sum(Am,rho_tot_g%pw_grid%para%group)
+       IF (iw>0) THEN
+          ! Checking conditions numbers and eigenvalues
+          ALLOCATE(Amw(ndim, ndim), stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ALLOCATE(AmE(ndim), stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          Amw = Am
+          CALL diamat_all(Amw, AmE)
+          condition_number = MAXVAL(ABS(AmE))/MINVAL(ABS(AmE))
+          WRITE(iw,'(T3,A,3E15.9)')" Eigenvalues of Matrix A:",AmE
+          WRITE(iw,'(T3,A,3E15.9)')" Condition number:",condition_number
+          IF (condition_number > 1.0E12_dp) THEN
+             WRITE (iw,FMT="(/,T2,A)")&
+                  "WARNING: high condition number => possibly ill-conditioned matrix"
+          END IF
+          DEALLOCATE(Amw, stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          DEALLOCATE(AmE, stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       END IF
        CALL invert_matrix(Am, AmI, inv_error, "N")
        IF (iw>0) THEN
-          WRITE(iw,'(T3,A,F15.9)')" Error inverting the A matrix: ", inv_error 
+          WRITE(iw,'(T3,A,F15.9)')" Error inverting the A matrix: ", inv_error
        END IF
        c0 = DOT_PRODUCT(cv,MATMUL(AmI,cv))       
        DEALLOCATE(Am, stat=stat)

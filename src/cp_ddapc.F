@@ -122,7 +122,7 @@ CONTAINS
     INTEGER                                  :: handle, handle2, handle3, i, &
                                                 ii, iparticle, ispin, iw, j, &
                                                 n_rep_val, ndim, num_gauss, &
-                                                stat
+                                                stat, iw2
     LOGICAL                                  :: apply_restrain, failure, &
                                                 need_f, only_charge
     REAL(KIND=dp)                            :: c1, c3, c4, ch_dens, core_ch, &
@@ -174,6 +174,8 @@ CONTAINS
                        error=error)
        iw=cp_print_key_unit_nr(logger,param_section,&
             "PROGRAM_RUN_INFO",".totCharge",error=error)
+       iw2=cp_print_key_unit_nr(logger,param_section,&
+            "PROGRAM_RUN_INFO/CONDITION_NUMBER",".totCharge",error=error)
        IF (iw>0) THEN
           WRITE(iw,'(T3,A,F15.9)')" Evaluating the DDAPC charges"
        END IF       
@@ -238,6 +240,7 @@ CONTAINS
                             rho_tot_g,&
                             gcut,&
                             iw,&
+                            iw2,&
                             Vol, &
                             param_section,&
                             (only_charge.OR.apply_restrain),&
@@ -383,6 +386,8 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        CALL cp_print_key_finished_output(iw,logger,param_section,&
             "PROGRAM_RUN_INFO",error=error)
+       CALL cp_print_key_finished_output(iw2,logger,param_section,&
+            "PROGRAM_RUN_INFO/CONDITION_NUMBER",error=error)
        CALL pw_pool_give_back_pw(auxbas_pool,rho_tot_g,&
             accept_non_compatible=.TRUE.,error=error)
        IF (only_charge.AND.(.NOT.apply_restrain)) &

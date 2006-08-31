@@ -56,7 +56,7 @@ MODULE constraint
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE util,                            ONLY: matmul_3x3,&
+  USE mathlib,                         ONLY: matmul_3x3,&
                                              transpose_3d
   USE virial_types,                    ONLY: virial_type
 #include "cp_common_uses.h"

@@ -122,7 +122,7 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_ddapc_create(cp_ddapc_env, cp_ddapc_ewald, &
-       particle_set, radii, cell, super_cell, rho_tot_g, gcut, iw, Vol,  &
+       particle_set, radii, cell, super_cell, rho_tot_g, gcut, iw, iw2, Vol,  &
        param_section, only_charge, force_env_section, error)
     TYPE(cp_ddapc_type), POINTER             :: cp_ddapc_env
     TYPE(cp_ddapc_ewald_type), POINTER       :: cp_ddapc_ewald
@@ -132,7 +132,7 @@ CONTAINS
     TYPE(cell_type), POINTER                 :: cell, super_cell
     TYPE(pw_type), POINTER                   :: rho_tot_g
     REAL(KIND=dp), INTENT(IN)                :: gcut
-    INTEGER, INTENT(IN)                      :: iw
+    INTEGER, INTENT(IN)                      :: iw, iw2
     REAL(KIND=dp), INTENT(IN)                :: Vol
     TYPE(section_vals_type), POINTER         :: param_section
     LOGICAL, INTENT(in)                      :: only_charge
@@ -169,7 +169,7 @@ CONTAINS
        CALL ddapc_eval_gfunc(cp_ddapc_env%gfunc, cp_ddapc_env%w, gcut, rho_tot_g, radii, error)
        CALL ddapc_eval_AmI(cp_ddapc_env%AmI, cp_ddapc_env%c0, &
             cp_ddapc_env%gfunc, cp_ddapc_env%w, particle_set, &
-            gcut, rho_tot_g, radii, iw, Vol, error)
+            gcut, rho_tot_g, radii, iw2, Vol, error)
        IF (.NOT.only_charge) THEN
           !
           ! Evaluate the matrix for the Classical contribution to the coupling/decoupling scheme

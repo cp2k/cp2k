@@ -53,7 +53,9 @@ MODULE pw_grids
                                              section_vals_type
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: twopi
-  USE mathlib,                         ONLY: inv_3x3
+  USE mathlib,                         ONLY: inv_3x3,&
+                                             dotprod_3d,&
+                                             matvec_3x3
   USE message_passing,                 ONLY: &
        MPI_COMM_SELF, mp_cart_coords, mp_cart_create, mp_cart_rank, &
        mp_comm_compare, mp_comm_dup, mp_comm_free, mp_dims_create, &
@@ -68,9 +70,7 @@ MODULE pw_grids
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE util,                            ONLY: dotprod_3d,&
-                                             get_limit,&
-                                             matvec_3x3,&
+  USE util,                            ONLY: get_limit,&
                                              sort
 #include "cp_common_uses.h"
 

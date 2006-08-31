@@ -263,6 +263,14 @@ CONTAINS
             description="Controls the printing of basic information during the run", &
             print_level=low_print_level,each=(/1/),add_last=(/1/),filename="__STD_OUT__",&
             error=error)
+
+       CALL keyword_create(keyword, name="CONDITION_NUMBER",&
+            description="Prints information regarding the condition numbers of the A matrix (to be inverted)",&
+            usage="ANALYTICAL_GTERM <LOGICAL>",&
+            default_l_val=.FALSE.,lone_keyword_l_val=.TRUE.,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)      
+
        CALL section_add_subsection(section,subsection,error=error)
        CALL section_release(subsection,error=error)
 

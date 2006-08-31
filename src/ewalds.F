@@ -48,7 +48,7 @@ MODULE ewalds
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE util,                            ONLY: matvec_3x3
+  USE mathlib,                         ONLY: matvec_3x3
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

@@ -26,11 +26,11 @@ MODULE util
   IMPLICIT NONE
 
   PRIVATE
-  PUBLIC :: sort, get_unit, close_unit, &
-       get_share, get_limit, include_list, getinv3x3,  &
-       matmul_3x3, dotprod_3d, crossprod_3d, matvec_3x3, &
-       transpose_3d,locate, find_boundary
-
+  PUBLIC :: sort,&
+            get_limit,&
+            locate,&
+            find_boundary
+  
   INTERFACE sort
      MODULE PROCEDURE sort2, sort2i
   END INTERFACE
@@ -325,78 +325,6 @@ SUBROUTINE sort2i ( iarr, n, index )
 
 END SUBROUTINE sort2i
 
-!******************************************************************************
-
-FUNCTION get_unit() RESULT (unit)
-
-
-! Return value
-    INTEGER                                  :: unit
-
-    LOGICAL                                  :: exists
-
-!------------------------------------------------------------------------------
-!..find a not associated unit
-
-  unit = 10
-  DO
-     exists = .FALSE.
-     INQUIRE (unit=unit,opened=exists)
-     IF ( .NOT. exists) EXIT
-     unit = unit + 1
-  END DO
-
-END FUNCTION get_unit
-
-!******************************************************************************
-
-SUBROUTINE close_unit ( u1, u2 )
-
-
-    INTEGER, INTENT(IN)                      :: u1, u2
-
-    INTEGER                                  :: iunit
-    LOGICAL                                  :: exists
-
-!------------------------------------------------------------------------------
-!..close all open units from u1 to u2
-
-  DO iunit = u1, u2
-     exists = .FALSE.
-     INQUIRE (unit=iunit,opened=exists)
-     IF (exists) CLOSE (iunit)
-  END DO
-
-END SUBROUTINE close_unit
-
-!******************************************************************************
-
-!..divide m entries into n parts, return size of part me
-
-FUNCTION get_share ( m, n, me ) RESULT ( nme )
-
-
-! Return value
-    INTEGER, INTENT(IN)                      :: m, n, me
-    INTEGER                                  :: nme
-
-    INTEGER                                  :: nl, nu
-    REAL(KIND=dp)                            :: part
-
-!------------------------------------------------------------------------------
-
-  part = float(m)/float(n)
-  nl = NINT(float(me)*part) + 1
-  nu = NINT(float(me+1)*part)
-  nl = MAX(1,nl)
-  nu = MIN(m,nu)
-  nme = nu - nl + 1
-  nme = MAX(nme,0)
-
-END FUNCTION get_share
-
-!******************************************************************************
-
 !..divide m entries into n parts, return size of part me
 
 FUNCTION get_limit(m,n,me) RESULT (nlim)
@@ -419,158 +347,7 @@ FUNCTION get_limit(m,n,me) RESULT (nlim)
 
 END FUNCTION get_limit
 
-!******************************************************************************
 
-FUNCTION include_list(i,j) RESULT (doit)
-
-
-! Return value
-    INTEGER, INTENT(IN)                      :: i, j
-    LOGICAL                                  :: doit
-
-!------------------------------------------------------------------------------
-
-  IF ( i >= j ) THEN
-     doit = MOD(i+j,2) == 0
-  ELSE IF (i < j) THEN
-     doit = MOD ( i + j, 2 ) /= 0
-  ELSE
-     doit = .FALSE.
-  END IF
-
-END FUNCTION include_list
-
-!******************************************************************************
-
-SUBROUTINE getinv3x3 ( hmat, hmati )
-
-
-    REAL(KIND=dp), DIMENSION(3, 3), &
-      INTENT(IN)                             :: hmat
-    REAL(KIND=dp), DIMENSION(3, 3), &
-      INTENT(OUT)                            :: hmati
-
-    REAL(KIND=dp)                            :: det, odet
-
-!------------------------------------------------------------------------------
-
-  det = hmat(1,1)*(hmat(2,2)*hmat(3,3)-hmat(2,3)*hmat(3,2)) + &
-       hmat(1,2)*(hmat(2,3)*hmat(3,1)-hmat(2,1)*hmat(3,3)) + &
-       hmat(1,3)*(hmat(2,1)*hmat(3,2)-hmat(2,2)*hmat(3,1))
-  odet = 1.0_dp / det
-  hmati(1,1) = (hmat(2,2)*hmat(3,3)-hmat(2,3)*hmat(3,2))*odet
-  hmati(2,2) = (hmat(1,1)*hmat(3,3)-hmat(1,3)*hmat(3,1))*odet
-  hmati(3,3) = (hmat(1,1)*hmat(2,2)-hmat(1,2)*hmat(2,1))*odet
-  hmati(1,2) = (hmat(1,3)*hmat(3,2)-hmat(1,2)*hmat(3,3))*odet
-  hmati(2,1) = (hmat(3,1)*hmat(2,3)-hmat(2,1)*hmat(3,3))*odet
-  hmati(1,3) = (hmat(1,2)*hmat(2,3)-hmat(1,3)*hmat(2,2))*odet
-  hmati(3,1) = (hmat(2,1)*hmat(3,2)-hmat(3,1)*hmat(2,2))*odet
-  hmati(2,3) = (hmat(1,3)*hmat(2,1)-hmat(2,3)*hmat(1,1))*odet
-  hmati(3,2) = (hmat(3,1)*hmat(1,2)-hmat(3,2)*hmat(1,1))*odet
-
-END SUBROUTINE getinv3x3
-
-!******************************************************************************
-
-SUBROUTINE matvec_3x3 (res, mat, vec )
-
-
-! Return value
-    REAL(KIND=dp), DIMENSION(3), INTENT(OUT) :: res
-    REAL(KIND=dp), DIMENSION(3, 3), &
-      INTENT(IN)                             :: mat
-    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: vec
-
-!------------------------------------------------------------------------------
-
-  res(1)=mat(1,1)*vec(1)+mat(1,2)*vec(2)+mat(1,3)*vec(3)
-  res(2)=mat(2,1)*vec(1)+mat(2,2)*vec(2)+mat(2,3)*vec(3)
-  res(3)=mat(3,1)*vec(1)+mat(3,2)*vec(2)+mat(3,3)*vec(3)
-
-END SUBROUTINE matvec_3x3
-
-!******************************************************************************
-
-FUNCTION dotprod_3d ( vec1, vec2 )
-
-
-! Return value
-    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: vec1, vec2
-    REAL(KIND=dp)                            :: dotprod_3d
-
-!------------------------------------------------------------------------------
-
-  dotprod_3d = &
-       vec1 ( 1 ) * vec2 ( 1 ) &
-       + vec1 ( 2 ) * vec2 ( 2 ) &
-       + vec1 ( 3 ) * vec2 ( 3 )
-
-END FUNCTION dotprod_3d
-
-!******************************************************************************
-
-FUNCTION crossprod_3d ( vec1, vec2 )
-
-
-! Return value
-    REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: vec1, vec2
-    REAL(KIND=dp), DIMENSION(3)              :: crossprod_3d
-
-!------------------------------------------------------------------------------
-
-  crossprod_3d ( 1 ) = vec1(2) * vec2(3) - vec1(3) * vec2(2)
-  crossprod_3d ( 2 ) = vec1(3) * vec2(1) - vec1(1) * vec2(3)
-  crossprod_3d ( 3 ) = vec1(1) * vec2(2) - vec1(2) * vec2(1)
-
-END FUNCTION crossprod_3d
-
-!******************************************************************************
-
-FUNCTION transpose_3d ( mat )
-
-
-! Return value
-    REAL(KIND=dp), DIMENSION(3, 3), &
-      INTENT(IN)                             :: mat
-    REAL(KIND=dp), DIMENSION(3, 3)           :: transpose_3d
-
-    INTEGER                                  :: i, j
-
-!------------------------------------------------------------------------------
-
-  DO i = 1, 3
-     DO j = 1, 3
-        transpose_3d ( j, i ) = mat ( i, j )
-     END DO
-  END DO
-
-END FUNCTION transpose_3d
-
-!******************************************************************************
-
-FUNCTION matmul_3x3 ( mat1, mat2 )
-
-
-! Return value
-    REAL(KIND=dp), DIMENSION(3, 3), &
-      INTENT(IN)                             :: mat1, mat2
-    REAL(KIND=dp), DIMENSION(3, 3)           :: matmul_3x3
-
-!------------------------------------------------------------------------------
-
-  matmul_3x3(1,1)=mat1(1,1)*mat2(1,1)+mat1(1,2)*mat2(2,1)+mat1(1,3)*mat2(3,1)
-  matmul_3x3(1,2)=mat1(1,1)*mat2(1,2)+mat1(1,2)*mat2(2,2)+mat1(1,3)*mat2(3,2)
-  matmul_3x3(1,3)=mat1(1,1)*mat2(1,3)+mat1(1,2)*mat2(2,3)+mat1(1,3)*mat2(3,3)
-  matmul_3x3(2,1)=mat1(2,1)*mat2(1,1)+mat1(2,2)*mat2(2,1)+mat1(2,3)*mat2(3,1)
-  matmul_3x3(2,2)=mat1(2,1)*mat2(1,2)+mat1(2,2)*mat2(2,2)+mat1(2,3)*mat2(3,2)
-  matmul_3x3(2,3)=mat1(2,1)*mat2(1,3)+mat1(2,2)*mat2(2,3)+mat1(2,3)*mat2(3,3)
-  matmul_3x3(3,1)=mat1(3,1)*mat2(1,1)+mat1(3,2)*mat2(2,1)+mat1(3,3)*mat2(3,1)
-  matmul_3x3(3,2)=mat1(3,1)*mat2(1,2)+mat1(3,2)*mat2(2,2)+mat1(3,3)*mat2(3,2)
-  matmul_3x3(3,3)=mat1(3,1)*mat2(1,3)+mat1(3,2)*mat2(2,3)+mat1(3,3)*mat2(3,3)
-
-END FUNCTION matmul_3x3
-
-!******************************************************************************
 SUBROUTINE find_boundary1(num_array,ntot,first,last,search)
 
 

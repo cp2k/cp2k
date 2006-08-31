@@ -33,7 +33,7 @@ MODULE constraint_4x6
   USE particle_types,                  ONLY: particle_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE util,                            ONLY: dotprod_3d,&
+  USE mathlib,                         ONLY: dotprod_3d,&
                                              matvec_3x3
 #include "cp_common_uses.h"
 

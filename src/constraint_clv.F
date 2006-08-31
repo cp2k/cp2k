@@ -42,7 +42,7 @@ MODULE constraint_clv
                                              update_particle_set
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE util,                            ONLY: matvec_3x3
+  USE mathlib,                         ONLY: matvec_3x3
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

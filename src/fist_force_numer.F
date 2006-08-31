@@ -70,7 +70,7 @@ MODULE fist_force_numer
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE util,                            ONLY: matvec_3x3
+  USE mathlib,                         ONLY: matvec_3x3
 #include "cp_common_uses.h"  
 
   IMPLICIT NONE

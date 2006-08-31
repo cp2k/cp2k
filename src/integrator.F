@@ -77,7 +77,7 @@ MODULE integrator
                                              update_particle_set
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
-  USE util,                            ONLY: matmul_3x3,&
+  USE mathlib,                         ONLY: matmul_3x3,&
                                              matvec_3x3,&
                                              transpose_3d
   USE virial_methods,                  ONLY: virial_evaluate

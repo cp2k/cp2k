@@ -50,7 +50,7 @@ MODULE vibrational_analysis
                                              rep_env_release,&
                                              rep_env_write,&
                                              replica_env_type
-  USE util,                            ONLY: matvec_3x3,&
+  USE mathlib,                         ONLY: matvec_3x3,&
                                              matmul_3x3,&
                                              transpose_3d
   USE cp_output_handling,              ONLY: cp_add_iter_level,&

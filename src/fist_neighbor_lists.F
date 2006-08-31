@@ -61,8 +61,8 @@ MODULE fist_neighbor_lists
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE util,                            ONLY: matvec_3x3,&
-                                             sort
+  USE util,                            ONLY: sort
+  USE mathlib,                         ONLY: matvec_3x3
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

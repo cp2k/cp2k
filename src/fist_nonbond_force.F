@@ -48,7 +48,7 @@ MODULE fist_nonbond_force
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE util,                            ONLY: matvec_3x3
+  USE mathlib,                         ONLY: matvec_3x3
 
   IMPLICIT NONE
 
