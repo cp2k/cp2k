@@ -20,3 +20,7 @@ He2_none_full_inverse.inp
 C2H4.inp
 He2_none_full_all.inp
 
+# Using the kahan sums in the construction of the DDAPC
+He2_ddapc_constraint-2.inp
+He2_ddapc_constraint-3.inp
+He2_ddapc_constraint.inp

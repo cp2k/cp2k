@@ -7,3 +7,6 @@ crys_per_qmmm_anal.inp
 crys_per_qmmm_spln.inp
 #  
 crys_per_qmmm_none.inp
+# Using the kahan sums in the construction of the DDAPC
+crys_per_qmmm_anal.inp
+crys_per_qmmm_spln.inp

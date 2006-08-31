@@ -34,3 +34,12 @@ O2-ROKS.inp
 #
 2H2O_bsse.inp
 3H2O_bsse.inp
+# Using the kahan sums in the construction of the DDAPC
+H2O-bloechl.inp
+H2O-bloechl-restraint.inp
+H2O-bloechl-Spl.inp
+H2O-solv.inp
+H+-bloechl.inp
+He2H-bloechl.inp
+He2H-bloechl-md.inp
+H+solv1.inp
