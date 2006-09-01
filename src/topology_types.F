@@ -30,7 +30,8 @@ MODULE topology_types
                                              colvar_release
   USE input_constants,                 ONLY: do_bondparm_covalent,&
                                              do_conn_generate,&
-                                             do_nhcopt_global
+                                             do_nhcopt_global,&
+                                             do_skip_13
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp
@@ -227,6 +228,8 @@ CONTAINS
     topology%charge_beta=.FALSE.
     topology%para_res=.FALSE.
     topology%molname_generated=.FALSE.
+    topology%exclude_vdw=do_skip_13
+    topology%exclude_ei=do_skip_13
     !-----------------------------------------------------------------------------
     ! 3. Initialize and Nullify things in topology%atom_info
     !-----------------------------------------------------------------------------
