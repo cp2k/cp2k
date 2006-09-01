@@ -40,7 +40,9 @@ MODULE vibrational_analysis
                                              f_env_type
   USE force_env_types,                 ONLY: force_env_get
   USE input_section_types,             ONLY: section_vals_type,&
-                                             section_vals_val_get
+                                             section_vals_val_get,&
+                                             section_vals_get_subs_vals,&
+                                             section_vals_get
   USE kinds,                           ONLY: dp
   USE mathlib,                         ONLY: diamat_all
   USE particle_types,                  ONLY: particle_type,&
@@ -64,6 +66,9 @@ MODULE vibrational_analysis
   USE physcon,                         ONLY: vibfac,&
                                              massunit,&
                                              angstrom
+  USE timings,                         ONLY: timeset,&
+                                             timestop
+
 
 #include "cp_common_uses.h"
 
@@ -106,7 +111,7 @@ CONTAINS
 
     INTEGER :: i, icoord, icoordm, icoordp, ierr, iparticle1, iparticle2, &
       iseq, isubsys, j, l, ncoord, nrep, nRotTrM, nvib, prep, stat
-    INTEGER :: output_unit
+    INTEGER :: output_unit, n_rep, handle
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dx, tmp, wrk, norm
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: H_eigval1, H_eigval2, mass, pos0,&
@@ -124,7 +129,9 @@ CONTAINS
     TYPE(replica_env_type), POINTER          :: rep_env
     CHARACTER (LEN=1), DIMENSION(3)          :: lab=(/"X","Y","Z"/)
     LOGICAL                                  :: keep_rotations
+    TYPE(section_vals_type), POINTER         :: force_env_section
 
+    CALL timeset(routineN,"I","",handle)
     failure = .FALSE.
     IF (.NOT.failure) THEN
        NULLIFY(D, RotTrM, logger, subsys, f_env, particles, rep_env)
@@ -138,8 +145,15 @@ CONTAINS
        CALL section_vals_val_get(input,"VIBRATIONAL_ANALYSIS%FULLY_PERIODIC",&
             l_val=keep_rotations, error=error)
        nrep = MAX(1,para_env%num_pe/prep)
-       WRITE(*,*)nrep,para_env%num_pe,prep
+       IF (output_unit>0) THEN
+          WRITE(output_unit,'(T2,"VIB|",3(A,I5))')"NUMBER OF REPLICAS:",nrep,&
+               "NUMBER OF PROCS:",para_env%num_pe,"NUMBER OF PROCS PER REPLICA:",prep
+       END IF
        CPPostconditionNoFail(nrep*prep==para_env%num_pe,cp_warning_level,routineP,error)
+       ! Just one force_env allowed
+       force_env_section => section_vals_get_subs_vals(input,"FORCE_EVAL",error=error)
+       CALL section_vals_get(force_env_section,n_repetition=nrep,error=error)
+       CPPostcondition(nrep==1,cp_failure_level,routineP,error,failure)       
        ! Create Replica Environments
        CALL rep_env_create(rep_env, para_env=para_env, input=input,&
             nrep=nrep,prep=prep,error=error)
@@ -349,8 +363,8 @@ CONTAINS
           CALL f_env_rm_defaults(f_env,new_error,ierr)
        END IF
        CALL rep_env_release(rep_env,error=error)
- 
     END IF
+    CALL timestop(0.0_dp,handle)
   END SUBROUTINE vb_anal
 
 !!****f* cp2k/vib_out [1.0] *
@@ -411,7 +425,7 @@ CONTAINS
 
   END SUBROUTINE vib_out
 
-!!****f* cp2k/rot_ana [1.0] *
+!!****f* vibrational_analysis/rot_ana [1.0] *
 !!
 !!   NAME
 !!     rot_ana
@@ -445,7 +459,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'rot_ana', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, iparticle, iseq, &
+    INTEGER                                  :: i, iparticle, iseq, handle,&
                                                 j, k, lrot(3), stat, iw2
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: cp(3), Ip(3,3), Ip_eigval(3), &
@@ -455,6 +469,7 @@ CONTAINS
       DIMENSION(:, :)                        :: Rot, Tr
     TYPE(cp_logger_type), POINTER            :: logger
 
+    CALL timeset(routineN,"I","",handle)
     logger => cp_error_get_logger(error)
     iw2 = cp_logger_get_default_unit_nr(logger)
     failure = .FALSE.
@@ -583,13 +598,14 @@ CONTAINS
     DEALLOCATE(Tr,stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)   
     DEALLOCATE(Rot,stat=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)   
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    CALL timestop(0.0_dp,handle)
   END SUBROUTINE rot_ana
 
-!!****f* cp2k/rot_ana [1.0] *
+!!****f* vibrational_analysis/build_D_matrix [1.0] *
 !!
 !!   NAME
-!!     rot_ana
+!!     build_D_matrix
 !!
 !!   FUNCTION
 !!     Generates the transformation matrix from hessian in cartesian into
@@ -619,13 +635,14 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'build_D_matrix', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                    :: i, ifound, iseq, j, nvib, stat
+    INTEGER                                    :: i, ifound, iseq, j, nvib, stat, handle
     LOGICAL                                    :: failure
     REAL(KIND=dp)                              :: norm
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)   :: work
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:,:) :: D
     LOGICAL :: my_full
 
+    CALL timeset(routineN,"I","",handle)
     failure = .FALSE.
     my_full = .TRUE.
     IF (PRESENT(full)) my_full = full
@@ -682,7 +699,7 @@ CONTAINS
        DEALLOCATE(mat,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
-
+    CALL timestop(0.0_dp,handle)
   END SUBROUTINE build_D_matrix
 
 END MODULE vibrational_analysis
