@@ -182,34 +182,32 @@ CONTAINS
        gcut2 = gcut * gcut
        s_dim = rho_tot_g % pw_grid % first_gne0
        e_dim = rho_tot_g % pw_grid % ngpts_cut_local
-       ALLOCATE(my_bv(s_dim:e_dim),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       !   
-       idim  = 0
-       DO iparticle = 1, SIZE(particle_set)
-          rvec =  particle_set(iparticle)%r
-          my_bv = 0.0_dp
-          igmax = 0
-          DO ig = s_dim, e_dim
+       igmax = 0
+       DO ig = s_dim, e_dim
              g2 = rho_tot_g % pw_grid % gsq ( ig )
              IF (g2 > gcut2) EXIT
              igmax = ig
+       ENDDO
+       ALLOCATE(my_bv(s_dim:igmax),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(my_bvw(s_dim:igmax),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       !   
+       DO iparticle = 1, SIZE(particle_set)
+          rvec =  particle_set(iparticle)%r
+          my_bv = 0.0_dp
+          DO ig = s_dim, igmax
              gvec  = rho_tot_g % pw_grid % g (:,ig)
              arg   = DOT_PRODUCT(gvec,rvec)
              phase = CMPLX(COS(arg),-SIN(arg),KIND=dp)
              my_bv (ig) =  w(ig) * REAL(CONJG(rho_tot_g%cc(ig))*phase,KIND=dp)
           END DO
-          IF (.NOT.ASSOCIATED(my_bvw)) THEN
-             ALLOCATE(my_bvw(s_dim:igmax),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          END IF
           DO igauss = 1, SIZE(radii)
              idim = (iparticle-1)*SIZE(radii)+igauss
              DO ig = s_dim, igmax
                 my_bvw(ig) = my_bv(ig)* gfunc(ig,igauss)
              END DO
-             tmp       = accurate_sum(my_bvw)
-             bv (idim) = tmp
+             bv (idim) = accurate_sum(my_bvw)
           END DO
        END DO
        DEALLOCATE(my_bvw,stat=stat)
@@ -263,41 +261,37 @@ CONTAINS
                                                 istart_g, stat
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: arg, g2, gcut2, gvec(3), &
-                                                rvec1(3), rvec2(3), tmp
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: my_Am, my_Amw
+                                                rvec1(3), rvec2(3), tmp, rvec_diff(3)
+    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: my_Am, my_Amw
     INTEGER                                  :: s_dim, e_dim
 
     failure = .FALSE.
 
     CALL timeset(routineN,"I","",handle)
     IF (.NOT. failure) THEN
-       NULLIFY(my_Am, my_Amw)
        gcut2 = gcut * gcut
        s_dim = rho_tot_g % pw_grid % first_gne0
        e_dim = rho_tot_g % pw_grid % ngpts_cut_local
-       ALLOCATE(my_Am(s_dim:e_dim),stat=stat)
+       igmax=0
+       DO ig = s_dim, e_dim
+          g2 = rho_tot_g % pw_grid % gsq ( ig )
+          IF (g2 > gcut2) EXIT
+          igmax  = ig
+       ENDDO
+       ALLOCATE(my_Am(s_dim:igmax),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(my_Amw(s_dim:igmax),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DO iparticle1 = 1, SIZE(particle_set)
           rvec1=particle_set(iparticle1)%r
           DO iparticle2 = iparticle1, SIZE(particle_set)
              rvec2=particle_set(iparticle2)%r
-             my_Am = 0.0_dp
-             igmax = 0
-             DO ig = s_dim, e_dim
-                g2 = rho_tot_g % pw_grid % gsq ( ig )
-                IF (g2 > gcut2) EXIT
-                igmax  = ig
+             rvec_diff=rvec1-rvec2
+             DO ig = s_dim, igmax
                 gvec   = rho_tot_g % pw_grid % g (:,ig)
-                arg    = DOT_PRODUCT(gvec,rvec1)
-                phase1 = CMPLX(COS(arg),-SIN(arg),KIND=dp)                     
-                arg    = DOT_PRODUCT(gvec,rvec2)
-                phase2 = CMPLX(COS(arg),-SIN(arg),KIND=dp)
-                my_Am (ig) = w(ig) * REAL(CONJG(phase1)*phase2,KIND=dp)
+                arg    = DOT_PRODUCT(gvec,rvec_diff)
+                my_Am (ig) = w(ig) * COS(arg)
              END DO
-             IF (.NOT.ASSOCIATED(my_Amw)) THEN
-                ALLOCATE(my_Amw(s_dim:igmax),stat=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-             END IF
              DO igauss1 = 1, SIZE(radii)
                 idim1 = (iparticle1-1)*SIZE(radii)+igauss1
                 istart_g = 1
@@ -365,48 +359,49 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: arg, g2, gcut2, tmp
     REAL(KIND=dp), DIMENSION(3)              :: gvec, rvec
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: my_dbv, my_dbvw
+    REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE :: my_dbv
+    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE  :: my_dbvw
     INTEGER                                  :: s_dim, e_dim
 
     failure = .FALSE.
     CALL timeset(routineN,"I","",handle)
     IF (.NOT.failure) THEN
-       NULLIFY(my_dbv, my_dbvw)
        gcut2 = gcut * gcut
        s_dim = rho_tot_g % pw_grid % first_gne0
        e_dim = rho_tot_g % pw_grid % ngpts_cut_local
-       ALLOCATE(my_dbv(s_dim:e_dim,3),stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       idim  = 0
-       DO iparticle = 1, SIZE(particle_set)
-          rvec =  particle_set(iparticle)%r
-          IF (iparticle /= iparticle0) CYCLE
-          my_dbv = 0.0_dp
-          igmax  = 0
-          DO ig = s_dim, e_dim
+       igmax  = 0
+       DO ig = s_dim, e_dim
              g2 = rho_tot_g % pw_grid % gsq ( ig )
              IF (g2 > gcut2) EXIT
              igmax  = ig
+       ENDDO
+       ALLOCATE(my_dbv(3,s_dim:igmax),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(my_dbvw(s_dim:igmax),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DO iparticle = 1, SIZE(particle_set)
+          IF (iparticle /= iparticle0) CYCLE
+          rvec =  particle_set(iparticle)%r
+          DO ig = s_dim, igmax
              gvec   = rho_tot_g % pw_grid % g (:,ig)
              arg    = DOT_PRODUCT(gvec,rvec)
              dphase = - CMPLX(SIN(arg),COS(arg),KIND=dp) 
-             my_dbv (ig,:) = w(ig) * REAL(CONJG(rho_tot_g%cc(ig))*dphase,KIND=dp) * gvec(:)
+             my_dbv (:,ig) = w(ig) * REAL(CONJG(rho_tot_g%cc(ig))*dphase,KIND=dp) * gvec(:)
           END DO
-          IF (.NOT.ASSOCIATED(my_dbvw)) THEN
-             ALLOCATE(my_dbvw(s_dim:igmax,3),stat=stat)
-             CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-          END IF
           DO igauss = 1, SIZE(radii)
              idim = (iparticle-1)*SIZE(radii)+igauss
              DO ig = s_dim, igmax
-                 my_dbvw(ig,1:3) = my_dbv(ig,1:3)*gfunc(ig,igauss)
+                 my_dbvw(ig) = my_dbv(1,ig)*gfunc(ig,igauss)
              END DO
-             tmp = accurate_sum(my_dbvw(:,1))
-             dbv (idim,1) = tmp
-             tmp = accurate_sum(my_dbvw(:,2))
-             dbv (idim,2) = tmp
-             tmp = accurate_sum(my_dbvw(:,3))
-             dbv (idim,3) = tmp
+             dbv (idim,1) = accurate_sum(my_dbvw)
+             DO ig = s_dim, igmax
+                 my_dbvw(ig) = my_dbv(2,ig)*gfunc(ig,igauss)
+             END DO
+             dbv (idim,2) = accurate_sum(my_dbvw)
+             DO ig = s_dim, igmax
+                 my_dbvw(ig) = my_dbv(3,ig)*gfunc(ig,igauss)
+             END DO
+             dbv (idim,3) = accurate_sum(my_dbvw)
           END DO
        END DO
        DEALLOCATE(my_dbvw,stat=stat)
@@ -463,52 +458,48 @@ CONTAINS
                                                 iparticle1, iparticle2, &
                                                 istart_g, stat
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: arg1, arg2, g2, gcut2, tmp
-    REAL(KIND=dp), DIMENSION(3)              :: gvec, rvec1, rvec2
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: my_Am, my_Amw
+    REAL(KIND=dp)                            :: arg1, arg2, g2, gcut2, tmp, factor
+    REAL(KIND=dp), DIMENSION(3)              :: gvec, rvec1, rvec2, rvec_diff
+    REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE  :: my_Am
+    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE  :: my_Amw
     INTEGER                                  :: s_dim, e_dim
     
     failure = .FALSE.
     CALL timeset(routineN,"I","",handle)
     IF (.NOT. failure) THEN
-       NULLIFY(my_Am, my_Amw)
        gcut2 = gcut * gcut
        s_dim = rho_tot_g % pw_grid % first_gne0
        e_dim = rho_tot_g % pw_grid % ngpts_cut_local
-       ALLOCATE(my_Am(s_dim:e_dim,3),stat=stat)
+       igmax = 0
+       DO ig = s_dim, e_dim
+          g2 = rho_tot_g % pw_grid % gsq ( ig )
+          IF (g2 > gcut2) EXIT
+          igmax  = ig
+       ENDDO
+       ALLOCATE(my_Am(3,s_dim:igmax),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(my_Amw(s_dim:igmax),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
        DO iparticle1 = 1, SIZE(particle_set)
           rvec1 =  particle_set(iparticle1)%r
           DO iparticle2 = iparticle1, SIZE(particle_set)
              rvec2 =  particle_set(iparticle2)%r
              IF ((iparticle1 /= iparticle0).AND.(iparticle2 /= iparticle0)) CYCLE
-             my_Am = 0.0_dp
-             igmax = 0
-             DO ig = s_dim, e_dim
-                g2 = rho_tot_g % pw_grid % gsq ( ig )
-                IF (g2 > gcut2) EXIT
-                igmax  = ig
-                gvec   = rho_tot_g % pw_grid % g (:,ig)
-                arg1   = DOT_PRODUCT(gvec,rvec1)
-                arg2   = DOT_PRODUCT(gvec,rvec2)
-                IF    ((iparticle1 == iparticle0).AND.(iparticle2==iparticle0))  THEN
-                   dphase1 = - CMPLX(SIN(arg1), COS(arg1),KIND=dp)                         
-                   phase2  =   CMPLX(COS(arg2),-SIN(arg2),KIND=dp)
-                   my_Am (ig,1:3) = 2.0_dp * REAL(CONJG(dphase1)*phase2,KIND=dp) * gvec
-                ELSEIF (iparticle1 == iparticle0) THEN
-                   dphase1 = - CMPLX(SIN(arg1), COS(arg1),KIND=dp)
-                   phase2  =   CMPLX(COS(arg2),-SIN(arg2),KIND=dp)
-                   my_Am (ig,1:3) = REAL(CONJG(dphase1)*phase2,KIND=dp) * gvec
-                ELSEIF (iparticle2 == iparticle0) THEN
-                   phase1  =   CMPLX(COS(arg1),-SIN(arg1),KIND=dp)
-                   dphase2 = - CMPLX(SIN(arg2), COS(arg2),KIND=dp)
-                   my_Am (ig,1:3) = REAL(CONJG(phase1)*dphase2,KIND=dp) * gvec
-                END IF
-             END DO
-             IF (.NOT.ASSOCIATED(my_Amw)) THEN
-                ALLOCATE(my_Amw(s_dim:igmax,3),stat=stat)
-                CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+             IF    ((iparticle1 == iparticle0).AND.(iparticle2==iparticle0))  THEN
+                   factor=2.0_dp
+             ELSEIF (iparticle1 == iparticle0) THEN
+                   factor=1.0_dp
+             ELSEIF (iparticle2 == iparticle0) THEN
+                   factor=-1.0_dp
              END IF
+             rvec_diff=rvec2-rvec1
+
+             DO ig = s_dim, igmax
+                gvec   = rho_tot_g % pw_grid % g (:,ig)
+                arg1 = DOT_PRODUCT(gvec,rvec_diff)
+                my_Am(1:3,ig) = factor * w(ig) * SIN(arg1) * gvec
+             END DO
              DO igauss1 = 1, SIZE(radii)
                 idim1 = (iparticle1-1)*SIZE(radii)+igauss1
                 istart_g = 1
@@ -516,14 +507,17 @@ CONTAINS
                 DO igauss2 = istart_g, SIZE(radii)
                    idim2 = (iparticle2-1)*SIZE(radii)+igauss2
                    DO ig = s_dim, igmax
-                      my_Amw(ig,1:3) =  my_Am(ig,1:3)*gfunc(ig,igauss1)*gfunc(ig,igauss2)*w(ig)
+                      my_Amw(ig) =  my_Am(1,ig)*gfunc(ig,igauss1)*gfunc(ig,igauss2)
                    END DO
-                   tmp = accurate_sum(my_Amw(:,1))
-                   dAm (idim1,idim2,1) = tmp
-                   tmp = accurate_sum(my_Amw(:,2))
-                   dAm (idim1,idim2,2) = tmp
-                   tmp = accurate_sum(my_Amw(:,3))
-                   dAm (idim1,idim2,3) = tmp
+                   dAm (idim1,idim2,1) = accurate_sum(my_Amw)
+                   DO ig = s_dim, igmax
+                      my_Amw(ig) =  my_Am(2,ig)*gfunc(ig,igauss1)*gfunc(ig,igauss2)
+                   END DO
+                   dAm (idim1,idim2,2) = accurate_sum(my_Amw)
+                   DO ig = s_dim, igmax
+                      my_Amw(ig) =  my_Am(3,ig)*gfunc(ig,igauss1)*gfunc(ig,igauss2)
+                   END DO
+                   dAm (idim1,idim2,3) = accurate_sum(my_Amw)
                 END DO
              END DO
           END DO

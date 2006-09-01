@@ -43,3 +43,15 @@ H+-bloechl.inp
 He2H-bloechl.inp
 He2H-bloechl-md.inp
 H+solv1.inp
+# ddapc speed improvements 
+He2H-bloechl-md.inp
+# ddapc speed improvements 
+He2H-bloechl.inp
+# ddapc speed improvements 
+H2O-bloechl.inp
+# ddapc speed improvements 
+H2O-bloechl-Spl.inp
+# ddapc speed improvements 
+H2O-bloechl-restraint.inp
+# ddapc speed improvements 
+H2O-solv.inp

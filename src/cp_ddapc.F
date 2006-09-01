@@ -312,8 +312,8 @@ CONTAINS
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           ALLOCATE(dqv(ndim,SIZE(particle_set),3), stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)     
-          ALLOCATE(Awrk(ndim, ndim), stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ! ALLOCATE(Awrk(ndim, ndim), stat=stat)
+          ! CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           !
           DO iparticle = 1, SIZE(particle_set)
              dAm = 0.0_dp
@@ -336,10 +336,15 @@ CONTAINS
              END IF
              DO j = 1, 3
                 dqv0 = - MATMUL(cp_ddapc_env%AmI,MATMUL(dAm(:,:,j),-qv))
-                Awrk = - MATMUL(cp_ddapc_env%AmI,MATMUL(dAm(:,:,j),cp_ddapc_env%AmI))
-                c3   = DOT_PRODUCT(cv,MATMUL(Awrk,bv))+DOT_PRODUCT(cv,MATMUL(cp_ddapc_env%AmI,dbv(:,j))) 
+                ! Awrk = - MATMUL(cp_ddapc_env%AmI,MATMUL(dAm(:,:,j),cp_ddapc_env%AmI))
+                ! c3   = DOT_PRODUCT(cv,MATMUL(Awrk,bv))+DOT_PRODUCT(cv,MATMUL(cp_ddapc_env%AmI,dbv(:,j))) 
+                ! c3   = c3 / cp_ddapc_env%c0
+                c3 = - DOT_PRODUCT(cv,MATMUL(cp_ddapc_env%AmI,MATMUL(dAm(:,:,j),MATMUL(cp_ddapc_env%AmI,bv)))) + &
+                       DOT_PRODUCT(cv,MATMUL(cp_ddapc_env%AmI,dbv(:,j))) 
                 c3   = c3 / cp_ddapc_env%c0
-                c4   = DOT_PRODUCT(cv,MATMUL(Awrk,cv)) / cp_ddapc_env%c0
+                ! c4   = DOT_PRODUCT(cv,MATMUL(Awrk,cv)) / cp_ddapc_env%c0
+                c4 = - DOT_PRODUCT(cv,MATMUL(cp_ddapc_env%AmI,MATMUL(dAm(:,:,j),MATMUL(cp_ddapc_env%AmI,cv)))) / &
+                     cp_ddapc_env%c0
                 dqv(:,iparticle,j) = - ( dqv0 + MATMUL(cp_ddapc_env%AmI,dbv(:,j)) - &
                      c3 * MATMUL(cp_ddapc_env%AmI,cv) + c4 * c1 * MATMUL(cp_ddapc_env%AmI,cv))
              END DO
@@ -359,8 +364,8 @@ CONTAINS
              cp_ddapc_env => qs_env%cp_ddapc_env 
           END IF
           !
-          DEALLOCATE(Awrk, stat=stat)
-          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)          
+          ! DEALLOCATE(Awrk, stat=stat)
+          ! CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)          
           DEALLOCATE(dqv, stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           DEALLOCATE(dqv0, stat=stat)
