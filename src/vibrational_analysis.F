@@ -152,8 +152,8 @@ CONTAINS
        CPPostconditionNoFail(nrep*prep==para_env%num_pe,cp_warning_level,routineP,error)
        ! Just one force_env allowed
        force_env_section => section_vals_get_subs_vals(input,"FORCE_EVAL",error=error)
-       CALL section_vals_get(force_env_section,n_repetition=nrep,error=error)
-       CPPostcondition(nrep==1,cp_failure_level,routineP,error,failure)       
+       CALL section_vals_get(force_env_section,n_repetition=n_rep,error=error)
+       CPPostcondition(n_rep==1,cp_failure_level,routineP,error,failure)       
        ! Create Replica Environments
        CALL rep_env_create(rep_env, para_env=para_env, input=input,&
             nrep=nrep,prep=prep,error=error)
