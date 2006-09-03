@@ -986,7 +986,14 @@ CONTAINS
                              0.0_dp,pab(1,1),SIZE(pab,1))
                 END IF
               END IF
-              hab = 0._dp
+
+              IF (iatom<=jatom) THEN
+                 hab(1:ncoa,1:ncob) = 0._dp
+              ELSE
+                 hab(1:ncob,1:ncoa) = 0._dp
+              ENDIF
+
+              ! expensive zero, presumably zeroing *far* too much in most cases.
               IF (has_dv) THEN
                  hdab=0._dp
                  hadb=0._dp

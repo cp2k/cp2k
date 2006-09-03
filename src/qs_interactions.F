@@ -1017,7 +1017,7 @@ CONTAINS
                                                 prefactor_local, s1, s2
 
     radius=0.0_dp
-    polycoef(:)=0.0_dp
+    polycoef(0:3*(la_max+lb_max))=0.0_dp
     DO lxa=0,la_max
     DO lxb=0,lb_max
        DO lya=0,la_max-lxa
@@ -1033,7 +1033,7 @@ CONTAINS
              ELSE
                prefactor_local=prefactor*MAX(1.0_dp,cutoff)
              ENDIF
-             coef(:,:)=0.0_dp
+             coef(0:la_max+lb_max,1:3)=0.0_dp
              DO d=1,3
                bini=1.0_dp
                s1=1.0_dp
