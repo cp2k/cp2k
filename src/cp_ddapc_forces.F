@@ -118,9 +118,9 @@ CONTAINS
     LOGICAL                                  :: analyt, failure
     REAL(KIND=dp)                            :: alpha, eps, eps0, fac, &
                                                 fac2, fac3, fs, galpha, gsq, &
-                                                gsqi, q1t, q2t, r, rcut, t1, &
-                                                t2, tol, tol1
-    REAL(KIND=dp), DIMENSION(3)              :: drvec, fvec, gvec, ra, rb, &
+                                                gsqi, q1t, q2t, r, rcut, rcut2, t1, &
+                                                t2, tol, tol1, r2tmp
+    REAL(KIND=dp), DIMENSION(3)              :: drvec, fvec, gvec, ra, &
                                                 rvec
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: d_el, M
     TYPE(unit_convert_type), POINTER         :: units
@@ -131,6 +131,7 @@ CONTAINS
     IF (.NOT.failure) THEN
        CPPostcondition(PRESENT(charges),cp_failure_level,routineP,error,failure)
        CPPostcondition(ASSOCIATED(radii),cp_failure_level,routineP,error,failure)
+       CPPostcondition(cell%orthorhombic,cp_failure_level,routineP,error,failure)
        CALL get_cp2k_units ( units )
        sfact =  factor
        rcut = MIN(cell%hmat(1,1),cell%hmat(2,2),cell%hmat(3,3))/2.0_dp
@@ -138,6 +139,7 @@ CONTAINS
        IF (n_rep==1) CALL section_vals_val_get(multipole_section,"RCUT",r_val=rcut,error=error)
        CALL section_vals_val_get(multipole_section,"EWALD_PRECISION",r_val=eps,error=error)
        CALL section_vals_val_get(multipole_section,"ANALYTICAL_GTERM",l_val=analyt,error=error)
+       rcut2=rcut**2
        !
        ! Setting-up parameters for Ewald summation
        !
@@ -175,8 +177,9 @@ CONTAINS
              rvec   = particle_set(iparticle1)%r - particle_set(iparticle2)%r
              IF (iparticle1 /= iparticle2) THEN
                 ra = rvec 
-                r  = SQRT(DOT_PRODUCT(ra,ra))
-                IF (r<=rcut) THEN 
+                r2tmp  = DOT_PRODUCT(ra,ra)
+                IF (r2tmp<=rcut2) THEN 
+                   r  = SQRT(r2tmp)
                    t1 = erfc(alpha*r) / r
                    drvec = ra / r * q1t * q2t * fac2 * sfact
                    t2 = -2.0_dp * alpha * EXP(-alpha*alpha*r*r) / (r*rootpi) - t1/r
@@ -188,10 +191,12 @@ CONTAINS
                 DO r2 = -rmax2, rmax2
                    DO r3 = -rmax3, rmax3
                       IF ((r1==0).AND.(r2==0).AND.(r3==0)) CYCLE
-                      rb = (/REAL(r1,KIND=dp),REAL(r2,KIND=dp),REAL(r3,KIND=dp)/)
-                      ra = rvec + MATMUL(cell%hmat,rb) 
-                      r  = SQRT(DOT_PRODUCT(ra,ra))
-                      IF (r<=rcut) THEN 
+                      ra(1) = rvec(1) + cell%hmat(1,1)*r1
+                      ra(2) = rvec(2) + cell%hmat(2,2)*r2
+                      ra(3) = rvec(3) + cell%hmat(3,3)*r3
+                      r2tmp  = DOT_PRODUCT(ra,ra)
+                      IF (r2tmp<=rcut2) THEN 
+                         r  = SQRT(r2tmp)
                          t1 = erfc(alpha*r) / r
                          drvec = ra / r * q1t * q2t * fac2 * sfact
                          t2 = -2.0_dp * alpha * EXP(-alpha*alpha*r*r) / (r*rootpi) - t1/r
