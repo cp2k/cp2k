@@ -330,6 +330,8 @@ CONTAINS
          localized_wfn_control%nloc_states(:) = 0
       END IF
 
+      ! initialize to an empty string instead ??
+      localized_wfn_control%loc_rootfname=""
 !      CALL section_vals_val_get(loc_section,"FNAME",&
 !           c_val=localized_wfn_control%loc_rootfname,error=error)
 
