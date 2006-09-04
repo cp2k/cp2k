@@ -200,8 +200,12 @@ CONTAINS
                          t1 = erfc(alpha*r) / r
                          drvec = ra / r * q1t * q2t * fac2 * sfact
                          t2 = -2.0_dp * alpha * EXP(-alpha*alpha*r*r) / (r*rootpi) - t1/r
-                         d_el(1:3,iparticle1) = d_el(1:3,iparticle1) - t2 * drvec
-                         d_el(1:3,iparticle2) = d_el(1:3,iparticle2) + t2 * drvec
+                         d_el(1,iparticle1) = d_el(1,iparticle1) - t2 * drvec(1)
+                         d_el(2,iparticle1) = d_el(2,iparticle1) - t2 * drvec(2)
+                         d_el(3,iparticle1) = d_el(3,iparticle1) - t2 * drvec(3)
+                         d_el(1,iparticle2) = d_el(1,iparticle2) + t2 * drvec(1)
+                         d_el(2,iparticle2) = d_el(2,iparticle2) + t2 * drvec(2)
+                         d_el(3,iparticle2) = d_el(3,iparticle2) + t2 * drvec(3)
                       END IF
                    END DO
                 END DO

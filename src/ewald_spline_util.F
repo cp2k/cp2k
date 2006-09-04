@@ -227,8 +227,7 @@ CONTAINS
              Term  = 0.0_dp
              ! Sum over k vectors
              DO kg = 1, SIZE(Lg)
-                vec  = (/REAL(gx(kg)),REAL(gy(kg)),REAL(gz(kg))/)
-                Term = Term + lg(kg)*COS(vec(1)*xs1+vec(2)*xs2+vec(3)*xs3)
+                Term = Term + lg(kg)*COS(gx(kg)*xs1+gy(kg)*xs2+gz(kg)*xs3)
              END DO
              grid%cr3d(i,j,k) = Term 
              xs1 = xs1 + dr1
