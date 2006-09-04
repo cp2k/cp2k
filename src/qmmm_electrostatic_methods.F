@@ -764,7 +764,7 @@ CONTAINS
     REAL(KIND=dp) :: xs2, xs3
     REAL(KIND=dp), DIMENSION(3)              :: ra, vec
     REAL(KIND=dp), DIMENSION(:, :, :), &
-      POINTER                                :: grid
+      POINTER                                :: grid,grid2
     TYPE(pw_type), POINTER                   :: pw
     TYPE(qmmm_per_pot_type), POINTER         :: per_pot
 
@@ -777,6 +777,7 @@ CONTAINS
     dr3c = cgrid%pw_grid%dr(3) 
     bo   = cgrid%pw_grid%bounds_local
     gbo  = cgrid%pw_grid%bounds
+    grid2=>cgrid%cr3d
 
     Radius: DO IRadTyp = 1, SIZE(pgfs) 
        per_pot => per_potentials(IRadTyp)%pot
@@ -959,7 +960,7 @@ CONTAINS
                           ( acd * t1 + bcd * t2 + ccd * t3 + dcd * t4 ) * s3  +&
                           ( add * t1 + bdd * t2 + cdd * t3 + ddd * t4 ) * s4  ) * v4 
 
-                   cgrid%cr3d(i,j,k) = cgrid%cr3d(i,j,k) - val * qt 
+                   grid2(i,j,k) = grid2(i,j,k) - val * qt 
                    xs1 = xs1 + dr1c
                 END DO
                 xs2 = xs2 + dr2c
