@@ -787,36 +787,19 @@ CONTAINS
                                                 Imm, IndMM, IRadTyp, ithread, &
                                                 iwrk, LIndMM, n_rep_real(3), &
                                                 stat
-    INTEGER, DIMENSION(2, 3)                 :: bo2
+    INTEGER, DIMENSION(2, 3)                 :: bo
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: alpha, dvol, height, W
     REAL(KIND=dp), DIMENSION(3)              :: force, ra
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: wrk, xdat, xder, ydat, yder, &
-                                                zdat, zder
+    REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE   :: xdat, ydat, zdat
     TYPE(qmmm_gaussian_type), POINTER        :: pgf
     TYPE(qmmm_per_pot_type), POINTER         :: per_pot
     TYPE(qmmm_pot_type), POINTER             :: pot
 
-    NULLIFY(pgf, xdat, ydat, zdat, xder, yder, zder, wrk, pot, per_pot)    
     CALL timeset(routineN,"I","",handle)
+    NULLIFY(pgf, pot, per_pot)    
     ithread = 0
     Icg     = 0
-    bo2     = grids(auxbas_grid) % pw % pw_grid % bounds
-    ALLOCATE (xdat(bo2(1,1):bo2(2,1)), STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE (ydat(bo2(1,2):bo2(2,2)), STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE (zdat(bo2(1,3):bo2(2,3)), STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE (xder(bo2(1,1):bo2(2,1)), STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE (yder(bo2(1,2):bo2(2,2)), STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ALLOCATE (zder(bo2(1,3):bo2(2,3)), STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    iwrk = MAXLOC(grids(auxbas_grid) % pw % pw_grid % npts(1:3), 1)
-    ALLOCATE (wrk(bo2(1,iwrk):bo2(2,iwrk)), STAT=stat)
-    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
 !
     Radius: DO IRadTyp = 1, SIZE(pgfs) 
        pgf => pgfs(IRadTyp)%pgf
@@ -832,6 +815,13 @@ CONTAINS
           height    = pgf%Ak(IGauss)
           ilevel    = pgf%grid_level(IGauss)
           dvol      = grids(ilevel)%pw%pw_grid%dvol
+    bo      = grids(ilevel) % pw % pw_grid % bounds_local
+    ALLOCATE (xdat(2,bo(1,1):bo(2,1)), STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (ydat(2,bo(1,2):bo(2,2)), STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ALLOCATE (zdat(2,bo(1,3):bo(2,3)), STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           Atoms: DO Imm = 1, SIZE(pot%mm_atom_index)
              Icg       =   Icg + 1
              LIndMM    =   pot%mm_atom_index(Imm)
@@ -851,12 +841,7 @@ CONTAINS
                                             xdat=xdat,&
                                             ydat=ydat,&
                                             zdat=zdat,&
-                                            xder=xder,&
-                                            yder=yder,&
-                                            zder=zder,&
-                                            bo2=bo2,&
-                                            wrk=wrk,&
-                                            iwrk=iwrk,&
+                                            bo=bo,&
                                             force=force,&
                                             n_rep_real=n_rep_real,&
                                             mm_cell=mm_cell)
@@ -884,37 +869,15 @@ CONTAINS
                                                      error=error)
              END IF
           END DO Atoms
+    DEALLOCATE (xdat, STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE (ydat, STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    DEALLOCATE (zdat, STAT=stat)
+    CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        END DO Gaussian
     END DO Radius
 
-    IF (ASSOCIATED(xdat)) THEN
-       DEALLOCATE (xdat, STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ENDIF
-    IF (ASSOCIATED(ydat)) THEN
-       DEALLOCATE (ydat, STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ENDIF
-    IF (ASSOCIATED(zdat)) THEN
-       DEALLOCATE (zdat, STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ENDIF
-    IF (ASSOCIATED(xder)) THEN
-       DEALLOCATE (xder, STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ENDIF
-    IF (ASSOCIATED(yder)) THEN
-       DEALLOCATE (yder, STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ENDIF
-    IF (ASSOCIATED(zder)) THEN
-       DEALLOCATE (zder, STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ENDIF
-    IF (ASSOCIATED(wrk)) THEN
-       DEALLOCATE (wrk, STAT=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-    ENDIF
 
     IF (periodic) THEN
        CALL qmmm_forces_with_gaussian_LG  (pgfs=pgfs,&

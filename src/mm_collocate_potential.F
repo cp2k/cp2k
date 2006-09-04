@@ -208,8 +208,7 @@ CONTAINS
 !!
 !!**************************************************************************
   SUBROUTINE integrate_gf_rspace_NoPBC(zetp,rp,scale,W,pwgrid,cube_info,&
-       eps_mm_rspace,ithread,xdat,ydat,zdat,xder,yder,zder,bo2,wrk,iwrk,force,&
-       n_rep_real, mm_cell)
+       eps_mm_rspace,ithread,xdat,ydat,zdat,bo,force,n_rep_real, mm_cell)
     REAL(KIND=dp), INTENT(IN)                :: zetp
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: rp
     REAL(KIND=dp), INTENT(IN)                :: scale, W
@@ -217,18 +216,17 @@ CONTAINS
     TYPE(cube_info_type), INTENT(IN)         :: cube_info
     REAL(KIND=dp), INTENT(IN)                :: eps_mm_rspace
     INTEGER, INTENT(IN), OPTIONAL            :: ithread
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: xdat, ydat, zdat, xder, yder, &
-                                                zder
-    INTEGER, DIMENSION(2, 3), INTENT(IN)     :: bo2
-    REAL(KIND=dp), DIMENSION(:), POINTER     :: wrk
-    INTEGER, INTENT(IN)                      :: iwrk
+    INTEGER, DIMENSION(2, 3), INTENT(IN)     :: bo
+    REAL(KIND=dp), DIMENSION(2,bo(1,1):bo(2,1))   :: xdat
+    REAL(KIND=dp), DIMENSION(2,bo(1,2):bo(2,2))   :: ydat
+    REAL(KIND=dp), DIMENSION(2,bo(1,3):bo(2,3))   :: zdat 
     REAL(KIND=dp), DIMENSION(3), INTENT(OUT) :: force
     INTEGER, DIMENSION(3), INTENT(IN)        :: n_rep_real
     TYPE(cell_type), POINTER                 :: mm_cell
 
     INTEGER                                  :: ig, ithread_l, ix, iy, iz, &
                                                 xlb, xub, ylb, yub, zlb, zub
-    INTEGER, DIMENSION(2, 3)                 :: bo, bo2l, gbo
+    INTEGER, DIMENSION(2, 3)                 :: gbo
     INTEGER, DIMENSION(3)                    :: cubecenter, lb_cube, ub_cube
     INTEGER, DIMENSION(:), POINTER           :: sphere_bounds
     REAL(KIND=dp)                            :: radius, rpg, xap, yap, zap
@@ -244,15 +242,12 @@ CONTAINS
         
     force  = 0.0_dp
     radius = exp_radius( 0, zetp, eps_mm_rspace, scale*W)
-    IF (radius .EQ. 0.0_dp ) THEN
-       RETURN
-    END IF
+    IF (radius .EQ. 0.0_dp ) RETURN
     
 !   *** properties of the grid ***
     rpl   = rp
     dr(:) = pwgrid%pw_grid%dr(:)
     grid  => pwgrid%cr3d(:,:,:)
-    bo    =  pwgrid%pw_grid%bounds_local
     gbo   =  pwgrid%pw_grid%bounds    
 
 !   *** get the sub grid properties for the given radius ***
@@ -266,55 +261,26 @@ CONTAINS
        ylb = MAX(bo(1,2),cubecenter(2)+lb_cube(2))
        xub = MIN(bo(2,1),cubecenter(1)+ub_cube(1))
        xlb = MAX(bo(1,1),cubecenter(1)+lb_cube(1))       
-       IF (zlb.GT.zub) RETURN
+       IF (zlb.GT.zub .OR. ylb.GT.yub .OR. xlb.GT.xub) RETURN
        DO ig=zlb,zub
           rpg      = REAL(ig-gbo(1,3),dp)*dr(3) - rpl(3)
           zap      = EXP(-zetp*rpg**2)
-          zder(ig) = rpg
-          zdat(ig) = scale*W*zap
+          zdat(1,ig) = scale*W*zap
+          zdat(2,ig) = rpg*zdat(1,ig)*zetp*2.0_dp
        ENDDO
-       IF (ylb.GT.yub) RETURN
        DO ig=ylb,yub
           rpg      = REAL(ig-gbo(1,2),dp)*dr(2) - rpl(2)
           yap      = EXP(-zetp*rpg**2)
-          yder(ig) = rpg
-          ydat(ig) = yap
+          ydat(1,ig) = yap
+          ydat(2,ig) = rpg*ydat(1,ig)*zetp*2.0_dp
        ENDDO
-       IF (xlb.GT.xub) RETURN
        DO ig=xlb,xub
           rpg      = REAL(ig-gbo(1,1),dp)*dr(1) - rpl(1)
           xap      = EXP(-zetp*rpg**2)
-          xder(ig) = rpg
-          xdat(ig) = xap
+          xdat(1,ig) = xap
+          xdat(2,ig) = rpg*xdat(1,ig)*zetp*2.0_dp
        ENDDO
-       
-       ! z derivative
-       bo2l = bo2
-       bo2l(1,3) = bo2(1,iwrk)
-       bo2l(2,3) = bo2(2,iwrk)
-       DO ig=zlb,zub
-          wrk(ig)  = zder(ig)*zdat(ig)*zetp*2.0_dp
-       ENDDO
-       CALL integrate_gf_npbc(grid,xdat,ydat,wrk,bo,bo2l,&
-            zlb,zub,ylb,yub,xlb,xub,force(3))
-       ! y derivative
-       DO ig=ylb,yub
-          wrk(ig)  = yder(ig)*ydat(ig)*zetp*2.0_dp
-       ENDDO
-       bo2l = bo2
-       bo2l(1,2) = bo2(1,iwrk)
-       bo2l(2,2) = bo2(2,iwrk)
-       CALL integrate_gf_npbc(grid,xdat,wrk,zdat,bo,bo2l,&
-            zlb,zub,ylb,yub,xlb,xub,force(2))
-       ! x derivative
-       DO ig=xlb,xub
-          wrk(ig)  = xder(ig)*xdat(ig)*zetp*2.0_dp
-       ENDDO
-       bo2l = bo2
-       bo2l(1,1) = bo2(1,iwrk)
-       bo2l(2,1) = bo2(2,iwrk)
-       CALL integrate_gf_npbc(grid,wrk,ydat,zdat,bo,bo2l,&
-            zlb,zub,ylb,yub,xlb,xub,force(1))
+       CALL integrate_gf_npbc(grid,xdat,ydat,zdat,bo,zlb,zub,ylb,yub,xlb,xub,force)
     ELSE
        DO iz = -n_rep_real(3),n_rep_real(3)
           my_shift(3) = mm_cell%hmat(3,3)*REAL(iz,KIND=dp)
@@ -330,55 +296,27 @@ CONTAINS
                 ylb = MAX(bo(1,2),cubecenter(2)+lb_cube(2))
                 xub = MIN(bo(2,1),cubecenter(1)+ub_cube(1))
                 xlb = MAX(bo(1,1),cubecenter(1)+lb_cube(1))                
-                IF (zlb.GT.zub) CYCLE
+                IF (zlb.GT.zub .OR. ylb.GT.yub .OR. xlb.GT.xub) CYCLE
                 DO ig=zlb,zub
                    rpg      = REAL(ig-gbo(1,3),dp)*dr(3) - rpl(3)
                    zap      = EXP(-zetp*rpg**2)
-                   zder(ig) = rpg
-                   zdat(ig) = scale*W*zap
+                   zdat(1,ig) = scale*W*zap
+                   zdat(2,ig) = rpg*zdat(1,ig)*zetp*2.0_dp
                 ENDDO
-                IF (ylb.GT.yub) CYCLE
                 DO ig=ylb,yub
                    rpg      = REAL(ig-gbo(1,2),dp)*dr(2) - rpl(2)
                    yap      = EXP(-zetp*rpg**2)
-                   yder(ig) = rpg
-                   ydat(ig) = yap
+                   ydat(1,ig) = yap
+                   ydat(2,ig) = rpg*ydat(1,ig)*zetp*2.0_dp
                 ENDDO
-                IF (xlb.GT.xub) CYCLE
                 DO ig=xlb,xub
                    rpg      = REAL(ig-gbo(1,1),dp)*dr(1) - rpl(1)
                    xap      = EXP(-zetp*rpg**2)
-                   xder(ig) = rpg
-                   xdat(ig) = xap
+                   xdat(1,ig) = xap
+                   xdat(2,ig) = rpg*xdat(1,ig)*zetp*2.0_dp
                 ENDDO
-                
-                ! z derivative
-                bo2l = bo2
-                bo2l(1,3) = bo2(1,iwrk)
-                bo2l(2,3) = bo2(2,iwrk)
-                DO ig=zlb,zub
-                   wrk(ig)  = zder(ig)*zdat(ig)*zetp*2.0_dp
-                ENDDO
-                CALL integrate_gf_npbc(grid,xdat,ydat,wrk,bo,bo2l,&
-                     zlb,zub,ylb,yub,xlb,xub,force(3))
-                ! y derivative
-                DO ig=ylb,yub
-                   wrk(ig)  = yder(ig)*ydat(ig)*zetp*2.0_dp
-                ENDDO
-                bo2l = bo2
-                bo2l(1,2) = bo2(1,iwrk)
-                bo2l(2,2) = bo2(2,iwrk)
-                CALL integrate_gf_npbc(grid,xdat,wrk,zdat,bo,bo2l,&
-                     zlb,zub,ylb,yub,xlb,xub,force(2))
-                ! x derivative
-                DO ig=xlb,xub
-                   wrk(ig)  = xder(ig)*xdat(ig)*zetp*2.0_dp
-                ENDDO
-                bo2l = bo2
-                bo2l(1,1) = bo2(1,iwrk)
-                bo2l(2,1) = bo2(2,iwrk)
-                CALL integrate_gf_npbc(grid,wrk,ydat,zdat,bo,bo2l,&
-                     zlb,zub,ylb,yub,xlb,xub,force(1))
+                CALL integrate_gf_npbc(grid,xdat,ydat,zdat,bo,&
+                     zlb,zub,ylb,yub,xlb,xub,force)
              END DO
           END DO
        END DO
