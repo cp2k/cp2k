@@ -85,11 +85,12 @@ CONTAINS
 
     INTEGER                                  :: ab, atom_a, atom_b, handle, &
                                                 ikind, ilist, inode, ipair, &
-                                                jkind, nkinds, nlist, nnode
+                                                jkind, nkinds, nlist, nnode, npairs
+    INTEGER, DIMENSION(:,:), POINTER         :: list
     LOGICAL                                  :: is_eam
     REAL(KIND=dp)                            :: energy, f_eam, fscalar, rab2, &
                                                 rab2_max
-    REAL(KIND=dp), DIMENSION(3)              :: cell_v, drab, fr, rab
+    REAL(KIND=dp), DIMENSION(3)              :: cell_v, drab, fr, rab, cvi
     TYPE(cell_type), POINTER                 :: cell_last_update
     TYPE(fist_neighbor_type), POINTER        :: nonbonded
     TYPE(neighbor_kind_pairs_type), POINTER  :: neighbor_kind_pair
@@ -121,7 +122,7 @@ CONTAINS
 !$OMP private(neighbor_list_set,neighbor_list) &
 !$OMP shared(nonbonded) &
 !$OMP private(rab,rab2_max) &
-!$OMP private(ilist,nlist,atom_a,atom_b,dra,s2r,neighbor_node,inode,nnode) &
+!$OMP private(ilist,nlist,atom_a,atom_b,dra,s2r,npairs,cvi,list,neighbor_node,inode,nnode) &
 !$OMP shared(cell) &
 !$OMP shared(pot_nonbond) &
 !$OMP private(f_eam,pot,fr,fscalar,energy) &
@@ -130,17 +131,19 @@ CONTAINS
 !$OMP shared(particle_set)
     DO ilist=1,nonbonded%nlists
        neighbor_kind_pair => nonbonded%neighbor_kind_pairs(ilist)
-       IF (neighbor_kind_pair%npairs ==0) CYCLE
+       npairs=neighbor_kind_pair%npairs
+       IF (npairs ==0) CYCLE
        ikind = neighbor_kind_pair%ikind
        jkind = neighbor_kind_pair%jkind
+       list  =>neighbor_kind_pair%list
+       cvi   = neighbor_kind_pair%cell_vector
        spline_data => potparm % pot( ikind, jkind ) %pot % pair_spline_data
        is_eam=(potparm %pot( ikind, jkind ) %pot % TYPE == ea_type)
        rab2_max = potparm%pot(ikind,jkind)%pot%rcutsq
-       CALL matvec_3x3(cell_v, cell%hmat,REAL(neighbor_kind_pair%cell_vector,KIND=dp))
-       DO ipair = 1, neighbor_kind_pair%npairs
-          atom_a = neighbor_kind_pair%list(1,ipair)
-          atom_b = neighbor_kind_pair%list(2,ipair)
-          !
+       CALL matvec_3x3(cell_v, cell%hmat,cvi)
+       DO ipair = 1, npairs
+          atom_a = list(1,ipair)
+          atom_b = list(2,ipair)
           rab = particle_set(atom_b)%r-particle_set(atom_a)%r 
           drab = r_last_update_pbc(atom_b)%r-r_last_update_pbc(atom_a)%r
           rab = rab+cell_v+drab
