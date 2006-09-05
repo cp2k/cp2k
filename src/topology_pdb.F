@@ -106,11 +106,12 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'read_coordinate_pdb', &
       routineP = moduleN//':'//routineN
-    INTEGER, PARAMETER                       :: nblock_atom = 10000
+    INTEGER, PARAMETER                       :: nblock_atom = 10
+    REAL(KIND=dp), PARAMETER                 :: realloc_factor = 1.2_dp
 
     CHARACTER(LEN=default_string_length)     :: line, record, root_mol_name
     INTEGER                                  :: handle, i, inum_mol, istat, &
-                                                iw, natom
+                                                iw, natom, newsize
     LOGICAL                                  :: my_end
     TYPE(atom_info_type), POINTER            :: atom_info
     TYPE(cp_logger_type), POINTER            :: logger
@@ -157,16 +158,17 @@ CONTAINS
           natom = natom + 1
           topology%natoms = natom
           IF(natom > SIZE(atom_info%label_atmname)) THEN
-             CALL reallocate(atom_info%label_molname,1,natom+nblock_atom)
-             CALL reallocate(atom_info%label_resname,1,natom+nblock_atom)
-             CALL reallocate(atom_info%label_resid,1,natom+nblock_atom)
-             CALL reallocate(atom_info%label_atmname,1,natom+nblock_atom)
-             CALL reallocate(atom_info%r,1,3,1,natom+nblock_atom)
-             CALL reallocate(atom_info%atm_mass,1,natom+nblock_atom)
-             CALL reallocate(atom_info%atm_charge,1,natom+nblock_atom)
-             CALL reallocate(atom_info%occup,1,natom+nblock_atom)
-             CALL reallocate(atom_info%beta,1,natom+nblock_atom)
-             CALL reallocate(atom_info%element,1,natom+nblock_atom)
+             newsize=natom*realloc_factor+nblock_atom
+             CALL reallocate(atom_info%label_molname,1,newsize)
+             CALL reallocate(atom_info%label_resname,1,newsize)
+             CALL reallocate(atom_info%label_resid,1,newsize)
+             CALL reallocate(atom_info%label_atmname,1,newsize)
+             CALL reallocate(atom_info%r,1,3,1,newsize)
+             CALL reallocate(atom_info%atm_mass,1,newsize)
+             CALL reallocate(atom_info%atm_charge,1,newsize)
+             CALL reallocate(atom_info%occup,1,newsize)
+             CALL reallocate(atom_info%beta,1,newsize)
+             CALL reallocate(atom_info%element,1,newsize)
           END IF
        END IF
        
