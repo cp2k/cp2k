@@ -268,9 +268,11 @@ END SUBROUTINE parser_retain
        IF (PRESENT(at_end)) THEN
           at_end=my_at_end
        ELSE
-          CALL cp_assert(.not.my_at_end,cp_failure_level,cp_assertion_failed,&
-               routineP, "unexpected EOF "//&
-               TRIM(parser_location(parser,error=error)), error)
+          IF (my_at_end) THEN
+             CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
+                            routineP, "unexpected EOF "//&
+                            TRIM(parser_location(parser,error=error)), error)
+          ENDIF
        END IF
        CALL broadcast_input_information(parser,error=error)
     ELSEIF (PRESENT(at_end)) THEN
@@ -832,8 +834,9 @@ END SUBROUTINE parser_next_token
     CHARACTER(LEN=*), PARAMETER :: routineN = 'parser_read_line', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: icomment, iline, istat
-    LOGICAL                                  :: failure
+    INTEGER                                  :: iline, istat,icol
+    LOGICAL                                  :: failure,non_white_found
+    CHARACTER(LEN=1)                         :: thischar
 
 !   ---------------------------------------------------------------------------
 
@@ -889,25 +892,15 @@ END SUBROUTINE parser_next_token
                 RETURN
              END IF
 
-             !       *** Check for comments ***
-             !           find first comment_char in the line, but 0 if none is present
-             IF (ANY(INDEX(parser%input_line,parser%comment_character).NE.0)) THEN
-                icomment=MINVAL(INDEX(parser%input_line,parser%comment_character), &
-                                INDEX(parser%input_line,parser%comment_character).NE.0)
-             ELSE
-                icomment=0
-             ENDIF
-
-             !       *** Ignore empty lines ***
-             IF (icomment > 0) THEN
-                !MK xlf 8.1.1 bug -> len_trim returns -1 for an empty string
-                !         IF (LEN_TRIM(parser%input_line(:icomment-1)) == 0) iline = iline - 1
-                IF (LEN_TRIM(parser%input_line(:icomment-1)) <= 0) iline = iline - 1
-             ELSE
-                !MK xlf 8.1.1 bug -> len_trim returns -1 for an empty string
-                !         IF (LEN_TRIM(parser%input_line) == 0) iline = iline - 1
-                IF (LEN_TRIM(parser%input_line) <= 0) iline = iline - 1
-             END IF
+             non_white_found=.FALSE.
+             DO icol=1,LEN(parser%input_line)
+                thischar=parser%input_line(icol:icol)
+                IF (thischar.NE.blank_character) THEN
+                   IF (.NOT. ANY(parser%comment_character.EQ.thischar)) non_white_found=.TRUE.
+                   EXIT
+                ENDIF 
+             ENDDO
+             IF (.NOT. non_white_found)  iline = iline -1
 
           END DO
 
