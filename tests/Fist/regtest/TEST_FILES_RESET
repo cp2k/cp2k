@@ -217,3 +217,9 @@ ethene_colv2_npt.inp
 #reset due to the new scheme to implement RESTRAINTS
 H2O-restraint.inp
 ethene-restraint.inp
+#  
+argon_nph_plastic.inp
+#  
+water_IPBV.inp
+#  
+water_IPBV_flex.inp

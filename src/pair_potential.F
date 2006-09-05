@@ -213,9 +213,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, i, j, jx, n, ncount, &
-                                                npoints, ntype
-    LOGICAL                                  :: failure, my_do_14
-    REAL(KIND=dp) :: diffmax, dx2, e, hicut, locut, my_ei_scale14, &
+                                                npoints, ntype, ilevel
+    LOGICAL                                  :: failure, my_do_14, found_locut
+    REAL(KIND=dp) :: diffmax, dx2, e, hicut, locut, locut_found, my_ei_scale14, &
       my_vdw_scale14, myfac1, myfac2, qi, qj, x, x2, xdum, xdum1, xsav
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     INTEGER                                  :: ewald_type
@@ -255,20 +255,32 @@ CONTAINS
              potparm%pot(i,j)%pot %e_cutoff_coul &
                   = ener_coul ( potparm%pot( i, j )%pot, qi, qj, hicut, ewald_type,alpha,eps0, my_ei_scale14, my_do_14 )
           END IF
+
           ! Find the real locut according emax_spline
-          dx2 = (hicut-locut)/10000.0_dp
+          ! two pass approach, first with low resolution, refine in a second iteration
+          dx2 = (hicut-locut)
           x   = hicut
-          DO jx = 1, 10000
-             e = ener_pot ( potparm%pot( i, j )%pot, qi, qj, x , my_vdw_scale14 ) &
+          locut_found = locut
+          found_locut = .FALSE.
+          DO ilevel=1,2
+             dx2 = dx2 / 100.0_dp
+             DO jx = 1, 100
+                e = ener_pot ( potparm%pot( i, j )%pot, qi, qj, x , my_vdw_scale14 ) &
                   + ener_coul ( potparm%pot( i, j )%pot, qi, qj, x, ewald_type,alpha,eps0, my_ei_scale14, my_do_14 )
-             IF (ABS(e) > emax_spline) THEN
-                locut = x
-                EXIT
-             END IF
-             x = x - dx2
-          END DO
+                IF (ABS(e) > emax_spline) THEN
+                   locut_found = x
+                   found_locut = .true.
+                   EXIT
+                END IF
+                x = x - dx2
+             END DO
+             x= x + dx2
+          ENDDO
+          locut = locut_found
+
           npoints = 20
-          IF (jx == 10001) npoints = 2  ! Zero spline
+          IF (.NOT. found_locut) npoints = 2  ! Zero spline
+
           DO WHILE (.TRUE.)
              CALL init_splinexy ( spline_env % spline_data_p ( n ) % spline_data, npoints+1)
              dx2 = (1.0_dp/locut**2-1.0_dp/hicut**2)/REAL(npoints,KIND=dp)
