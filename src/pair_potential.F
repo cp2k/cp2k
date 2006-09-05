@@ -144,28 +144,23 @@ CONTAINS
   !!
   !!   SOURCE
   !******************************************************************************
-  FUNCTION ener_coul ( pot, qi, qj, r, ewald_env, ei_scale14, my_do_14 )
+  FUNCTION ener_coul ( pot, qi, qj, r, ewald_type,alpha,eps0, ei_scale14, my_do_14 )
 
     TYPE(pair_potential_single_type), &
       POINTER                                :: pot
     REAL(KIND=dp), INTENT(IN)                :: qi, qj, r
-    TYPE(ewald_environment_type), POINTER    :: ewald_env
-    REAL(KIND=dp)                            :: ei_scale14
+    REAL(KIND=dp), INTENT(IN)                :: ei_scale14
     LOGICAL, INTENT(IN)                      :: my_do_14
+    INTEGER, INTENT(IN)                      :: ewald_type
+    REAL(KIND=dp), INTENT(IN)                :: alpha, eps0
     REAL(KIND=dp)                            :: ener_coul
 
-    INTEGER                                  :: ewald_type
-    REAL(KIND=dp)                            :: alpha, eps0
-
     ener_coul= 0.0_dp
-    CALL ewald_env_get ( ewald_env, alpha = alpha, eps0 = eps0, &
-         ewald_type = ewald_type ) 
     IF (.NOT. my_do_14 ) THEN
        IF (ewald_type /= do_ewald_none) THEN
           ener_coul = ei_scale14 * ifourpi / eps0 * qi * qj &
                * erfc ( alpha * r ) / r - pot % e_cutoff_coul
        ELSE
-          CALL ewald_env_get ( ewald_env, eps0 = eps0)
           ener_coul = ei_scale14 * ifourpi / eps0 * qi * qj / r - pot % e_cutoff_coul
        END IF
     ELSE
@@ -220,9 +215,12 @@ CONTAINS
     INTEGER                                  :: handle, i, j, jx, n, ncount, &
                                                 npoints, ntype
     LOGICAL                                  :: failure, my_do_14
-    REAL(KIND=dp) :: diffmax, dx2, e, eps0, hicut, locut, my_ei_scale14, &
+    REAL(KIND=dp) :: diffmax, dx2, e, hicut, locut, my_ei_scale14, &
       my_vdw_scale14, myfac1, myfac2, qi, qj, x, x2, xdum, xdum1, xsav
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
+    INTEGER                                  :: ewald_type
+    REAL(KIND=dp)                            :: alpha, eps0
+
 
     failure     = .FALSE.
     n      = 0
@@ -241,6 +239,7 @@ CONTAINS
        CALL get_atomic_kind(atomic_kind=atomic_kind,qeff=qi)
        DO j = 1, i  ! j:  second atom type
           IF (.NOT.potparm%pot(i,j)%pot%undef) CYCLE
+          CALL ewald_env_get(ewald_env,ewald_type=ewald_type,alpha=alpha,eps0=eps0)
           ncount = ncount + 1
           potparm%pot(i,j)%pot%undef = .FALSE.
           atomic_kind=> atomic_kind_set(j)
@@ -254,14 +253,14 @@ CONTAINS
           IF (scale_cutoff) THEN
              potparm%pot(i,j)%pot %energy_cutoff = ener_pot(potparm%pot(i,j)%pot,qi,qj,hicut,my_vdw_scale14)
              potparm%pot(i,j)%pot %e_cutoff_coul &
-                  = ener_coul ( potparm%pot( i, j )%pot, qi, qj, hicut, ewald_env, my_ei_scale14, my_do_14 )
+                  = ener_coul ( potparm%pot( i, j )%pot, qi, qj, hicut, ewald_type,alpha,eps0, my_ei_scale14, my_do_14 )
           END IF
           ! Find the real locut according emax_spline
           dx2 = (hicut-locut)/10000.0_dp
           x   = hicut
           DO jx = 1, 10000
              e = ener_pot ( potparm%pot( i, j )%pot, qi, qj, x , my_vdw_scale14 ) &
-                  + ener_coul ( potparm%pot( i, j )%pot, qi, qj, x, ewald_env, my_ei_scale14, my_do_14 )
+                  + ener_coul ( potparm%pot( i, j )%pot, qi, qj, x, ewald_type,alpha,eps0, my_ei_scale14, my_do_14 )
              IF (ABS(e) > emax_spline) THEN
                 locut = x
                 EXIT
@@ -277,13 +276,12 @@ CONTAINS
              DO jx = 1, npoints + 1     ! jx: loop over 1/distance**2
                 x = SQRT ( 1.0_dp/x2 )
                 e = ener_pot ( potparm%pot( i, j )%pot, qi, qj, x , my_vdw_scale14 ) &
-                     + ener_coul ( potparm%pot( i, j )%pot, qi, qj, x, ewald_env, my_ei_scale14, my_do_14 )
+                     + ener_coul ( potparm%pot( i, j )%pot, qi, qj, x, ewald_type,alpha,eps0, my_ei_scale14, my_do_14 )
                 spline_env % spline_data_p ( n ) % spline_data % x(jx) = x2
                 spline_env % spline_data_p ( n ) % spline_data % y(jx) = e
                 x2 = x2 + dx2
              END DO ! jx: loop over distance
              IF (my_do_14) THEN
-                CALL ewald_env_get ( ewald_env, eps0 = eps0 )
                 myfac1 = my_ei_scale14 * ifourpi / eps0 * qi * qj 
                 myfac2 = 0.0_dp
                 IF (scale_cutoff) THEN
@@ -302,7 +300,7 @@ CONTAINS
              DO jx = 1, 5*npoints
                 x = x2
                 e = ener_pot ( potparm%pot( i, j )%pot, qi, qj, x , my_vdw_scale14 ) &
-                     + ener_coul ( potparm%pot( i, j )%pot, qi, qj, x, ewald_env, my_ei_scale14, my_do_14 )
+                     + ener_coul ( potparm%pot( i, j )%pot, qi, qj, x, ewald_type,alpha,eps0, my_ei_scale14, my_do_14 )
                 IF (e<max_energy) THEN
                    xdum1   = ABS(e-potential_s(spline_env%spline_data_p(n)%spline_data,x*x,xdum))
                    diffmax = MAX(diffmax,xdum1)
@@ -348,7 +346,7 @@ CONTAINS
              DO jx = 1, 5000
                 x = x2
                 e = ener_pot ( potparm%pot( i, j )%pot, qi, qj, x , my_vdw_scale14 ) &
-                     + ener_coul ( potparm%pot( i, j )%pot, qi, qj, x, ewald_env, my_ei_scale14, my_do_14 )
+                     + ener_coul ( potparm%pot( i, j )%pot, qi, qj, x, ewald_type,alpha,eps0, my_ei_scale14, my_do_14 )
                 WRITE(1000+n,*) x, e, potential_s(spline_env%spline_data_p(n)%spline_data,x*x,xdum)
                 x2 = x2 + dx2
              END DO
@@ -736,6 +734,8 @@ CONTAINS
       POINTER                                :: ewald_env
 
     REAL(KIND=dp)                            :: rij
+    INTEGER                                  :: ewald_type
+    REAL(KIND=dp)                            :: alpha, eps0
 
     rij = SQRT ( rijsq )
 
@@ -744,8 +744,9 @@ CONTAINS
 
     ! real-space ewald non-bond energy
     IF ( PRESENT ( ewald_env ) ) THEN
+       CALL ewald_env_get(ewald_env,ewald_type=ewald_type,alpha=alpha,eps0=eps0)
        energy = energy &
-            + ener_coul ( potparm%pot(iatom,jatom )%pot, qi, qj, rij, ewald_env, 1.0_dp,&
+            + ener_coul ( potparm%pot(iatom,jatom )%pot, qi, qj, rij, ewald_type,alpha,eps0, 1.0_dp,&
             my_do_14=.FALSE.)
     END IF
 

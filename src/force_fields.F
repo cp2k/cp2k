@@ -2089,10 +2089,10 @@ CONTAINS
                 atomic_kind => particle_set(atm_b+first-1)%atomic_kind
                 CALL get_atomic_kind(atomic_kind=atomic_kind,&
                      name=name_atm_b2)
-                IF( ((TRIM(name_atm_a)==TRIM(name_atm_a2)) .AND. &
-                     (TRIM(name_atm_b)==TRIM(name_atm_b2))) .OR. &
-                     ((TRIM(name_atm_a)==TRIM(name_atm_b2)) .AND. &
-                     (TRIM(name_atm_b)==TRIM(name_atm_a2))) ) THEN
+                IF( (((name_atm_a)==(name_atm_a2)) .AND. &
+                     ((name_atm_b)==(name_atm_b2))) .OR. &
+                     (((name_atm_a)==(name_atm_b2)) .AND. &
+                     ((name_atm_b)==(name_atm_a2))) ) THEN
                    found = .TRUE.
                    map_bond_kind(j) = map_bond_kind(k)
                    EXIT
@@ -2172,12 +2172,12 @@ CONTAINS
                 atomic_kind => particle_set(atm_c+first-1)%atomic_kind
                 CALL get_atomic_kind(atomic_kind=atomic_kind,&
                      name=name_atm_c2)
-                IF( ((TRIM(name_atm_a)==TRIM(name_atm_a2)) .AND. &
-                     (TRIM(name_atm_b)==TRIM(name_atm_b2)) .AND. &
-                     (TRIM(name_atm_c)==TRIM(name_atm_c2))) .OR. &
-                     ((TRIM(name_atm_a)==TRIM(name_atm_c2)) .AND. &
-                     (TRIM(name_atm_b)==TRIM(name_atm_b2)) .AND. &
-                     (TRIM(name_atm_c)==TRIM(name_atm_a2))) ) THEN
+                IF( (((name_atm_a)==(name_atm_a2)) .AND. &
+                     ((name_atm_b)==(name_atm_b2)) .AND. &
+                     ((name_atm_c)==(name_atm_c2))) .OR. &
+                     (((name_atm_a)==(name_atm_c2)) .AND. &
+                     ((name_atm_b)==(name_atm_b2)) .AND. &
+                     ((name_atm_c)==(name_atm_a2))) ) THEN
                    found = .TRUE.
                    map_bend_kind(j) = map_bend_kind(k)
                    EXIT
@@ -2248,12 +2248,12 @@ CONTAINS
                 atomic_kind => particle_set(atm_c+first-1)%atomic_kind
                 CALL get_atomic_kind(atomic_kind=atomic_kind,&
                      name=name_atm_c2)
-                IF( ((TRIM(name_atm_a)==TRIM(name_atm_a2)) .AND. &
-                     (TRIM(name_atm_b)==TRIM(name_atm_b2)) .AND. &
-                     (TRIM(name_atm_c)==TRIM(name_atm_c2))) .OR. &
-                     ((TRIM(name_atm_a)==TRIM(name_atm_c2)) .AND. &
-                     (TRIM(name_atm_b)==TRIM(name_atm_b2)) .AND. &
-                     (TRIM(name_atm_c)==TRIM(name_atm_a2))) ) THEN
+                IF( (((name_atm_a)==(name_atm_a2)) .AND. &
+                     ((name_atm_b)==(name_atm_b2)) .AND. &
+                     ((name_atm_c)==(name_atm_c2))) .OR. &
+                     (((name_atm_a)==(name_atm_c2)) .AND. &
+                     ((name_atm_b)==(name_atm_b2)) .AND. &
+                     ((name_atm_c)==(name_atm_a2))) ) THEN
                    found = .TRUE.
                    map_ub_kind(j) = map_ub_kind(k)
                    EXIT
@@ -2299,14 +2299,6 @@ CONTAINS
           counter=ntorsion
          ELSE
           DO j=1,ntorsion
-             name_atm_a = ''
-             name_atm_b = ''
-             name_atm_c = ''
-             name_atm_d = ''
-             name_atm_a2 = ''
-             name_atm_b2 = ''
-             name_atm_c2 = ''
-             name_atm_d2 = ''
              atm_a = torsion_list(j)%a
              atomic_kind => particle_set(atm_a+first-1)%atomic_kind
              CALL get_atomic_kind(atomic_kind=atomic_kind,&
@@ -2341,14 +2333,14 @@ CONTAINS
                 atomic_kind => particle_set(atm_d+first-1)%atomic_kind
                 CALL get_atomic_kind(atomic_kind=atomic_kind,&
                      name=name_atm_d2)
-                IF( ((TRIM(name_atm_a)==TRIM(name_atm_a2)) .AND. &
-                     (TRIM(name_atm_b)==TRIM(name_atm_b2)) .AND. &
-                     (TRIM(name_atm_c)==TRIM(name_atm_c2)) .AND. &
-                     (TRIM(name_atm_d)==TRIM(name_atm_d2))) .OR. &
-                     ((TRIM(name_atm_a)==TRIM(name_atm_d2)) .AND. &
-                     (TRIM(name_atm_b)==TRIM(name_atm_c2)) .AND. &
-                     (TRIM(name_atm_c)==TRIM(name_atm_b2)) .AND. &
-                     (TRIM(name_atm_d)==TRIM(name_atm_a2))) ) THEN
+                IF( (((name_atm_a)==(name_atm_a2)) .AND. &
+                     ((name_atm_b)==(name_atm_b2)) .AND. &
+                     ((name_atm_c)==(name_atm_c2)) .AND. &
+                     ((name_atm_d)==(name_atm_d2))) .OR. &
+                     (((name_atm_a)==(name_atm_d2)) .AND. &
+                     ((name_atm_b)==(name_atm_c2)) .AND. &
+                     ((name_atm_c)==(name_atm_b2)) .AND. &
+                     ((name_atm_d)==(name_atm_a2))) ) THEN
                    found = .TRUE.
                    map_torsion_kind(j) = map_torsion_kind(k)
                    EXIT
@@ -2401,14 +2393,6 @@ CONTAINS
           counter=nimpr
          ELSE
           DO j=1,nimpr
-             name_atm_a = ''
-             name_atm_b = ''
-             name_atm_c = ''
-             name_atm_d = ''
-             name_atm_a2 = ''
-             name_atm_b2 = ''
-             name_atm_c2 = ''
-             name_atm_d2 = ''
              atm_a = impr_list(j)%a
              atomic_kind => particle_set(atm_a+first-1)%atomic_kind
              CALL get_atomic_kind(atomic_kind=atomic_kind,&
@@ -2443,14 +2427,14 @@ CONTAINS
                 atomic_kind => particle_set(atm_d+first-1)%atomic_kind
                 CALL get_atomic_kind(atomic_kind=atomic_kind,&
                      name=name_atm_d2)
-                IF( ((TRIM(name_atm_a)==TRIM(name_atm_a2)) .AND. &
-                     (TRIM(name_atm_b)==TRIM(name_atm_b2)) .AND. &
-                     (TRIM(name_atm_c)==TRIM(name_atm_c2)) .AND. &
-                     (TRIM(name_atm_d)==TRIM(name_atm_d2))) .OR. &
-                     ((TRIM(name_atm_a)==TRIM(name_atm_d2)) .AND. &
-                     (TRIM(name_atm_b)==TRIM(name_atm_c2)) .AND. &
-                     (TRIM(name_atm_c)==TRIM(name_atm_b2)) .AND. &
-                     (TRIM(name_atm_d)==TRIM(name_atm_a2))) ) THEN
+                IF( (((name_atm_a)==(name_atm_a2)) .AND. &
+                     ((name_atm_b)==(name_atm_b2)) .AND. &
+                     ((name_atm_c)==(name_atm_c2)) .AND. &
+                     ((name_atm_d)==(name_atm_d2))) .OR. &
+                     (((name_atm_a)==(name_atm_d2)) .AND. &
+                     ((name_atm_b)==(name_atm_c2)) .AND. &
+                     ((name_atm_c)==(name_atm_b2)) .AND. &
+                     ((name_atm_d)==(name_atm_a2))) ) THEN
                    found = .TRUE.
                    map_impr_kind(j) = map_impr_kind(k)
                    EXIT
@@ -2496,10 +2480,6 @@ CONTAINS
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
           counter=0
           DO j=1,nonfo
-             name_atm_a = ''
-             name_atm_b = ''
-             name_atm_a2 = ''
-             name_atm_b2 = ''
              atm_a = onfo_list(j)%a
              atomic_kind => particle_set(atm_a+first-1)%atomic_kind
              CALL get_atomic_kind(atomic_kind=atomic_kind,&
@@ -2518,10 +2498,10 @@ CONTAINS
                 atomic_kind => particle_set(atm_b+first-1)%atomic_kind
                 CALL get_atomic_kind(atomic_kind=atomic_kind,&
                      name=name_atm_b2,qeff=qi4)
-                IF( ((TRIM(name_atm_a)==TRIM(name_atm_a2)) .AND. &
-                     (TRIM(name_atm_b)==TRIM(name_atm_b2))) .OR. &
-                     ((TRIM(name_atm_a)==TRIM(name_atm_b2)) .AND. &
-                     (TRIM(name_atm_b)==TRIM(name_atm_a2))) ) THEN
+                IF( (((name_atm_a)==(name_atm_a2)) .AND. &
+                     ((name_atm_b)==(name_atm_b2))) .OR. &
+                     (((name_atm_a)==(name_atm_b2)) .AND. &
+                     ((name_atm_b)==(name_atm_a2))) ) THEN
                    IF(((qi1==qi3).AND.(qi2==qi4)).OR.((qi1==qi4).AND.(qi2==qi3)))THEN
                       found = .TRUE.
                       map_onfo_kind(j) = map_onfo_kind(k)
@@ -2602,10 +2582,10 @@ CONTAINS
           ! loop over params from charmm
           IF(ASSOCIATED(chm_info%bond_a)) THEN
              DO k=1,SIZE(chm_info%bond_a)
-                IF( ((TRIM(chm_info%bond_a(k))==TRIM(name_atm_a)) .AND. &
-                     (TRIM(chm_info%bond_b(k))==TRIM(name_atm_b))) .OR. &
-                     ((TRIM(chm_info%bond_a(k))==TRIM(name_atm_b)) .AND. &
-                     (TRIM(chm_info%bond_b(k))==TRIM(name_atm_a))) ) THEN
+                IF( (((chm_info%bond_a(k))==(name_atm_a)) .AND. &
+                     ((chm_info%bond_b(k))==(name_atm_b))) .OR. &
+                     (((chm_info%bond_a(k))==(name_atm_b)) .AND. &
+                     ((chm_info%bond_b(k))==(name_atm_a))) ) THEN
                    bond_list(j)%bond_kind%name = "CHARMM"
                    bond_list(j)%bond_kind%k(1) = chm_info%bond_k(k)
                    bond_list(j)%bond_kind%r0   = chm_info%bond_r0(k)
@@ -2620,10 +2600,10 @@ CONTAINS
           ! always have the input param last to overwrite all the other ones
           IF(ASSOCIATED(inp_info%bond_a)) THEN
              DO k=1,SIZE(inp_info%bond_a)
-                IF( ((TRIM(inp_info%bond_a(k))==TRIM(name_atm_a)) .AND. &
-                     (TRIM(inp_info%bond_b(k))==TRIM(name_atm_b))) .OR. &
-                     ((TRIM(inp_info%bond_a(k))==TRIM(name_atm_b)) .AND. &
-                     (TRIM(inp_info%bond_b(k))==TRIM(name_atm_a))) ) THEN
+                IF( (((inp_info%bond_a(k))==(name_atm_a)) .AND. &
+                     ((inp_info%bond_b(k))==(name_atm_b))) .OR. &
+                     (((inp_info%bond_a(k))==(name_atm_b)) .AND. &
+                     ((inp_info%bond_b(k))==(name_atm_a))) ) THEN
                    bond_list(j)%bond_kind%name = inp_info%bond_kind(k)
                    bond_list(j)%bond_kind%k(:) = inp_info%bond_k(:,k)
                    bond_list(j)%bond_kind%r0   = inp_info%bond_r0(k)
@@ -2709,12 +2689,12 @@ CONTAINS
           ! loop over params from CHARMM
           IF(ASSOCIATED(chm_info%bend_a)) THEN
              DO k=1,SIZE(chm_info%bend_a)
-                IF( ((TRIM(chm_info%bend_a(k))==TRIM(name_atm_a)) .AND. &
-                     (TRIM(chm_info%bend_b(k))==TRIM(name_atm_b)) .AND. &
-                     (TRIM(chm_info%bend_c(k))==TRIM(name_atm_c))) .OR. &
-                     ((TRIM(chm_info%bend_a(k))==TRIM(name_atm_c)) .AND. &
-                     (TRIM(chm_info%bend_b(k))==TRIM(name_atm_b)) .AND. &
-                     (TRIM(chm_info%bend_c(k))==TRIM(name_atm_a))) ) THEN
+                IF( (((chm_info%bend_a(k))==(name_atm_a)) .AND. &
+                     ((chm_info%bend_b(k))==(name_atm_b)) .AND. &
+                     ((chm_info%bend_c(k))==(name_atm_c))) .OR. &
+                     (((chm_info%bend_a(k))==(name_atm_c)) .AND. &
+                     ((chm_info%bend_b(k))==(name_atm_b)) .AND. &
+                     ((chm_info%bend_c(k))==(name_atm_a))) ) THEN
                    bend_list(j)%bend_kind%name   = "CHARMM"
                    bend_list(j)%bend_kind%k      = chm_info%bend_k(k)
                    bend_list(j)%bend_kind%theta0 = chm_info%bend_theta0(k)
@@ -2729,12 +2709,12 @@ CONTAINS
           ! always have the input param last to overwrite all the other ones
           IF(ASSOCIATED(inp_info%bend_a)) THEN
              DO k=1,SIZE(inp_info%bend_a)
-                IF( ((TRIM(inp_info%bend_a(k))==TRIM(name_atm_a)) .AND. &
-                     (TRIM(inp_info%bend_b(k))==TRIM(name_atm_b)) .AND. &
-                     (TRIM(inp_info%bend_c(k))==TRIM(name_atm_c))) .OR. &
-                     ((TRIM(inp_info%bend_a(k))==TRIM(name_atm_c)) .AND. &
-                     (TRIM(inp_info%bend_b(k))==TRIM(name_atm_b)) .AND. &
-                     (TRIM(inp_info%bend_c(k))==TRIM(name_atm_a))) ) THEN
+                IF( (((inp_info%bend_a(k))==(name_atm_a)) .AND. &
+                     ((inp_info%bend_b(k))==(name_atm_b)) .AND. &
+                     ((inp_info%bend_c(k))==(name_atm_c))) .OR. &
+                     (((inp_info%bend_a(k))==(name_atm_c)) .AND. &
+                     ((inp_info%bend_b(k))==(name_atm_b)) .AND. &
+                     ((inp_info%bend_c(k))==(name_atm_a))) ) THEN
                    bend_list(j)%bend_kind%name   = inp_info%bend_kind(k)
                    bend_list(j)%bend_kind%k      = inp_info%bend_k(k)
                    bend_list(j)%bend_kind%theta0 = inp_info%bend_theta0(k)
@@ -2801,12 +2781,12 @@ CONTAINS
           ! loop over params from charmm
           IF(ASSOCIATED(chm_info%ub_a)) THEN
              DO k=1,SIZE(chm_info%ub_a)
-                IF( ((TRIM(chm_info%ub_a(k))==TRIM(name_atm_a)) .AND. &
-                     (TRIM(chm_info%ub_b(k))==TRIM(name_atm_b)) .AND. &
-                     (TRIM(chm_info%ub_c(k))==TRIM(name_atm_c))) .OR. &
-                     ((TRIM(chm_info%ub_a(k))==TRIM(name_atm_c)) .AND. &
-                     (TRIM(chm_info%ub_b(k))==TRIM(name_atm_b)) .AND. &
-                     (TRIM(chm_info%ub_c(k))==TRIM(name_atm_a))) ) THEN
+                IF( (((chm_info%ub_a(k))==(name_atm_a)) .AND. &
+                     ((chm_info%ub_b(k))==(name_atm_b)) .AND. &
+                     ((chm_info%ub_c(k))==(name_atm_c))) .OR. &
+                     (((chm_info%ub_a(k))==(name_atm_c)) .AND. &
+                     ((chm_info%ub_b(k))==(name_atm_b)) .AND. &
+                     ((chm_info%ub_c(k))==(name_atm_a))) ) THEN
                    ub_list(j)%ub_kind%name   = "CHARMM"
                    ub_list(j)%ub_kind%k      = chm_info%ub_k(k)
                    ub_list(j)%ub_kind%r0     = chm_info%ub_r0(k)
@@ -2823,12 +2803,12 @@ CONTAINS
           ! always have the input param last to overwrite all the other ones
           IF(ASSOCIATED(inp_info%ub_a)) THEN
              DO k=1,SIZE(inp_info%ub_a)
-                IF( ((TRIM(inp_info%ub_a(k))==TRIM(name_atm_a)) .AND. &
-                     (TRIM(inp_info%ub_b(k))==TRIM(name_atm_b)) .AND. &
-                     (TRIM(inp_info%ub_c(k))==TRIM(name_atm_c))) .OR. &
-                    ((TRIM(inp_info%ub_a(k))==TRIM(name_atm_c)) .AND. &
-                     (TRIM(inp_info%ub_b(k))==TRIM(name_atm_b)) .AND. &
-                     (TRIM(inp_info%ub_c(k))==TRIM(name_atm_a))) ) THEN
+                IF( (((inp_info%ub_a(k))==(name_atm_a)) .AND. &
+                     ((inp_info%ub_b(k))==(name_atm_b)) .AND. &
+                     ((inp_info%ub_c(k))==(name_atm_c))) .OR. &
+                    (((inp_info%ub_a(k))==(name_atm_c)) .AND. &
+                     ((inp_info%ub_b(k))==(name_atm_b)) .AND. &
+                     ((inp_info%ub_c(k))==(name_atm_a))) ) THEN
                    ub_list(j)%ub_kind%name   = inp_info%ub_kind(k)
                    ub_list(j)%ub_kind%k      = inp_info%ub_k(k)
                    ub_list(j)%ub_kind%r0     = inp_info%ub_r0(k)
@@ -2934,14 +2914,14 @@ CONTAINS
              ! loop over params from CHARMM
              IF(ASSOCIATED(chm_info%torsion_a)) THEN
                 DO k=1,SIZE(chm_info%torsion_a)
-                   IF( ((TRIM(chm_info%torsion_a(k))==TRIM(name_atm_a)) .AND. &
-                        (TRIM(chm_info%torsion_b(k))==TRIM(name_atm_b)) .AND. &
-                        (TRIM(chm_info%torsion_c(k))==TRIM(name_atm_c)) .AND. &
-                        (TRIM(chm_info%torsion_d(k))==TRIM(name_atm_d))) .OR. &
-                       ((TRIM(chm_info%torsion_a(k))==TRIM(name_atm_d)) .AND. &
-                        (TRIM(chm_info%torsion_b(k))==TRIM(name_atm_c)) .AND. &
-                        (TRIM(chm_info%torsion_c(k))==TRIM(name_atm_b)) .AND. &
-                        (TRIM(chm_info%torsion_d(k))==TRIM(name_atm_a))) ) THEN
+                   IF( (((chm_info%torsion_a(k))==(name_atm_a)) .AND. &
+                        ((chm_info%torsion_b(k))==(name_atm_b)) .AND. &
+                        ((chm_info%torsion_c(k))==(name_atm_c)) .AND. &
+                        ((chm_info%torsion_d(k))==(name_atm_d))) .OR. &
+                       (((chm_info%torsion_a(k))==(name_atm_d)) .AND. &
+                        ((chm_info%torsion_b(k))==(name_atm_c)) .AND. &
+                        ((chm_info%torsion_c(k))==(name_atm_b)) .AND. &
+                        ((chm_info%torsion_d(k))==(name_atm_a))) ) THEN
                       imul = torsion_list(j)%torsion_kind%nmul + 1
                       CALL reallocate(torsion_list(j)%torsion_kind%k,1,imul)
                       CALL reallocate(torsion_list(j)%torsion_kind%m,1,imul)
@@ -2957,14 +2937,14 @@ CONTAINS
 
                 IF(.NOT.found) THEN
                    DO k=1,SIZE(chm_info%torsion_a)
-                      IF( ((TRIM(chm_info%torsion_a(k))==TRIM("X")) .AND. &
-                           (TRIM(chm_info%torsion_b(k))==TRIM(name_atm_b)) .AND. &
-                           (TRIM(chm_info%torsion_c(k))==TRIM(name_atm_c)) .AND. &
-                           (TRIM(chm_info%torsion_d(k))==TRIM("X"))) .OR. &
-                           ((TRIM(chm_info%torsion_a(k))==TRIM("X")) .AND. &
-                           (TRIM(chm_info%torsion_b(k))==TRIM(name_atm_c)) .AND. &
-                           (TRIM(chm_info%torsion_c(k))==TRIM(name_atm_b)) .AND. &
-                           (TRIM(chm_info%torsion_d(k))==TRIM("X"))) ) THEN
+                      IF( (((chm_info%torsion_a(k))==("X")) .AND. &
+                           ((chm_info%torsion_b(k))==(name_atm_b)) .AND. &
+                           ((chm_info%torsion_c(k))==(name_atm_c)) .AND. &
+                           ((chm_info%torsion_d(k))==("X"))) .OR. &
+                           (((chm_info%torsion_a(k))==("X")) .AND. &
+                           ((chm_info%torsion_b(k))==(name_atm_c)) .AND. &
+                           ((chm_info%torsion_c(k))==(name_atm_b)) .AND. &
+                           ((chm_info%torsion_d(k))==("X"))) ) THEN
                          imul = torsion_list(j)%torsion_kind%nmul + 1
                          CALL reallocate(torsion_list(j)%torsion_kind%k,1,imul)
                          CALL reallocate(torsion_list(j)%torsion_kind%m,1,imul)
@@ -2982,14 +2962,14 @@ CONTAINS
              ! always have the input param last to overwrite all the other ones
              IF(ASSOCIATED(inp_info%torsion_a)) THEN
                 DO k=1,SIZE(inp_info%torsion_a)
-                   IF( ((TRIM(inp_info%torsion_a(k))==TRIM(name_atm_a)) .AND. &
-                        (TRIM(inp_info%torsion_b(k))==TRIM(name_atm_b)) .AND. &
-                        (TRIM(inp_info%torsion_c(k))==TRIM(name_atm_c)) .AND. &
-                        (TRIM(inp_info%torsion_d(k))==TRIM(name_atm_d))) .OR. &
-                        ((TRIM(inp_info%torsion_a(k))==TRIM(name_atm_d)) .AND. &
-                        (TRIM(inp_info%torsion_b(k))==TRIM(name_atm_c)) .AND. &
-                        (TRIM(inp_info%torsion_c(k))==TRIM(name_atm_b)) .AND. &
-                        (TRIM(inp_info%torsion_d(k))==TRIM(name_atm_a))) ) THEN
+                   IF( (((inp_info%torsion_a(k))==(name_atm_a)) .AND. &
+                        ((inp_info%torsion_b(k))==(name_atm_b)) .AND. &
+                        ((inp_info%torsion_c(k))==(name_atm_c)) .AND. &
+                        ((inp_info%torsion_d(k))==(name_atm_d))) .OR. &
+                        (((inp_info%torsion_a(k))==(name_atm_d)) .AND. &
+                        ((inp_info%torsion_b(k))==(name_atm_c)) .AND. &
+                        ((inp_info%torsion_c(k))==(name_atm_b)) .AND. &
+                        ((inp_info%torsion_d(k))==(name_atm_a))) ) THEN
                       imul = torsion_list(j)%torsion_kind%nmul + 1
                       CALL reallocate(torsion_list(j)%torsion_kind%k,1,imul)
                       CALL reallocate(torsion_list(j)%torsion_kind%m,1,imul)
@@ -3106,14 +3086,14 @@ CONTAINS
           ! loop over params from charmm
           IF(ASSOCIATED(chm_info%impr_a)) THEN
              DO k=1,SIZE(chm_info%impr_a)
-                IF( ((TRIM(chm_info%impr_a(k))==TRIM(name_atm_a)) .AND. &
-                     (TRIM(chm_info%impr_b(k))==TRIM(name_atm_b)) .AND. &
-                     (TRIM(chm_info%impr_c(k))==TRIM(name_atm_c)) .AND. &
-                     (TRIM(chm_info%impr_d(k))==TRIM(name_atm_d))) .OR. &
-                     ((TRIM(chm_info%impr_a(k))==TRIM(name_atm_d)) .AND. &
-                     (TRIM(chm_info%impr_b(k))==TRIM(name_atm_c)) .AND. &
-                     (TRIM(chm_info%impr_c(k))==TRIM(name_atm_b)) .AND. &
-                     (TRIM(chm_info%impr_d(k))==TRIM(name_atm_a))) ) THEN
+                IF( (((chm_info%impr_a(k))==(name_atm_a)) .AND. &
+                     ((chm_info%impr_b(k))==(name_atm_b)) .AND. &
+                     ((chm_info%impr_c(k))==(name_atm_c)) .AND. &
+                     ((chm_info%impr_d(k))==(name_atm_d))) .OR. &
+                     (((chm_info%impr_a(k))==(name_atm_d)) .AND. &
+                     ((chm_info%impr_b(k))==(name_atm_c)) .AND. &
+                     ((chm_info%impr_c(k))==(name_atm_b)) .AND. &
+                     ((chm_info%impr_d(k))==(name_atm_a))) ) THEN
                    impr_list(j)%impr_kind%name = "CHARMM"
                    impr_list(j)%impr_kind%k    = chm_info%impr_k(k)
                    impr_list(j)%impr_kind%phi0 = chm_info%impr_phi0(k)
@@ -3126,14 +3106,14 @@ CONTAINS
              END DO
              IF(.NOT.found) THEN
                 DO k=1,SIZE(chm_info%impr_a)
-                   IF( ((TRIM(chm_info%impr_a(k))==TRIM(name_atm_a)) .AND. &
-                        (TRIM(chm_info%impr_b(k))==TRIM("X")) .AND. &
-                        (TRIM(chm_info%impr_c(k))==TRIM("X")) .AND. &
-                        (TRIM(chm_info%impr_d(k))==TRIM(name_atm_d))) .OR. &
-                        ((TRIM(chm_info%impr_a(k))==TRIM(name_atm_d)) .AND. &
-                        (TRIM(chm_info%impr_b(k))==TRIM("X")) .AND. &
-                        (TRIM(chm_info%impr_c(k))==TRIM("X")) .AND. &
-                        (TRIM(chm_info%impr_d(k))==TRIM(name_atm_a))) ) THEN
+                   IF( (((chm_info%impr_a(k))==(name_atm_a)) .AND. &
+                        ((chm_info%impr_b(k))==("X")) .AND. &
+                        ((chm_info%impr_c(k))==("X")) .AND. &
+                        ((chm_info%impr_d(k))==(name_atm_d))) .OR. &
+                        (((chm_info%impr_a(k))==(name_atm_d)) .AND. &
+                        ((chm_info%impr_b(k))==("X")) .AND. &
+                        ((chm_info%impr_c(k))==("X")) .AND. &
+                        ((chm_info%impr_d(k))==(name_atm_a))) ) THEN
                       impr_list(j)%impr_kind%name = "CHARMM"
                       impr_list(j)%impr_kind%k    = chm_info%impr_k(k)
                       impr_list(j)%impr_kind%phi0 = chm_info%impr_phi0(k)
@@ -3150,14 +3130,14 @@ CONTAINS
           ! always have the input param last to overwrite all the other ones
           IF(ASSOCIATED(inp_info%impr_a)) THEN
              DO k=1,SIZE(inp_info%impr_a)
-                IF( ((TRIM(inp_info%impr_a(k))==TRIM(name_atm_a)) .AND. &
-                     (TRIM(inp_info%impr_b(k))==TRIM(name_atm_b)) .AND. &
-                     (TRIM(inp_info%impr_c(k))==TRIM(name_atm_c)) .AND. &
-                     (TRIM(inp_info%impr_d(k))==TRIM(name_atm_d))) .OR. &
-                     ((TRIM(inp_info%impr_a(k))==TRIM(name_atm_d)) .AND. &
-                     (TRIM(inp_info%impr_b(k))==TRIM(name_atm_c)) .AND. &
-                     (TRIM(inp_info%impr_c(k))==TRIM(name_atm_b)) .AND. &
-                     (TRIM(inp_info%impr_d(k))==TRIM(name_atm_a))) ) THEN
+                IF( (((inp_info%impr_a(k))==(name_atm_a)) .AND. &
+                     ((inp_info%impr_b(k))==(name_atm_b)) .AND. &
+                     ((inp_info%impr_c(k))==(name_atm_c)) .AND. &
+                     ((inp_info%impr_d(k))==(name_atm_d))) .OR. &
+                     (((inp_info%impr_a(k))==(name_atm_d)) .AND. &
+                     ((inp_info%impr_b(k))==(name_atm_c)) .AND. &
+                     ((inp_info%impr_c(k))==(name_atm_b)) .AND. &
+                     ((inp_info%impr_d(k))==(name_atm_a))) ) THEN
                    impr_list(j)%impr_kind%name = inp_info%impr_kind(k)
                    impr_list(j)%impr_kind%k    = inp_info%impr_k(k)
                    impr_list(j)%impr_kind%phi0 = inp_info%impr_phi0(k)
@@ -3217,7 +3197,7 @@ CONTAINS
        ! loop over params from charmm  
        IF(ASSOCIATED(ff_type%chm_info%charge_atm)) THEN
           DO j=1,SIZE(ff_type%chm_info%charge_atm)
-             IF(TRIM(ff_type%chm_info%charge_atm(j))==atmname) THEN
+             IF((ff_type%chm_info%charge_atm(j))==atmname) THEN
                 charge(i) = ff_type%chm_info%charge(j)
                 IF (found) CALL Pwarning("Multiple charge declarations: "//TRIM(atmname)//&
                      " overwriting!",root_section,error)
@@ -3229,7 +3209,7 @@ CONTAINS
        IF(ASSOCIATED(ff_type%inp_info%charge_atm)) THEN
           DO j=1,SIZE(ff_type%inp_info%charge_atm)
              IF (iw>0) WRITE(iw,*)"Charge Checking ::",TRIM(ff_type%inp_info%charge_atm(j)),atmname
-             IF(TRIM(ff_type%inp_info%charge_atm(j))==atmname) THEN
+             IF((ff_type%inp_info%charge_atm(j))==atmname) THEN
                 charge(i) = ff_type%inp_info%charge(j)
                 IF (found) CALL Pwarning("Multiple charge declarations: "//TRIM(atmname)//&
                      " overwriting!",root_section,error)
@@ -3311,14 +3291,14 @@ CONTAINS
              ii = 0 
              jj = 0
              DO k=1,SIZE(gro_info%nonbond_a_14)
-                IF(TRIM(name_atm_a)==TRIM(gro_info%nonbond_a_14(k))) THEN
+                IF((name_atm_a)==(gro_info%nonbond_a_14(k))) THEN
                    ii = k
                    found_a = .TRUE.
                    EXIT
                 END IF
              END DO
              DO k=1,SIZE(gro_info%nonbond_a_14)
-                IF(TRIM(name_atm_b)==TRIM(gro_info%nonbond_a_14(k))) THEN
+                IF((name_atm_b)==(gro_info%nonbond_a_14(k))) THEN
                    jj = k
                    found_b   = .TRUE.
                    EXIT
@@ -3355,7 +3335,7 @@ CONTAINS
              ii = 0 
              jj = 0
              DO k=1,SIZE(chm_info%nonbond_a_14)
-                IF(TRIM(name_atm_a)==TRIM(chm_info%nonbond_a_14(k))) THEN
+                IF((name_atm_a)==(chm_info%nonbond_a_14(k))) THEN
                    ii = k
                    rmin2_a = chm_info%nonbond_rmin2_14(k)
                    epsilon_a = chm_info%nonbond_eps_14(k)
@@ -3363,7 +3343,7 @@ CONTAINS
                 END IF
              END DO
              DO k=1,SIZE(chm_info%nonbond_a_14)
-                IF(TRIM(name_atm_b)==TRIM(chm_info%nonbond_a_14(k))) THEN
+                IF((name_atm_b)==(chm_info%nonbond_a_14(k))) THEN
                    jj = k
                    rmin2_b   = chm_info%nonbond_rmin2_14(k)
                    epsilon_b = chm_info%nonbond_eps_14(k)
@@ -3374,7 +3354,7 @@ CONTAINS
           IF(ASSOCIATED(chm_info%nonbond_a)) THEN
              IF(.NOT.found_a) THEN
                 DO k=1,SIZE(chm_info%nonbond_a)
-                   IF(TRIM(name_atm_a)==TRIM(chm_info%nonbond_a(k))) THEN
+                   IF((name_atm_a)==(chm_info%nonbond_a(k))) THEN
                       ii = k
                       rmin2_a   = chm_info%nonbond_rmin2(k)
                       epsilon_a = chm_info%nonbond_eps(k)
@@ -3383,7 +3363,7 @@ CONTAINS
              END IF
              IF(.NOT.found_b) THEN
                 DO k=1,SIZE(chm_info%nonbond_a)
-                   IF(TRIM(name_atm_b)==TRIM(chm_info%nonbond_a(k))) THEN
+                   IF((name_atm_b)==(chm_info%nonbond_a(k))) THEN
                       jj = k
                       rmin2_b   = chm_info%nonbond_rmin2(k)
                       epsilon_b = chm_info%nonbond_eps(k)
@@ -3412,10 +3392,10 @@ CONTAINS
              DO k=1,SIZE(inp_info%nonbonded14%pot)
                 IF(iw>0) WRITE(iw,*) "    TESTING ",TRIM(name_atm_a),TRIM(name_atm_b),&
                      " with ",TRIM(inp_info%nonbonded14%pot(k)%pot%at1),TRIM(inp_info%nonbonded14%pot(k)%pot%at2)
-                IF(((TRIM(name_atm_a)==TRIM(inp_info%nonbonded14%pot(k)%pot%at1))  .AND. &
-                     (TRIM(name_atm_b)==TRIM(inp_info%nonbonded14%pot(k)%pot%at2))) .OR.  &
-                     ((TRIM(name_atm_b)==TRIM(inp_info%nonbonded14%pot(k)%pot%at1))  .AND. &
-                     (TRIM(name_atm_a)==TRIM(inp_info%nonbonded14%pot(k)%pot%at2))) ) THEN
+                IF((((name_atm_a)==(inp_info%nonbonded14%pot(k)%pot%at1))  .AND. &
+                     ((name_atm_b)==(inp_info%nonbonded14%pot(k)%pot%at2))) .OR.  &
+                     (((name_atm_b)==(inp_info%nonbonded14%pot(k)%pot%at1))  .AND. &
+                     ((name_atm_a)==(inp_info%nonbonded14%pot(k)%pot%at2))) ) THEN
                    CALL pair_potential_single_copy(inp_info%nonbonded14%pot(k)%pot,potparm_bond%pot(i,j)%pot,error)
                    IF (found) CALL Pwarning("Multiple Lennard-Jones declarations: "//TRIM(name_atm_a)//&
                         " and "//TRIM(name_atm_b)//" overwriting!",root_section,error)
@@ -3430,18 +3410,18 @@ CONTAINS
           ! nonbonded interactions
           IF (use_qmmm_ff) THEN
              match_names = 0
-             IF (TRIM(name_atm_a) == TRIM(name_atm_a_local)) match_names = match_names + 1
-             IF (TRIM(name_atm_b) == TRIM(name_atm_b_local)) match_names = match_names + 1
+             IF ((name_atm_a) == (name_atm_a_local)) match_names = match_names + 1
+             IF ((name_atm_b) == (name_atm_b_local)) match_names = match_names + 1
              IF (match_names == 1) THEN
                 IF (ASSOCIATED(qmmm_env%inp_info%nonbonded14)) THEN
                    DO k=1,SIZE(qmmm_env%inp_info%nonbonded14%pot)
                       IF(iw>0) WRITE(iw,*) "    TESTING ",TRIM(name_atm_a),TRIM(name_atm_b),&
                            " with ",TRIM(qmmm_env%inp_info%nonbonded14%pot(k)%pot%at1),&
                            TRIM(qmmm_env%inp_info%nonbonded14%pot(k)%pot%at2)
-                      IF(( (TRIM(name_atm_a) ==TRIM(qmmm_env%inp_info%nonbonded14%pot(k)%pot%at1))  .AND. &
-                           (TRIM(name_atm_b) ==TRIM(qmmm_env%inp_info%nonbonded14%pot(k)%pot%at2))) .OR.  &
-                           ((TRIM(name_atm_b)==TRIM(qmmm_env%inp_info%nonbonded14%pot(k)%pot%at1))  .AND. &
-                           (TRIM(name_atm_a) ==TRIM(qmmm_env%inp_info%nonbonded14%pot(k)%pot%at2))) ) THEN
+                      IF(( ((name_atm_a) ==(qmmm_env%inp_info%nonbonded14%pot(k)%pot%at1))  .AND. &
+                           ((name_atm_b) ==(qmmm_env%inp_info%nonbonded14%pot(k)%pot%at2))) .OR.  &
+                           (((name_atm_b)==(qmmm_env%inp_info%nonbonded14%pot(k)%pot%at1))  .AND. &
+                           ((name_atm_a) ==(qmmm_env%inp_info%nonbonded14%pot(k)%pot%at2))) ) THEN
                          CALL pair_potential_single_copy(qmmm_env%inp_info%nonbonded14%pot(k)%pot,&
                               potparm_bond%pot(i,j)%pot,error)
                          IF (found) CALL Pwarning("Multiple Lennard-Jones declarations: "//TRIM(name_atm_a)//&
@@ -3562,13 +3542,13 @@ CONTAINS
              ii = 0 
              jj = 0
              DO k=1,SIZE(gro_info%nonbond_a)
-                IF(TRIM(name_atm_a)==TRIM(gro_info%nonbond_a(k))) THEN
+                IF((name_atm_a)==(gro_info%nonbond_a(k))) THEN
                    ii = k
                    EXIT
                 END IF
              END DO
              DO k=1,SIZE(gro_info%nonbond_a)
-                IF(TRIM(name_atm_b)==TRIM(gro_info%nonbond_a(k))) THEN
+                IF((name_atm_b)==(gro_info%nonbond_a(k))) THEN
                    jj = k
                    EXIT
                 END IF
@@ -3600,12 +3580,12 @@ CONTAINS
              ii = 0 
              jj = 0
              DO k=1,SIZE(chm_info%nonbond_a)
-                IF(TRIM(name_atm_a)==TRIM(chm_info%nonbond_a(k))) THEN
+                IF((name_atm_a)==(chm_info%nonbond_a(k))) THEN
                    ii = k
                 END IF
              END DO
              DO k=1,SIZE(chm_info%nonbond_a)
-                IF(TRIM(name_atm_b)==TRIM(chm_info%nonbond_a(k))) THEN
+                IF((name_atm_b)==(chm_info%nonbond_a(k))) THEN
                    jj = k
                 END IF
              END DO
@@ -3636,10 +3616,10 @@ CONTAINS
                 IF(iw>0) WRITE(iw,*) "    TESTING ",TRIM(name_atm_a),TRIM(name_atm_b),&
                      " with ",TRIM(inp_info%nonbonded%pot(k)%pot%at1),&
                      TRIM(inp_info%nonbonded%pot(k)%pot%at2)
-                IF(((TRIM(name_atm_a)==TRIM(inp_info%nonbonded%pot(k)%pot%at1))  .AND. &
-                     (TRIM(name_atm_b)==TRIM(inp_info%nonbonded%pot(k)%pot%at2))) .OR.  &
-                     ((TRIM(name_atm_b)==TRIM(inp_info%nonbonded%pot(k)%pot%at1))  .AND. &
-                     (TRIM(name_atm_a)==TRIM(inp_info%nonbonded%pot(k)%pot%at2))) ) THEN
+                IF((((name_atm_a)==(inp_info%nonbonded%pot(k)%pot%at1))  .AND. &
+                     ((name_atm_b)==(inp_info%nonbonded%pot(k)%pot%at2))) .OR.  &
+                     (((name_atm_b)==(inp_info%nonbonded%pot(k)%pot%at1))  .AND. &
+                     ((name_atm_a)==(inp_info%nonbonded%pot(k)%pot%at2))) ) THEN
                    CALL pair_potential_single_copy(inp_info%nonbonded%pot(k)%pot,potparm_nonbond%pot(i,j)%pot,error)
                    IF (found) CALL Pwarning("Multiple Lennard-Jones declarations: "//TRIM(name_atm_a)//&
                         " and "//TRIM(name_atm_b)//" overwriting!",&
@@ -3655,18 +3635,18 @@ CONTAINS
           ! nonbonded interactions
           IF (use_qmmm_ff) THEN
              match_names = 0
-             IF (TRIM(name_atm_a) == TRIM(name_atm_a_local)) match_names = match_names + 1
-             IF (TRIM(name_atm_b) == TRIM(name_atm_b_local)) match_names = match_names + 1
+             IF ((name_atm_a) == (name_atm_a_local)) match_names = match_names + 1
+             IF ((name_atm_b) == (name_atm_b_local)) match_names = match_names + 1
              IF (match_names == 1) THEN
                 IF (ASSOCIATED(qmmm_env%inp_info%nonbonded)) THEN
                    DO k=1,SIZE(qmmm_env%inp_info%nonbonded%pot)
                       IF(iw>0) WRITE(iw,*) "    TESTING ",TRIM(name_atm_a),TRIM(name_atm_b),&
                            " with ",TRIM(qmmm_env%inp_info%nonbonded%pot(k)%pot%at1),&
                            TRIM(qmmm_env%inp_info%nonbonded%pot(k)%pot%at2)
-                      IF(( (TRIM(name_atm_a) ==TRIM(qmmm_env%inp_info%nonbonded%pot(k)%pot%at1))  .AND. &
-                           (TRIM(name_atm_b) ==TRIM(qmmm_env%inp_info%nonbonded%pot(k)%pot%at2))) .OR.  &
-                           ((TRIM(name_atm_b)==TRIM(qmmm_env%inp_info%nonbonded%pot(k)%pot%at1))  .AND. &
-                           (TRIM(name_atm_a) ==TRIM(qmmm_env%inp_info%nonbonded%pot(k)%pot%at2))) ) THEN
+                      IF(( ((name_atm_a) ==(qmmm_env%inp_info%nonbonded%pot(k)%pot%at1))  .AND. &
+                           ((name_atm_b) ==(qmmm_env%inp_info%nonbonded%pot(k)%pot%at2))) .OR.  &
+                           (((name_atm_b)==(qmmm_env%inp_info%nonbonded%pot(k)%pot%at1))  .AND. &
+                           ((name_atm_a) ==(qmmm_env%inp_info%nonbonded%pot(k)%pot%at2))) ) THEN
                          CALL pair_potential_single_copy(qmmm_env%inp_info%nonbonded%pot(k)%pot,&
                               potparm_nonbond%pot(i,j)%pot,error)
                          IF (found) CALL Pwarning("Multiple Lennard-Jones declarations: "//TRIM(name_atm_a)//&
