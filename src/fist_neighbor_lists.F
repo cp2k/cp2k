@@ -178,12 +178,7 @@ CONTAINS
           ! Build index vector for mapping
           DO iatom_local=1,natom_local_a
              atom_a = local_particles%list(ikind)%array(iatom_local)
-             DO iatom=1,natom_a
-                IF (atom_a == atom(ikind)%list(iatom)) THEN
-                   atom(ikind)%list_local_a_index(iatom_local) = iatom
-                   EXIT
-                END IF
-             END DO
+             atom(ikind)%list_local_a_index(iatom_local) = atom_a
           END DO
 
        END IF
@@ -294,7 +289,7 @@ CONTAINS
     INTEGER :: a_i, a_j, a_k, atom_a, atom_b, b_i, b_j, b_k, b_pi, b_pj, &
       b_pk, bg_i, bg_j, bg_k, dim1, dim1p, dim2, dim2p, g00, g0_i, g0_j, &
       g0_k, g_i, g_j, g_k, glob_a_index, glob_b_index, handle, i, i1, iab, &
-      iatom, iatom_local, icell, icellmap, ii, ij, ik, ikind, imap, &
+      iatom_local, icell, icellmap, ii, ij, ik, ikind, imap, &
       imax_cell, iw, ix, j, j1, jatom_local, jcell, jkind, jx, k, kcell, kx, &
       natom_local_a, ncellmax, nkind, nkind00, pre_glob_ind, stat, tmpdim, &
       xdim
@@ -445,8 +440,7 @@ CONTAINS
        IF (.NOT.ASSOCIATED(atom(ikind)%list_local_a_index)) CYCLE
        natom_local_a = SIZE(atom(ikind)%list_local_a_index)
        DO iatom_local=1,natom_local_a
-          iatom = atom(ikind)%list_local_a_index(iatom_local)
-          atom_a = atom(ikind)%list(iatom)
+          atom_a = atom(ikind)%list_local_a_index(iatom_local)
           CALL give_ijk_subcell(coord(:,atom_a),i,j,k,cell,nsubcell)
           subcell_a(i,j,k)%natom   = subcell_a(i,j,k)%natom + 1
        END DO
@@ -464,8 +458,7 @@ CONTAINS
        IF (.NOT.ASSOCIATED(atom(ikind)%list_local_a_index)) CYCLE
        natom_local_a = SIZE(atom(ikind)%list_local_a_index)
        DO iatom_local=1,natom_local_a
-          iatom = atom(ikind)%list_local_a_index(iatom_local)
-          atom_a = atom(ikind)%list(iatom)
+          atom_a = atom(ikind)%list_local_a_index(iatom_local)
           CALL give_ijk_subcell(coord(:,atom_a),i,j,k,cell,nsubcell)
           subcell_a(i,j,k)%natom   = subcell_a(i,j,k)%natom + 1
           subcell_a(i,j,k)%atom_list(subcell_a(i,j,k)%natom) = atom_a
