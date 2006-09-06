@@ -72,7 +72,7 @@ MODULE input_section_types
        section_vals_get, section_vals_get_subs_vals, section_vals_val_get,&
        section_vals_write, section_vals_add_values, section_vals_get_subs_vals2,&
        section_vals_val_set, section_vals_val_unset, section_vals_get_subs_vals3,&
-       section_vals_set_subs_vals, section_vals_duplicate
+       section_vals_set_subs_vals, section_vals_duplicate, section_vals_remove_values
   PUBLIC :: write_section_xml
 
   PUBLIC :: section_get_ival,&
@@ -1511,6 +1511,69 @@ SUBROUTINE section_vals_add_values(section_vals,error)
      END IF
   END IF
 END SUBROUTINE section_vals_add_values
+!***************************************************************************
+
+!!****f* cp_keywords/section_vals_remove_values *
+!!
+!!   NAME
+!!     section_vals_remove_values
+!!
+!!   FUNCTION
+!!     removes the values of a repetition of the section
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - section_vals: the section you want to extend
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!*** **********************************************************************
+SUBROUTINE section_vals_remove_values(section_vals,error)
+  TYPE(section_vals_type), POINTER         :: section_vals
+  TYPE(cp_error_type), INTENT(inout), &
+       OPTIONAL                               :: error
+
+  CHARACTER(len=*), PARAMETER :: routineN = 'section_vals_remove_values', &
+       routineP = moduleN//':'//routineN
+
+  INTEGER                                  :: i, j, stat
+  LOGICAL                                  :: failure
+  TYPE(cp_sll_val_p_type), &
+       DIMENSION(:, :), POINTER               :: new_values
+  TYPE(section_vals_p_type), &
+       DIMENSION(:, :), POINTER               :: new_sps
+  TYPE(val_type), POINTER                  :: el
+  TYPE(cp_sll_val_type), POINTER           :: vals
+
+  failure=.FALSE.
+
+  CPPrecondition(ASSOCIATED(section_vals),cp_failure_level,routineP,error,failure)
+  CPPrecondition(section_vals%ref_count>0,cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
+     NULLIFY(el, vals)
+     ! Allocate a null 0 dimension array of values
+     ALLOCATE(new_values(0,0),stat=stat)
+     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+     ! Release old values
+     DO j=1,SIZE(section_vals%values,2)
+        DO i=-1,UBOUND(section_vals%values,1)
+           vals => section_vals%values(i,j)%list
+           DO WHILE (cp_sll_val_next(vals,el_att=el,error=error))
+              CALL val_release(el,error=error)
+           END DO
+           CALL cp_sll_val_dealloc(section_vals%values(i,j)%list,error=error)
+        END DO
+     END DO
+     DEALLOCATE(section_vals%values,stat=stat)
+     CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+     section_vals%values => new_values
+  END IF
+END SUBROUTINE section_vals_remove_values
 !***************************************************************************
 
 ! These accessor functions can be used instead of passing a variable 

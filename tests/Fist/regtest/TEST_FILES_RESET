@@ -223,3 +223,5 @@ argon_nph_plastic.inp
 water_IPBV.inp
 #  
 water_IPBV_flex.inp
+# Cleaning the velocity section in a geometry optimization run
+silicon_cluster_6.inp

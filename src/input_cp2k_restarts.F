@@ -53,12 +53,18 @@ MODULE input_cp2k_restarts
   USE input_constants,                 ONLY: use_unit_angstrom,&
                                              use_unit_bohr,&
                                              use_unit_scaled_angstrom,&
-                                             use_unit_scaled_bohr
+                                             use_unit_scaled_bohr,&
+                                             mol_dyn_run,&
+                                             mon_car_run,&
+                                             pint_run,&
+                                             ldmc_run,&
+                                             hmc_run
   USE input_section_types,             ONLY: &
        section_get_keyword_index, section_type, section_vals_add_values, &
        section_vals_get, section_vals_get_subs_vals, &
        section_vals_get_subs_vals3, section_vals_type, section_vals_val_get, &
-       section_vals_val_set, section_vals_val_unset, section_vals_write
+       section_vals_val_set, section_vals_val_unset, section_vals_write,&
+       section_vals_remove_values
   USE input_val_types,                 ONLY: val_create,&
                                              val_release,&
                                              val_type
@@ -912,15 +918,24 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'update_force_eval', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: iforce_eval, nforce_eval
+    INTEGER                                  :: iforce_eval, nforce_eval, myid
     TYPE(force_env_type), POINTER            :: my_force_env
     TYPE(section_vals_type), POINTER         :: force_env_sections, &
                                                 rng_section, subsys_section
+    LOGICAL                                  :: skip_vel_section
 
     NULLIFY(rng_section, subsys_section)
-    
+    ! If it's not a dynamical run don't update the velocity section
+    CALL section_vals_val_get(root_section,"GLOBAL%RUN_TYPE",i_val=myid,error=error)
+    skip_vel_section =((myid /= mol_dyn_run).AND.&
+                       (myid /= mon_car_run).AND.&
+                       (myid /= pint_run).AND.&
+                       (myid /= ldmc_run).AND.&
+                       (myid /= hmc_run))
+                       
+    ! Go on updatig the force_env_section
     force_env_sections => section_vals_get_subs_vals(root_section,"FORCE_EVAL",error=error)
-    CALL section_vals_get(force_env_sections, n_repetition=nforce_eval, error=error)       
+    CALL section_vals_get(force_env_sections, n_repetition=nforce_eval, error=error)
     DO iforce_eval=1,nforce_eval
        subsys_section => section_vals_get_subs_vals3(force_env_sections,"SUBSYS",&
             i_rep_section=iforce_eval,error=error)
@@ -928,7 +943,7 @@ CONTAINS
        my_force_env => force_env
        IF (iforce_eval>1) my_force_env => force_env%sub_force_env(iforce_eval-1)%force_env
        CALL update_rng(rng_section,my_force_env,error)
-       CALL update_subsys(subsys_section,my_force_env,error)
+       CALL update_subsys(subsys_section,my_force_env,skip_vel_section,error)
     END DO
 
   END SUBROUTINE update_force_eval
@@ -1057,11 +1072,12 @@ CONTAINS
 !!     01.2006 created [teo]
 !!
 !!*** **********************************************************************
-  SUBROUTINE update_subsys(subsys_section,force_env,error)
+  SUBROUTINE update_subsys(subsys_section,force_env,skip_vel_section,error)
     TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(force_env_type), POINTER            :: force_env
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
+    LOGICAL, INTENT(IN)                      :: skip_vel_section
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'update_subsys', &
       routineP = moduleN//':'//routineN
@@ -1107,7 +1123,11 @@ CONTAINS
        work_section => section_vals_get_subs_vals(subsys_section,"COORD",error=error)
        CALL section_coord_val_set(work_section, particles, molecules, conv_factor, error)
        work_section => section_vals_get_subs_vals(subsys_section,"VELOCITY",error=error)
-       CALL section_velocity_val_set(work_section, particles, conv_factor=1.0_dp, error=error)
+       IF (.NOT.skip_vel_section) THEN
+          CALL section_velocity_val_set(work_section, particles, conv_factor=1.0_dp, error=error)
+       ELSE
+          CALL section_vals_remove_values(work_section, error)
+       END IF
        !
        ! CELL
        ! 
