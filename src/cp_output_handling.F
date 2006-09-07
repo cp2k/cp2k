@@ -188,7 +188,7 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE cp_print_key_section_create(print_key_section, name, description, &
-       print_level,each,add_last,filename,common_iter_levels,error)
+       print_level,each,add_last,filename,common_iter_levels,store,error)
     TYPE(section_type), POINTER              :: print_key_section
     CHARACTER(len=*), INTENT(in)             :: name, description
     INTEGER, INTENT(in), OPTIONAL            :: print_level
@@ -196,6 +196,7 @@ CONTAINS
       OPTIONAL                               :: each, add_last
     CHARACTER(LEN=*), INTENT(in), OPTIONAL   :: filename
     INTEGER, INTENT(in), OPTIONAL            :: common_iter_levels
+    LOGICAL, INTENT(IN), OPTIONAL            :: store
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -205,7 +206,7 @@ CONTAINS
     CHARACTER(len=default_string_length)     :: my_filename
     INTEGER                                  :: my_comm_iter_levels, &
                                                 my_print_level
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure, mystore
     TYPE(enumeration_type), POINTER          :: enum
     TYPE(keyword_type), POINTER              :: keyword
     TYPE(val_type), POINTER                  :: val
@@ -311,26 +312,30 @@ CONTAINS
        ! this appears useful right now as a way to communicate information upwards.
        ! I.e. this means that one can call CP2K to execute an input, and store somewhere whatever
        ! result to be used at a higher level. Very flexible, very 'dangerous'...
-       NULLIFY(store_section)
-       CALL section_create(store_section,name="STORE",&
-          description="A section where print results can be stored",&
-          n_keywords=2, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
-          error=error)
+       mystore=.FALSE.
+       IF (PRESENT(store)) mystore=store
+       IF (mystore) THEN
+          NULLIFY(store_section)
+          CALL section_create(store_section,name="STORE",&
+             description="A section where print results can be stored",&
+             n_keywords=2, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+             error=error)
 
-       CALL keyword_create(keyword, name="NAME",&
-            description="Specifies what can be stored in this section, if implemented",&
-            type_of_var=char_t,error=error)
-       CALL section_add_keyword(store_section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
+          CALL keyword_create(keyword, name="NAME",&
+               description="Specifies what can be stored in this section, if implemented",&
+               type_of_var=char_t,error=error)
+          CALL section_add_keyword(store_section,keyword,error=error)
+          CALL keyword_release(keyword,error=error)
 
-       CALL keyword_create(keyword,name="VALUE",&
-            description="Whatever real value that needs to be stored (output)",&
-            default_r_val=0.0_dp,repeats=.FALSE.,error=error)
-       CALL section_add_keyword(store_section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
+          CALL keyword_create(keyword,name="VALUE",&
+               description="Whatever real value that needs to be stored (output)",&
+               default_r_val=0.0_dp,repeats=.FALSE.,error=error)
+          CALL section_add_keyword(store_section,keyword,error=error)
+          CALL keyword_release(keyword,error=error)
 
-       CALL section_add_subsection(print_key_section,store_section,error=error)
-       CALL section_release(store_section,error=error)
+          CALL section_add_subsection(print_key_section,store_section,error=error)
+          CALL section_release(store_section,error=error)
+       ENDIF
 
     END IF
   END SUBROUTINE cp_print_key_section_create
