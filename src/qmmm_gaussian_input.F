@@ -90,8 +90,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'read_mm_potential', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(default_string_length)         :: mm_potential_file_name
-    CHARACTER(len=10)                        :: Ftarget, Units
+    CHARACTER(LEN=default_string_length)     :: mm_potential_file_name
+    CHARACTER(LEN=default_string_length)     :: Ftarget, Units
     CHARACTER(LEN=240)                       :: line
     INTEGER                                  :: IRad, istart, Ival, j, Nog, &
                                                 Nval, stat

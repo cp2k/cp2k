@@ -1156,7 +1156,7 @@ CONTAINS
        IF (((ipos == 2).OR.(ipos == 3)).AND.(INDEX(atomic_kind%name,"_ghost")==0)) THEN
           element_symbol = atomic_kind%name(1:ipos-1)
        ELSE
-          element_symbol = atomic_kind%name
+          element_symbol = atomic_kind%name(1:2)
        END IF
        CALL uppercase(element_symbol)
        DO i=LBOUND(ptable,1),UBOUND(ptable,1)
@@ -1299,7 +1299,7 @@ CONTAINS
       IF ((ipos == 2).OR.(ipos == 3)) THEN
         element_symbol = atomic_kind%name(1:ipos-1)
       ELSE
-        element_symbol = atomic_kind%name
+        element_symbol = atomic_kind%name(1:2)
       END IF
       CALL uppercase(element_symbol)
       DO i=LBOUND(ptable,1),UBOUND(ptable,1)

@@ -927,7 +927,7 @@ FUNCTION cp_print_key_generate_filename(logger,print_key,middle_name,extension,&
         IF (outPath.EQ."") THEN
            my_middle_name="" 
         ELSE
-           my_middle_name="-"//outPath
+           my_middle_name="-"//TRIM(outPath)
         ENDIF
      ENDIF
      IF (my_middle_name.EQ."-") my_middle_name=""
