@@ -238,6 +238,9 @@ CONTAINS
        atomic_kind=> atomic_kind_set(i)
        CALL get_atomic_kind(atomic_kind=atomic_kind,qeff=qi)
        DO j = 1, i  ! j:  second atom type
+          IF (iw3>0 .AND. iw<=0) THEN
+             IF (MOD(i*(i-1)/2+j,MAX(1,(ntype*(ntype+1))/(2*10)))==0) WRITE(iw3,'(T2,A3,I0)') '...',i*(i-1)/2+j
+          ENDIF
           IF (.NOT.potparm%pot(i,j)%pot%undef) CYCLE
           CALL ewald_env_get(ewald_env,ewald_type=ewald_type,alpha=alpha,eps0=eps0)
           ncount = ncount + 1
@@ -346,10 +349,6 @@ CONTAINS
                   locut,hicut
              WRITE(iw,'("SPLINE_INFO|",5X,A,2F12.6)')"RMIN and RMAX used to achieve spline accuracy (bohr):",&
                   xsav,hicut
-          ELSE
-             IF (iw3>0) THEN
-                IF (MOD(i*(i-1)/2+j,MAX(1,(ntype*(ntype+1))/(2*10)))==0) WRITE(iw3,'(T2,A3,I0)') '...',i*(i-1)/2+j
-             ENDIF
           END IF
           ! print spline data on file
           IF (iw2>0) THEN
