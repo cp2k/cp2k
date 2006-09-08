@@ -598,7 +598,7 @@ CONTAINS
                       rab2_min = r_minsq(ikind,jkind)
                       IF (rab2 < rab2_min) THEN
                          iw=cp_logger_get_default_unit_nr()
-                         WRITE(iw,'(T2,A,2I6,2(A,F15.9),A)')"WARNING| Particles: ",&
+                         WRITE(iw,'(T2,A,2I7,2(A,F15.8),A)')"WARNING| Particles: ",&
                               atom_a,atom_b,&
                               " at distance [au]:",SQRT(rab2)," less than: ",&
                               SQRT(rab2_min),&
