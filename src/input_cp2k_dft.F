@@ -1038,7 +1038,9 @@ CONTAINS
        CALL section_release(print_key,error=error)
 
        CALL cp_print_key_section_create(print_key,"e_density_cube",&
-            description="Controls the printing of a cube file with electronic density.", &
+            description="Controls the printing of cube files with "//&
+                        "the total electronic density and, for LSD "//&
+                        "calculations, the spin density", &
             print_level=high_print_level,each=(/1/),filename="",&
             error=error)
        CALL keyword_create(keyword, name="stride",&
