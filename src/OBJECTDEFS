@@ -401,6 +401,7 @@ OBJECTS_GENERIC =\
  splines.o\
  spme.o\
  sto_ng.o\
+ string_table.o\
  string_utilities.o\
  structure_factor_types.o\
  structure_factors.o\

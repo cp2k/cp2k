@@ -89,6 +89,8 @@ MODULE f77_interface
   USE physcon,                         ONLY: init_physcon
   USE qmmm_init,                       ONLY: qmmm_create_force_env
   USE qs_main,                         ONLY: quickstep_create_force_env
+  USE string_table,                    ONLY: string_table_allocate, &
+                                             string_table_deallocate
   USE tbmd_main,                       ONLY: tbmd_create_force_env
   USE timings,                         ONLY: add_timer_env,&
                                              get_timer_env,&
@@ -208,6 +210,8 @@ CONTAINS
        ELSE
           mpi_comm_default=MPI_COMM_WORLD
        END IF
+ 
+       CALL string_table_allocate()
 
        CALL add_mp_perf_env()
        CALL add_timer_env()
@@ -291,6 +295,7 @@ CONTAINS
        CALL rm_cp2k_units()
        CALL rm_timer_env()
        CALL rm_mp_perf_env()
+       CALL string_table_deallocate(0)
        IF (finalize_mpi) THEN
           CALL mp_world_finalize()
        END IF
