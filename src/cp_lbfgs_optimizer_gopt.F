@@ -768,7 +768,7 @@ CPSourceFileRef,&
                      particles=particles)
                 particle_set => particles%els              
                 WRITE (UNIT=title,FMT="(A,I8,A,F20.10)") " i =",optimizer%isave(30),", E =",optimizer%f
-                CALL write_particle_coordinates(particle_set,cell,dataunit,&
+                CALL write_particle_coordinates(particle_set,dataunit,&
                      dump_xmol,"POS",TRIM(title))                
                 CALL m_flush(dataunit)
              END IF

@@ -488,7 +488,7 @@ CONTAINS
              CALL cp_subsys_get(subsys(isubsys)%subsys,&
                   particles=particles,&
                   error=error)
-             CALL write_particle_coordinates(particles%els,cell,crd,&
+             CALL write_particle_coordinates(particles%els,crd,&
                   simpar%output_format,"POS",title)
           END DO
           CALL m_flush(crd)
@@ -521,7 +521,7 @@ CONTAINS
              CALL cp_subsys_get(subsys(isubsys)%subsys,&
                   particles=particles,&
                   error=error)
-             CALL write_particle_coordinates(particles%els,cell,vel,&
+             CALL write_particle_coordinates(particles%els,vel,&
                   simpar%output_format,"VEL",title)
           END DO
           CALL m_flush(vel)
@@ -554,7 +554,7 @@ CONTAINS
              CALL cp_subsys_get(subsys(isubsys)%subsys,&
                   particles=particles,&
                   error=error)
-             CALL write_particle_coordinates(particles%els,cell,frc,&
+             CALL write_particle_coordinates(particles%els,frc,&
                   simpar%output_format,"FORCE",title)
           END DO
           CALL m_flush(frc)

@@ -355,7 +355,7 @@ CONTAINS
                WRITE(com_crd,*) 'INITIAL BOX ' // TRIM(ADJUSTL(cbox))
             ELSE
                CALL write_particle_coordinates(particles_old(ibox)%list%els,&
-                  cell(ibox)%cell,com_crd,dump_xmol,'POS',&
+                  com_crd,dump_xmol,'POS',&
                   'INITIAL BOX ' // TRIM(ADJUSTL(cbox)))
             ENDIF
             CALL open_file(file_name=data_file(ibox),&
@@ -690,7 +690,7 @@ CONTAINS
                   ELSE
                      CALL write_particle_coordinates(&
                         particles_old(ibox)%list%els,&
-                        cell(ibox)%cell,com_crd,dump_xmol,'POS',&
+                        com_crd,dump_xmol,'POS',&
                         'BOX ' // TRIM(ADJUSTL(cbox)))
                   ENDIF
                ENDDO
@@ -827,7 +827,7 @@ CONTAINS
             ELSE
                CALL write_particle_coordinates(&
                particles_old(ibox)%list%els,&
-               cell(ibox)%cell,com_crd,dump_xmol,'POS',&
+               com_crd,dump_xmol,'POS',&
                'FINAL BOX ' // TRIM(ADJUSTL(cbox)))
             ENDIF
 

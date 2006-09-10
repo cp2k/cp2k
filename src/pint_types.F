@@ -1752,7 +1752,7 @@ SUBROUTINE pint_write_centroids(pint_env,error)
               WRITE (UNIT=title,FMT="(A,I8,A,F20.10)")&
                    " i =",logger%iter_info%iteration(2),&
                    ", E =",SUM(pint_env%e_pot_bead)/REAL(pint_env%p,dp)
-              CALL write_particle_coordinates(particles%els,cell=cell,&
+              CALL write_particle_coordinates(particles%els,&
                    iunit=unit_nr,FORMAT=i_form,content="POS_VEL",title=title)
               logger%iter_info%iteration(1)=iter
               CALL cp_print_key_finished_output(unit_nr,logger,&

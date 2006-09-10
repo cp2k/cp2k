@@ -269,7 +269,7 @@ CONTAINS
                ELSE
                   WRITE(diff(ibox),*) nnstep
                   CALL write_particle_coordinates(&
-                     particles(ibox)%list%els,cell(ibox)%cell,&
+                     particles(ibox)%list%els,&
                      diff(ibox),dump_xmol,'POS','TRIAL')
                ENDIF
             ENDDO

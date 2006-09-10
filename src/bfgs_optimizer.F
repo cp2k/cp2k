@@ -257,7 +257,7 @@ CONTAINS
                               particles=particles)
            particle_set => particles%els
            WRITE (UNIT=title,FMT="(A,I8,A,F20.10)") " i =",it,", E =",etot
-           CALL write_particle_coordinates(particle_set,cell,traj_unit,&
+           CALL write_particle_coordinates(particle_set,traj_unit,&
                                            dump_xmol,"POS",TRIM(title))
            CALL m_flush(traj_unit)
          END IF

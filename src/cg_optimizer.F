@@ -297,7 +297,7 @@ CONTAINS
                 particle_set => particles%els              
                 
                 WRITE (UNIT=title,FMT="(A,I8,A,F20.10)") " i =",its,", E =",opt_energy
-                CALL write_particle_coordinates(particle_set,cell,dataunit,&
+                CALL write_particle_coordinates(particle_set,dataunit,&
                      dump_xmol,"POS",TRIM(title))
                 CALL m_flush(dataunit)
              END IF

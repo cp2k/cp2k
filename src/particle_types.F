@@ -452,12 +452,11 @@ END SUBROUTINE clone_particle
 !  XMOL     POS, VEL, FORCE, POS_VEL, POS_VEL_FORCE    Angstrom, a.u., a.u. !hmmmm
 ! *****************************************************************************
 
-  SUBROUTINE write_particle_coordinates(particle_set,cell,iunit,FORMAT,&
+  SUBROUTINE write_particle_coordinates(particle_set,iunit,FORMAT,&
                                         content,title)
 
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(cell_type), POINTER                 :: cell
     INTEGER                                  :: iunit, FORMAT
     CHARACTER(LEN=*)                         :: content, title
 

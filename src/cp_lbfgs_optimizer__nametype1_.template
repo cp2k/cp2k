@@ -52,7 +52,6 @@
 !*****************************************************************************
 MODULE cp_lbfgs_optimizer_[nametype1]
   USE cp_lbfgs, ONLY: setulb, cp_lbfgs_unit_nr
-  USE global_types,                    ONLY: global_environment_type  
   USE kinds, ONLY: dp
   USE cp_para_types, ONLY: cp_para_env_type
   USE cp_para_env, ONLY: cp_para_env_retain, cp_para_env_release
@@ -261,12 +260,10 @@ CONTAINS
   SUBROUTINE cp_opt_[nametype1]_create(optimizer, para_env, &
        obj_funct, x0, m, print_every, &
        wanted_relative_f_delta, wanted_projected_gradient,&
-       lower_bound,upper_bound, kind_of_bound, master, max_f_per_iter,globenv,&
+       lower_bound,upper_bound, kind_of_bound, master, max_f_per_iter,&
        error)
     TYPE(cp_lbfgs_opt_[nametype1]_type), POINTER :: optimizer
     TYPE(cp_para_env_type), POINTER :: para_env
-    TYPE(global_environment_type), &
-         POINTER                  :: globenv
     [type1], pointer :: obj_funct
     REAL(kind=dp), DIMENSION(:), INTENT(in) :: x0
     INTEGER, INTENT(in), OPTIONAL :: m,print_every, master, max_f_per_iter
@@ -299,7 +296,7 @@ CONTAINS
        n=SIZE(x0)
        optimizer%m=4
        IF (PRESENT(m)) optimizer%m=m
-       optimizer%master= globenv%source
+       optimizer%master= para_env%source
        optimizer%para_env => para_env
        CALL cp_para_env_retain(para_env)
        optimizer%obj_funct => obj_funct
@@ -583,7 +580,7 @@ END SUBROUTINE cp_opt_[nametype1]_release
                PRESENT(upper_bound).OR.PRESENT(kind_of_bound)),&
                cp_warning_level,cp_assertion_failed,&
                routineP, "asked undefined types in "//&
-               CPSourceFileRef,&
+CPSourceFileRef,&
                error,failure)
        END IF
 
@@ -662,7 +659,7 @@ END SUBROUTINE cp_opt_[nametype1]_release
        CALL cp_assert(.FALSE.,level=cp_warning_level,&
             error_nr=cp_assertion_failed,fromWhere=routineP,&
             message="status>=4, trying to restart in "//&
-            CPSourceFileRef,&
+CPSourceFileRef,&
             error=error)
        optimizer%status=0
        IF (is_master) THEN
@@ -728,14 +725,14 @@ END SUBROUTINE cp_opt_[nametype1]_release
                 optimizer%status=5
                 CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,&
                      routineP,"task became stop in an unknown way in "//&
-                     CPSourceFileRef,&
+CPSourceFileRef,&
                      error)
              ELSE IF (optimizer%task(1:5)=='ERROR') THEN
                 optimizer%status=5
              ELSE
                 CALL cp_assert(.FALSE.,cp_warning_level,cp_assertion_failed,&
                      routineP,"unknown task '"//optimizer%task//"' in "//&
-                     CPSourceFileRef,&
+CPSourceFileRef,&
                      error)
              END IF
           END IF ifMaster
@@ -755,7 +752,7 @@ END SUBROUTINE cp_opt_[nametype1]_release
                      particles=particles)
                 particle_set => particles%els              
                 WRITE (UNIT=title,FMT="(A,I8,A,F20.10)") " i =",optimizer%isave(30),", E =",optimizer%f
-                CALL write_particle_coordinates(particle_set,cell,dataunit,&
+                CALL write_particle_coordinates(particle_set,dataunit,&
                      dump_xmol,"POS",TRIM(title))                
                 CALL m_flush(dataunit)
              END IF
@@ -832,13 +829,13 @@ END SUBROUTINE cp_opt_[nametype1]_release
              ! deallocated
              CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
                   routineP,"step on a deallocated opt structure "//&
-                  CPSourceFileRef,&
+CPSourceFileRef,&
                   error,failure)           
           CASE default
              CALL cp_assert(.FALSE.,cp_failure_level,cp_assertion_failed,&
                   routineP,"unknown status "//cp_to_string(optimizer%status)//&
                   " in "//& 
-                  CPSourceFileRef,&
+CPSourceFileRef,&
                   error,failure)
              optimizer%status=5
              EXIT
