@@ -301,7 +301,7 @@ CONTAINS
     LOGICAL, ALLOCATABLE, DIMENSION(:, :, :) :: sphcub
     REAL(dp)                                 :: rab2, rab2_max, rab2_min, &
                                                 rab_max, unit_of_length
-    REAL(dp), DIMENSION(3)                   :: abc, cell_v, r, rab, sab_max
+    REAL(dp), DIMENSION(3)                   :: abc, cell_v, r, rab, sab_max, rb, cv_b
     REAL(KIND=dp)                            :: ic(3), icx(3), vv
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: coord
@@ -558,22 +558,26 @@ CONTAINS
           icellmap = cellmap(b_pi,b_pj,b_pk)
           cell_v = 0.0_dp
           IF ((b_pi/=0).OR.(b_pj/=0).OR.(b_pk/=0)) THEN
-             CALL scaled_to_real(cell_v,REAL((/b_pi,b_pj,b_pk/),KIND=dp),cell)
+             cv_b(1)=b_pi ; cv_b(2)=b_pj ; cv_b(3)=b_pk
+             CALL scaled_to_real(cell_v,cv_b,cell)
           END IF
           subcell000 = (a_k==bg_k).AND.(a_j==bg_j).AND.(a_i==bg_i)
           ! Loop over particles inside subcell_a and subcell_b
           DO jatom_local = 1, subcell_b(b_i,b_j,b_k)%natom
              atom_b = subcell_b(b_i,b_j,b_k)%atom_list(jatom_local)
              jkind  = particle_set(atom_b)%atomic_kind%kind_number
+             rb(1) = coord(1,atom_b)+cell_v(1)
+             rb(2) = coord(2,atom_b)+cell_v(2)
+             rb(3) = coord(3,atom_b)+cell_v(3)
              DO iatom_local = 1, subcell_a(a_i,a_j,a_k)%natom
                 atom_a = subcell_a(a_i,a_j,a_k)%atom_list(iatom_local)
                 ! Screen interaction to avoid double counting
                 IF (subcell000.AND.atom_a<=atom_b) CYCLE
                 ikind  = particle_set(atom_a)%atomic_kind%kind_number
                 IF (skip_kind(ikind).AND.skip_kind(jkind)) CYCLE
-                rab(1) = coord(1,atom_b)-coord(1,atom_a)+cell_v(1)
-                rab(2) = coord(2,atom_b)-coord(2,atom_a)+cell_v(2)
-                rab(3) = coord(3,atom_b)-coord(3,atom_a)+cell_v(3)
+                rab(1) = rb(1) - coord(1,atom_a)
+                rab(2) = rb(2) - coord(2,atom_a)
+                rab(3) = rb(3) - coord(3,atom_a)
                 rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)                
                 rab_max  = r_max(ikind,jkind)
                 rab2_max = rab_max*rab_max
@@ -585,15 +589,10 @@ CONTAINS
                    iab = nkind00-j1*(j1+1)/2+(i1+1)+icellmap*nkind00
                    neighbor_kind_pair => nonbonded%neighbor_kind_pairs(iab)
                    ! Store the pair
-                   CALL fist_neighbor_add(neighbor_kind_pair,&
-                        atom_a,&
-                        atom_b,&
+                   CALL fist_neighbor_add(neighbor_kind_pair, atom_a, atom_b,&
                         exclusion_list = particle_set(atom_a)%list_exclude_vdw,&
-                        particle_set=particle_set,&
-                        rab=rab,&
-                        added=added,&
-                        error=error)
-                   ! Really add the pair
+                        particle_set=particle_set, rab=rab, added=added, error=error)
+                   ! Check for too close hits
                    IF (added) THEN
                       rab2_min = r_minsq(ikind,jkind)
                       IF (rab2 < rab2_min) THEN
