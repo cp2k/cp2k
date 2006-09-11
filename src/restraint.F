@@ -104,6 +104,7 @@ CONTAINS
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(particle_type), POINTER             :: particle_set( : )
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:,:) :: force 
+    LOGICAL                                  :: has_restraint
 
     failure = .FALSE.
     CALL timeset ( routineN, 'I', ' ', handle )
@@ -114,6 +115,7 @@ CONTAINS
        energy_colv = 0.0_dp
        energy_fixd = 0.0_dp
        DO isubsys = 1, SIZE(subsys)
+          has_restraint=.FALSE.
           CALL cp_subsys_get(subsys=subsys(isubsys)%subsys,&
                particles=particles, &
                molecules_new=molecules, &
@@ -136,6 +138,7 @@ CONTAINS
                   fixd_list=fixd_list )
 
              IF (nfixd_restraint /=0) THEN
+                has_restraint=.TRUE.
                 DO i = 1, SIZE(local_particles%n_el)
                    nparticle_local   = local_particles%n_el(i)
                    DO iparticle_local=1,nparticle_local
@@ -171,19 +174,27 @@ CONTAINS
                                          ng4x6_restraint=n4x6con_restraint )
                 
                 ! 3x3
-                IF ( n3x3con_restraint /= 0 ) CALL restraint_3x3( molecule, particle_set,&
-                     energy_3x3, force, error )
+                IF ( n3x3con_restraint /= 0 ) THEN
+                      has_restraint=.TRUE.
+                      CALL restraint_3x3( molecule, particle_set, energy_3x3, force, error )
+                ENDIF
                 
                 ! 4x6
-                IF ( n4x6con_restraint /= 0 ) CALL restraint_4x6( molecule, particle_set,&
-                     energy_4x6, force, error )
+                IF ( n4x6con_restraint /= 0 ) THEN
+                     has_restraint=.TRUE.
+                     CALL restraint_4x6( molecule, particle_set, energy_4x6, force, error )
+                ENDIF
                 
                 ! collective variables
-                IF ( ncolv%nrestraint /= 0 ) CALL restraint_colv( molecule, particle_set,&
-                     cell, energy_colv, force, error )
+                IF ( ncolv%nrestraint /= 0 ) THEN
+                     has_restraint=.TRUE.
+                     CALL restraint_colv( molecule, particle_set, cell, energy_colv, force, error )
+                ENDIF
              END DO
           END DO MOL
-          CALL update_particle_set(particle_set,force_env%para_env%group,for=force,add=.TRUE.)
+          IF (has_restraint) THEN
+              CALL update_particle_set(particle_set,force_env%para_env%group,for=force,add=.TRUE.)
+          ENDIF
              
           DEALLOCATE(force,stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
