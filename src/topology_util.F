@@ -2453,12 +2453,9 @@ CONTAINS
     work(:)=""
     IF (iw>0) WRITE(iw,*)"molecule_kind_set ::",SIZE(molecule_kind_set)
     DO i = 1, SIZE(molecule_kind_set)
-       DO j=1,SIZE(molecule_set)
-          molecule => molecule_set(j)
-          molecule_kind => molecule_set(j)%molecule_kind
-          CALL get_molecule_kind(molecule_kind=molecule_kind,kind_number=ikind)
-          IF(ikind==i) EXIT
-       END DO
+       j=molecule_kind_set(i)%molecule_list(1)
+       molecule => molecule_set(j)
+       molecule_kind => molecule_set(j)%molecule_kind
        IF (iw>0) WRITE(iw,*)"molecule number ::",j," has molecule kind number ::",i
        CALL get_molecule_kind(molecule_kind=molecule_kind,&
             natom=natom,atom_list=atom_list)
