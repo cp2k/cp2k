@@ -78,7 +78,7 @@ CONTAINS
       INTENT(IN)                             :: particle_set
     TYPE(cell_type), POINTER                 :: cell
     REAL(KIND=dp), INTENT(OUT)               :: pot_nonbond
-    REAL(KIND=dp), DIMENSION(:, :), &
+    REAL(KIND=dp), DIMENSION(:,:), &
       INTENT(OUT)                            :: f_nonbond, ptens_nonbond
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'force_nonbond'
@@ -90,8 +90,8 @@ CONTAINS
     LOGICAL                                  :: is_eam
     REAL(KIND=dp)                            :: energy, f_eam, fscalar, rab2, &
                                                 rab2_max
-    REAL(KIND=dp), DIMENSION(3)              :: cell_v, fr, rab, cvi
-    TYPE(cell_type), POINTER                 :: cell_last_update
+    REAL(KIND=dp), DIMENSION(3)              :: cvi
+    REAL(KIND=dp)                            :: cell_v(3), fr(3), rab(3), ptens(3,3)
     TYPE(fist_neighbor_type), POINTER        :: nonbonded
     TYPE(neighbor_kind_pairs_type), POINTER  :: neighbor_kind_pair
     TYPE(pair_potential_pp_type), POINTER    :: potparm
@@ -105,12 +105,11 @@ CONTAINS
     CALL fist_nonbond_env_get ( fist_nonbond_env, nonbonded = nonbonded, &
          potparm = potparm, r_last_update=r_last_update, &
          r_last_update_pbc=r_last_update_pbc,&
-         cell_last_update=cell_last_update,&
          natom_types = nkinds )
     ! initializing the potential energy, pressure tensor and force 
     pot_nonbond = 0.0_dp
     f_nonbond = 0.0_dp
-    ptens_nonbond = 0.0_dp
+    ptens= 0.0_dp
     ! starting the force loop
     nkinds = SIZE ( potparm%pot, 1 )
 !$OMP parallel do default(none) &
@@ -171,18 +170,21 @@ CONTAINS
              f_nonbond(2,atom_b) = f_nonbond(2,atom_b) + fr(2)
              f_nonbond(3,atom_b) = f_nonbond(3,atom_b) + fr(3)
 
-             ptens_nonbond(1,1) = ptens_nonbond(1,1) + rab(1)*fr(1)
-             ptens_nonbond(1,2) = ptens_nonbond(1,2) + rab(1)*fr(2)
-             ptens_nonbond(1,3) = ptens_nonbond(1,3) + rab(1)*fr(3)
-             ptens_nonbond(2,1) = ptens_nonbond(2,1) + rab(2)*fr(1)
-             ptens_nonbond(2,2) = ptens_nonbond(2,2) + rab(2)*fr(2)
-             ptens_nonbond(2,3) = ptens_nonbond(2,3) + rab(2)*fr(3)
-             ptens_nonbond(3,1) = ptens_nonbond(3,1) + rab(3)*fr(1)
-             ptens_nonbond(3,2) = ptens_nonbond(3,2) + rab(3)*fr(2)
-             ptens_nonbond(3,3) = ptens_nonbond(3,3) + rab(3)*fr(3)
+             ptens(1,1) = ptens(1,1) + rab(1)*fr(1)
+             ptens(2,1) = ptens(2,1) + rab(2)*fr(1)
+             ptens(3,1) = ptens(3,1) + rab(3)*fr(1)
+             ptens(1,2) = ptens(1,2) + rab(1)*fr(2)
+             ptens(2,2) = ptens(2,2) + rab(2)*fr(2)
+             ptens(3,2) = ptens(3,2) + rab(3)*fr(2)
+             ptens(1,3) = ptens(1,3) + rab(1)*fr(3)
+             ptens(2,3) = ptens(2,3) + rab(2)*fr(3)
+             ptens(3,3) = ptens(3,3) + rab(3)*fr(3)
+
           END IF
        END DO
     END DO
+    ptens_nonbond = ptens
+
     CALL timestop ( handle )
   END SUBROUTINE force_nonbond
 
@@ -207,7 +209,6 @@ CONTAINS
     REAL(KIND=dp)                            :: flops, rab2, rab2_max
     REAL(KIND=dp), DIMENSION(3)              :: cell_v, rab
     REAL(KIND=dp), DIMENSION(:), POINTER     :: rho
-    TYPE(cell_type), POINTER                 :: cell_last_update
     TYPE(fist_neighbor_type), POINTER        :: nonbonded
     TYPE(neighbor_kind_pairs_type), POINTER  :: neighbor_kind_pair
     TYPE(pair_potential_pp_type), POINTER    :: potparm
@@ -222,7 +223,7 @@ CONTAINS
     do_eam = .FALSE.
     CALL fist_nonbond_env_get ( fist_nonbond_env, nonbonded = nonbonded, &
          potparm = potparm, r_last_update=r_last_update,&
-         r_last_update_pbc=r_last_update_pbc, cell_last_update=cell_last_update)
+         r_last_update_pbc=r_last_update_pbc)
     nkinds = SIZE ( potparm%pot, 1 )
     DO ikind = 1, nkinds
        DO jkind = ikind, nkinds
