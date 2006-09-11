@@ -90,7 +90,7 @@ CONTAINS
     LOGICAL                                  :: is_eam
     REAL(KIND=dp)                            :: energy, f_eam, fscalar, rab2, &
                                                 rab2_max
-    REAL(KIND=dp), DIMENSION(3)              :: cell_v, drab, fr, rab, cvi
+    REAL(KIND=dp), DIMENSION(3)              :: cell_v, fr, rab, cvi
     TYPE(cell_type), POINTER                 :: cell_last_update
     TYPE(fist_neighbor_type), POINTER        :: nonbonded
     TYPE(neighbor_kind_pairs_type), POINTER  :: neighbor_kind_pair
@@ -144,9 +144,8 @@ CONTAINS
        DO ipair = 1, npairs
           atom_a = list(1,ipair)
           atom_b = list(2,ipair)
-          rab = particle_set(atom_b)%r-particle_set(atom_a)%r 
-          drab = r_last_update_pbc(atom_b)%r-r_last_update_pbc(atom_a)%r
-          rab = rab+cell_v+drab
+          rab = r_last_update_pbc(atom_b)%r-r_last_update_pbc(atom_a)%r
+          rab = rab+cell_v
           rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
           IF (rab2 <= rab2_max) THEN
              energy =  potential_s (spline_data,rab2,fscalar)
@@ -206,7 +205,7 @@ CONTAINS
                                                 nkinds, nparticle
     LOGICAL                                  :: do_eam
     REAL(KIND=dp)                            :: flops, rab2, rab2_max
-    REAL(KIND=dp), DIMENSION(3)              :: cell_v, drab, rab
+    REAL(KIND=dp), DIMENSION(3)              :: cell_v, rab
     REAL(KIND=dp), DIMENSION(:), POINTER     :: rho
     TYPE(cell_type), POINTER                 :: cell_last_update
     TYPE(fist_neighbor_type), POINTER        :: nonbonded
@@ -251,9 +250,8 @@ CONTAINS
              DO ipair = 1, neighbor_kind_pair%npairs
                 atom_a = neighbor_kind_pair%list(1,ipair)
                 atom_b = neighbor_kind_pair%list(2,ipair)
-                rab = particle_set(atom_b)%r-particle_set(atom_a)%r 
-                drab = r_last_update_pbc(atom_b)%r-r_last_update_pbc(atom_a)%r
-                rab = rab+cell_v+drab
+                rab = r_last_update_pbc(atom_b)%r-r_last_update_pbc(atom_a)%r
+                rab = rab+cell_v
                 rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
                 IF (rab2 <= rab2_max) THEN
                    pot => potparm %pot( ikind, jkind )%pot

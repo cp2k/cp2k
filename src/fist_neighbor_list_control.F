@@ -236,7 +236,7 @@ SUBROUTINE list_control ( atomic_kind_set, particle_set, local_particles, &
         rab(2) = + cell%hmat(2,1)*s(1) + cell%hmat(2,2)*s(2) + cell%hmat(2,3)*s(3)
         rab(3) = + cell%hmat(3,1)*s(1) + cell%hmat(3,2)*s(2) + cell%hmat(3,3)*s(3)
      END IF
-     r_last_update_pbc(iparticle )%r=rab
+     r_last_update_pbc(iparticle )%r=particle_set(iparticle)%r+rab
   END DO
 
   counter = counter + 1
