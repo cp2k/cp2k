@@ -216,7 +216,6 @@ CONTAINS
       POINTER                                :: pot
     TYPE(pos_type), DIMENSION(:), POINTER    :: r_last_update, &
                                                 r_last_update_pbc
-    TYPE(spline_data_type), POINTER          :: spline_data
 
     CALL timeset ( routineN, 'I', 'Mflops', handle )
     flops = 0.0_dp
@@ -245,7 +244,6 @@ CONTAINS
           jkind = neighbor_kind_pair%jkind
           SELECT CASE ( potparm%pot( ikind, jkind )%pot % TYPE )
           CASE ( ea_type)
-             spline_data => potparm % pot( ikind, jkind ) %pot % rho_spline_data
              rab2_max = potparm%pot(ikind,jkind)%pot%rcutsq
              CALL matvec_3x3(cell_v, cell%hmat,REAL(neighbor_kind_pair%cell_vector,KIND=dp))
              DO ipair = 1, neighbor_kind_pair%npairs
