@@ -102,13 +102,15 @@ MODULE cp2k_runs
                                              dp
   USE library_tests,                   ONLY: lib_test
   USE machine,                         ONLY: m_chdir,&
-                                             m_getcwd
+                                             m_getcwd,&
+                                             m_walltime
   USE mc_run,                          ONLY: do_mon_car
   USE md_run,                          ONLY: qs_mol_dyn
   USE message_passing,                 ONLY: mp_comm_free,&
                                              mp_comm_split,&
                                              mp_environ,&
-                                             mp_sync
+                                             mp_sync,&
+                                             mp_sum
   USE pint_methods,                    ONLY: do_pint_run
   USE qs_debug,                        ONLY: qs_debug_energy_and_forces
   USE qs_linres_module,                ONLY: linres_calculation
@@ -479,6 +481,8 @@ CPSourceFileRef,&
       iunit, n_jobs_to_run, new_group, new_output_unit, new_rank, new_size, ngroups, &
       output_unit, stat
     INTEGER, DIMENSION(:), POINTER           :: group_distribution
+    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: waittime
+    REAL(KIND=dp)                            :: t1,t2
     LOGICAL                                  :: failure, found, run_OK
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_parser_type), POINTER            :: my_parser
@@ -567,6 +571,7 @@ CPSourceFileRef,&
       ENDIF
     ENDIF
 
+
     DO ijob=ijob_start,ijob_end
        i=MODULO(ijob-1,farming_env%njobs)+1
        ! this farms out the jobs
@@ -633,15 +638,29 @@ CPSourceFileRef,&
        ENDIF
     ENDDO
 
+    t1=m_walltime()
+    CALL mp_sync(para_env%group)
+    t2=m_walltime()
+    ALLOCATE(waittime(0:ngroups-1))
+    waittime=0.0_dp
+    IF (new_rank==0) waittime(group_distribution(para_env%mepos))=t2-t1
+    CALL mp_sum(waittime,para_env%group)
+    IF (output_unit>0) THEN
+       write(output_unit,'(T2,A)') "Group idle times [s] at the end of the run"
+       DO i=0,ngroups-1
+         WRITE(output_unit,FMT='(A2,I4,A3,F8.3,A1)',ADVANCE="NO")&
+                " (",i," : ",waittime(i),")"
+         IF (MOD(i+1,4)==0) write(output_unit,'(A)') ""
+       ENDDO
+    ENDIF
+    DEALLOCATE(waittime)
+
     ! give back the communicators of the split groups
     CALL mp_comm_free(new_group)
     DEALLOCATE(group_distribution,STAT=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-
     ! clean the farming env
     CALL deallocate_farming_env(farming_env)
-
-    CALL mp_sync(para_env%group)
 
     CALL cp_print_key_finished_output(output_unit,logger,root_section,&
                "GLOBAL%PROGRAM_RUN_INFO", error=error)
