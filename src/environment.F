@@ -51,7 +51,8 @@ MODULE environment
                                              m_getcwd,&
                                              m_getlog,&
                                              m_getpid,&
-                                             m_hostnm
+                                             m_hostnm,&
+                                             m_flush
   USE message_passing,                 ONLY: add_mp_perf_env,&
                                              describe_mp_perf_env,&
                                              mp_sum,&
@@ -837,7 +838,10 @@ SUBROUTINE cp2k_read(root_section,para_env,globenv,error)
         DO l=38,LEN_TRIM(cwd),37
           WRITE (UNIT=iw,FMT="(T44,A)") cwd(l:MIN(LEN_TRIM(cwd),l+36))
         END DO
+
+        CALL m_flush(iw)
       END IF
+
 
       CALL cp_print_key_finished_output(iw,logger,root_section,&
                "GLOBAL%PROGRAM_RUN_INFO", error=error)
