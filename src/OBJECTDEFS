@@ -421,6 +421,9 @@ OBJECTS_GENERIC =\
  termination.o\
  timings.o\
  topology.o\
+ topology_coordinate_util.o\
+ topology_connectivity_util.o\
+ topology_constraint_util.o\
  topology_gromos.o\
  topology_input.o\
  topology_pdb.o\

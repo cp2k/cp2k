@@ -60,9 +60,10 @@ MODULE cp_subsystem_methods
   USE topology_types,                  ONLY: deallocate_topology,&
                                              init_topology,&
                                              topology_parameters_type
-  USE topology_util,                   ONLY: check_subsys_element,&
-                                             topology_connectivity_pack,&
-                                             topology_coordinate_pack
+  USE topology_util,                   ONLY: check_subsys_element
+  USE topology_coordinate_util,        ONLY: topology_coordinate_pack
+  USE topology_connectivity_util,      ONLY: topology_connectivity_pack
+
 #include "cp_common_uses.h"
 
   IMPLICIT NONE 

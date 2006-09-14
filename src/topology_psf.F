@@ -261,8 +261,8 @@ CONTAINS
              IF(iw>0) WRITE(iw,'(T2,A)') "PSF_INFO| PARA_RES, bond between molecules atom ",&
                   iatom,jatom
              i = i + 1
-             CALL reallocate(conn_info%c_bond_a,1,i+1)
-             CALL reallocate(conn_info%c_bond_b,1,i+1)
+             CALL reallocate(conn_info%c_bond_a,1,i)
+             CALL reallocate(conn_info%c_bond_b,1,i)
              conn_info%c_bond_a(i) = iatom
              conn_info%c_bond_b(i) = jatom
           END IF
