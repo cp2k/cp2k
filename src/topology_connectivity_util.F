@@ -401,7 +401,7 @@ CONTAINS
     NULLIFY(map_vars, map_cvars, bnd_type, bnd_ctype)
     IF(ASSOCIATED(conn_info%bond_a))   nvar1 = SIZE(conn_info%bond_a)
     IF(ASSOCIATED(conn_info%c_bond_a)) nvar2 = SIZE(conn_info%c_bond_a)
-    nval_tot1 = nvar1 + nvar2
+    nval_tot1 = nvar1
     nval_tot2 = 0
     ALLOCATE(map_var_mol(nvar1),stat=stat)
     CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
