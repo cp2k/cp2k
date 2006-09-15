@@ -424,6 +424,7 @@ OBJECTS_GENERIC =\
  topology_coordinate_util.o\
  topology_connectivity_util.o\
  topology_constraint_util.o\
+ topology_generate_util.o\
  topology_gromos.o\
  topology_input.o\
  topology_pdb.o\

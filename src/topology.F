@@ -62,11 +62,13 @@ MODULE topology
                                              init_topology,&
                                              topology_parameters_type
   USE topology_util,                   ONLY: &
-       check_subsys_element, topology_generate_bend, topology_generate_bond, &
-       topology_generate_dihe, topology_generate_impr, &
-       topology_generate_molecule, topology_generate_onfo, &
-       topology_generate_ub, topology_molecules_check, &
+       check_subsys_element, topology_molecules_check, &
        topology_reorder_atoms, topology_set_atm_mass
+  USE topology_generate_util,          ONLY: &
+       topology_generate_bend, topology_generate_bond, &
+       topology_generate_dihe, topology_generate_impr, &
+       topology_generate_molecule, topology_generate_onfo,&
+       topology_generate_ub
   USE topology_xyz,                    ONLY: read_coordinate_xyz
 #include "cp_common_uses.h"
 
