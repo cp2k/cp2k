@@ -2165,6 +2165,7 @@ SUBROUTINE pw_scatter_s ( pw, c, scale )
 
   ngpts = SIZE ( pw % pw_grid % gsq  )
 
+  ! should only zero the unused bits (but the zero is needed)
   IF ( .NOT. PRESENT ( scale ) ) c = 0.0_dp
 
   IF ( PRESENT ( scale ) ) THEN
@@ -3547,6 +3548,7 @@ END SUBROUTINE pw_compare_debug
 !!
 !!   FUNCTION
 !!     Calculate integral over unit cell for functions in plane wave basis
+!!     only returns the real part of it ......
 !!
 !!   AUTHOR
 !!     apsi
@@ -3568,8 +3570,7 @@ FUNCTION pw_integral_ab ( pw1, pw2, flag ) RESULT ( integral_value )
      CALL stop_program ( "integral_ab", "grids incompatible" )
   END IF
 
-  ! does the sum using mp, which might be an enhanced precision, useful to
-  ! avoid round-off
+  ! since the return value is real, only do accurate sum on the real bit ?
   IF ( pw1 % in_use == REALDATA3D .AND. pw2 % in_use == REALDATA3D ) THEN
      integral_value = accurate_sum ( pw1 % cr3d ( :, :, : )  &
           * pw2 % cr3d ( :, :, : ) )
