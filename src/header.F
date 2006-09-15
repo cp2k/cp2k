@@ -202,7 +202,13 @@ CONTAINS
          "** a mixed Gaussian and plane waves approach.                                **",&
          "** Comp. Phys. Comm. 167, 103 (2005).                                        **",&
          "** http://dx.doi.org/10.1016/j.cpc.2004.12.014                               **",&
+         "*******************************************************************************",&
+         "** M. Iannuzzi,  T. Chassaing,  T. Wallman, and J. Hutter                    **",&
+         "** Ground and Excited State density Functional Calculations with             **",&
+         "** Gaussian and Augmented Plane Waves Method                                 **",&
+         "** Chimia. 167, 499 (2005).                                                  **",&
          "*******************************************************************************"
+
 
   END SUBROUTINE qs_header
 

@@ -124,7 +124,7 @@ MODULE qs_scf
                                              qs_ks_update_qs_env
   USE qs_ks_types,                     ONLY: qs_ks_env_type,&
                                              qs_ks_release
-  USE qs_loc_methods,                  ONLY: loc_initialize_rho
+  USE xas_restart,                     ONLY: xas_initialize_rho
   USE qs_matrix_pools,                 ONLY: mpools_get
   USE qs_mo_methods,                   ONLY: calculate_density_matrix,&
                                              calculate_magnitude,&
@@ -582,8 +582,8 @@ CONTAINS
           ! ** Write restart file **
           IF (scf_control%write_restart_each>0.AND.&
                MODULO(scf_env%iter_count,scf_control%write_restart_each)==0) THEN
-             CALL write_mo_set(mos,atomic_kind_set,particle_set,para_env,&
-                  id_nr=1,dft_section=dft_section)
+             CALL write_mo_set(mos,particle_set,para_env,&
+                  id_nr=1,dft_section=dft_section,error=error)
           END IF
 
           IF (.NOT.BTEST(cp_print_key_should_output(logger%iter_info,&
@@ -618,8 +618,8 @@ CONTAINS
 
        !   *** Write restart file ***
        IF (scf_control%write_restart_each>=0) THEN
-          CALL write_mo_set(mos,atomic_kind_set,particle_set,para_env,&
-               id_nr=1,dft_section=dft_section)
+          CALL write_mo_set(mos,particle_set,para_env,&
+               id_nr=1,dft_section=dft_section,error=error)
        END IF
 
        !   *** mixing methods need to undo mixing of the density matrix (restore original density) ***
@@ -1514,7 +1514,7 @@ END SUBROUTINE qs_scf_print_summary
     ! initializes rho and the mos
     IF( my_transition_potential) THEN
       ! initialize the density with the localized mos
-        CALL loc_initialize_rho(qs_env,error=error)  
+        CALL xas_initialize_rho(qs_env,error=error)  
     ELSE
       CALL scf_env_initial_rho_setup(scf_env,qs_env=qs_env,&
            scf_section=scf_section, error=error)

@@ -78,6 +78,7 @@ MODULE xas_control
     INTEGER                             :: max_iter_added
     INTEGER                             :: ngauss
     INTEGER                             :: stride
+    INTEGER                             :: write_restart_each
     INTEGER, DIMENSION(:), POINTER      :: exc_atoms 
     LOGICAL                             :: emission
     LOGICAL                             :: localized_wfn
@@ -178,6 +179,12 @@ CONTAINS
     CALL section_vals_val_get(xas_section,"SCF_OPTIMIZER",&
          i_val=xas_control%scf_method,error=error)
 
+    CALL section_vals_val_get(xas_section,"RESTART",&
+         l_val=xas_control%xas_restart,error=error)
+
+    CALL section_vals_val_get(xas_section,"write_restart_each",&
+            i_val=xas_control%write_restart_each,error=error)      
+         
     CALL section_vals_val_get(xas_section,"EACH_STEP",&
          i_val=xas_control%each_step,error=error)
 
@@ -384,6 +391,15 @@ CONTAINS
              routineP,"unknown xas method "//TRIM(ADJUSTL(cp_to_string(xas_control%xas_method))),&
              error,failure)
       END SELECT
+      IF(xas_control%xas_restart) THEN
+          WRITE (UNIT=output_unit,FMT="(/,T2,A,T30,A)")&
+                "XAS|"," Orbitals read from atom-specific restart file when available"
+      END IF
+      IF(xas_control%write_restart_each>0) THEN
+          WRITE (UNIT=output_unit,FMT="(/,T2,A,T40,A,I5,A)")&
+                "XAS|","  Store restart each ", xas_control%write_restart_each,& 
+                " iterations"
+      END IF        
     END IF
     CALL cp_print_key_finished_output(output_unit,logger,dft_section,&
          "PRINT%DFT_CONTROL_PARAMETERS",error=error)
@@ -435,6 +451,9 @@ CONTAINS
     xas_control%max_scf = 150
     xas_control%eps_scf = 0.5d-6
     xas_control%localized_wfn = .FALSE. 
+    xas_control%xas_restart = .FALSE. 
+    xas_control%write_restart_each = 0
+    xas_control%emission = .FALSE. 
     xas_control%added_mos=0
     xas_control%xes_core_occupation=1.0_dp
     NULLIFY(xas_control%localized_wfn_control)

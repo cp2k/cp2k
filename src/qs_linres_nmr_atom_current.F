@@ -989,6 +989,9 @@ MODULE qs_linres_nmr_atom_current
                ! be sure you take the minimum image
                rij(1:3) = pbc(particle_set(iatom)%r,particle_set(jatom)%r,cell)
                distance = SQRT(rij(1)*rij(1)+rij(2)*rij(2)+rij(3)*rij(3))
+! the right thing to do is to build a list of neighbors, but for the time being 
+! let's simply use a cutoff here
+               threshold = 30.0_dp
                jatomisneighbor = (distance .LE. threshold)
 
                IF(jatomisneighbor) THEN

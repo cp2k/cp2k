@@ -28,6 +28,8 @@ MODULE kg_pauli_potential
                                              gto_basis_set_type
   USE cell_types,                      ONLY: cell_type,&
                                              pbc
+  USE cp_array_r_utils,                ONLY: cp_2d_r_p_type
+  USE cp_control_types,                ONLY: dft_control_type
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE distribution_1d_types,           ONLY: distribution_1d_type
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
@@ -46,7 +48,7 @@ MODULE kg_pauli_potential
                                              kg_molbox_env_type,&
                                              kg_sub_pw_env_type
   USE kinds,                           ONLY: dp
-  USE message_passing,                 ONLY: mp_sum
+  USE message_passing,                 ONLY: mp_sum,mp_bcast
   USE molecule_kind_types,             ONLY: atom_type,&
                                              get_molecule_kind,&
                                              molecule_kind_type
@@ -91,15 +93,15 @@ SUBROUTINE kg_gpw_pauli( kg_env, do_potential, do_forces, do_overlap, error )
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_gpw_pauli', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: atom_a, first_atom, handle, i, ia, iao, ifa, ikind, ila, imol, &
-      imol_kind, imol_local, istat, j, ja, jao, jfa, jkind, jla, jmol, &
-      jmol_kind, last_atom, ldai, maxco, maxder, maxlgto, maxsgf, nao, &
+    INTEGER :: atom_a, first_atom, handle, i, ia, iao, ifa, ikind, ila, imo, imol, &
+      imol_kind, imol_local, ispin, istat, j, j_pe, ja, jao, jfa, jkind, jla, jmol, &
+      jmol_kind, jmol_local, last_atom, ldai, natom_mol, maxco, maxder, maxlgto, maxsgf, nao, &
       nao_max, naoa, naob, nat_mol, natom, nder, nia, njb, nmol, nmol_kind, &
-      nmol_local, nseta, nsetb, output_unit
+      nmol_local, nseta, nsetb, nspin, output_unit
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
     INTEGER, DIMENSION(2)                    :: nmoa, nmob
-    INTEGER, DIMENSION(:), POINTER :: ifirst_ao, ilast_ao, jfirst_ao, &
-      jlast_ao, la_max, la_min, lb_max, lb_min, npgfa, npgfb, nsgfa, nsgfb
+    INTEGER, DIMENSION(:), POINTER :: ifirst_ao, ilast_ao, jfirst_ao, jfirst_ao_bcast,&
+      jlast_ao, jlast_ao_bcast, la_max, la_min, lb_max, lb_min, npgfa, npgfb, nsgfa, nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
     LOGICAL                                  :: failure, ionode
     REAL(KIND=dp)                            :: epsmol, oij, pauli_energy, &
@@ -119,10 +121,13 @@ SUBROUTINE kg_gpw_pauli( kg_env, do_potential, do_forces, do_overlap, error )
       POINTER                                :: atomic_kind_set
     TYPE(block_p_type), ALLOCATABLE, &
       DIMENSION(:)                           :: sint
+    TYPE(cp_2d_r_p_type), DIMENSION(:), &
+      POINTER                                :: mosb_bcast 
     TYPE(cell_type), POINTER                 :: cell, cell_mol
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(distribution_1d_type), POINTER      :: local_molecule
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(fm_mol_blocks_type), DIMENSION(:), &
       POINTER                                :: fm_mol_blocks
     TYPE(fm_mol_blocks_type), POINTER        :: mol_block
@@ -168,6 +173,10 @@ SUBROUTINE kg_gpw_pauli( kg_env, do_potential, do_forces, do_overlap, error )
     ionode = logger%para_env%mepos==logger%para_env%source
     IF (ionode) output_unit = cp_logger_get_default_unit_nr(logger)
 
+    NULLIFY(local_molecule,cell,molecule_set,particle_set,para_env)
+    NULLIFY(qs_env,kg_fm,atomic_kind_set,dft_control,matrix_p)
+
+    
     CPPrecondition(ASSOCIATED(kg_env),cp_failure_level,routineP,error,failure)
     IF (.NOT. failure) THEN
       CALL get_kg_env( kg_env=kg_env,local_molecules=local_molecule,&
@@ -180,9 +189,13 @@ SUBROUTINE kg_gpw_pauli( kg_env, do_potential, do_forces, do_overlap, error )
       CALL get_qs_env( qs_env=qs_env,kg_sub_pw_env=kg_sub_pw_env,&
                        atomic_kind_set=atomic_kind_set,&
                        matrix_h=matrix_h,rho=rho,force=force,&
-                       error=error )
+                       dft_control=dft_control,error=error )
 
       matrix_p => rho%rho_ao
+      nspin=dft_control%nspins
+      NULLIFY(mosb_bcast)
+      ALLOCATE(mosb_bcast(nspin),STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
       nmol = SIZE(molecule_set)
       ALLOCATE ( refp(1:3,1:nmol), STAT=istat )
@@ -234,6 +247,7 @@ SUBROUTINE kg_gpw_pauli( kg_env, do_potential, do_forces, do_overlap, error )
       nmol_kind = SIZE(local_molecule%n_el,1)
       DO imol_kind = 1, nmol_kind
 
+        NULLIFY(molbox,cell_mol)
         molbox => kg_sub_pw_env%molbox_env_set(imol_kind)
         CALL get_molbox_env(molbox_env=molbox,cell_mol=cell_mol)
         rk = SQRT(SUM((cell_mol%hmat(:,1) + cell_mol%hmat(:,2) + &
@@ -248,6 +262,7 @@ SUBROUTINE kg_gpw_pauli( kg_env, do_potential, do_forces, do_overlap, error )
         DO imol_local = 1, nmol_local
           imol = local_molecule%list(imol_kind)%array(imol_local)
 
+          NULLIFY(molecule)
           molecule => molecule_set ( imol )
           CALL get_molecule(molecule,molecule_kind=molecule_kind,&
                             first_atom=first_atom,last_atom=last_atom)
@@ -285,59 +300,109 @@ SUBROUTINE kg_gpw_pauli( kg_env, do_potential, do_forces, do_overlap, error )
         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       END IF
 
-      ! loop over all molecules (local only)
-      nmol_kind = SIZE(local_molecule%n_el,1)
-      DO imol_kind = 1, nmol_kind
-        nmol_local = local_molecule%n_el(imol_kind)
-        DO imol_local = 1, nmol_local
-          imol = local_molecule%list(imol_kind)%array(imol_local)
-          imolecule => molecule_set ( imol )
-          CALL get_molecule(imolecule,molecule_kind=imolecule_kind,&
-                            first_atom=ifa,last_atom=ila)
-          CALL get_molecule_kind(imolecule_kind,atom_list=iatom_list)
-          NULLIFY(fm_mol_set,fm_mol_blocks)
-          fm_mol_set => kg_fm%kg_fm_mol_set(imol_kind)
-          CALL get_kg_fm_mol_set(kg_fm_mol_set=fm_mol_set, &
-                                 natom=nat_mol, &
-                                 n_ao=naoa,n_mo=nmoa, &
-                                 fm_mol_blocks=fm_mol_blocks)
-          mol_block => fm_mol_blocks(imol)
-          CALL get_fm_mol_block(fm_mol_block=mol_block,&
-                   ifirst_ao=ifirst_ao,ilast_ao=ilast_ao,mos=mosa)
-          IF ( do_potential .OR. do_forces ) THEN
-            vpot = 0._dp
-          END IF
-          IF ( do_forces ) THEN
-            pmol = 0._dp
-            DO i = 1, SIZE(matrix_p)
-              CALL copy_sparse2mol_block(matrix_p(i)%matrix, mol_block,&
-                        dvpot, nat_mol, naoa, naoa, error)
-              pmol(1:naoa,1:naoa) = pmol(1:naoa,1:naoa) + dvpot(1:naoa,1:naoa)
-            END DO
-          END IF
 
-          ! loop over all molecules to find interactions
-          DO jmol = 1, nmol
+      ! loop over all molecules to find interactions
+      DO jmol = 1, nmol
+        jmolecule => molecule_set ( jmol )
+        CALL get_molecule(jmolecule,molecule_kind=jmolecule_kind,&
+                          first_atom=jfa,last_atom=jla)
+        natom_mol = jla-jfa +1
+
+        jmol_kind = jmolecule_kind%kind_number
+        NULLIFY(fm_mol_set,fm_mol_blocks)
+        fm_mol_set => kg_fm%kg_fm_mol_set(jmol_kind)
+
+        CALL get_kg_fm_mol_set(kg_fm_mol_set=fm_mol_set, &
+                               n_ao=naob,n_mo=nmob, &
+                               fm_mol_blocks=fm_mol_blocks)
+
+        ALLOCATE(jfirst_ao_bcast(natom_mol),STAT=istat)
+         CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+        ALLOCATE(jlast_ao_bcast(natom_mol),STAT=istat)
+        CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+        DO ispin = 1,nspin
+          ALLOCATE(mosb_bcast(ispin)%array(naob,nmob(ispin)),STAT=istat)
+          CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+        END DO 
+
+! on which processor is jmol?
+        j_pe =  kg_fm%imol_pe_pos(jmol)
+! to which jmol_local does it correspond on its processor?
+        jmol_local = kg_fm%imol_local_name(jmol)
+
+        IF(para_env%mepos==j_pe) THEN
+           NULLIFY(mol_block,jfirst_ao,jlast_ao,mosb)
+           mol_block => fm_mol_blocks(jmol_local)
+           CALL get_fm_mol_block(fm_mol_block=mol_block,&
+                ifirst_ao=jfirst_ao,ilast_ao=jlast_ao,mos=mosb)
+! get jfirst_ao amd jlast_ao from the right processor
+           jfirst_ao_bcast(1:natom_mol) = jfirst_ao(1:natom_mol)
+           jlast_ao_bcast(1:natom_mol) = jlast_ao(1:natom_mol)
+! get mosb for jmol (jmol_local) from the right processor
+           DO ispin = 1,nspin
+             DO imo = 1,nmob(ispin)
+                  mosb_bcast(ispin)%array(1:naob,imo) = mosb(ispin)%mo_set%mo(1:naob,imo) 
+             END DO 
+           END DO 
+        END IF
+
+        ! transfer data to other pe
+        CALL mp_bcast(jfirst_ao_bcast,j_pe,para_env%group)
+        CALL mp_bcast(jlast_ao_bcast,j_pe,para_env%group)
+        DO ispin = 1,nspin
+           CALL mp_bcast(mosb_bcast(ispin)%array,j_pe,para_env%group)
+        END DO 
+
+        ! loop over all molecules (local only)
+        nmol_kind = SIZE(local_molecule%n_el,1)
+        DO imol_kind = 1, nmol_kind
+          nmol_local = local_molecule%n_el(imol_kind)
+          DO imol_local = 1, nmol_local
+            imol = local_molecule%list(imol_kind)%array(imol_local)
+            imolecule => molecule_set ( imol )
+            CALL get_molecule(imolecule,molecule_kind=imolecule_kind,&
+                            first_atom=ifa,last_atom=ila)
+            CALL get_molecule_kind(imolecule_kind,atom_list=iatom_list)
+            NULLIFY(fm_mol_set,fm_mol_blocks)
+            fm_mol_set => kg_fm%kg_fm_mol_set(imol_kind)
+            CALL get_kg_fm_mol_set(kg_fm_mol_set=fm_mol_set, &
+                                   natom=nat_mol, &
+                                   n_ao=naoa,n_mo=nmoa, &
+                                   fm_mol_blocks=fm_mol_blocks)
+     
+            mol_block => fm_mol_blocks(imol_local)
+            CALL get_fm_mol_block(fm_mol_block=mol_block,&
+                     ifirst_ao=ifirst_ao,ilast_ao=ilast_ao,mos=mosa)
+            IF ( do_potential .OR. do_forces ) THEN
+              vpot = 0._dp
+            END IF
+            IF ( do_forces ) THEN
+              pmol = 0._dp
+              DO i = 1, SIZE(matrix_p)
+                CALL copy_sparse2mol_block(matrix_p(i)%matrix, mol_block,&
+                        dvpot, nat_mol, naoa, naoa, error)
+                pmol(1:naoa,1:naoa) = pmol(1:naoa,1:naoa) + dvpot(1:naoa,1:naoa)
+              END DO
+            END IF
+
             IF ( imol == jmol ) CYCLE
-            jmolecule => molecule_set ( jmol )
-            CALL get_molecule(jmolecule,molecule_kind=jmolecule_kind,&
-                              first_atom=jfa,last_atom=jla)
             rc(:) = refp(:,imol) - refp(:,jmol)
             ra(:) = pbc(rc(:),cell)   
             rij = SQRT( SUM ( ra(:)**2 ) )
             IF ( rij < r0(imol)+r0(jmol) ) THEN
               !Molecules interact, add potential to imol 
   
-              jmol_kind = jmolecule_kind%kind_number
-              NULLIFY(fm_mol_set,fm_mol_blocks)
-              fm_mol_set => kg_fm%kg_fm_mol_set(jmol_kind)
-              CALL get_kg_fm_mol_set(kg_fm_mol_set=fm_mol_set, &
-                                     n_ao=naob,n_mo=nmob, &
-                                     fm_mol_blocks=fm_mol_blocks)
-              mol_block => fm_mol_blocks(jmol)
-              CALL get_fm_mol_block(fm_mol_block=mol_block,&
-                   ifirst_ao=jfirst_ao,ilast_ao=jlast_ao,mos=mosb)
-
+!MI FIX IT !!!!!!!!!!!!!!!!!!!!
+! This cannot work in parallel as it is. fm_mol_blocks are local
+! to get the info in  fm_mol_blocks(jmol_local) one has to be on the 
+! corresponding processor. The indexes ifirst_ao and ilast_ao should
+! correspond to the local matrix.
+! If a smat matrix between two molecules that are on 2 different processor
+! need to be constructed, the data have to be sent 
+!              mol_block => fm_mol_blocks(jmol)
+!              CALL get_fm_mol_block(fm_mol_block=mol_block,&
+!                   ifirst_ao=jfirst_ao,ilast_ao=jlast_ao,mos=mosb)
+!MI  FIX IT !!!!!!!!!!!!!!!!!!!!
               ALLOCATE (smat(1:naoa,1:naob,maxder),STAT=istat)
               CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
@@ -392,7 +457,7 @@ SUBROUTINE kg_gpw_pauli( kg_env, do_potential, do_forces, do_overlap, error )
 
                   DO i=1,maxder
                     smat(ifirst_ao(iao):ilast_ao(iao),&
-                         jfirst_ao(jao):jlast_ao(jao),i)=sint(i)%block(:,:)
+                         jfirst_ao_bcast(jao):jlast_ao_bcast(jao),i)=sint(i)%block(:,:)
                   END DO
                   DO i=1,maxder
                     DEALLOCATE (sint(i)%block,STAT=istat)
@@ -403,12 +468,12 @@ SUBROUTINE kg_gpw_pauli( kg_env, do_potential, do_forces, do_overlap, error )
               END DO
               IF ( do_overlap ) THEN
                 oij = 0._dp
-                DO i = 1, SIZE(mosa)
+                DO i = 1, nspin
                   oij = oij + SUM ( &
                     MATMUL( &
                     MATMUL(TRANSPOSE(mosa(i)%mo_set%mo(1:naoa,1:nmoa(i))),&
                            smat(1:naoa,1:naob,1) ), &
-                    mosb(i)%mo_set%mo(1:naob,1:nmob(i)) )**2 )
+                    mosb_bcast(i)%array(1:naob,1:nmob(i)) )**2 )
                 END DO
                 smol(imol,jmol) = SQRT(oij)
               END IF
@@ -444,7 +509,7 @@ SUBROUTINE kg_gpw_pauli( kg_env, do_potential, do_forces, do_overlap, error )
                     atom_a = atom_of_kind(ja)
                     force(jkind)%kg_gpw_pauli(i,atom_a) = &
                          force(jkind)%kg_gpw_pauli(i,atom_a) + &
-                         2._dp*epsmol*SUM ( forb(jfirst_ao(jao):jlast_ao(jao)) )
+                         2._dp*epsmol*SUM ( forb(jfirst_ao_bcast(jao):jlast_ao_bcast(jao)) )
                   END DO
                 END DO
               END IF
@@ -453,28 +518,34 @@ SUBROUTINE kg_gpw_pauli( kg_env, do_potential, do_forces, do_overlap, error )
               CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
 
             END IF
-          END DO
-          IF ( do_potential ) THEN
-            DO ia=ifa,ila
-              iao = ia - ifa + 1
-              DO ja=ia,ila
-                jao = ja - ifa + 1
-                NULLIFY(h_block)
-                CALL get_block_node(matrix=matrix_h(1)%matrix,&
+
+
+            IF ( do_potential ) THEN
+              DO ia=ifa,ila
+                iao = ia - ifa + 1
+                DO ja=ia,ila
+                 jao = ja - ifa + 1
+                  NULLIFY(h_block)
+                  CALL get_block_node(matrix=matrix_h(1)%matrix,&
                                     block_row=ia,&
                                     block_col=ja,&
                                     BLOCK=h_block)
-                h_block(:,:)=h_block(:,:) + epsmol * &
+                  h_block(:,:)=h_block(:,:) + epsmol * &
                   vpot(ifirst_ao(iao):ilast_ao(iao),ifirst_ao(jao):ilast_ao(jao))
+                END DO
               END DO
-            END DO
-          END IF
-          IF ( do_forces ) THEN
-            pauli_energy = pauli_energy + epsmol * &
+            END IF
+            IF ( do_forces ) THEN
+              pauli_energy = pauli_energy + epsmol * &
                            SUM ( pmol(1:naoa,1:naoa)*vpot(1:naoa,1:naoa))
-          END IF
-        END DO
-      END DO
+            END IF
+          END DO  ! imol_local
+        END DO  ! imol_kind
+        DEALLOCATE(jfirst_ao_bcast,jlast_ao_bcast,STAT=istat)
+        DO ispin = 1,nspin
+           DEALLOCATE(mosb_bcast(ispin)%array,STAT=istat)
+        END DO 
+      END DO  ! jmol
 
       IF ( do_overlap ) THEN
         CALL mp_sum(smol,para_env%group)
@@ -494,6 +565,8 @@ SUBROUTINE kg_gpw_pauli( kg_env, do_potential, do_forces, do_overlap, error )
         END IF
       END IF
 
+      DEALLOCATE (mosb_bcast,STAT=istat)
+      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       DEALLOCATE ( refp, STAT=istat )
       CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
       DEALLOCATE ( r0, STAT=istat )

@@ -85,6 +85,7 @@ MODULE qs_environment
   USE input_constants,                 ONLY: do_method_gapw,&
                                              do_method_gapw_xc,&
                                              general_roks,&
+                                             restart_guess,&
                                              state_loc_all,&
                                              state_loc_none
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
@@ -415,7 +416,7 @@ CONTAINS
 !   *** Read the input section with the DFT control parameters ***
 
     CALL read_dft_control(dft_control,root_section,dft_section)
-    ! ONLY WORKS WITH NEW INPUT
+
     CALL read_tddfpt_control(dft_control%tddfpt_control,dft_control%nspins, dft_section,error)
 
 !   *** Read the input section with the Quickstep control parameters ***
@@ -642,14 +643,22 @@ CONTAINS
     END IF
 
     ! The transition potential method to calculate XAS needs LSD
-    xas_section =>  section_vals_get_subs_vals(qs_env%input, &
-                                                 "DFT%XAS")
-    CALL section_vals_val_get(xas_section,"_SECTION_PARAMETERS_",&
-         l_val=xas_calculation,error=error)
+!    xas_section =>  section_vals_get_subs_vals(qs_env%input, &
+!                                                 "DFT%XAS")
+!    CALL section_vals_val_get(xas_section,"_SECTION_PARAMETERS_",&
+!         l_val=xas_calculation,error=error)
 
-    IF(xas_calculation .AND. (dft_control%nspins == 1) ) THEN
-      CALL stop_program(routineN,moduleN,__LINE__,&
+    IF(dft_control%do_xas_calculation ) THEN
+      IF(dft_control%nspins == 1) THEN
+        CALL stop_program(routineN,moduleN,__LINE__,&
                    "Use the LSD option for XAS with transition potential.")
+      END IF
+      IF(dft_control%xas_control%xas_restart .AND. &
+          scf_control%density_guess/= restart_guess ) THEN
+          CALL stop_program(routineN,moduleN,__LINE__,&
+               "Restart of XAS orbitals possible only if the GS orbitals"//&
+               " are also read from restart file.")
+      END IF
     END IF
 
 !   assigning the number of states per spin initial version, not yet very

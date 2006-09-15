@@ -485,7 +485,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_subsys_setup', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: imolecule_kind, istat, nao_global, nao_max, nelectron_global, &
+    INTEGER :: iglobal, imol, imolecule_kind, istat, nao_global, nao_max, nelectron_global, &
       nkind, nmo_max, nmolecule_kind, nspins
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: natom_of_kind
     INTEGER, DIMENSION(2)                    :: added_mos
@@ -647,6 +647,15 @@ CONTAINS
     nao_max = 0
     nmo_max = 0
     maxocc_global(1:2) = 0.0_dp
+
+    kg_fm%nmolecule_global = SIZE(molecule_set,1)
+    ALLOCATE(kg_fm%imol_pe_pos(kg_fm%nmolecule_global),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    kg_fm%imol_pe_pos = 0
+    ALLOCATE(kg_fm%imol_local_name(kg_fm%nmolecule_global),STAT=istat)
+    CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
+    kg_fm%imol_local_name = 0
+
     DO imolecule_kind = 1,nmolecule_kind
       molecule_kind => molecule_kind_set(imolecule_kind)
       CALL build_local_fm_mol(kg_fm%kg_fm_mol_set(imolecule_kind),&
@@ -662,8 +671,15 @@ CONTAINS
       ! Initialize the local cell and the pw_env for each molecule kind
       fm_mol_set => kg_fm%kg_fm_mol_set(imolecule_kind) 
       CALL build_molbox_env(kg_sub_pw_env%molbox_env_set(imolecule_kind),&
-                            fm_mol_set,qs_env,poisson_section=poisson_section,&
-                            error=error)
+                       fm_mol_set,qs_env,poisson_section=poisson_section,&
+                       error=error)
+
+      DO imol = 1,distribution_1d%n_el(imolecule_kind)
+        iglobal = distribution_1d%list(imolecule_kind)%array(imol)
+        kg_fm%imol_local_name(iglobal) = imol
+        kg_fm%imol_pe_pos(iglobal) = para_env%mepos
+      END DO 
+
     END DO
 
     CALL set_qs_env(qs_env=qs_env,kg_sub_pw_env=kg_sub_pw_env)
@@ -678,7 +694,9 @@ CONTAINS
     kg_fm%nao_max = nao_max
     kg_fm%nmo_max = nmo_max
     kg_fm%maxocc_global = maxocc_global
-    kg_fm%nmolecule_global = SIZE(molecule_set,1)
+    CALL mp_sum(kg_fm%imol_local_name, para_env%group)
+    CALL mp_sum(kg_fm%imol_pe_pos, para_env%group)
+
     CALL set_kg_env(kg_env=kg_env,&
                     kg_fm_set=kg_fm,&
                     sub_qs_env=qs_env)

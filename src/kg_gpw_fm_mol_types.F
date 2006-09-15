@@ -224,6 +224,7 @@ MODULE kg_gpw_fm_mol_types
        POINTER                                :: kg_fm_mol_set
     INTEGER  :: nao_global, nelectron_global, nmolecule_global, ref_count
     INTEGER  :: nao_max, nmo_max
+    INTEGER, DIMENSION(:), POINTER :: imol_pe_pos, imol_local_name
     REAL(dp) :: maxocc_global(2)
   END TYPE kg_fm_p_type
 
@@ -595,6 +596,7 @@ CONTAINS
     kg_fm%nmolecule_global = 0
     kg_fm%nao_max = 0
     kg_fm%nmo_max = 0
+    NULLIFY(kg_fm%imol_pe_pos,kg_fm%imol_local_name)
     NULLIFY(kg_fm%kg_fm_mol_set)
     ALLOCATE(kg_fm%kg_fm_mol_set(nmolecule_kind),STAT=istat)
     CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
@@ -715,6 +717,8 @@ CONTAINS
       kg_fm%ref_count=kg_fm%ref_count-1
       IF (kg_fm%ref_count<1) THEN
         CALL kg_fm_mol_set_distroy(kg_fm%kg_fm_mol_set,error=error)
+        DEALLOCATE(kg_fm%imol_pe_pos,kg_fm%imol_local_name,STAT=istat)
+        CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
         DEALLOCATE(kg_fm,STAT=istat)
         CPPrecondition(istat==0,cp_failure_level,routineP,error,failure)
       END IF

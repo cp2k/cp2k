@@ -592,18 +592,20 @@ CONTAINS
   END SUBROUTINE set_mo_set
 
 ! *****************************************************************************
-  SUBROUTINE write_mo_set_to_restart(mo_array,atomic_kind_set,particle_set,&
-                                     para_env,id_nr, dft_section,error)
+  SUBROUTINE write_mo_set_to_restart(mo_array,particle_set,&
+                                     para_env,id_nr, dft_section, rst_unit,error)
 
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
-    TYPE(atomic_kind_type), DIMENSION(:), &
-      POINTER                                :: atomic_kind_set
+!    TYPE(atomic_kind_type), DIMENSION(:), &
+!      POINTER                                :: atomic_kind_set
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(cp_para_env_type), POINTER          :: para_env
-    INTEGER, INTENT(in)                      :: id_nr
-    TYPE(section_vals_type), POINTER         :: dft_section
+    INTEGER, INTENT(in), OPTIONAL            :: id_nr
+    TYPE(section_vals_type), POINTER, &
+      OPTIONAL                               :: dft_section
+    INTEGER, INTENT(IN), OPTIONAL            :: rst_unit
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -635,25 +637,29 @@ CONTAINS
 
     IF (para_env%ionode) THEN
 
-       CALL section_vals_val_get(dft_section,"RESTART_FILE_NAME",&
-            c_val=file_name,error=error)
-       IF (id_nr/=1) THEN
-          file_name(LEN_TRIM(file_name):LEN(file_name)) = "-"//&
-               ADJUSTL(cp_to_string(id_nr))
-       END IF
+      IF(PRESENT(dft_section)) THEN     
+        CALL section_vals_val_get(dft_section,"RESTART_FILE_NAME",&
+             c_val=file_name,error=error)
+        IF (id_nr/=1) THEN
+           file_name(LEN_TRIM(file_name):LEN(file_name)) = "-"//&
+                ADJUSTL(cp_to_string(id_nr))
+        END IF
        
-       CALL open_file(file_name=file_name,&
-            file_action="WRITE",&
-            file_form="UNFORMATTED",&
-            file_status="REPLACE",&
-            unit_number=restart_unit)
-       
+        CALL open_file(file_name=file_name,&
+             file_action="WRITE",&
+             file_form="UNFORMATTED",&
+             file_status="REPLACE",&
+             unit_number=restart_unit)
+      ELSEIF (PRESENT(rst_unit)) THEN
+         restart_unit = rst_unit
+      ELSE
+         CALL stop_program(routine,"not known restart file-unit")
+      END IF       
+
 !     *** create some info about the basis set first ***
-
-      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-                               natom=natom,&
-                               nsgf=nsgf)
-
+      natom = SIZE(particle_set,1)
+!      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+!                               natom=natom)
       nset_max = 0
       nshell_max = 0
 
@@ -751,7 +757,9 @@ CONTAINS
     DEALLOCATE (vecbuffer,STAT=istat)
     IF (istat /= 0) CALL stop_memory(routine,"vecbuffer")
 
-    IF (para_env%ionode) CALL close_file(unit_number=restart_unit)
+    IF(PRESENT(dft_section) .AND. para_env%ionode) THEN 
+      CALL close_file(unit_number=restart_unit)
+    END IF
 
     CALL timestop(0.0_dp,handle)
 
@@ -780,7 +788,7 @@ CONTAINS
     CHARACTER(LEN=default_path_length)       :: file_name
     INTEGER :: group, handle, i, iatom, irow, iset, iset_read, ishell, &
       ishell_read, iso, ispin, istat, lshell, nao, nao_read, natom, &
-      natom_read, nelectron, nmo, nmo_read, nset, nset_max, nsgf, nshell_max, &
+      natom_read, nelectron, nmo, nmo_read, nset, nset_max, nshell_max, &
       nspin, nspin_read, offset_read, restart_unit, source
     INTEGER, DIMENSION(:), POINTER           :: nset_info, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: l, nshell_info
@@ -803,9 +811,10 @@ CONTAINS
 
     IF (para_env%ionode) THEN
 
-      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
-                               natom=natom,&
-                               nsgf=nsgf)
+!      CALL get_atomic_kind_set(atomic_kind_set=atomic_kind_set,&
+!                               natom=natom)
+
+      natom = SIZE(particle_set,1)
       CALL section_vals_val_get(dft_section,"RESTART_FILE_NAME",&
            c_val=file_name,error=error)
       IF (id_nr/=1) THEN

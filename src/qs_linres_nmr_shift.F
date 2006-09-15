@@ -152,11 +152,12 @@ CONTAINS
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_s, op_mom_ao
+      POINTER                                :: matrix_s, op_mom_ao, op_p_ao
     TYPE(real_matrix_p_type), DIMENSION(:,:), &
       POINTER                                :: op_mom_der_ao
 !dbg
-!     INTEGER :: fnum, i, j
+     INTEGER :: fnum, i, j
+     REAL(dp) :: sumup
 !     TYPE(cp_fm_type), POINTER :: fm_work2
 !dbg
 
@@ -168,7 +169,7 @@ CONTAINS
     NULLIFY(mo_coeff,occupation)
     NULLIFY(op_mom_ao,op_mom_der_ao,centers_set)
     NULLIFY(psi0_istate,psi_rxp_istate,psi_p1_istate,psi_p2_istate,momxpsi_istate)
-    NULLIFY(psi1_p, psi1_rxp, psi1_D)
+    NULLIFY(op_p_ao, psi1_p, psi1_rxp, psi1_D)
 
     CALL get_qs_env(qs_env=qs_env,&
          dft_control=dft_control,matrix_s=matrix_s,&
@@ -177,7 +178,7 @@ CONTAINS
     gapw = dft_control%qs_control%gapw
 
     CALL get_nmr_env(nmr_env=nmr_env, nao=nao, nstates=nstates, &
-                     centers_set=centers_set,&
+                     centers_set=centers_set,op_p_ao=op_p_ao, &
                      psi1_p=psi1_p, psi1_rxp=psi1_rxp, psi1_D=psi1_D  )
 
 !   Allocate sparse matric for dipole, quadrupole and their derivatives => 9x3
@@ -266,10 +267,11 @@ CONTAINS
          END DO
       END DO
 !dbg
-!  write(*,*) ' state ', istate, dk(1:3)
+!  dk(1:3) = 15.11_dp
+  write(*,*) ' state ', istate, dk(1:3)
       CALL rRc_xyz_der_ao(op_mom_ao,op_mom_der_ao,qs_env,dk,order=2,&
            minimum_image=.TRUE.,soft=gapw,error=error)
-!  stop 'check derivatives' 
+!  stop 'check mom' 
 !dbg
 !dbg
 !       DO idir= 1,9      
@@ -337,37 +339,60 @@ CONTAINS
 !     only one column of the chi tensor is computed here 
       DO idir = 1,3
 !dbg
-!   write(*,*) 'istate = ', istate, ' idir =', idir 
+   write(*,*) ' chi istate ', istate, ' idir =', idir 
   !     get ii and iii
         CALL set_vecp(idir,ii,iii)
 
-!       term: 2[C0| r_ii |d_iii(C1(rxp-D))]-2[C0| r_iii |d_ii(C1(rxp-D))]
+!       term: 2[C0| (r-dk)_ii |d_iii(C1(rxp-D))]-2[C0| (r-dk)_iii |d_ii(C1(rxp-D))]
 !       the factor 2 should be already included in the matrix elements
         contrib = 0.0_dp
         CALL cp_sm_fm_multiply(op_mom_der_ao(ii,iii)%matrix,psi_rxp_istate,&
              momxpsi_istate,ncol=1,alpha=1.d0,error=error)
         CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib)
-        chi(idir) = chi(idir) + contrib
+        chi(idir) = chi(idir) + 2.0_dp * contrib
+
 !dbg
-!  write(*,'(2(A,I5),2f12.6)') ' first term a  r',ii,' der',iii, contrib, chi(idir)
+  write(*,'(2(A,I5),f12.6,T60,f12.6)') ' 1st term a r ',ii,' der ',&
+      iii, 2.0_dp * contrib, chi(idir)
 !dbg
         contrib = 0.0_dp
         CALL cp_sm_fm_multiply(op_mom_der_ao(iii,ii)%matrix,psi_rxp_istate,&
              momxpsi_istate,ncol=1,alpha=1.d0,error=error)
         CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib)
-        chi(idir) = chi(idir) - contrib
+        chi(idir) = chi(idir) - 2.0_dp *contrib
 !dbg
-!  write(*,'(2(A,I5),2f12.6)') ' first term b  r',iii,' der',ii,-contrib, chi(idir)
+  write(*,'(2(A,I5),f12.6,T60,f12.6)') ' 1st term b r ',iii,' der ',&
+       ii,-2.0_dp *contrib, chi(idir)
 !dbg
 
-!       term: -2[C0| r_ii r_iiB | d_iii(C1(piiiB))] + 2[C0| r_iii r_iiB | d_ii(C1(piiiB))] 
+!       correction: dk_ii*2[C0| d_iii(C1(rxp-D))] - dk_iii*2[C0| d_ii(C1(rxp-D))]
+!       factor 2 not included in the matrix elements
+        contrib = 0.0_dp
+        CALL cp_sm_fm_multiply(op_p_ao(iii)%matrix,psi_rxp_istate,&
+             momxpsi_istate,ncol=1,alpha=1.d0,error=error)
+        CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib)
+        chi(idir) = chi(idir) + 2.0_dp*dk(ii)*contrib
+!
+        contrib2 = 0.0_dp
+        CALL cp_sm_fm_multiply(op_p_ao(ii)%matrix,psi_rxp_istate,&
+             momxpsi_istate,ncol=1,alpha=1.d0,error=error)
+        CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib2)
+        chi(idir) = chi(idir) - 2.0_dp*dk(iii)*contrib2
+!dbg
+  write(*,'(2(A,I5),2f12.6,T60,f12.6)') ' 1st correction ab ',ii,' and ',&
+         iii,2.0_dp*dk(ii)*contrib,-2.0_dp*dk(iii)*contrib2, chi(idir)
+!dbg
+
+!       term: -2[C0| (r-dk)_ii  (r-dk)_iiB | d_iii(C1(piiiB))] \
+!             +2[C0| (r-dk)_iii (r-dk)_iiB | d_ii(C1(piiiB))] 
 !       the factor 2 should be already included in the matrix elements
         contrib = 0.0_dp
         idir2 = ind_m2(ii,iiB)
+!        write(*,*) 'imom ', ii, iiB, idir2
         CALL cp_sm_fm_multiply(op_mom_der_ao(idir2,iii)%matrix,psi_p2_istate,&
              momxpsi_istate,ncol=1,alpha=1.d0,error=error)
         CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib)
-        chi(idir) = chi(idir) - contrib
+        chi(idir) = chi(idir) - 2.0_dp * contrib
         contrib2 = 0.0_dp
         IF(iiB==iii) THEN
           CALL cp_sm_fm_multiply(op_mom_ao(ii)%matrix,psi_p2_istate,&
@@ -376,15 +401,17 @@ CONTAINS
           chi(idir) = chi(idir) - contrib2
         END IF
 !dbg
-!  write(*,'(4(A,I5),3f12.6)') ' second term a  idir2 ', idir2, ' r',ii,' r',iiB,' der',iii,-contrib,-contrib2, chi(idir)
+  write(*,'(2(A,I5),2f12.6,T60,f12.6)') ' 2nd term a r ',ii,' der ',&
+      iii,-2.0_dp *contrib,-contrib2, chi(idir)
 !dbg
 
         contrib = 0.0_dp
         idir2 = ind_m2(iii,iiB)
+!        write(*,*) 'imom ', iii, iiB, idir2
         CALL cp_sm_fm_multiply(op_mom_der_ao(idir2,ii)%matrix,psi_p2_istate,&
              momxpsi_istate,ncol=1,alpha=1.d0,error=error)
         CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib)
-        chi(idir) = chi(idir) + contrib
+        chi(idir) = chi(idir) + 2.0_dp * contrib
         contrib2 = 0.0_dp
         IF(iiB==ii) THEN
           CALL cp_sm_fm_multiply(op_mom_ao(iii)%matrix,psi_p2_istate,&
@@ -393,85 +420,89 @@ CONTAINS
           chi(idir) = chi(idir) + contrib2
         END IF
 !dbg
-!  write(*,'(4(A,I5),3f12.6)') ' second term b  idir2 ', idir2, ' r',iii,' r',iiB,' der',ii,contrib, contrib2, chi(idir)
+  write(*,'(2(A,I5),2f12.6,T60,f12.6)') ' 2nd term b r ',iii,' der ',&
+       ii,2.0_dp *contrib,contrib2, chi(idir)
 !dbg
 
-!       term: 2[C0| r_ii   r_iiiB | d_iii(C1(piiB))] - 2[C0| r_iii r_iiiB | d_ii(C1(piiB))] 
+!       correction: -dk_ii * 2[C0|(r-dk)_iiB | d_iii(C1(piiiB))] \
+!                   +dk_iii * 2[C0|(r-dk)_iiB | d_ii(C1(piiiB))] 
+!       the factor 2 should be already included in the matrix elements
+!       no additional correction terms because of the orthogonality between C0 and C1
+        contrib = 0.0_dp
+        CALL cp_sm_fm_multiply(op_mom_der_ao(iiB,iii)%matrix,psi_p2_istate,&
+             momxpsi_istate,ncol=1,alpha=1.d0,error=error)
+        CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib)
+        chi(idir) = chi(idir) - 2.0_dp*dk(ii)*contrib
+!
+        contrib2 = 0.0_dp
+        CALL cp_sm_fm_multiply(op_mom_der_ao(iiB,ii)%matrix,psi_p2_istate,&
+             momxpsi_istate,ncol=1,alpha=1.d0,error=error)
+        CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib2)
+        chi(idir) = chi(idir) + 2.0_dp*dk(iii)*contrib2
+!dbg
+  write(*,'(2(A,I5),2f12.6,T60,f12.6)') ' 2nd correction ab ',ii,' and ',&
+       iii,-dk(ii)*contrib,dk(iii)*contrib2, chi(idir)
+!dbg
+
+!       term: +2[C0| (r-dk)_ii  (r-dk)_iiiB | d_iii(C1(piiB))] \
+!             -2[C0| (r-dk)_iii (r-dk)_iiiB | d_ii(C1(piiB))] 
 !       the factor 2 should be already included in the matrix elements
         contrib = 0.0_dp
         idir2 = ind_m2(ii,iiiB)
+!        write(*,*) 'imom ', ii, iiiB, idir2
         CALL cp_sm_fm_multiply(op_mom_der_ao(idir2,iii)%matrix,psi_p1_istate,&
              momxpsi_istate,ncol=1,alpha=1.d0,error=error)
         CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib)
-        chi(idir) = chi(idir) + contrib
+        chi(idir) = chi(idir) + 2.0_dp*contrib
         contrib2 = 0.0_dp
-        IF(iiB==iii) THEN
+        IF(iiiB==iii) THEN
           CALL cp_sm_fm_multiply(op_mom_ao(ii)%matrix,psi_p1_istate,&
                momxpsi_istate,ncol=1,alpha=1.d0,error=error)
           CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib2)
           chi(idir) = chi(idir) + contrib2
         END IF
 !dbg
-!  write(*,'(4(A,I5),2f12.6)') ' third term a  idir2 ', idir2, ' r',ii,' r',iiiB,' der',iii,contrib, contrib2, chi(idir)
+  write(*,'(2(A,I5),2f12.6,T60,f12.6)') ' 3rd term a r ',ii,' der ',&
+        iii,2.0_dp*contrib,contrib2, chi(idir)
 !dbg
+        contrib = 0.0_dp
         idir2 = ind_m2(iii,iiiB)
+!        write(*,*) 'imom ', iii, iiiB, idir2
         CALL cp_sm_fm_multiply(op_mom_der_ao(idir2,ii)%matrix,psi_p1_istate,&
              momxpsi_istate,ncol=1,alpha=1.d0,error=error)
         CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib)
-        chi(idir) = chi(idir) - contrib
+        chi(idir) = chi(idir) - 2.0_dp * contrib
         contrib2 = 0.0_dp
-        IF(iiB==ii) THEN
+        IF(iiiB==ii) THEN
           CALL cp_sm_fm_multiply(op_mom_ao(iii)%matrix,psi_p1_istate,&
                momxpsi_istate,ncol=1,alpha=1.d0,error=error)
           CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib2)
           chi(idir) = chi(idir) - contrib2
         END IF
+!dbg
+  write(*,'(2(A,I5),2f12.6,T60,f12.6)') ' 3rd term b r ',iii,' der ',&
+       ii,-2.0_dp*contrib,-contrib2, chi(idir)
+!dbg
 
+!       correction: +dk_ii * 2[C0|(r-dk)_iiiB | d_iii(C1(piiB))] +\
+!                   -dk_iii * 2[C0|(r-dk)_iiiB | d_ii(C1(piiB))] 
+!       the factor 2 should be already included in the matrix elements
+        contrib = 0.0_dp
+        CALL cp_sm_fm_multiply(op_mom_der_ao(iiiB,iii)%matrix,psi_p1_istate,&
+             momxpsi_istate,ncol=1,alpha=1.d0,error=error)
+        CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib)
+        chi(idir) = chi(idir) + 2.0_dp*dk(ii)*contrib
+!
+        contrib2 = 0.0_dp
+        CALL cp_sm_fm_multiply(op_mom_der_ao(iiiB,ii)%matrix,psi_p1_istate,&
+             momxpsi_istate,ncol=1,alpha=1.d0,error=error)
+        CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib2)
+        chi(idir) = chi(idir) - 2.0_dp*dk(iii)*contrib2
 !dbg
-!  write(*,'(4(A,I5),2f12.6)') ' third term b  idir2 ', idir2, ' r',iii,' r',iiiB,' der',ii,-contrib, chi(idir)
+  write(*,'(2(A,I5),2f12.6,T60,f12.6)') ' 2nd correction ab ',ii,' and ',&
+       iii,+dk(ii)*contrib,-dk(iii)*contrib2, chi(idir)
 !dbg
-!dbgdbgdbgdbgdbgdbgdbgdbgdbgdbgdbgdbgdbgdbgdbgdbgdbgdbgdbgdbgdbgdbg
-   IF(.FALSE.) THEN
-        IF(iii==iiB) THEN
-!         term: -[C0 | r_ii | C1(piiiB)]   
-          CALL cp_sm_fm_multiply(op_mom_ao(ii)%matrix,psi_p2_istate,&
-               momxpsi_istate,ncol=1,alpha=1.d0,error=error)
-          CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib)
-          chi(idir) = chi(idir) - contrib
-!dbg
-!  write(*,'(2(A,I5),2f12.6)') ' fourth term iii=iiB,  r',ii,' C',iiiB,-contrib, chi(idir)
-!dbg
-        ELSEIF(iii==iiiB) THEN
-!         term: [C0| r_ii | C1(piiB)]
-          CALL cp_sm_fm_multiply(op_mom_ao(ii)%matrix,psi_p1_istate,&
-               momxpsi_istate,ncol=1,alpha=1.d0,error=error)
-          CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib)
-          chi(idir) = chi(idir) + contrib
-!dbg
-!  write(*,'(2(A,I5),2f12.6)') ' fourth term iii=iiiB,  r',ii,' C',iiB,contrib,chi(idir) 
-!dbg
-        END IF
-        IF(ii==iiB) THEN
-!         term: [C0| r_iii | C1(piiiB)]
-          CALL cp_sm_fm_multiply(op_mom_ao(iii)%matrix,psi_p2_istate,&
-               momxpsi_istate,ncol=1,alpha=1.d0,error=error)
-          CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib)
-          chi(idir) = chi(idir) + contrib
-!dbg
-!  write(*,'(2(A,I5),2f12.6)') ' fourth term ii=iiB,  r',iii,' C',iiiB,contrib, chi(idir)
-!dbg
-        ELSEIF(ii==iiiB) THEN
-!         term: -[C0| r_iii |C1(piiB)]
-          CALL cp_sm_fm_multiply(op_mom_ao(iii)%matrix,psi_p1_istate,&
-               momxpsi_istate,ncol=1,alpha=1.d0,error=error)
-          CALL cp_fm_trace(psi0_istate,momxpsi_istate,contrib)
-          chi(idir) = chi(idir) - contrib
-!dbg
-!  write(*,'(2(A,I5),2f12.6)') ' fourth term ii=iiiB, r',iii,' C',iiB,-contrib, chi(idir)
-!dbg
-        END IF
-   END IF
-!dbgdbgdbgdbgdbgdbgdbgdbgdbgdbgdbgdbgdbgdbgdbgdbgdbgdbgdbg
+
       END DO  ! idir
 
 
@@ -479,7 +510,7 @@ CONTAINS
     WRITE(*,*) "CHI TENSOR : iB =", iB 
     DO idir = 1,3
       nmr_env%chi_tensor(idir,iB) =  nmr_env%chi_tensor(idir,iB)+&
-                                     chi(idir)*nmr_env%chi_factor/2.0_dp
+                                     chi(idir)*nmr_env%chi_factor
       WRITE(*,*)  idir, nmr_env%chi_tensor(idir,iB)
     END DO 
 

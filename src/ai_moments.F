@@ -1326,7 +1326,15 @@ CONTAINS
 
     END IF
     DO imom = 1,ncoset(order)-1
-      difmab_tmp = 0.0_dp
+!dbg
+! check block
+!    num1 = 2000+100*imom+10+1
+!    write(num1,*) ' lda ', npgfa*ncoset(la_max+1), ' ldb ',npgfb*ncoset(lb_max+1) , ' imom ' , imom
+!      do i = 1,npgfa*ncoset(la_max+1)
+!       write(num1,'(I4,50f12.6)') i,  mab(i,1:npgfb*ncoset(lb_max+1),imom)
+!      end do
+!dbg
+!      difmab_tmp = 0.0_dp
 !      CALL dabdr(la_max,npgfa,zeta,rpgfa,la_min,&
 !                 lb_max,npgfb,zetb,rpgfb,lb_min,&
 !                 dab,mab(:,:,imom), difmab_tmp(:,:,1),&
@@ -1352,9 +1360,9 @@ CONTAINS
                  lb_max,npgfb,zetb,rpgfb,lb_min,&
                  dab,mab(:,:,imom), difmab_tmp(:,:,1),&
                  difmab_tmp(:,:,2), difmab_tmp(:,:,3))
-      difmab(1:lda,1:ldb,imom,1) =  -difmab_tmp(1:lda,1:ldb,1)
-      difmab(1:lda,1:ldb,imom,2) =  -difmab_tmp(1:lda,1:ldb,2)
-      difmab(1:lda,1:ldb,imom,3) =  -difmab_tmp(1:lda,1:ldb,3)
+      difmab(1:lda,1:ldb,imom,1) =  difmab_tmp(1:lda,1:ldb,1)
+      difmab(1:lda,1:ldb,imom,2) =  difmab_tmp(1:lda,1:ldb,2)
+      difmab(1:lda,1:ldb,imom,3) =  difmab_tmp(1:lda,1:ldb,3)
 !    num1 = 1000+100*imom+10+2
 !    num2 = 1000+100*imom+20+2
 !    num3 = 1000+100*imom+30+2

@@ -87,8 +87,10 @@ MODULE qs_linres_nmr_utils
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_linres_methods,               ONLY: linres_scf
-  USE qs_linres_nmr_atom_current,      ONLY: list_3c_jrho_atom
-  USE qs_linres_nmr_current,           ONLY: nmr_response_current
+  USE qs_linres_nmr_atom_current,      ONLY: calculate_jrho_atom_coeff,&
+                                            list_3c_jrho_atom
+  USE qs_linres_nmr_current,           ONLY: nmr_response_current,&
+                                             test_func
   USE qs_linres_nmr_op,                ONLY: set_vecp
   USE qs_linres_nmr_shift,             ONLY: nmr_print_shift
   USE qs_linres_types,                 ONLY: deallocate_jrho_atom_set,&
@@ -141,8 +143,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'nmr_do_nmr', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, homo, idir, ii, iii, ispin, ist_true, istat, istate, &
-      istate2, nao, ncubes, nmo, nstates(2), output_unit
+    INTEGER :: handle, homo, iao, idir, idir2, ii, iii, ik, ispin, ist_true, istat, &
+      istate, istate2, nao, nmo, ncubes, nstates(2), output_unit
     INTEGER, DIMENSION(:), POINTER           :: list_cubes
     INTEGER, DIMENSION(:, :), POINTER        :: statetrueindex
     LOGICAL                                  :: failure, ionode
@@ -150,7 +152,7 @@ CONTAINS
     REAL(dp), DIMENSION(:), POINTER          :: dkl_vec_ii, dkl_vec_iii
     REAL(dp), DIMENSION(:, :), POINTER       :: vecbuf_dklxp0
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_2d_r_p_type), DIMENSION(:), &
+    TYPE(cp_2d_r_p_type), DIMENSION(:),&
       POINTER                                :: centers_set
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: h1_psi0, psi1
@@ -160,7 +162,7 @@ CONTAINS
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
       POINTER                                :: ao_mo_fm_pools
     TYPE(cp_fm_struct_type), POINTER         :: tmp_fm_struct
-    TYPE(cp_fm_type), POINTER                :: fm_work_ii, fm_work_iii, &
+    TYPE(cp_fm_type), POINTER                :: fm_work_ii, fm_work_iii,&
                                                 mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -222,7 +224,7 @@ CONTAINS
     DO idir = 1,3
        CALL cp_fm_set_all(psi1_p(1,idir)%matrix,0.0_dp,error=error)
     END DO 
-    DO idir = 1,-3
+    DO idir = 1,3  !-3
       IF(.NOT. nmr_env%simplenmr_done(idir)) THEN
 
          IF(output_unit>0) THEN
@@ -363,11 +365,10 @@ CONTAINS
      IF(nmr_env%full_nmr) THEN
        DO ispin = 1,dft_control%nspins
          CALL cp_fm_set_all(psi1(ispin)%matrix,0.0_dp,error=error)
+         DO idir = 1,3
+           CALL cp_fm_set_all(psi1_D(ispin,idir)%matrix,0.0_dp,error=error)
+         END DO 
        END DO 
-      DO idir = 1,3
-         CALL cp_fm_set_all(psi1_D(1,idir)%matrix,0.0_dp,error=error)
-      END DO 
-
 
 !      The correction is state depedent a loop over the states is necessary
        ALLOCATE(vecbuf_dklxp0(1,nao),STAT=istat)
@@ -376,8 +377,8 @@ CONTAINS
 
        DO ispin=1, dft_control%nspins
 
-         CALL get_mo_set(mo_set=mos(ispin)%mo_set,nmo=nmo,homo=homo)
-         NULLIFY(tmp_fm_struct)
+         CALL get_mo_set(mo_set=mos(ispin)%mo_set,nmo=nmo,homo=homo,mo_coeff=mo_coeff)
+         NULLIFY(tmp_fm_struct,fm_work_ii,fm_work_iii)
          CALL cp_fm_struct_create(tmp_fm_struct,nrow_global=nao,&
                ncol_global=nmo,para_env=para_env,context=mo_coeff%matrix_struct%context)
          CALL cp_fm_create (fm_work_ii, tmp_fm_struct )
@@ -402,12 +403,17 @@ CONTAINS
                "Response to the perturbation operator (dk-dl)xp for the k state ",&
                 ist_true, " in dir. ", idir
              END IF
-
+ !dbg
+   write(*,*) ' D idir ', idir, ' state ', ist_true, ' iter ', istate
+ !dbg
              DO istate2 = 1,nstates(ispin)
                 dl(1:3)  = centers_set(ispin)%array(1:3,istate2)
                 dkl = pbc(dl,dk,cell)
                 dkl_vec_ii(istate2)  = dkl(ii)
                 dkl_vec_iii(istate2) = dkl(iii)
+ !dbg
+   write(*,*) ' dist ', istate2, dkl(ii), dkl(iii)
+ !dbg
              END DO
 
          ! First term
@@ -425,12 +431,13 @@ CONTAINS
              ! Rescale the ground state orbitals by (dk-dl)_iii
              CALL cp_fm_to_fm(mo_coeff,fm_work_iii,error=error)
              CALL cp_fm_column_scale(fm_work_iii,dkl_vec_iii(1:homo)) 
-             ! Apply the p_iii operator
+             ! Apply the p_ii operator
              CALL cp_sm_fm_multiply(nmr_env%op_p_ao(ii)%matrix,fm_work_iii,&
                    fm_work_ii,ncol=nmo,alpha=-1.0_dp,error=error)
              ! Copy in h1_psi1
-             CALL cp_fm_scale_and_add(1.0_dp,h1_psi0(ispin)%matrix,-1.0_dp,fm_work_ii,error=error)
-
+             CALL cp_fm_scale_and_add(1.0_dp,h1_psi0(ispin)%matrix,&
+                  -1.0_dp,fm_work_ii,error=error)
+ stop 'pippo2'
              ! Optimize the response wavefunctions 
              CALL linres_scf(p_env, qs_env, psi1, h1_psi0,error=error)
 
@@ -538,7 +545,7 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_parser_type), POINTER            :: parser
     TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(jrho_atom_type), DIMENSION(:), &
+    TYPE(jrho_atom_type),DIMENSION(:), &
       POINTER                                :: jrho1_atom_set
     TYPE(linres_control_type), POINTER       :: linres_control
     TYPE(mo_set_p_type), DIMENSION(:), &
@@ -699,7 +706,9 @@ CONTAINS
          icount = icount + 1
          state_done(idir,istate_next) = .TRUE. 
          nmr_env%statetrueindex(idir,icount) = istate_next
-
+!dbg
+!   write(*,*) idir,icount,istate_next
+!dbg
          center(1)  = nmr_env%centers_set(1)%array(1,istate_next)
          center(2)  = nmr_env%centers_set(1)%array(2,istate_next)
          center(3)  = nmr_env%centers_set(1)%array(3,istate_next)
@@ -708,7 +717,9 @@ CONTAINS
      END DO  ! idir
      DEALLOCATE(state_done,STAT=istat)
      CPPostcondition(istat==0,cp_failure_level,routineP,error,failure)
-
+ !dbg
+!   stop 'pippo'
+ !dbg
 
 !    Conversion factors
 !    factor for the CHEMICAL SHIFTS: alpha^2 *  ppm.

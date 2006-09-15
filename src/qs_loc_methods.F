@@ -85,11 +85,11 @@ MODULE qs_loc_methods
                                              direct_mini,&
                                              jacobi_rotations
   USE qs_matrix_pools,                 ONLY: mpools_get
-  USE qs_mo_methods,                   ONLY: calculate_density_matrix
+!  USE qs_mo_methods,                   ONLY: calculate_density_matrix
   USE qs_mo_types,                     ONLY: get_mo_set,&
                                              mo_set_p_type
-  USE qs_rho_methods,                  ONLY: qs_rho_update_rho
-  USE qs_rho_types,                    ONLY: qs_rho_type
+!  USE qs_rho_methods,                  ONLY: qs_rho_update_rho
+!  USE qs_rho_types,                    ONLY: qs_rho_type
   USE realspace_grid_types,            ONLY: rs_pw_to_cube
   USE sparse_matrix_types,             ONLY: real_matrix_p_type
   USE string_utilities,                ONLY: xstring
@@ -108,7 +108,7 @@ MODULE qs_loc_methods
 
 
 ! *** Public ***
-  PUBLIC ::  loc_initialize_rho, qs_loc_driver, optimize_loc_berry, qs_print_cubes
+  PUBLIC ::  qs_loc_driver, optimize_loc_berry, qs_print_cubes
 
 ! *****************************************************************************
 
@@ -957,44 +957,44 @@ CONTAINS
   END SUBROUTINE qs_print_cubes
 
 !*****************************************************************************
-  SUBROUTINE loc_initialize_rho(qs_env,error)
-
-    TYPE(qs_environment_type), POINTER       :: qs_env
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
-
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'loc_initialize_rho', &
-      routineP = moduleN//':'//routineN
-
-    INTEGER                                  :: handle, ispin
-    LOGICAL                                  :: failure
-    TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(mo_set_p_type), DIMENSION(:), &
-      POINTER                                :: mos
-    TYPE(qs_rho_type), POINTER               :: rho
-
-!   ---------------------------------------------------------------------------
-
-    CALL timeset(routineN,"I"," ",handle)
-    failure=.FALSE.
-
-    NULLIFY(dft_control,mos)
-
-    CALL get_qs_env(qs_env=qs_env,&
-         dft_control=dft_control,&
-         mos=mos,rho=rho)
-
-    DO ispin=1,SIZE(mos)
-       CALL calculate_density_matrix(mo_set=mos(ispin)%mo_set,&
-            density_matrix=rho%rho_ao(ispin)%matrix,error=error)
-    END DO
-
-    CALL qs_rho_update_rho(rho,qs_env=qs_env, error=error)
-   
-    CALL timestop(0.0_dp,handle)
-
-  END SUBROUTINE loc_initialize_rho
-
+!  SUBROUTINE loc_initialize_rho(qs_env,error)
+!
+!    TYPE(qs_environment_type), POINTER       :: qs_env
+!    TYPE(cp_error_type), INTENT(inout), &
+!      OPTIONAL                               :: error
+!
+!    CHARACTER(LEN=*), PARAMETER :: routineN = 'loc_initialize_rho', &
+!      routineP = moduleN//':'//routineN
+!
+!    INTEGER                                  :: handle, ispin
+!    LOGICAL                                  :: failure
+!    TYPE(dft_control_type), POINTER          :: dft_control
+!    TYPE(mo_set_p_type), DIMENSION(:), &
+!      POINTER                                :: mos
+!    TYPE(qs_rho_type), POINTER               :: rho
+!
+!!   ---------------------------------------------------------------------------
+!
+!    CALL timeset(routineN,"I"," ",handle)
+!    failure=.FALSE.
+!
+!    NULLIFY(dft_control,mos)
+!
+!    CALL get_qs_env(qs_env=qs_env,&
+!         dft_control=dft_control,&
+!         mos=mos,rho=rho)
+!
+!    DO ispin=1,SIZE(mos)
+!       CALL calculate_density_matrix(mo_set=mos(ispin)%mo_set,&
+!            density_matrix=rho%rho_ao(ispin)%matrix,error=error)
+!    END DO
+!
+!    CALL qs_rho_update_rho(rho,qs_env=qs_env, error=error)
+!   
+!    CALL timestop(0.0_dp,handle)
+!
+!  END SUBROUTINE loc_initialize_rho
+!
 !******************************************************************************
 
 END MODULE qs_loc_methods

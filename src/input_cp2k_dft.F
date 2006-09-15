@@ -4227,6 +4227,16 @@ END SUBROUTINE create_ot_section
       CALL section_add_keyword(section,keyword,error=error)
       CALL keyword_release(keyword,error=error) 
 
+      CALL keyword_create(keyword, name="WRITE_RESTART_EACH",&
+           description="How often the wavefunction restart file should be "//&
+            "written during an tp_scf (0=only at the end, -1=never).",&
+            usage="WRITE_RESTART_EACH 5",&
+            default_i_val=10,error=error)
+       CALL section_add_keyword(section,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+
+
       NULLIFY(subsection)
       CALL create_localize_section(subsection,error)
       CALL section_add_subsection(section, subsection, error=error)

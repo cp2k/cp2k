@@ -552,7 +552,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'deallocate_jrho_atom_set'
 
     INTEGER                                  :: i, iat, iB, idir, istat, n, &
-                                                NATOM
+                                                natom
     LOGICAL                                  :: failure
 
      CPPrecondition(ASSOCIATED(jrho_atom_set),cp_failure_level,routineN,error,failure)

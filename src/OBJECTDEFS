@@ -441,6 +441,7 @@ OBJECTS_GENERIC =\
  xas_control.o\
  xas_env_types.o\
  xas_methods.o\
+ xas_restart.o\
  xas_tp_scf.o\
  xc.o\
  xc_atom.o\

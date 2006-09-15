@@ -1,6 +1,6 @@
 !-----------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations         !
-!   Copyright (C) 2000 - 2005  CP2K developers group                          !
+!   Copyright (C) 2000 - 2006  CP2K developers group                          !
 !-----------------------------------------------------------------------------!
 !!****s* cp2k/xas_methods   [1.0] *
 !!
@@ -123,6 +123,7 @@ MODULE xas_methods
                                              xas_env_create,&
                                              xas_env_release,&
                                              xas_environment_type
+  USE xas_restart,                     ONLY: xas_read_restart
   USE xas_tp_scf,                      ONLY: xas_do_tp_scf,&
                                              xes_scf_once
 #include "cp_common_uses.h"
@@ -220,6 +221,8 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: dft_section, loc_section, &
                                                 scf_section, xas_section
     TYPE(xas_environment_type), POINTER      :: xas_env
+
+!   ---------------------------------------------------------------------------
 
     CALL timeset(routineN,"I",'',handle)
 
@@ -423,9 +426,9 @@ CONTAINS
        iatom = xas_control%exc_atoms(iat)
        ! determine which state has to be excited in the global list
        state_to_be_excited = state_of_atom(iat)
-       dft_control % xas_estate  = state_to_be_excited
+
       ! Take the state_to_be_excited vector from the full set and copy into excvec_coeff
-       CALL get_mo_set(mos(1)%mo_set, mo_coeff=mo_coeff,&
+       CALL get_mo_set(mos(1)%mo_set, &
             occupation_numbers=occupation_numbers,homo=homo,nmo=nmo,nelectron=nelectron)
        IF(xas_control%xas_method==xas_dscf .OR. xas_control%xas_method==xas_tp_xhh &
          .OR.  xas_control%xas_method==xas_tp_xfh) THEN
@@ -434,6 +437,18 @@ CONTAINS
           CALL set_mo_set(mos(1)%mo_set, homo = homo)
        END IF
        occupation_numbers(1:homo)  = 1.0_dp
+      ! If the restart file for this atom exists, the mos and the 
+      ! occupation numbers are overwritten
+      ! It is necessary that the restart is for the same xas method
+      ! otherwise the number of electrons and the occupation numbers 
+      ! may not correspond
+      IF(xas_control%xas_restart) THEN
+         CALL xas_read_restart(xas_control,xas_section, qs_env,iatom,&
+              state_to_be_excited,error=error)
+      END IF
+
+       dft_control % xas_estate  = state_to_be_excited
+       CALL get_mo_set(mos(1)%mo_set, mo_coeff=mo_coeff)
        CPPrecondition(ASSOCIATED(excvec_coeff),cp_failure_level,routineP,error,failure)
        CALL cp_fm_get_submatrix(mo_coeff,vecbuffer,1,state_to_be_excited,&
             nao,1,transpose=.TRUE.,error=error)
@@ -463,7 +478,7 @@ CONTAINS
          ! DO SCF if required
           NULLIFY(scf_env)
           CALL get_qs_env(qs_env,scf_env=scf_env,error=error)
-          ! OT cannot be used with different occupation number in the core
+          ! OT cannot be used with different occupation numbers in the core
           ! Therefore in case of XAS the general_diag_method_nr is imposed
           ch_method_flags = .FALSE.
           IF( xas_control%occ_estate .LT. 1.0_dp .AND. scf_env%method == ot_method_nr) THEN
@@ -474,15 +489,6 @@ CONTAINS
             scf_env%mixing_method = ao_mixing_nr
             ch_method_flags = .TRUE.
           END IF
-
-          ! If the restart file for this atom exists, the mos and the 
-          ! occupation numbers are overwritten
-          ! It is necessar that the restart is for the same xas method
-          ! otherwise the number of electrons and the occupation numbers 
-          ! may not correspond
-!          IF(xas_restart) THEN
-!             CALL xas_read_restart(xas_env,qs_env,iatom,nspins,error=error)
-!          END IF
 
           CALL init_scf_run(scf_env=scf_env,qs_env=qs_env,&
                   scf_section=scf_section, error=error)
@@ -536,7 +542,7 @@ CONTAINS
 
       IF(.NOT.skip_scf) THEN
         ! Write the restart file for this excitation set up
-!        CALL xas_write_restart(xas_env,mos,nspins,iatom,error=error)
+!        CALL xas_write_restart(xas_env,mos,iatom,estate,error=error)
         ! Reset the initial core orbitals. 
         ! The valence orbitals are taken from the last SCF,
         ! it should be a better initial guess
@@ -828,7 +834,6 @@ CONTAINS
         ELSEIF(xas_control%dipole_form==xas_dip_vel) THEN
           CALL allocate_matrix_set(xas_env%ostrength_sm,3)
           NULLIFY(xas_env%ostrength_sm(1)%matrix)
- !        CALL set_up_op_sm(xas_env%ostrength_sm(1)%matrix,qs_env,symmetry="none",&
           CALL set_up_op_sm(xas_env%ostrength_sm(1)%matrix,qs_env,symmetry="antisymmetric",&
           name="xas_env%ostrength_sm",error=error)
           CALL set_matrix(xas_env%ostrength_sm(1)%matrix,0.0_dp)
@@ -836,7 +841,6 @@ CONTAINS
              NULLIFY(xas_env%ostrength_sm(i)%matrix)
              CALL replicate_matrix_structure(xas_env%ostrength_sm(1)%matrix, &
                   xas_env%ostrength_sm(i)%matrix,"xas_env%ostrength_sm"//&
- !                "-"//TRIM(ADJUSTL(cp_to_string(i))),target_symmetry="none")
                   "-"//TRIM(ADJUSTL(cp_to_string(i))),target_symmetry="antisymmetric")
              CALL set_matrix(xas_env%ostrength_sm(i)%matrix,0.0_dp)
           END DO 
@@ -1065,10 +1069,6 @@ CONTAINS
 
       IF(.NOT. xas_control%xas_method == xas_dscf) THEN
       ! Calculate the spectrum
-!        IF(xas_control%dipole_form == xas_dip_len) THEN
-!           CALL spectrum_dip_len(xas_control,dip_fm_set,ostrength_sm,mos,excvec_coeff,&
-!                all_vectors,all_evals,fm_work,&
-!                cell,spectrum,dft_control%xas_estate,error=error)
         IF(xas_control%dipole_form==xas_dip_len2) THEN
            rc(1:3) = particle_set(iatom)%r(1:3)
            DO i = 1,3

@@ -104,6 +104,7 @@ MODULE xas_tp_scf
   USE xas_env_types,                   ONLY: get_xas_env,&
                                              set_xas_env,&
                                              xas_environment_type
+  USE xas_restart,                     ONLY: xas_write_restart
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -197,7 +198,9 @@ CONTAINS
       POINTER                                :: matrix_h, matrix_ks, matrix_s
     TYPE(scf_control_type), POINTER          :: scf_control
     TYPE(section_vals_type), POINTER         :: dft_section, input, &
-                                                scf_section
+                                                scf_section, xas_section
+
+!   ---------------------------------------------------------------------------
 
     CALL timeset(routineN,"I"," ",handle)
     NULLIFY(dft_control,matrix_h,matrix_s,matrix_ks)
@@ -205,7 +208,7 @@ CONTAINS
     NULLIFY(particle_set,vecbuffer,vecbuffer2, occupation_numbers)
     NULLIFY( scf_work1,ortho,scf_work2,excvec_coeff,excvec_overlap,mo_coeff)
     NULLIFY(fm_work, col_indices, eigenvalues)
-    NULLIFY( dft_section, scf_section,input,qs_charges)
+    NULLIFY( dft_section, scf_section,input,qs_charges, xas_section)
 
     logger => cp_error_get_logger(error)
     t1 = m_walltime()
@@ -229,6 +232,7 @@ CONTAINS
     energy_only = .FALSE.
     dft_section => section_vals_get_subs_vals(input,"DFT",error=error)
     scf_section => section_vals_get_subs_vals(dft_section,"SCF",error=error)
+    xas_section => section_vals_get_subs_vals(dft_section,"XAS",error=error)
     output_unit=cp_print_key_unit_nr(logger,scf_section,"PRINT%PROGRAM_RUN_INFO",&
          extension=".scfLog",error=error)
     IF (output_unit>0) THEN
@@ -481,6 +485,14 @@ CONTAINS
           EXIT scf_loop
        END IF
 
+       ! ** Write restart file **
+       IF (xas_control%write_restart_each>0.AND.&
+          MODULO(iter_count,xas_control%write_restart_each)==0) THEN
+          CALL xas_write_restart(xas_control, xas_section,qs_env,&
+                iatom,error=error)
+       END IF
+
+
        IF (.NOT.BTEST(cp_print_key_should_output(logger%iter_info,&
          scf_section,"PRINT%ITERATION_INFO/TIME_CUMUL",error=error),cp_p_file)) t1 = m_walltime()
 
@@ -501,6 +513,13 @@ CONTAINS
 
     END DO scf_loop
 
+
+    !   *** Write restart file ***
+    IF (xas_control%write_restart_each>=0) THEN
+       CALL xas_write_restart(xas_control, xas_section,qs_env,&
+                iatom,error=error)
+    END IF 
+    
     IF (output_unit>0) THEN
        WRITE (UNIT=output_unit,FMT="(/,(T3,A,T40,2F20.10))")&
             "Total electronic density (r-space): ",&

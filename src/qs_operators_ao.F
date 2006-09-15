@@ -1252,6 +1252,8 @@ CONTAINS
     TYPE(neighbor_node_type), POINTER        :: sab_orb_neighbor_node
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+!dbg
+    INTEGER :: num1
 
 !$  INTEGER :: omp_get_max_threads,omp_get_thread_num
 
@@ -1473,7 +1475,7 @@ CONTAINS
 
             rab2 = rab(1)*rab(1) + rab(2)*rab(2) + rab(3)*rab(3)
             dab = SQRT(rab2)
-
+ 
             DO iset=1,nseta
 
               ncoa = npgfa(iset)*ncoset(la_max(iset))
@@ -1538,8 +1540,15 @@ CONTAINS
                           work(1,1),ldwork,&
                           1.0_dp,op_dip(imom)%block(sgfa,sgfb),&
                           SIZE(op_dip(imom)%block,1))
+!dbg
+!   num1 =500+10*imom
+!   write(num1,*) ' imom ', imom,' iset ' , iset, nsgfa(iset), sgfa, ' jset ', jset,  nsgfb(jset), sgfb
+!   do i = sgfa,sgfa+nsgfa(iset)-1
+!      write(num1,'(I4,50f12.6)') i, op_dip(imom)%block(i,sgfb:sgfb+nsgfb(jset)-1)
+!   end do 
+!dbg
 
-                    alpha = -alpha_der
+                    alpha = -1.0_dp!-alpha_der
                     DO idir = 1,3
                       CALL dgemm("N","N",ncoa,nsgfb(jset),ncob,&
                           alpha,difmab(1,1,imom,idir),ldab,sphi_b(1,sgfb),ldsb,&
@@ -1549,6 +1558,15 @@ CONTAINS
                             work(1,1),ldwork,&
                             1.0_dp,op_dip_der(imom,idir)%block(sgfa,sgfb),&
                             SIZE(op_dip_der(imom,idir)%block,1))
+!dbg
+!   num1 =1000+100*imom+10*idir+2
+!   write(num1,*) ' imom ', imom, ' der. ', idir, ' iset '  , iset, nsgfa(iset), &
+!        sgfa, ' jset ', jset,  nsgfb(jset), sgfb
+!   do i = sgfa,sgfa+nsgfa(iset)-1
+!      write(num1,'(I4,50f12.6)') i, op_dip_der(imom,idir)%block(i,sgfb:sgfb+nsgfb(jset)-1)
+!   end do 
+!dbg
+
                     END DO  ! idir
 
                   END DO  ! imom
