@@ -23,6 +23,8 @@
 !******************************************************************************
 
 MODULE force_env_methods 
+  USE distribution_1d_types, only: distribution_1d_type
+  USE constraint, only: shake_control
   USE cell_types,                      ONLY: cell_type
   USE constraint_clv,                  ONLY: fix_atom_control
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
@@ -30,7 +32,8 @@ MODULE force_env_methods
   USE cp_para_env,                     ONLY: cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsystem_types,              ONLY: cp_subsys_retain,&
-                                             cp_subsystem_p_type
+                                             cp_subsystem_p_type,&
+                                             cp_subsys_get
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_retain
   USE eip_environment_types,           ONLY: eip_env_get,&
                                              eip_env_retain,&
@@ -53,7 +56,8 @@ MODULE force_env_methods
   USE force_env_types,                 ONLY: &
        force_env_get, force_env_p_type, force_env_type, use_eip_force, &
        use_ep_force, use_fist_force, use_kg_force, use_pol_force, use_qmmm, &
-       use_qs_force, use_tbmd_force
+       use_qs_force, use_tbmd_force, force_env_get, force_env_pos_get,&
+       force_env_get_natom
   USE fp_methods,                      ONLY: fp_eval
   USE global_types,                    ONLY: global_environment_type,&
                                              globenv_retain
@@ -79,6 +83,9 @@ MODULE force_env_methods
                                              meta_env_type
   USE particle_types,                  ONLY: particle_type,&
                                              write_qs_particle_coordinates
+  USE particle_list_types, only: particle_list_type
+  USE mol_new_list_types, only: mol_new_list_type
+  USE mol_kind_new_list_types, only: mol_kind_new_list_type
   USE qmmm_electrostatic_methods,      ONLY: qmmm_el_coupling
   USE qmmm_elpot,                      ONLY: qmmm_validate_this_run
   USE qmmm_links_methods,              ONLY: qmmm_added_chrg_coord,&
@@ -100,6 +107,7 @@ MODULE force_env_methods
   USE qs_ks_qmmm_methods,              ONLY: ks_qmmm_env_rebuild
   USE qs_ks_types,                     ONLY: qs_ks_env_type,&
                                              qs_ks_release
+  USE timings, ONLY: timeset, timestop
   USE qs_numerical_pressure,           ONLY: qs_calc_numerical_pressure
   USE restraint,                       ONLY: restraint_control
   USE tbmd_energy,                     ONLY: tbmd_energies
@@ -111,6 +119,7 @@ MODULE force_env_methods
                                              virial_retain,&
                                              virial_type,&
                                              zero_virial
+  USE cpot_types, ONLY: cpot_type, cpot_calc
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -122,7 +131,7 @@ MODULE force_env_methods
   PUBLIC :: force_env_create, ep_create_force_env,&
        force_env_calc_energy_force, &
        force_env_set_cell,&
-       apply_qmmm_trasl
+       apply_qmmm_trasl, force_env_shake
 
   INTEGER, SAVE, PRIVATE :: last_force_env_id=0
   
@@ -171,6 +180,9 @@ RECURSIVE SUBROUTINE force_env_calc_energy_force ( force_env, &
     TYPE(cell_type), POINTER                 :: cell
     TYPE(section_vals_type), POINTER         :: root_section
     TYPE(virial_type), POINTER               :: virial
+    INTEGER :: nat, stat
+    REAL(kind=dp), POINTER, DIMENSION(:) :: pos
+    real(kind=dp) :: e_pot
 
 !------------------------------------------------------------------------------
 
@@ -264,7 +276,17 @@ RECURSIVE SUBROUTINE force_env_calc_energy_force ( force_env, &
         ! All Restraints
         CALL restraint_control(force_env, error=error)
      END IF
-
+     
+     IF (ASSOCIATED(force_env%cpot_env)) THEN
+        CALL force_env_get(force_env, potential_energy=e_pot, error=error)
+        nat=force_env_get_natom(force_env,error=error)
+        ALLOCATE(pos(3*nat),stat=stat)
+        CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
+        CALL force_env_pos_get(force_env, pos, 3*nat, error=error)
+        DEALLOCATE(pos,stat=stat)
+        CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+        CALL cpot_calc(force_env%cpot_env, e_pot,pos,error)
+     END IF
   END IF
 END SUBROUTINE force_env_calc_energy_force
 !******************************************************************************
@@ -295,39 +317,39 @@ END SUBROUTINE force_env_calc_energy_force
 !!
 !!*** **********************************************************************
 SUBROUTINE force_env_create(force_env,root_section,para_env,globenv,fist_env,qs_env,kg_env,&
-                            tbmd_env,meta_env,sub_force_env,qmmm_env,&
-                            eip_env,ep_env,force_env_section,error)
-    TYPE(force_env_type), POINTER            :: force_env
-    TYPE(section_vals_type), POINTER         :: root_section
-    TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(global_environment_type), POINTER   :: globenv
-    TYPE(fist_environment_type), OPTIONAL, &
-      POINTER                                :: fist_env
-    TYPE(qs_environment_type), OPTIONAL, &
-      POINTER                                :: qs_env
-    TYPE(kg_environment_type), OPTIONAL, &
-      POINTER                                :: kg_env
-    TYPE(tbmd_environment_type), OPTIONAL, &
-      POINTER                                :: tbmd_env
-    TYPE(meta_env_type), OPTIONAL, POINTER   :: meta_env
-    TYPE(force_env_p_type), DIMENSION(:), &
-      OPTIONAL, POINTER                      :: sub_force_env
-    TYPE(qmmm_env_qm_type), OPTIONAL, &
-      POINTER                                :: qmmm_env
-    TYPE(eip_environment_type), OPTIONAL, &
-      POINTER                                :: eip_env
-    TYPE(ep_env_type), OPTIONAL, POINTER     :: ep_env
-    TYPE(section_vals_type), POINTER         :: force_env_section
-    TYPE(cp_error_type), INTENT(inout), &
-      OPTIONAL                               :: error
+     tbmd_env,meta_env,sub_force_env,qmmm_env,&
+     eip_env,ep_env,force_env_section,error)
+  TYPE(force_env_type), POINTER            :: force_env
+  TYPE(section_vals_type), POINTER         :: root_section
+  TYPE(cp_para_env_type), POINTER          :: para_env
+  TYPE(global_environment_type), POINTER   :: globenv
+  TYPE(fist_environment_type), OPTIONAL, &
+       POINTER                                :: fist_env
+  TYPE(qs_environment_type), OPTIONAL, &
+       POINTER                                :: qs_env
+  TYPE(kg_environment_type), OPTIONAL, &
+       POINTER                                :: kg_env
+  TYPE(tbmd_environment_type), OPTIONAL, &
+       POINTER                                :: tbmd_env
+  TYPE(meta_env_type), OPTIONAL, POINTER   :: meta_env
+  TYPE(force_env_p_type), DIMENSION(:), &
+       OPTIONAL, POINTER                      :: sub_force_env
+  TYPE(qmmm_env_qm_type), OPTIONAL, &
+       POINTER                                :: qmmm_env
+  TYPE(eip_environment_type), OPTIONAL, &
+       POINTER                                :: eip_env
+  TYPE(ep_env_type), OPTIONAL, POINTER     :: ep_env
+  TYPE(section_vals_type), POINTER         :: force_env_section
+  TYPE(cp_error_type), INTENT(inout), &
+       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'force_env_create', &
-      routineP = moduleN//':'//routineN
+  CHARACTER(len=*), PARAMETER :: routineN = 'force_env_create', &
+       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: isubsys, stat
-    LOGICAL                                  :: failure
-    TYPE(cp_subsystem_p_type), &
-      DIMENSION(:), POINTER                  :: subsys
+  INTEGER                                  :: isubsys, stat
+  LOGICAL                                  :: failure
+  TYPE(cp_subsystem_p_type), &
+       DIMENSION(:), POINTER                  :: subsys
 
   failure=.FALSE.
 
@@ -335,18 +357,19 @@ SUBROUTINE force_env_create(force_env,root_section,para_env,globenv,fist_env,qs_
   CPPostconditionNoFail(stat==0,cp_fatal_level,routineP,error)
   IF (.NOT. failure) THEN
      NULLIFY ( force_env%subsys, force_env%fist_env, &
-               force_env%kg_env, force_env%qs_env,   &
-               force_env%para_env, force_env%globenv, &
-               force_env%dyn_coeff_set,&
-               force_env%meta_env, force_env%sub_force_env, &
-               force_env%qmmm_env, force_env%ep_env, force_env%fp_env, &
-               force_env%force_env_section,&
-               force_env%extended_energies,force_env%root_section)
+          force_env%kg_env, force_env%qs_env,   &
+          force_env%para_env, force_env%globenv, &
+          force_env%dyn_coeff_set,&
+          force_env%meta_env, force_env%sub_force_env, &
+          force_env%qmmm_env, force_env%ep_env, force_env%fp_env, &
+          force_env%force_env_section,&
+          force_env%extended_energies,force_env%root_section,&
+          force_env%cpot_env)
      last_force_env_id=last_force_env_id+1
      force_env%id_nr=last_force_env_id
      force_env%ref_count=1
      force_env%in_use=0
-     
+
      force_env%globenv => globenv
      CALL globenv_retain(force_env%globenv,error=error)
 
@@ -380,25 +403,25 @@ SUBROUTINE force_env_create(force_env,root_section,para_env,globenv,fist_env,qs_
         END IF
      END IF
      IF (PRESENT(tbmd_env)) THEN
-       IF (ASSOCIATED(tbmd_env)) THEN
-         CPPrecondition(force_env%in_use==0, cp_failure_level, routineP, error, failure)
-         force_env%in_use = use_tbmd_force
-         force_env%tbmd_env => tbmd_env
-         CALL tbmd_env_retain(tbmd_env, error=error)
-         CALL virial_create(force_env%virial, virial_in_use = .FALSE.)
-         tbmd_env%virial => force_env%virial
-         CALL virial_retain(tbmd_env%virial)
-       END IF
+        IF (ASSOCIATED(tbmd_env)) THEN
+           CPPrecondition(force_env%in_use==0, cp_failure_level, routineP, error, failure)
+           force_env%in_use = use_tbmd_force
+           force_env%tbmd_env => tbmd_env
+           CALL tbmd_env_retain(tbmd_env, error=error)
+           CALL virial_create(force_env%virial, virial_in_use = .FALSE.)
+           tbmd_env%virial => force_env%virial
+           CALL virial_retain(tbmd_env%virial)
+        END IF
      END IF
      IF (PRESENT(eip_env)) THEN
         IF (ASSOCIATED(eip_env)) THEN
-          CPPrecondition(force_env%in_use==0, cp_failure_level, routineP, error, failure)
-          force_env%in_use = use_eip_force
-          force_env%eip_env => eip_env
-          CALL eip_env_retain(eip_env, error=error)
-          CALL virial_create(force_env%virial, virial_in_use = .FALSE.)
-          eip_env%virial => force_env%virial
-          CALL virial_retain(eip_env%virial)
+           CPPrecondition(force_env%in_use==0, cp_failure_level, routineP, error, failure)
+           force_env%in_use = use_eip_force
+           force_env%eip_env => eip_env
+           CALL eip_env_retain(eip_env, error=error)
+           CALL virial_create(force_env%virial, virial_in_use = .FALSE.)
+           eip_env%virial => force_env%virial
+           CALL virial_retain(eip_env%virial)
         END IF
      END IF
      IF (PRESENT(qs_env)) THEN
@@ -408,9 +431,9 @@ SUBROUTINE force_env_create(force_env,root_section,para_env,globenv,fist_env,qs_
            force_env%qs_env => qs_env
            CALL qs_env_retain(qs_env,error=error)
            IF (force_env%globenv%run_type_id == qs_debug_run) THEN
-             CALL virial_create(force_env%virial, virial_in_use = .TRUE.)
+              CALL virial_create(force_env%virial, virial_in_use = .TRUE.)
            ELSE
-             CALL virial_create(force_env%virial, virial_in_use = .FALSE.)
+              CALL virial_create(force_env%virial, virial_in_use = .FALSE.)
            END IF
            qs_env%virial => force_env%virial
            CALL virial_retain(qs_env%virial)
@@ -434,7 +457,7 @@ SUBROUTINE force_env_create(force_env,root_section,para_env,globenv,fist_env,qs_
         END IF
      END IF
      CPPostcondition(force_env%in_use/=0,cp_failure_level,routineP,error,failure)
-     
+
      IF (PRESENT(sub_force_env)) THEN
         force_env%sub_force_env => sub_force_env
      END IF
@@ -449,10 +472,10 @@ SUBROUTINE force_env_create(force_env,root_section,para_env,globenv,fist_env,qs_
         ALLOCATE ( force_env % subsys ( 1 ), stat = stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         CALL get_fist_env ( force_env % fist_env, &
-                            subsys=force_env % subsys ( 1 ) % subsys, &
-                            error = error )
+             subsys=force_env % subsys ( 1 ) % subsys, &
+             error = error )
         CALL cp_subsys_retain ( force_env % subsys ( 1 ) % subsys, &
-                                error = error )
+             error = error )
 
      CASE(use_kg_force)
         ALLOCATE(force_env%subsys(1), stat=stat)
@@ -468,10 +491,10 @@ SUBROUTINE force_env_create(force_env,root_section,para_env,globenv,fist_env,qs_
            CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
            NULLIFY(force_env%dyn_coeff_set(1)%dyn_coeff_set)
            CALL get_kg_env(force_env%kg_env,&
-                    dyn_coeff_set=force_env%dyn_coeff_set(1)%dyn_coeff_set,&
-                    error=error)
+                dyn_coeff_set=force_env%dyn_coeff_set(1)%dyn_coeff_set,&
+                error=error)
            CALL dyn_coeff_set_retain(force_env%dyn_coeff_set(1)%dyn_coeff_set,&
-                    error=error)
+                error=error)
         END IF
 
      CASE(use_qs_force)
@@ -489,8 +512,8 @@ SUBROUTINE force_env_create(force_env,root_section,para_env,globenv,fist_env,qs_
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
         NULLIFY(force_env%subsys(1)%subsys)
 
-       PRINT *, "accessing ep_env,id=",force_env%ep_env%id_nr
-       PRINT *, "accessing main_qs_env,id=",force_env%ep_env%main_qs_env%id_nr
+        PRINT *, "accessing ep_env,id=",force_env%ep_env%id_nr
+        PRINT *, "accessing main_qs_env,id=",force_env%ep_env%main_qs_env%id_nr
 
         CALL get_qs_env(force_env%ep_env%main_qs_env,&
              subsys=force_env%subsys(1)%subsys,&
@@ -503,8 +526,8 @@ SUBROUTINE force_env_create(force_env,root_section,para_env,globenv,fist_env,qs_
         NULLIFY(force_env%subsys(1)%subsys)
 
         CALL tbmd_env_get(force_env%tbmd_env, &
-                          subsystem=force_env%subsys(1)%subsys, &
-                          error=error)
+             subsystem=force_env%subsys(1)%subsys, &
+             error=error)
         CALL cp_subsys_retain(force_env%subsys(1)%subsys, error=error)
      CASE(use_eip_force)
 
@@ -513,14 +536,14 @@ SUBROUTINE force_env_create(force_env,root_section,para_env,globenv,fist_env,qs_
         NULLIFY(force_env%subsys(1)%subsys)
 
         CALL eip_env_get(force_env%eip_env, &
-                         subsystem=force_env%subsys(1)%subsys, &
-                         error=error)
+             subsystem=force_env%subsys(1)%subsys, &
+             error=error)
         CALL cp_subsys_retain(force_env%subsys(1)%subsys, error=error)
      CASE(use_qmmm)
         subsys => force_env%sub_force_env(1)%force_env%subsys
         ALLOCATE(force_env%subsys(SIZE(subsys)), stat=stat)
         CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-        
+
         DO isubsys=1,SIZE(subsys)
            force_env%subsys(isubsys)%subsys => subsys(isubsys)%subsys
            CALL cp_subsys_retain(subsys(isubsys)%subsys,&
@@ -529,7 +552,7 @@ SUBROUTINE force_env_create(force_env,root_section,para_env,globenv,fist_env,qs_
      CASE default
         CPAssert(.FALSE.,cp_failure_level,routineP,error,failure)
      END SELECT
-     
+
   END IF
 
 END SUBROUTINE force_env_create
@@ -939,5 +962,108 @@ SUBROUTINE apply_qmmm_trasl(force_env, error)
   END SELECT
 
 END SUBROUTINE apply_qmmm_trasl
+
+
+!!****f* force_env_types/force_env_shake *
+!!
+!!   NAME
+!!     force_env_shake
+!!
+!!   FUNCTION
+!!     perform shake (enforcing of constraints)
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - force_env: the force env to shake
+!!     - dt: the dt for shake (if you are not interested in the velocities
+!!       it can be any positive number)
+!!     - shake_tol: the tolerance for shake
+!!     - log_unit: if >0 then some information on the shake is printed,
+!!       defaults to -1
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!*** **********************************************************************
+SUBROUTINE force_env_shake(force_env,dt,shake_tol,log_unit,pos,vel,error)
+  TYPE(force_env_type), pointer :: force_env
+  REAL(kind=dp), INTENT(in) :: dt,shake_tol
+  INTEGER, INTENT(in), optional :: log_unit
+  REAL(KIND=dp), INTENT(INOUT), OPTIONAL, TARGET, DIMENSION(:,:) :: pos, vel
+  type(cp_error_type), optional, intent(inout) :: error
+
+  LOGICAL :: failure,has_pos,has_vel
+  character(len=*), parameter :: routineN='force_env_shake',&
+       routineP=moduleN//':'//routineN
+  TYPE(particle_list_type), &
+       POINTER                                :: particles
+  TYPE(mol_new_list_type), &
+       POINTER                                :: molecules
+  TYPE(mol_kind_new_list_type), &
+       POINTER                                :: molecule_kinds
+  TYPE(distribution_1d_type), &
+       POINTER                                :: local_molecules
+  INTEGER :: handle,isub,stat,my_log_unit,ip
+  REAL(KIND=dp), DIMENSION(:,:), pointer :: my_pos, my_vel
+  TYPE(cp_subsystem_p_type), POINTER, dimension(:) :: subsys
+  TYPE(cell_type), pointer :: cell
+
+  failure=.false.
+
+  call timeset(routineN,handle)
+  CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
+  CPPrecondition(force_env%ref_count>0,cp_failure_level,routineP,error,failure)
+  IF (.NOT.failure) THEN
+     my_log_unit=-1
+     if (present(log_unit)) my_log_unit=log_unit
+     NULLIFY(subsys,cell,molecules,molecule_kinds,local_molecules,particles,&
+          my_pos,my_vel)
+     if (present(pos)) my_pos => pos
+     if (present(vel)) my_vel => vel
+     CALL force_env_get(force_env,subsys=subsys,cell=cell,error=error)
+     DO isub=1,SIZE(subsys)
+        CALL cp_subsys_get(subsys(isub)%subsys, &
+             local_molecules_new=local_molecules,&
+             molecules_new=molecules, molecule_kinds_new=molecule_kinds, &
+             particles=particles,error=error)
+        has_pos=.FALSE.
+        IF (.NOT.ASSOCIATED(my_pos)) THEN
+           has_pos=.TRUE.
+           ALLOCATE(my_pos(3,particles%n_els),stat=stat)
+           DO ip=1,particles%n_els
+              my_pos(:,ip)=particles%els(ip)%r
+           END DO
+        END IF
+        has_vel=.false.
+        IF (.NOT.ASSOCIATED(my_vel)) THEN
+           has_vel=.true.
+           ALLOCATE(my_vel(3,particles%n_els),stat=stat)
+           DO ip=1,particles%n_els
+              my_vel(:,ip)=particles%els(ip)%r
+           END DO
+        END IF
+
+        call shake_control( local_molecules=local_molecules,&
+             molecule_set=molecules%els, molecule_kind_set=molecule_kinds%els, &
+             particle_set=particles%els, pos=my_pos, vel=my_vel, dt=dt,&
+             shake_tol=shake_tol, log_unit=my_log_unit, cell=cell, error=error )
+
+        IF (has_pos) THEN
+           DEALLOCATE(my_pos,stat=stat)
+           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+        END IF
+        IF (has_vel) THEN
+           DEALLOCATE(my_vel,stat=stat)
+           CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
+        END IF
+     END DO
+  END IF
+  CALL timestop(handle)
+END SUBROUTINE force_env_shake
+!***************************************************************************
 
 END MODULE force_env_methods

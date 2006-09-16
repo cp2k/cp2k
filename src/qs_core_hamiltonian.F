@@ -147,6 +147,7 @@ MODULE qs_core_hamiltonian
   USE util,                            ONLY: locate,&
                                              sort
   USE virial_types,                    ONLY: virial_type
+  USE ep_qs_types, ONLY: ep_qs_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -188,7 +189,7 @@ CONTAINS
 ! *****************************************************************************
 
   SUBROUTINE build_core_hamiltonian_matrix(qs_env,globenv,calculate_forces,&
-                                           harris,my_ep,error)
+                                           harris,error)
 
 !   Purpose: Calculation of the overlap matrix over Cartesian Gaussian
 !            functions.
@@ -204,7 +205,7 @@ CONTAINS
     TYPE(global_environment_type), &
       POINTER                             :: globenv
     LOGICAL, INTENT(IN)                      :: calculate_forces
-    LOGICAL, INTENT(IN), OPTIONAL            :: harris,my_ep
+    LOGICAL, INTENT(IN), OPTIONAL            :: harris
     TYPE(cp_error_type), INTENT(inout), &
          OPTIONAL                               :: error
 !   *** Local parameters ***
@@ -245,7 +246,7 @@ CONTAINS
                           maxppnl,maxsgf,n,nat,natom,ncoa,ncoa_sum,ncob,ncoc,ncol,&
                           nder,nkind,nlist,nneighbor,nnode,nnode_c,nppnl,nprjc,&
                           nrow,nseta,nsetb,nsgf,prjc,sgfa,sgfb,unit_number, iw
-    LOGICAL            :: all_potential_present,&
+    LOGICAL            :: all_potential_present,do_ep,&
                           build_kinetic_energy_matrix,gth_potential_present,&
                           new_atom_b,ppl_present,ppnl_present,&
                           return_s_derivatives,return_t_derivatives,&
@@ -316,6 +317,7 @@ CONTAINS
     INTEGER :: dir
     REAL(kind = dp), DIMENSION(3,3) :: pv_virial
     LOGICAL         :: use_virial
+    TYPE(ep_qs_type), pointer :: ep_qs_env
 
 #if defined(__AIX) && defined(__INIT_WITH_NANS)
     REAL(dp) :: nans_dp
@@ -413,14 +415,25 @@ CONTAINS
                                atom_of_kind=atom_of_kind)
 
       CALL get_qs_env(qs_env=qs_env,&
-                      force=force,&
+                      force=force,ep_qs_env=ep_qs_env,&
                       matrix_w=matrix_w)
+      do_ep=associated(ep_qs_env)
+      IF (do_ep) do_ep=ep_qs_env%ep_active.AND.calculate_forces
       IF (harris_flag) THEN
-        CALL get_qs_env(qs_env=qs_env, harris_env=harris_env)
+        CALL get_qs_env(qs_env=qs_env, harris_env=harris_env,&
+             error=error)
         matrix_p => harris_env%rho%rho_ao
       ELSE
         CALL get_qs_env(qs_env=qs_env, rho=rho)
         matrix_p => rho%rho_ao
+      END IF
+      IF (do_ep) THEN
+         IF (ASSOCIATED(ep_qs_env%dH_coeffs)) THEN
+            matrix_p => ep_qs_env%dH_coeffs
+         END IF
+         IF (ASSOCIATED(ep_qs_env%dS_coeffs)) THEN
+            matrix_w => ep_qs_env%dS_coeffs
+         END IF
       END IF
 
 !     *** If LSD, then combine alpha density and beta density to
@@ -546,11 +559,10 @@ CONTAINS
     xas_calculation = (added_mos>0)
     
     build_kinetic_energy_matrix = (scf_control%use_ot.OR.&
-                                   BTEST(cp_print_key_should_output(logger%iter_info,&
-         qs_env%input,"DFT%PRINT%AO_MATRICES/KINETIC_ENERGY",error=error),cp_p_file).OR.&
-                                    BTEST(cp_print_key_should_output(logger%iter_info,&
-         qs_env%input,"DFT%PRINT%AO_MATRICES/POTENTIAL_ENERGY",error=error),cp_p_file).OR.&
-                                   PRESENT(my_ep) .OR. &
+                                   cp_print_key_should_output(logger%iter_info,&
+         qs_env%input,"DFT%PRINT%AO_MATRICES/KINETIC_ENERGY",error=error)/=0.OR.&
+                                    cp_print_key_should_output(logger%iter_info,&
+         qs_env%input,"DFT%PRINT%AO_MATRICES/POTENTIAL_ENERGY",error=error)/=0.OR.&
                                    lr_precond == lr_precond_kinetic .OR. xas_calculation)
     ! assume false by default
     return_t_derivatives = .FALSE.
@@ -2127,6 +2139,13 @@ CONTAINS
       IF (SIZE(matrix_p) == 2) THEN
         CALL cp_sm_scale_and_add(matrix_p(1)%matrix, 0.5_dp,matrix_p(2)%matrix,0.5_dp)
         CALL cp_sm_scale_and_add(matrix_p(2)%matrix,-1.0_dp,matrix_p(1)%matrix,1.0_dp)
+!FM      IF (do_ep) THEN
+!FM         IF (ASSOCIATED(ep_qs_env%dS_coeffs)) THEN
+!FM            ! restore ep_qs_env%dS_coeffs
+!FM            CALL cp_sm_scale_and_add(matrix_w(1)%matrix, 0.5_dp,matrix_p(2)%matrix,0.5_dp)
+!FM            CALL cp_sm_scale_and_add(matrix_w(2)%matrix,-1.0_dp,matrix_p(1)%matrix,1.0_dp)
+!FM         END IF
+!FM      END IF
       END IF
 
     END IF

@@ -23,7 +23,6 @@ MODULE constraint_4x6
                                              get_atomic_kind
   USE kinds,                           ONLY: dp
   USE linear_systems,                  ONLY: solve_system
-  USE md,                              ONLY: simulation_parameters_type
   USE molecule_kind_types,             ONLY: g4x6_constraint_type,&
                                              get_molecule_kind,&
                                              molecule_kind_type
@@ -63,12 +62,11 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE shake_4x6( molecule, particle_set, pos, vel, simpar )
+  SUBROUTINE shake_4x6( molecule, particle_set, pos, vel, dt, shake_tol )
     TYPE(molecule_type), POINTER             :: molecule
     TYPE(particle_type), POINTER             :: particle_set( : )
     REAL(KIND=dp), INTENT(INOUT)             :: pos( :, : ), vel( :, : )
-    TYPE(simulation_parameters_type), &
-      INTENT(IN)                             :: simpar
+    REAL(kind=dp), INTENT(in)                :: dt, shake_tol
 
     INTEGER                                  :: first_atom, iconst, index_a, &
                                                 index_b, index_c, index_d, &
@@ -87,9 +85,9 @@ CONTAINS
       POINTER                                :: lg4x6( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
 
-    dtsqby2 = simpar%dt*simpar%dt*.5_dp
-    idtsq = 1.0_dp/simpar%dt/simpar%dt
-    dtby2 = simpar%dt*.5_dp
+    dtsqby2 = dt*dt*.5_dp
+    idtsq = 1.0_dp/dt/dt
+    dtby2 = dt*.5_dp
     molecule_kind => molecule % molecule_kind
     CALL get_molecule_kind ( molecule_kind, ng4x6 = ng4x6, g4x6_list = g4x6_list )
     CALL get_molecule ( molecule, first_atom = first_atom, lg4x6=lg4x6 )
@@ -175,7 +173,7 @@ CONTAINS
 
        ! Iterate until convergence:
        max_sigma = -1.0E+10_dp
-       CONS: DO WHILE (ABS(max_sigma)>=simpar%shake_tol)
+       CONS: DO WHILE (ABS(max_sigma)>=shake_tol)
           max_sigma=0.0_dp
           ishake=ishake+1
           vec= lg4x6 ( iconst ) % lambda ( 1 ) * lg4x6 ( iconst ) % fa *(imass1+imass2) + &
@@ -304,14 +302,13 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
   SUBROUTINE shake_roll_4x6( molecule, particle_set, pos, vel, r_shake,  &
-       v_shake, simpar )
+       v_shake, dt, shake_tol )
     TYPE(molecule_type), POINTER             :: molecule
     TYPE(particle_type), POINTER             :: particle_set( : )
     REAL(KIND=dp), INTENT(INOUT)             :: pos( :, : ), vel( :, : )
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(IN)                             :: r_shake, v_shake
-    TYPE(simulation_parameters_type), &
-      INTENT(IN)                             :: simpar
+    REAL(kind=dp), INTENT(in)                :: dt, shake_tol
 
     INTEGER                                  :: first_atom, iconst, index_a, &
                                                 index_b, index_c, index_d, &
@@ -331,9 +328,9 @@ CONTAINS
       POINTER                                :: lg4x6( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
 
-    dtsqby2 = simpar%dt*simpar%dt*.5_dp
-    idtsq = 1.0_dp/simpar%dt/simpar%dt
-    dtby2 = simpar%dt*.5_dp
+    dtsqby2 = dt*dt*.5_dp
+    idtsq = 1.0_dp/dt/dt
+    dtby2 = dt*.5_dp
     molecule_kind => molecule % molecule_kind
     CALL get_molecule_kind ( molecule_kind, ng4x6 = ng4x6, g4x6_list = g4x6_list )
     CALL get_molecule ( molecule, first_atom = first_atom, lg4x6=lg4x6 )
@@ -427,7 +424,7 @@ CONTAINS
 
        ! Iterate until convergence:
        max_sigma = -1.0E+10_dp
-       CONS: DO WHILE (ABS(max_sigma)>=simpar%shake_tol)
+       CONS: DO WHILE (ABS(max_sigma)>=shake_tol)
           max_sigma=0.0_dp
           ishake=ishake+1
           vec= lg4x6 ( iconst ) % lambda ( 1 ) * f_roll1*(imass1+imass2) + &
@@ -564,12 +561,11 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE rattle_4x6( molecule, particle_set, vel, simpar)
+  SUBROUTINE rattle_4x6( molecule, particle_set, vel, dt, shake_tol)
     TYPE(molecule_type), POINTER             :: molecule
     TYPE(particle_type), POINTER             :: particle_set( : )
     REAL(KIND=dp), INTENT(INOUT)             :: vel( :, : )
-    TYPE(simulation_parameters_type), &
-      INTENT(IN)                             :: simpar
+    REAL(kind=dp), INTENT(in)                :: dt,shake_tol
 
     INTEGER                                  :: first_atom, iconst, index_a, &
                                                 index_b, index_c, index_d, &
@@ -587,8 +583,8 @@ CONTAINS
       POINTER                                :: lg4x6( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
 
-    idt = 1.0_dp/simpar%dt
-    dtby2 = simpar%dt*.5_dp
+    idt = 1.0_dp/dt
+    dtby2 = dt*.5_dp
     molecule_kind => molecule % molecule_kind
     CALL get_molecule_kind ( molecule_kind, ng4x6 = ng4x6, g4x6_list = g4x6_list )
     CALL get_molecule ( molecule, first_atom = first_atom, lg4x6=lg4x6 )
@@ -720,15 +716,14 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE rattle_roll_4x6( molecule, particle_set, vel, r_rattle, simpar, &
-       veps )
+  SUBROUTINE rattle_roll_4x6( molecule, particle_set, vel, r_rattle, dt, &
+       shake_tol,veps )
     TYPE(molecule_type), POINTER             :: molecule
     TYPE(particle_type), POINTER             :: particle_set( : )
     REAL(KIND=dp), INTENT(INOUT)             :: vel( :, : )
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(IN)                             :: r_rattle
-    TYPE(simulation_parameters_type), &
-      INTENT(IN)                             :: simpar
+    REAL(kind=dp), INTENT(in)                :: dt, shake_tol
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(IN)                             :: veps
 
@@ -749,8 +744,8 @@ CONTAINS
       POINTER                                :: lg4x6( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
 
-    idt = 1.0_dp/simpar%dt
-    dtby2 = simpar%dt*.5_dp
+    idt = 1.0_dp/dt
+    dtby2 = dt*.5_dp
     molecule_kind => molecule % molecule_kind
     CALL get_molecule_kind ( molecule_kind, ng4x6 = ng4x6, g4x6_list = g4x6_list )
     CALL get_molecule ( molecule, first_atom = first_atom, lg4x6=lg4x6 )

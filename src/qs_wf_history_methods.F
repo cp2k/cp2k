@@ -89,7 +89,8 @@ MODULE qs_wf_history_methods
        wfi_frozen_method_nr, wfi_get_snapshot, wfi_linear_p_method_nr, &
        wfi_linear_ps_method_nr, wfi_linear_wf_method_nr, wfi_ps_method_nr, &
        wfi_use_guess_method_nr, wfi_use_prev_p_method_nr, &
-       wfi_use_prev_rho_r_method_nr, wfi_use_prev_wf_method_nr, wfs_release
+       wfi_use_prev_rho_r_method_nr, wfi_use_prev_wf_method_nr, wfs_release,&
+       qs_wf_snapshot_p_type
   USE sparse_matrix_types,             ONLY: allocate_matrix_set,&
                                              copy_matrix,&
                                              cp_sm_scale_and_add,&
@@ -112,7 +113,8 @@ MODULE qs_wf_history_methods
   PUBLIC :: wfs_create, wfi_create, wfi_update, &
             wfi_extrapolate, wfi_get_method_label, &
             wfi_duplicate_history, wfi_copy_history, &
-            wfs_duplicate_snapshot, wfs_copy_snapshot
+            wfs_duplicate_snapshot, wfs_copy_snapshot,&
+            wfi_change_memory_depth
 
 !!***
 !****************************************************************************
@@ -1667,6 +1669,72 @@ END SUBROUTINE wfi_update
     CALL timestop(0.0_dp, handle)
 
   END SUBROUTINE wfi_copy_history
+!***************************************************************************
+
+
+!!****f* qs_wf_history_types/wfi_change_memory_depth *
+!!
+!!   NAME
+!!     wfi_change_memory_depth
+!!
+!!   FUNCTION
+!!     chenge the memory depth stored in the history
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - wf_history: the wf_history to modify
+!!     - memory_depth: the new memory_depth
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!*** **********************************************************************
+SUBROUTINE wfi_change_memory_depth(wf_history,memory_depth,error)
+  TYPE(qs_wf_history_type), pointer :: wf_history
+  INTEGER, intent(in) :: memory_depth
+  type(cp_error_type), optional, intent(inout) :: error
+  
+  logical :: failure
+  character(len=*), parameter :: routineN='wfi_change_memory_depth',&
+        routineP=moduleN//':'//routineN
+  INTEGER :: handle,i,stat
+  TYPE(qs_wf_snapshot_p_type), DIMENSION(:), POINTER :: new_past_states
+
+  failure=.false.
+
+  call timeset(routineN,handle)
+  CPPrecondition(ASSOCIATED(wf_history),cp_failure_level,routineP,error,failure)
+  CPPrecondition(wf_history%ref_count>0,cp_failure_level,routineP,error,failure)
+  IF (.NOT.failure) THEN
+     IF (wf_history%memory_depth/=memory_depth)THEN
+        ALLOCATE(new_past_states(memory_depth),stat=stat)
+        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+        IF (.NOT. failure) THEN
+           DO i=1,memory_depth
+              NULLIFY(new_past_states(i)%snapshot)
+              IF (i<wf_history%memory_depth) THEN
+                 new_past_states(MODULO(wf_history%snapshot_count+1-i,&
+                      wf_history%memory_depth)+1)%snapshot => &
+                      wf_history%past_states(&
+                      MODULO(wf_history%snapshot_count+1-i,&
+                      wf_history%memory_depth)+1)%snapshot
+              END IF
+           END DO
+           IF (ASSOCIATED(wf_history%past_states)) THEN
+              DEALLOCATE(wf_history%past_states,stat=stat)
+              CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
+           END IF
+           wf_history%past_states => new_past_states
+           wf_history%memory_depth = memory_depth
+        END IF
+     END IF
+  END IF
+  CALL timestop(handle)
+END SUBROUTINE wfi_change_memory_depth
 !***************************************************************************
 
 END MODULE qs_wf_history_methods

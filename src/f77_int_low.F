@@ -145,7 +145,7 @@ RECURSIVE SUBROUTINE cp_calc_energy(env_id,pos,n_el,e_pot,ierr)
   USE kinds, ONLY: dp
   USE f77_interface, ONLY: ce => calc_energy
   IMPLICIT NONE
-  INTEGER :: calc_force, env_id, ierr, n_el
+  INTEGER :: env_id, ierr, n_el
   REAL(dp) :: e_pot
   REAL(dp), DIMENSION(1:n_el) :: pos
 
@@ -204,9 +204,7 @@ RECURSIVE SUBROUTINE cp_ep_init(ep_env_id,ierr)
   IMPLICIT NONE
   INTEGER :: ep_env_id, ierr
   
-  PRINT *, "start cp_ep_init"
   CALL epin(ep_env_id, ierr)
-  PRINT *, "end cp_ep_init"
 END SUBROUTINE cp_ep_init
 
 RECURSIVE SUBROUTINE cp_ep_calc_e_f(ep_env_id,calc_f,ierr)
@@ -216,3 +214,13 @@ RECURSIVE SUBROUTINE cp_ep_calc_e_f(ep_env_id,calc_f,ierr)
   
   CALL epef(ep_env_id, calc_f, ierr)
 END SUBROUTINE cp_ep_calc_e_f
+
+SUBROUTINE cp_do_shake(f_env_id,dt,shake_tol,ierr)
+  USE kinds, only: dp
+  USE f77_interface, only: do_shake
+  INTEGER :: f_env_id
+  REAL(kind=dp) :: dt, shake_tol
+  integer :: ierr
+
+  CALL do_shake(f_env_id,dt,shake_tol,ierr)
+END SUBROUTINE cp_do_shake

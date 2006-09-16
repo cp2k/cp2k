@@ -84,15 +84,15 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
   SUBROUTINE shake_control( local_molecules, molecule_set, molecule_kind_set, &
-       particle_set, pos, vel, simpar, cell, error )
+       particle_set, pos, vel, dt, shake_tol, log_unit, cell, error )
 
     TYPE(distribution_1d_type), POINTER      :: local_molecules
     TYPE(molecule_type), POINTER             :: molecule_set( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
     TYPE(particle_type), POINTER             :: particle_set( : )
     REAL(KIND=dp), INTENT(INOUT)             :: pos( :, : ), vel( :, : )
-    TYPE(simulation_parameters_type), &
-      INTENT(IN)                             :: simpar
+    REAL(kind=dp), INTENT(in)                :: dt, shake_tol
+    INTEGER, intent(in)                      :: log_unit
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -128,15 +128,15 @@ CONTAINS
 
           ! 3x3
           IF ( n3x3con /= 0 ) CALL shake_3x3( molecule, particle_set,  &
-               pos, vel, simpar )
+               pos, vel, dt, shake_tol)
 
           ! 4x6
           IF ( n4x6con /= 0 ) CALL shake_4x6( molecule, particle_set, &
-               pos, vel, simpar )
+               pos, vel, dt, shake_tol )
 
           ! collective variables
           IF ( ncolv%ntot /= 0 ) CALL shake_colv(molecule, particle_set,&
-               pos, vel, simpar, cell, ncolv, imass, error )
+               pos, vel, dt, shake_tol, log_unit, cell, ncolv, imass, error )
 
        END DO
     END DO MOL
@@ -160,15 +160,15 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
   SUBROUTINE rattle_control( local_molecules, molecule_set, molecule_kind_set,  &
-       particle_set, vel, simpar, cell, error )
+       particle_set, vel, dt, shake_tol, log_unit, cell, error )
 
     TYPE(distribution_1d_type), POINTER      :: local_molecules
     TYPE(molecule_type), POINTER             :: molecule_set( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind_set( : )
     TYPE(particle_type), POINTER             :: particle_set( : )
     REAL(KIND=dp), INTENT(INOUT)             :: vel( :, : )
-    TYPE(simulation_parameters_type), &
-      INTENT(IN)                             :: simpar
+    REAL(kind=dp), INTENT(in)                :: dt, shake_tol
+    INTEGER, intent(in)                      :: log_unit
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -202,14 +202,14 @@ CONTAINS
           CALL get_molecule_kind ( molecule_kind, ncolv = ncolv, ng3x3 = n3x3con, ng4x6 = n4x6con )
 
           ! 3x3
-          IF ( n3x3con /= 0 ) CALL rattle_3x3 ( molecule, particle_set, vel, simpar )
+          IF ( n3x3con /= 0 ) CALL rattle_3x3 ( molecule, particle_set, vel, dt, shake_tol )
 
           ! 4x6
-          IF ( n4x6con /= 0 ) CALL rattle_4x6 ( molecule, particle_set, vel, simpar )
+          IF ( n4x6con /= 0 ) CALL rattle_4x6 ( molecule, particle_set, vel, dt, shake_tol )
 
           ! collective variables
-          IF ( ncolv%ntot /= 0 ) CALL rattle_colv ( molecule, particle_set, vel, simpar,&
-               ncolv, cell, imass, error )
+          IF ( ncolv%ntot /= 0 ) CALL rattle_colv ( molecule, particle_set, vel, &
+               dt, shake_tol, log_unit, ncolv, cell, imass, error )
 
        END DO
     END DO MOL
@@ -290,15 +290,16 @@ CONTAINS
 
           ! 3x3
           IF ( n3x3con /= 0 ) CALL shake_roll_3x3( molecule, particle_set,  &
-               pos, vel, r_shake, v_shake, simpar )
+               pos, vel, r_shake, v_shake, simpar%dt, simpar%shake_tol )
 
           ! 4x6
           IF ( n4x6con /= 0 ) CALL shake_roll_4x6( molecule, particle_set, &
-               pos, vel, r_shake, v_shake, simpar )
+               pos, vel, r_shake, v_shake, simpar%dt, simpar%shake_tol )
 
           ! collective variables
           IF ( ncolv%ntot /= 0 ) CALL shake_roll_colv( molecule, particle_set, pos, vel, &
-                     r_shake, v_shake, simpar, ncolv, cell, imass, error )
+                     r_shake, v_shake, simpar%dt, simpar%shake_tol, &
+                     simpar%info_constraint, ncolv, cell, imass, error )
        END DO
     END DO MOL
 
@@ -386,15 +387,16 @@ CONTAINS
                ng3x3 = n3x3con, ng4x6 = n4x6con )
           ! 3x3
           IF ( n3x3con /= 0 ) CALL rattle_roll_3x3 ( molecule, particle_set, vel, r_rattle, &
-               simpar, veps )
+               simpar%dt, simpar%shake_tol, veps )
 
           ! 4x6
           IF ( n4x6con /= 0 ) CALL rattle_roll_4x6 ( molecule, particle_set, vel, r_rattle, &
-               simpar, veps )
+               simpar%dt, simpar%shake_tol, veps )
 
           ! collective variables
           IF ( ncolv%ntot /= 0 )CALL rattle_roll_colv ( molecule, particle_set, vel, r_rattle, &
-                     simpar, veps, ncolv, cell, imass, error  )
+                     simpar%dt, simpar%shake_tol, simpar%info_constraint,&
+                     veps, ncolv, cell, imass, error  )
 
        END DO
     END DO MOL

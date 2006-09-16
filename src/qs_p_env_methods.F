@@ -108,7 +108,8 @@ MODULE qs_p_env_methods
 
   PRIVATE
   PUBLIC :: p_env_create, p_env_psi0_changed, p_op_l2_fawzi
-  PUBLIC :: p_op_l1, p_op_l1_spin, p_op_l2, p_preortho, p_postortho
+  PUBLIC :: p_op_l1, p_op_l1_spin, p_op_l2, p_preortho, p_postortho,&
+       p_env_did_change
 
 CONTAINS
 
@@ -664,9 +665,10 @@ END SUBROUTINE p_env_did_change
        lr_section => section_vals_get_subs_vals(input,"PROPERTIES%LINRES")
        ! def psi0d
        IF (p_env%orthogonal_orbitals) THEN
-          
+          IF (ASSOCIATED(p_env%psi0d)) THEN
+             CALL cp_fm_vect_dealloc(p_env%psi0d,error=error)
+          END IF
           p_env%psi0d => my_psi0
-
        ELSE
 
           DO spin=1,n_spins

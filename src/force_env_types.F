@@ -27,8 +27,12 @@ MODULE force_env_types
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_para_env,                     ONLY: cp_para_env_release
   USE cp_para_types,                   ONLY: cp_para_env_type
+  USE particle_list_types, ONLY: particle_list_type
+  USE mol_new_list_types, only: mol_new_list_type
+  USE mol_kind_new_list_types, only: mol_kind_new_list_type
   USE cp_subsystem_types,              ONLY: cp_subsys_release,&
-                                             cp_subsystem_p_type
+                                             cp_subsystem_p_type,&
+                                             cp_subsys_get
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_p_type,&
                                              dyn_coeff_set_release
   USE eip_environment_types,           ONLY: eip_env_get,&
@@ -46,6 +50,7 @@ MODULE force_env_types
                                              fp_type
   USE global_types,                    ONLY: global_environment_type,&
                                              globenv_release
+  USE timings, ONLY: timeset, timestop
   USE input_section_types,             ONLY: section_vals_release,&
                                              section_vals_retain,&
                                              section_vals_type
@@ -70,6 +75,8 @@ MODULE force_env_types
   USE virial_types,                    ONLY: virial_release,&
                                              virial_retain,&
                                              virial_type
+  USE cpot_types, ONLY: cpot_type, cpot_release, cpot_retain
+  USE distribution_1d_types,only: distribution_1d_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -91,7 +98,9 @@ MODULE force_env_types
   PUBLIC :: force_env_retain,&
             force_env_release,&
             force_env_set,&
-            force_env_get
+            force_env_get,&
+            force_env_pos_get,&
+            force_env_get_natom
   
 !!***
 !******************************************************************************
@@ -162,6 +171,7 @@ MODULE force_env_types
      TYPE ( section_vals_type), POINTER                  :: force_env_section
      TYPE ( section_vals_type), POINTER                  :: root_section
      TYPE ( extended_energy_type), POINTER               :: extended_energies
+     TYPE ( cpot_type), pointer                          :: cpot_env
   END TYPE force_env_type
 
 !!****s* force_env_types/force_env_p_type [1.0] *
@@ -316,6 +326,8 @@ RECURSIVE SUBROUTINE force_env_release(force_env, error)
            DEALLOCATE(force_env%extended_energies,stat=stat)
            CPPostconditionNoFail(stat==0,cp_warning_level,routineP,error)
         END IF
+        CALL cpot_release(force_env%cpot_env,error=error)
+           
         CALL globenv_release(force_env%globenv,force_env%para_env,error=error)
         CALL cp_para_env_release(force_env%para_env,error=error)
         ! not deallocated
@@ -618,7 +630,6 @@ CPSourceFileRef,&
 END SUBROUTINE force_env_get
 !***************************************************************************
 
-!
 !!****f* force_env_types/force_env_set [1.0] *
 !!
 !!   NAME
@@ -709,6 +720,142 @@ SUBROUTINE force_env_set(force_env, meta_env,fp_env, virial, force_env_section,&
 END SUBROUTINE force_env_set
 !***************************************************************************
 
+!!****f* force_env_type/force_env_pos_get *
+!!
+!!   NAME
+!!     force_env_pos_get
+!!
+!!   FUNCTION
+!!     returns the position in a dimension(*) array
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - force_env: the force_env you want to get the positions
+!!     - pos: the array of the positions
+!!     - n_el: the number of positions (3*natom), just to check
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!*** **********************************************************************
+SUBROUTINE force_env_pos_get(force_env,pos,n_el,error)
+  TYPE(force_env_type), pointer :: force_env
+  REAL(kind=dp), DIMENSION(*), intent(out) :: pos
+  INTEGER, INTENT(in) :: n_el
+  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+
+  logical :: failure
+  character(len=*), parameter :: routineN='force_env_pos_get',&
+       routineP=moduleN//':'//routineN
+  integer :: handle
+  INTEGER                                  :: idir, ii, ip, isub, my_n_el
+  TYPE(cp_subsystem_p_type), &
+       DIMENSION(:), POINTER                  :: subsys
+  TYPE(particle_list_type), POINTER        :: particles
+
+  failure=.FALSE.
+
+  CALL timeset(routineN,handle)
+  CPPrecondition(ASSOCIATED(force_env),cp_failure_level,routineP,error,failure)
+  CPPrecondition(force_env%ref_count>0,cp_failure_level,routineP,error,failure)
+  IF (.NOT.failure) THEN
+     IF (.NOT.failure) THEN
+        CALL force_env_get(force_env,&
+             subsys=subsys,error=error)
+        CALL cp_error_check(error,failure)
+     END IF
+     IF (.NOT.failure) THEN
+        CPPrecondition(ASSOCIATED(subsys),cp_failure_level,routineP,error,failure)
+     END IF
+     IF (.NOT.failure) THEN
+        my_n_el=0
+        DO isub=1,SIZE(subsys)
+           particles => subsys(isub)%subsys%particles
+           my_n_el=my_n_el+particles%n_els
+        END DO
+        my_n_el=3*my_n_el
+        CALL cp_assert(my_n_el==n_el,cp_failure_level,cp_assertion_failed,&
+             routineP,"wrong pos size ("//cp_to_string(n_el)//" vs"//&
+             cp_to_string(my_n_el)//&
+             CPSourceFileRef,&
+             error,failure)
+     END IF
+     IF (.NOT.failure) THEN
+        ii=0
+        DO isub=1,SIZE(subsys)
+           particles => subsys(isub)%subsys%particles
+           DO ip=1,particles%n_els
+              DO idir=1,3
+                 ii=ii+1
+                 pos(ii)=particles%els(ip)%r(idir)
+              END DO
+           END DO
+        END DO
+     END IF
+  END IF
+  call timestop(handle)
+END SUBROUTINE force_env_pos_get
+!***************************************************************************
+
+
+!!****f* force_env_types/force_env_get_natom *
+!!
+!!   NAME
+!!     force_env_get_natom
+!!
+!!   FUNCTION
+!!     returns the number of atoms
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - force_env: the force_env you what information about
+!!     - natom: the numer of atoms
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!*** **********************************************************************
+FUNCTION force_env_get_natom(force_env,error) result(n_atom)
+  TYPE(force_env_type), pointer :: force_env
+  type(cp_error_type), optional, intent(inout) :: error
+  INTEGER :: n_atom
+
+  character(len=*), parameter :: routineN='force_env_get_natom',&
+       routineP=moduleN//':'//routineN
+  INTEGER                                  :: isub
+  LOGICAL                                  :: failure
+  TYPE(cp_subsystem_p_type), &
+       DIMENSION(:), POINTER                  :: subsys
+  TYPE(particle_list_type), POINTER        :: particles
+
+  failure=.FALSE.
+
+  n_atom=0
+  IF (.NOT.failure) THEN
+     NULLIFY(subsys)
+     CALL force_env_get(force_env,&
+          subsys=subsys,error=error)
+     CALL cp_error_check(error,failure)
+     IF (.NOT.failure) THEN
+        CPPrecondition(ASSOCIATED(subsys),cp_failure_level,routineP,error,failure)
+     END IF
+     IF (.NOT.failure) THEN
+        DO isub=1,SIZE(subsys)
+           particles => subsys(isub)%subsys%particles
+           n_atom=n_atom+particles%n_els
+        END DO
+     END IF
+  END IF
+END function force_env_get_natom
+!***************************************************************************
 
 END MODULE force_env_types
 

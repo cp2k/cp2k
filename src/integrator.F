@@ -438,7 +438,10 @@ CONTAINS
 
       IF (simpar%constraint) CALL shake_control( local_molecules, molecule_set,   &
                                                 molecule_kind_set, particle_set, &
-                                                pos, vel, simpar, cell, error )
+                                                pos, vel, simpar%dt,&
+                                                simpar%shake_tol, &
+                                                simpar%info_constraint,&
+                                                cell, error )
 
 !     *** Broadcast the new particle positions ***
 
@@ -501,7 +504,8 @@ CONTAINS
 
       IF (simpar%constraint) CALL rattle_control( local_molecules, molecule_set, &
                                                  molecule_kind_set, particle_set, &
-                                                 vel, simpar, cell, error )
+                                                 vel, simpar%dt,simpar%shake_tol,&
+                                                 simpar%info_constraint, cell, error )
 
       IF (simpar%annealing)  vel(:,:)=vel(:,:)*simpar%f_annealing
 
@@ -879,7 +883,8 @@ CONTAINS
 
       IF (simpar%constraint) CALL shake_control( local_molecules, molecule_set,   &
                                                  molecule_kind_set, particle_set, &
-                                                 pos, vel, simpar, cell, error )
+                                                 pos, vel, simpar%dt,simpar%shake_tol,&
+                                                 simpar%info_constraint, cell, error )
 
 !     *** Broadcast the new particle positions ***
       CALL update_particle_set ( particle_set, para_env % group, pos = pos )
@@ -941,7 +946,8 @@ CONTAINS
 
       IF (simpar%constraint) CALL rattle_control( local_molecules, molecule_set, &
                                                   molecule_kind_set, particle_set, &  
-                                                  vel, simpar, cell, error )
+                                                  vel, simpar%dt,simpar%shake_tol,&
+                                                  simpar%info_constraint,cell, error )
 
 ! perform Nose'-Hoover chain dynamimcs
       CALL lnhc ( nhc ( isubsys ), molecule_kind_set, molecule_set, &
@@ -3263,7 +3269,8 @@ END SUBROUTINE update_veps
           END DO
           IF (simpar%constraint) CALL shake_control( local_molecules, molecule_set,   &
                molecule_kind_set, particle_set, &
-               pos, vel, simpar, cell, error )
+               pos, vel, simpar%dt, simpar%shake_tol, simpar%info_constraint,&
+               cell, error )
         
 !     *** Broadcast the new particle positions ***
           CALL update_particle_set ( particle_set, para_env % group, pos = pos )
@@ -3327,7 +3334,7 @@ END SUBROUTINE update_veps
      
           IF (simpar%constraint) CALL rattle_control( local_molecules, molecule_set, &
                molecule_kind_set, particle_set, &
-               vel, simpar, cell, error )
+               vel, simpar%dt,simpar%shake_tol,simpar%info_constraint, cell, error )
           
           IF (simpar%annealing)  vel(:,:)=vel(:,:)*simpar%f_annealing
           

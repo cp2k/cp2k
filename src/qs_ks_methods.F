@@ -103,7 +103,7 @@ MODULE qs_ks_methods
                                              pw_transfer,&
                                              pw_type
   USE qs_charges_types,                ONLY: qs_charges_type
-  USE qs_collocate_density,            ONLY: calculate_total_rho
+  USE qs_collocate_density,            ONLY: calculate_total_rho, calculate_rho_elec
   USE qs_core_energies,                ONLY: calculate_ecore
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
@@ -132,6 +132,7 @@ MODULE qs_ks_methods
   USE virial_types,                    ONLY: virial_type
   USE xc,                              ONLY: xc_exc_calc,&
                                              xc_vxc_pw_create1
+  USE ep_qs_types, only: ep_qs_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -312,7 +313,7 @@ CONTAINS
                                                 stat
     LOGICAL                                  :: failure, gapw, gapw_xc, &
                                                 ionode, my_diis_step, &
-                                                my_kg_gpw, use_virial
+                                                my_kg_gpw, use_virial,do_ep
     REAL(KIND=dp)                            :: a_mix, b_mix, ddapc_order_p, &
                                                 f_mix, mulliken_order_p, &
                                                 s2_order_p
@@ -321,7 +322,8 @@ CONTAINS
                                                 scaling_factor
     TYPE(cell_type), POINTER                 :: cell
     TYPE(coeff_type)                         :: rho_tot_gspace, &
-                                                v_hartree_gspace, v_sic_rspace
+                                                v_hartree_gspace, v_sic_rspace,&
+                                                ep_pot_r_coeff,ep_rho_r,ep_rho_g
     TYPE(coeff_type), DIMENSION(:), POINTER  :: v_rspace_new, v_tau_rspace
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mo_derivs
@@ -338,14 +340,18 @@ CONTAINS
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
     TYPE(qs_rho_type), POINTER               :: my_rho_xc, rho_buffer
     TYPE(real_matrix_p_type), DIMENSION(:), &
-      POINTER                                :: matrix_dv, matrix_h, matrix_s
+      POINTER                                :: matrix_dv, matrix_h, &
+                                                matrix_s, my_rho
     TYPE(section_vals_type), POINTER         :: input, scf_section
     TYPE(virial_type), POINTER               :: virial
+    TYPE(ep_qs_type), pointer :: ep_qs_env
+    TYPE(pw_type), POINTER :: ep_pot_r, ep_pot_g
+
 
     failure=.FALSE.
     NULLIFY(matrix_h,matrix_s,dft_control,auxbas_pw_pool, pw_pools,&
          pw_env, cell, logger, v_rspace_new, v_tau_rspace,&
-         input, poisson_env, scf_section)
+         input, poisson_env, scf_section,my_rho)
 
     !   -----------------------------------------------------------------------
 
@@ -383,9 +389,13 @@ CONTAINS
          virial=virial,&
          rho_buffer=rho_buffer,&
          matrix_dv=matrix_dv,&
+         ep_qs_env=ep_qs_env,&
          error=error)
 
     use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)    
+    do_ep=associated(ep_qs_env)
+    IF (do_ep) do_ep=ep_qs_env%ep_active.AND.calculate_forces.and.&
+         associated(ep_qs_env%dH_coeffs)
 
     scf_section => section_vals_get_subs_vals(input,"DFT%SCF",error=error)
     nspins=dft_control%nspins
@@ -579,7 +589,38 @@ CONTAINS
        ! ***  Single atom contributions ***
        IF (.NOT. just_energy) THEN
           IF (calculate_forces .AND. .NOT. gapw) THEN
-             CALL integrate_v_core_rspace(ks_env%v_hartree_rspace, qs_env)
+             IF (do_ep) THEN
+                CALL pw_pool_init_coeff(auxbas_pw_pool,ep_rho_r,&
+                     use_data=REALDATA3D,in_space=REALSPACE,error=error)
+                CALL pw_pool_init_coeff(auxbas_pw_pool,ep_rho_g,&
+                     use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,error=error)
+                CPAssert(nspins==1,cp_failure_level,routineP,error,failure)
+                CALL calculate_rho_elec(matrix_p=ep_qs_env%dH_coeffs(1)%matrix,&
+                     rho=ep_rho_r,rho_gspace=ep_rho_g, total_rho=ep_qs_env%tot_rho,&
+                     qs_env=qs_env, error=error)
+
+                CALL pw_pool_give_back_coeff(auxbas_pw_pool,ep_rho_r,error=error)
+                CALL pw_pool_create_pw(auxbas_pw_pool,ep_pot_g,&
+                     use_data=COMPLEXDATA1D,in_space=RECIPROCALSPACE,error=error)
+
+                CALL pw_poisson_solve(poisson_env,ep_rho_g%pw,ep_qs_env%core_energy,&
+                     ep_pot_g)
+
+                CALL pw_pool_give_back_coeff(auxbas_pw_pool,ep_rho_g,error=error)
+                CALL pw_pool_create_pw(auxbas_pw_pool,ep_pot_r,&
+                     use_data=REALDATA3D,in_space=REALSPACE,error=error)
+
+                CALL pw_transfer(ep_pot_g,ep_pot_r)
+
+                CALL pw_pool_give_back_pw(auxbas_pw_pool,ep_pot_g,error=error)
+
+                CALL coeff_init(ep_pot_r_coeff,pw=ep_pot_r,error=error)
+                CALL integrate_v_core_rspace(ep_pot_r_coeff, qs_env)
+
+                CALL pw_pool_give_back_pw(auxbas_pw_pool,ep_pot_r,error=error)
+             ELSE
+                CALL integrate_v_core_rspace(ks_env%v_hartree_rspace, qs_env)
+             END IF
           END IF
 
           ! Initialize the Kohn-Sham matrix with the core Hamiltonian matrix
@@ -640,22 +681,27 @@ CONTAINS
                   CASE ( sic_ad )
                     v_rspace_new(ispin)%pw%cr3d=v_rspace_new(ispin)%pw%cr3d-v_sic_rspace%pw%cr3d
                  END SELECT 
-                  ! add the part due to v_rspace
+                 ! add the part due to v_rspace
+                 IF (do_ep) THEN
+                    my_rho => ep_qs_env%dH_coeffs
+                 ELSE
+                    my_rho => rho%rho_ao
+                 END IF
                  IF (ASSOCIATED(matrix_dv)) THEN
                     CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
-                         p=rho%rho_ao(ispin),h=ks_matrix(ispin),&
+                         p=my_rho(ispin),h=ks_matrix(ispin),&
                          qs_env=qs_env, &
                          calculate_forces=calculate_forces,&
                          gapw=gapw,matrix_dv=matrix_dv(3*(ispin-1)+1:3*ispin),&
                          error=error)
                  ELSE
                     CALL integrate_v_rspace(v_rspace=v_rspace_new(ispin),&
-                         p=rho%rho_ao(ispin),h=ks_matrix(ispin),&
+                         p=my_rho(ispin),h=ks_matrix(ispin),&
                          qs_env=qs_env, &
                          calculate_forces=calculate_forces,&
                          gapw=gapw, error=error)
                  END IF
-                  CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_rspace_new(ispin),&
+                 CALL pw_pool_give_back_coeff(auxbas_pw_pool,v_rspace_new(ispin),&
                        error=error)
                END DO
              END IF
@@ -672,18 +718,25 @@ CONTAINS
              ENDIF
              DO ispin=1,nspins
                 ! add only v_hartree
-                IF (ASSOCIATED(matrix_dv)) THEN
-                   CALL integrate_v_rspace(v_rspace=ks_env%v_hartree_rspace,&
-                        p=rho%rho_ao(ispin),h=ks_matrix(ispin), qs_env=qs_env,&
-                        calculate_forces=calculate_forces,&
-                        matrix_dv=matrix_dv(3*(ispin-1)+1:3*ispin),&
-                        gapw=gapw,error=error)
-                ELSE
-                   CALL integrate_v_rspace(v_rspace=ks_env%v_hartree_rspace,&
-                        p=rho%rho_ao(ispin),h=ks_matrix(ispin), qs_env=qs_env,&
-                        calculate_forces=calculate_forces,&
-                        gapw=gapw,error=error)
-                END IF
+                 IF (do_ep) THEN
+                    my_rho => ep_qs_env%dH_coeffs
+                 ELSE
+                    my_rho => rho%rho_ao
+                 END IF
+                 IF (ASSOCIATED(matrix_dv)) THEN
+                    CALL integrate_v_rspace(v_rspace=ks_env%v_hartree_rspace,&
+                         p=my_rho(ispin),h=ks_matrix(ispin),&
+                         qs_env=qs_env, &
+                         calculate_forces=calculate_forces,&
+                         gapw=gapw,matrix_dv=matrix_dv(3*(ispin-1)+1:3*ispin),&
+                         error=error)
+                 ELSE
+                    CALL integrate_v_rspace(v_rspace=ks_env%v_hartree_rspace,&
+                         p=my_rho(ispin),h=ks_matrix(ispin),&
+                         qs_env=qs_env, &
+                         calculate_forces=calculate_forces,&
+                         gapw=gapw, error=error)
+                 END IF
              END DO
           END IF ! ASSOCIATED(v_rspace_new)
 

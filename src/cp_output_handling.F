@@ -71,7 +71,7 @@ MODULE cp_output_handling
   PUBLIC :: cp_print_key_should_output, cp_iterate, cp_add_iter_level, cp_rm_iter_level
   PUBLIC :: cp_iter_string, cp_print_key_section_create
   PUBLIC :: cp_print_key_unit_nr, cp_print_key_finished_output
-  PUBLIC :: cp_print_key_generate_filename
+  PUBLIC :: cp_print_key_generate_filename, cp_print_key_log
 
 !! flags controlling the printing and storing of a property.
 !!
@@ -1130,6 +1130,79 @@ END FUNCTION cp_print_key_unit_nr
     CPPostcondition(unit_nr==-1,cp_failure_level,routineP,error,failure)
     unit_nr=-1
   END SUBROUTINE cp_print_key_finished_output
+!***************************************************************************
+
+!!****f* cp_output_handling/cp_print_key_log [1.0] *
+!!
+!!   NAME
+!!     cp_print_key_log
+!!
+!!   FUNCTION
+!!     utility method to print out a string
+!!
+!!   NOTES
+!!     -
+!!
+!!   INPUTS
+!!     - logger: the logger for the parallel environment, iteration info
+!!       and filename generation
+!!     - basis_section: section that contains the printkey
+!!     - print_key_path: path to the printkey- "%" between sections, and
+!!       optionally a "/" and a logical flag to check). Might be empty.
+!!     - extension: extension to be applied to the filename (including the ".")
+!!     - message: the message to write
+!!     - local: if the unit should be local to this task, or global to the
+!!       program (defaults to false).
+!!     - log_filename: if a small log with the filename should be written
+!!       to the main log (defaults to false)
+!!     - middle_name: name to be added to the generated filename, useful when
+!!       print_key activates different distinct outputs, to be able to 
+!!       distinguish them
+!!     - ignore_should_output: if true always returns a valid unit (ignoring
+!!       cp_print_key_should_output)
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!*** **********************************************************************
+  SUBROUTINE cp_print_key_log(logger, basis_section, print_key_path, extension,&
+       message,middle_name, local, log_filename,ignore_should_output, &
+       on_file, error)
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(section_vals_type), POINTER         :: basis_section
+    CHARACTER(len=*), INTENT(in)             :: print_key_path, extension,message
+    CHARACTER(len=*), INTENT(in), OPTIONAL   :: middle_name
+    LOGICAL, INTENT(in), OPTIONAL            :: local, log_filename, &
+         ignore_should_output
+    LOGICAL, INTENT(in), OPTIONAL            :: on_file
+    TYPE(cp_error_type), INTENT(inout), &
+         OPTIONAL                               :: error
+
+    logical :: failure
+    character(len=*), parameter :: routineN='cp_print_key_log',&
+         routineP=moduleN//':'//routineN
+    integer :: output_unit
+    failure=.false.
+
+    IF (.NOT. failure) THEN
+
+       output_unit=cp_print_key_unit_nr(logger, basis_section=basis_section,&
+            print_key_path=print_key_path,extension=extension,&
+            middle_name=middle_name, local=local, log_filename=log_filename,&
+            ignore_should_output=ignore_should_output, &
+            on_file=on_file, error=error)
+       IF (output_unit>0) THEN
+          WRITE(output_unit,"(a)")message
+          CALL cp_print_key_finished_output(output_unit,logger,&
+               basis_section=basis_section,print_key_path=print_key_path,&
+               local=local,ignore_should_output=ignore_should_output,&
+               on_file=on_file,error=error)
+       END IF
+
+    END IF
+  END SUBROUTINE cp_print_key_log
 !***************************************************************************
 
 !!****f* cp_output_handling/cp_iter_compare *

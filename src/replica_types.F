@@ -214,7 +214,7 @@ SUBROUTINE rep_env_create(rep_env, para_env, input, nrep, prep,&
      new_env_id=-1
      my_prep=MIN(prep,para_env%num_pe)
      dims(1)=my_prep
-     dims(2)=para_env%num_pe/my_prep
+     dims(2)=MIN(para_env%num_pe/my_prep,nrep)
      IF (dims(1)*dims(2)/=para_env%num_pe) THEN
         unit_nr=cp_logger_get_default_unit_nr(logger,local=.FALSE.)
         WRITE(unit_nr,"(/,' WARNING',/,' number of processors not divisible in replica creation,')")
@@ -298,7 +298,8 @@ SUBROUTINE rep_env_create(rep_env, para_env, input, nrep, prep,&
            END DO
         END DO
         
-        nrep_local=i0+MIN(cart%mepos(2)+1,ir)
+        nrep_local=i0
+        IF (cart%mepos(2)<ir) nrep_local=nrep_local+1
         ALLOCATE(rep_env%local_rep_indices(nrep_local),stat=stat)
         CPPostcondition(stat==0,cp_fatal_level,routineP,error,failure)
         nrep_local=0
@@ -860,6 +861,9 @@ FUNCTION rep_env_local_index(rep_env,global_index,error) RESULT(res)
            EXIT
         END IF
      END DO
+     IF (res==-1) THEN
+        PRINT *,routineP," ",global_index," not in ",rep_env%local_rep_indices
+     END IF
   END IF
   CALL timestop(handle)
 END FUNCTION rep_env_local_index

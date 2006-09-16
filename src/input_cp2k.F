@@ -55,7 +55,8 @@ MODULE input_cp2k
        section_vals_get_subs_vals, section_vals_type
   USE input_val_types,                 ONLY: char_t,&
                                              integer_t,&
-                                             no_t
+                                             no_t,&
+                                             real_t
   USE kinds,                           ONLY: dp
   USE string_utilities,                ONLY: s2a
   USE timings,                         ONLY: timeset,&
@@ -1185,6 +1186,89 @@ SUBROUTINE create_f_env_print_section(section,error)
 
   END IF
 END SUBROUTINE create_f_env_print_section
+!***************************************************************************
+
+!!****f* input_cp2k/create_cpot_section *
+!!
+!!   NAME
+!!     create_cpot_section
+!!
+!!   FUNCTION
+!!     section for the chemical potential difference run
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - section: will contain the cpot section
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!*** **********************************************************************
+SUBROUTINE create_cpot_section(section,error)
+  TYPE(section_type), POINTER              :: section
+  TYPE(cp_error_type), INTENT(inout), &
+       OPTIONAL                               :: error
+
+  CHARACTER(len=*), PARAMETER :: routineN = 'create_cpot_section', &
+       routineP = moduleN//':'//routineN
+
+  LOGICAL                                  :: failure
+  TYPE(keyword_type), POINTER              :: keyword
+
+  failure=.FALSE.
+
+  NULLIFY(keyword)
+  CPPrecondition(.NOT.ASSOCIATED(section),cp_failure_level,routineP,error,failure)
+  IF (.NOT. failure) THEN
+     CALL section_create(section,name="cpot",&
+          description="controls a cpot (chemical potential) run",&
+          n_keywords=0, n_subsections=5, repeats=.FALSE., required=.TRUE.,&
+          error=error)
+
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+     CALL keyword_create(keyword,name="state_1_2_input",&
+          description="the input file for the second box of the first state",&
+          usage="state_1_2_input my_input.inp",&
+          required=.TRUE.,default_lc_val="s-1-2.inp",error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+     CALL keyword_create(keyword,name="state_2_1_input",&
+          description="input file for the box 1 of state 2",&
+          usage="state_2_1_input my_input.inp",&
+          required=.TRUE.,default_lc_val="s-1-1.inp",error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+     CALL keyword_create(keyword,name="state_2_2_input",&
+          description="the input file for the second box of the second state",&
+          usage="state_2_2_input my_input.inp",&
+          required=.TRUE.,default_lc_val="s-2-2.inp",error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+     CALL keyword_create(keyword,name="statistics_after",&
+          description="number of steps after which the collection of statistics begins",&
+          usage="statistics_after 1000",&
+          required=.false.,default_i_val=0,error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+     CALL keyword_create(keyword,name="statistics_each",&
+          description="how often statistic is collected",&
+          usage="statistics_each 5",&
+          required=.false.,default_i_val=0,error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+     CALL keyword_create(keyword, name="TEMP",&
+          description="The temperature of the simulation, in Kelvin.",&
+          usage="TEMP {real}",&
+          type_of_var=real_t, required=.TRUE.,unit_str="K", error=error)
+     CALL section_add_keyword(section,keyword,error=error)
+     CALL keyword_release(keyword,error=error)
+  END IF
+END SUBROUTINE create_cpot_section
 !***************************************************************************
 
 END MODULE input_cp2k

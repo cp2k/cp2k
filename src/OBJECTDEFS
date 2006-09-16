@@ -84,6 +84,7 @@ OBJECTS_GENERIC =\
  cp_subsystem_methods.o\
  cp_subsystem_types.o\
  cp_units.o\
+ cpot_types.o\
  cube_utils.o\
  dg_rho0_types.o\
  dg_types.o\

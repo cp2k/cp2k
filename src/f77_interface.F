@@ -42,8 +42,11 @@ MODULE f77_interface
                                              cp2k_setup
   USE fist_main,                       ONLY: fist_create_force_env
   USE force_env_methods,               ONLY: ep_create_force_env,&
-                                             force_env_calc_energy_force
+                                             force_env_calc_energy_force,&
+                                             force_env_shake
   USE force_env_types,                 ONLY: force_env_get,&
+                                             force_env_get_natom,&
+                                             force_env_pos_get,&
                                              force_env_release,&
                                              force_env_retain,&
                                              force_env_set,&
@@ -132,7 +135,7 @@ MODULE f77_interface
             get_force, calc_energy_force, get_energy, &
             calc_energy, calc_force, check_input, get_natom,&
             f_env_add_defaults, f_env_rm_defaults, f_env_type, f_env_p_type,&
-            set_vel, get_vel 
+            set_vel, get_vel, do_shake
   !!***
   !****************************************************************************
 CONTAINS
@@ -898,19 +901,7 @@ CPSourceFileRef,&
     CALL f_env_add_defaults(env_id,f_env,error,failure)
     n_atom=0
     IF (.not.failure) THEN
-       NULLIFY(subsys)
-       CALL force_env_get(f_env%force_env,&
-            subsys=subsys,error=error)
-       CALL cp_error_check(error,failure)
-       IF (.NOT.failure) THEN
-          CPPrecondition(ASSOCIATED(subsys),cp_failure_level,routineP,error,failure)
-       END IF
-       IF (.NOT.failure) THEN
-          DO isub=1,SIZE(subsys)
-             particles => subsys(isub)%subsys%particles
-             n_atom=n_atom+particles%n_els
-          END DO
-       END IF
+       n_atom=force_env_get_natom(f_env%force_env,error=error)
     END IF
     CALL f_env_rm_defaults(f_env,error,ierr)
   END SUBROUTINE get_natom
@@ -1037,39 +1028,7 @@ CPSourceFileRef,&
     NULLIFY(f_env)
     CALL f_env_add_defaults(env_id,f_env,error,failure)
     IF (.not.failure) THEN
-       IF (.NOT.failure) THEN
-          CALL force_env_get(f_env%force_env,&
-               subsys=subsys,error=error)
-          CALL cp_error_check(error,failure)
-       END IF
-       IF (.NOT.failure) THEN
-          CPPrecondition(ASSOCIATED(subsys),cp_failure_level,routineP,error,failure)
-       END IF
-       IF (.NOT.failure) THEN
-          my_n_el=0
-          DO isub=1,SIZE(subsys)
-             particles => subsys(isub)%subsys%particles
-             my_n_el=my_n_el+particles%n_els
-          END DO
-          my_n_el=3*my_n_el
-          CALL cp_assert(my_n_el==n_el,cp_failure_level,cp_assertion_failed,&
-               routineP,"wrong pos size ("//cp_to_string(n_el)//" vs"//&
-               cp_to_string(my_n_el)//&
-CPSourceFileRef,&
-               error,failure)
-       END IF
-       IF (.NOT.failure) THEN
-          ii=0
-          DO isub=1,SIZE(subsys)
-             particles => subsys(isub)%subsys%particles
-             DO ip=1,particles%n_els
-                DO idir=1,3
-                   ii=ii+1
-                   pos(ii)=particles%els(ip)%r(idir)
-                END DO
-             END DO
-          END DO
-       END IF
+       CALL force_env_pos_get(f_env%force_env,pos,n_el,error)
     END IF
     CALL f_env_rm_defaults(f_env,error,ierr)
   END SUBROUTINE get_pos
@@ -1590,5 +1549,51 @@ CPSourceFileRef,&
     CALL cp_rm_default_logger()
   END SUBROUTINE check_input
   !***************************************************************************
+
+
+!!****f* f77_interface/do_shake *
+!!
+!!   NAME
+!!     do_shake
+!!
+!!   FUNCTION
+!!     perform the shake procedure (enforce constraints)
+!!
+!!   NOTES
+!!     -
+!!
+!!   ARGUMENTS
+!!     - f_env_id: the force env on which to apply the shake
+!!     - dt: timestep
+!!     - shake_tol: tolerance for shake
+!!     - error: variable to control error logging, stopping,... 
+!!       see module cp_error_handling 
+!!
+!!   AUTHOR
+!!     fawzi
+!!
+!!*** **********************************************************************
+SUBROUTINE do_shake(f_env_id,dt,shake_tol,ierr)
+  INTEGER, intent(in) :: f_env_id
+  REAL(kind=dp), INTENT(in) :: dt,shake_tol
+  INTEGER, intent(out) :: ierr
+  
+  logical :: failure
+  character(len=*), parameter :: routineN='do_shake',&
+        routineP=moduleN//':'//routineN
+  TYPE(cp_error_type)                      :: error
+  TYPE(f_env_type), POINTER                :: f_env
+
+  failure=.FALSE.
+  
+  NULLIFY(f_env)
+  CALL f_env_add_defaults(f_env_id,f_env,error,failure)
+  IF (.NOT.failure) THEN
+     call force_env_shake(f_env%force_env,&
+            dt=dt,shake_tol=shake_tol, error=error)
+  END IF
+  CALL f_env_rm_defaults(f_env,error,ierr)
+END SUBROUTINE do_shake
+!***************************************************************************
 
 END MODULE f77_interface

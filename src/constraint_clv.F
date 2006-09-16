@@ -28,7 +28,6 @@ MODULE constraint_clv
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
   USE kinds,                           ONLY: dp
-  USE md,                              ONLY: simulation_parameters_type
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
   USE molecule_kind_types,             ONLY: colvar_constraint_type,&
                                              fixd_constraint_type,&
@@ -184,14 +183,14 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE shake_colv( molecule, particle_set, pos, vel, simpar, cell, ncolv,&
-       imass, error )
+  SUBROUTINE shake_colv( molecule, particle_set, pos, vel, dt, shake_tol,&
+       log_unit, cell, ncolv, imass, error )
 
     TYPE(molecule_type), POINTER             :: molecule
     TYPE(particle_type), POINTER             :: particle_set( : )
     REAL(KIND=dp), INTENT(INOUT)             :: pos( :, : ), vel( :, : )
-    TYPE(simulation_parameters_type), &
-      INTENT(IN)                             :: simpar
+    REAL(kind=dp), INTENT(in)                :: dt, shake_tol
+    INTEGER, intent(in)                      :: log_unit
     TYPE(cell_type), POINTER                 :: cell
     TYPE(colvar_counters), INTENT(IN)        :: ncolv
     REAL(KIND=dp), DIMENSION(:)              :: imass
@@ -213,9 +212,9 @@ CONTAINS
     failure = .FALSE.
     ishake = 0       
     max_sigma = -1.0E+10_dp
-    dtsqby2 = simpar%dt*simpar%dt*.5_dp
-    dtby2   = simpar%dt*.5_dp
-    CONS: DO WHILE (ABS(max_sigma)>=simpar%shake_tol)
+    dtsqby2 = dt*dt*.5_dp
+    dtby2   = dt*.5_dp
+    CONS: DO WHILE (ABS(max_sigma)>=shake_tol)
        max_sigma = 0.0_dp
        ishake  = ishake + 1
        molecule_kind => molecule % molecule_kind
@@ -244,7 +243,7 @@ CONTAINS
                   colv_list ( iconst ) % expected_value
              fdotf_sum = eval_Jac_colvar(lcolv ( iconst ) % colvar,&
                   lcolv ( iconst ) % colvar_old, particle_set, imass=imass, error=error)
-             del_lam = 2.0_dp*lcolv ( iconst ) % sigma/(simpar%dt*simpar%dt*fdotf_sum)
+             del_lam = 2.0_dp*lcolv ( iconst ) % sigma/(dt*dt*fdotf_sum)
              lcolv ( iconst ) % lambda = lcolv ( iconst ) % lambda + del_lam
              
              ! Update positions 
@@ -266,9 +265,9 @@ CONTAINS
                colv_list ( iconst ) % expected_value
           max_sigma = MAX(ABS(lcolv ( iconst ) % sigma),max_sigma)
        END DO
-       IF (simpar%info_constraint>0) &
-            WRITE(simpar%info_constraint,'(T2,"SHAKE : ",I5,2F15.9)')ishake,ABS(max_sigma),&
-            simpar%shake_tol
+       IF (log_unit>0) &
+            WRITE(log_unit,'(T2,"SHAKE : ",I5,2F15.9)')ishake,ABS(max_sigma),&
+            shake_tol
     END DO CONS
 
   END SUBROUTINE shake_colv
@@ -289,13 +288,14 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE rattle_colv ( molecule, particle_set, vel, simpar, ncolv, cell, imass, error )
+  SUBROUTINE rattle_colv ( molecule, particle_set, vel, dt, shake_tol,&
+       log_unit, ncolv, cell, imass, error )
 
     TYPE(molecule_type), POINTER             :: molecule
     TYPE(particle_type), POINTER             :: particle_set( : )
     REAL(KIND=dp), INTENT(INOUT)             :: vel( :, : )
-    TYPE(simulation_parameters_type), &
-      INTENT(IN)                             :: simpar
+    REAL(kind=dp), INTENT(in)                :: dt, shake_tol
+    INTEGER, intent(in)                      :: log_unit
     TYPE(colvar_counters), INTENT(IN)        :: ncolv
     TYPE(cell_type), POINTER                 :: cell
     REAL(KIND=dp), DIMENSION(:)              :: imass
@@ -312,8 +312,8 @@ CONTAINS
 
     irattle   = 0
     max_sigma = -1.0E+10_dp
-    dtby2     = simpar%dt*.5_dp
-    CONS: DO WHILE ( ABS ( max_sigma ) >= simpar % shake_tol )
+    dtby2     = dt*.5_dp
+    CONS: DO WHILE ( ABS ( max_sigma ) >=  shake_tol )
        max_sigma = 0.0_dp
        irattle = irattle + 1
        molecule_kind => molecule % molecule_kind
@@ -336,7 +336,7 @@ CONTAINS
              lcolv ( iconst ) % sigma = rattle_con_eval(lcolv ( iconst ) % colvar_old, vel)
              fdotf_sum = eval_Jac_colvar(lcolv ( iconst ) % colvar_old,&
                   lcolv ( iconst ) % colvar_old, particle_set,imass=imass,error=error)
-             del_lam = 2.0_dp*lcolv ( iconst ) % sigma/(simpar%dt*fdotf_sum)
+             del_lam = 2.0_dp*lcolv ( iconst ) % sigma/(dt*fdotf_sum)
              lcolv ( iconst ) % lambda = lcolv ( iconst ) % lambda + del_lam
              
              ! Update velocities 
@@ -351,9 +351,9 @@ CONTAINS
           lcolv ( iconst ) % sigma = rattle_con_eval(lcolv ( iconst ) % colvar_old, vel)
           max_sigma = MAX(ABS(lcolv ( iconst ) % sigma),max_sigma)
        END DO
-       IF (simpar%info_constraint>0) &
-            WRITE(simpar%info_constraint,'(T2,"RATTLE: ",I5,2F15.9)')irattle,ABS(max_sigma),&
-            simpar%shake_tol
+       IF (log_unit>0) &
+            WRITE(log_unit,'(T2,"RATTLE: ",I5,2F15.9)')irattle,ABS(max_sigma),&
+            shake_tol
     END DO CONS
 
   END SUBROUTINE rattle_colv
@@ -375,15 +375,15 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
   SUBROUTINE shake_roll_colv( molecule, particle_set, pos, vel, r_shake, v_shake, &
-       simpar, ncolv, cell, imass, error )
+       dt, shake_tol, log_unit, ncolv, cell, imass, error )
 
     TYPE(molecule_type), POINTER             :: molecule
     TYPE(particle_type), POINTER             :: particle_set( : )
     REAL(KIND=dp), INTENT(INOUT)             :: pos( :, : ), vel( :, : )
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(IN)                             :: r_shake, v_shake
-    TYPE(simulation_parameters_type), &
-      INTENT(IN)                             :: simpar
+    REAL(kind=dp), INTENT(in)                :: dt, shake_tol
+    INTEGER, INTENT(in)                      :: log_unit
     TYPE(colvar_counters), INTENT(IN)        :: ncolv
     TYPE(cell_type), POINTER                 :: cell
     REAL(KIND=dp), DIMENSION(:)              :: imass
@@ -398,11 +398,11 @@ CONTAINS
       POINTER                                :: lcolv( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
 
-    dtsqby2 = simpar%dt*simpar%dt*.5_dp
-    dtby2 = simpar%dt*.5_dp
+    dtsqby2 = dt*dt*.5_dp
+    dtby2 = dt*.5_dp
     max_sigma = -1.0E+10_dp
     ishake = 0
-    CONS: DO WHILE (ABS(max_sigma)>=simpar%shake_tol)
+    CONS: DO WHILE (ABS(max_sigma)>=shake_tol)
        max_sigma = 0.0_dp
        ishake = ishake + 1
        molecule_kind => molecule % molecule_kind
@@ -431,7 +431,7 @@ CONTAINS
              fdotf_sum = eval_Jac_colvar(lcolv ( iconst ) % colvar,&
                   lcolv ( iconst ) % colvar_old, particle_set, roll=.TRUE., rmat=r_shake,&
                   imass=imass, error=error)
-             del_lam = 2.0_dp*lcolv ( iconst ) % sigma/(simpar%dt*simpar%dt*fdotf_sum)
+             del_lam = 2.0_dp*lcolv ( iconst ) % sigma/(dt*dt*fdotf_sum)
              lcolv ( iconst ) % lambda = lcolv ( iconst ) % lambda + del_lam
              
              ! Update positions 
@@ -454,9 +454,9 @@ CONTAINS
                colv_list ( iconst ) % expected_value
           max_sigma = MAX(ABS(lcolv ( iconst ) % sigma),max_sigma)
        END DO
-       IF (simpar%info_constraint>0) &
-            WRITE(simpar%info_constraint,'(T2,"SHAKE : ",I5,2F15.9)')ishake,ABS(max_sigma),&
-            simpar%shake_tol
+       IF (log_unit>0) &
+            WRITE(log_unit,'(T2,"SHAKE : ",I5,2F15.9)')ishake,ABS(max_sigma),&
+            shake_tol
     END DO CONS
 
   END SUBROUTINE shake_roll_colv
@@ -478,14 +478,14 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
   SUBROUTINE rattle_roll_colv ( molecule, particle_set, vel, r_rattle,  &
-       simpar, veps, ncolv, cell, imass, error )
+       dt, shake_tol, log_unit, veps, ncolv, cell, imass, error )
 
     TYPE(molecule_type), POINTER             :: molecule
     TYPE(particle_type), POINTER             :: particle_set( : )
     REAL(KIND=dp), INTENT(INOUT)             :: vel( :, : )
     REAL(KIND=dp), INTENT(IN)                :: r_rattle( :, : )
-    TYPE(simulation_parameters_type), &
-      INTENT(IN)                             :: simpar
+    REAL(kind=dp), INTENT(in)                :: dt, shake_tol
+    INTEGER, intent(in)                      :: log_unit
     REAL(KIND=dp), INTENT(IN)                :: veps( :, : )
     TYPE(colvar_counters), INTENT(IN)        :: ncolv
     TYPE(cell_type), POINTER                 :: cell
@@ -501,10 +501,10 @@ CONTAINS
       POINTER                                :: lcolv( : )
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
 
-    dtby2 = simpar%dt*.5_dp
+    dtby2 = dt*.5_dp
     max_sigma = -1.0E+10_dp
     irattle = 0
-    CONS: DO WHILE (ABS(max_sigma)>=simpar%shake_tol)
+    CONS: DO WHILE (ABS(max_sigma)>=shake_tol)
        max_sigma = 0.0_dp
        irattle = irattle + 1
        molecule_kind => molecule % molecule_kind
@@ -530,7 +530,7 @@ CONTAINS
              fdotf_sum = eval_Jac_colvar(lcolv ( iconst ) % colvar_old,&
                   lcolv ( iconst ) % colvar_old, particle_set,roll=.TRUE.,&
                   rmat=r_rattle,imass=imass, error=error)
-             del_lam = 2.0_dp*lcolv ( iconst ) % sigma/(simpar%dt*fdotf_sum)
+             del_lam = 2.0_dp*lcolv ( iconst ) % sigma/(dt*fdotf_sum)
              lcolv ( iconst ) % lambda = lcolv ( iconst ) % lambda + del_lam
              
              ! Update velocities 
@@ -547,9 +547,9 @@ CONTAINS
                error=error)
           max_sigma = MAX(ABS(lcolv ( iconst ) % sigma),max_sigma)
        END DO
-       IF (simpar%info_constraint>0) &
-            WRITE(simpar%info_constraint,'(T2,"RATTLE: ",I5,2F15.9)')irattle,ABS(max_sigma),&
-            simpar%shake_tol
+       IF (log_unit>0) &
+            WRITE(log_unit,'(T2,"RATTLE: ",I5,2F15.9)')irattle,ABS(max_sigma),&
+            shake_tol
     END DO CONS
   END SUBROUTINE rattle_roll_colv
 
