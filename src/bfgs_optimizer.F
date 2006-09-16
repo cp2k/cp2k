@@ -387,11 +387,15 @@ CONTAINS
 
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp
 
-    INTEGER                                  :: indf, iref, iter, maxit
+    INTEGER                                  :: indf, iref, iter, maxit,handle
     LOGICAL                                  :: bisec, fail, set
     REAL(KIND=dp)                            :: DDOT, fun, fun1, fun2, fun3, &
                                                 fung, lam1, lam2, ln, lp, &
                                                 ssize, step, stol
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'rat_fun_opt', &
+      routineP = moduleN//':'//routineN
+
+    CALL timeset(routineN,handle)
 
 !   ** Locals **
 
@@ -521,6 +525,8 @@ CONTAINS
      EXIT
 400  END DO
 
+     CALL timestop(handle)
+
   END SUBROUTINE  rat_fun_opt
 
 ! ******************************************************************************
@@ -535,8 +541,13 @@ CONTAINS
 
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp, zero = 0.0_dp
 
-    INTEGER                                  :: i, indf, j
+    INTEGER                                  :: i, indf, j, handle
     REAL(KIND=dp)                            :: DDOT, dxw, gdx
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'bfgs', &
+      routineP = moduleN//':'//routineN
+
+    CALL timeset(routineN,handle)
+
 
     CALL DSPMV('U',ndf,one,hes,dx,1,zero,work,1)
 
@@ -553,6 +564,8 @@ CONTAINS
       END DO
     END DO
 
+    CALL timestop(handle)
+
   END SUBROUTINE bfgs
 
 !  *******************************************************************************
@@ -568,8 +581,12 @@ CONTAINS
                                                 min_eig = 0.005_dp, &
                                                 one = 1.0_dp
 
-    INTEGER                                  :: indf
+    INTEGER                                  :: indf,handle
     LOGICAL                                  :: neg
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'set_hes_eig', &
+      routineP = moduleN//':'//routineN
+
+    CALL timeset(routineN,handle)
 
 !    ** Locals **
 
@@ -600,6 +617,8 @@ CONTAINS
          work(indf) =  one
        END IF
      END DO
+
+     CALL timestop(handle)
 
   END SUBROUTINE set_hes_eig
 
@@ -653,6 +672,11 @@ CONTAINS
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp, zero = 0.0_dp 
 
     REAL(KIND=dp)                            :: DDOT, scal
+   INTEGER :: handle
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'trust_radius', &
+      routineP = moduleN//':'//routineN
+
+    CALL timeset(routineN,handle)
 
 !   ** Locals **
 
@@ -671,6 +695,7 @@ CONTAINS
          CALL m_flush(output_unit)
        ENDIF
     END IF
+    CALL timestop(handle)
 
   END SUBROUTINE trust_radius
 
@@ -691,6 +716,11 @@ CONTAINS
                                                 one = 1.0_dp, zero = 0.0_dp
 
     REAL(KIND=dp)                            :: DDOT, ener1, ener2
+    INTEGER                                  :: handle
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'trust_radius', &
+      routineP = moduleN//':'//routineN
+
+    CALL timeset(routineN,handle)
 
      ener1 = DDOT(ndf,g,1,dr,1)
      CALL DSPMV('U',ndf,one,hes,dr,1,zero,work,1)
@@ -712,6 +742,7 @@ CONTAINS
         END  IF
         conv = .TRUE.
    END IF
+   CALL timestop(handle)
 
   END SUBROUTINE energy_predict
 
@@ -724,6 +755,12 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: ediff, pred, rat, step, rad, &
                                                 emin
     CHARACTER(LEN=5), OPTIONAL               :: wildcard
+    INTEGER :: handle
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'write_cycle_infos', &
+      routineP = moduleN//':'//routineN
+
+    CALL timeset(routineN,handle)
+
 
      WRITE(UNIT=output_unit,FMT="(/,T2,8('-'),A,I5,1X,12('-'))")&
      "  Informations at step = ",it
@@ -763,6 +800,7 @@ CONTAINS
         END IF
      END IF
      IF (it==0) WRITE(UNIT=output_unit,FMT="(T2,51('-'))")
+     CALL timestop(handle)
  END SUBROUTINE write_cycle_infos
 
 ! ***********************************************************************************
@@ -773,6 +811,11 @@ CONTAINS
 
     REAL(KIND=dp), PARAMETER                 :: max_trust = 1.0_dp, &
                                                 min_trust = 0.1_dp
+    INTEGER :: handle
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'write_cycle_infos', &
+      routineP = moduleN//':'//routineN
+
+    CALL timeset(routineN,handle)
 
     IF( rat > 4.0_dp )THEN
       IF( ediff < 0.0_dp)THEN
@@ -830,6 +873,7 @@ CONTAINS
 
     rad = MAX(rad,min_trust)
     rad = MIN(rad,max_trust)
+    CALL timestop(handle)
 
   END SUBROUTINE update_trust_rad
 
@@ -854,6 +898,11 @@ CONTAINS
 !                                                gcon = 0.00045_dp, &
 !                                                rmsgcon = 0.00030_dp, &
 !                                                rmsxcon = 0.0015_dp
+    INTEGER :: handle
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'write_cycle_infos', &
+      routineP = moduleN//':'//routineN
+
+    CALL timeset(routineN,handle)
 
     dxcon = gopt_param%max_dr
     gcon = gopt_param%max_force
@@ -956,6 +1005,7 @@ CONTAINS
         WRITE(UNIT=output_unit,FMT="(T2,80('*'))")
       END IF
     END IF
+    CALL timestop(handle)
 
   END SUBROUTINE check_converg
 

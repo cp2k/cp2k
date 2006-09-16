@@ -32,6 +32,7 @@ MODULE mathlib
   USE termination,                     ONLY: get_error_unit,&
        stop_memory,&
        stop_program
+  USE timings,                         ONLY: timeset,timestop
 
   IMPLICIT NONE
 
@@ -256,7 +257,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'diamat_all'
 
     INTEGER                                  :: info, istat, liwork, lwork, &
-         n, nb
+         n, nb, handle
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: iwork
     INTEGER, EXTERNAL                        :: ilaenv
     LOGICAL                                  :: divide_and_conquer
@@ -267,6 +268,7 @@ CONTAINS
     EXTERNAL dsyev,dsyevd
 
     !   ---------------------------------------------------------------------------
+    CALL timeset(routineN,handle)
 
     !   *** Get the size of the matrix a ***
 
@@ -343,6 +345,8 @@ CONTAINS
        IF (istat /= 0) CALL stop_memory(moduleN,routineN,__LINE__,&
             "iwork")
     END IF
+
+    CALL timestop(handle)
 
   END SUBROUTINE diamat_all
 

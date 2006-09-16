@@ -106,8 +106,9 @@ CONTAINS
          '                                       ', &
          ' C.J. Mundy, S. Balasubramanian,       ', &
          ' Ken Bagchi, J. Hutter, Ari Seitsonen  ', &
-         '             Version 0.3               ', &
-         '                                                       '
+         ' IFW Kuo, T. Laino, J. VandeVondele    ', &
+         '             Version 0.31415           ', &
+         '                                       '
 
   END SUBROUTINE fist_header
 
