@@ -3126,8 +3126,10 @@ SUBROUTINE pw_create(pw, pw_grid, use_data, in_space, mass_flag, cr3d_ptr, error
   CASE (REALDATA3D)
      IF (PRESENT(cr3d_ptr)) THEN
         IF (ASSOCIATED(cr3d_ptr)) THEN
-           CPPreconditionNoFail(ALL(LBOUND(cr3d_ptr)==bounds(1,:)),cp_failure_level,routineP,error)
-           CPPreconditionNoFail(ALL(UBOUND(cr3d_ptr)==bounds(2,:)),cp_failure_level,routineP,error)
+           IF (ALL(bounds(1,:) <= bounds(2,:))) THEN
+             CPPreconditionNoFail(ALL(LBOUND(cr3d_ptr)==bounds(1,:)),cp_failure_level,routineP,error)
+             CPPreconditionNoFail(ALL(UBOUND(cr3d_ptr)==bounds(2,:)),cp_failure_level,routineP,error)
+           END IF
            pw%cr3d => cr3d_ptr
         END IF
      END IF
