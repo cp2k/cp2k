@@ -96,7 +96,7 @@ CONTAINS
 
     CHARACTER(LEN=80)                        :: title
     INTEGER :: handle, hesunit, i, ihandle, indf, istat, it, j, maxiter, &
-      natom, ndf, nfree, nkind, output_unit, traj_unit
+      natom, ndf, nfree, nkind, output_unit, traj_unit, handle2
     LOGICAL                                  :: conv, hesrest, ionode, &
                                                 should_stop
     REAL(KIND=dp)                            :: ediff, emin, eold, etot, &
@@ -277,9 +277,7 @@ CONTAINS
        !    ** Hessian update/restarting **
        IF ((it == 1).AND.hesrest) THEN
           IF(ionode)THEN
-             DO i=1,SIZE(hes)
-                READ(UNIT=hesunit,IOSTAT=istat)hes(i)
-             END DO
+             READ(UNIT=hesunit,IOSTAT=istat) hes
              REWIND(hesunit)
              IF (istat /= 0) THEN
                 WRITE(UNIT=output_unit,FMT="(/,T2,A)")&
@@ -300,13 +298,13 @@ CONTAINS
 
           CALL bfgs(ndf,dx,dg,hes,work)
 
+          CALL timeset(routineN//"hes2disk","I","",handle2)
           IF(ionode)THEN
-             DO i = 1, SIZE(hes)
-                WRITE(UNIT=hesunit)hes(i)
-                CALL m_flush(hesunit)
-             END DO
+             WRITE(UNIT=hesunit) hes
+             CALL m_flush(hesunit)
              REWIND(hesunit)
           END IF
+          CALL timestop(handle2)
        END IF
 
        !    ** Setting the present positions & gradients as old **
