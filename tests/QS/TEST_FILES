@@ -2,3 +2,4 @@
 # the second field tells which test should be run in order to compare with the last available output
 # see regtest/TEST_FILES
 C.inp            1
+Si64_TBMD.inp    1
