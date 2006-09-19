@@ -554,9 +554,9 @@ CONTAINS
                         "QMMM_CHARGE_FACTOR",&
                         "QMMM_SCALE_CHARGE " /),&
             description="Specifies the scaling factor for the MM charge involved in the link QM/MM."//&
-            "This keyword affects only the QM/MM potential, it doesn't affect the electrostatic in "//&
-            "the classical part of the code"//&
-            "Default 1.0 i.e. delete the charge of the MM atom of the QM/MM link bond.",&
+            " This keyword affects only the QM/MM potential, it doesn't affect the electrostatic in "//&
+            " the classical part of the code. "//&
+            "Default 1.0 i.e. no charge rescaling of the MM atom of the QM/MM link bond.",&
             usage="SCALE_FACTOR real",n_var=1,type_of_var=real_t,&
             default_r_val=CHARGE_SCALE_FACTOR,error=error)
        CALL section_add_keyword(section,keyword,error=error)
@@ -567,9 +567,9 @@ CONTAINS
                         "FIST_CHARGE_FACTOR",&
                         "FIST_SCALE_CHARGE " /),&
             description="Specifies the scaling factor for the MM charge involved in the link QM/MM."//&
-            "This keyword modifies the MM charge in FIST. The modified charge will be used then also"//&
-            "for the generation of the QM/MM potential."//&
-            "Default 1.0 i.e. delete the charge of the MM atom of the QM/MM link bond.",&
+            " This keyword modifies the MM charge in FIST. The modified charge will be used then also"//&
+            " for the generation of the QM/MM potential. "//&
+            "Default 1.0 i.e. no charge rescaling of the MM atom of the QM/MM link bond.",&
             usage="SCALE_FACTOR real",n_var=1,type_of_var=real_t,&
             default_r_val=CHARGE_SCALE_FACTOR,error=error)
        CALL section_add_keyword(section,keyword,error=error)
