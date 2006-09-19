@@ -107,7 +107,10 @@ CONTAINS
        CALL keyword_release(keyword,error=error)    
 
        CALL keyword_create(keyword, name="PERIODIC",&
-            description="Specify the directions on wich apply PBC ",&
+            description="Specify the directions on wich apply PBC. Important notice, "//&
+                        " this only applies to the electrostatics."//&
+                        " See the CELL section to specify the periodicity used for e.g. the pair lists."//&
+                        " Typically the settings should be the same.",&
             usage="PERIODIC (x|y|z|xy|xz|yz|xyz|none)",&
             enum_c_vals=s2a( "x","y","z","xy","xz","yz","xyz","none"),&
             enum_i_vals=(/ use_perd_x,  use_perd_y,   use_perd_z,&
