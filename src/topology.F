@@ -196,7 +196,8 @@ CONTAINS
     !-----------------------------------------------------------------------------
     ! 6. Read in or generate the molecular connectivity
     !-----------------------------------------------------------------------------
-    CALL connectivity_control(topology,para_env,my_qmmm, qmmm_env, subsys_section,error)
+    CALL connectivity_control(topology,para_env,my_qmmm, qmmm_env,subsys_section,&
+         force_env_section,error)
 
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
@@ -282,7 +283,8 @@ CONTAINS
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE connectivity_control(topology,para_env,qmmm,qmmm_env,subsys_section,error)
+  SUBROUTINE connectivity_control(topology,para_env,qmmm,qmmm_env,subsys_section,&
+       force_env_section, error)
 
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
@@ -290,7 +292,8 @@ CONTAINS
     LOGICAL, INTENT(in), OPTIONAL            :: qmmm
     TYPE(qmmm_env_mm_type), OPTIONAL, &
       POINTER                                :: qmmm_env
-    TYPE(section_vals_type), POINTER         :: subsys_section
+    TYPE(section_vals_type), POINTER         :: subsys_section,&
+                                                force_env_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -350,7 +353,7 @@ CONTAINS
             CALL topology_molecules_check(topology,subsys_section,error)
     CASE (do_conn_generate)
        CALL topology_set_atm_mass(topology,para_env,subsys_section,error)
-       CALL topology_generate_bond(topology,para_env,subsys_section,error)
+       CALL topology_generate_bond(topology,para_env,subsys_section,force_env_section,error)
        CALL topology_generate_bend(topology,para_env,subsys_section,error)
        CALL topology_generate_ub(topology,para_env,subsys_section,error)
        CALL topology_generate_dihe(topology,para_env,subsys_section,error)
@@ -362,7 +365,7 @@ CONTAINS
        IF(topology%reorder_atom) THEN
           CALL topology_reorder_atoms(topology,para_env,subsys_section,error)
           CALL topology_set_atm_mass(topology,para_env,subsys_section,error)
-          CALL topology_generate_bond(topology,para_env,subsys_section,error)
+          CALL topology_generate_bond(topology,para_env,subsys_section,force_env_section,error)
           CALL topology_generate_bend(topology,para_env,subsys_section,error)
           CALL topology_generate_ub(topology,para_env,subsys_section,error)
           CALL topology_generate_dihe(topology,para_env,subsys_section,error)
@@ -372,7 +375,6 @@ CONTAINS
        END IF
     CASE (do_conn_off)
        CALL topology_set_atm_mass(topology,para_env,subsys_section,error)
-       !CALL topology_generate_bond(topology,para_env,subsys_section,error) 
        CALL topology_generate_bend(topology,para_env,subsys_section,error)
        CALL topology_generate_ub(topology,para_env,subsys_section,error)
        CALL topology_generate_dihe(topology,para_env,subsys_section,error)
@@ -380,8 +382,7 @@ CONTAINS
        CALL topology_generate_onfo(topology,para_env,subsys_section,error)
        CALL topology_generate_molecule(topology,my_qmmm,qmmm_env,para_env,subsys_section,error)
     CASE DEFAULT
-       CALL stop_program ("connectivity_control",&
-            "no default")
+       CALL stop_program ("connectivity_control","no default")
     END SELECT
 
     IF (my_qmmm) THEN

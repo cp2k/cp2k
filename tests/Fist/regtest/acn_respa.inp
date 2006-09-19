@@ -37,7 +37,9 @@
     &END CELL
     &TOPOLOGY
       CONNECTIVITY GENERATE
-      BONDPARM_FACTOR 1.31
+      &GENERATE
+       BONDPARM_FACTOR 1.31
+      &END
       MOL_CHECK
       COORD_FILE acn.pdb
       COORD      pdb
@@ -83,7 +85,9 @@
     &END CELL
     &TOPOLOGY
       CONNECTIVITY GENERATE
-      BONDPARM_FACTOR 1.31
+      &GENERATE
+       BONDPARM_FACTOR 1.31
+      &END
       DUMP_TOP
       MOL_CHECK
       COORD_FILE acn.pdb

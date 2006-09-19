@@ -1,0 +1,58 @@
+
+&FORCE_EVAL
+  METHOD FIST
+  &MM
+    &FORCEFIELD
+      parmfile ../sample_pot/par_all27_prot_lipid.inp
+      parmtype CHM
+      &spline
+       rcut_nb 9.0
+      &end
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE spme
+        ALPHA .4
+        GMAX 27
+        O_SPLINE 4
+      &END EWALD
+    &END POISSON
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC 62.23 62.23 62.23
+      UNIT ANGSTROM
+    &END CELL
+    &TOPOLOGY
+      CHARGE_BETA
+      COORD_FILE ../sample_pdb/5dhfr_cube_types.pdb
+      COORDINATE PDB
+      PARA_RES
+      DUMP_TOP
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  FFTLIB FFTSG
+  PRINT_LEVEL LOW
+  PROJECT dhfr
+  RUN_TYPE md
+&END GLOBAL
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 10
+    TIMESTEP 0.5
+    TEMPERATURE 298
+  &END MD
+  &PRINT
+    &RESTART OFF
+    &END
+    &RESTART_HISTORY OFF
+    &END
+    &TRAJECTORY OFF
+    &END
+    &VELOCITIES OFF
+    &END
+  &END
+&END MOTION

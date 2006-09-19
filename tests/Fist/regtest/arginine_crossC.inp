@@ -1,0 +1,84 @@
+
+&FORCE_EVAL
+  METHOD FIST
+  &MM
+    &FORCEFIELD
+      parmfile ../sample_pot/arginine.pot
+      parmtype CHM
+    &END FORCEFIELD
+    &POISSON
+      &EWALD
+        EWALD_TYPE ewald
+        ALPHA .36
+        GMAX 29
+      &END EWALD
+    &END POISSON
+    &PRINT
+      &FF_INFO
+        SPLINE_INFO
+      &END
+    &END
+  &END MM
+  &SUBSYS
+    &CELL
+      ABC 30.0 30.0 30.0
+      UNIT ANGSTROM
+    &END CELL
+    &TOPOLOGY
+      CHARGE_BETA
+      COORD_FILE_NAME ../sample_pdb/arginine.pdb
+      COORDINATE PDB
+      DUMP_TOP
+      &GENERATE
+         &BOND ADD
+           ATOMS 16 15
+         &END
+         &BOND ADD
+           ATOMS 16 15
+         &END
+         &BOND REMOVE
+           ATOMS 16 15
+         &END
+         &BOND REMOVE
+           ATOMS 16 15
+         &END
+         &ANGLE REMOVE
+           ATOMS 13 12 14
+         &END
+         &ANGLE ADD
+           ATOMS 14 12 13
+         &END
+         &TORSION ADD
+           ATOMS 23 20 17 14
+         &END
+         &TORSION REMOVE
+           ATOMS 23 20 17 14
+         &END
+         &IMPROPER REMOVE
+           ATOMS 26 28 27 25
+           ATOMS 29 30 31 25
+         &END 
+         &IMPROPER ADD
+           ATOMS 26 28 27 25
+           ATOMS 29 30 31 25
+         &END 
+      &END
+    &END TOPOLOGY
+  &END SUBSYS
+&END FORCE_EVAL
+&GLOBAL
+  FFTLIB FFTSG
+  PRINT_LEVEL LOW
+
+  PROJECT ARG
+  RUN_TYPE md
+&END GLOBAL
+&MOTION
+  &MD
+    ENSEMBLE NVE
+    STEPS 10
+    TIMESTEP 2.5
+    TEMPERATURE 298
+    TEMP_TOL 298
+  &END MD
+&END MOTION

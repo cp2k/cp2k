@@ -261,7 +261,8 @@ CONTAINS
        !-----------------------------------------------------------------------------
        ! 5. Read in or generate the molecular connectivity
        !-----------------------------------------------------------------------------
-       CALL connectivity_control(topology,para_env,subsys_section=subsys_section,error=error)
+       CALL connectivity_control(topology,para_env,subsys_section=subsys_section,&
+            force_env_section=force_env_section,error=error)
 
 
        !-----------------------------------------------------------------------------

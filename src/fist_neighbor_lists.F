@@ -109,7 +109,8 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(distribution_1d_type), POINTER      :: local_particles
+    TYPE(distribution_1d_type), POINTER,&
+         OPTIONAL                            :: local_particles
     TYPE(cell_type), POINTER                 :: cell
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: r_max, r_minsq
     TYPE(fist_neighbor_type), POINTER        :: nonbonded
@@ -124,7 +125,7 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length)     :: kind_name, print_key_path
     INTEGER :: atom_a, handle, iatom, iatom_local, ikind, istat, iw, maxatom, &
-      maxatom_local, natom_a, natom_local_a, nkind, output_unit
+      maxatom_local, natom_local_a, nkind, output_unit
     LOGICAL                                  :: print_subcell_grid
     LOGICAL, DIMENSION(:), POINTER           :: skip_kind
     REAL(dp), DIMENSION(3)                   :: r_pbc
@@ -132,6 +133,7 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(local_atoms_type), ALLOCATABLE, &
       DIMENSION(:)                           :: atom
+    LOGICAL :: present_local_particles
 
     CALL timeset(routineN,"I","",handle)
     NULLIFY(logger)
@@ -147,7 +149,7 @@ CONTAINS
          maxatom=maxatom)
 
     ! Allocate work storage
-
+    present_local_particles = PRESENT(local_particles)
     nkind = SIZE(atomic_kind_set)
     ALLOCATE (atom(nkind),STAT=istat)
     IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
@@ -167,8 +169,11 @@ CONTAINS
        CALL get_atomic_kind(atomic_kind=atomic_kind,&
             atom_list=atom(ikind)%list,name=kind_name)
        skip_kind(ikind)=qmmm_ff_precond_only_qm(kind_name)
-       natom_a = SIZE(atom(ikind)%list)
-       natom_local_a = local_particles%n_el(ikind)
+       IF(present_local_particles) THEN
+          natom_local_a = local_particles%n_el(ikind)
+       ELSE
+          natom_local_a = SIZE(atom(ikind)%list)
+       END IF
        maxatom_local = MAX(maxatom_local,natom_local_a)
        IF (natom_local_a > 0) THEN
           ALLOCATE (atom(ikind)%list_local_a_index(natom_local_a),STAT=istat)
@@ -177,7 +182,11 @@ CONTAINS
                natom_local_a*int_size)
           ! Build index vector for mapping
           DO iatom_local=1,natom_local_a
-             atom_a = local_particles%list(ikind)%array(iatom_local)
+             IF (present_local_particles) THEN
+                atom_a = local_particles%list(ikind)%array(iatom_local)
+             ELSE
+                atom_a = atom(ikind)%list(iatom_local)
+             END IF
              atom(ikind)%list_local_a_index(iatom_local) = atom_a
           END DO
 
@@ -296,7 +305,7 @@ CONTAINS
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: work
     INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: cellmap
     INTEGER, DIMENSION(3)                    :: isubcell, ncell, nsubcell, &
-                                                periodic
+                                                periodic 
     LOGICAL                                  :: added, failure, subcell000
     LOGICAL, ALLOCATABLE, DIMENSION(:, :, :) :: sphcub
     REAL(dp)                                 :: rab2, rab2_max, rab2_min, &
@@ -346,7 +355,7 @@ CONTAINS
           sab_max(2) = rab_max/plane_distance(0,1,0,cell)
           sab_max(3) = rab_max/plane_distance(0,0,1,cell)
           ncell= MAX(ncell(:),(INT(sab_max(:)+0.5_dp)+1)*periodic(:))
-          isubcell=MAX(isubcell(:),(INT(sab_max(:)*REAL(nsubcell(:),KIND=dp)+0.5_dp)+1)*periodic(:))
+          isubcell=MAX(isubcell(:),(INT(sab_max(:)*REAL(nsubcell(:),KIND=dp)+0.5_dp)+1))
        END DO
     END DO
     CALL fist_neighbor_init(nonbonded, nkind, ncell, error)
@@ -526,6 +535,7 @@ CONTAINS
              b_k  = xdim+b_k
              b_pk = b_pk - 1
           END IF
+          IF ((periodic(3)==0).AND.(ABS(b_pk)>0)) CYCLE
        loop_b_j: DO ij=-isubcell(2),isubcell(2)
           bg_j = a_j+ij
           xdim = nsubcell(2)
@@ -535,6 +545,7 @@ CONTAINS
              b_j  = xdim+b_j
              b_pj = b_pj - 1
           END IF
+          IF ((periodic(2)==0).AND.(ABS(b_pj)>0)) CYCLE
        loop_b_i: DO ii=-isubcell(1),isubcell(1)
           ! Ellipsoidal screening of subcells
           IF (.NOT.sphcub(ii,ij,ik)) CYCLE
@@ -545,8 +556,9 @@ CONTAINS
           IF (b_i<=0) THEN 
              b_i  = xdim+b_i
              b_pi = b_pi - 1
-          END IF          
-          IF (subcell_b(b_i,b_j,b_k)%natom == 0) CYCLE
+          END IF
+          IF ((periodic(1)==0).AND.(ABS(b_pi)>0)) CYCLE
+          IF ( subcell_b(b_i,b_j,b_k)%natom == 0) CYCLE
           ! Screen the interactions (avoid double counting of interacting subcells)
           g_i = g0_i+bg_i
           g_j = g0_j+bg_j
@@ -800,7 +812,7 @@ CONTAINS
                   atom_a,ra(1:3)/unit_of_length,&
                   atom_b,rb(1:3)/unit_of_length,&
                   neighbor_kind_pair%cell_vector,&
-                  dab
+                  dab                              
           END IF
        END DO ! ilist      
     END DO ! iab

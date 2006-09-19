@@ -370,7 +370,8 @@ MODULE input_constants
   INTEGER, PARAMETER, PUBLIC :: oe_none=0, oe_lb=1, oe_gllb=2, oe_saop=3, oe_sic=4
   INTEGER, PARAMETER, PUBLIC :: no_excitations=0, tddfpt_excitations=1
   
-  
+  INTEGER, PARAMETER, PUBLIC :: do_add=1, do_remove=2
+
   INTEGER, PARAMETER, PUBLIC :: no_precond=0,precond_spl3_aint=1, precond_spl3_1=2,&
        precond_spl3_aint2=3, precond_spl3_2=4, precond_spl3_3=5
 

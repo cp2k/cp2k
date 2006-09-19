@@ -128,8 +128,9 @@ SUBROUTINE read_topology_section ( topology, topology_section, globenv, error )
      IF (topology % conn_type == do_conn_mol_set) topology % connectivity = .TRUE.
      CALL section_vals_val_get(topology_section,"EXCLUDE_VDW",i_val=topology % exclude_vdw,error=error)
      CALL section_vals_val_get(topology_section,"EXCLUDE_EI",i_val=topology % exclude_ei,error=error)
-     CALL section_vals_val_get(topology_section,"BONDPARM",i_val=topology % bondparm_type,error=error)
-     CALL section_vals_val_get(topology_section,"BONDPARM_FACTOR", &
+     CALL section_vals_val_get(topology_section,"GENERATE%BONDPARM",&
+          i_val=topology % bondparm_type,error=error)
+     CALL section_vals_val_get(topology_section,"GENERATE%BONDPARM_FACTOR", &
                                r_val=topology % bondparm_factor,error=error)
      CALL section_vals_val_get(topology_section,"NHCOPT",i_val=topology % nhcopt,error=error)
 

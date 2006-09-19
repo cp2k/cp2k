@@ -274,9 +274,11 @@ CONTAINS
           CALL deallocate_grid_atom(atomic_kind_set(ikind)%grid_atom)
         END IF
 
-        DEALLOCATE (atomic_kind_set(ikind)%atom_list,STAT=istat)
-        IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
-                                         "atomic_kind_set(ikind)%atom_list")
+        IF (ASSOCIATED(atomic_kind_set(ikind)%atom_list)) THEN
+           DEALLOCATE (atomic_kind_set(ikind)%atom_list,STAT=istat)
+           IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&
+                "atomic_kind_set(ikind)%atom_list")
+        END IF
         IF (ASSOCIATED(atomic_kind_set(ikind)%elec_conf)) THEN
             DEALLOCATE (atomic_kind_set(ikind)%elec_conf,STAT=istat)
             IF (istat /= 0) CALL stop_memory(routineN,moduleN,__LINE__,&

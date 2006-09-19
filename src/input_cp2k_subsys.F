@@ -24,6 +24,7 @@
 !****************************************************************************
 MODULE input_cp2k_subsys
   USE cp_output_handling,              ONLY: cp_print_key_section_create
+  USE cp_units,                        ONLY: cp_unit_to_cp2k
   USE input_constants
   USE input_cp2k_colvar,               ONLY: create_colvar_section
   USE input_keyword_types,             ONLY: keyword_create,&
@@ -955,7 +956,7 @@ CONTAINS
 
     LOGICAL                                  :: failure
     TYPE(keyword_type), POINTER              :: keyword
-    TYPE(section_type), POINTER              :: subsection
+    TYPE(section_type), POINTER              :: subsection, subsubsection
 
     failure=.FALSE.
 
@@ -1079,18 +1080,6 @@ CONTAINS
             default_i_val=do_skip_13,error=error)
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)
- 
-       CALL keyword_create(keyword, name="BONDPARM",&
-            description="Used in conjunction with BONDPARM_FACTOR to "//&
-                        "help determine wheather there is bonding "//&
-                        "between two atoms based on a distance criteria. "//&
-                        "Can use covalent radii information or VDW radii information",&
-            usage="BONDPARM (COVALENT||VDW)", &
-            enum_c_vals=s2a( "COVALENT", "VDW"),&
-            enum_i_vals=(/do_bondparm_covalent, do_bondparm_vdw/),&
-            default_i_val=do_bondparm_covalent,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
-       CALL keyword_release(keyword,error=error)
 
        CALL keyword_create(keyword, name="NHCOPT",&
             description="Determines the number of DOF each NHC is attached to.",&
@@ -1102,13 +1091,171 @@ CONTAINS
        CALL section_add_keyword(section,keyword,error=error)
        CALL keyword_release(keyword,error=error)       
 
+ 
+       NULLIFY(subsection, subsubsection)
+       CALL section_create(subsection,name="GENERATE",&
+            description="Setup of keywords controlling the generation of the connectivity",&
+            n_keywords=2, n_subsections=0, repeats=.TRUE., required=.FALSE.,&
+            error=error)
+
+       CALL keyword_create(keyword, name="BONDPARM",&
+            description="Used in conjunction with BONDPARM_FACTOR to "//&
+                        "help determine wheather there is bonding "//&
+                        "between two atoms based on a distance criteria. "//&
+                        "Can use covalent radii information or VDW radii information",&
+            usage="BONDPARM (COVALENT||VDW)", &
+            enum_c_vals=s2a( "COVALENT", "VDW"),&
+            enum_i_vals=(/do_bondparm_covalent, do_bondparm_vdw/),&
+            default_i_val=do_bondparm_covalent,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
        CALL keyword_create(keyword, name="BONDPARM_FACTOR",&
             description="Used in conjunction with BONDPARM to help "//&
                         "determine wheather there is bonding between "//&
                         "two atoms based on a distance criteria.",&
             usage="bondparm_factor {real}", default_r_val=1.1_dp,error=error)
-       CALL section_add_keyword(section,keyword,error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
        CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(&
+             keyword=keyword,&
+             name="BONDLENGTH_MAX",&
+             description="Maximum distance to generate neighbor lists to build connectivity",&
+             usage="BONDLENGTH_MAX <real>",&
+             default_r_val=cp_unit_to_cp2k(value=3.0_dp,&
+                                           unit_str="angstrom",&
+                                           error=error),&
+             unit_str="angstrom",&
+             error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       CALL keyword_create(&
+             keyword=keyword,&
+             name="BONDLENGTH_MIN",&
+             description="Minimum distance to generate neighbor lists to build connectivity",&
+             usage="BONDLENGTH_MIN <real>",&
+             default_r_val=cp_unit_to_cp2k(value=0.01_dp,&
+                                           unit_str="angstrom",&
+                                           error=error),&
+             unit_str="angstrom",&
+             error=error)
+       CALL section_add_keyword(subsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)
+
+       NULLIFY(subsubsection)
+       ! BONDS
+       CALL section_create(subsubsection,name="BOND",&
+            description="Section used to add/remove  bonds in the connectivity."//&
+            " Useful for systems with a complex connectivity, difficult to find out automatically.",&
+            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            error=error)
+
+       CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
+            description="controls the activation of the bond",&
+            usage="&OT (ADD|REMOVE)",&
+            enum_c_vals=s2a("ADD","REMOVE"),&
+            enum_i_vals=(/do_add,do_remove/),&
+            default_i_val=do_add,&
+            error=error)
+       CALL section_add_keyword(subsubsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)       
+       
+       CALL keyword_create(keyword, name="ATOMS",&
+            description="Specifies two atomic index united by a covalent bond",&
+            usage="ATOMS {integer} {integer}", type_of_var=integer_t, n_var=2,&
+            required=.TRUE., repeats=.TRUE.,error=error)
+       CALL section_add_keyword(subsubsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)      
+       
+       CALL section_add_subsection(subsection, subsubsection, error=error)
+       CALL section_release(subsubsection,error=error)
+       NULLIFY(subsubsection)
+       ! ANGLES
+       CALL section_create(subsubsection,name="ANGLE",&
+            description="Section used to add/remove angles in the connectivity."//&
+            " Useful for systems with a complex connectivity, difficult to find out automatically.",&
+            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            error=error)
+
+       CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
+            description="controls the activation of the bond",&
+            usage="&OT (ADD|REMOVE)",&
+            enum_c_vals=s2a("ADD","REMOVE"),&
+            enum_i_vals=(/do_add,do_remove/),&
+            default_i_val=do_add,&
+            error=error)
+       CALL section_add_keyword(subsubsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)       
+       
+       CALL keyword_create(keyword, name="ATOMS",&
+            description="Specifies two atomic index united by a covalent bond",&
+            usage="ATOMS {integer} {integer} {integer} ", type_of_var=integer_t, n_var=3,&
+            required=.TRUE., repeats=.TRUE.,error=error)
+       CALL section_add_keyword(subsubsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)      
+       
+       CALL section_add_subsection(subsection, subsubsection, error=error)
+       CALL section_release(subsubsection,error=error)
+       NULLIFY(subsubsection)
+       ! TORSIONS
+       CALL section_create(subsubsection,name="TORSION",&
+            description="Section used to add/remove torsion in the connectivity."//&
+            " Useful for systems with a complex connectivity, difficult to find out automatically.",&
+            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            error=error)
+
+       CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
+            description="controls the activation of the bond",&
+            usage="&OT (ADD|REMOVE)",&
+            enum_c_vals=s2a("ADD","REMOVE"),&
+            enum_i_vals=(/do_add,do_remove/),&
+            default_i_val=do_add,&
+            error=error)
+       CALL section_add_keyword(subsubsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)       
+       
+       CALL keyword_create(keyword, name="ATOMS",&
+            description="Specifies two atomic index united by a covalent bond",&
+            usage="ATOMS {integer} {integer} {integer} {integer} ", type_of_var=integer_t, n_var=4,&
+            required=.TRUE., repeats=.TRUE.,error=error)
+       CALL section_add_keyword(subsubsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)      
+       
+       CALL section_add_subsection(subsection, subsubsection, error=error)
+       CALL section_release(subsubsection,error=error)
+       NULLIFY(subsubsection)
+       ! IMPROPERS
+       CALL section_create(subsubsection,name="IMPROPER",&
+            description="Section used to add/remove improper in the connectivity."//&
+            " Useful for systems with a complex connectivity, difficult to find out automatically.",&
+            n_keywords=1, n_subsections=0, repeats=.TRUE., required=.TRUE.,&
+            error=error)
+
+       CALL keyword_create(keyword, name="_SECTION_PARAMETERS_",&
+            description="controls the activation of the bond",&
+            usage="&OT (ADD|REMOVE)",&
+            enum_c_vals=s2a("ADD","REMOVE"),&
+            enum_i_vals=(/do_add,do_remove/),&
+            default_i_val=do_add,&
+            error=error)
+       CALL section_add_keyword(subsubsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)       
+       
+       CALL keyword_create(keyword, name="ATOMS",&
+            description="Specifies two atomic index united by a covalent bond",&
+            usage="ATOMS {integer} {integer} {integer} {integer} ", type_of_var=integer_t, n_var=4,&
+            required=.TRUE., repeats=.TRUE.,error=error)
+       CALL section_add_keyword(subsubsection,keyword,error=error)
+       CALL keyword_release(keyword,error=error)      
+       
+       CALL section_add_subsection(subsection, subsubsection, error=error)
+       CALL section_release(subsubsection,error=error)
+
+       CALL section_add_subsection(section, subsection, error=error)
+       CALL section_release(subsection,error=error)
+
 
        NULLIFY(subsection)
        CALL section_create(subsection,name="MOL_SET",&

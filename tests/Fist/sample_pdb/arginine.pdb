@@ -1,0 +1,87 @@
+REMARK  NGLY                                                        
+ATOM      1  N3  GLY     1       3.326   1.548   0.000                       N
+ATOM      2  H11 GLY     1       4.046   0.840   0.000                       H
+ATOM      3  H11 GLY     1       2.823   1.500  -0.875                       H
+ATOM      4  H11 GLY     1       2.823   1.500   0.875                       H
+ATOM      5  CT1 GLY     1       3.970   2.846   0.000                       C
+ATOM      6  HP  GLY     1       3.672   3.400  -0.890                       H
+ATOM      7  HP  GLY     1       3.672   3.400   0.890                       H
+ATOM      8  C1  GLY     1       5.484   2.687   0.000                       C
+ATOM      9  O1  GLY     1       5.993   1.568   0.000                       O
+ATOM     10  N1  ARG     2       6.203   3.811   0.000                       N
+ATOM     11  H2  ARG     2       5.738   4.708   0.000                       H
+ATOM     12  CT2 ARG     2       7.652   3.794   0.000                       C
+ATOM     13  H12 ARG     2       8.009   3.276   0.890                       H
+ATOM     14  CT3 ARG     2       8.192   3.076  -1.232                       C
+ATOM     15  HC1 ARG     2       7.831   2.047  -1.241                       H
+ATOM     16  HC1 ARG     2       7.850   3.588  -2.131                       H
+ATOM     17  CT4 ARG     2       9.717   3.079  -1.195                       C
+ATOM     18  HC2 ARG     2      10.078   4.107  -1.186                       H
+ATOM     19  HC2 ARG     2      10.060   2.566  -0.296                       H
+ATOM     20  CT5 ARG     2      10.257   2.361  -2.427                       C
+ATOM     21  H13 ARG     2       9.896   1.332  -2.436                       H
+ATOM     22  H13 ARG     2       9.915   2.873  -3.326                       H
+ATOM     23  N21 ARG     2      11.737   2.344  -2.424                       N
+ATOM     24  H3  ARG     2      12.223   2.782  -1.655                       H
+ATOM     25  CA  ARG     2      12.456   1.778  -3.389                       C
+ATOM     26  N22 ARG     2      11.889   1.182  -4.434                       N
+ATOM     27  H4  ARG     2      10.882   1.151  -4.509                       H
+ATOM     28  H4  ARG     2      12.468   0.762  -5.148                       H
+ATOM     29  N22 ARG     2      13.782   1.821  -3.287                       N
+ATOM     30  H4  ARG     2      14.209   2.274  -2.492                       H
+ATOM     31  H4  ARG     2      14.354   1.400  -4.004                       H
+ATOM     32  C2  ARG     2       8.217   5.207   0.000                       C
+ATOM     33  O21 ARG     2       7.466   6.179   0.000                       O
+ATOM     34  N23 GLY     3       9.547   5.319   0.000                       N
+ATOM     35  H5  GLY     3      10.124   4.489   0.000                       H
+ATOM     36  CT6 GLY     3      10.207   6.608   0.000                       C
+ATOM     37  H14 GLY     3       9.916   7.166  -0.890                       H
+ATOM     38  H14 GLY     3       9.916   7.166   0.890                       H
+ATOM     39  C3  GLY     3      11.719   6.431   0.000                       C
+ATOM     40  O22 GLY     3      12.215   5.306   0.000                       O
+ATOM     41  O22 GLY     3      12.462   7.410   0.000                       O
+TER   
+END   
+
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
