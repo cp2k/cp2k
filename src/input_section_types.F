@@ -504,6 +504,9 @@ RECURSIVE SUBROUTINE section_describe_html(section, prefix, depth, unit_nr,  err
      OPEN(unit=179,FILE=TRIM(local_prefix)//".html")
      WRITE(179,*) "<HTML><BODY>"
      WRITE(179,*) "<HEAD><TITLE> The CP2K project : input section "//section%name//"</TITLE></HEAD>"
+     WRITE(179,*) '<META NAME="description" content="CP2K">'
+     WRITE(179,*) '<META NAME="keywords" contents="scientific,computing,chemistry,physics,'//&
+                  'documentation,help,manual,Fortran,parallel">'
      WRITE(179,*) "<H1> Section "//section%name//"</H1>"
      WRITE(179,*) ' <A HREF="index.html">Index of all sections</A>. This section is located at '
      DO idepth=1,depth
@@ -559,7 +562,9 @@ RECURSIVE SUBROUTINE section_describe_html(section, prefix, depth, unit_nr,  err
      ELSE
        WRITE(179,*) "None"
      ENDIF
-     WRITE(179,*) '<BR><hr>Back to the <A HREF="../index.html">CP2K homepage</A>'
+     WRITE(179,*) '<BR><hr>Back to the <A HREF="http://cp2k.berlios.de/index.html">CP2K homepage</A>, '// &
+                  'the latest version of <A HREF="http://cp2k.berlios.de/input/index.html">this manual</A>, '//&
+                  'or maybe even <A HREF="http://cp2k.berlios.de/input/'//TRIM(location(depth+1))//'">the current section</A>.'
      WRITE(179,*) "</BODY></HTML>"
      CLOSE(unit=179)
      DO isub=1,section%n_subsections

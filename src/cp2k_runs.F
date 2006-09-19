@@ -739,7 +739,7 @@ CPSourceFileRef,&
 
        CALL section_describe_index_html(root_section,"InputReference",unit_nr,error=error)
 
-       WRITE(unit_nr,*) '</UL><BR><hr>Back to the <A HREF="../index.html">CP2K homepage</A>'
+       WRITE(unit_nr,*) '</UL><BR><hr>Back to the <A HREF="http://cp2k.berlios.de/">CP2K homepage</A>'
        WRITE(unit_nr,*) "</BODY></HTML>"
 
        CALL close_file(unit_nr)
