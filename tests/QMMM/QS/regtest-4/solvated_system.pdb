@@ -1,0 +1,10 @@
+COMPND    solute-solvated                                                     
+AUTHOR    get_box                                                             
+ATOM      1  YC  ACN     1       5.047  10.211  10.218 0.481 0.000      ACN  C
+ATOM      2  CT  ACN     1       6.112  10.748   9.316-0.480 0.000      ACN  C
+ATOM      3  YN  ACN     1       4.196   9.868  10.936-0.532 0.000      ACN  N
+ATOM      4  HC  ACN     1       6.467   9.894   8.637 0.177 0.000      ACN  H
+ATOM      5  HC  ACN     1       5.612  11.481   8.675 0.177 0.000      ACN  H
+ATOM      6  HC  ACN     1       6.980  11.380   9.762 0.177 0.000      ACN  H
+ATOM      7  Cl  SLU     2       2.900   7.569   7.600 0.038 0.000      SLU  Cl
+END                                                                           

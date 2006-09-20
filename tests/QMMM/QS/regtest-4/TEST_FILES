@@ -9,3 +9,5 @@ crys_per_qmmm_anal.inp 1
 crys_per_qmmm_spln.inp 1
 # none calculation + periodic -> switch off periodic
 crys_per_qmmm_none.inp 1
+# check zero of the potential for charged QM systems
+acn-qmmm-re.inp
