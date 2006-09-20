@@ -649,7 +649,10 @@ END SUBROUTINE f_env_rm_defaults
     logger => cp_get_default_logger()
     ! warning this is dangerous, I did not check that all the subfunctions
     ! support it, the program might crash upon error
-    CALL cp_error_init(error,stop_level=cp_fatal_level,logger=logger)
+    ! CALL cp_error_init(error,stop_level=cp_fatal_level,logger=logger)
+    ! no, there are plenty of places where this doesn't work so far,
+    ! and failure go unnoticed
+    CALL cp_error_init(error,stop_level=cp_failure_level,logger=logger)
 
     NULLIFY(input_file)
     IF (PRESENT(input)) input_file => input

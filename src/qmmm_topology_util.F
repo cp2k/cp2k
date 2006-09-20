@@ -76,7 +76,7 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length)     :: prefix_lnk
     INTEGER                                  :: handle, iatm, iw
-    LOGICAL                                  :: failure
+    LOGICAL                                  :: failure,qmmm_index_in_range
     TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,'I','',handle)
@@ -90,6 +90,9 @@ CONTAINS
     ! setting ilast and ifirst for QM molecule
     !
     CPPostcondition(SIZE(qmmm_env%qm_atom_index) /= 0,cp_failure_level,routineP,error,failure)
+    qmmm_index_in_range=(MAXVAL(qmmm_env%qm_atom_index)<=SIZE(topology%atom_info%label_atmname)) &
+                        .AND.(MINVAL(qmmm_env%qm_atom_index)>0)
+    CPPostcondition(qmmm_index_in_range,cp_failure_level,routineP,error,failure)
     DO iatm = 1, SIZE(qmmm_env%qm_atom_index)
        topology%atom_info%label_atmname(qmmm_env%qm_atom_index(iatm)) = "_QM_"//&
             TRIM(topology%atom_info%label_atmname(qmmm_env%qm_atom_index(iatm)))
