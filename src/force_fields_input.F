@@ -1,0 +1,1924 @@
+!-----------------------------------------------------------------------------!
+!   CP2K: A general program to perform molecular dynamics simulations         !
+!   Copyright (C) 2006  CP2K developers group                                 !
+!-----------------------------------------------------------------------------!
+
+
+!!****** cp2k/force_fields_input [1.0] *
+!!
+!!   NAME
+!!     force_fields_input
+!!
+!!   FUNCTION
+!!
+!!   AUTHOR
+!!     CJM
+!!
+!!   MODIFICATION HISTORY
+!!     Subroutine input_torsions changed (DG) 05-Dec-2000
+!!     Output formats changed (DG) 05-Dec-2000
+!!     JGH (26-01-2002) : force field parameters stored in tables, not in
+!!       matrices. Input changed to have parameters labeled by the position
+!!       and not atom pairs (triples etc)
+!!     Teo (11.2005) : Moved all information on force field  pair_potential to
+!!                     a much lighter memory structure
+!!     Teo 09.2006   : Splitted all routines force_field I/O in a separate file
+!!
+!!   SOURCE
+!******************************************************************************
+
+MODULE force_fields_input
+
+  USE convert_units,                   ONLY: convert_to_cp2k_units
+  USE cp_files,                        ONLY: open_file
+  USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
+                                             cp_print_key_unit_nr
+  USE cp_para_types,                   ONLY: cp_para_env_type
+  USE cp_parser,                       ONLY: cp_parser_type,&
+                                             parser_create,&
+                                             parser_get_next_line,&
+                                             parser_get_object,&
+                                             parser_release,&
+                                             parser_search_string,&
+                                             parser_test_next_token
+  USE force_field_types,               ONLY: charmm_info_type,&
+                                             force_field_type,&
+                                             gromos_info_type,&
+                                             input_info_type
+  USE global_types,                    ONLY: global_environment_type
+  USE input_section_types,             ONLY: section_vals_get,&
+                                             section_vals_get_subs_vals,&
+                                             section_vals_type,&
+                                             section_vals_val_get
+  USE kinds,                           ONLY: default_string_length,&
+                                             dp
+  USE memory_utilities,                ONLY: reallocate
+  USE message_passing,                 ONLY: mp_bcast
+  USE pair_potential_types,            ONLY: &
+       ea_type, eam_pot_type, ft_type, gw_type, ip_type, lj_charmm_type, &
+       lj_type, pair_potential_p_type, pair_potential_reallocate, &
+       pair_potential_single_type, wl_type
+  USE physcon,                         ONLY: bohr
+  USE string_utilities,                ONLY: uppercase
+  USE termination,                     ONLY: stop_program
+  USE timings,                         ONLY: timeset,&
+                                             timestop
+#include "cp_common_uses.h"
+
+  IMPLICIT NONE
+
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'force_fields_input'
+
+  PRIVATE
+  PUBLIC :: read_force_field_section,&
+            read_force_field_charmm,&
+            read_force_field_gromos,&
+            read_lj_section,&
+            read_wl_section,&
+            read_gd_section
+
+!!*****
+!******************************************************************************
+
+CONTAINS
+  
+!******************************************************************************
+!!****** force_fields_input/read_force_field_section1 [1.0] *
+!!
+!!   NAME
+!!     read_force_field_section1
+!!
+!!   FUNCTION
+!!     Reads the force_field input section
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!******************************************************************************
+  SUBROUTINE read_force_field_section1 ( ff_section, mm_section, ff_type, para_env, globenv, error )
+    TYPE(section_vals_type), POINTER         :: ff_section, mm_section
+    TYPE(force_field_type), INTENT(INOUT)    :: ff_type
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(global_environment_type), &
+      OPTIONAL, POINTER                      :: globenv
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'read_force_field_section1', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: nbends, nbmhft, nbonds, nchg, &
+                                                neam, ngd, nipbv, nlj, ntors, &
+                                                ntot, nubs, nwl
+    LOGICAL                                  :: explicit, failure
+    TYPE(input_info_type), POINTER           :: inp_info
+    TYPE(section_vals_type), POINTER         :: tmp_section, tmp_section2
+
+    NULLIFY(tmp_section, tmp_section2)
+    inp_info => ff_type%inp_info
+    failure = .FALSE.
+    IF (.NOT.failure) THEN
+       CALL section_vals_val_get(ff_section,"PARMTYPE",c_val=ff_type%ff_type,error=error)
+       CALL section_vals_val_get(ff_section,"PARMFILE",c_val=ff_type%ff_file_name,error=error)
+       CALL section_vals_val_get(ff_section,"EI_SCALE14",r_val=ff_type%ei_scale14,error=error)
+       CALL section_vals_val_get(ff_section,"VDW_SCALE14",r_val=ff_type%vdw_scale14,error=error)
+       CALL section_vals_val_get(ff_section,"SPLINE%RCUT_NB",r_val=ff_type%rcut_nb,error=error)
+       CALL section_vals_val_get(ff_section,"SPLINE%R0_NB",r_val=ff_type%rlow_nb,error=error)
+       CALL section_vals_val_get(ff_section,"SPLINE%EPS_SPLINE",r_val=ff_type%eps_spline,error=error)
+       CALL section_vals_val_get(ff_section,"SPLINE%EMAX_SPLINE",r_val=ff_type%emax_spline,error=error)
+       CALL section_vals_val_get(ff_section,"SPLINE%EMAX_ACCURACY",r_val=ff_type%max_energy,error=error)
+       CALL section_vals_val_get(ff_section,"SCALE_CUTOFF",l_val=ff_type%scale_cutoff,error=error)
+
+       tmp_section  => section_vals_get_subs_vals(ff_section,"NONBONDED",error=error)
+       CALL section_vals_get(tmp_section,explicit=explicit,error=error)
+       IF (explicit) THEN
+          tmp_section2 => section_vals_get_subs_vals(tmp_section,"LENNARD-JONES",error=error)
+          CALL section_vals_get(tmp_section2,explicit=explicit,n_repetition=nlj,error=error)
+          ntot = 0
+          IF (explicit) THEN
+             CALL pair_potential_reallocate(inp_info%nonbonded,1,ntot+nlj,lj_charmm=.TRUE.,error=error)
+             CALL read_lj_section(inp_info%nonbonded,tmp_section2,ntot,error)
+          END IF
+          tmp_section2 => section_vals_get_subs_vals(tmp_section,"WILLIAMS",error=error)
+          CALL section_vals_get(tmp_section2,explicit=explicit,n_repetition=nwl,error=error)
+          ntot=nlj
+          IF (explicit) THEN
+             CALL pair_potential_reallocate(inp_info%nonbonded,1,ntot+nwl,williams=.TRUE.,error=error)
+             CALL read_wl_section(inp_info%nonbonded,tmp_section2,ntot,error)
+          END IF
+          tmp_section2 => section_vals_get_subs_vals(tmp_section,"EAM",error=error)
+          CALL section_vals_get(tmp_section2,explicit=explicit,n_repetition=neam,error=error)
+          ntot=nlj+nwl
+          IF (explicit) THEN
+             CALL pair_potential_reallocate(inp_info%nonbonded,1,ntot+neam,eam=.TRUE.,error=error)
+             CALL read_eam_section(inp_info%nonbonded,tmp_section2,ntot,para_env,mm_section,error)
+          END IF
+          tmp_section2 => section_vals_get_subs_vals(tmp_section,"GOODWIN",error=error)
+          CALL section_vals_get(tmp_section2,explicit=explicit,n_repetition=ngd,error=error)
+          ntot=nlj+nwl+neam
+          IF (explicit) THEN
+             CALL pair_potential_reallocate(inp_info%nonbonded,1,ntot+ngd,goodwin=.TRUE.,error=error)
+             CALL read_gd_section(inp_info%nonbonded,tmp_section2,ntot,error)
+          END IF
+          tmp_section2 => section_vals_get_subs_vals(tmp_section,"IPBV",error=error)
+          CALL section_vals_get(tmp_section2,explicit=explicit,n_repetition=nipbv,error=error)
+          ntot=nlj+nwl+neam+ngd
+          IF (explicit) THEN
+             CALL pair_potential_reallocate(inp_info%nonbonded,1,ntot+nipbv,ipbv=.TRUE.,error=error)
+             CALL read_ipbv_section(inp_info%nonbonded,tmp_section2,ntot,error)
+          END IF
+          tmp_section2 => section_vals_get_subs_vals(tmp_section,"BMHFT",error=error)
+          CALL section_vals_get(tmp_section2,explicit=explicit,n_repetition=nbmhft,error=error)
+          ntot=nlj+nwl+neam+ngd
+          IF (explicit) THEN
+             CALL pair_potential_reallocate(inp_info%nonbonded,1,ntot+nbmhft,bmhft=.TRUE.,error=error)
+             CALL read_bmhft_section(inp_info%nonbonded,tmp_section2,ntot,error)
+          END IF
+       END IF
+       tmp_section => section_vals_get_subs_vals(ff_section,"NONBONDED14",error=error)
+       CALL section_vals_get(tmp_section,explicit=explicit,error=error)
+       IF (explicit) THEN
+          tmp_section2 => section_vals_get_subs_vals(tmp_section,"LENNARD-JONES",error=error)
+          CALL section_vals_get(tmp_section2,explicit=explicit,n_repetition=nlj,error=error)
+          ntot = 0
+          IF (explicit) THEN
+             CALL pair_potential_reallocate(inp_info%nonbonded14,1,ntot+nlj,lj_charmm=.TRUE.,error=error)
+             CALL read_lj_section(inp_info%nonbonded14,tmp_section2,ntot,error)
+          END IF
+          tmp_section2 => section_vals_get_subs_vals(tmp_section,"WILLIAMS",error=error)
+          CALL section_vals_get(tmp_section2,explicit=explicit,n_repetition=nwl,error=error)
+          ntot=nlj
+          IF (explicit) THEN
+             CALL pair_potential_reallocate(inp_info%nonbonded14,1,ntot+nwl, williams=.TRUE.,error=error)
+             CALL read_wl_section(inp_info%nonbonded14,tmp_section2,ntot,error)
+          END IF
+          tmp_section2 => section_vals_get_subs_vals(tmp_section,"GOODWIN",error=error)
+          CALL section_vals_get(tmp_section2,explicit=explicit,n_repetition=ngd,error=error)
+          ntot=nlj+nwl
+          IF (explicit) THEN
+             CALL pair_potential_reallocate(inp_info%nonbonded14,1,ntot+ngd, goodwin=.TRUE.,error=error)
+             CALL read_gd_section(inp_info%nonbonded14,tmp_section2,ntot,error)
+          END IF
+       END IF
+       tmp_section => section_vals_get_subs_vals(ff_section,"CHARGE",error=error)
+       CALL section_vals_get(tmp_section,explicit=explicit,n_repetition=nchg,error=error)
+       IF (explicit) THEN
+          ntot=0
+          CALL reallocate(inp_info%charge_atm,1,nchg)
+          CALL reallocate(inp_info%charge,1,nchg)
+          CALL read_chrg_section(inp_info%charge_atm,inp_info%charge,tmp_section,ntot,error)
+       END IF
+       tmp_section => section_vals_get_subs_vals(ff_section,"BOND",error=error)
+       CALL section_vals_get(tmp_section,explicit=explicit,n_repetition=nbonds,error=error)
+       IF (explicit) THEN
+          ntot=0
+          CALL reallocate(inp_info%bond_kind,1,nbonds)
+          CALL reallocate(inp_info%bond_a,1,nbonds)
+          CALL reallocate(inp_info%bond_b,1,nbonds)
+          CALL reallocate(inp_info%bond_k,1,3,1,nbonds)
+          CALL reallocate(inp_info%bond_r0,1,nbonds)        
+          CALL read_bonds_section(inp_info%bond_kind,inp_info%bond_a, inp_info%bond_b, inp_info%bond_k,&
+               inp_info%bond_r0, tmp_section, ntot, error)
+       END IF
+       tmp_section => section_vals_get_subs_vals(ff_section,"BEND",error=error)
+       CALL section_vals_get(tmp_section,explicit=explicit,n_repetition=nbends,error=error)
+       IF (explicit) THEN
+          ntot=0
+          CALL reallocate(inp_info%bend_kind,1,nbends)
+          CALL reallocate(inp_info%bend_a,1,nbends)
+          CALL reallocate(inp_info%bend_b,1,nbends)
+          CALL reallocate(inp_info%bend_c,1,nbends)
+          CALL reallocate(inp_info%bend_k,1,nbends)
+          CALL reallocate(inp_info%bend_theta0,1,nbends)
+          CALL read_bends_section(inp_info%bend_kind,inp_info%bend_a, inp_info%bend_b, inp_info%bend_c,&
+               inp_info%bend_k, inp_info%bend_theta0, tmp_section, ntot, error)
+       END IF
+       tmp_section => section_vals_get_subs_vals(ff_section,"BEND",error=error)
+       CALL section_vals_get(tmp_section,explicit=explicit,n_repetition=nubs,error=error)
+       IF (explicit) THEN
+          ntot=0
+          CALL reallocate(inp_info%ub_kind,1,nubs)
+          CALL reallocate(inp_info%ub_a,1,nubs)
+          CALL reallocate(inp_info%ub_b,1,nubs)
+          CALL reallocate(inp_info%ub_c,1,nubs)
+          CALL reallocate(inp_info%ub_k,1,nubs)
+          CALL reallocate(inp_info%ub_r0,1,nubs)
+          CALL read_ubs_section(inp_info%ub_kind,inp_info%ub_a, inp_info%ub_b, inp_info%ub_c,&
+               inp_info%ub_k, inp_info%ub_r0, tmp_section, ntot, error)
+       END IF
+       tmp_section => section_vals_get_subs_vals(ff_section,"TORSION",error=error)
+       CALL section_vals_get(tmp_section,explicit=explicit,n_repetition=ntors,error=error)
+       IF (explicit) THEN
+          ntot=0
+          CALL reallocate(inp_info%torsion_kind,1,ntors)
+          CALL reallocate(inp_info%torsion_a,1,ntors)
+          CALL reallocate(inp_info%torsion_b,1,ntors)
+          CALL reallocate(inp_info%torsion_c,1,ntors)
+          CALL reallocate(inp_info%torsion_d,1,ntors)
+          CALL reallocate(inp_info%torsion_k,1,ntors)
+          CALL reallocate(inp_info%torsion_m,1,ntors)
+          CALL reallocate(inp_info%torsion_cosphi0,1,ntors)
+          CALL read_torsions_section(inp_info%torsion_kind,inp_info%torsion_a, inp_info%torsion_b, inp_info%torsion_c,&
+               inp_info%torsion_d,inp_info%torsion_k,inp_info%torsion_cosphi0, inp_info%torsion_m,&
+               tmp_section, ntot, error )
+       END IF
+    END IF
+
+  END SUBROUTINE read_force_field_section1
+
+!******************************************************************************
+!!****** force_fields_input/set_IPBV_ff [1.0] *
+!!
+!!   NAME
+!!     set_IPBV_ff
+!!
+!!   FUNCTION
+!!     Set up of the IPBV force fields
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!******************************************************************************
+  SUBROUTINE set_IPBV_ff(at1, at2, nonbonded )
+    CHARACTER(LEN=*), INTENT(IN)             :: at1, at2
+    TYPE(pair_potential_single_type), &
+      POINTER                                :: nonbonded
+
+    IF  ( ( at1(1:1) == 'O' ) .AND. ( at2 (1:1) == 'O' ) ) THEN
+       nonbonded%ipbv%rcore = 0.9_dp                  ! a.u.
+       nonbonded%ipbv%m = -1.2226442563398141E+11_dp   ! Kelvin/a.u. 
+       nonbonded%ipbv%b =  1.1791292385486696E+11_dp  ! Hartree
+
+       ! Hartree*a.u.^2
+       nonbonded%ipbv% a ( 2 ) = 4.786380682394_dp 
+       nonbonded%ipbv% a ( 3 ) = -1543.407053545_dp
+       nonbonded%ipbv% a ( 4 ) = 88783.31188529_dp
+       nonbonded%ipbv% a ( 5 ) = -2361200.155376_dp
+       nonbonded%ipbv% a ( 6 ) = 35940504.84679_dp
+       nonbonded%ipbv% a ( 7 ) = -339762743.6358_dp
+       nonbonded%ipbv% a ( 8 ) = 2043874926.466_dp
+       nonbonded%ipbv% a ( 9 ) = -7654856796.383_dp
+       nonbonded%ipbv% a ( 10 ) = 16195251405.65_dp
+       nonbonded%ipbv% a ( 11 ) = -13140392992.18_dp
+       nonbonded%ipbv% a ( 12 ) = -9285572894.245_dp 
+       nonbonded%ipbv% a ( 13 ) = 8756947519.029_dp
+       nonbonded%ipbv% a ( 14 ) = 15793297761.67_dp
+       nonbonded%ipbv% a ( 15 ) = 12917180227.21_dp
+    ELSEIF(((at1(1:1) == 'O').AND.(at2 (1:1) == 'H')).OR.&
+         ((at1(1:1) == 'H').AND.(at2 (1:1) == 'O')))  THEN
+       nonbonded%ipbv%rcore = 2.95_dp       ! a.u.
+
+       nonbonded%ipbv%m = -0.004025691139759147_dp  ! Hartree/a.u. 
+       nonbonded%ipbv%b =  -2.193731138097428_dp    ! Hartree
+       ! Hartree*a.u.^2
+       nonbonded%ipbv% a ( 2 ) = -195.7716013277_dp
+       nonbonded%ipbv% a ( 3 ) = 15343.78613395_dp
+       nonbonded%ipbv% a ( 4 ) = -530864.4586516_dp
+       nonbonded%ipbv% a ( 5 ) = 10707934.39058_dp
+       nonbonded%ipbv% a ( 6 ) = -140099704.7890_dp
+       nonbonded%ipbv% a ( 7 ) = 1250943273.785_dp
+       nonbonded%ipbv% a ( 8 ) = -7795458330.676_dp
+       nonbonded%ipbv% a ( 9 ) = 33955897217.31_dp
+       nonbonded%ipbv% a ( 10 ) = -101135640744.0_dp
+       nonbonded%ipbv% a ( 11 ) = 193107995718.7_dp
+       nonbonded%ipbv% a ( 12 ) = -193440560940.0_dp
+       nonbonded%ipbv% a ( 13 ) =-4224406093.918E0_dp
+       nonbonded%ipbv% a ( 14 ) = 217192386506.5E0_dp 
+       nonbonded%ipbv% a ( 15 ) = -157581228915.5_dp
+    ELSEIF ( ( at1(1:1) == 'H' ) .AND. ( at2 (1:1) == 'H' ) ) THEN
+       nonbonded%ipbv%rcore = 3.165_dp     ! a.u.
+       nonbonded%ipbv%m = 0.002639704108787555_dp  ! Hartree/a.u. 
+       nonbonded%ipbv%b = -0.2735482611857583_dp ! Hartree
+       ! Hartree*a.u.^2
+       nonbonded%ipbv% a ( 2 ) = -26.29456010782_dp
+       nonbonded%ipbv% a ( 3 ) =  2373.352548248_dp
+       nonbonded%ipbv% a ( 4 ) = -93880.43551360_dp
+       nonbonded%ipbv% a ( 5 ) =  2154624.884809_dp
+       nonbonded%ipbv% a ( 6 ) = -31965151.34955_dp
+       nonbonded%ipbv% a ( 7 ) = 322781785.3278_dp
+       nonbonded%ipbv% a ( 8 ) = -2271097368.668_dp
+       nonbonded%ipbv% a ( 9 ) = 11169163192.90_dp
+       nonbonded%ipbv% a ( 10 ) =-37684457778.47_dp
+       nonbonded%ipbv% a ( 11 ) = 82562104256.03_dp
+       nonbonded%ipbv% a ( 12 ) = -100510435213.4_dp
+       nonbonded%ipbv% a ( 13 ) = 24570342714.65E0_dp 
+       nonbonded%ipbv% a ( 14 ) = 88766181532.94E0_dp
+       nonbonded%ipbv% a ( 15 ) = -79705131323.98_dp
+    ELSE
+       CALL stop_program ("input_nonbonded","IPBV only for WATER")
+    ENDIF
+  END SUBROUTINE set_IPBV_ff
+
+
+!******************************************************************************
+!!****** force_fields_input/set_BMHFT_ff [1.0] *
+!!
+!!   NAME
+!!     set_BMHFT_ff
+!!
+!!   FUNCTION
+!!     Set up of the BMHFT force fields
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!******************************************************************************
+  SUBROUTINE set_BMHFT_ff(at1, at2, nonbonded )
+    CHARACTER(LEN=*), INTENT(IN)             :: at1, at2
+    TYPE(pair_potential_single_type), &
+      POINTER                                :: nonbonded
+
+    nonbonded%ft%b =  3.1545_dp     ! Ang^-1
+    CALL convert_to_cp2k_units ( "ANGSTROM", length =  nonbonded%ft%b , l_power = -1  )
+    IF  ( ( at1(1:2) == 'NA' ) .AND. ( at2 (1:2) == 'NA' ) ) THEN
+       nonbonded%ft%a = 424.097_dp  ! eV
+       CALL convert_to_cp2k_units ( "EV", energy = nonbonded%ft%a )
+       nonbonded%ft%c =    1.05_dp  ! eV * Ang^6
+       CALL convert_to_cp2k_units ( "EV", energy = nonbonded%ft%c )
+       CALL convert_to_cp2k_units ( "ANGSTROM", length =  nonbonded%ft%c , l_power = 6  )
+       nonbonded%ft%d =   0.499_dp  ! eV * Ang^8
+       CALL convert_to_cp2k_units ( "EV", energy = nonbonded%ft%d )
+       CALL convert_to_cp2k_units ( "ANGSTROM", length =  nonbonded%ft%d , l_power = 8  )
+    ELSEIF(((at1(1:2) == 'NA').AND.(at2(1:2) == 'CL')).OR.&
+         ((at1(1:2) == 'CL').AND.(at2(1:2) == 'NA'))) THEN
+       nonbonded%ft%a = 1256.31_dp  ! eV        
+       CALL convert_to_cp2k_units ( "EV", energy = nonbonded%ft%a )
+       nonbonded%ft%c =    7.00_dp  ! eV * Ang^6
+       CALL convert_to_cp2k_units ( "EV", energy = nonbonded%ft%c )
+       CALL convert_to_cp2k_units ( "ANGSTROM", length =  nonbonded%ft%c , l_power = 6  )
+       nonbonded%ft%d =   8.676_dp  ! eV * Ang^8
+       CALL convert_to_cp2k_units ( "EV", energy = nonbonded%ft%d )
+       CALL convert_to_cp2k_units ( "ANGSTROM", length =  nonbonded%ft%d , l_power = 8  )
+    ELSEIF ( ( at1(1:2) == 'CL' ) .AND. ( at2 (1:2) == 'CL' ) ) THEN
+       nonbonded%ft%a = 3488.998_dp ! eV        
+       CALL convert_to_cp2k_units ( "EV", energy = nonbonded%ft%a )
+       nonbonded%ft%c =    72.50_dp ! eV * Ang^6
+       CALL convert_to_cp2k_units ( "EV", energy = nonbonded%ft%c )
+       CALL convert_to_cp2k_units ( "ANGSTROM", length =  nonbonded%ft%c , l_power = 6  )
+       nonbonded%ft%d =  145.427_dp ! eV * Ang^8
+       CALL convert_to_cp2k_units ( "EV", energy = nonbonded%ft%d )
+       CALL convert_to_cp2k_units ( "ANGSTROM", length =  nonbonded%ft%d , l_power = 8  )
+    ELSE
+       CALL stop_program ("input_nonbonded","BMHFT only for NaCl")
+    ENDIF
+
+  END SUBROUTINE set_BMHFT_ff
+
+!******************************************************************************
+!!****** force_fields_input/read_eam_section [1.0] *
+!!
+!!   NAME
+!!     read_eam_section
+!!
+!!   FUNCTION
+!!     Reads the EAM section
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!******************************************************************************
+  SUBROUTINE read_eam_section(nonbonded, section, start, para_env, mm_section, error)
+    TYPE(pair_potential_p_type), POINTER     :: nonbonded
+    TYPE(section_vals_type), POINTER         :: section
+    INTEGER, INTENT(IN)                      :: start
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(section_vals_type), POINTER         :: mm_section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'read_eam_section', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(:), POINTER                  :: atm_names
+    INTEGER                                  :: isec, n_items
+
+    CALL section_vals_get(section,n_repetition=n_items,error=error)
+    DO isec = 1, n_items
+       CALL section_vals_val_get(section,"ATOMS",i_rep_section=isec,c_vals=atm_names,error=error)
+
+       nonbonded%pot(start+isec)%pot %type = ea_type
+       nonbonded%pot(start+isec)%pot %at1  = atm_names(1)
+       nonbonded%pot(start+isec)%pot %at2  = atm_names(2)
+       CALL uppercase(nonbonded%pot(start+isec)%pot %at1)
+       CALL uppercase(nonbonded%pot(start+isec)%pot %at2)
+       CALL section_vals_val_get(section,"PARMFILE",i_rep_section=isec,&
+            c_val=nonbonded%pot(start+isec)%pot%eam%eam_file_name,error=error)
+       CALL read_eam_data ( nonbonded%pot(start+isec)%pot%eam, para_env,  mm_section,error)
+       nonbonded%pot(start+isec)%pot%rcutsq  = nonbonded%pot(start+isec)%pot%eam%acutal**2
+    END DO
+  END SUBROUTINE read_eam_section
+
+!******************************************************************************
+!!****** force_fields_input/read_lj_section [1.0] *
+!!
+!!   NAME
+!!     read_lj_section
+!!
+!!   FUNCTION
+!!     Reads the LJ section
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!******************************************************************************
+  SUBROUTINE read_lj_section(nonbonded, section, start, error)
+    TYPE(pair_potential_p_type), POINTER     :: nonbonded
+    TYPE(section_vals_type), POINTER         :: section
+    INTEGER, INTENT(IN)                      :: start
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'read_lj_section', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(:), POINTER                  :: atm_names
+    INTEGER                                  :: isec, n_items
+    REAL(KIND=dp)                            :: epsilon, rcut, sigma
+
+    CALL section_vals_get(section,n_repetition=n_items,error=error)
+    DO isec = 1, n_items
+       CALL section_vals_val_get(section,"ATOMS",i_rep_section=isec,c_vals=atm_names,error=error)
+       CALL section_vals_val_get(section,"EPSILON",i_rep_section=isec,r_val=epsilon,error=error)
+       CALL section_vals_val_get(section,"SIGMA",i_rep_section=isec,r_val=sigma,error=error)
+       CALL section_vals_val_get(section,"RCUT",i_rep_section=isec,r_val=rcut,error=error)
+
+       nonbonded%pot(start+isec)%pot %type = lj_type
+       nonbonded%pot(start+isec)%pot %type = lj_charmm_type
+       nonbonded%pot(start+isec)%pot %at1  = atm_names(1)
+       nonbonded%pot(start+isec)%pot %at2  = atm_names(2)
+       CALL uppercase(nonbonded%pot(start+isec)%pot %at1)
+       CALL uppercase(nonbonded%pot(start+isec)%pot %at2)
+       nonbonded%pot(start+isec)%pot %lj%epsilon = epsilon
+       nonbonded%pot(start+isec)%pot %lj%sigma6  = sigma**6
+       nonbonded%pot(start+isec)%pot %lj%sigma12 = sigma**12
+       nonbonded%pot(start+isec)%pot %rcutsq = rcut*rcut
+    END DO
+  END SUBROUTINE read_lj_section
+
+!******************************************************************************
+!!****** force_fields_input/read_wl_section [1.0] *
+!!
+!!   NAME
+!!     read_wl_section
+!!
+!!   FUNCTION
+!!     Reads the WILLIAMS section
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!******************************************************************************
+  SUBROUTINE read_wl_section(nonbonded, section, start, error)
+    TYPE(pair_potential_p_type), POINTER     :: nonbonded
+    TYPE(section_vals_type), POINTER         :: section
+    INTEGER, INTENT(IN)                      :: start
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'read_wl_section', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(:), POINTER                  :: atm_names
+    INTEGER                                  :: isec, n_items
+    REAL(KIND=dp)                            :: a, b, c, rcut
+
+    CALL section_vals_get(section,n_repetition=n_items,error=error)
+    DO isec = 1, n_items
+       CALL section_vals_val_get(section,"ATOMS",i_rep_section=isec,c_vals=atm_names,error=error)
+       CALL section_vals_val_get(section,"A",i_rep_section=isec,r_val=a,error=error)
+       CALL section_vals_val_get(section,"B",i_rep_section=isec,r_val=b,error=error)
+       CALL section_vals_val_get(section,"C",i_rep_section=isec,r_val=c,error=error)
+       CALL section_vals_val_get(section,"RCUT",i_rep_section=isec,r_val=rcut,error=error)
+
+       nonbonded%pot(start+isec)%pot %type = wl_type
+       nonbonded%pot(start+isec)%pot %at1  = atm_names(1)
+       nonbonded%pot(start+isec)%pot %at2  = atm_names(2)
+       CALL uppercase(nonbonded%pot(start+isec)%pot %at1)
+       CALL uppercase(nonbonded%pot(start+isec)%pot %at2)
+       nonbonded%pot(start+isec)%pot %willis%a = a
+       nonbonded%pot(start+isec)%pot %willis%b = b
+       nonbonded%pot(start+isec)%pot %willis%c = c
+       nonbonded%pot(start+isec)%pot %rcutsq = rcut*rcut
+    END DO
+  END SUBROUTINE read_wl_section
+
+!******************************************************************************
+!!****** force_fields_input/read_gd_section [1.0] *
+!!
+!!   NAME
+!!     read_gd_section
+!!
+!!   FUNCTION
+!!     Reads the GOODWIN section
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!******************************************************************************
+  SUBROUTINE read_gd_section(nonbonded, section, start, error)
+    TYPE(pair_potential_p_type), POINTER     :: nonbonded
+    TYPE(section_vals_type), POINTER         :: section
+    INTEGER, INTENT(IN)                      :: start
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'read_gd_section', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(:), POINTER                  :: atm_names
+    INTEGER                                  :: isec, m, mc, n_items
+    REAL(KIND=dp)                            :: d, dc, rcut, vr0
+
+    CALL section_vals_get(section,n_repetition=n_items,error=error)
+    DO isec = 1, n_items
+       CALL section_vals_val_get(section,"ATOMS",i_rep_section=isec,c_vals=atm_names,error=error)
+       CALL section_vals_val_get(section,"VR0",i_rep_section=isec,r_val=vr0,error=error)
+       CALL section_vals_val_get(section,"D",i_rep_section=isec,r_val=d,error=error)
+       CALL section_vals_val_get(section,"DC",i_rep_section=isec,r_val=dc,error=error)
+       CALL section_vals_val_get(section,"M",i_rep_section=isec,i_val=m,error=error)
+       CALL section_vals_val_get(section,"MC",i_rep_section=isec,i_val=mc,error=error)
+       CALL section_vals_val_get(section,"RCUT",i_rep_section=isec,r_val=rcut,error=error)
+
+       nonbonded%pot(start+isec)%pot %type = gw_type
+       nonbonded%pot(start+isec)%pot %at1  = atm_names(1)
+       nonbonded%pot(start+isec)%pot %at2  = atm_names(2)
+       CALL uppercase(nonbonded%pot(start+isec)%pot %at1)
+       CALL uppercase(nonbonded%pot(start+isec)%pot %at2)
+       nonbonded%pot(start+isec)%pot %goodwin%vr0 = vr0
+       nonbonded%pot(start+isec)%pot %goodwin%d = d
+       nonbonded%pot(start+isec)%pot %goodwin%dc = dc
+       nonbonded%pot(start+isec)%pot %goodwin%m = m
+       nonbonded%pot(start+isec)%pot %goodwin%mc = mc
+       nonbonded%pot(start+isec)%pot %rcutsq = rcut*rcut
+    END DO
+  END SUBROUTINE read_gd_section
+
+!******************************************************************************
+!!****** force_fields_input/read_ipbv_section [1.0] *
+!!
+!!   NAME
+!!     read_ipbv_section
+!!
+!!   FUNCTION
+!!     Reads the IPBV section
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!******************************************************************************
+  SUBROUTINE read_ipbv_section(nonbonded, section, start, error)
+    TYPE(pair_potential_p_type), POINTER     :: nonbonded
+    TYPE(section_vals_type), POINTER         :: section
+    INTEGER, INTENT(IN)                      :: start
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'read_ipbv_section', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(:), POINTER                  :: atm_names
+    INTEGER                                  :: isec, n_items
+    REAL(KIND=dp)                            :: rcut
+
+    CALL section_vals_get(section,n_repetition=n_items,error=error)
+    DO isec = 1, n_items         
+       CALL section_vals_val_get(section,"ATOMS",i_rep_section=isec,c_vals=atm_names,error=error)
+       nonbonded%pot(start+isec)%pot %type = ip_type
+       nonbonded%pot(start+isec)%pot %at1  = atm_names(1)
+       nonbonded%pot(start+isec)%pot %at2  = atm_names(2)
+       CALL uppercase(nonbonded%pot(start+isec)%pot %at1)
+       CALL uppercase(nonbonded%pot(start+isec)%pot %at2)
+       CALL set_IPBV_ff(nonbonded%pot(start+isec)%pot %at1, nonbonded%pot(start+isec)%pot %at2,&
+            nonbonded%pot(start+isec)%pot )
+       CALL section_vals_val_get(section,"RCUT",i_rep_section=isec,r_val=rcut,error=error)
+       nonbonded%pot(start+isec)%pot%rcutsq     = rcut**2
+    END DO
+  END SUBROUTINE read_ipbv_section
+
+!******************************************************************************
+!!****** force_fields_input/read_bmhft_section [1.0] *
+!!
+!!   NAME
+!!     read_bmhft_section
+!!
+!!   FUNCTION
+!!     Reads the BMHFT section
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!******************************************************************************
+  SUBROUTINE read_bmhft_section(nonbonded, section, start, error)
+    TYPE(pair_potential_p_type), POINTER     :: nonbonded
+    TYPE(section_vals_type), POINTER         :: section
+    INTEGER, INTENT(IN)                      :: start
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'read_bmhft_section', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(:), POINTER                  :: atm_names
+    INTEGER                                  :: isec, n_items
+    REAL(KIND=dp)                            :: rcut
+
+    CALL section_vals_get(section,n_repetition=n_items,error=error)
+    DO isec = 1, n_items         
+       CALL section_vals_val_get(section,"ATOMS",i_rep_section=isec,c_vals=atm_names,error=error)
+       nonbonded%pot(start+isec)%pot %type = ft_type
+       nonbonded%pot(start+isec)%pot %at1  = atm_names(1)
+       nonbonded%pot(start+isec)%pot %at2  = atm_names(2)
+       CALL uppercase(nonbonded%pot(start+isec)%pot %at1)
+       CALL uppercase(nonbonded%pot(start+isec)%pot %at2)
+       CALL set_BMHFT_ff(nonbonded%pot(start+isec)%pot %at1, nonbonded%pot(start+isec)%pot %at2,&
+            nonbonded%pot(start+isec)%pot )
+       CALL section_vals_val_get(section,"RCUT",i_rep_section=isec,r_val=rcut,error=error)
+       nonbonded%pot(start+isec)%pot%rcutsq     = rcut**2
+    END DO
+  END SUBROUTINE read_bmhft_section
+
+!******************************************************************************
+!!****** force_fields_input/read_chrg_section [1.0] *
+!!
+!!   NAME
+!!     read_chrg_section
+!!
+!!   FUNCTION
+!!     Reads the CHARGE section
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!******************************************************************************
+  SUBROUTINE read_chrg_section(charge_atm, charge, section, start, error)
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(:), POINTER                  :: charge_atm
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: charge
+    TYPE(section_vals_type), POINTER         :: section
+    INTEGER, INTENT(IN)                      :: start
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'read_chrg_section', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_string_length)     :: atm_name
+    INTEGER                                  :: isec, n_items
+
+    CALL section_vals_get(section,n_repetition=n_items,error=error)
+    DO isec = 1, n_items         
+       CALL section_vals_val_get(section,"ATOM",i_rep_section=isec,c_val=atm_name,&
+            error=error)
+       charge_atm(start+isec) = atm_name
+       CALL uppercase(charge_atm(start+isec))
+       CALL section_vals_val_get(section,"CHARGE",i_rep_section=isec,r_val=charge(start+isec),&
+            error=error)
+    END DO
+  END SUBROUTINE read_chrg_section
+
+!******************************************************************************
+!!****** force_fields_input/read_bonds_section [1.0] *
+!!
+!!   NAME
+!!     read_bonds_section
+!!
+!!   FUNCTION
+!!     Reads the BONDS section
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!******************************************************************************
+  SUBROUTINE read_bonds_section(bond_kind,bond_a, bond_b, bond_k, bond_r0, section, start, error)
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(:), POINTER                  :: bond_kind, bond_a, bond_b
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: bond_k
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: bond_r0
+    TYPE(section_vals_type), POINTER         :: section
+    INTEGER, INTENT(IN)                      :: start
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'read_bonds_section', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(:), POINTER                  :: atm_names
+    INTEGER                                  :: isec, k, n_items
+    LOGICAL                                  :: failure
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: Kvals
+
+    failure = .FALSE.
+    NULLIFY(Kvals, atm_names)
+    CALL section_vals_get(section,n_repetition=n_items,error=error)
+    DO isec = 1, n_items         
+       CALL section_vals_val_get(section,"KIND",i_rep_section=isec,c_vals=atm_names,error=error)
+       bond_kind(start+isec) = atm_names(1)
+       CALL section_vals_val_get(section,"ATOMS",i_rep_section=isec,c_vals=atm_names,error=error)
+       bond_a(start+isec) = atm_names(1)
+       bond_b(start+isec) = atm_names(2)
+       CALL uppercase(bond_a(start+isec))
+       CALL uppercase(bond_b(start+isec))
+       CALL section_vals_val_get(section,"K",i_rep_section=isec,r_vals=Kvals,error=error)
+       CPPostcondition(SIZE(Kvals) <= 3, cp_failure_level, routineP, error, failure)
+       bond_k(:,start+isec) = 0.0_dp
+       DO k=1,SIZE(Kvals)
+          bond_k(k,start+isec) = Kvals(k)
+       END DO
+       CALL section_vals_val_get(section,"R0",i_rep_section=isec,r_val=bond_r0(start+isec),error=error)
+    END DO
+  END SUBROUTINE read_bonds_section
+
+!******************************************************************************
+!!****** force_fields_input/read_bends_section [1.0] *
+!!
+!!   NAME
+!!     read_bends_section
+!!
+!!   FUNCTION
+!!     Reads the BENDS section
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!******************************************************************************
+  SUBROUTINE read_bends_section(bend_kind,bend_a, bend_b, bend_c, bend_k, bend_theta0, section, start, error)
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(:), POINTER                  :: bend_kind, bend_a, bend_b, &
+                                                bend_c
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: bend_k, bend_theta0
+    TYPE(section_vals_type), POINTER         :: section
+    INTEGER, INTENT(IN)                      :: start
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'read_bends_section', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(:), POINTER                  :: atm_names
+    INTEGER                                  :: isec, n_items
+    LOGICAL                                  :: failure
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: Kvals
+
+    failure = .FALSE.
+    NULLIFY(Kvals, atm_names)
+    CALL section_vals_get(section,n_repetition=n_items,error=error)
+    DO isec = 1, n_items         
+       CALL section_vals_val_get(section,"KIND",i_rep_section=isec,c_vals=atm_names,error=error)
+       bend_kind(start+isec) = atm_names(1)
+       CALL section_vals_val_get(section,"ATOMS",i_rep_section=isec,c_vals=atm_names,error=error)
+       bend_a(start+isec) = atm_names(1)
+       bend_b(start+isec) = atm_names(2)
+       bend_c(start+isec) = atm_names(3)
+       CALL uppercase(bend_a(start+isec))
+       CALL uppercase(bend_b(start+isec))
+       CALL uppercase(bend_c(start+isec))
+       CALL section_vals_val_get(section,"K",i_rep_section=isec,r_vals=Kvals,error=error)
+       CPPostcondition(SIZE(Kvals) == 1, cp_failure_level, routineP, error, failure)
+       bend_k(start+isec) = Kvals(1)
+       CALL section_vals_val_get(section,"THETA0",i_rep_section=isec,r_val=bend_theta0(start+isec),error=error)
+    END DO
+  END SUBROUTINE read_bends_section
+
+
+!******************************************************************************
+!!****** force_fields_input/read_ubs_section [1.0] *
+!!
+!!   NAME
+!!   
+!!
+!!   FUNCTION
+!!    
+!!
+!!   AUTHOR
+!!     
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!******************************************************************************
+  SUBROUTINE read_ubs_section(ub_kind,ub_a, ub_b, ub_c, ub_k, ub_r0, section, start, error)
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(:), POINTER                  :: ub_kind, ub_a, ub_b, ub_c
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: ub_k, ub_r0
+    TYPE(section_vals_type), POINTER         :: section
+    INTEGER, INTENT(IN)                      :: start
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'read_ubs_section', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(:), POINTER                  :: atm_names
+    INTEGER                                  :: isec, n_items
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+    NULLIFY(atm_names)
+    CALL section_vals_get(section,n_repetition=n_items,error=error)
+    DO isec = 1, n_items         
+       CALL section_vals_val_get(section,"KIND",i_rep_section=isec,c_vals=atm_names,error=error)
+       ub_kind(start+isec) = atm_names(1)
+       CALL section_vals_val_get(section,"ATOMS",i_rep_section=isec,c_vals=atm_names,error=error)
+       ub_a(start+isec) = atm_names(1)
+       ub_b(start+isec) = atm_names(2)
+       ub_c(start+isec) = atm_names(3)
+       CALL uppercase(ub_a(start+isec))
+       CALL uppercase(ub_b(start+isec))
+       CALL uppercase(ub_c(start+isec))
+    END DO
+  END SUBROUTINE read_ubs_section
+
+!******************************************************************************
+!!****** force_fields_input/read_torsions_section [1.0] *
+!!
+!!   NAME
+!!     read_torsions_section
+!!
+!!   FUNCTION
+!!     Reads the TORSIONS section
+!!
+!!   AUTHOR
+!!     teo
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!******************************************************************************
+  SUBROUTINE read_torsions_section(torsion_kind,torsion_a, torsion_b, torsion_c, torsion_d, torsion_k,&
+       torsion_cosphi0, torsion_m, section, start, error )
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(:), POINTER                  :: torsion_kind, torsion_a, &
+                                                torsion_b, torsion_c, &
+                                                torsion_d
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: torsion_k, torsion_cosphi0
+    INTEGER, DIMENSION(:), POINTER           :: torsion_m
+    TYPE(section_vals_type), POINTER         :: section
+    INTEGER, INTENT(IN)                      :: start
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'read_torsions_section', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(:), POINTER                  :: atm_names
+    INTEGER                                  :: isec, n_items
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+    NULLIFY( atm_names)
+    CALL section_vals_get(section,n_repetition=n_items,error=error)
+    DO isec = 1, n_items         
+       CALL section_vals_val_get(section,"KIND",i_rep_section=isec,c_vals=atm_names,error=error)
+       torsion_kind(start+isec) = atm_names(1)
+       CALL section_vals_val_get(section,"ATOMS",i_rep_section=isec,c_vals=atm_names,error=error)
+       torsion_a(start+isec) = atm_names(1)
+       torsion_b(start+isec) = atm_names(2)
+       torsion_c(start+isec) = atm_names(3)
+       torsion_d(start+isec) = atm_names(4)
+       CALL uppercase(torsion_a(start+isec))
+       CALL uppercase(torsion_b(start+isec))
+       CALL uppercase(torsion_c(start+isec))
+       CALL uppercase(torsion_d(start+isec))
+       CALL section_vals_val_get(section,"K",i_rep_section=isec,r_val=torsion_k(start+isec),error=error)
+       CALL section_vals_val_get(section,"PHI0",i_rep_section=isec,r_val=torsion_cosphi0(start+isec),error=error)
+       CALL section_vals_val_get(section,"M",i_rep_section=isec,i_val=torsion_m(start+isec),error=error)
+    END DO
+  END SUBROUTINE read_torsions_section
+
+!******************************************************************************
+!!****** force_fields_input/read_force_field_section [1.0] *
+!!
+!!   NAME
+!!     read_force_field_section
+!!
+!!   FUNCTION
+!!     Reads the force_field input section
+!!
+!!   AUTHOR
+!!     CJM
+!!
+!!   MODIFICATION HISTORY
+!!     JGH (30.11.2001) : moved determination of setup variables to 
+!!                        molecule_input 
+!!
+!!   SOURCE
+!******************************************************************************
+  SUBROUTINE read_force_field_section ( ff_type , para_env, globenv,  mm_section, error )
+    TYPE(force_field_type), INTENT(INOUT)    :: ff_type
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(global_environment_type), &
+      OPTIONAL, POINTER                      :: globenv
+    TYPE(section_vals_type), POINTER         :: mm_section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    TYPE(section_vals_type), POINTER         :: ff_section
+
+    NULLIFY(ff_section)
+    ff_section => section_vals_get_subs_vals(mm_section,&
+         "FORCEFIELD",error=error)
+    CALL read_force_field_section1(ff_section, mm_section, ff_type, para_env, globenv, error)
+  END SUBROUTINE read_force_field_section
+
+
+!******************************************************************************
+!!****** force_fields_input/read_force_field_gromos [1.0] *
+!!
+!!   NAME
+!!     read_force_field_gromos
+!!
+!!   FUNCTION
+!!     Reads the GROMOS force_field
+!!
+!!   AUTHOR
+!!     ikuo
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!******************************************************************************
+  
+  SUBROUTINE read_force_field_gromos ( ff_type , para_env,  mm_section, error )
+
+
+    TYPE(force_field_type), INTENT(INOUT)    :: ff_type
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(section_vals_type), POINTER         :: mm_section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'read_force_field_gromos', &
+      routineP = moduleN//':'//routineN
+    REAL(KIND=dp), PARAMETER                 :: ekt = 2.5_dp    
+
+    CHARACTER(LEN=default_string_length)     :: label
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(21)                          :: avail_section
+    CHARACTER(LEN=default_string_length), &
+      POINTER                                :: namearray(:)
+    INTEGER                                  :: handle, iatom, icon, itemp, &
+                                                itype, iw, jatom, ncon, &
+                                                ntype, offset
+    LOGICAL                                  :: failure, found
+    REAL(KIND=dp)                            :: cost2, csq, sdet
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_parser_type), POINTER            :: parser
+    TYPE(gromos_info_type), POINTER          :: gro_info
+
+!ikuo - Do not change
+
+    CALL timeset(routineN,'I','',handle)
+    failure = .FALSE.
+    NULLIFY(logger,parser)
+    logger => cp_error_get_logger(error)
+    iw = cp_print_key_unit_nr(logger,mm_section,"PRINT%FF_INFO",&
+         extension=".mmLog",error=error)
+
+    avail_section( 1) = "TITLE" 
+    avail_section( 2) = "TOPPHYSCON"
+    avail_section( 3) = "TOPVERSION"
+    avail_section( 4) = "ATOMTYPENAME"
+    avail_section( 5) = "RESNAME"
+    avail_section( 6) = "SOLUTEATOM"
+    avail_section( 7) = "BONDTYPE"
+    avail_section( 8) = "BONDH"
+    avail_section( 9) = "BOND"
+    avail_section(10) = "BONDANGLETYPE"
+    avail_section(11) = "BONDANGLEH" 
+    avail_section(12) = "BONDANGLE"
+    avail_section(13) = "IMPDIHEDRALTYPE"
+    avail_section(14) = "IMPDIHEDRALH"
+    avail_section(15) = "IMPDIHEDRAL"
+    avail_section(16) = "DIHEDRALTYPE"
+    avail_section(17) = "DIHEDRALH"
+    avail_section(18) = "DIHEDRAL"
+    avail_section(19) = "LJPARAMETERS"
+    avail_section(20) = "SOLVENTATOM"
+    avail_section(21) = "SOLVENTCONSTR"
+
+    gro_info => ff_type%gro_info
+
+    NULLIFY(namearray)
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! ATOMTYPENAME SECTION
+    IF(iw>0) WRITE(iw,'(T2,A)') 'GTOP_INFO| Parsing the ATOMTYPENAME section'    
+    CALL parser_create(parser,ff_type%ff_file_name,para_env=para_env)
+    label = TRIM(avail_section(4))
+    CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
+    IF(found) THEN
+      CALL parser_get_next_line(parser,1,error=error)
+      CALL parser_get_object(parser,ntype)
+      CALL reallocate(namearray,1,ntype)
+      !ALLOCATE(namearray(ntype),stat=stat)
+      !CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+      DO itype=1,ntype
+        CALL parser_get_next_line(parser,1,error=error)
+        CALL parser_get_object(parser,namearray(itype),lower_to_upper=.TRUE.)
+        IF(iw>0) WRITE(iw,*) "GTOP_INFO|  ",TRIM(namearray(itype))
+      END DO
+    END IF
+    CALL parser_release(parser,error=error)
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! SOLVENTCONSTR SECTION
+    IF(iw>0) WRITE(iw,'(T2,A)') 'GROMOS_FF| Parsing the SOLVENTATOM section'    
+    CALL parser_create(parser,ff_type%ff_file_name,para_env=para_env)
+
+    label = TRIM(avail_section(21))
+    CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
+    IF(found) THEN
+      CALL parser_get_next_line(parser,1,error=error)
+      CALL parser_get_object(parser,ncon)
+      CALL reallocate(gro_info%solvent_k,1,ncon)
+      CALL reallocate(gro_info%solvent_r0,1,ncon)
+      DO icon=1,ncon
+        CALL parser_get_next_line(parser,1,error=error)
+        CALL parser_get_object(parser,itemp)
+        CALL parser_get_object(parser,itemp)
+        CALL parser_get_object(parser,gro_info%solvent_r0(icon))
+        gro_info%solvent_k(icon)=0.0_dp
+      END DO
+    END IF
+    CALL parser_release(parser,error=error)
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+    CALL parser_create(parser,ff_type%ff_file_name,para_env=para_env)
+
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! BONDTYPE SECTION
+    IF(iw>0) WRITE(iw,'(T2,A)') 'GROMOS_FF| Parsing the BONDTYPE section'    
+    label = TRIM(avail_section(7))
+    CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
+    IF(found) THEN
+      CALL parser_get_next_line(parser,1,error=error)
+      CALL parser_get_object(parser,ntype)
+      CALL reallocate(gro_info%bond_k,1,ntype)
+      CALL reallocate(gro_info%bond_r0,1,ntype)
+      DO itype=1,ntype
+        CALL parser_get_next_line(parser,1,error=error)
+        CALL parser_get_object(parser,gro_info%bond_k(itype))
+        CALL parser_get_object(parser,gro_info%bond_r0(itype))
+        IF(ff_type%ff_type=="G96") THEN
+          CALL convert_to_cp2k_units("KJ",energy=gro_info%bond_k(itype))
+          CALL convert_to_cp2k_units("NM",length=gro_info%bond_k(itype),l_power=-4)
+          CALL convert_to_cp2k_units("NM",length=gro_info%bond_r0(itype))
+        ELSE ! Assume its G87
+          gro_info%bond_k(itype) = (2.0_dp) * gro_info%bond_k(itype) * gro_info%bond_r0(itype)**2
+          CALL convert_to_cp2k_units("KJ",energy=gro_info%bond_k(itype))
+          CALL convert_to_cp2k_units("NM",length=gro_info%bond_k(itype),l_power=-2)
+          CALL convert_to_cp2k_units("NM",length=gro_info%bond_r0(itype))
+        END IF
+        IF(iw>0) WRITE(iw,*) "GROMOS_FF| PUT BONDTYPE INFO HERE!!!!"
+      END DO
+    END IF
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! BONDANGLETYPE SECTION
+    IF(iw>0) WRITE(iw,'(T2,A)') 'GROMOS_FF| Parsing the BONDANGLETYPE section'    
+    label = TRIM(avail_section(10))
+    CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
+    IF(found) THEN
+      CALL parser_get_next_line(parser,1,error=error)
+      CALL parser_get_object(parser,ntype)
+      CALL reallocate(gro_info%bend_k,1,ntype)
+      CALL reallocate(gro_info%bend_theta0,1,ntype)
+      DO itype=1,ntype
+        CALL parser_get_next_line(parser,1,error=error)
+        CALL parser_get_object(parser,gro_info%bend_k(itype))
+        CALL parser_get_object(parser,gro_info%bend_theta0(itype))
+        IF(ff_type%ff_type=="G96") THEN
+
+          CALL convert_to_cp2k_units("DEGREE",angle=gro_info%bend_theta0(itype))
+          gro_info%bend_theta0(itype) = COS(gro_info%bend_theta0(itype))
+          CALL convert_to_cp2k_units("KJ",energy=gro_info%bend_k(itype))
+
+        ELSE ! Assume its G87
+
+          CALL convert_to_cp2k_units("DEGREE",angle=gro_info%bend_theta0(itype))
+
+          cost2 = COS(gro_info%bend_theta0(itype))*COS(gro_info%bend_theta0(itype))
+          sdet = cost2*cost2 - (2.0_dp*cost2-1.0_dp)*(1.0_dp-ekt/gro_info%bend_k(itype))
+          csq = (cost2-SQRT(sdet))/(2.0_dp*cost2-1.0_dp)
+          gro_info%bend_k(itype) = ekt/ACOS(csq)**2
+
+          CALL convert_to_cp2k_units("KJ",energy=gro_info%bend_k(itype))
+
+        END IF
+
+        IF(iw>0) WRITE(iw,*) "GROMOS_FF| PUT BONDANGLETYPE INFO HERE!!!!"
+      END DO
+    END IF
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! IMPDIHEDRALTYPE SECTION
+    IF(iw>0) WRITE(iw,'(T2,A)') 'GROMOS_FF| Parsing the IMPDIHEDRALTYPE section'    
+    label = TRIM(avail_section(13))
+    CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
+    IF(found) THEN
+      CALL parser_get_next_line(parser,1,error=error)
+      CALL parser_get_object(parser,ntype)
+      CALL reallocate(gro_info%impr_k,1,ntype)
+      CALL reallocate(gro_info%impr_phi0,1,ntype)
+      DO itype=1,ntype
+        CALL parser_get_next_line(parser,1,error=error)
+        CALL parser_get_object(parser,gro_info%impr_k(itype))
+        CALL parser_get_object(parser,gro_info%impr_phi0(itype))
+
+        CALL convert_to_cp2k_units("DEGREE",angle=gro_info%impr_phi0(itype))
+
+        CALL convert_to_cp2k_units("KJ",energy=gro_info%impr_k(itype))
+        CALL convert_to_cp2k_units("DEGREE",angle=gro_info%impr_k(itype),l_power=-2)
+
+        IF(iw>0) WRITE(iw,*) "GROMOS_FF| PUT IMPDIHEDRALTYPE INFO HERE!!!!"
+      END DO
+    END IF
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! DIHEDRALTYPE SECTION
+    IF(iw>0) WRITE(iw,'(T2,A)') 'GROMOS_FF| Parsing the DIHEDRALTYPE section'    
+    label = TRIM(avail_section(16))
+    CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
+    IF(found) THEN
+      CALL parser_get_next_line(parser,1,error=error)
+      CALL parser_get_object(parser,ntype)
+      CALL reallocate(gro_info%torsion_k,1,ntype)
+      CALL reallocate(gro_info%torsion_m,1,ntype)
+      CALL reallocate(gro_info%torsion_cosphi0,1,ntype)
+      DO itype=1,ntype
+        CALL parser_get_next_line(parser,1,error=error)
+        CALL parser_get_object(parser,gro_info%torsion_k(itype))
+        CALL parser_get_object(parser,gro_info%torsion_cosphi0(itype))
+        CALL parser_get_object(parser,gro_info%torsion_m(itype))
+
+        CALL convert_to_cp2k_units("KJ",energy=gro_info%torsion_k(itype))
+        !gro_info%torsion_cosphi0(itype)= -gro_info%torsion_cosphi0(itype)
+
+        IF(iw>0) WRITE(iw,*) "GROMOS_FF| PUT DIHEDRALTYPE INFO HERE!!!!"
+      END DO
+    END IF
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+    CALL parser_release(parser,error=error)
+
+    
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    ! LJPARAMETERS SECTION
+    IF(iw>0) WRITE(iw,'(T2,A)') 'GROMOS_FF| Parsing the LJPARAMETERS section'    
+    CALL parser_create(parser,ff_type%ff_file_name,para_env=para_env)
+    label = TRIM(avail_section(19))
+    CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
+    IF(found) THEN
+      CALL parser_get_next_line(parser,1,error=error)
+      CALL parser_get_object(parser,ntype)
+      offset = 0
+      IF(ASSOCIATED(gro_info%nonbond_a)) offset = SIZE(gro_info%nonbond_a)
+      ntype=SIZE(namearray)
+      DO itype=1,ntype*(ntype+1)/2
+        CALL parser_get_next_line(parser,1,error=error)
+        CALL parser_get_object(parser,iatom)
+        CALL parser_get_object(parser,jatom)
+        IF(iatom==jatom) THEN
+          CALL reallocate(gro_info%nonbond_a,1,offset+ntype)
+          CALL reallocate(gro_info%nonbond_c6,1,offset+ntype)
+          CALL reallocate(gro_info%nonbond_c12,1,offset+ntype)
+          CALL reallocate(gro_info%nonbond_a_14,1,offset+ntype)
+          CALL reallocate(gro_info%nonbond_c6_14,1,offset+ntype)
+          CALL reallocate(gro_info%nonbond_c12_14,1,offset+ntype)
+          gro_info%nonbond_a(iatom) = namearray(iatom)
+          gro_info%nonbond_a_14(iatom) = namearray(iatom)
+          CALL parser_get_object(parser,gro_info%nonbond_c12(iatom))
+          CALL parser_get_object(parser,gro_info%nonbond_c6(iatom))
+          CALL parser_get_object(parser,gro_info%nonbond_c12_14(iatom))
+          CALL parser_get_object(parser,gro_info%nonbond_c6_14(iatom))
+
+          CALL convert_to_cp2k_units("KJ",energy=gro_info%nonbond_c6(iatom))
+          CALL convert_to_cp2k_units("NM",length=gro_info%nonbond_c6(iatom),l_power=6)
+          CALL convert_to_cp2k_units("KJ",energy=gro_info%nonbond_c12(iatom))
+          CALL convert_to_cp2k_units("NM",length=gro_info%nonbond_c12(iatom),l_power=12)
+          CALL convert_to_cp2k_units("KJ",energy=gro_info%nonbond_c6_14(iatom))
+          CALL convert_to_cp2k_units("NM",length=gro_info%nonbond_c6_14(iatom),l_power=6)
+          CALL convert_to_cp2k_units("KJ",energy=gro_info%nonbond_c12_14(iatom))
+          CALL convert_to_cp2k_units("NM",length=gro_info%nonbond_c12_14(iatom),l_power=12)
+
+        END IF
+        IF(iw>0) WRITE(iw,*) "GROMOS_FF| PUT LJPARAMETERS INFO HERE!!!!"
+      END DO
+    END IF
+    CALL parser_release(parser,error=error)
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+    
+
+
+
+
+
+
+    CALL cp_print_key_finished_output(iw,logger,mm_section,&
+         "PRINT%FF_INFO",error=error)
+    CALL timestop(0.0_dp,handle)
+
+  END SUBROUTINE read_force_field_gromos
+
+
+!******************************************************************************
+!!****** force_fields_input/read_force_field_charmm [1.0] *
+!!
+!!   NAME
+!!     read_force_field_charmm
+!!
+!!   FUNCTION
+!!     Reads the charmm force_field
+!!
+!!   AUTHOR
+!!     ikuo
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   SOURCE
+!******************************************************************************
+  
+  SUBROUTINE read_force_field_charmm ( ff_type, para_env, mm_section, error )
+
+
+    TYPE(force_field_type), INTENT(INOUT)    :: ff_type
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(section_vals_type), POINTER         :: mm_section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'read_force_field_charmm', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_string_length)     :: label, string, string2, &
+                                                string3, string4
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(1)                           :: bond_section
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(18)                          :: avail_section
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(2)                           :: angl_section, impr_section, &
+                                                nbon_section, thet_section
+    INTEGER                                  :: dummy, handle, ilab, iw, &
+                                                nbend, nbond, nimpr, &
+                                                nnonbond, nonfo, ntorsion, nub
+    LOGICAL                                  :: failure, found
+    TYPE(charmm_info_type), POINTER          :: chm_info
+    TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_parser_type), POINTER            :: parser
+
+    CALL timeset(routineN,'I','',handle)
+    failure = .FALSE.
+    NULLIFY(logger,parser)
+    logger => cp_error_get_logger(error)
+    iw = cp_print_key_unit_nr(logger,mm_section,"PRINT%FF_INFO",&
+         extension=".mmLog",error=error)
+
+
+    avail_section(1) = "BOND"     ; bond_section(1) = "BOND"
+    avail_section(11)= "BONDS"
+    avail_section(2) = "ANGL"     ; angl_section(1) = avail_section(2)  
+    avail_section(3) = "THETA"    ; angl_section(2) = avail_section(3) 
+    avail_section(12)= "THETAS"
+    avail_section(13)= "ANGLE"
+    avail_section(14)= "ANGLES"
+    avail_section(4) = "DIHEDRAL" ; thet_section(1) = avail_section(4)
+    avail_section(15)= "DIHEDRALS"
+    avail_section(5) = "PHI"      ; thet_section(2) = avail_section(5)
+    avail_section(6) = "IMPROPER" ; impr_section(1) = avail_section(6)
+    avail_section(7) = "IMPH"     ; impr_section(2) = avail_section(7)
+    avail_section(16)= "IMPHI"
+    avail_section(8) = "NONBONDED"; nbon_section(1) = avail_section(8)
+    avail_section(9) = "NBOND"    ; nbon_section(2) = avail_section(9)
+    avail_section(10)= "HBOND"
+    avail_section(17)= "NBFIX"
+    avail_section(18)= "END"
+
+    chm_info => ff_type%chm_info    
+    !-----------------------------------------------------------------------------
+    !-----------------------------------------------------------------------------
+    ! 1. Read in all the Bonds info from the param file here
+    !      Vbond = Kb(b-b0)^2
+    !      UNITS for Kb: [(kcal/mol)/(A^2)] to [Eh/(AU^2)]
+    !      FACTOR of "2" rolled into Kb
+    !-----------------------------------------------------------------------------
+    nbond = 0
+    DO ilab = 1, SIZE(bond_section)
+       CALL parser_create(parser,ff_type%ff_file_name,para_env=para_env)
+       label = TRIM(bond_section(ilab))
+       DO 
+          CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
+          IF (found) THEN
+             CALL parser_get_object(parser,string)
+             IF (INDEX(string,TRIM(label)) /= 1) CYCLE
+             CALL parser_get_next_line(parser,1,error=error)
+             DO 
+                CALL parser_get_object(parser,string)
+                CALL uppercase ( string )
+                IF(ANY(string == avail_section)) EXIT
+                CALL parser_get_object(parser,string2)
+                CALL uppercase ( string2 )
+                nbond = nbond + 1
+                CALL reallocate(chm_info%bond_a,1,nbond)
+                CALL reallocate(chm_info%bond_b,1,nbond)
+                CALL reallocate(chm_info%bond_k,1,nbond)
+                CALL reallocate(chm_info%bond_r0,1,nbond)
+                chm_info%bond_a(nbond) = string
+                chm_info%bond_b(nbond) = string2
+                CALL parser_get_object(parser,chm_info%bond_k(nbond))
+                CALL parser_get_object(parser,chm_info%bond_r0(nbond))
+                IF(iw>0) WRITE(iw,*) "    CHM BOND ",nbond,&
+                     TRIM(chm_info%bond_a(nbond))," ",&
+                     TRIM(chm_info%bond_b(nbond))," ",&
+                     chm_info%bond_k(nbond),&
+                     chm_info%bond_r0(nbond)
+                ! Do some units conversion into internal atomic units
+                CALL convert_to_cp2k_units("ANGSTROM",length=chm_info%bond_r0(nbond))
+                CALL convert_to_cp2k_units("KCAL",energy=chm_info%bond_k(nbond))
+                CALL convert_to_cp2k_units("BOHR",length=chm_info%bond_k(nbond))
+                CALL convert_to_cp2k_units("BOHR",length=chm_info%bond_k(nbond))
+                chm_info%bond_k(nbond) = 2.0_dp * chm_info%bond_k(nbond)
+                CALL parser_get_next_line(parser,1,error=error)
+             END DO
+          ELSE
+             EXIT
+          END IF
+       END DO
+       CALL parser_release(parser,error=error)
+    END DO
+    !-----------------------------------------------------------------------------
+    !-----------------------------------------------------------------------------
+    ! 2. Read in all the Bends and UB info from the param file here
+    !      Vangle = Ktheta(theta-theta0)^2
+    !      UNITS for Ktheta: [(kcal/mol)/(rad^2)] to [Eh/(rad^2)]
+    !      FACTOR of "2" rolled into Ktheta
+    !      Vub = Kub(S-S0)^2
+    !      UNITS for Kub: [(kcal/mol)/(A^2)] to [Eh/(AU^2)]
+    !      FACTOR of "2" rolled into Kub
+    !-----------------------------------------------------------------------------    
+    nbend = 0
+    nub = 0
+    DO ilab = 1, SIZE(angl_section)
+       CALL parser_create(parser,ff_type%ff_file_name,para_env=para_env)
+       label = TRIM(angl_section(ilab))
+       DO 
+          CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
+          IF (found) THEN
+             CALL parser_get_object(parser,string)
+             IF (INDEX(string,TRIM(label)) /= 1) CYCLE
+             CALL parser_get_next_line(parser,1,error=error)
+             DO
+                CALL parser_get_object(parser,string)
+                CALL uppercase ( string )
+                IF(ANY(string == avail_section)) EXIT
+                CALL parser_get_object(parser,string2)
+                CALL parser_get_object(parser,string3)
+                CALL uppercase ( string2 )
+                CALL uppercase ( string3 )
+                nbend = nbend + 1
+                CALL reallocate(chm_info%bend_a,1,nbend)
+                CALL reallocate(chm_info%bend_b,1,nbend)
+                CALL reallocate(chm_info%bend_c,1,nbend)
+                CALL reallocate(chm_info%bend_k,1,nbend)
+                CALL reallocate(chm_info%bend_theta0,1,nbend)
+                chm_info%bend_a(nbend) = string
+                chm_info%bend_b(nbend) = string2
+                chm_info%bend_c(nbend) = string3
+                CALL parser_get_object(parser,chm_info%bend_k(nbend))     
+                CALL parser_get_object(parser,chm_info%bend_theta0(nbend))
+                IF(iw>0) WRITE(iw,*) "    CHM BEND ",nbend,&
+                     TRIM(chm_info%bend_a(nbend))," ",&
+                     TRIM(chm_info%bend_b(nbend))," ",&
+                     TRIM(chm_info%bend_c(nbend))," ",&
+                     chm_info%bend_k(nbend),&
+                     chm_info%bend_theta0(nbend)
+                ! Do some units conversion into internal atomic units
+                CALL convert_to_cp2k_units("DEGREE",angle=chm_info%bend_theta0(nbend))
+                CALL convert_to_cp2k_units("KCAL",energy=chm_info%bend_k(nbend))
+                chm_info%bend_k(nbend) = 2.0_dp * chm_info%bend_k(nbend)
+                IF (parser_test_next_token(parser) == "FLT") THEN
+                   nub = nub + 1
+                   CALL reallocate(chm_info%ub_a,1,nub)
+                   CALL reallocate(chm_info%ub_b,1,nub)
+                   CALL reallocate(chm_info%ub_c,1,nub)
+                   CALL reallocate(chm_info%ub_k,1,nub)
+                   CALL reallocate(chm_info%ub_r0,1,nub)
+                   chm_info%ub_a(nub) = string
+                   chm_info%ub_b(nub) = string2
+                   chm_info%ub_c(nub) = string3
+                   CALL parser_get_object(parser,chm_info%ub_k(nub)) 
+                   CALL parser_get_object(parser,chm_info%ub_r0(nub))
+                   IF(iw>0) WRITE(iw,*) "    CHM UB ",nub,&
+                        TRIM(chm_info%ub_a(nub))," ",&
+                        TRIM(chm_info%ub_b(nub))," ",&
+                        TRIM(chm_info%ub_c(nub))," ",&
+                        chm_info%ub_k(nub),&
+                        chm_info%ub_r0(nub)
+                   ! Do some units conversion into internal atomic units
+                   CALL convert_to_cp2k_units("ANGSTROM",length=chm_info%ub_r0(nub))
+                   CALL convert_to_cp2k_units("KCAL",energy=chm_info%ub_k(nub))
+                   CALL convert_to_cp2k_units("BOHR",length=chm_info%ub_k(nub))
+                   CALL convert_to_cp2k_units("BOHR",length=chm_info%ub_k(nub))
+                   chm_info%ub_k(nub) = 2.0_dp * chm_info%ub_k(nub)
+                END IF
+                CALL parser_get_next_line(parser,1,error=error)
+             END DO
+          ELSE
+             EXIT
+          END IF
+       END DO
+       CALL parser_release(parser,error=error)
+    END DO
+    !-----------------------------------------------------------------------------
+    !-----------------------------------------------------------------------------
+    ! 3. Read in all the Dihedrals info from the param file here
+    !      Vtorsion = Kphi(1+COS(n(phi)-delta))
+    !      UNITS for Kphi: [(kcal/mol)] to [Eh]
+    !-----------------------------------------------------------------------------
+    ntorsion = 0
+    DO ilab = 1, SIZE(thet_section)
+       CALL parser_create(parser,ff_type%ff_file_name,para_env=para_env)
+       label = TRIM(thet_section(ilab))
+       DO 
+          CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
+          IF (found) THEN
+             CALL parser_get_object(parser,string)
+             IF (INDEX(string,TRIM(label)) /= 1) CYCLE
+             CALL parser_get_next_line(parser,1,error=error)
+             DO
+                CALL parser_get_object(parser,string)
+                CALL uppercase ( string )
+                IF(ANY(string == avail_section)) EXIT
+                CALL parser_get_object(parser,string2)
+                CALL parser_get_object(parser,string3)
+                CALL parser_get_object(parser,string4)
+                CALL uppercase ( string2 )
+                CALL uppercase ( string3 )
+                CALL uppercase ( string4 )
+                ntorsion = ntorsion + 1
+                CALL reallocate(chm_info%torsion_a,1,ntorsion)
+                CALL reallocate(chm_info%torsion_b,1,ntorsion)
+                CALL reallocate(chm_info%torsion_c,1,ntorsion)
+                CALL reallocate(chm_info%torsion_d,1,ntorsion)
+                CALL reallocate(chm_info%torsion_k,1,ntorsion)
+                CALL reallocate(chm_info%torsion_m,1,ntorsion)
+                CALL reallocate(chm_info%torsion_cosphi0,1,ntorsion)
+                chm_info%torsion_a(ntorsion) = string
+                chm_info%torsion_b(ntorsion) = string2
+                chm_info%torsion_c(ntorsion) = string3
+                chm_info%torsion_d(ntorsion) = string4
+                CALL parser_get_object(parser,chm_info%torsion_k(ntorsion))      
+                CALL parser_get_object(parser,chm_info%torsion_m(ntorsion))      
+                CALL parser_get_object(parser,chm_info%torsion_cosphi0(ntorsion))
+                IF(iw>0) WRITE(iw,*) "    CHM TORSION ",ntorsion,&
+                     TRIM(chm_info%torsion_a(ntorsion))," ",&
+                     TRIM(chm_info%torsion_b(ntorsion))," ",&
+                     TRIM(chm_info%torsion_c(ntorsion))," ",&
+                     TRIM(chm_info%torsion_d(ntorsion))," ",&
+                     chm_info%torsion_k(ntorsion),&
+                     chm_info%torsion_m(ntorsion),&
+                     chm_info%torsion_cosphi0(ntorsion)
+                ! Do some units conversion into internal atomic units
+                CALL convert_to_cp2k_units("DEGREE",&
+                     angle=chm_info%torsion_cosphi0(ntorsion))
+                CALL convert_to_cp2k_units("KCAL",energy=chm_info%torsion_k(ntorsion))
+                chm_info%torsion_cosphi0(ntorsion)=&
+                     COS(chm_info%torsion_cosphi0(ntorsion))
+                CALL parser_get_next_line(parser,1,error=error)
+             END DO
+          ELSE
+             EXIT
+          END IF
+       END DO
+       CALL parser_release(parser,error=error)
+    END DO
+    !-----------------------------------------------------------------------------
+    !-----------------------------------------------------------------------------
+    ! 4. Read in all the Improper info from the param file here
+    !      Vimpr = Kpsi(psi-psi0)^2
+    !      UNITS for Kpsi: [(kcal/mol)/(rad^2)] to [Eh/(rad^2)]
+    !      FACTOR of "2" rolled into Kpsi
+    !-----------------------------------------------------------------------------
+    nimpr = 0
+    DO ilab = 1, SIZE(impr_section)
+       CALL parser_create(parser,ff_type%ff_file_name,para_env=para_env)
+       label = TRIM(impr_section(ilab))
+       DO 
+          CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
+          IF (found) THEN
+             CALL parser_get_object(parser,string)
+             IF (INDEX(string,TRIM(label)) /= 1) CYCLE
+             CALL parser_get_next_line(parser,1,error=error)
+             DO
+                CALL parser_get_object(parser,string)
+                CALL uppercase ( string )
+                IF(ANY(string == avail_section)) EXIT
+                CALL parser_get_object(parser,string2)
+                CALL parser_get_object(parser,string3)
+                CALL parser_get_object(parser,string4)
+                CALL uppercase ( string2 )
+                CALL uppercase ( string3 )
+                CALL uppercase ( string4 )
+                nimpr = nimpr + 1
+                CALL reallocate(chm_info%impr_a,1,nimpr)
+                CALL reallocate(chm_info%impr_b,1,nimpr)
+                CALL reallocate(chm_info%impr_c,1,nimpr)
+                CALL reallocate(chm_info%impr_d,1,nimpr)
+                CALL reallocate(chm_info%impr_k,1,nimpr)
+                CALL reallocate(chm_info%impr_phi0,1,nimpr)
+                chm_info%impr_a(nimpr) = string
+                chm_info%impr_b(nimpr) = string2
+                chm_info%impr_c(nimpr) = string3
+                chm_info%impr_d(nimpr) = string4
+                CALL parser_get_object(parser,chm_info%impr_k(nimpr))   
+                CALL parser_get_object(parser,dummy)                    
+                CALL parser_get_object(parser,chm_info%impr_phi0(nimpr))
+                IF(iw>0) WRITE(iw,*) "    CHM IMPROPERS ",nimpr,&
+                     TRIM(chm_info%impr_a(nimpr))," ",&
+                     TRIM(chm_info%impr_b(nimpr))," ",&
+                     TRIM(chm_info%impr_c(nimpr))," ",&
+                     TRIM(chm_info%impr_d(nimpr))," ",&
+                     chm_info%impr_k(nimpr),&
+                     chm_info%impr_phi0(nimpr)
+                ! Do some units conversion into internal atomic units
+                CALL convert_to_cp2k_units("DEGREE",angle=chm_info%impr_phi0(nimpr))
+                CALL convert_to_cp2k_units("KCAL",energy=chm_info%impr_k(nimpr))
+                chm_info%impr_k(nimpr) = 2.0_dp * chm_info%impr_k(nimpr)
+                CALL parser_get_next_line(parser,1,error=error)
+             END DO
+          ELSE
+             EXIT
+          END IF
+       END DO
+       CALL parser_release(parser,error=error)
+    END DO
+    !-----------------------------------------------------------------------------
+    !-----------------------------------------------------------------------------
+    ! 5. Read in all the Nonbonded info from the param file here
+    !-----------------------------------------------------------------------------
+    nnonbond = 0
+    nonfo = 0
+    DO ilab = 1, SIZE(nbon_section)
+       CALL parser_create(parser,ff_type%ff_file_name,para_env=para_env)
+       label = TRIM(nbon_section(ilab))
+       DO 
+          CALL parser_search_string(parser,label,.TRUE.,found,begin_line=.TRUE.)
+          IF (found) THEN
+             CALL parser_get_object(parser,string)
+             IF (INDEX(string,TRIM(label)) /= 1) CYCLE
+             CALL parser_get_next_line(parser,1,error=error)
+             DO
+                CALL parser_get_object(parser,string)
+                CALL uppercase ( string )
+                IF(ANY(string == avail_section)) EXIT
+                nnonbond = nnonbond + 1
+                CALL reallocate(chm_info%nonbond_a,1,nnonbond)
+                CALL reallocate(chm_info%nonbond_eps,1,nnonbond)
+                CALL reallocate(chm_info%nonbond_rmin2,1,nnonbond)
+                chm_info%nonbond_a(nnonbond) = string
+                CALL parser_get_object(parser,chm_info%nonbond_eps(nnonbond))  
+                CALL parser_get_object(parser,chm_info%nonbond_eps(nnonbond))  
+                CALL parser_get_object(parser,chm_info%nonbond_rmin2(nnonbond))
+                IF(iw>0) WRITE(iw,*) "    CHM NONBOND ",nnonbond,&
+                     TRIM(chm_info%nonbond_a(nnonbond))," ",&
+                     chm_info%nonbond_eps(nnonbond),&
+                     chm_info%nonbond_rmin2(nnonbond)
+                CALL convert_to_cp2k_units("ANGSTROM",&
+                     length=chm_info%nonbond_rmin2(nnonbond))
+                CALL convert_to_cp2k_units("KCAL",&
+                     energy=chm_info%nonbond_eps(nnonbond))
+                IF (parser_test_next_token(parser) == "FLT") THEN
+                   nonfo = nonfo + 1
+                   CALL reallocate(chm_info%nonbond_a_14,1,nonfo)
+                   CALL reallocate(chm_info%nonbond_eps_14,1,nonfo)
+                   CALL reallocate(chm_info%nonbond_rmin2_14,1,nonfo)
+                   chm_info%nonbond_a_14(nonfo) = chm_info%nonbond_a(nnonbond)
+                   CALL parser_get_object(parser,chm_info%nonbond_eps_14(nonfo))  
+                   CALL parser_get_object(parser,chm_info%nonbond_eps_14(nonfo))  
+                   CALL parser_get_object(parser,chm_info%nonbond_rmin2_14(nonfo))
+                   IF(iw>0) WRITE(iw,*) "    CHM ONFO ",nonfo,&
+                        TRIM(chm_info%nonbond_a_14(nonfo))," ",&
+                        chm_info%nonbond_eps_14(nonfo),&
+                        chm_info%nonbond_rmin2_14(nonfo)
+                   CALL convert_to_cp2k_units("ANGSTROM",&
+                        length=chm_info%nonbond_rmin2_14(nonfo))
+                   CALL convert_to_cp2k_units("KCAL",&
+                        energy=chm_info%nonbond_eps_14(nonfo))
+                END IF
+                CALL parser_get_next_line(parser,1,error=error)
+             END DO
+          ELSE
+             EXIT
+          END IF
+       END DO
+       CALL parser_release(parser,error=error)
+    END DO
+    CALL cp_print_key_finished_output(iw,logger,mm_section,&
+         "PRINT%FF_INFO",error=error)
+    CALL timestop(0.0_dp,handle)
+
+  END SUBROUTINE read_force_field_charmm
+
+!******************************************************************************
+!!****** force_fields/read_eam_data [1.0] *
+!!
+!!   NAME
+!!     read_eam_data
+!!
+!!   SYNOPSIS
+!!
+!!   FUNCTION
+!!     reads EAM potential from library
+!!
+!!   AUTHOR
+!!
+!!   MODIFICATION HISTORY
+!!
+!!   OPTIONS
+!!
+!!   INPUTS
+!!*****************************************************************************
+  SUBROUTINE read_eam_data ( eam, para_env, mm_section, error)
+    TYPE(eam_pot_type), POINTER              :: eam
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(section_vals_type), POINTER         :: mm_section
+    TYPE(cp_error_type), INTENT(INOUT), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'read_eam_data', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(len=default_string_length)     :: title3
+    INTEGER                                  :: handle, i, iw, ntyp, stat, &
+                                                unit_number
+    LOGICAL                                  :: failure
+    REAL(KIND=dp)                            :: acutal, drar, drhoar, rlatt, &
+                                                rmass
+    REAL(KINd=dp), DIMENSION(:), POINTER     :: frho, frhop, phi, phip, rho, &
+                                                rhop, rhoval, rval
+    TYPE(cp_logger_type), POINTER            :: logger
+
+    CALL timeset(routineN,'I','',handle)
+    failure = .FALSE.
+    logger => cp_error_get_logger(error)
+    iw = cp_print_key_unit_nr(logger,mm_section,"PRINT%FF_INFO",&
+         extension=".mmLog",error=error)
+    NULLIFY ( rval, rhoval, phi, phip, frho, frhop, rho, rhop )
+    IF (.NOT.failure) THEN
+       IF ( para_env%ionode ) THEN
+          ALLOCATE ( rho ( 5000 ), STAT = stat )
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          rho=0.0_dp
+          ALLOCATE ( rhop ( 5000 ), STAT = stat )
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          rhop=0.0_dp
+          ALLOCATE ( rval ( 5000 ), STAT = stat )
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          rval=0.0_dp
+          ALLOCATE ( rhoval ( 5000 ), STAT = stat )
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          rhoval=0.0_dp
+          ALLOCATE ( phi ( 5000 ), STAT = stat )
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          phi=0.0_dp
+          ALLOCATE ( phip ( 5000 ), STAT = stat )
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          phip=0.0_dp
+          ALLOCATE ( frho ( 5000 ), STAT = stat )
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          frho=0.0_dp
+          ALLOCATE ( frhop ( 5000 ), STAT = stat )
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          frhop=0.0_dp
+
+          CALL open_file(file_name=TRIM(eam % eam_file_name),&
+               file_form="FORMATTED",&
+               file_position="REWIND",&
+               file_status="OLD",&
+               unit_number=unit_number)
+          READ ( unit_number, '(A72)' ) title3
+          IF (iw>0) WRITE ( iw, * ) title3
+
+          READ ( unit_number, * ) ntyp,rmass,rlatt
+
+          READ ( unit_number, * ) drar, drhoar, acutal
+          CALL convert_to_cp2k_units ( "ANGSTROM", length = drar )
+          CALL convert_to_cp2k_units ( "ANGSTROM", length = acutal )
+
+          DO i = 1,5000
+             READ ( unit_number, * ) rho(i), rhop(i)
+             CALL convert_to_cp2k_units ( "ANGSTROM", length = rhop ( i ), l_power = -1 )
+             rval(i) = REAL ( i-1 ) * drar
+             rhoval(i) = REAL ( i-1 )* drhoar
+          END DO
+          !
+          DO i = 1,5000
+             READ ( unit_number, * ) phi(i), phip(i)
+             CALL convert_to_cp2k_units ( "EV", energy = phi ( i ) )
+             CALL convert_to_cp2k_units ( "EV", energy = phip ( i ) )
+             CALL convert_to_cp2k_units ( "ANGSTROM", length = phip ( i ), l_power = -1 )
+          END DO
+          !
+          DO i = 1,5000
+             READ ( unit_number, * ) frho(i), frhop(i)
+             CALL convert_to_cp2k_units ( "EV", energy = frho ( i ) )
+             CALL convert_to_cp2k_units ( "EV", energy = frhop ( i ) )
+          END DO
+          !
+          IF (iw>0) WRITE ( iw, * ) 'Finished EAM data'
+          CLOSE ( unit_number )
+       ENDIF
+       CALL mp_bcast ( drar, para_env%source, para_env % group )
+       CALL mp_bcast ( drhoar, para_env % source, para_env % group )
+       CALL mp_bcast ( acutal, para_env % source, para_env % group )
+
+       eam % drar = drar
+       eam % drhoar = drhoar
+       eam % acutal = acutal
+
+       CALL reallocate ( rho, 1, 5000 )
+       CALL mp_bcast ( rho, para_env%source, para_env%group )
+
+       CALL reallocate ( rhop, 1, 5000 )
+       CALL mp_bcast ( rhop, para_env%source, para_env%group )
+
+       CALL reallocate ( rval, 1, 5000 )
+       CALL mp_bcast ( rval, para_env%source, para_env%group )
+
+       CALL reallocate ( rhoval, 1, 5000 )
+       CALL mp_bcast ( rhoval, para_env%source, para_env%group )
+
+       CALL reallocate ( phi, 1, 5000 )
+       CALL mp_bcast ( phi, para_env%source, para_env%group )
+
+       CALL reallocate ( phip, 1, 5000 )
+       CALL mp_bcast ( phip, para_env%source, para_env%group )
+
+       CALL reallocate ( frho, 1, 5000 )
+       CALL mp_bcast ( frho, para_env%source, para_env%group )
+
+       CALL reallocate ( frhop, 1, 5000 )
+       CALL mp_bcast ( frhop, para_env%source, para_env%group )
+
+       eam % rho    = rho 
+       eam % rhop   = rhop 
+       eam % rval   = rval 
+       eam % rhoval = rhoval 
+       eam % phi    = phi  
+       eam % phip   = phip 
+       eam % frho   = frho 
+       eam % frhop  = frhop 
+
+       DEALLOCATE ( rho, STAT = stat )
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE ( rhop, STAT = stat )
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE ( rval, STAT = stat )
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE ( rhoval, STAT = stat )
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE ( phi, STAT = stat )
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE ( phip, STAT = stat )
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE ( frho, STAT = stat )
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE ( frhop, STAT = stat )
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    END IF
+    CALL cp_print_key_finished_output(iw,logger,mm_section,&
+         "PRINT%FF_INFO",error=error)
+    CALL timestop(0.0_dp,handle)
+    
+  END SUBROUTINE read_eam_data
+
+END MODULE force_fields_input
+!******************************************************************************

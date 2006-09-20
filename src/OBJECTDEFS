@@ -140,6 +140,8 @@ OBJECTS_GENERIC =\
  force_env_types.o\
  force_field_types.o\
  force_fields.o\
+ force_fields_input.o\
+ force_fields_util.o\
  fp_types.o\
  fp_methods.o\
  gamma.o\

@@ -52,7 +52,7 @@ MODULE qmmm_init
                                              force_env_p_type,&
                                              force_env_type
   USE force_field_types,               ONLY: input_info_type
-  USE force_fields,                    ONLY: read_gd_section,&
+  USE force_fields_input,              ONLY: read_gd_section,&
                                              read_lj_section,&
                                              read_wl_section
   USE global_types,                    ONLY: global_environment_type
