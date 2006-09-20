@@ -540,9 +540,9 @@ END SUBROUTINE clone_particle
          WRITE(iunit) y4
          WRITE(iunit) z4
        CASE ("VEL")
-         x4(:) = particle_set(:)%v(1)*angstrom*femtoseconds
-         y4(:) = particle_set(:)%v(2)*angstrom*femtoseconds
-         z4(:) = particle_set(:)%v(3)*angstrom*femtoseconds
+         x4(:) = particle_set(:)%v(1)*angstrom/femtoseconds
+         y4(:) = particle_set(:)%v(2)*angstrom/femtoseconds
+         z4(:) = particle_set(:)%v(3)*angstrom/femtoseconds
          WRITE(iunit) x4
          WRITE(iunit) y4
          WRITE(iunit) z4
