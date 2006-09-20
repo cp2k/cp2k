@@ -126,7 +126,7 @@ CONTAINS
     Vol     = mm_cell%hmat(1,1)*&
               mm_cell%hmat(2,2)*&
               mm_cell%hmat(3,3)
-    Ndim    = (Kmax(1)+1)*(2*Kmax(2)+1)*(2*Kmax(3)+1)-1
+    Ndim    = (Kmax(1)+1)*(2*Kmax(2)+1)*(2*Kmax(3)+1)
     ig_start = 1
     n_rep_real = n_rep_real_val
     IF (compatibility) ig_start = 2
@@ -171,19 +171,26 @@ CONTAINS
           DO ix = 0, kmax(1)
              DO iy = -kmax(2), kmax(2)
                 DO iz = -kmax(3), kmax(3)
-                   IF (ix == 0.AND.iy == 0.AND.iz == 0) CYCLE
-                   fs = 2.0_dp; IF (ix==0) fs = 1.0_dp
                    idim = idim + 1
-                   vec =  fac*(/REAL(ix,KIND=dp),REAL(iy,KIND=dp),REAL(iz,KIND=dp)/)
-                   g2  =  DOT_PRODUCT(vec,vec)
-                   rc2 =  rc*rc
-                   g   =  SQRT(g2)
-                   LG (idim) = 4.0_dp*Pi/g2 * EXP(-(g2*rc2)/4.0_dp)
-                   DO Ig = ig_start, pgf%number_of_gaussians
-                      Gk = pgf%Gk(Ig)
-                      Ak = pgf%Ak(Ig)*Pi**(3.0_dp/2.0_dp)*Gk**3.0_dp
-                      LG (idim) = LG (idim) - Ak * EXP(-(g*Gk)**2.0_dp/4.0_dp) 
-                   END DO
+                   IF (ix == 0.AND.iy == 0.AND.iz == 0) THEN
+                      DO Ig = ig_start, pgf%number_of_gaussians
+                         Gk = pgf%Gk(Ig)
+                         Ak = pgf%Ak(Ig)*Pi**(3.0_dp/2.0_dp)*Gk**3.0_dp
+                         LG (idim) = LG (idim) - Ak 
+                      END DO
+                   ELSE
+                      fs = 2.0_dp; IF (ix==0) fs = 1.0_dp
+                      vec =  fac*(/REAL(ix,KIND=dp),REAL(iy,KIND=dp),REAL(iz,KIND=dp)/)
+                      g2  =  DOT_PRODUCT(vec,vec)
+                      rc2 =  rc*rc
+                      g   =  SQRT(g2)
+                      LG (idim) = 4.0_dp*Pi/g2 * EXP(-(g2*rc2)/4.0_dp)
+                      DO Ig = ig_start, pgf%number_of_gaussians
+                         Gk = pgf%Gk(Ig)
+                         Ak = pgf%Ak(Ig)*Pi**(3.0_dp/2.0_dp)*Gk**3.0_dp
+                         LG (idim) = LG (idim) - Ak * EXP(-(g*Gk)**2.0_dp/4.0_dp) 
+                      END DO
+                   ENDIF 
                    LG (idim) = fs * LG (idim) * 1.0_dp/Vol
                    gx (idim) = fac(1)*REAL(ix,KIND=dp)
                    gy (idim) = fac(2)*REAL(iy,KIND=dp)
