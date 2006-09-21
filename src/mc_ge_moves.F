@@ -748,11 +748,11 @@ CONTAINS
          IF(lbias) THEN
             CALL mc_make_dat_file(r_insert(:,:),ins_atoms,&
                abc_insert(:)*angstrom,dat_file(insert_box),&
-               bias_env(insert_box)%force_env,TRIM(fft_lib),print_level)
+               bias_env(insert_box)%force_env,TRIM(fft_lib),print_level,error=error)
          ELSE
             CALL mc_make_dat_file(r_insert(:,:),ins_atoms,&
                abc_insert(:)*angstrom,dat_file(insert_box),&
-               force_env(insert_box)%force_env,TRIM(fft_lib),print_level)
+               force_env(insert_box)%force_env,TRIM(fft_lib),print_level,error=error)
          ENDIF
       ENDIF
 ! now do the same for the removal box...be careful not to make an empty box
@@ -765,11 +765,11 @@ CONTAINS
             IF(lbias) THEN
                CALL mc_make_dat_file(r_remove(:,:),rem_atoms,&
                   abc_remove(:)*angstrom,dat_file(remove_box),&
-                  bias_env(remove_box)%force_env,TRIM(fft_lib),print_level)
+                  bias_env(remove_box)%force_env,TRIM(fft_lib),print_level,error=error)
             ELSE
                CALL mc_make_dat_file(r_remove(:,:),rem_atoms,&
                   abc_remove(:)*angstrom,dat_file(remove_box),&
-                  force_env(remove_box)%force_env,TRIM(fft_lib),print_level)
+                  force_env(remove_box)%force_env,TRIM(fft_lib),print_level,error=error)
             ENDIF
          ENDIF
       ELSE
@@ -796,11 +796,11 @@ CONTAINS
             IF(lbias) THEN
                CALL mc_make_dat_file(r_remove(:,:),rem_atoms,&
                   abc_remove(:)*angstrom,dat_file(remove_box),&
-                  bias_env(remove_box)%force_env,TRIM(fft_lib),print_level)
+                  bias_env(remove_box)%force_env,TRIM(fft_lib),print_level,error=error)
             ELSE
                CALL mc_make_dat_file(r_remove(:,:),rem_atoms,&
                   abc_remove(:)*angstrom,dat_file(remove_box),&
-                  force_env(remove_box)%force_env,TRIM(fft_lib),print_level)
+                  force_env(remove_box)%force_env,TRIM(fft_lib),print_level,error=error)
             ENDIF
          ENDIF
       ENDIF
@@ -919,7 +919,7 @@ CONTAINS
 ! first, the environment to which we added a molecule
          IF(ionode) CALL mc_make_dat_file(r_cbmc(:,:),ins_atoms,&
             abc_insert(:)*angstrom,dat_file(insert_box),&
-            force_env(insert_box)%force_env,TRIM(fft_lib),print_level)
+            force_env(insert_box)%force_env,TRIM(fft_lib),print_level,error=error)
          insert_env_bias => insert_env
          NULLIFY(insert_env)
          CALL mc_create_force_env(insert_env, para_env, dat_file(insert_box),error=error)
@@ -934,7 +934,7 @@ CONTAINS
          IF (nchain(remove_box)-1 == 0) THEN
             IF(ionode) CALL mc_make_dat_file(r_remove(:,:),rem_atoms,&
                abc_remove(:)*angstrom,dat_file(remove_box),&
-               force_env(remove_box)%force_env,TRIM(fft_lib),print_level)
+               force_env(remove_box)%force_env,TRIM(fft_lib),print_level,error=error)
             remove_env_bias => remove_env
             NULLIFY(remove_env)
             CALL mc_create_force_env(remove_env, para_env, dat_file(remove_box),error=error)
@@ -943,7 +943,7 @@ CONTAINS
          ELSE
             IF(ionode) CALL mc_make_dat_file(r_remove(:,:),rem_atoms,&
                abc_remove(:)*angstrom,dat_file(remove_box),&
-               force_env(remove_box)%force_env,TRIM(fft_lib),print_level)
+               force_env(remove_box)%force_env,TRIM(fft_lib),print_level,error=error)
             remove_env_bias => remove_env
             NULLIFY(remove_env)
             CALL mc_create_force_env(remove_env, para_env, dat_file(remove_box),error=error)

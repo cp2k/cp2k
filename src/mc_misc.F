@@ -597,7 +597,7 @@ END SUBROUTINE final_mc_write
 !!
 !!*****************************************************************************
 SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
-      force_env,fft_lib,print_level)
+      force_env,fft_lib,print_level,error)
 
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(INOUT)                          :: coordinates
@@ -608,6 +608,7 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
     TYPE(force_env_type), POINTER            :: force_env
     CHARACTER(LEN=*), INTENT(IN)             :: fft_lib
     INTEGER, INTENT(IN)                      :: print_level
+    TYPE(cp_error_type), INTENT(INOUT)       :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'mc_make_dat_file', &
       routineP = moduleN//':'//routineN
@@ -633,7 +634,6 @@ SUBROUTINE mc_make_dat_file(coordinates,natoms_tot,box_length,filename,&
     TYPE(bend_type), DIMENSION(:), POINTER   :: bend_list
     TYPE(bond_type), DIMENSION(:), POINTER   :: bond_list
     TYPE(cell_type), POINTER                 :: cell, cell_ref
-    TYPE(cp_error_type)                      :: error
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
     TYPE(elp_potential_type), POINTER        :: elp_potential

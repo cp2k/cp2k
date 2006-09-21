@@ -320,7 +320,7 @@ SUBROUTINE read_mc_restart ( mc_par, force_env, iw, rng_stream)
 
          IF(ionode) THEN
             CALL mc_make_dat_file(r(:,:),mc_nunits,box_length(:),dat_file,&
-               force_env,TRIM(fft_lib),print_level)
+               force_env,TRIM(fft_lib),print_level,error)
             CALL close_file(unit_number=unit)
          ENDIF
       ELSE
@@ -337,7 +337,7 @@ SUBROUTINE read_mc_restart ( mc_par, force_env, iw, rng_stream)
             CALL close_file(unit_number=unit)
 
             CALL mc_make_dat_file(r(:,:),mc_nunits_tot,&
-               box_length(:),dat_file,force_env,TRIM(fft_lib),print_level)
+               box_length(:),dat_file,force_env,TRIM(fft_lib),print_level,error)
          ENDIF
       ENDIF
 
@@ -516,7 +516,7 @@ SUBROUTINE mc_create_bias_force_env (bias_env,force_env,&
       IF(ionode) &
          CALL mc_make_dat_file(r(:,:),nunits_tot,&
          abc(1:3)*angstrom,&
-         'bias_temp.inp',bias_env,TRIM(fft_lib),print_level)
+         'bias_temp.inp',bias_env,TRIM(fft_lib),print_level,error)
 
       CALL section_vals_release(bias_env%root_section,error=error)
       CALL force_env_release(bias_env,error=error)
