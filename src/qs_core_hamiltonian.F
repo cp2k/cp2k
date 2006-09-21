@@ -93,6 +93,7 @@ MODULE qs_core_hamiltonian
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE distribution_2d_types,           ONLY: distribution_2d_type
+  USE ep_qs_types,                     ONLY: ep_qs_type
   USE external_potential_types,        ONLY: all_potential_type,&
                                              get_potential,&
                                              gth_potential_type
@@ -147,7 +148,6 @@ MODULE qs_core_hamiltonian
   USE util,                            ONLY: locate,&
                                              sort
   USE virial_types,                    ONLY: virial_type
-  USE ep_qs_types, ONLY: ep_qs_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -317,7 +317,7 @@ CONTAINS
     INTEGER :: dir
     REAL(kind = dp), DIMENSION(3,3) :: pv_virial
     LOGICAL         :: use_virial
-    TYPE(ep_qs_type), pointer :: ep_qs_env
+    TYPE(ep_qs_type), POINTER :: ep_qs_env
 
 #if defined(__AIX) && defined(__INIT_WITH_NANS)
     REAL(dp) :: nans_dp
@@ -417,7 +417,7 @@ CONTAINS
       CALL get_qs_env(qs_env=qs_env,&
                       force=force,ep_qs_env=ep_qs_env,&
                       matrix_w=matrix_w)
-      do_ep=associated(ep_qs_env)
+      do_ep=ASSOCIATED(ep_qs_env)
       IF (do_ep) do_ep=ep_qs_env%ep_active.AND.calculate_forces
       IF (harris_flag) THEN
         CALL get_qs_env(qs_env=qs_env, harris_env=harris_env,&

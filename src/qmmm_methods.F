@@ -35,7 +35,6 @@ MODULE qmmm_methods
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cube_utils,                      ONLY: cube_info_type
-  USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: do_qmmm_gauss,&
                                              do_qmmm_grid,&
                                              do_qmmm_none,&
@@ -785,13 +784,13 @@ CONTAINS
 
     INTEGER                                  :: handle, Icg, IGauss, ilevel, &
                                                 Imm, IndMM, IRadTyp, ithread, &
-                                                iwrk, LIndMM, n_rep_real(3), &
-                                                stat
+                                                LIndMM, n_rep_real(3), stat
     INTEGER, DIMENSION(2, 3)                 :: bo
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: alpha, dvol, height, W
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: xdat, ydat, zdat
     REAL(KIND=dp), DIMENSION(3)              :: force, ra
-    REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE   :: xdat, ydat, zdat
     TYPE(qmmm_gaussian_type), POINTER        :: pgf
     TYPE(qmmm_per_pot_type), POINTER         :: per_pot
     TYPE(qmmm_pot_type), POINTER             :: pot

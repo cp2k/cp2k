@@ -221,8 +221,8 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(OUT)                            :: adbdx, adbdy, adbdz
 
-    INTEGER :: ax, ay, az, bx, by, bz, coa, cobmx, cobmy, cobmz, cobpx, &
-      cobpy, cobpz, cob, coda, i, ipgf, j, jpgf, la, lb, na, nb, nda, ndb
+    INTEGER :: ax, ay, az, bx, by, bz, coa, cob, cobmx, cobmy, cobmz, cobpx, &
+      cobpy, cobpz, coda, i, ipgf, j, jpgf, la, lb, na, nb, nda, ndb
     REAL(KIND=dp)                            :: fb, fx, fy, fz
 
 !   ---------------------------------------------------------------------------

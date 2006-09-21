@@ -1209,15 +1209,15 @@ END SUBROUTINE create_f_env_print_section
 !!
 !!*** **********************************************************************
 SUBROUTINE create_cpot_section(section,error)
-  TYPE(section_type), POINTER              :: section
-  TYPE(cp_error_type), INTENT(inout), &
-       OPTIONAL                               :: error
+    TYPE(section_type), POINTER              :: section
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  CHARACTER(len=*), PARAMETER :: routineN = 'create_cpot_section', &
-       routineP = moduleN//':'//routineN
+    CHARACTER(len=*), PARAMETER :: routineN = 'create_cpot_section', &
+      routineP = moduleN//':'//routineN
 
-  LOGICAL                                  :: failure
-  TYPE(keyword_type), POINTER              :: keyword
+    LOGICAL                                  :: failure
+    TYPE(keyword_type), POINTER              :: keyword
 
   failure=.FALSE.
 
@@ -1252,13 +1252,13 @@ SUBROUTINE create_cpot_section(section,error)
      CALL keyword_create(keyword,name="statistics_after",&
           description="number of steps after which the collection of statistics begins",&
           usage="statistics_after 1000",&
-          required=.false.,default_i_val=0,error=error)
+          required=.FALSE.,default_i_val=0,error=error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error)
      CALL keyword_create(keyword,name="statistics_each",&
           description="how often statistic is collected",&
           usage="statistics_each 5",&
-          required=.false.,default_i_val=0,error=error)
+          required=.FALSE.,default_i_val=0,error=error)
      CALL section_add_keyword(section,keyword,error=error)
      CALL keyword_release(keyword,error=error)
      CALL keyword_create(keyword, name="TEMP",&

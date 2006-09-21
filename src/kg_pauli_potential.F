@@ -48,7 +48,8 @@ MODULE kg_pauli_potential
                                              kg_molbox_env_type,&
                                              kg_sub_pw_env_type
   USE kinds,                           ONLY: dp
-  USE message_passing,                 ONLY: mp_sum,mp_bcast
+  USE message_passing,                 ONLY: mp_bcast,&
+                                             mp_sum
   USE molecule_kind_types,             ONLY: atom_type,&
                                              get_molecule_kind,&
                                              molecule_kind_type
@@ -93,15 +94,17 @@ SUBROUTINE kg_gpw_pauli( kg_env, do_potential, do_forces, do_overlap, error )
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_gpw_pauli', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: atom_a, first_atom, handle, i, ia, iao, ifa, ikind, ila, imo, imol, &
-      imol_kind, imol_local, ispin, istat, j, j_pe, ja, jao, jfa, jkind, jla, jmol, &
-      jmol_kind, jmol_local, last_atom, ldai, natom_mol, maxco, maxder, maxlgto, maxsgf, nao, &
-      nao_max, naoa, naob, nat_mol, natom, nder, nia, njb, nmol, nmol_kind, &
-      nmol_local, nseta, nsetb, nspin, output_unit
+    INTEGER :: atom_a, first_atom, handle, i, ia, iao, ifa, ikind, ila, imo, &
+      imol, imol_kind, imol_local, ispin, istat, j, j_pe, ja, jao, jfa, &
+      jkind, jla, jmol, jmol_kind, jmol_local, last_atom, ldai, maxco, &
+      maxder, maxlgto, maxsgf, nao, nao_max, naoa, naob, nat_mol, natom, &
+      natom_mol, nder, nia, njb, nmol, nmol_kind, nmol_local, nseta, nsetb, &
+      nspin, output_unit
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind
     INTEGER, DIMENSION(2)                    :: nmoa, nmob
-    INTEGER, DIMENSION(:), POINTER :: ifirst_ao, ilast_ao, jfirst_ao, jfirst_ao_bcast,&
-      jlast_ao, jlast_ao_bcast, la_max, la_min, lb_max, lb_min, npgfa, npgfb, nsgfa, nsgfb
+    INTEGER, DIMENSION(:), POINTER :: ifirst_ao, ilast_ao, jfirst_ao, &
+      jfirst_ao_bcast, jlast_ao, jlast_ao_bcast, la_max, la_min, lb_max, &
+      lb_min, npgfa, npgfb, nsgfa, nsgfb
     INTEGER, DIMENSION(:, :), POINTER        :: first_sgfa, first_sgfb
     LOGICAL                                  :: failure, ionode
     REAL(KIND=dp)                            :: epsmol, oij, pauli_energy, &
@@ -121,13 +124,13 @@ SUBROUTINE kg_gpw_pauli( kg_env, do_potential, do_forces, do_overlap, error )
       POINTER                                :: atomic_kind_set
     TYPE(block_p_type), ALLOCATABLE, &
       DIMENSION(:)                           :: sint
-    TYPE(cp_2d_r_p_type), DIMENSION(:), &
-      POINTER                                :: mosb_bcast 
     TYPE(cell_type), POINTER                 :: cell, cell_mol
+    TYPE(cp_2d_r_p_type), DIMENSION(:), &
+      POINTER                                :: mosb_bcast
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
-    TYPE(distribution_1d_type), POINTER      :: local_molecule
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(distribution_1d_type), POINTER      :: local_molecule
     TYPE(fm_mol_blocks_type), DIMENSION(:), &
       POINTER                                :: fm_mol_blocks
     TYPE(fm_mol_blocks_type), POINTER        :: mol_block

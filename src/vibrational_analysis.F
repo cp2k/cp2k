@@ -30,46 +30,33 @@
 !!   SOURCE
 !****************************************************************************
 MODULE vibrational_analysis
-  USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind
+  USE atomic_kind_types,               ONLY: get_atomic_kind
+  USE cp_output_handling,              ONLY: cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE cp_subsystem_types,              ONLY: cp_subsystem_p_type
-  USE cp_units,                        ONLY: cp_unit_from_cp2k
   USE f77_interface,                   ONLY: f_env_add_defaults,&
                                              f_env_rm_defaults,&
                                              f_env_type
   USE force_env_types,                 ONLY: force_env_get
-  USE input_section_types,             ONLY: section_vals_type,&
-                                             section_vals_val_get,&
+  USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
-                                             section_vals_get
+                                             section_vals_type,&
+                                             section_vals_val_get
   USE kinds,                           ONLY: dp
+  USE mathconstants,                   ONLY: pi
   USE mathlib,                         ONLY: diamat_all
   USE particle_types,                  ONLY: particle_type,&
                                              write_particle_matrix
+  USE physcon,                         ONLY: angstrom,&
+                                             massunit,&
+                                             vibfac
   USE replica_types,                   ONLY: rep_env_calc_e_f,&
                                              rep_env_create,&
                                              rep_env_release,&
                                              rep_env_write,&
                                              replica_env_type
-  USE mathlib,                         ONLY: matvec_3x3,&
-                                             matmul_3x3,&
-                                             transpose_3d
-  USE cp_output_handling,              ONLY: cp_add_iter_level,&
-                                             cp_iterate,&
-                                             cp_p_file,&
-                                             cp_print_key_finished_output,&
-                                             cp_print_key_should_output,&
-                                             cp_print_key_unit_nr,&
-                                             cp_rm_iter_level
-  USE mathconstants,                   ONLY: pi
-  USE physcon,                         ONLY: vibfac,&
-                                             massunit,&
-                                             angstrom
   USE timings,                         ONLY: timeset,&
                                              timestop
-
-
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -109,13 +96,14 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'vb_anal', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: i, icoord, icoordm, icoordp, ierr, iparticle1, iparticle2, &
-      iseq, isubsys, j, l, ncoord, nrep, nRotTrM, nvib, prep, stat
-    INTEGER :: output_unit, n_rep, handle
-    LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: dx, tmp, wrk, norm
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: H_eigval1, H_eigval2, mass, pos0,&
-         rmass, konst
+    CHARACTER(LEN=1), DIMENSION(3)           :: lab = (/"X","Y","Z"/)
+    INTEGER :: handle, i, icoord, icoordm, icoordp, ierr, iparticle1, &
+      iparticle2, iseq, isubsys, j, l, n_rep, ncoord, nrep, nRotTrM, nvib, &
+      output_unit, prep, stat
+    LOGICAL                                  :: failure, keep_rotations
+    REAL(KIND=dp)                            :: dx, norm, tmp
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: H_eigval1, H_eigval2, konst, &
+                                                mass, pos0, rmass
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: Hessian, Hint1, Hint2
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: D, RotTrM
@@ -127,8 +115,6 @@ CONTAINS
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particles
     TYPE(replica_env_type), POINTER          :: rep_env
-    CHARACTER (LEN=1), DIMENSION(3)          :: lab=(/"X","Y","Z"/)
-    LOGICAL                                  :: keep_rotations
     TYPE(section_vals_type), POINTER         :: force_env_section
 
     CALL timeset(routineN,"I","",handle)
@@ -387,14 +373,15 @@ CONTAINS
 !!   SOURCE
 !****************************************************************************
   SUBROUTINE vib_out(iw,nvib,D,k,m,freq,particles)
-    INTEGER, INTENT(IN)                         :: iw, nvib
-    REAL(KIND=dp), DIMENSION(:,:), POINTER      :: D
-    REAL(KIND=dp), DIMENSION(:),INTENT(IN)      :: k,m,freq
+    INTEGER, INTENT(IN)                      :: iw, nvib
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: D
+    REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: k, m, freq
     TYPE(particle_type), DIMENSION(:), &
-         POINTER                                :: particles
+      POINTER                                :: particles
 
-    INTEGER :: natom, jatom, from, to, icol, iatom, katom, j
-    CHARACTER(LEN=2) :: element_symbol
+    CHARACTER(LEN=2)                         :: element_symbol
+    INTEGER                                  :: from, iatom, icol, j, jatom, &
+                                                katom, natom, to
 
     natom = SIZE(D,1)
     WRITE(UNIT=iw,FMT="(/,T2,'VIB|',T30,'NORMAL MODES - CARTESIAN DISPLACEMENTS')")
@@ -459,8 +446,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'rot_ana', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: i, iparticle, iseq, handle,&
-                                                j, k, lrot(3), stat, iw2
+    INTEGER                                  :: handle, i, iparticle, iseq, &
+                                                iw2, j, k, lrot(3), stat
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: cp(3), Ip(3,3), Ip_eigval(3), &
                                                 mass, masst, norm, rcom(3), &
@@ -628,19 +615,20 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: mat
     INTEGER, INTENT(IN)                      :: dof
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: Dout
+    LOGICAL, OPTIONAL                        :: full
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
-    LOGICAL, OPTIONAL                        :: full
 
     CHARACTER(len=*), PARAMETER :: routineN = 'build_D_matrix', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                    :: i, ifound, iseq, j, nvib, stat, handle
-    LOGICAL                                    :: failure
-    REAL(KIND=dp)                              :: norm
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)   :: work
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:,:) :: D
-    LOGICAL :: my_full
+    INTEGER                                  :: handle, i, ifound, iseq, j, &
+                                                nvib, stat
+    LOGICAL                                  :: failure, my_full
+    REAL(KIND=dp)                            :: norm
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: work
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: D
 
     CALL timeset(routineN,"I","",handle)
     failure = .FALSE.

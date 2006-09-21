@@ -60,6 +60,9 @@ MODULE integrator
        nph_uniaxial_ensemble, npt_f_ensemble, npt_i_ensemble
   USE kinds,                           ONLY: dp,&
                                              dp_size
+  USE mathlib,                         ONLY: matmul_3x3,&
+                                             matvec_3x3,&
+                                             transpose_3d
   USE md,                              ONLY: simulation_parameters_type
   USE md_environment_types,            ONLY: get_md_env,&
                                              md_environment_type,&
@@ -77,9 +80,6 @@ MODULE integrator
                                              update_particle_set
   USE termination,                     ONLY: stop_memory,&
                                              stop_program
-  USE mathlib,                         ONLY: matmul_3x3,&
-                                             matvec_3x3,&
-                                             transpose_3d
   USE virial_methods,                  ONLY: virial_evaluate
   USE virial_types,                    ONLY: virial_type
 #include "cp_common_uses.h"

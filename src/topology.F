@@ -48,6 +48,13 @@ MODULE topology
   USE topology_connectivity_util,      ONLY: topology_connectivity_pack
   USE topology_constraint_util,        ONLY: topology_constraint_pack
   USE topology_coordinate_util,        ONLY: topology_coordinate_pack
+  USE topology_generate_util,          ONLY: topology_generate_bend,&
+                                             topology_generate_bond,&
+                                             topology_generate_dihe,&
+                                             topology_generate_impr,&
+                                             topology_generate_molecule,&
+                                             topology_generate_onfo,&
+                                             topology_generate_ub
   USE topology_gromos,                 ONLY: pre_read_topology_gromos,&
                                              read_coordinate_g96,&
                                              read_topology_gromos
@@ -61,14 +68,10 @@ MODULE topology
   USE topology_types,                  ONLY: deallocate_topology,&
                                              init_topology,&
                                              topology_parameters_type
-  USE topology_util,                   ONLY: &
-       check_subsys_element, topology_molecules_check, &
-       topology_reorder_atoms, topology_set_atm_mass
-  USE topology_generate_util,          ONLY: &
-       topology_generate_bend, topology_generate_bond, &
-       topology_generate_dihe, topology_generate_impr, &
-       topology_generate_molecule, topology_generate_onfo,&
-       topology_generate_ub
+  USE topology_util,                   ONLY: check_subsys_element,&
+                                             topology_molecules_check,&
+                                             topology_reorder_atoms,&
+                                             topology_set_atm_mass
   USE topology_xyz,                    ONLY: read_coordinate_xyz
 #include "cp_common_uses.h"
 
@@ -292,7 +295,7 @@ CONTAINS
     LOGICAL, INTENT(in), OPTIONAL            :: qmmm
     TYPE(qmmm_env_mm_type), OPTIONAL, &
       POINTER                                :: qmmm_env
-    TYPE(section_vals_type), POINTER         :: subsys_section,&
+    TYPE(section_vals_type), POINTER         :: subsys_section, &
                                                 force_env_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error

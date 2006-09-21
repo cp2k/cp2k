@@ -24,17 +24,22 @@
 !!   SOURCE
 !****************************************************************************
 MODULE cpot_types
-  USE kinds, ONLY: dp, default_path_length
-  USE timings, ONLY: timeset, timestop
-  USE input_section_types, ONLY: section_vals_type, section_vals_retain,&
-       section_vals_val_get, section_vals_get_subs_vals, section_vals_release
-  USE cp_para_types, only: cp_para_env_type
+  USE cp_para_types,                   ONLY: cp_para_env_type
+  USE input_section_types,             ONLY: section_vals_release,&
+                                             section_vals_retain,&
+                                             section_vals_type,&
+                                             section_vals_val_get
+  USE kinds,                           ONLY: default_path_length,&
+                                             dp
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 #include "cp_common_uses.h"
+
   IMPLICIT NONE
   PRIVATE
 #include "f77_int.h"
 
-  CHARACTER(len=*), PRIVATE, PARAMETER :: moduleN='cpot_types'
+  CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'cpot_types'
   INTEGER, PRIVATE, SAVE :: last_cpot_id=0
 
   PUBLIC :: cpot_type, cpot_release, cpot_retain, cpot_calc
@@ -62,8 +67,8 @@ MODULE cpot_types
 !!*** **********************************************************************
 TYPE cpot_type
    INTEGER :: id_nr, ref_count, s_1_2_id, s_2_1_id, s_2_2_id
-   logical :: active
-   TYPE(section_vals_type), pointer :: input
+   LOGICAL :: active
+   TYPE(section_vals_type), POINTER :: input
    REAL(kind=dp) :: sum_cpot, sum_cpotsq,&
         e_s_1_1,e_s_1_2,e_s_2_1,e_s_2_2, beta
    INTEGER :: npot
@@ -95,21 +100,23 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE cpot_create(cpot_env,cpot_section,para_env,error)
-    TYPE(cpot_type), pointer :: cpot_env
-    TYPE(section_vals_type), pointer :: cpot_section
-    TYPE(cp_para_env_type), pointer :: para_env
-    type(cp_error_type), optional, intent(inout) :: error
+    TYPE(cpot_type), POINTER                 :: cpot_env
+    TYPE(section_vals_type), POINTER         :: cpot_section
+    TYPE(cp_para_env_type), POINTER          :: para_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineN='cpot_create',&
-         routineP=moduleN//':'//routineN
-    INTEGER :: handle,ierr,stat
-    character(len=default_path_length) :: input_path
-    real(kind=dp) :: temp
+    CHARACTER(len=*), PARAMETER :: routineN = 'cpot_create', &
+      routineP = moduleN//':'//routineN
 
-    failure=.false.
+    CHARACTER(len=default_path_length)       :: input_path
+    INTEGER                                  :: handle, ierr, stat
+    LOGICAL                                  :: failure
+    REAL(kind=dp)                            :: temp
 
-    call timeset(routineN,handle)
+    failure=.FALSE.
+
+    CALL timeset(routineN,handle)
     CPPrecondition(.NOT.ASSOCIATED(cpot_env),cp_failure_level,routineP,error,failure)
     IF (.NOT.failure) THEN
        ALLOCATE(cpot_env,stat=stat)
@@ -119,9 +126,9 @@ CONTAINS
        cpot_env%ref_count=1
        cpot_env%input => cpot_section
        CALL section_vals_retain(cpot_env%input,error=error)
-       cpot_env%s_1_2_id=-huge(0)
-       cpot_env%s_2_1_id=-huge(0)
-       cpot_env%s_2_2_id=-huge(0)
+       cpot_env%s_1_2_id=-HUGE(0)
+       cpot_env%s_2_1_id=-HUGE(0)
+       cpot_env%s_2_2_id=-HUGE(0)
 
        CALL section_vals_val_get(cpot_env%input,"_DEFAULT_KEYWORD_",&
             l_val=cpot_env%active,error=error)
@@ -143,7 +150,7 @@ CONTAINS
                input_path//".out",para_env%group,ierr)
        END IF
     END IF
-    call timestop(handle)
+    CALL timestop(handle)
   END SUBROUTINE cpot_create
 !***************************************************************************
 
@@ -168,14 +175,16 @@ CONTAINS
 !!
 !!*** **********************************************************************
 SUBROUTINE cpot_retain(cpot_env,error)
-  TYPE(cpot_type), pointer :: cpot_env
-  type(cp_error_type), optional, intent(inout) :: error
-  
-  logical :: failure
-  character(len=*), parameter :: routineN='cpot_retain',&
-        routineP=moduleN//':'//routineN
+    TYPE(cpot_type), POINTER                 :: cpot_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  failure=.false.
+    CHARACTER(len=*), PARAMETER :: routineN = 'cpot_retain', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+
+  failure=.FALSE.
   CPPrecondition(ASSOCIATED(cpot_env),cp_failure_level,routineP,error,failure)
   IF (.NOT.failure) THEN
      CPPrecondition(cpot_env%ref_count>0,cp_failure_level,routineP,error,failure)
@@ -205,16 +214,18 @@ END SUBROUTINE cpot_retain
 !!
 !!*** **********************************************************************
 SUBROUTINE cpot_release(cpot_env,error)
-  TYPE(cpot_type), pointer :: cpot_env
-  type(cp_error_type), optional, intent(inout) :: error
-  
-  logical :: failure
-  integer :: stat
-  character(len=*), parameter :: routineN='cpot_release',&
-        routineP=moduleN//':'//routineN
+    TYPE(cpot_type), POINTER                 :: cpot_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  failure=.false.
-  IF (associated(cpot_env)) THEN
+    CHARACTER(len=*), PARAMETER :: routineN = 'cpot_release', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: stat
+    LOGICAL                                  :: failure
+
+  failure=.FALSE.
+  IF (ASSOCIATED(cpot_env)) THEN
      CPPrecondition(cpot_env%ref_count>0,cp_failure_level,routineP,error,failure)
      cpot_env%ref_count=cpot_env%ref_count-1
      IF (cpot_env%ref_count==0) THEN
@@ -223,7 +234,7 @@ SUBROUTINE cpot_release(cpot_env,error)
         CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
      END IF
   END IF
-  nullify(cpot_env)
+  NULLIFY(cpot_env)
 END SUBROUTINE cpot_release
 !***************************************************************************
 
@@ -252,20 +263,22 @@ END SUBROUTINE cpot_release
 !!
 !!*** **********************************************************************
 SUBROUTINE cpot_calc(cpot_env, e_s_1_1,pos_s_1_1,error)
-  TYPE(cpot_type), pointer :: cpot_env
-  REAL(kind=dp), intent(in) :: e_s_1_1
-  REAL(kind=dp), DIMENSION(*), INTENT(in) :: pos_s_1_1
-  type(cp_error_type), optional, intent(inout) :: error
-  
-  logical :: failure
-  character(len=*), parameter :: routineN='cpot_calc',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: handle,natom, ierr
-  REAL(kind=dp) :: e1,e2,dcpot
+    TYPE(cpot_type), POINTER                 :: cpot_env
+    REAL(kind=dp), INTENT(in)                :: e_s_1_1
+    REAL(kind=dp), DIMENSION(*), INTENT(in)  :: pos_s_1_1
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  failure=.false.
+    CHARACTER(len=*), PARAMETER :: routineN = 'cpot_calc', &
+      routineP = moduleN//':'//routineN
 
-  call timeset(routineN,handle)
+    INTEGER                                  :: handle, ierr, natom
+    LOGICAL                                  :: failure
+    REAL(kind=dp)                            :: dcpot, e1, e2
+
+  failure=.FALSE.
+
+  CALL timeset(routineN,handle)
   IF (.NOT.failure) THEN
      cpot_env%e_s_1_1=e_s_1_1
      CALL cp_get_natom(cpot_env%s_1_2_id,natom,ierr)
@@ -312,7 +325,7 @@ SUBROUTINE cpot_calc(cpot_env, e_s_1_1,pos_s_1_1,error)
      cpot_env%sum_cpot=cpot_env%sum_cpot+dcpot
      cpot_env%sum_cpotsq=cpot_env%sum_cpotsq+dcpot*dcpot
   END IF
-  call timestop(handle)
+  CALL timestop(handle)
 END SUBROUTINE cpot_calc
 !***************************************************************************
 

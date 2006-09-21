@@ -40,6 +40,8 @@ MODULE constraint
   USE input_constants,                 ONLY: npt_f_ensemble,&
                                              npt_i_ensemble
   USE kinds,                           ONLY: dp
+  USE mathlib,                         ONLY: matmul_3x3,&
+                                             transpose_3d
   USE md,                              ONLY: simulation_parameters_type
   USE message_passing,                 ONLY: mp_sum
   USE molecule_kind_types,             ONLY: colvar_constraint_type,&
@@ -56,8 +58,6 @@ MODULE constraint
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE mathlib,                         ONLY: matmul_3x3,&
-                                             transpose_3d
   USE virial_types,                    ONLY: virial_type
 #include "cp_common_uses.h"
 
@@ -92,7 +92,7 @@ CONTAINS
     TYPE(particle_type), POINTER             :: particle_set( : )
     REAL(KIND=dp), INTENT(INOUT)             :: pos( :, : ), vel( :, : )
     REAL(kind=dp), INTENT(in)                :: dt, shake_tol
-    INTEGER, intent(in)                      :: log_unit
+    INTEGER, INTENT(in)                      :: log_unit
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
@@ -168,7 +168,7 @@ CONTAINS
     TYPE(particle_type), POINTER             :: particle_set( : )
     REAL(KIND=dp), INTENT(INOUT)             :: vel( :, : )
     REAL(kind=dp), INTENT(in)                :: dt, shake_tol
-    INTEGER, intent(in)                      :: log_unit
+    INTEGER, INTENT(in)                      :: log_unit
     TYPE(cell_type), POINTER                 :: cell
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error

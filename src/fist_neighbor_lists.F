@@ -50,6 +50,7 @@ MODULE fist_neighbor_lists
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
                                              int_size
+  USE mathlib,                         ONLY: matvec_3x3
   USE particle_types,                  ONLY: particle_type
   USE qmmm_ff_fist,                    ONLY: qmmm_ff_precond_only_qm
   USE qs_neighbor_lists,               ONLY: allocate_subcell,&
@@ -62,7 +63,6 @@ MODULE fist_neighbor_lists
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE util,                            ONLY: sort
-  USE mathlib,                         ONLY: matvec_3x3
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -109,8 +109,8 @@ CONTAINS
       POINTER                                :: atomic_kind_set
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(distribution_1d_type), POINTER,&
-         OPTIONAL                            :: local_particles
+    TYPE(distribution_1d_type), OPTIONAL, &
+      POINTER                                :: local_particles
     TYPE(cell_type), POINTER                 :: cell
     REAL(dp), DIMENSION(:, :), INTENT(IN)    :: r_max, r_minsq
     TYPE(fist_neighbor_type), POINTER        :: nonbonded
@@ -124,16 +124,16 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     CHARACTER(LEN=default_string_length)     :: kind_name, print_key_path
-    INTEGER :: atom_a, handle, iatom, iatom_local, ikind, istat, iw, maxatom, &
+    INTEGER :: atom_a, handle, iatom_local, ikind, istat, iw, maxatom, &
       maxatom_local, natom_local_a, nkind, output_unit
-    LOGICAL                                  :: print_subcell_grid
+    LOGICAL                                  :: present_local_particles, &
+                                                print_subcell_grid
     LOGICAL, DIMENSION(:), POINTER           :: skip_kind
     REAL(dp), DIMENSION(3)                   :: r_pbc
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(local_atoms_type), ALLOCATABLE, &
       DIMENSION(:)                           :: atom
-    LOGICAL :: present_local_particles
 
     CALL timeset(routineN,"I","",handle)
     NULLIFY(logger)
@@ -298,19 +298,19 @@ CONTAINS
     INTEGER :: a_i, a_j, a_k, atom_a, atom_b, b_i, b_j, b_k, b_pi, b_pj, &
       b_pk, bg_i, bg_j, bg_k, dim1, dim1p, dim2, dim2p, g00, g0_i, g0_j, &
       g0_k, g_i, g_j, g_k, glob_a_index, glob_b_index, handle, i, i1, iab, &
-      iatom_local, icell, icellmap, ii, ij, ik, ikind, imap, &
-      imax_cell, iw, ix, j, j1, jatom_local, jcell, jkind, jx, k, kcell, kx, &
-      natom_local_a, ncellmax, nkind, nkind00, pre_glob_ind, stat, tmpdim, &
-      xdim
+      iatom_local, icell, icellmap, ii, ij, ik, ikind, imap, imax_cell, iw, &
+      ix, j, j1, jatom_local, jcell, jkind, jx, k, kcell, kx, natom_local_a, &
+      ncellmax, nkind, nkind00, pre_glob_ind, stat, tmpdim, xdim
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: work
     INTEGER, ALLOCATABLE, DIMENSION(:, :, :) :: cellmap
     INTEGER, DIMENSION(3)                    :: isubcell, ncell, nsubcell, &
-                                                periodic 
+                                                periodic
     LOGICAL                                  :: added, failure, subcell000
     LOGICAL, ALLOCATABLE, DIMENSION(:, :, :) :: sphcub
     REAL(dp)                                 :: rab2, rab2_max, rab2_min, &
                                                 rab_max, unit_of_length
-    REAL(dp), DIMENSION(3)                   :: abc, cell_v, r, rab, sab_max, rb, cv_b
+    REAL(dp), DIMENSION(3)                   :: abc, cell_v, cv_b, r, rab, &
+                                                rb, sab_max
     REAL(KIND=dp)                            :: ic(3), icx(3), vv
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: coord

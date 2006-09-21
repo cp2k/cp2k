@@ -23,6 +23,8 @@ MODULE constraint_4x6
                                              get_atomic_kind
   USE kinds,                           ONLY: dp
   USE linear_systems,                  ONLY: solve_system
+  USE mathlib,                         ONLY: dotprod_3d,&
+                                             matvec_3x3
   USE molecule_kind_types,             ONLY: g4x6_constraint_type,&
                                              get_molecule_kind,&
                                              molecule_kind_type
@@ -32,8 +34,6 @@ MODULE constraint_4x6
   USE particle_types,                  ONLY: particle_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE mathlib,                         ONLY: dotprod_3d,&
-                                             matvec_3x3
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -565,7 +565,7 @@ CONTAINS
     TYPE(molecule_type), POINTER             :: molecule
     TYPE(particle_type), POINTER             :: particle_set( : )
     REAL(KIND=dp), INTENT(INOUT)             :: vel( :, : )
-    REAL(kind=dp), INTENT(in)                :: dt,shake_tol
+    REAL(kind=dp), INTENT(in)                :: dt, shake_tol
 
     INTEGER                                  :: first_atom, iconst, index_a, &
                                                 index_b, index_c, index_d, &

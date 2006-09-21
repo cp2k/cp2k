@@ -47,7 +47,6 @@ MODULE fist_force
                                              density_nonbond,&
                                              energy_manybody,&
                                              force_nonbond
-  USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: do_ewald_ewald,&
                                              do_ewald_none,&
                                              do_ewald_pme,&

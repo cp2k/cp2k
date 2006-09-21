@@ -58,7 +58,6 @@ MODULE qs_scf_post
                                              cp_subsystem_type
   USE external_potential_types,        ONLY: get_potential,&
                                              gth_potential_type
-  USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: do_loc_none,&
                                              ot_precond_full_all
   USE input_section_types,             ONLY: section_get_ival,&

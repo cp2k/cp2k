@@ -31,7 +31,6 @@ MODULE atoms_input
                                              get_cell,&
                                              scaled_to_real
   USE checkpoint_handler,              ONLY: Pwarning
-  USE global_types,                    ONLY: global_environment_type
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&

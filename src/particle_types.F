@@ -34,10 +34,7 @@ MODULE particle_types
                                              pbc
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
-  USE cp_para_types,                   ONLY: cp_para_env_type
-  USE input_constants,                 ONLY: do_bondparm_covalent,&
-                                             do_bondparm_vdw,&
-                                             dump_atomic,&
+  USE input_constants,                 ONLY: dump_atomic,&
                                              dump_dcd,&
                                              dump_xmol
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
@@ -51,10 +48,7 @@ MODULE particle_types
   USE mathconstants,                   ONLY: degree
   USE mathlib,                         ONLY: angle,&
                                              dihedral_angle
-  USE memory_utilities,                ONLY: reallocate
-  USE message_passing,                 ONLY: mp_allgather,&
-                                             mp_bcast,&
-                                             mp_sum
+  USE message_passing,                 ONLY: mp_sum
   USE physcon,                         ONLY: angstrom,&
                                              femtoseconds,&
                                              massunit
@@ -64,7 +58,6 @@ MODULE particle_types
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE util,                            ONLY: find_boundary
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -701,10 +694,8 @@ END SUBROUTINE clone_particle
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_particle_distances'
 
-    CHARACTER(LEN=2)                         :: element_symbol
     CHARACTER(LEN=8)                         :: unit_of_length_name
-    INTEGER                                  :: from, iatom, icol, ikind, &
-                                                istat, iw, jatom, natom, to
+    INTEGER                                  :: iatom, istat, iw, jatom, natom
     INTEGER, DIMENSION(3)                    :: periodic
     REAL(KIND=dp)                            :: dab, unit_of_length
     REAL(KIND=dp), ALLOCATABLE, &
@@ -759,17 +750,19 @@ END SUBROUTINE clone_particle
 ! *****************************************************************************
 
   SUBROUTINE write_particle_matrix(matrix,particle_set,iw,el_per_part,error)
-    REAL(KIND=dp), DIMENSION(:,:)               :: matrix
-    INTEGER ,INTENT(IN)                         :: iw
-    INTEGER, INTENT(IN), OPTIONAL               :: el_per_part
+    REAL(KIND=dp), DIMENSION(:, :)           :: matrix
     TYPE(particle_type), DIMENSION(:), &
-         POINTER                                :: particle_set
+      POINTER                                :: particle_set
+    INTEGER, INTENT(IN)                      :: iw
+    INTEGER, INTENT(IN), OPTIONAL            :: el_per_part
     TYPE(cp_error_type), INTENT(INOUT), &
-         OPTIONAL                               :: error
+      OPTIONAL                               :: error
 
-    INTEGER :: jatom, natom, from, to, icol, iatom, my_el_per_part, katom
-    CHARACTER (LEN=2) :: element_symbol
-    
+    CHARACTER(LEN=2)                         :: element_symbol
+    INTEGER                                  :: from, iatom, icol, jatom, &
+                                                katom, my_el_per_part, natom, &
+                                                to
+
     my_el_per_part = 1
     IF (PRESENT(el_per_part)) my_el_per_part = el_per_part
     natom = SIZE(particle_set)*my_el_per_part
@@ -1030,11 +1023,13 @@ END SUBROUTINE clone_particle
     
     TYPE(particle_type), POINTER             :: particle_set( : )
     INTEGER, INTENT(IN)                      :: int_group
-    REAL(KIND=dp), INTENT(INOUT), OPTIONAL   :: pos( :, : ), vel( :, : ), for(:,:)
+    REAL(KIND=dp), INTENT(INOUT), OPTIONAL   :: pos( :, : ), vel( :, : ), &
+                                                for(:,:)
     LOGICAL, INTENT(IN), OPTIONAL            :: add
-    
+
     INTEGER                                  :: iparticle, nparticle
-    LOGICAL                                  :: update_pos, update_vel, update_for, my_add
+    LOGICAL                                  :: my_add, update_for, &
+                                                update_pos, update_vel
 
     nparticle  = SIZE ( particle_set )
     update_pos = PRESENT(pos)

@@ -35,16 +35,11 @@ MODULE qs_force
   USE harris_force,                    ONLY: harris_force_correction
   USE harris_force_types,              ONLY: harris_force_create,&
                                              harris_force_type
+  USE input_section_types,             ONLY: section_vals_get_subs_vals,&
+                                             section_vals_type,&
+                                             section_vals_val_get
   USE kinds,                           ONLY: dp,&
                                              int_size
-  USE input_section_types,             ONLY: section_get_ival,&
-                                             section_vals_get_subs_vals,&
-                                             section_vals_release,&
-                                             section_vals_retain,&
-                                             section_vals_type,&
-                                             section_vals_val_get,&
-                                             section_vals_val_set,&
-                                             section_vals_write
   USE message_passing,                 ONLY: mp_sum
   USE mulliken,                        ONLY: mulliken_restraint
   USE particle_types,                  ONLY: particle_type
@@ -115,6 +110,7 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'qs_forces', &
       routineP = moduleN//':'//routineN
+
     INTEGER                                  :: dir, handle, i, iatom, ikind, &
                                                 ispin, istat, iw, natom, &
                                                 nkind, nspin, output_unit
@@ -144,8 +140,9 @@ CONTAINS
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_ks, matrix_s, matrix_w
     TYPE(scf_control_type), POINTER          :: scf_control
+    TYPE(section_vals_type), POINTER         :: print_section
     TYPE(virial_type), POINTER               :: virial
-    TYPE(section_vals_type),POINTER          :: print_section
+
 ! -------------------------------------------------------------------------
 
     CALL timeset(routineN,"I","",handle)
@@ -434,7 +431,7 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: ftype
     TYPE(virial_type), OPTIONAL, POINTER     :: virial
     INTEGER, INTENT(IN)                      :: output_unit
-    TYPE(section_vals_type),POINTER          :: print_section
+    TYPE(section_vals_type), POINTER         :: print_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 

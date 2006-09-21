@@ -27,7 +27,6 @@ MODULE kg_gpw_fm_mol_utils
   USE cp_files,                        ONLY: close_file,&
                                              open_file
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE global_types,                    ONLY: global_environment_type
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE kg_gpw_fm_mol_types,             ONLY: fm_mol_blocks_type,&

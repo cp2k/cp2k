@@ -58,8 +58,8 @@ MODULE mc_run
   USE global_types,                    ONLY: global_environment_type,&
                                              globenv_release
   USE input_section_types,             ONLY: section_vals_get,&
-                                             section_vals_type,&
-                                             section_vals_release
+                                             section_vals_release,&
+                                             section_vals_type
   USE kinds,                           ONLY: dp
   USE mc_control,                      ONLY: mc_create_force_env,&
                                              read_mc_restart

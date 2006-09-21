@@ -48,11 +48,11 @@ MODULE environment
                                              int_size,&
                                              print_kind_info
   USE machine,                         ONLY: m_datum,&
+                                             m_flush,&
                                              m_getcwd,&
                                              m_getlog,&
                                              m_getpid,&
-                                             m_hostnm,&
-                                             m_flush
+                                             m_hostnm
   USE message_passing,                 ONLY: add_mp_perf_env,&
                                              describe_mp_perf_env,&
                                              mp_sum,&

@@ -28,7 +28,6 @@ MODULE nhc_mapping
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_type,&
                                              get_dyn_coeff
   USE extended_system_types,           ONLY: lnhc_parameters_type
-  USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: &
        do_nhcopt_global, do_nhcopt_massive, do_nhcopt_molecule, &
        isokin_ensemble, langevin_ensemble, nhc_global, nhc_massive, &

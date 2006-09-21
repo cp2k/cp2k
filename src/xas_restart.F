@@ -29,25 +29,20 @@
 MODULE xas_restart
 
 
-  USE atomic_kind_types,               ONLY: atomic_kind_type,&
-                                             get_atomic_kind
+  USE atomic_kind_types,               ONLY: get_atomic_kind
   USE basis_set_types,                 ONLY: get_gto_basis_set,&
                                              gto_basis_set_type
   USE cp_control_types,                ONLY: dft_control_type
-  USE cp_files,                        ONLY: close_file, open_file
+  USE cp_files,                        ONLY: close_file,&
+                                             open_file
   USE cp_fm_types,                     ONLY: cp_fm_set_all,&
                                              cp_fm_set_submatrix,&
                                              cp_fm_type
-  USE cp_output_handling,              ONLY: cp_p_file,&
-                                             cp_print_key_finished_output,&
-                                             cp_print_key_should_output,&
-                                             cp_print_key_unit_nr
-                                             
+  USE cp_output_handling,              ONLY: cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE input_section_types,             ONLY: section_get_ival,&
-                                             section_vals_get_subs_vals,&
-                                             section_vals_type
-  USE kinds,                           ONLY: default_path_length,dp
+  USE input_section_types,             ONLY: section_vals_type
+  USE kinds,                           ONLY: default_path_length,&
+                                             dp
   USE message_passing,                 ONLY: mp_bcast
   USE orbital_pointers,                ONLY: nso
   USE output_utilities,                ONLY: print_warning
@@ -56,8 +51,8 @@ MODULE xas_restart
                                              qs_environment_type
   USE qs_mo_methods,                   ONLY: calculate_density_matrix,&
                                              make_basis_sm
-  USE qs_mo_types,                     ONLY: get_mo_set, &
-                                             mo_set_p_type, &
+  USE qs_mo_types,                     ONLY: get_mo_set,&
+                                             mo_set_p_type,&
                                              write_mo_set
   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
   USE qs_rho_types,                    ONLY: qs_rho_type
@@ -67,7 +62,6 @@ MODULE xas_restart
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE xas_control,                     ONLY: xas_control_type
-
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -121,15 +115,16 @@ CONTAINS
       OPTIONAL                               :: error
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'read_mo_set_restart_xas', &
-      routineP = moduleN//":"//routineN
+      routineP = moduleN//':'//routineN
 
-    INTEGER :: group, homo, i, iatom, irow, iset, iset_read, ishell, ishell_read, iso, &
-    ispin, istat, lshell, nao,nao_read, natom, natom_read, nmo, nmo_read, nset, &
-    nset_max, nshell_max, nspin, nspin_read, offset_read, source
+    INTEGER :: group, homo, i, iatom, irow, iset, iset_read, ishell, &
+      ishell_read, iso, ispin, istat, lshell, nao, nao_read, natom, &
+      natom_read, nmo, nmo_read, nset, nset_max, nshell_max, nspin, &
+      nspin_read, offset_read, source
     INTEGER, DIMENSION(:), POINTER           :: nset_info, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: l, nshell_info
     INTEGER, DIMENSION(:, :, :), POINTER     :: nso_info, offset_info
-    LOGICAL :: failure, use_this
+    LOGICAL                                  :: failure, use_this
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: vecbuffer, vecbuffer_read
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -378,24 +373,25 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'read_mo_set_xas', &
-      routineP = moduleN//":"//routineN
-  
-    CHARACTER(LEN=default_path_length) ::  filename
-    INTEGER  :: handle, homo, group, ia, ie, ispin, istate, nspin, &
-                output_unit, rst_unit, source
-    LOGICAL                                  :: ionode, failure, file_exists
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'xas_read_restart', &
+      routineP = moduleN//':'//routineN
+
+    CHARACTER(LEN=default_path_length)       :: filename
+    INTEGER                                  :: group, handle, homo, ia, ie, &
+                                                ispin, istate, nspin, &
+                                                output_unit, rst_unit, source
+    LOGICAL                                  :: failure, file_exists, ionode
     REAL(dp), DIMENSION(:), POINTER          :: occupation_numbers
     TYPE(cp_fm_type), POINTER                :: mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mos
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_s
-    TYPE(cp_para_env_type), POINTER          :: para_env
 
 !   ---------------------------------------------------------------------------
-    
+
     CALL timeset(routineN,"I","",handle)
 
     failure = .FALSE.
@@ -500,8 +496,9 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'xas_write_restart', &
       routineP = moduleN//':'//routineN
 
-    CHARACTER(LEN=default_path_length)                         :: filename
-    INTEGER     :: handle, group, ia, ie, output_unit, rst_unit, source
+    CHARACTER(LEN=default_path_length)       :: filename
+    INTEGER                                  :: group, handle, ia, ie, &
+                                                output_unit, rst_unit, source
     LOGICAL                                  :: failure, ionode
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env

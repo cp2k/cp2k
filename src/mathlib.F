@@ -23,16 +23,17 @@
 MODULE mathlib
 
   USE kinds,                           ONLY: default_string_length,&
-       dp,&
-       dp_size,&
-       int_size
+                                             dp,&
+                                             dp_size,&
+                                             int_size
   USE mathconstants,                   ONLY: euler,&
-       fac
+                                             fac
   USE output_utilities,                ONLY: print_message
   USE termination,                     ONLY: get_error_unit,&
-       stop_memory,&
-       stop_program
-  USE timings,                         ONLY: timeset,timestop
+                                             stop_memory,&
+                                             stop_program
+  USE timings,                         ONLY: timeset,&
+                                             timestop
 
   IMPLICIT NONE
 
@@ -98,7 +99,7 @@ CONTAINS
     REAL(KIND=dp)                            :: length_of_a, length_of_b
     REAL(KIND=dp), DIMENSION(SIZE(a, 1))     :: a_norm, b_norm
 
-    !   ---------------------------------------------------------------------------
+!   ---------------------------------------------------------------------------
 
     length_of_a = SQRT(DOT_PRODUCT(a,a))
     length_of_b = SQRT(DOT_PRODUCT(b,b))
@@ -127,7 +128,7 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: n, k
     REAL(KIND=dp)                            :: n_over_k
 
-    !   ---------------------------------------------------------------------------
+!   ---------------------------------------------------------------------------
 
     IF ((k >= 0).AND.(k <= n)) THEN
        n_over_k = fac(n)/(fac(n-k)*fac(k))
@@ -152,13 +153,13 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: phi
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: a
     REAL(KIND=dp), DIMENSION(3, 3), &
-         INTENT(OUT)                            :: rotmat
+      INTENT(OUT)                            :: rotmat
 
     REAL(KIND=dp)                            :: cosp, cost, length_of_a, sinp
     REAL(KIND=dp), DIMENSION(3)              :: d
 
-    !   ---------------------------------------------------------------------------
-    !   *** Check the length of the vector a ***
+!   ---------------------------------------------------------------------------
+!   *** Check the length of the vector a ***
 
     length_of_a = SQRT(a(1)*a(1) + a(2)*a(2) + a(3)*a(3))
 
@@ -199,10 +200,10 @@ CONTAINS
     !   ***************************************************************************
 
     REAL(KIND=dp), DIMENSION(3, 3), &
-         INTENT(IN)                             :: a
+      INTENT(IN)                             :: a
     REAL(KIND=dp)                            :: det_a
 
-    !   ---------------------------------------------------------------------------
+!   ---------------------------------------------------------------------------
 
     det_a = a(1,1)*(a(2,2)*a(3,3) - a(2,3)*a(3,2)) +&
             a(1,2)*(a(2,3)*a(3,1) - a(2,1)*a(3,3)) +&
@@ -223,7 +224,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: a1, a2, a3
     REAL(KIND=dp)                            :: det_a
 
-    !   ---------------------------------------------------------------------------
+!   ---------------------------------------------------------------------------
 
     det_a = a1(1)*(a2(2)*a3(3) - a3(2)*a2(3)) +&
          a2(1)*(a3(2)*a1(3) - a1(2)*a3(3)) +&
@@ -250,20 +251,20 @@ CONTAINS
     !   ***************************************************************************
 
     REAL(KIND=dp), DIMENSION(:, :), &
-         INTENT(INOUT)                          :: a
+      INTENT(INOUT)                          :: a
     REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: eigval
     LOGICAL, INTENT(IN), OPTIONAL            :: dac
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'diamat_all'
 
-    INTEGER                                  :: info, istat, liwork, lwork, &
-         n, nb, handle
+    INTEGER                                  :: handle, info, istat, liwork, &
+                                                lwork, n, nb
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: iwork
     INTEGER, EXTERNAL                        :: ilaenv
     LOGICAL                                  :: divide_and_conquer
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: work
 
-    !   *** Externals (LAPACK 3.0) ***
+!   *** Externals (LAPACK 3.0) ***
 
     EXTERNAL dsyev,dsyevd
 
@@ -368,9 +369,9 @@ CONTAINS
     REAL(KIND=dp)                            :: det_abcd
     REAL(KIND=dp), DIMENSION(3)              :: abc, bcd
 
-    !   ---------------------------------------------------------------------------
-    !   *** Calculate the normal vectors of the planes ***
-    !   *** defined by the points a,b,c and b,c,d      ***
+!   ---------------------------------------------------------------------------
+!   *** Calculate the normal vectors of the planes ***
+!   *** defined by the points a,b,c and b,c,d      ***
 
     abc = vector_product(bc,-ab)
     bcd = vector_product(cd,-bc)
@@ -405,7 +406,7 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN)                :: radius, threshold, prefactor
     REAL(KIND=dp)                            :: exponent
 
-    !   ---------------------------------------------------------------------------
+!   ---------------------------------------------------------------------------
 
     exponent = 0.0_dp
 
@@ -427,13 +428,13 @@ CONTAINS
     !   ***************************************************************************
 
     REAL(KIND=dp), DIMENSION(:, :), &
-         INTENT(IN)                             :: a
+      INTENT(IN)                             :: a
     REAL(KIND=dp), &
-         DIMENSION(MIN(SIZE(a, 1), SIZE(a, 2))) :: a_diag
+      DIMENSION(MIN(SIZE(a, 1), SIZE(a, 2))) :: a_diag
 
     INTEGER                                  :: i, n
 
-    !   ---------------------------------------------------------------------------
+!   ---------------------------------------------------------------------------
 
     n = MIN(SIZE(a,1),SIZE(a,2))
 
@@ -454,12 +455,12 @@ CONTAINS
     !   ***************************************************************************
 
     REAL(KIND=dp), DIMENSION(3, 3), &
-         INTENT(IN)                             :: a
+      INTENT(IN)                             :: a
     REAL(KIND=dp), DIMENSION(3, 3)           :: a_inv
 
     REAL(KIND=dp)                            :: det_a
 
-    !   ---------------------------------------------------------------------------
+!   ---------------------------------------------------------------------------
 
     det_a = 1.0_dp/det_3x3(a)
 
@@ -500,9 +501,9 @@ CONTAINS
     !   ***************************************************************************
 
     REAL(KIND=dp), DIMENSION(:, :), &
-         INTENT(IN)                             :: a
+      INTENT(IN)                             :: a
     REAL(KIND=dp), DIMENSION(:, :), &
-         INTENT(OUT)                            :: a_inverse
+      INTENT(OUT)                            :: a_inverse
     REAL(KIND=dp), INTENT(OUT)               :: error
     CHARACTER(LEN=1), INTENT(IN), OPTIONAL   :: option
 
@@ -511,15 +512,15 @@ CONTAINS
     CHARACTER(LEN=1)                         :: norm, trans
     CHARACTER(LEN=80)                        :: message
     INTEGER                                  :: info, istat, iter, n, &
-         output_unit
+                                                output_unit
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: ipiv, iwork
     REAL(KIND=dp)                            :: a_norm, old_error, r_cond
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: berr, ferr, work
     REAL(KIND=dp), ALLOCATABLE, &
-         DIMENSION(:, :)                        :: a_lu, b
+      DIMENSION(:, :)                        :: a_lu, b
     REAL(KIND=dp), EXTERNAL                  :: dlange
 
-    !   *** Externals (LAPACK 3.0) ***
+!   *** Externals (LAPACK 3.0) ***
 
     EXTERNAL dgecon,dgerfs,dgetrf,dgetrs
 
@@ -711,9 +712,9 @@ CONTAINS
     !   ***************************************************************************
 
     REAL(KIND=dp), DIMENSION(:, :), &
-         INTENT(INOUT)                          :: a
+      INTENT(INOUT)                          :: a
     REAL(KIND=dp), DIMENSION(:, :), &
-         INTENT(OUT)                            :: a_power
+      INTENT(OUT)                            :: a_power
     REAL(KIND=dp), INTENT(IN)                :: exponent
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: threshold
     INTEGER, INTENT(OUT), OPTIONAL           :: n_dependent
@@ -826,7 +827,7 @@ CONTAINS
     REAL(KIND=dp)                            :: length_of_b, scapro
     REAL(KIND=dp), DIMENSION(3)              :: d
 
-    !   ---------------------------------------------------------------------------
+!   ---------------------------------------------------------------------------
 
     length_of_b = SQRT(b(1)*b(1) + b(2)*b(2) + b(3)*b(3))
 
@@ -868,7 +869,7 @@ CONTAINS
     REAL(KIND=dp)                            :: length_of_b
     REAL(KIND=dp), DIMENSION(3, 3)           :: rotmat
 
-    !   ---------------------------------------------------------------------------
+!   ---------------------------------------------------------------------------
 
     length_of_b = SQRT(b(1)*b(1) + b(2)*b(2) + b(3)*b(3))
 
@@ -901,12 +902,12 @@ CONTAINS
     !   ***************************************************************************
 
     REAL(KIND=dp), DIMENSION(:, :), &
-         INTENT(INOUT)                          :: a
+      INTENT(INOUT)                          :: a
     REAL(KIND=dp), INTENT(IN)                :: b
 
     INTEGER                                  :: i, n
 
-    !   ---------------------------------------------------------------------------
+!   ---------------------------------------------------------------------------
 
     n = MIN(SIZE(a,1),SIZE(a,2))
 
@@ -927,14 +928,14 @@ CONTAINS
     !   ***************************************************************************
 
     REAL(KIND=dp), DIMENSION(:, :), &
-         INTENT(INOUT)                          :: a
+      INTENT(INOUT)                          :: a
     REAL(KIND=dp), DIMENSION(:), INTENT(IN)  :: b
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'set_diag_vector'
 
     INTEGER                                  :: i, n
 
-    !   ---------------------------------------------------------------------------
+!   ---------------------------------------------------------------------------
 
     n = MIN(SIZE(a,1),SIZE(a,2))
 
@@ -960,7 +961,7 @@ CONTAINS
     !   ***************************************************************************
 
     REAL(KIND=dp), DIMENSION(:, :), &
-         INTENT(INOUT)                          :: a
+      INTENT(INOUT)                          :: a
     CHARACTER(LEN=*), INTENT(IN)             :: option
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'symmetrize_matrix'
@@ -968,7 +969,7 @@ CONTAINS
     CHARACTER(LEN=default_string_length)     :: message
     INTEGER                                  :: i, n
 
-    !   ---------------------------------------------------------------------------
+!   ---------------------------------------------------------------------------
 
     n = MIN(SIZE(a,1),SIZE(a,2))
 
@@ -1007,9 +1008,9 @@ CONTAINS
     !   ***************************************************************************
 
     REAL(KIND=dp), DIMENSION(:, :), &
-         INTENT(INOUT)                          :: a
+      INTENT(INOUT)                          :: a
 
-    !   ---------------------------------------------------------------------------
+!   ---------------------------------------------------------------------------
 
     a(:,:) = 0.0_dp
 
@@ -1030,7 +1031,7 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: a, b
     REAL(KIND=dp), DIMENSION(3)              :: c
 
-    !   ---------------------------------------------------------------------------
+!   ---------------------------------------------------------------------------
 
     c(1) = a(2)*b(3) - a(3)*b(2)
     c(2) = a(3)*b(1) - a(1)*b(3)
@@ -1151,7 +1152,7 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'ei'
     INTEGER, PARAMETER                       :: maxit = 100
     REAL(dp), PARAMETER                      :: eps = 6.e-14_dp, &
-         fpmin = 1.e-100_dp
+                                                fpmin = 1.e-100_dp
 
     INTEGER                                  :: k
     REAL(dp)                                 :: fact, prev, sum1, term
@@ -1195,8 +1196,9 @@ CONTAINS
 
   FUNCTION matmul_3x3 ( mat1, mat2 )
     REAL(KIND=dp), DIMENSION(3, 3), &
-         INTENT(IN)                             :: mat1, mat2
+      INTENT(IN)                             :: mat1, mat2
     REAL(KIND=dp), DIMENSION(3, 3)           :: matmul_3x3
+
     matmul_3x3(1,1)=mat1(1,1)*mat2(1,1)+mat1(1,2)*mat2(2,1)+mat1(1,3)*mat2(3,1)
     matmul_3x3(1,2)=mat1(1,1)*mat2(1,2)+mat1(1,2)*mat2(2,2)+mat1(1,3)*mat2(3,2)
     matmul_3x3(1,3)=mat1(1,1)*mat2(1,3)+mat1(1,2)*mat2(2,3)+mat1(1,3)*mat2(3,3)
@@ -1213,8 +1215,9 @@ CONTAINS
   SUBROUTINE matvec_3x3 (res, mat, vec )
     REAL(KIND=dp), DIMENSION(3), INTENT(OUT) :: res
     REAL(KIND=dp), DIMENSION(3, 3), &
-         INTENT(IN)                             :: mat
+      INTENT(IN)                             :: mat
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: vec
+
     res(1)=mat(1,1)*vec(1)+mat(1,2)*vec(2)+mat(1,3)*vec(3)
     res(2)=mat(2,1)*vec(1)+mat(2,2)*vec(2)+mat(2,3)*vec(3)
     res(3)=mat(3,1)*vec(1)+mat(3,2)*vec(2)+mat(3,3)*vec(3)
@@ -1225,6 +1228,7 @@ CONTAINS
   FUNCTION dotprod_3d ( vec1, vec2 )
     REAL(KIND=dp), DIMENSION(3), INTENT(IN)  :: vec1, vec2
     REAL(KIND=dp)                            :: dotprod_3d
+
     dotprod_3d = &
          vec1 ( 1 ) * vec2 ( 1 ) &
          + vec1 ( 2 ) * vec2 ( 2 ) &
@@ -1235,10 +1239,11 @@ CONTAINS
 
   FUNCTION transpose_3d ( mat )
     REAL(KIND=dp), DIMENSION(3, 3), &
-         INTENT(IN)                             :: mat
+      INTENT(IN)                             :: mat
     REAL(KIND=dp), DIMENSION(3, 3)           :: transpose_3d
 
     INTEGER                                  :: i, j
+
     DO i = 1, 3
        DO j = 1, 3
           transpose_3d ( j, i ) = mat ( i, j )

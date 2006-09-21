@@ -35,7 +35,6 @@ MODULE metadynamics
                                              cp_subsystem_p_type
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
-  USE global_types,                    ONLY: global_environment_type
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
@@ -185,8 +184,8 @@ CONTAINS
 !!*** **********************************************************************
   SUBROUTINE metadyn_read(meta_env,root_section,para_env,metadyn_section,error)
     TYPE(meta_env_type), POINTER             :: meta_env
-    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), POINTER         :: root_section
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(section_vals_type), OPTIONAL, &
       POINTER                                :: metadyn_section
     TYPE(cp_error_type), INTENT(inout), &

@@ -52,9 +52,9 @@ MODULE force_fields_util
        ub_kind_dealloc_ref, ub_kind_type
   USE input_constants,                 ONLY: do_qmmm_none
   USE input_section_types,             ONLY: section_vals_type
-  USE kinds,                           ONLY: default_string_length,&
-                                             dp,&
-                                             default_path_length
+  USE kinds,                           ONLY: default_path_length,&
+                                             default_string_length,&
+                                             dp
   USE manybody_potential,              ONLY: spline_manybody_control
   USE memory_utilities,                ONLY: reallocate
   USE molecule_kind_types,             ONLY: &
@@ -81,7 +81,9 @@ MODULE force_fields_util
                                              spline_env_create,&
                                              spline_env_release,&
                                              spline_environment_type
-  USE string_utilities,                ONLY: uppercase, integer_to_string, compress
+  USE string_utilities,                ONLY: compress,&
+                                             integer_to_string,&
+                                             uppercase
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -151,15 +153,17 @@ CONTAINS
     CHARACTER(LEN=default_string_length) :: atmname, ldum, name_atm_a, &
       name_atm_a2, name_atm_a_local, name_atm_b, name_atm_b2, &
       name_atm_b_local, name_atm_c, name_atm_c2, name_atm_d, name_atm_d2
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(:), POINTER                  :: Ainfo
     INTEGER :: atm_a, atm_b, atm_c, atm_d, counter, first, handle, handle2, &
       i, ii, ikind, ilink, imul, itype, iw, iw2, iw3, iw4, j, jj, jkind, k, &
       last, match_names, n, natom, nbend, nbond, nimpr, nkinds, nonfo, &
-      ntorsion, nub, stat
+      ntorsion, nub, output_unit, stat
     INTEGER, DIMENSION(:), POINTER           :: molecule_list, my_atom_list
     INTEGER, POINTER :: map_bend_kind(:), map_bond_kind(:), map_impr_kind(:), &
       map_onfo_kind(:), map_torsion_kind(:), map_ub_kind(:)
-    LOGICAL :: allocate_spline_bond_env, failure, found, found_a, found_b, &
-      is_link_atom, my_qmmm, only_qm, use_qmmm_ff
+    LOGICAL :: allocate_spline_bond_env, failure, fatal, found, found_a, &
+      found_b, ionode, is_link_atom, my_qmmm, only_qm, use_qmmm_ff
     REAL(KIND=dp)                            :: epsilon, epsilon_a, &
                                                 epsilon_b, qi1, qi2, qi3, &
                                                 qi4, rmin, rmin2_a, rmin2_b, &
@@ -197,9 +201,6 @@ CONTAINS
     TYPE(ub_kind_type), DIMENSION(:), &
       POINTER                                :: ub_kind_set
     TYPE(ub_type), DIMENSION(:), POINTER     :: ub_list
-    CHARACTER(LEN=default_string_length), DIMENSION(:), POINTER :: Ainfo
-    LOGICAL :: fatal, ionode
-    INTEGER :: output_unit
 
     CALL timeset(routineN,'I','',handle)
     failure = .FALSE.
@@ -1949,17 +1950,19 @@ CONTAINS
 !!   INPUTS
 !!*****************************************************************************
   SUBROUTINE release_FF_missing_par(fatal, array, output_unit, iw, error)
-    CHARACTER(LEN=default_string_length), DIMENSION(:), POINTER :: array
-    LOGICAL, INTENT(INOUT), OPTIONAL            :: fatal
-    INTEGER, INTENT(IN)                         :: output_unit,iw
+    LOGICAL, INTENT(INOUT), OPTIONAL         :: fatal
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(:), POINTER                  :: array
+    INTEGER, INTENT(IN)                      :: output_unit, iw
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'release_FF_missing_par', &
       routineP = moduleN//':'//routineN
-    LOGICAL :: failure    
-    INTEGER :: i, stat
-    
+
+    INTEGER                                  :: i, stat
+    LOGICAL                                  :: failure
+
     failure = .FALSE.
     IF (ASSOCIATED(array)) THEN
        IF (output_unit>0) THEN
@@ -2002,21 +2005,25 @@ CONTAINS
 !!   INPUTS
 !!*****************************************************************************
   SUBROUTINE store_FF_missing_par(atm1,atm2,atm3,atm4,type_name,fatal,array,error)
-    CHARACTER(LEN=*), INTENT(IN)                :: atm1, type_name
-    CHARACTER(LEN=*), INTENT(IN), OPTIONAL      :: atm2, atm3, atm4
-    CHARACTER(LEN=default_string_length), DIMENSION(:), POINTER :: array
-    LOGICAL, INTENT(INOUT), OPTIONAL            :: fatal
+    CHARACTER(LEN=*), INTENT(IN)             :: atm1
+    CHARACTER(LEN=*), INTENT(IN), OPTIONAL   :: atm2, atm3, atm4
+    CHARACTER(LEN=*), INTENT(IN)             :: type_name
+    LOGICAL, INTENT(INOUT), OPTIONAL         :: fatal
+    CHARACTER(LEN=default_string_length), &
+      DIMENSION(:), POINTER                  :: array
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'store_FF_missing_par', &
       routineP = moduleN//':'//routineN
-    LOGICAL :: failure, found
-    INTEGER :: nsize, fmt, i
-    CHARACTER(LEN=10) :: sfmt
-    CHARACTER(LEN=default_path_length) :: my_format
-    CHARACTER(LEN=4)  :: my_atm1, my_atm2, my_atm3, my_atm4
-    
+
+    CHARACTER(LEN=10)                        :: sfmt
+    CHARACTER(LEN=4)                         :: my_atm1, my_atm2, my_atm3, &
+                                                my_atm4
+    CHARACTER(LEN=default_path_length)       :: my_format
+    INTEGER                                  :: fmt, i, nsize
+    LOGICAL                                  :: failure, found
+
     failure = .FALSE.
     nsize   = 0
     fmt     = 1

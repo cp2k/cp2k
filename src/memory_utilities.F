@@ -21,11 +21,10 @@
 
 MODULE memory_utilities
 
-  USE input_section_types,             ONLY: section_vals_type
   USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_should_output
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE global_types,                    ONLY: global_environment_type
+  USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp,&
                                              dp_size,&
@@ -1057,7 +1056,7 @@ CONTAINS
 
     CHARACTER(LEN=*), INTENT(IN)             :: checkpoint
     TYPE(section_vals_type), POINTER         :: root_section
-    TYPE(cp_para_env_type), POINTER   :: para_env
+    TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(cp_error_type), INTENT(inout)       :: error
 
     CHARACTER(LEN=LEN_TRIM(checkpoint)+7)    :: string

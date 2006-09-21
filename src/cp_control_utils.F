@@ -21,20 +21,19 @@ MODULE cp_control_utils
                                              tddfpt_control_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
-  USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: &
        bsse_run, do_ddapc_constraint, do_ddapc_restraint, do_loc_crazy, &
        do_loc_direct, do_loc_jacobi, do_loc_none, do_method_am1, &
        do_method_eht, do_method_gapw, do_method_gapw_xc, do_method_gpw, &
        do_method_kg_pol, do_method_mndo, do_method_pdg, do_method_pm3, &
        do_pwgrid_ns_fullspace, do_pwgrid_ns_halfspace, do_pwgrid_spherical, &
-       do_s2_constraint, do_s2_restraint, electronic_spectra_run, vib_anal,&
+       do_s2_constraint, do_s2_restraint, electronic_spectra_run, &
        elstr_method_name, energy_force_run, energy_run, geo_opt_run, hmc_run, &
        ldmc_run, linear_response_run, mol_dyn_run, mon_car_run, op_loc_berry, &
-       op_loc_boys, pint_run, qs_debug_run, quadrature_name, run_type_names, &
-       sic_ad, sic_mauri_spz, sic_mauri_us, sic_none, state_loc_all, &
+       op_loc_boys, pint_run, qs_debug_run, quadrature_name, sic_ad, &
+       sic_mauri_spz, sic_mauri_us, sic_none, state_loc_all, &
        state_loc_fromitoj, state_loc_list, state_loc_upton, &
-       tddfpt_excitations, xc_debug_new_routine, xc_deriv_fd, &
+       tddfpt_excitations, vib_anal, xc_debug_new_routine, xc_deriv_fd, &
        xc_deriv_nn10_smooth, xc_deriv_nn50_smooth, xc_deriv_pw, &
        xc_deriv_spline2, xc_deriv_spline2_smooth, xc_deriv_spline3, &
        xc_deriv_spline3_smooth, xc_new_f_routine, xc_old_f_routine, &
@@ -80,8 +79,7 @@ CONTAINS
 
   SUBROUTINE read_dft_control(dft_control,root_section, dft_section, error)
     TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(section_vals_type), POINTER         :: root_section
-    TYPE(section_vals_type), POINTER         :: dft_section
+    TYPE(section_vals_type), POINTER         :: root_section, dft_section
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 

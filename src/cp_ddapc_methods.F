@@ -26,25 +26,25 @@ MODULE cp_ddapc_methods
   USE cell_types,                      ONLY: cell_type
   USE cp2k_units,                      ONLY: get_cp2k_units,&
                                              unit_convert_type
+  USE cp_para_types,                   ONLY: cp_para_env_type
   USE erf_fn,                          ONLY: erfc
+  USE input_constants,                 ONLY: weight_type_mass,&
+                                             weight_type_unit
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get,&
                                              section_vals_val_set
+  USE kahan_sum,                       ONLY: accurate_sum
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
-  USE mathlib,                         ONLY: invert_matrix,&
-                                             diamat_all
+  USE mathlib,                         ONLY: diamat_all,&
+                                             invert_matrix
   USE message_passing,                 ONLY: mp_sum
   USE particle_types,                  ONLY: particle_type
   USE pw_spline_utils,                 ONLY: Eval_Interp_Spl3_pbc
   USE pw_types,                        ONLY: pw_type
+  USE spherical_harmonics,             ONLY: legendre
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE input_constants,                 ONLY: weight_type_unit,&
-                                             weight_type_mass
-  USE spherical_harmonics,             ONLY: legendre
-  USE cp_para_types,                   ONLY: cp_para_env_type
-  USE kahan_sum,                       ONLY: accurate_sum
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -94,10 +94,10 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'ddapc_eval_gfunc', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, ig, igauss, stat
+    INTEGER                                  :: e_dim, handle, ig, igauss, &
+                                                s_dim, stat
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: g2, gcut2, rc, rc2
-    INTEGER                                  :: s_dim, e_dim
 
     CALL timeset(routineN,"I","",handle)
     gcut2 = gcut * gcut
@@ -167,13 +167,13 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     COMPLEX(KIND=dp)                         :: phase
-    INTEGER                                  :: handle, idim, ig, igauss, &
-                                                igmax, iparticle, stat
+    INTEGER                                  :: e_dim, handle, idim, ig, &
+                                                igauss, igmax, iparticle, &
+                                                s_dim, stat
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: arg, g2, gcut2, gvec(3), &
-                                                rvec(3), tmp
+                                                rvec(3)
     REAL(KIND=dp), DIMENSION(:), POINTER     :: my_bv, my_bvw
-    INTEGER                                  :: s_dim, e_dim
 
     failure = .FALSE.
     CALL timeset(routineN,"I","",handle)
@@ -254,16 +254,13 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'build_A_matrix', &
       routineP = moduleN//':'//routineN
 
-    COMPLEX(KIND=dp)                         :: phase1, phase2
-    INTEGER                                  :: handle, idim1, idim2, ig, &
-                                                igauss1, igauss2, igmax, &
-                                                iparticle1, iparticle2, &
-                                                istart_g, stat
+    INTEGER :: e_dim, handle, idim1, idim2, ig, igauss1, igauss2, igmax, &
+      iparticle1, iparticle2, istart_g, s_dim, stat
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: arg, g2, gcut2, gvec(3), &
-                                                rvec1(3), rvec2(3), tmp, rvec_diff(3)
-    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: my_Am, my_Amw
-    INTEGER                                  :: s_dim, e_dim
+                                                rvec1(3), rvec2(3), &
+                                                rvec_diff(3), tmp
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: my_Am, my_Amw
 
     failure = .FALSE.
 
@@ -354,14 +351,15 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     COMPLEX(KIND=dp)                         :: dphase
-    INTEGER                                  :: handle, idim, ig, igauss, &
-                                                igmax, iparticle, stat
+    INTEGER                                  :: e_dim, handle, idim, ig, &
+                                                igauss, igmax, iparticle, &
+                                                s_dim, stat
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: arg, g2, gcut2, tmp
+    REAL(KIND=dp)                            :: arg, g2, gcut2
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: my_dbvw
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: my_dbv
     REAL(KIND=dp), DIMENSION(3)              :: gvec, rvec
-    REAL(KIND=dp), DIMENSION(:,:), ALLOCATABLE :: my_dbv
-    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE  :: my_dbvw
-    INTEGER                                  :: s_dim, e_dim
 
     failure = .FALSE.
     CALL timeset(routineN,"I","",handle)
@@ -451,19 +449,15 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'build_der_A_matrix', &
       routineP = moduleN//':'//routineN
 
-    COMPLEX(KIND=dp)                         :: dphase1, dphase2, phase1, &
-                                                phase2
-    INTEGER                                  :: handle, idim1, idim2, ig, &
-                                                igauss1, igauss2, igmax, &
-                                                iparticle1, iparticle2, &
-                                                istart_g, stat
+    INTEGER :: e_dim, handle, idim1, idim2, ig, igauss1, igauss2, igmax, &
+      iparticle1, iparticle2, istart_g, s_dim, stat
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: arg1, arg2, g2, gcut2, tmp, factor
+    REAL(KIND=dp)                            :: arg1, factor, g2, gcut2
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: my_Amw
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: my_Am
     REAL(KIND=dp), DIMENSION(3)              :: gvec, rvec1, rvec2, rvec_diff
-    REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE  :: my_Am
-    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE  :: my_Amw
-    INTEGER                                  :: s_dim, e_dim
-    
+
     failure = .FALSE.
     CALL timeset(routineN,"I","",handle)
     IF (.NOT. failure) THEN
@@ -571,8 +565,8 @@ CONTAINS
 
     INTEGER                                  :: handle, ndim, stat
     LOGICAL                                  :: failure
-    REAL(KIND=dp)                            :: inv_error, condition_number
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: cv, AmE
+    REAL(KIND=dp)                            :: condition_number, inv_error
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: AmE, cv
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: Am, AmI, Amw
 
@@ -671,9 +665,9 @@ CONTAINS
       ip1, ip2, iparticle1, iparticle2, istart_g, k1, k2, k3, n_rep, ndim, &
       nmax1, nmax2, nmax3, r1, r2, r3, rmax1, rmax2, rmax3, sfact, stat
     LOGICAL                                  :: analyt, failure
-    REAL(KIND=dp) :: alpha, eps, eps0, ew_neut, fac, fac2, fac3, fs, &
-      g_ewald, galpha, gsq, gsqi, my_val, r, r2tmp, r_ewald, rc1, rc12, rc2, rc22, &
-      rcut,rcut2, t1, tol, tol1
+    REAL(KIND=dp) :: alpha, eps, eps0, ew_neut, fac, fac2, fac3, fs, g_ewald, &
+      galpha, gsq, gsqi, my_val, r, r2tmp, r_ewald, rc1, rc12, rc2, rc22, &
+      rcut, rcut2, t1, tol, tol1
     REAL(KIND=dp), DIMENSION(3)              :: fvec, gvec, ra, rvec
     REAL(KIND=dp), DIMENSION(:), POINTER     :: EwM
     TYPE(unit_convert_type), POINTER         :: units
@@ -857,27 +851,27 @@ CONTAINS
     TYPE(section_vals_type), POINTER         :: solvation_section
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    REAL(KIND=dp), DIMENSION(:,:), POINTER   :: M
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: M
     REAL(KIND=dp), DIMENSION(:), POINTER     :: radii
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'solvation_ddapc_pot', &
       routineP = moduleN//':'//routineN
-    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: SolvM
-    LOGICAL :: failure
-    REAL(KIND=dp) :: eps_in, eps_out, Rs, mass, center(3), r1, r2, rvec(3)
-    REAL(KIND=dp) :: mycos, factor
-    REAL(KIND=dp), DIMENSION(:), POINTER   :: R0, pos
-    REAL(KIND=dp), DIMENSION(:,:), POINTER :: LocP, cost
-    INTEGER  :: lmax, n_rep1, n_rep2, weight, i, stat, l, j, ndim, idim
-    INTEGER  :: iparticle2, ip2, idim2, igauss2, output_unit
-    INTEGER  :: iparticle1, ip1, idim1, igauss1, istart_g
-    INTEGER, DIMENSION(:), POINTER :: list
-    LOGICAL  :: fixed_center, ionode
+
+    INTEGER :: i, idim, idim1, idim2, igauss1, igauss2, ip1, ip2, iparticle1, &
+      iparticle2, istart_g, j, l, lmax, n_rep1, n_rep2, ndim, output_unit, &
+      stat, weight
+    INTEGER, DIMENSION(:), POINTER           :: list
+    LOGICAL                                  :: failure, fixed_center, ionode
+    REAL(KIND=dp)                            :: center(3), eps_in, eps_out, &
+                                                factor, mass, mycos, r1, r2, &
+                                                Rs, rvec(3)
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: pos, R0
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: cost, LocP
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
-   
+
     failure = .FALSE.
     fixed_center = .FALSE.
     NULLIFY(logger)

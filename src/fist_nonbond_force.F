@@ -38,6 +38,7 @@ MODULE fist_nonbond_force
   USE kinds,                           ONLY: dp,&
                                              dp_size
   USE mathconstants,                   ONLY: pi
+  USE mathlib,                         ONLY: matvec_3x3
   USE message_passing,                 ONLY: mp_sum
   USE pair_potential_types,            ONLY: ea_type,&
                                              pair_potential_pp_type,&
@@ -48,7 +49,6 @@ MODULE fist_nonbond_force
   USE termination,                     ONLY: stop_memory
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE mathlib,                         ONLY: matvec_3x3
 
   IMPLICIT NONE
 
@@ -78,20 +78,21 @@ CONTAINS
       INTENT(IN)                             :: particle_set
     TYPE(cell_type), POINTER                 :: cell
     REAL(KIND=dp), INTENT(OUT)               :: pot_nonbond
-    REAL(KIND=dp), DIMENSION(:,:), &
+    REAL(KIND=dp), DIMENSION(:, :), &
       INTENT(OUT)                            :: f_nonbond, ptens_nonbond
 
     CHARACTER(LEN=*), PARAMETER              :: routineN = 'force_nonbond'
 
     INTEGER                                  :: ab, atom_a, atom_b, handle, &
                                                 ikind, ilist, inode, ipair, &
-                                                jkind, nkinds, nlist, nnode, npairs
-    INTEGER, DIMENSION(:,:), POINTER         :: list
+                                                jkind, nkinds, nlist, nnode, &
+                                                npairs
+    INTEGER, DIMENSION(:, :), POINTER        :: list
     LOGICAL                                  :: is_eam
-    REAL(KIND=dp)                            :: energy, f_eam, fscalar, rab2, &
-                                                rab2_max
+    REAL(KIND=dp)                            :: cell_v(3), energy, f_eam, &
+                                                fr(3), fscalar, ptens(3,3), &
+                                                rab(3), rab2, rab2_max
     REAL(KIND=dp), DIMENSION(3)              :: cvi
-    REAL(KIND=dp)                            :: cell_v(3), fr(3), rab(3), ptens(3,3)
     TYPE(fist_neighbor_type), POINTER        :: nonbonded
     TYPE(neighbor_kind_pairs_type), POINTER  :: neighbor_kind_pair
     TYPE(pair_potential_pp_type), POINTER    :: potparm

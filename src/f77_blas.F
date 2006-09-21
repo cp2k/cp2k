@@ -16,9 +16,8 @@ MODULE f77_blas
 ! USE at most one of f77_blas_netlib and f77_blas_poison
 
 !USE f77_blas_netlib
-USE f77_blas_poison
-
-USE f77_blas_generic
-USE f77_blas_extra
+  USE f77_blas_extra
+  USE f77_blas_generic
+  USE f77_blas_poison
 
 END MODULE f77_blas

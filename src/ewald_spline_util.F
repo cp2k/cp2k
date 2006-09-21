@@ -190,7 +190,6 @@ CONTAINS
     LOGICAL                                  :: success
     REAL(KIND=dp)                            :: dr1, dr2, dr3, eps_r, eps_x, &
                                                 Term, xs1, xs2, xs3
-    REAL(KIND=dp), DIMENSION(3)              :: vec
     TYPE(pw_spline_precond_type), POINTER    :: precond
     TYPE(section_vals_type), POINTER         :: interp_section
 

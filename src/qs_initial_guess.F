@@ -36,7 +36,6 @@ MODULE qs_initial_guess
                                              cp_sm_fm_multiply
   USE external_potential_types,        ONLY: all_potential_type,&
                                              gth_potential_type
-  USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: atomic_guess,&
                                              core_guess,&
                                              densities_guess,&

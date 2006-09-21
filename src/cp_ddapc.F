@@ -39,11 +39,11 @@ MODULE cp_ddapc
                                              build_der_A_matrix,&
                                              build_der_b_vector
   USE cp_ddapc_types,                  ONLY: cp_ddapc_create,&
-                                             cp_ddapc_release,&
-                                             cp_ddapc_type,&
-                                             cp_ddapc_decoupling,&  
+                                             cp_ddapc_decoupling,&
                                              cp_ddapc_qmmmperiodic,&
-                                             cp_ddapc_solvationSph  
+                                             cp_ddapc_release,&
+                                             cp_ddapc_solvationSph,&
+                                             cp_ddapc_type
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE input_constants,                 ONLY: use_multipole
@@ -120,9 +120,9 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: handle, handle2, handle3, i, &
-                                                ii, iparticle, ispin, iw, j, &
-                                                n_rep_val, ndim, num_gauss, &
-                                                stat, iw2
+                                                ii, iparticle, ispin, iw, &
+                                                iw2, j, n_rep_val, ndim, &
+                                                num_gauss, stat
     LOGICAL                                  :: apply_restrain, failure, &
                                                 need_f, only_charge
     REAL(KIND=dp)                            :: c1, c3, c4, ch_dens, core_ch, &
@@ -130,7 +130,7 @@ CONTAINS
                                                 Vol
     REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: bv, cv, dqv0, qtot, qv
     REAL(KIND=dp), ALLOCATABLE, &
-      DIMENSION(:, :)                        :: Awrk, dbv
+      DIMENSION(:, :)                        :: dbv
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :, :)                     :: dAm, dqv
     REAL(KIND=dp), DIMENSION(:), POINTER     :: inp_radii, radii
@@ -448,15 +448,12 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: charges, radii
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: dq
+    TYPE(cell_type), POINTER                 :: cell, super_cell
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
-    TYPE(cell_type), POINTER                 :: cell, super_cell
-    TYPE(section_vals_type), POINTER         :: force_env_section, &
-                                                multipole_section, &
-                                                poisson_section, &
-                                                qmmm_periodic_section,&
-                                                solvation_section
+    TYPE(section_vals_type), POINTER :: force_env_section, multipole_section, &
+      poisson_section, qmmm_periodic_section, solvation_section
 
     CALL timeset(routineN,"I","",handle)
     failure        = .FALSE.

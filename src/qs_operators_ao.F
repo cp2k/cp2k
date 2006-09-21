@@ -1252,8 +1252,8 @@ CONTAINS
     TYPE(neighbor_node_type), POINTER        :: sab_orb_neighbor_node
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
+
 !dbg
-    INTEGER :: num1
 
 !$  INTEGER :: omp_get_max_threads,omp_get_thread_num
 

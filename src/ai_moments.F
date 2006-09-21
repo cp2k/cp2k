@@ -41,7 +41,8 @@ MODULE ai_moments
 
 ! *****************************************************************************
 
-  USE ai_derivatives,                  ONLY: adbdr, dabdr
+  USE ai_derivatives,                  ONLY: adbdr,&
+                                             dabdr
   USE ai_overlap_new,                  ONLY: overlap
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: pi
@@ -1297,8 +1298,8 @@ CONTAINS
       DIMENSION(:, :, :)                     :: difmab_tmp
     REAL(KIND=dp), DIMENSION(:, :, :), &
       POINTER                                :: mab
+
 !dbg
-    INTEGER :: i, num1, num2,num3 
 !dbg
 !   ---------------------------------------------------------------------------
 

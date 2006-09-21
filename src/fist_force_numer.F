@@ -40,6 +40,7 @@ MODULE fist_force_numer
   USE kinds,                           ONLY: dp,&
                                              dp_size,&
                                              int_size
+  USE mathlib,                         ONLY: matvec_3x3
   USE message_passing,                 ONLY: mp_sum
   USE mol_force,                       ONLY: force_bends,&
                                              force_bonds,&
@@ -70,7 +71,6 @@ MODULE fist_force_numer
                                              stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE mathlib,                         ONLY: matvec_3x3
 #include "cp_common_uses.h"  
 
   IMPLICIT NONE

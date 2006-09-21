@@ -36,10 +36,10 @@ MODULE topology_generate_util
   USE fist_neighbor_list_types,        ONLY: fist_neighbor_deallocate,&
                                              fist_neighbor_type
   USE fist_neighbor_lists,             ONLY: build_fist_neighbor_lists
-  USE input_constants,                 ONLY: do_bondparm_covalent,&
+  USE input_constants,                 ONLY: do_add,&
+                                             do_bondparm_covalent,&
                                              do_bondparm_vdw,&
                                              do_conn_off,&
-                                             do_add,&
                                              do_remove
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
@@ -52,8 +52,8 @@ MODULE topology_generate_util
                                              particle_type
   USE periodic_table,                  ONLY: ptable
   USE qmmm_types,                      ONLY: qmmm_env_mm_type
-  USE string_utilities,                ONLY: uppercase,&
-                                             integer_to_string
+  USE string_utilities,                ONLY: integer_to_string,&
+                                             uppercase
   USE termination,                     ONLY: stop_program
   USE timings,                         ONLY: timeset,&
                                              timestop
@@ -405,13 +405,10 @@ CONTAINS
     CHARACTER(LEN=2)                         :: upper_sym_1, upper_sym_2
     CHARACTER(LEN=2), POINTER                :: atm_symbol(:)
     INTEGER :: cbond, handle, handle2, i, iatm1, iatm2, iatom, ibond, ielem, &
-      ielem_found, iend, istart, iw, j, jatom, n_bonds, &
-      n_heavy_bonds, n_hydr_bonds, n_rep_val, natom, nelem, npairs, &
-      nsize, output_unit, stat
+      ielem_found, iw, j, jatom, n_bonds, n_heavy_bonds, n_hydr_bonds, natom, &
+      nelem, npairs, output_unit, stat
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: bond_a, bond_b, list
-    INTEGER, DIMENSION(:), POINTER           :: atlist, Itemp, work
-    LOGICAL                                  :: element_found, explicit, &
-                                                failure, ionode
+    LOGICAL                                  :: element_found, failure, ionode
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: h_list
     REAL(KIND=dp)                            :: dr(3), hmat(3,3), &
                                                 max_coord(3), min_coord(3), &
@@ -755,27 +752,28 @@ CONTAINS
 !******************************************************************************
   SUBROUTINE connectivity_external_control(section, Iarray1, Iarray2, Iarray3, Iarray4, nvar,&
        topology, output_unit, is_impr, error)
+    TYPE(section_vals_type), POINTER         :: section
+    INTEGER, DIMENSION(:), POINTER           :: Iarray1, Iarray2
+    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: Iarray3, Iarray4
+    INTEGER, INTENT(INOUT)                   :: nvar
     TYPE(topology_parameters_type), &
       INTENT(INOUT)                          :: topology
-    TYPE(section_vals_type), POINTER :: section
-    INTEGER, POINTER, DIMENSION(:)  :: Iarray1, Iarray2
-    INTEGER, POINTER, DIMENSION(:), OPTIONAL  :: Iarray3, Iarray4
-    INTEGER, INTENT(INOUT)          :: nvar
-    INTEGER, INTENT(IN)             :: output_unit
-    LOGICAL, INTENT(IN), OPTIONAL   :: is_impr
+    INTEGER, INTENT(IN)                      :: output_unit
+    LOGICAL, INTENT(IN), OPTIONAL            :: is_impr
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'connectivity_external_control', &
+    CHARACTER(len=*), PARAMETER :: &
+      routineN = 'connectivity_external_control', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: n_rep, natom, do_action, nsize, stat, do_it
-    INTEGER                                  :: new_size
-    INTEGER, POINTER, DIMENSION(:)           :: Ilist1, Ilist2, Ilist3, Ilist4
-    LOGICAL                                  :: failure, explicit, ip3, ip4
-    INTEGER, POINTER, DIMENSION(:)           :: atlist
-    INTEGER :: i,j,k,n_rep_val
-    CHARACTER(LEN=8) :: fmt
+    CHARACTER(LEN=8)                         :: fmt
+    INTEGER                                  :: do_action, do_it, i, j, k, &
+                                                n_rep, n_rep_val, natom, &
+                                                new_size, nsize, stat
+    INTEGER, DIMENSION(:), POINTER           :: atlist, Ilist1, Ilist2, &
+                                                Ilist3, Ilist4
+    LOGICAL                                  :: explicit, failure, ip3, ip4
 
     failure = .FALSE.
     natom   = topology%natoms
@@ -938,18 +936,18 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
   RECURSIVE SUBROUTINE reorder_list_array(Ilist1, Ilist2, Ilist3, Ilist4, nsize, ndim, error)
-    INTEGER, DIMENSION(:),POINTER               :: Ilist1
-    INTEGER, DIMENSION(:),  OPTIONAL, POINTER   :: Ilist2, Ilist3, Ilist4
-    INTEGER, INTENT(IN)                         :: nsize, ndim
+    INTEGER, DIMENSION(:), POINTER           :: Ilist1
+    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: Ilist2, Ilist3, Ilist4
+    INTEGER, INTENT(IN)                      :: nsize, ndim
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'reorder_list_array', &
       routineP = moduleN//':'//routineN
-    INTEGER, POINTER, DIMENSION(:)    :: wrk, tmp
-    INTEGER, POINTER, DIMENSION(:)    :: tmp_2, tmp_3, tmp_4
-    LOGICAL :: failure
-    INTEGER :: stat, i, istart, iend, ldim
+
+    INTEGER                                  :: i, iend, istart, ldim, stat
+    INTEGER, DIMENSION(:), POINTER           :: tmp, wrk
+    LOGICAL                                  :: failure
 
     failure = .FALSE.
     CPPostcondition(nsize>0,cp_failure_level,routineP,error,failure)
@@ -1021,16 +1019,17 @@ CONTAINS
 !******************************************************************************
   RECURSIVE SUBROUTINE reorder_list_array_low(Ilist2, Ilist3, Ilist4, nsize,&
        ldim, istart, iend, error)
-    INTEGER, DIMENSION(:),  OPTIONAL, POINTER   :: Ilist2, Ilist3, Ilist4
-    INTEGER, INTENT(IN)                         :: nsize, ldim, istart, iend
+    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: Ilist2, Ilist3, Ilist4
+    INTEGER, INTENT(IN)                      :: nsize, ldim, istart, iend
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'reorder_list_array_low', &
       routineP = moduleN//':'//routineN
-    INTEGER, POINTER, DIMENSION(:)    :: tmp_2, tmp_3, tmp_4
-    LOGICAL :: failure
-    INTEGER :: stat, i
+
+    INTEGER                                  :: stat
+    INTEGER, DIMENSION(:), POINTER           :: tmp_2, tmp_3, tmp_4
+    LOGICAL                                  :: failure
 
     failure = .FALSE.
     SELECT CASE(nsize)
@@ -1103,13 +1102,14 @@ CONTAINS
 !!   SOURCE
 !******************************************************************************
   SUBROUTINE list_canonical_order(Ilist1, Ilist2, Ilist3, Ilist4, nsize, is_impr)
-    INTEGER, DIMENSION(:), POINTER   :: Ilist1, Ilist2
-    INTEGER, DIMENSION(:), POINTER, OPTIONAL :: Ilist3, Ilist4
-    INTEGER, INTENT(IN)              :: nsize
-    LOGICAL, INTENT(IN), OPTIONAL :: is_impr
+    INTEGER, DIMENSION(:), POINTER           :: Ilist1, Ilist2
+    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: Ilist3, Ilist4
+    INTEGER, INTENT(IN)                      :: nsize
+    LOGICAL, INTENT(IN), OPTIONAL            :: is_impr
 
-    LOGICAL :: do_impr
-    INTEGER :: i, tmp1, tmp2, tmp3, tt(3),ss(3)
+    INTEGER                                  :: i, ss(3), tmp1, tmp2, tmp3, &
+                                                tt(3)
+    LOGICAL                                  :: do_impr
 
     do_impr= .FALSE.
     IF (PRESENT(is_impr)) do_impr = is_impr    
@@ -1174,17 +1174,18 @@ CONTAINS
 !******************************************************************************
   SUBROUTINE check_element_list(do_it,do_action,atlist,Ilist1,Ilist2,Ilist3,Ilist4,&
        is_impr)
-    INTEGER, INTENT(OUT) :: do_it
-    INTEGER, INTENT(IN)  :: do_action
-    INTEGER, POINTER, DIMENSION(:) :: atlist, Ilist1, Ilist2
-    INTEGER, POINTER, DIMENSION(:), OPTIONAL :: Ilist3, Ilist4
-    LOGICAL, INTENT(IN), OPTIONAL :: is_impr
+    INTEGER, INTENT(OUT)                     :: do_it
+    INTEGER, INTENT(IN)                      :: do_action
+    INTEGER, DIMENSION(:), POINTER           :: atlist, Ilist1, Ilist2
+    INTEGER, DIMENSION(:), OPTIONAL, POINTER :: Ilist3, Ilist4
+    LOGICAL, INTENT(IN), OPTIONAL            :: is_impr
 
-    INTEGER, DIMENSION(4) :: tmp
-    INTEGER :: nsize, tmp1, tmp2, tmp3, ndim
-    INTEGER :: i, istart, iend, new_size, tt(3), ss(3)
-    LOGICAL :: found, do_impr
-    
+    INTEGER                                  :: i, iend, istart, ndim, &
+                                                new_size, nsize, ss(3), tmp1, &
+                                                tmp2, tmp3, tt(3)
+    INTEGER, DIMENSION(4)                    :: tmp
+    LOGICAL                                  :: do_impr, found
+
     do_impr= .FALSE.
     IF (PRESENT(is_impr)) do_impr = is_impr
     found = .FALSE.
@@ -1396,7 +1397,7 @@ CONTAINS
       DIMENSION(:), POINTER                  :: bond_list
     TYPE(connectivity_info_type), POINTER    :: conn_info
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(section_vals_type),POINTER          :: bend_section
+    TYPE(section_vals_type), POINTER         :: bend_section
 
     failure = .FALSE.
     NULLIFY(logger)
@@ -1754,7 +1755,7 @@ CONTAINS
       DIMENSION(:), POINTER                  :: bond_list
     TYPE(connectivity_info_type), POINTER    :: conn_info
     TYPE(cp_logger_type), POINTER            :: logger
-    TYPE(section_vals_type), pointer         :: torsion_section
+    TYPE(section_vals_type), POINTER         :: torsion_section
 
     failure = .FALSE.
     NULLIFY(logger)
@@ -1864,17 +1865,16 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'topology_generate_impr', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, iw, natom, nbond, &
-                                                nimpr, nsize, output_unit, &
-                                                stat, j, ind
-    LOGICAL                                  :: failure, ionode
+    CHARACTER(LEN=2)                         :: atm_symbol
+    INTEGER                                  :: handle, i, ind, iw, j, natom, &
+                                                nbond, nimpr, nsize, &
+                                                output_unit, stat
+    LOGICAL                                  :: accept_impr, failure, ionode
     TYPE(atom_bond_list_type), &
       DIMENSION(:), POINTER                  :: bond_list
     TYPE(atom_info_type), POINTER            :: atom_info
     TYPE(connectivity_info_type), POINTER    :: conn_info
     TYPE(cp_logger_type), POINTER            :: logger
-    CHARACTER(LEN=2) :: atm_symbol
-    LOGICAL :: accept_impr
     TYPE(section_vals_type), POINTER         :: impr_section
 
     failure = .FALSE.
@@ -2004,7 +2004,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'topology_generate_onfo', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, iphi, iw, nphi, output_unit
+    INTEGER                                  :: handle, iphi, iw, nphi, &
+                                                output_unit
     LOGICAL                                  :: failure, ionode
     TYPE(connectivity_info_type), POINTER    :: conn_info
     TYPE(cp_logger_type), POINTER            :: logger

@@ -54,8 +54,7 @@ MODULE qs_ks_methods
                                              cp_fm_set_all,&
                                              cp_fm_to_fm,&
                                              cp_fm_type
-  USE cp_output_handling,              ONLY: cp_iter_string,&
-                                             cp_p_file,&
+  USE cp_output_handling,              ONLY: cp_p_file,&
                                              cp_print_key_finished_output,&
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
@@ -65,6 +64,7 @@ MODULE qs_ks_methods
                                              copy_sm_to_fm,&
                                              cp_sm_fm_multiply,&
                                              cp_sm_plus_fm_fm_t
+  USE ep_qs_types,                     ONLY: ep_qs_type
   USE harris_env_types,                ONLY: harris_env_type
   USE hartree_local_2centers,          ONLY: integrate_vhg0_g0
   USE hartree_local_3centers,          ONLY: integrate_a_vhg0_b
@@ -103,7 +103,8 @@ MODULE qs_ks_methods
                                              pw_transfer,&
                                              pw_type
   USE qs_charges_types,                ONLY: qs_charges_type
-  USE qs_collocate_density,            ONLY: calculate_total_rho, calculate_rho_elec
+  USE qs_collocate_density,            ONLY: calculate_rho_elec,&
+                                             calculate_total_rho
   USE qs_core_energies,                ONLY: calculate_ecore
   USE qs_energy_types,                 ONLY: qs_energy_type
   USE qs_environment_types,            ONLY: get_qs_env,&
@@ -132,7 +133,6 @@ MODULE qs_ks_methods
   USE virial_types,                    ONLY: virial_type
   USE xc,                              ONLY: xc_exc_calc,&
                                              xc_vxc_pw_create1
-  USE ep_qs_types, only: ep_qs_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -311,9 +311,10 @@ CONTAINS
     INTEGER                                  :: dir, handle, ig, ispin, k, &
                                                 k2, n, nspins, output_unit, &
                                                 stat
-    LOGICAL                                  :: failure, gapw, gapw_xc, &
-                                                ionode, my_diis_step, &
-                                                my_kg_gpw, use_virial,do_ep
+    LOGICAL                                  :: do_ep, failure, gapw, &
+                                                gapw_xc, ionode, &
+                                                my_diis_step, my_kg_gpw, &
+                                                use_virial
     REAL(KIND=dp)                            :: a_mix, b_mix, ddapc_order_p, &
                                                 f_mix, mulliken_order_p, &
                                                 s2_order_p
@@ -321,9 +322,9 @@ CONTAINS
     REAL(KIND=dp), DIMENSION(:), POINTER     :: g2, occupation_numbers, &
                                                 scaling_factor
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(coeff_type)                         :: rho_tot_gspace, &
-                                                v_hartree_gspace, v_sic_rspace,&
-                                                ep_pot_r_coeff,ep_rho_r,ep_rho_g
+    TYPE(coeff_type)                         :: ep_pot_r_coeff, ep_rho_g, &
+                                                ep_rho_r, rho_tot_gspace, &
+                                                v_hartree_gspace, v_sic_rspace
     TYPE(coeff_type), DIMENSION(:), POINTER  :: v_rspace_new, v_tau_rspace
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: mo_derivs
@@ -331,6 +332,7 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
+    TYPE(ep_qs_type), POINTER                :: ep_qs_env
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
     TYPE(pw_env_type), POINTER               :: pw_env
@@ -338,15 +340,13 @@ CONTAINS
     TYPE(pw_pool_p_type), DIMENSION(:), &
       POINTER                                :: pw_pools
     TYPE(pw_pool_type), POINTER              :: auxbas_pw_pool
+    TYPE(pw_type), POINTER                   :: ep_pot_g, ep_pot_r
     TYPE(qs_rho_type), POINTER               :: my_rho_xc, rho_buffer
     TYPE(real_matrix_p_type), DIMENSION(:), &
       POINTER                                :: matrix_dv, matrix_h, &
                                                 matrix_s, my_rho
     TYPE(section_vals_type), POINTER         :: input, scf_section
     TYPE(virial_type), POINTER               :: virial
-    TYPE(ep_qs_type), pointer :: ep_qs_env
-    TYPE(pw_type), POINTER :: ep_pot_r, ep_pot_g
-
 
     failure=.FALSE.
     NULLIFY(matrix_h,matrix_s,dft_control,auxbas_pw_pool, pw_pools,&
@@ -393,9 +393,9 @@ CONTAINS
          error=error)
 
     use_virial = virial%pv_availability.AND.(.NOT.virial%pv_numer)    
-    do_ep=associated(ep_qs_env)
+    do_ep=ASSOCIATED(ep_qs_env)
     IF (do_ep) do_ep=ep_qs_env%ep_active.AND.calculate_forces.and.&
-         associated(ep_qs_env%dH_coeffs)
+         ASSOCIATED(ep_qs_env%dH_coeffs)
 
     scf_section => section_vals_get_subs_vals(input,"DFT%SCF",error=error)
     nspins=dft_control%nspins
@@ -1047,7 +1047,6 @@ CONTAINS
     LOGICAL                                  :: failure, my_skip
     TYPE(coeff_type), POINTER                :: rho0_s_gs, rho_core
     TYPE(qs_charges_type), POINTER           :: qs_charges
-    
 
     NULLIFY (rho_core, rho0_s_gs)
     my_skip = .FALSE.

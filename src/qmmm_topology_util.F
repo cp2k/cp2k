@@ -24,7 +24,6 @@ MODULE qmmm_topology_util
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE global_types,                    ONLY: global_environment_type
   USE input_section_types,             ONLY: section_vals_type
   USE kinds,                           ONLY: default_string_length,&
                                              dp
@@ -76,7 +75,7 @@ CONTAINS
 
     CHARACTER(LEN=default_string_length)     :: prefix_lnk
     INTEGER                                  :: handle, iatm, iw
-    LOGICAL                                  :: failure,qmmm_index_in_range
+    LOGICAL                                  :: failure, qmmm_index_in_range
     TYPE(cp_logger_type), POINTER            :: logger
 
     CALL timeset(routineN,'I','',handle)

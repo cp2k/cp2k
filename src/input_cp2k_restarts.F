@@ -49,22 +49,16 @@ MODULE input_cp2k_restarts
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_p_type,&
                                              force_env_type
-  USE global_types,                    ONLY: global_environment_type
-  USE input_constants,                 ONLY: use_unit_angstrom,&
-                                             use_unit_bohr,&
-                                             use_unit_scaled_angstrom,&
-                                             use_unit_scaled_bohr,&
-                                             mol_dyn_run,&
-                                             mon_car_run,&
-                                             pint_run,&
-                                             ldmc_run,&
-                                             hmc_run
+  USE input_constants,                 ONLY: &
+       hmc_run, ldmc_run, mol_dyn_run, mon_car_run, pint_run, &
+       use_unit_angstrom, use_unit_bohr, use_unit_scaled_angstrom, &
+       use_unit_scaled_bohr
   USE input_section_types,             ONLY: &
        section_get_keyword_index, section_type, section_vals_add_values, &
        section_vals_get, section_vals_get_subs_vals, &
-       section_vals_get_subs_vals3, section_vals_type, section_vals_val_get, &
-       section_vals_val_set, section_vals_val_unset, section_vals_write,&
-       section_vals_remove_values
+       section_vals_get_subs_vals3, section_vals_remove_values, &
+       section_vals_type, section_vals_val_get, section_vals_val_set, &
+       section_vals_val_unset, section_vals_write
   USE input_val_types,                 ONLY: val_create,&
                                              val_release,&
                                              val_type
@@ -141,8 +135,8 @@ CONTAINS
     TYPE(kg_environment_type), OPTIONAL, &
       POINTER                                :: kg_env
     TYPE(meta_env_type), OPTIONAL, POINTER   :: meta_env
-    TYPE(section_vals_type), POINTER         :: root_section
-    TYPE(section_vals_type), POINTER         :: force_env_section
+    TYPE(section_vals_type), POINTER         :: root_section, &
+                                                force_env_section
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
 
@@ -918,11 +912,11 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'update_force_eval', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: iforce_eval, nforce_eval, myid
+    INTEGER                                  :: iforce_eval, myid, nforce_eval
+    LOGICAL                                  :: skip_vel_section
     TYPE(force_env_type), POINTER            :: my_force_env
     TYPE(section_vals_type), POINTER         :: force_env_sections, &
                                                 rng_section, subsys_section
-    LOGICAL                                  :: skip_vel_section
 
     NULLIFY(rng_section, subsys_section)
     ! If it's not a dynamical run don't update the velocity section
@@ -1075,9 +1069,9 @@ CONTAINS
   SUBROUTINE update_subsys(subsys_section,force_env,skip_vel_section,error)
     TYPE(section_vals_type), POINTER         :: subsys_section
     TYPE(force_env_type), POINTER            :: force_env
+    LOGICAL, INTENT(IN)                      :: skip_vel_section
     TYPE(cp_error_type), INTENT(INOUT), &
       OPTIONAL                               :: error
-    LOGICAL, INTENT(IN)                      :: skip_vel_section
 
     CHARACTER(LEN=*), PARAMETER :: routineN = 'update_subsys', &
       routineP = moduleN//':'//routineN

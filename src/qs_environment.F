@@ -335,7 +335,7 @@ CONTAINS
     INTEGER, DIMENSION(2)                    :: n_mo, nelectron_spin, nmoloc
     LOGICAL                                  :: all_potential_present, &
                                                 harris_flag, ionode, &
-                                                was_present, xas_calculation
+                                                was_present
     REAL(dp)                                 :: maxocc, rc
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
@@ -365,8 +365,7 @@ CONTAINS
     TYPE(qs_wf_history_type), POINTER        :: wf_history
     TYPE(rho0_mpole_type), POINTER           :: rho0_mpole
     TYPE(scf_control_type), POINTER          :: scf_control
-    TYPE(section_vals_type), POINTER         :: dft_section, qs_section, &
-                                                xas_section
+    TYPE(section_vals_type), POINTER         :: dft_section, qs_section
     TYPE(semi_empirical_control_type), &
       POINTER                                :: se_control
 
@@ -398,7 +397,7 @@ CONTAINS
     NULLIFY (local_particles)
     NULLIFY (scf_control)
     NULLIFY (localized_wfn_control)
-    NULLIFY (xas_section, dft_section)
+    NULLIFY (dft_section)
     dft_section =>  section_vals_get_subs_vals(qs_env%input,"DFT",error=error)
     qs_section =>  section_vals_get_subs_vals(dft_section,"QS",error=error)
     particle_set => subsystem%particles%els

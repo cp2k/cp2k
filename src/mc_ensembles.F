@@ -34,8 +34,8 @@ MODULE mc_ensembles
                                              force_env_release
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: dump_xmol
-  USE input_section_types,             ONLY: section_vals_type,&
-                                             section_vals_release
+  USE input_section_types,             ONLY: section_vals_release,&
+                                             section_vals_type
   USE kinds,                           ONLY: dp,&
                                              dp_size
   USE machine,                         ONLY: m_flush

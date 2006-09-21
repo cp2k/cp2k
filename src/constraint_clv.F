@@ -28,6 +28,7 @@ MODULE constraint_clv
   USE force_env_types,                 ONLY: force_env_get,&
                                              force_env_type
   USE kinds,                           ONLY: dp
+  USE mathlib,                         ONLY: matvec_3x3
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_type
   USE molecule_kind_types,             ONLY: colvar_constraint_type,&
                                              fixd_constraint_type,&
@@ -41,7 +42,6 @@ MODULE constraint_clv
                                              update_particle_set
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE mathlib,                         ONLY: matvec_3x3
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -81,8 +81,10 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: handle, i, ii, ikind, iparticle, iparticle_local, isubsys, &
-      nfixed_atoms, nkind, nparticle_local, stat
-    LOGICAL                                  :: failure
+      my_atm_fixed, nfixed_atoms, nkind, nparticle_local, stat
+    LOGICAL                                  :: failure, zero_force
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: force
     TYPE(cp_subsystem_p_type), &
       DIMENSION(:), POINTER                  :: subsys
     TYPE(distribution_1d_type), POINTER      :: local_particles
@@ -94,11 +96,8 @@ CONTAINS
     TYPE(molecule_kind_type), POINTER        :: molecule_kind
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(particle_type), DIMENSION(:), &
-      POINTER                                  :: particle_set
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:,:) :: force 
-    LOGICAL :: zero_force
-    INTEGER :: my_atm_fixed
-    
+      POINTER                                :: particle_set
+
     failure = .FALSE.
     CALL timeset(routineN,'I','',handle)
     IF (.NOT. failure) THEN
@@ -190,7 +189,7 @@ CONTAINS
     TYPE(particle_type), POINTER             :: particle_set( : )
     REAL(KIND=dp), INTENT(INOUT)             :: pos( :, : ), vel( :, : )
     REAL(kind=dp), INTENT(in)                :: dt, shake_tol
-    INTEGER, intent(in)                      :: log_unit
+    INTEGER, INTENT(in)                      :: log_unit
     TYPE(cell_type), POINTER                 :: cell
     TYPE(colvar_counters), INTENT(IN)        :: ncolv
     REAL(KIND=dp), DIMENSION(:)              :: imass
@@ -295,7 +294,7 @@ CONTAINS
     TYPE(particle_type), POINTER             :: particle_set( : )
     REAL(KIND=dp), INTENT(INOUT)             :: vel( :, : )
     REAL(kind=dp), INTENT(in)                :: dt, shake_tol
-    INTEGER, intent(in)                      :: log_unit
+    INTEGER, INTENT(in)                      :: log_unit
     TYPE(colvar_counters), INTENT(IN)        :: ncolv
     TYPE(cell_type), POINTER                 :: cell
     REAL(KIND=dp), DIMENSION(:)              :: imass
@@ -483,9 +482,9 @@ CONTAINS
     TYPE(molecule_type), POINTER             :: molecule
     TYPE(particle_type), POINTER             :: particle_set( : )
     REAL(KIND=dp), INTENT(INOUT)             :: vel( :, : )
-    REAL(KIND=dp), INTENT(IN)                :: r_rattle( :, : )
-    REAL(kind=dp), INTENT(in)                :: dt, shake_tol
-    INTEGER, intent(in)                      :: log_unit
+    REAL(KIND=dp), INTENT(IN)                :: r_rattle( :, : ), dt, &
+                                                shake_tol
+    INTEGER, INTENT(in)                      :: log_unit
     REAL(KIND=dp), INTENT(IN)                :: veps( :, : )
     TYPE(colvar_counters), INTENT(IN)        :: ncolv
     TYPE(cell_type), POINTER                 :: cell

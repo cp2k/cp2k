@@ -82,12 +82,14 @@ CONTAINS
       routineP = moduleN//':'//routineN
 
     INTEGER :: handle, i, ii, ikind, imol, iparticle, iparticle_local, &
-      isubsys, k, n3x3con_restraint, n4x6con_restraint, nfixd_restraint, &
-      nkind, nmol_per_kind, nparticle_local, stat
+      isubsys, k, n3x3con_restraint, n4x6con_restraint, n_restraint, &
+      nfixd_restraint, nkind, nmol_per_kind, nparticle_local, stat
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: energy_3x3, energy_4x6, &
                                                 energy_colv, energy_fixd, &
                                                 rab(3), rab2, targ(3)
+    REAL(KIND=dp), ALLOCATABLE, &
+      DIMENSION(:, :)                        :: force
     TYPE(cell_type), POINTER                 :: cell
     TYPE(colvar_counters)                    :: ncolv
     TYPE(cp_subsystem_p_type), &
@@ -104,8 +106,6 @@ CONTAINS
     TYPE(molecule_type), POINTER             :: molecule, molecule_set( : )
     TYPE(particle_list_type), POINTER        :: particles
     TYPE(particle_type), POINTER             :: particle_set( : )
-    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:,:) :: force 
-    INTEGER                                  :: n_restraint
 
     failure = .FALSE.
     CALL timeset ( routineN, 'I', ' ', handle )
@@ -236,7 +236,8 @@ CONTAINS
     TYPE(molecule_type), POINTER             :: molecule
     TYPE(particle_type), POINTER             :: particle_set( : )
     REAL(KIND=dp), INTENT(INOUT)             :: energy
-    REAL(KIND=dp), INTENT(INOUT), DIMENSION(:,:) :: force 
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: force
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -301,7 +302,8 @@ CONTAINS
     TYPE(molecule_type), POINTER             :: molecule
     TYPE(particle_type), POINTER             :: particle_set( : )
     REAL(KIND=dp), INTENT(INOUT)             :: energy
-    REAL(KIND=dp), INTENT(INOUT), DIMENSION(:,:) :: force 
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: force
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -383,7 +385,8 @@ CONTAINS
     TYPE(particle_type), POINTER             :: particle_set( : )
     TYPE(cell_type), POINTER                 :: cell
     REAL(KIND=dp), INTENT(INOUT)             :: energy
-    REAL(KIND=dp), INTENT(INOUT), DIMENSION(:,:) :: force 
+    REAL(KIND=dp), DIMENSION(:, :), &
+      INTENT(INOUT)                          :: force
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 

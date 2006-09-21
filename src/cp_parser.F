@@ -834,9 +834,9 @@ END SUBROUTINE parser_next_token
     CHARACTER(LEN=*), PARAMETER :: routineN = 'parser_read_line', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: iline, istat,icol
-    LOGICAL                                  :: failure,non_white_found
     CHARACTER(LEN=1)                         :: thischar
+    INTEGER                                  :: icol, iline, istat
+    LOGICAL                                  :: failure, non_white_found
 
 !   ---------------------------------------------------------------------------
 

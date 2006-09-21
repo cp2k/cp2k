@@ -87,10 +87,8 @@ MODULE qs_linres_nmr_utils
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_linres_methods,               ONLY: linres_scf
-  USE qs_linres_nmr_atom_current,      ONLY: calculate_jrho_atom_coeff,&
-                                            list_3c_jrho_atom
-  USE qs_linres_nmr_current,           ONLY: nmr_response_current,&
-                                             test_func
+  USE qs_linres_nmr_atom_current,      ONLY: list_3c_jrho_atom
+  USE qs_linres_nmr_current,           ONLY: nmr_response_current
   USE qs_linres_nmr_op,                ONLY: set_vecp
   USE qs_linres_nmr_shift,             ONLY: nmr_print_shift
   USE qs_linres_types,                 ONLY: deallocate_jrho_atom_set,&
@@ -143,8 +141,8 @@ CONTAINS
     CHARACTER(LEN=*), PARAMETER :: routineN = 'nmr_do_nmr', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, homo, iao, idir, idir2, ii, iii, ik, ispin, ist_true, istat, &
-      istate, istate2, nao, nmo, ncubes, nstates(2), output_unit
+    INTEGER :: handle, homo, idir, ii, iii, ispin, ist_true, istat, istate, &
+      istate2, nao, ncubes, nmo, nstates(2), output_unit
     INTEGER, DIMENSION(:), POINTER           :: list_cubes
     INTEGER, DIMENSION(:, :), POINTER        :: statetrueindex
     LOGICAL                                  :: failure, ionode
@@ -152,7 +150,7 @@ CONTAINS
     REAL(dp), DIMENSION(:), POINTER          :: dkl_vec_ii, dkl_vec_iii
     REAL(dp), DIMENSION(:, :), POINTER       :: vecbuf_dklxp0
     TYPE(cell_type), POINTER                 :: cell
-    TYPE(cp_2d_r_p_type), DIMENSION(:),&
+    TYPE(cp_2d_r_p_type), DIMENSION(:), &
       POINTER                                :: centers_set
     TYPE(cp_fm_p_type), DIMENSION(:), &
       POINTER                                :: h1_psi0, psi1
@@ -162,7 +160,7 @@ CONTAINS
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
       POINTER                                :: ao_mo_fm_pools
     TYPE(cp_fm_struct_type), POINTER         :: tmp_fm_struct
-    TYPE(cp_fm_type), POINTER                :: fm_work_ii, fm_work_iii,&
+    TYPE(cp_fm_type), POINTER                :: fm_work_ii, fm_work_iii, &
                                                 mo_coeff
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
@@ -404,7 +402,7 @@ CONTAINS
                 ist_true, " in dir. ", idir
              END IF
  !dbg
-   write(*,*) ' D idir ', idir, ' state ', ist_true, ' iter ', istate
+   WRITE(*,*) ' D idir ', idir, ' state ', ist_true, ' iter ', istate
  !dbg
              DO istate2 = 1,nstates(ispin)
                 dl(1:3)  = centers_set(ispin)%array(1:3,istate2)
@@ -412,7 +410,7 @@ CONTAINS
                 dkl_vec_ii(istate2)  = dkl(ii)
                 dkl_vec_iii(istate2) = dkl(iii)
  !dbg
-   write(*,*) ' dist ', istate2, dkl(ii), dkl(iii)
+   WRITE(*,*) ' dist ', istate2, dkl(ii), dkl(iii)
  !dbg
              END DO
 
@@ -437,7 +435,7 @@ CONTAINS
              ! Copy in h1_psi1
              CALL cp_fm_scale_and_add(1.0_dp,h1_psi0(ispin)%matrix,&
                   -1.0_dp,fm_work_ii,error=error)
- stop 'pippo2'
+ STOP 'pippo2'
              ! Optimize the response wavefunctions 
              CALL linres_scf(p_env, qs_env, psi1, h1_psi0,error=error)
 
@@ -545,7 +543,7 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_parser_type), POINTER            :: parser
     TYPE(dft_control_type), POINTER          :: dft_control
-    TYPE(jrho_atom_type),DIMENSION(:), &
+    TYPE(jrho_atom_type), DIMENSION(:), &
       POINTER                                :: jrho1_atom_set
     TYPE(linres_control_type), POINTER       :: linres_control
     TYPE(mo_set_p_type), DIMENSION(:), &

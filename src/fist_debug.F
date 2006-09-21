@@ -40,7 +40,6 @@ MODULE fist_debug
   USE fist_nonbond_env_types,          ONLY: fist_nonbond_env_get,&
                                              fist_nonbond_env_type
   USE force_env_types,                 ONLY: force_env_type
-  USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: do_ewald_ewald,&
                                              do_ewald_none,&
                                              do_ewald_pme,&

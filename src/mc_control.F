@@ -40,12 +40,10 @@ MODULE mc_control
                                              do_kg,&
                                              do_qs
   USE input_cp2k,                      ONLY: create_cp2k_input_reading
-  USE input_section_types,             ONLY: section_release,&
-                                             section_type,&
-                                             section_vals_get,&
+  USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
-                                             section_vals_type,&
                                              section_vals_release,&
+                                             section_vals_type,&
                                              section_vals_val_get
   USE kg_main,                         ONLY: kg_create_force_env
   USE kinds,                           ONLY: dp,&

@@ -53,8 +53,8 @@ MODULE pw_grids
                                              section_vals_type
   USE kinds,                           ONLY: dp
   USE mathconstants,                   ONLY: twopi
-  USE mathlib,                         ONLY: inv_3x3,&
-                                             dotprod_3d,&
+  USE mathlib,                         ONLY: dotprod_3d,&
+                                             inv_3x3,&
                                              matvec_3x3
   USE message_passing,                 ONLY: &
        MPI_COMM_SELF, mp_cart_coords, mp_cart_create, mp_cart_rank, &

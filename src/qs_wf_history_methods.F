@@ -85,12 +85,12 @@ MODULE qs_wf_history_methods
   USE qs_rho_types,                    ONLY: qs_rho_get,&
                                              qs_rho_type
   USE qs_wf_history_types,             ONLY: &
-       qs_wf_history_type, qs_wf_snapshot_type, wfi_aspc, wfi_clear_history, &
-       wfi_frozen_method_nr, wfi_get_snapshot, wfi_linear_p_method_nr, &
-       wfi_linear_ps_method_nr, wfi_linear_wf_method_nr, wfi_ps_method_nr, &
-       wfi_use_guess_method_nr, wfi_use_prev_p_method_nr, &
-       wfi_use_prev_rho_r_method_nr, wfi_use_prev_wf_method_nr, wfs_release,&
-       qs_wf_snapshot_p_type
+       qs_wf_history_type, qs_wf_snapshot_p_type, qs_wf_snapshot_type, &
+       wfi_aspc, wfi_clear_history, wfi_frozen_method_nr, wfi_get_snapshot, &
+       wfi_linear_p_method_nr, wfi_linear_ps_method_nr, &
+       wfi_linear_wf_method_nr, wfi_ps_method_nr, wfi_use_guess_method_nr, &
+       wfi_use_prev_p_method_nr, wfi_use_prev_rho_r_method_nr, &
+       wfi_use_prev_wf_method_nr, wfs_release
   USE sparse_matrix_types,             ONLY: allocate_matrix_set,&
                                              copy_matrix,&
                                              cp_sm_scale_and_add,&
@@ -1694,19 +1694,22 @@ END SUBROUTINE wfi_update
 !!
 !!*** **********************************************************************
 SUBROUTINE wfi_change_memory_depth(wf_history,memory_depth,error)
-  TYPE(qs_wf_history_type), pointer :: wf_history
-  INTEGER, intent(in) :: memory_depth
-  type(cp_error_type), optional, intent(inout) :: error
-  
-  logical :: failure
-  character(len=*), parameter :: routineN='wfi_change_memory_depth',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: handle,i,stat
-  TYPE(qs_wf_snapshot_p_type), DIMENSION(:), POINTER :: new_past_states
+    TYPE(qs_wf_history_type), POINTER        :: wf_history
+    INTEGER, INTENT(in)                      :: memory_depth
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  failure=.false.
+    CHARACTER(len=*), PARAMETER :: routineN = 'wfi_change_memory_depth', &
+      routineP = moduleN//':'//routineN
 
-  call timeset(routineN,handle)
+    INTEGER                                  :: handle, i, stat
+    LOGICAL                                  :: failure
+    TYPE(qs_wf_snapshot_p_type), &
+      DIMENSION(:), POINTER                  :: new_past_states
+
+  failure=.FALSE.
+
+  CALL timeset(routineN,handle)
   CPPrecondition(ASSOCIATED(wf_history),cp_failure_level,routineP,error,failure)
   CPPrecondition(wf_history%ref_count>0,cp_failure_level,routineP,error,failure)
   IF (.NOT.failure) THEN

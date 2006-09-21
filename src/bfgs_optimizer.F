@@ -23,7 +23,6 @@
 MODULE bfgs_optimizer
 
   USE atomic_kind_list_types,          ONLY: atomic_kind_list_type
-  USE atomic_kind_types,               ONLY: atomic_kind_type
   USE cell_types,                      ONLY: cell_type
   USE cp_files,                        ONLY: close_file,&
                                              open_file
@@ -95,8 +94,8 @@ CONTAINS
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp, zero = 0.0_dp
 
     CHARACTER(LEN=80)                        :: title
-    INTEGER :: handle, hesunit, i, ihandle, indf, istat, it, j, maxiter, &
-      natom, ndf, nfree, nkind, output_unit, traj_unit, handle2
+    INTEGER :: handle, handle2, hesunit, i, ihandle, indf, istat, it, j, &
+      maxiter, natom, ndf, nfree, nkind, output_unit, traj_unit
     LOGICAL                                  :: conv, hesrest, ionode, &
                                                 should_stop
     REAL(KIND=dp)                            :: ediff, emin, eold, etot, &
@@ -383,15 +382,16 @@ CONTAINS
                                                 work(ndf), eigvec(ndf,ndf), &
                                                 g(ndf)
 
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'rat_fun_opt', &
+      routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp
 
-    INTEGER                                  :: indf, iref, iter, maxit,handle
+    INTEGER                                  :: handle, indf, iref, iter, &
+                                                maxit
     LOGICAL                                  :: bisec, fail, set
     REAL(KIND=dp)                            :: DDOT, fun, fun1, fun2, fun3, &
                                                 fung, lam1, lam2, ln, lp, &
                                                 ssize, step, stol
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'rat_fun_opt', &
-      routineP = moduleN//':'//routineN
 
     CALL timeset(routineN,handle)
 
@@ -537,12 +537,12 @@ CONTAINS
     REAL(KIND=dp), INTENT(INOUT)             :: dx(ndf), dg(ndf), &
                                                 hes(ndf*(ndf+1)/2), work(ndf)
 
-    REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp, zero = 0.0_dp
-
-    INTEGER                                  :: i, indf, j, handle
-    REAL(KIND=dp)                            :: DDOT, dxw, gdx
     CHARACTER(LEN=*), PARAMETER :: routineN = 'bfgs', &
       routineP = moduleN//':'//routineN
+    REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp, zero = 0.0_dp
+
+    INTEGER                                  :: handle, i, indf, j
+    REAL(KIND=dp)                            :: DDOT, dxw, gdx
 
     CALL timeset(routineN,handle)
 
@@ -574,15 +574,15 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: ndf
     REAL(KIND=dp), INTENT(INOUT)             :: eigval(ndf), work(ndf)
 
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'set_hes_eig', &
+      routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: max_neg = -0.5_dp, &
                                                 max_pos = 5.0_dp, &
                                                 min_eig = 0.005_dp, &
                                                 one = 1.0_dp
 
-    INTEGER                                  :: indf,handle
+    INTEGER                                  :: handle, indf
     LOGICAL                                  :: neg
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'set_hes_eig', &
-      routineP = moduleN//':'//routineN
 
     CALL timeset(routineN,handle)
 
@@ -667,12 +667,12 @@ CONTAINS
     INTEGER, INTENT(IN)                      :: output_unit
     LOGICAL, INTENT(IN)                      :: ionode
 
-    REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp, zero = 0.0_dp 
-
-    REAL(KIND=dp)                            :: DDOT, scal
-   INTEGER :: handle
     CHARACTER(LEN=*), PARAMETER :: routineN = 'trust_radius', &
       routineP = moduleN//':'//routineN
+    REAL(KIND=dp), PARAMETER                 :: one = 1.0_dp, zero = 0.0_dp 
+
+    INTEGER                                  :: handle
+    REAL(KIND=dp)                            :: DDOT, scal
 
     CALL timeset(routineN,handle)
 
@@ -710,13 +710,13 @@ CONTAINS
     LOGICAL, INTENT(INOUT)                   :: conv
     REAL(KIND=dp), INTENT(INOUT)             :: pred
 
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'energy_predict', &
+      routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: limit = 1.0E-9_dp , &
                                                 one = 1.0_dp, zero = 0.0_dp
 
-    REAL(KIND=dp)                            :: DDOT, ener1, ener2
     INTEGER                                  :: handle
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'trust_radius', &
-      routineP = moduleN//':'//routineN
+    REAL(KIND=dp)                            :: DDOT, ener1, ener2
 
     CALL timeset(routineN,handle)
 
@@ -753,9 +753,11 @@ CONTAINS
     REAL(KIND=dp), INTENT(IN), OPTIONAL      :: ediff, pred, rat, step, rad, &
                                                 emin
     CHARACTER(LEN=5), OPTIONAL               :: wildcard
-    INTEGER :: handle
+
     CHARACTER(LEN=*), PARAMETER :: routineN = 'write_cycle_infos', &
       routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle
 
     CALL timeset(routineN,handle)
 
@@ -807,11 +809,12 @@ CONTAINS
 
     REAL(KIND=dp), INTENT(INOUT)             :: rat, rad, step, ediff
 
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'update_trust_rad', &
+      routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: max_trust = 1.0_dp, &
                                                 min_trust = 0.1_dp
-    INTEGER :: handle
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'write_cycle_infos', &
-      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle
 
     CALL timeset(routineN,handle)
 
@@ -886,7 +889,10 @@ CONTAINS
     LOGICAL, INTENT(OUT)                     :: conv
     TYPE(gopt_param_type), POINTER           :: gopt_param
 
-    INTEGER                                  :: indf
+    CHARACTER(LEN=*), PARAMETER :: routineN = 'check_converg', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, indf
     LOGICAL                                  :: conv_dx, conv_g, conv_rdx, &
                                                 conv_rg
     REAL(KIND=dp)                            :: dumm, dxcon, gcon, maxdum(4), &
@@ -896,9 +902,6 @@ CONTAINS
 !                                                gcon = 0.00045_dp, &
 !                                                rmsgcon = 0.00030_dp, &
 !                                                rmsxcon = 0.0015_dp
-    INTEGER :: handle
-    CHARACTER(LEN=*), PARAMETER :: routineN = 'write_cycle_infos', &
-      routineP = moduleN//':'//routineN
 
     CALL timeset(routineN,handle)
 

@@ -49,14 +49,15 @@ MODULE cp_output_handling
   USE input_section_types,             ONLY: section_add_keyword,&
                                              section_add_subsection,&
                                              section_create,&
+                                             section_release,&
                                              section_type,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type,&
-                                             section_vals_val_get, &
-                                             section_release
-  USE input_val_types,                 ONLY: val_create,&
+                                             section_vals_val_get
+  USE input_val_types,                 ONLY: char_t,&
+                                             val_create,&
                                              val_release,&
-                                             val_type, char_t
+                                             val_type
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp
@@ -209,8 +210,8 @@ CONTAINS
     LOGICAL                                  :: failure, mystore
     TYPE(enumeration_type), POINTER          :: enum
     TYPE(keyword_type), POINTER              :: keyword
-    TYPE(val_type), POINTER                  :: val
     TYPE(section_type), POINTER              :: store_section
+    TYPE(val_type), POINTER                  :: val
 
     failure=.FALSE.
 
@@ -1172,19 +1173,21 @@ END FUNCTION cp_print_key_unit_nr
        on_file, error)
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(section_vals_type), POINTER         :: basis_section
-    CHARACTER(len=*), INTENT(in)             :: print_key_path, extension,message
+    CHARACTER(len=*), INTENT(in)             :: print_key_path, extension, &
+                                                message
     CHARACTER(len=*), INTENT(in), OPTIONAL   :: middle_name
     LOGICAL, INTENT(in), OPTIONAL            :: local, log_filename, &
-         ignore_should_output
-    LOGICAL, INTENT(in), OPTIONAL            :: on_file
+                                                ignore_should_output, on_file
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
+      OPTIONAL                               :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineN='cp_print_key_log',&
-         routineP=moduleN//':'//routineN
-    integer :: output_unit
-    failure=.false.
+    CHARACTER(len=*), PARAMETER :: routineN = 'cp_print_key_log', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: output_unit
+    LOGICAL                                  :: failure
+
+    failure=.FALSE.
 
     IF (.NOT. failure) THEN
 

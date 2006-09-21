@@ -149,10 +149,9 @@ CONTAINS
     TYPE(pair_potential_single_type), &
       POINTER                                :: pot
     REAL(KIND=dp), INTENT(IN)                :: qi, qj, r
-    REAL(KIND=dp), INTENT(IN)                :: ei_scale14
-    LOGICAL, INTENT(IN)                      :: my_do_14
     INTEGER, INTENT(IN)                      :: ewald_type
-    REAL(KIND=dp), INTENT(IN)                :: alpha, eps0
+    REAL(KIND=dp), INTENT(IN)                :: alpha, eps0, ei_scale14
+    LOGICAL, INTENT(IN)                      :: my_do_14
     REAL(KIND=dp)                            :: ener_coul
 
     ener_coul= 0.0_dp
@@ -212,15 +211,14 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'spline_nonbond_control', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: handle, i, j, jx, n, ncount, &
-                                                npoints, ntype, ilevel
-    LOGICAL                                  :: failure, my_do_14, found_locut
-    REAL(KIND=dp) :: diffmax, dx2, e, hicut, locut, locut_found, my_ei_scale14, &
-      my_vdw_scale14, myfac1, myfac2, qi, qj, x, x2, xdum, xdum1, xsav
+    INTEGER                                  :: ewald_type, handle, i, &
+                                                ilevel, j, jx, n, ncount, &
+                                                npoints, ntype
+    LOGICAL                                  :: failure, found_locut, my_do_14
+    REAL(KIND=dp) :: alpha, diffmax, dx2, e, eps0, hicut, locut, locut_found, &
+      my_ei_scale14, my_vdw_scale14, myfac1, myfac2, qi, qj, x, x2, xdum, &
+      xdum1, xsav
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    INTEGER                                  :: ewald_type
-    REAL(KIND=dp)                            :: alpha, eps0
-
 
     failure     = .FALSE.
     n      = 0
@@ -272,7 +270,7 @@ CONTAINS
                   + ener_coul ( potparm%pot( i, j )%pot, qi, qj, x, ewald_type,alpha,eps0, my_ei_scale14, my_do_14 )
                 IF (ABS(e) > emax_spline) THEN
                    locut_found = x
-                   found_locut = .true.
+                   found_locut = .TRUE.
                    EXIT
                 END IF
                 x = x - dx2
@@ -744,9 +742,8 @@ CONTAINS
     TYPE(ewald_environment_type), OPTIONAL, &
       POINTER                                :: ewald_env
 
-    REAL(KIND=dp)                            :: rij
     INTEGER                                  :: ewald_type
-    REAL(KIND=dp)                            :: alpha, eps0
+    REAL(KIND=dp)                            :: alpha, eps0, rij
 
     rij = SQRT ( rijsq )
 

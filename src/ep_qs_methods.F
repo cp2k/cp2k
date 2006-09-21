@@ -88,7 +88,7 @@ SUBROUTINE ep_qs_create(ep_qs_env,qs_env,error)
      NULLIFY(ep_qs_env%dH_coeffs,ep_qs_env%dS_coeffs)
      ep_qs_env%tot_rho=0._dp
      ep_qs_env%core_energy=0._dp
-     ep_qs_env%ep_active=.false.
+     ep_qs_env%ep_active=.FALSE.
   END IF
   CALL timestop(handle)
 END SUBROUTINE ep_qs_create

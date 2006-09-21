@@ -25,10 +25,10 @@
 !****************************************************************************
 MODULE ep_qs_types
   USE kinds,                           ONLY: dp
+  USE sparse_matrix_types,             ONLY: deallocate_matrix_set,&
+                                             real_matrix_p_type
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE sparse_matrix_types, only: real_matrix_p_type, deallocate_matrix_set,&
-       real_matrix_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -64,7 +64,7 @@ MODULE ep_qs_types
 !!*** **********************************************************************
 TYPE ep_qs_type
    INTEGER :: id_nr, ref_count
-   logical :: ep_active
+   LOGICAL :: ep_active
    TYPE(real_matrix_p_type), DIMENSION(:), POINTER :: dH_coeffs, dS_coeffs
    REAL(kind=dp) :: core_energy,tot_rho
 END TYPE ep_qs_type
@@ -207,19 +207,21 @@ END SUBROUTINE ep_qs_release
 !!
 !!*** **********************************************************************
 SUBROUTINE ep_qs_set(ep_qs_env, dH_coeffs_ptr, dS_coeffs_ptr, error)
-  TYPE(ep_qs_type), pointer :: ep_qs_env
-  TYPE(real_matrix_p_type), POINTER, DIMENSION(:), OPTIONAL :: dH_coeffs_ptr, &
-       dS_coeffs_ptr
-  type(cp_error_type), optional, intent(inout) :: error
-  
-  logical :: failure
-  character(len=*), parameter :: routineN='ep_qs_set',&
-        routineP=moduleN//':'//routineN
-  INTEGER :: handle,i
+    TYPE(ep_qs_type), POINTER                :: ep_qs_env
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      OPTIONAL, POINTER                      :: dH_coeffs_ptr, dS_coeffs_ptr
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  failure=.false.
+    CHARACTER(len=*), PARAMETER :: routineN = 'ep_qs_set', &
+      routineP = moduleN//':'//routineN
 
-  call timeset(routineN,handle)
+    INTEGER                                  :: handle, i
+    LOGICAL                                  :: failure
+
+  failure=.FALSE.
+
+  CALL timeset(routineN,handle)
   CPPrecondition(ASSOCIATED(ep_qs_env),cp_failure_level,routineP,error,failure)
   CPPrecondition(ep_qs_env%ref_count>0,cp_failure_level,routineP,error,failure)
   IF (.NOT.failure) THEN
@@ -254,7 +256,7 @@ CPSourceFileRef,&
         ep_qs_env%dS_coeffs => dS_coeffs_ptr
      END IF
   END IF
-  call timestop(handle)
+  CALL timestop(handle)
 END SUBROUTINE ep_qs_set
 !***************************************************************************
 

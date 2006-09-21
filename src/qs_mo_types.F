@@ -51,7 +51,6 @@ MODULE qs_mo_types
                                              cp_print_key_should_output,&
                                              cp_print_key_unit_nr
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE global_types,                    ONLY: global_environment_type
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: default_path_length,&
@@ -597,15 +596,13 @@ CONTAINS
 
     TYPE(mo_set_p_type), DIMENSION(:), &
       POINTER                                :: mo_array
-!    TYPE(atomic_kind_type), DIMENSION(:), &
-!      POINTER                                :: atomic_kind_set
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(cp_para_env_type), POINTER          :: para_env
     INTEGER, INTENT(in), OPTIONAL            :: id_nr
-    TYPE(section_vals_type), POINTER, &
-      OPTIONAL                               :: dft_section
-    INTEGER, INTENT(IN), OPTIONAL            :: rst_unit
+    TYPE(section_vals_type), OPTIONAL, &
+      POINTER                                :: dft_section
+    INTEGER, INTENT(in), OPTIONAL            :: rst_unit
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
@@ -614,8 +611,8 @@ CONTAINS
 
     CHARACTER(LEN=default_path_length)       :: file_name
     INTEGER :: handle, i, i_block, iatom, iset, ishell, ispin, istat, j, &
-      lshell, max_block, nao, natom, nmo, nset, nset_max, nsgf, nshell_max, &
-      nspin, restart_unit
+      lshell, max_block, nao, natom, nmo, nset, nset_max, nshell_max, nspin, &
+      restart_unit
     INTEGER, DIMENSION(:), POINTER           :: nset_info, nshell
     INTEGER, DIMENSION(:, :), POINTER        :: l, nshell_info
     INTEGER, DIMENSION(:, :, :), POINTER     :: nso_info
@@ -624,6 +621,8 @@ CONTAINS
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(gto_basis_set_type), POINTER        :: orb_basis_set
 
+!    TYPE(atomic_kind_type), DIMENSION(:), &
+!      POINTER                                :: atomic_kind_set
 !   *** Local paramters ***
 !   ---------------------------------------------------------------------------
 

@@ -48,55 +48,25 @@ MODULE cp2k_runs
                                              globenv_release,&
                                              globenv_retain
   USE harris_metropolis_mc,            ONLY: harris_mc_ld
-  USE input_constants,                 ONLY: EIP_MC_method,&
-                                             Harris_MC_method,&
-                                             KG_DFT_MC_method,&
-                                             QS_MC_method, &
-                                             SE_MC_method,&
-                                             TBMD_MC_method,&
-                                             bsse_run,&
-                                             vib_anal,&
-                                             do_cp2k,&
-                                             do_eip,&
-                                             do_ep,&
-                                             do_farming,&
-                                             do_fist,&
-                                             do_kg,&
-                                             do_qmmm,&
-                                             do_qs,&
-                                             do_tbmd,&
-                                             do_test,&
-                                             electronic_spectra_run,&
-                                             energy_force_run,&
-                                             energy_run,&
-                                             geo_opt_run,&
-                                             hmc_run,&
-                                             ldmc_run,&
-                                             linear_response_run,&
-                                             mol_dyn_run,&
-                                             mon_car_run,&
-                                             none_run,&
-                                             pint_run,&
-                                             qs_debug_run
+  USE input_constants,                 ONLY: &
+       EIP_MC_method, Harris_MC_method, KG_DFT_MC_method, QS_MC_method, &
+       SE_MC_method, TBMD_MC_method, bsse_run, do_cp2k, do_eip, do_ep, &
+       do_farming, do_fist, do_kg, do_qmmm, do_qs, do_tbmd, do_test, &
+       electronic_spectra_run, energy_force_run, energy_run, geo_opt_run, &
+       hmc_run, ldmc_run, linear_response_run, mol_dyn_run, mon_car_run, &
+       none_run, pint_run, qs_debug_run, vib_anal
   USE input_cp2k,                      ONLY: create_cp2k_input_reading,&
                                              create_cp2k_root_section,&
                                              create_global_section
   USE input_cp2k_check,                ONLY: check_cp2k_input
   USE input_keyword_types,             ONLY: keyword_release
   USE input_parsing,                   ONLY: section_vals_parse
-  USE input_section_types,             ONLY: section_describe_html,&
-                                             section_describe_index_html,&
-                                             section_release, &
-                                             section_type,&
-                                             section_typo_match,&
-                                             section_vals_create,&
-                                             section_vals_get_subs_vals,&
-                                             section_vals_release,&
-                                             section_vals_retain,&
-                                             section_vals_type,&
-                                             section_vals_val_get,&
-                                             section_vals_write,&
-                                             write_section_xml
+  USE input_section_types,             ONLY: &
+       section_describe_html, section_describe_index_html, section_release, &
+       section_type, section_typo_match, section_vals_create, &
+       section_vals_get_subs_vals, section_vals_release, section_vals_retain, &
+       section_vals_type, section_vals_val_get, section_vals_write, &
+       write_section_xml
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp
@@ -109,8 +79,8 @@ MODULE cp2k_runs
   USE message_passing,                 ONLY: mp_comm_free,&
                                              mp_comm_split,&
                                              mp_environ,&
-                                             mp_sync,&
-                                             mp_sum
+                                             mp_sum,&
+                                             mp_sync
   USE pint_methods,                    ONLY: do_pint_run
   USE qs_debug,                        ONLY: qs_debug_energy_and_forces
   USE qs_linres_module,                ONLY: linres_calculation
@@ -118,7 +88,6 @@ MODULE cp2k_runs
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE vibrational_analysis,            ONLY: vb_anal
-
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -478,12 +447,12 @@ CPSourceFileRef,&
     CHARACTER(LEN=default_path_length)       :: output_file
     CHARACTER(LEN=default_string_length)     :: str
     INTEGER :: handle, i, i_job_to_restart, ierr, ijob, ijob_end, ijob_start, &
-      iunit, n_jobs_to_run, new_group, new_output_unit, new_rank, new_size, ngroups, &
-      output_unit, stat
+      iunit, n_jobs_to_run, new_group, new_output_unit, new_rank, new_size, &
+      ngroups, output_unit, stat
     INTEGER, DIMENSION(:), POINTER           :: group_distribution
-    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: waittime
-    REAL(KIND=dp)                            :: t1,t2
     LOGICAL                                  :: failure, found, run_OK
+    REAL(KIND=dp)                            :: t1, t2
+    REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: waittime
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_parser_type), POINTER            :: my_parser
     TYPE(cp_unit_set_type), POINTER          :: default_units
@@ -646,11 +615,11 @@ CPSourceFileRef,&
     IF (new_rank==0) waittime(group_distribution(para_env%mepos))=t2-t1
     CALL mp_sum(waittime,para_env%group)
     IF (output_unit>0) THEN
-       write(output_unit,'(T2,A)') "Group idle times [s] at the end of the run"
+       WRITE(output_unit,'(T2,A)') "Group idle times [s] at the end of the run"
        DO i=0,ngroups-1
          WRITE(output_unit,FMT='(A2,I4,A3,F8.3,A1)',ADVANCE="NO")&
                 " (",i," : ",waittime(i),")"
-         IF (MOD(i+1,4)==0) write(output_unit,'(A)') ""
+         IF (MOD(i+1,4)==0) WRITE(output_unit,'(A)') ""
        ENDDO
     ENDIF
     DEALLOCATE(waittime)

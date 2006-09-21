@@ -27,10 +27,6 @@
 !!   SOURCE
 !****************************************************************************
 MODULE ep_methods
-  USE kahan_sum,                       ONLY: accurate_sum
-  USE qs_charges_types,                ONLY: qs_charges_release,&
-                                             qs_charges_retain,&
-                                             qs_charges_type
   USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                              get_atomic_kind_set
   USE cp_control_types,                ONLY: dft_control_type
@@ -52,23 +48,17 @@ MODULE ep_methods
        cp_fm_write
   USE cp_fm_vect,                      ONLY: cp_fm_vect_set_all,&
                                              cp_fm_vect_write
-  USE cp_output_handling,              ONLY: cp_add_iter_level,&
-                                             cp_iter_string,&
-                                             cp_iterate,&
-                                             cp_p_file,&
-                                             cp_print_key_finished_output,&
-                                             cp_print_key_should_output,&
-                                             cp_print_key_unit_nr,&
-                                             cp_print_key_log,&
-                                             cp_rm_iter_level,&
-                                             cp_p_store
+  USE cp_output_handling,              ONLY: &
+       cp_add_iter_level, cp_iter_string, cp_iterate, cp_p_file, cp_p_store, &
+       cp_print_key_finished_output, cp_print_key_log, &
+       cp_print_key_should_output, cp_print_key_unit_nr, cp_rm_iter_level
   USE cp_para_env,                     ONLY: cp_para_env_release,&
                                              cp_para_env_retain
   USE cp_para_types,                   ONLY: cp_blacs_env_type,&
                                              cp_para_env_type
-  USE cp_sm_fm_interactions,           ONLY: cp_sm_fm_multiply,&
-                                             cp_sm_plus_fm_fm_t,&
-                                             copy_sm_to_fm
+  USE cp_sm_fm_interactions,           ONLY: copy_sm_to_fm,&
+                                             cp_sm_fm_multiply,&
+                                             cp_sm_plus_fm_fm_t
   USE cp_sm_pool_types,                ONLY: cp_sm_pool_p_type,&
                                              sm_pool_create_matrix,&
                                              sm_pool_give_back_matrix,&
@@ -83,14 +73,14 @@ MODULE ep_methods
                                              ep_env_type,&
                                              ep_envs_get_ep_env,&
                                              ep_force_create,&
-                                             ep_force_zero,&
-                                             ep_force_type
+                                             ep_force_type,&
+                                             ep_force_zero
   USE f77_interface,                   ONLY: calc_energy,&
+                                             calc_energy_force,&
                                              create_force_env,&
                                              f_env_add_defaults,&
                                              f_env_rm_defaults,&
-                                             f_env_type,&
-                                             calc_energy_force
+                                             f_env_type
   USE force_env_types,                 ONLY: force_env_get
   USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: do_ep,&
@@ -105,6 +95,7 @@ MODULE ep_methods
                                              section_vals_val_get,&
                                              section_vals_val_set,&
                                              section_vals_write
+  USE kahan_sum,                       ONLY: accurate_sum
   USE kinds,                           ONLY: default_path_length,&
                                              default_string_length,&
                                              dp
@@ -118,6 +109,7 @@ MODULE ep_methods
                                              destroy_preconditioner,&
                                              init_preconditioner,&
                                              make_preconditioner
+  USE qs_charges_types,                ONLY: qs_charges_type
   USE qs_core_energies,                ONLY: calculate_ecore_overlap,&
                                              calculate_ecore_self
   USE qs_core_hamiltonian,             ONLY: build_core_hamiltonian_matrix
@@ -145,21 +137,21 @@ MODULE ep_methods
                                              set_mo_set
   USE qs_neighbor_lists,               ONLY: build_qs_neighbor_lists
   USE qs_p_env_methods,                ONLY: p_env_create,&
+                                             p_env_did_change,&
                                              p_env_psi0_changed,&
                                              p_op_l1,&
                                              p_op_l2_fawzi,&
                                              p_postortho,&
-                                             p_preortho,&
-                                             p_env_did_change 
+                                             p_preortho
   USE qs_p_env_types,                  ONLY: qs_p_env_type
   USE qs_p_sparse_psi,                 ONLY: p_proj_create,&
                                              qs_p_projection_p_type,&
                                              qs_p_projection_type
   USE qs_rho_methods,                  ONLY: qs_rho_update_rho
   USE qs_rho_types,                    ONLY: qs_rho_type
-  USE qs_wf_history_methods,           ONLY: wfi_create,&
-                                             wfs_duplicate_snapshot,&
-                                             wfi_change_memory_depth
+  USE qs_wf_history_methods,           ONLY: wfi_change_memory_depth,&
+                                             wfi_create,&
+                                             wfs_duplicate_snapshot
   USE qs_wf_history_types,             ONLY: qs_wf_history_type,&
                                              qs_wf_snapshot_type,&
                                              wfi_get_snapshot,&
@@ -174,10 +166,10 @@ MODULE ep_methods
   USE scf_control_types,               ONLY: scf_control_type
   USE sparse_matrix_types,             ONLY: &
        add_block_node, allocate_matrix, allocate_matrix_set, &
-       deallocate_matrix_set, first_block_node, get_block_node, &
-       get_matrix_info, next_block_node, real_block_node_type, &
-       real_matrix_p_type, real_matrix_type, replicate_matrix_structure, &
-       set_matrix,deallocate_matrix,cp_sm_scale_and_add
+       cp_sm_scale_and_add, deallocate_matrix, deallocate_matrix_set, &
+       first_block_node, get_block_node, get_matrix_info, next_block_node, &
+       real_block_node_type, real_matrix_p_type, real_matrix_type, &
+       replicate_matrix_structure, set_matrix
   USE timings,                         ONLY: timeset,&
                                              timestop
 #include "cp_common_uses.h"
@@ -435,24 +427,24 @@ CONTAINS
 !!
 !!*** **********************************************************************
   SUBROUTINE print_qs_energies(qs_env,output_unit,error)
+    TYPE(qs_environment_type), POINTER       :: qs_env
     INTEGER, INTENT(IN)                      :: output_unit
-    TYPE(qs_environment_type), pointer :: qs_env
-    type(cp_error_type), optional, intent(inout) :: error
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-    logical :: failure
-    character(len=*), parameter :: routineN='print_qs_energies',&
-         routineP=moduleN//':'//routineN
-    integer :: handle
-    TYPE(qs_rho_type), POINTER               :: rho
+    CHARACTER(len=*), PARAMETER :: routineN = 'print_qs_energies', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle
+    LOGICAL                                  :: failure
+    TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(qs_charges_type), POINTER           :: qs_charges
     TYPE(qs_energy_type), POINTER            :: energy
-    TYPE(dft_control_type), POINTER          :: dft_control
-    INTEGER                                  :: ispin
-    REAL(kind=dp)                            :: tot1_h, tot1_s
+    TYPE(qs_rho_type), POINTER               :: rho
 
-    failure=.false.
+    failure=.FALSE.
 
-    call timeset(routineN,handle)
+    CALL timeset(routineN,handle)
     IF (output_unit>0) THEN
        NULLIFY(rho,energy,qs_charges,dft_control)
        CALL get_qs_env(qs_env,rho=rho,energy=energy,dft_control=dft_control,&
@@ -485,7 +477,7 @@ CONTAINS
             "Total energy:                                  ",energy%total
        CALL m_flush(output_unit)
     END IF
-    call timestop(handle)
+    CALL timestop(handle)
   END SUBROUTINE print_qs_energies
 !***************************************************************************
 
@@ -534,6 +526,7 @@ CONTAINS
     TYPE(cp_error_type)                      :: error, new_error
     TYPE(cp_fm_pool_p_type), DIMENSION(:), &
       POINTER                                :: ao_mo_fm_pools
+    TYPE(cp_logger_type), POINTER            :: logger
     TYPE(cp_para_env_type), POINTER          :: para_env
     TYPE(dft_control_type), POINTER          :: dft_control
     TYPE(ep_env_type), POINTER               :: ep_env
@@ -549,7 +542,7 @@ CONTAINS
     TYPE(qs_p_projection_p_type), &
       DIMENSION(:), POINTER                  :: sub_proj
     TYPE(section_vals_type), POINTER         :: comp_input, input
-    TYPE(cp_logger_type), pointer :: logger
+
 !    TYPE(qs_p_projection_p_type), &
 !      DIMENSION(:), INTENT(in)               :: projections
 !    TYPE(cp_para_env_type), POINTER          :: para_env
@@ -564,10 +557,10 @@ CONTAINS
        input => ep_env%root_section
        para_env => ep_env%para_env
        logger => cp_error_get_logger(error)
-       call cp_log(logger, level=cp_note_level, fromWhere=routineP ,&
+       CALL cp_log(logger, level=cp_note_level, fromWhere=routineP ,&
             message=routineP//" creating main_qs_env", local=.FALSE.)
 
-       call cp_print_key_log(logger,input,"FORCE_EVAL%EP%PRINT%RUN_INFO",&
+       CALL cp_print_key_log(logger,input,"FORCE_EVAL%EP%PRINT%RUN_INFO",&
             extension=".epLog",message=routineP//" creating main_qs_env",error=error)
        ! create_main_qs_env
        CALL section_vals_val_set(input,"FORCE_EVAL%METHOD",&
@@ -599,7 +592,7 @@ CONTAINS
        CALL qs_env_retain(ep_env%main_qs_env,error=error)
        CALL cp_print_key_log(logger,input,"FORCE_EVAL%EP%PRINT%RUN_INFO",&
             extension=".epLog",message=routineP//" created main_qs_env "//&
-            trim(adjustr(cp_to_string(ep_env%main_qs_env%id_nr))),error=error)
+            TRIM(ADJUSTR(cp_to_string(ep_env%main_qs_env%id_nr))),error=error)
 
        !-       ! reduce memory usage, get rid of an input structure
        !-       CALL section_vals_retain(root_section,error=error)
@@ -615,7 +608,7 @@ CONTAINS
        !-       ep_env%globenv => globenv
 
        ! *** initial initializations (atom position dependent)
-       call cp_print_key_log(logger,ep_env%input,"PRINT%RUN_INFO",&
+       CALL cp_print_key_log(logger,ep_env%input,"PRINT%RUN_INFO",&
             extension=".epLog",message=routineP//" initial setup of main_qs_env",&
             error=error)
 
@@ -648,12 +641,12 @@ CONTAINS
        !
        CALL f_env_rm_defaults(f_env,new_error,ierr)
        CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
-       call cp_print_key_log(logger,ep_env%input,"PRINT%RUN_INFO",&
+       CALL cp_print_key_log(logger,ep_env%input,"PRINT%RUN_INFO",&
             extension=".epLog",message=routineP//&
             " initial setup of main_qs_env finished",error=error)
 
        ! create mol_envs
-       call cp_print_key_log(logger,ep_env%input,"PRINT%RUN_INFO",&
+       CALL cp_print_key_log(logger,ep_env%input,"PRINT%RUN_INFO",&
             extension=".epLog",message=routineP//&
             " creating mol_envs",error=error)
        CALL cp_get_natom(ep_env%f_env_id,nat,ierr)
@@ -674,12 +667,12 @@ CONTAINS
             cp_assertion_failed,routineP,"ep not implemented for a number of"//&
             " processors bigger than the number of molecules",error,failure)
        CALL section_vals_release(comp_input,error=error)
-       call cp_print_key_log(logger,ep_env%input,"PRINT%RUN_INFO",&
+       CALL cp_print_key_log(logger,ep_env%input,"PRINT%RUN_INFO",&
             extension=".epLog",message=routineP//&
             " mol_envs created",error=error)
 
        !sub_nao,sub_nmo
-       call cp_print_key_log(logger,ep_env%input,"PRINT%RUN_INFO",&
+       CALL cp_print_key_log(logger,ep_env%input,"PRINT%RUN_INFO",&
             extension=".epLog",message=routineP//&
             " mol_envs initial setup",error=error)
        ALLOCATE(ep_env%sub_nao(ep_env%nspins),ep_env%sub_nmo(ep_env%nspins),&
@@ -705,32 +698,32 @@ CONTAINS
        CALL mp_max(ep_env%sub_nao,para_env%group)
        ! dummy force calc to ensure that everything is allocated for force
        ! evaluation
-       CALL calc_energy_force(ep_env%mol_envs%f_env_id,.true.,ierr)
+       CALL calc_energy_force(ep_env%mol_envs%f_env_id,.TRUE.,ierr)
        CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
        ! guarantee wf & overlap in wf_history
        DO imol=1,SIZE(ep_env%mol_envs%local_rep_indices)
           ep_env%mol_envs%wf_history(imol)%wf_history%store_wf=.TRUE.
           ep_env%mol_envs%wf_history(imol)%wf_history%store_overlap=.TRUE.
-          call wfi_change_memory_depth(&
+          CALL wfi_change_memory_depth(&
                ep_env%mol_envs%wf_history(imol)%wf_history,&
                MAX(1,ep_env%mol_envs%wf_history(imol)%wf_history%memory_depth),&
                error=error)
        END DO
-       call cp_print_key_log(logger,ep_env%input,"PRINT%RUN_INFO",&
+       CALL cp_print_key_log(logger,ep_env%input,"PRINT%RUN_INFO",&
             extension=".epLog",message=routineP//&
             " mol_envs setup fininshed",error=error)
        ! create the perturbation environment
-       call cp_print_key_log(logger,ep_env%input,"PRINT%RUN_INFO",&
+       CALL cp_print_key_log(logger,ep_env%input,"PRINT%RUN_INFO",&
             extension=".epLog",message=routineP//&
             " creating sub_p_env",error=error)
        CALL p_env_create(ep_env%sub_p_env, qs_env=sub_qs_env,&
             orthogonal_orbitals=.TRUE.,error=error)
-       call cp_print_key_log(logger,ep_env%input,"PRINT%RUN_INFO",&
+       CALL cp_print_key_log(logger,ep_env%input,"PRINT%RUN_INFO",&
             extension=".epLog",message=routineP//&
             " sub_p_env created",error=error)
 
        ! create sub_proj and at2sub
-       call cp_print_key_log(logger,ep_env%input,"PRINT%RUN_INFO",&
+       CALL cp_print_key_log(logger,ep_env%input,"PRINT%RUN_INFO",&
             extension=".epLog",message=routineP//&
             " creating projections",error=error)
        ALLOCATE(sub_proj(nmol),stat=stat)
@@ -752,17 +745,17 @@ CONTAINS
        DEALLOCATE(atoms,stat=stat)
        CPPostcondition(stat==0,cp_warning_level,routineP,error,failure)
        ep_env%sub_proj => sub_proj
-       call cp_print_key_log(logger,ep_env%input,"PRINT%RUN_INFO",&
+       CALL cp_print_key_log(logger,ep_env%input,"PRINT%RUN_INFO",&
             extension=".epLog",message=routineP//&
             " created projections",error=error)
 
        ! create the perturbation environment
-       call cp_print_key_log(logger,ep_env%input,"PRINT%RUN_INFO",&
+       CALL cp_print_key_log(logger,ep_env%input,"PRINT%RUN_INFO",&
             extension=".epLog",message=routineP//&
             " creating main_p_env",error=error)
        CALL p_env_create(ep_env%main_p_env, qs_env=ep_env%main_qs_env,&
             orthogonal_orbitals=.FALSE.,error=error)
-       call cp_print_key_log(logger,ep_env%input,"PRINT%RUN_INFO",&
+       CALL cp_print_key_log(logger,ep_env%input,"PRINT%RUN_INFO",&
             extension=".epLog",message=routineP//&
             " created main_p_env",error=error)
 
@@ -779,7 +772,7 @@ CONTAINS
             name="ep_env"//TRIM(ADJUSTL(cp_to_string(ep_env%id_nr)))//"%psi1",&
             error=error)
 
-       call cp_print_key_log(logger,ep_env%input,"PRINT%RUN_INFO",&
+       CALL cp_print_key_log(logger,ep_env%input,"PRINT%RUN_INFO",&
             extension=".epLog",message=routineP//&
             " ep initial setup finished",error=error)
     END IF
@@ -1873,8 +1866,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'ep_env_calc_e0', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: handle, i, iat, iatom, idir, ii, ikind, imol, ispin, iw, &
-      lfomo, natom, nkind, nmo, nspin, output_unit, stat, unit_nr, flag
+    INTEGER :: flag, handle, i, iat, iatom, idir, ii, ikind, imol, ispin, iw, &
+      lfomo, natom, nkind, nmo, nspin, output_unit, stat, unit_nr
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, kind_of, &
                                                 natom_of_kind
     INTEGER, DIMENSION(:), POINTER           :: at
@@ -1907,7 +1900,8 @@ CONTAINS
       POINTER                                :: matrix_ks, matrix_s, matrix_w
     TYPE(replica_env_type), POINTER          :: rep_env
     TYPE(scf_control_type), POINTER          :: scf_control
-    TYPE(section_vals_type),POINTER          :: print_section, qs_env_input
+    TYPE(section_vals_type), POINTER         :: print_section, qs_env_input
+
 !----------------
 
     CALL timeset(routineN,"I","",handle)
@@ -2023,7 +2017,7 @@ CONTAINS
     CALL cp_print_key_log(logger,ep_env%input,"PRINT%RUN_INFO",&
          extension=".epLog",message=routineP//&
          " calculated psi0 locally, e_no_int="//&
-         trim(adjustl(cp_to_string(ep_env%energy%e_no_int))),error=error)
+         TRIM(ADJUSTL(cp_to_string(ep_env%energy%e_no_int))),error=error)
     ! ** transfer psi0
     CALL ep_env_transfer_psi0(ep_env,error=error)
     CALL cp_print_key_log(logger,ep_env%input,"PRINT%RUN_INFO",&
@@ -2598,50 +2592,52 @@ CONTAINS
   SUBROUTINE ep_calc_f_sub(ep_env,error)
     TYPE(ep_env_type), POINTER               :: ep_env
     TYPE(cp_error_type), INTENT(inout), &
-         OPTIONAL                               :: error
+      OPTIONAL                               :: error
 
     CHARACTER(len=*), PARAMETER :: routineN = 'ep_calc_f_sub', &
-         routineP = moduleN//':'//routineN
+      routineP = moduleN//':'//routineN
 
-    TYPE(cp_fm_pool_p_type), POINTER, DIMENSION(:) :: ao_mo_fm_pools
-    TYPE(cp_fm_pool_type), POINTER :: maxao_maxmo_fm_pool, maxao_maxao_fm_pool,&
-         maxmo_maxmo_fm_pool
-    TYPE(cp_fm_type), POINTER :: aoao_work1
-    TYPE(cp_fm_p_type), POINTER, DIMENSION(:) :: coeffs_cr, aomo_work1,pi_Hrho_psi0d
-    INTEGER                                  :: handle, ncol_block, &
-         ncol_global, nrow_block, &
-         nrow_global,ierr, ispin,nat,iatom,i,irep,j,ikind, stat
+    INTEGER                                  :: handle, i, iat, idir, ierr, &
+                                                irep, irep_local, ispin, nat, &
+                                                stat
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, kind_of
     LOGICAL                                  :: failure
-    TYPE(cp_fm_type), POINTER                :: psi0, &
-         weighted_vectors
-    TYPE(f_env_type), pointer :: f_env
-    TYPE(cp_error_type) :: new_error
+    REAL(kind=dp)                            :: fdiff(2)
+    TYPE(atomic_kind_type), DIMENSION(:), &
+      POINTER                                :: atomic_kind_set
+    TYPE(cp_error_type)                      :: new_error
+    TYPE(cp_fm_p_type), DIMENSION(:), &
+      POINTER                                :: aomo_work1, coeffs_cr, &
+                                                pi_Hrho_psi0d
+    TYPE(cp_fm_pool_p_type), DIMENSION(:), &
+      POINTER                                :: ao_mo_fm_pools
+    TYPE(cp_fm_pool_type), POINTER           :: maxao_maxao_fm_pool, &
+                                                maxao_maxmo_fm_pool, &
+                                                maxmo_maxmo_fm_pool
+    TYPE(cp_fm_type), POINTER                :: aoao_work1, psi0
+    TYPE(ep_force_type), POINTER             :: ep_force
+    TYPE(f_env_type), POINTER                :: f_env
+    TYPE(global_environment_type), POINTER   :: sub_globenv
     TYPE(mo_set_p_type), DIMENSION(:), &
-         POINTER                                :: mos
-    TYPE(real_matrix_p_type), DIMENSION(:), POINTER          :: matrix_w,matrix_s,&
-         dh_dr
-    TYPE(real_matrix_type), POINTER :: diag_P_H_pi
-    TYPE(real_matrix_p_type), DIMENSION(:,:), POINTER        :: local_P_H_pi
-    TYPE(replica_env_type), POINTER :: rep_env
-    TYPE(cp_fm_type), POINTER :: work1,work2,work3
-    TYPE(qs_environment_type), pointer :: sub_qs_env
-    TYPE(global_environment_type), pointer :: sub_globenv
-    TYPE(ep_force_type), pointer :: ep_force
-    TYPE(qs_force_type), DIMENSION(:), POINTER :: force
-    TYPE(atomic_kind_type), DIMENSION(:), pointer :: atomic_kind_set
+      POINTER                                :: mos
+    TYPE(qs_environment_type), POINTER       :: sub_qs_env
+    TYPE(qs_force_type), DIMENSION(:), &
+      POINTER                                :: force
+    TYPE(qs_wf_history_type), POINTER        :: tmp_wf_history
     TYPE(qs_wf_snapshot_type), POINTER       :: snapshot, tmp_snap
-    TYPE(qs_wf_history_type), pointer  :: tmp_wf_history
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: atom_of_kind, kind_of, &
-         natom_of_kind
-    INTEGER, DIMENSION(:), pointer :: atoms
-    REAL(kind=dp) :: fdiff(2), r_val
-    INTEGER :: irep_local,ilocal,imol,iat,idir
-    !   ---------------------------------------------------------------------------
+    TYPE(real_matrix_p_type), DIMENSION(:), &
+      POINTER                                :: matrix_s, matrix_w
+    TYPE(real_matrix_p_type), &
+      DIMENSION(:, :), POINTER               :: local_P_H_pi
+    TYPE(real_matrix_type), POINTER          :: diag_P_H_pi
+    TYPE(replica_env_type), POINTER          :: rep_env
+
+!   ---------------------------------------------------------------------------
 
     CALL timeset(routineN,"I","",handle)
     failure=.FALSE.
-    NULLIFY(weighted_vectors,f_env,maxao_maxao_fm_pool,maxmo_maxmo_fm_pool,&
-         maxao_maxmo_fm_pool,ao_mo_fm_pools,mos,sub_globenv,sub_qs_env)
+    NULLIFY(f_env, maxao_maxao_fm_pool, maxmo_maxmo_fm_pool, &
+         maxao_maxmo_fm_pool, ao_mo_fm_pools, mos, sub_globenv, sub_qs_env)
     ep_force => ep_env%force
 
     CALL get_qs_env(ep_env%main_qs_env,mos=mos,matrix_s=matrix_s,error=new_error)
@@ -2680,7 +2676,6 @@ CONTAINS
          maxmo_maxmo_fm_pool=maxao_maxmo_fm_pool,&
          ao_mo_fm_pools=ao_mo_fm_pools,&
          error=error)
-    NULLIFY(work1,work2,work3)
     CALL fm_pools_create_fm_vect(ao_mo_fm_pools,aomo_work1,&
          name="ao_mo_work1",error=error)
     CALL fm_pools_create_fm_vect(ao_mo_fm_pools,coeffs_cr,&
@@ -2716,7 +2711,7 @@ CONTAINS
        CALL wfi_change_memory_depth(tmp_wf_history,MAX(1,tmp_wf_history%memory_depth),&
             error=error)
        tmp_wf_history%store_wf=.TRUE.
-       call wfs_duplicate_snapshot(input_snapshot=snapshot, output_snapshot=tmp_snap,&
+       CALL wfs_duplicate_snapshot(input_snapshot=snapshot, output_snapshot=tmp_snap,&
             qs_env=sub_qs_env, error=new_error)
        tmp_wf_history%last_state_index=MODULO(tmp_wf_history%snapshot_count,&
             tmp_wf_history%memory_depth)+1
@@ -2724,18 +2719,18 @@ CONTAINS
             error=new_error)
        tmp_wf_history%past_states(tmp_wf_history%last_state_index)%snapshot => &
             tmp_snap
-       nullify(tmp_snap)
+       NULLIFY(tmp_snap)
        CALL set_qs_env(sub_qs_env,wf_history=tmp_wf_history,error=new_error)
        CALL wfi_release(tmp_wf_history,error=error)
 
        !* calc H_0 subforces and deriv operators
-       CALL calc_energy_force(rep_env%f_env_id,.true.,ierr)
+       CALL calc_energy_force(rep_env%f_env_id,.TRUE.,ierr)
        CPAssert(ierr==0,cp_failure_level,routineP,error,failure)
 
        !* setup sub perturb env
-       nullify(pi_Hrho_psi0d)
+       NULLIFY(pi_Hrho_psi0d)
        CALL fm_pools_create_fm_vect(ao_mo_fm_pools,pi_Hrho_psi0d,error=error)
-       CALL p_env_did_change(ep_env%sub_p_env, s_struct_changed=.true., &
+       CALL p_env_did_change(ep_env%sub_p_env, s_struct_changed=.TRUE., &
             grid_changed=.FALSE.,error=new_error)
        CALL p_env_psi0_changed(ep_env%sub_p_env, qs_env=sub_qs_env,&
             Hrho_psi0d=pi_Hrho_psi0d, error=new_error)

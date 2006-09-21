@@ -27,12 +27,10 @@ MODULE force_env_types
   USE cp_control_types,                ONLY: dft_control_type
   USE cp_para_env,                     ONLY: cp_para_env_release
   USE cp_para_types,                   ONLY: cp_para_env_type
-  USE particle_list_types, ONLY: particle_list_type
-  USE mol_new_list_types, only: mol_new_list_type
-  USE mol_kind_new_list_types, only: mol_kind_new_list_type
   USE cp_subsystem_types,              ONLY: cp_subsys_release,&
-                                             cp_subsystem_p_type,&
-                                             cp_subsys_get
+                                             cp_subsystem_p_type
+  USE cpot_types,                      ONLY: cpot_release,&
+                                             cpot_type
   USE dynamical_coeff_types,           ONLY: dyn_coeff_set_p_type,&
                                              dyn_coeff_set_release
   USE eip_environment_types,           ONLY: eip_env_get,&
@@ -50,7 +48,6 @@ MODULE force_env_types
                                              fp_type
   USE global_types,                    ONLY: global_environment_type,&
                                              globenv_release
-  USE timings, ONLY: timeset, timestop
   USE input_section_types,             ONLY: section_vals_release,&
                                              section_vals_retain,&
                                              section_vals_type
@@ -62,6 +59,7 @@ MODULE force_env_types
   USE metadynamics_types,              ONLY: meta_env_release,&
                                              meta_env_retain,&
                                              meta_env_type
+  USE particle_list_types,             ONLY: particle_list_type
   USE qmmm_types,                      ONLY: qmmm_env_qm_release,&
                                              qmmm_env_qm_type
   USE qs_energy_types,                 ONLY: qs_energy_type
@@ -72,11 +70,11 @@ MODULE force_env_types
   USE tbmd_environment_types,          ONLY: tbmd_env_get,&
                                              tbmd_env_release,&
                                              tbmd_environment_type
+  USE timings,                         ONLY: timeset,&
+                                             timestop
   USE virial_types,                    ONLY: virial_release,&
                                              virial_retain,&
                                              virial_type
-  USE cpot_types, ONLY: cpot_type, cpot_release, cpot_retain
-  USE distribution_1d_types,only: distribution_1d_type
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -171,7 +169,7 @@ MODULE force_env_types
      TYPE ( section_vals_type), POINTER                  :: force_env_section
      TYPE ( section_vals_type), POINTER                  :: root_section
      TYPE ( extended_energy_type), POINTER               :: extended_energies
-     TYPE ( cpot_type), pointer                          :: cpot_env
+     TYPE ( cpot_type), POINTER                          :: cpot_env
   END TYPE force_env_type
 
 !!****s* force_env_types/force_env_p_type [1.0] *
@@ -743,19 +741,21 @@ END SUBROUTINE force_env_set
 !!
 !!*** **********************************************************************
 SUBROUTINE force_env_pos_get(force_env,pos,n_el,error)
-  TYPE(force_env_type), pointer :: force_env
-  REAL(kind=dp), DIMENSION(*), intent(out) :: pos
-  INTEGER, INTENT(in) :: n_el
-  TYPE(cp_error_type), OPTIONAL, INTENT(inout) :: error
+    TYPE(force_env_type), POINTER            :: force_env
+    REAL(kind=dp), DIMENSION(*), INTENT(out) :: pos
+    INTEGER, INTENT(in)                      :: n_el
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
 
-  logical :: failure
-  character(len=*), parameter :: routineN='force_env_pos_get',&
-       routineP=moduleN//':'//routineN
-  integer :: handle
-  INTEGER                                  :: idir, ii, ip, isub, my_n_el
-  TYPE(cp_subsystem_p_type), &
-       DIMENSION(:), POINTER                  :: subsys
-  TYPE(particle_list_type), POINTER        :: particles
+    CHARACTER(len=*), PARAMETER :: routineN = 'force_env_pos_get', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: handle, idir, ii, ip, isub, &
+                                                my_n_el
+    LOGICAL                                  :: failure
+    TYPE(cp_subsystem_p_type), &
+      DIMENSION(:), POINTER                  :: subsys
+    TYPE(particle_list_type), POINTER        :: particles
 
   failure=.FALSE.
 
@@ -797,7 +797,7 @@ SUBROUTINE force_env_pos_get(force_env,pos,n_el,error)
         END DO
      END IF
   END IF
-  call timestop(handle)
+  CALL timestop(handle)
 END SUBROUTINE force_env_pos_get
 !***************************************************************************
 
@@ -823,18 +823,20 @@ END SUBROUTINE force_env_pos_get
 !!     fawzi
 !!
 !!*** **********************************************************************
-FUNCTION force_env_get_natom(force_env,error) result(n_atom)
-  TYPE(force_env_type), pointer :: force_env
-  type(cp_error_type), optional, intent(inout) :: error
-  INTEGER :: n_atom
+FUNCTION force_env_get_natom(force_env,error) RESULT(n_atom)
+    TYPE(force_env_type), POINTER            :: force_env
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+    INTEGER                                  :: n_atom
 
-  character(len=*), parameter :: routineN='force_env_get_natom',&
-       routineP=moduleN//':'//routineN
-  INTEGER                                  :: isub
-  LOGICAL                                  :: failure
-  TYPE(cp_subsystem_p_type), &
-       DIMENSION(:), POINTER                  :: subsys
-  TYPE(particle_list_type), POINTER        :: particles
+    CHARACTER(len=*), PARAMETER :: routineN = 'force_env_get_natom', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: isub
+    LOGICAL                                  :: failure
+    TYPE(cp_subsystem_p_type), &
+      DIMENSION(:), POINTER                  :: subsys
+    TYPE(particle_list_type), POINTER        :: particles
 
   failure=.FALSE.
 
@@ -854,7 +856,7 @@ FUNCTION force_env_get_natom(force_env,error) result(n_atom)
         END DO
      END IF
   END IF
-END function force_env_get_natom
+END FUNCTION force_env_get_natom
 !***************************************************************************
 
 END MODULE force_env_types

@@ -124,7 +124,6 @@ MODULE qs_scf
                                              qs_ks_update_qs_env
   USE qs_ks_types,                     ONLY: qs_ks_env_type,&
                                              qs_ks_release
-  USE xas_restart,                     ONLY: xas_initialize_rho
   USE qs_matrix_pools,                 ONLY: mpools_get
   USE qs_mo_methods,                   ONLY: calculate_density_matrix,&
                                              calculate_magnitude,&
@@ -179,6 +178,7 @@ MODULE qs_scf
   USE timings,                         ONLY: timeset,&
                                              timestop
   USE virial_types,                    ONLY: virial_type
+  USE xas_restart,                     ONLY: xas_initialize_rho
 #include "cp_common_uses.h"
 
   IMPLICIT NONE

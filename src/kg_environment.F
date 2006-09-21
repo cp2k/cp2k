@@ -485,8 +485,8 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'kg_subsys_setup', &
       routineP = moduleN//':'//routineN
 
-    INTEGER :: iglobal, imol, imolecule_kind, istat, nao_global, nao_max, nelectron_global, &
-      nkind, nmo_max, nmolecule_kind, nspins
+    INTEGER :: iglobal, imol, imolecule_kind, istat, nao_global, nao_max, &
+      nelectron_global, nkind, nmo_max, nmolecule_kind, nspins
     INTEGER, ALLOCATABLE, DIMENSION(:)       :: natom_of_kind
     INTEGER, DIMENSION(2)                    :: added_mos
     LOGICAL                                  :: failure, nmo_eq_nao, &

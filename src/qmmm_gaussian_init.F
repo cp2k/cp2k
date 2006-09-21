@@ -31,7 +31,6 @@ MODULE qmmm_gaussian_init
   USE cp_para_types,                   ONLY: cp_para_env_type
   USE gaussian_gridlevels,             ONLY: gaussian_gridlevel,&
                                              gridlevel_info_type
-  USE global_types,                    ONLY: global_environment_type
   USE input_constants,                 ONLY: do_qmmm_gauss
   USE input_section_types,             ONLY: section_vals_get_subs_vals,&
                                              section_vals_type,&

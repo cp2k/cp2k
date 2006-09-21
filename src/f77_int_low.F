@@ -216,11 +216,11 @@ RECURSIVE SUBROUTINE cp_ep_calc_e_f(ep_env_id,calc_f,ierr)
 END SUBROUTINE cp_ep_calc_e_f
 
 SUBROUTINE cp_do_shake(f_env_id,dt,shake_tol,ierr)
-  USE kinds, only: dp
-  USE f77_interface, only: do_shake
+  USE kinds, ONLY: dp
+  USE f77_interface, ONLY: do_shake
   INTEGER :: f_env_id
   REAL(kind=dp) :: dt, shake_tol
-  integer :: ierr
+  INTEGER :: ierr
 
   CALL do_shake(f_env_id,dt,shake_tol,ierr)
 END SUBROUTINE cp_do_shake

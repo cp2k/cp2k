@@ -30,17 +30,11 @@ MODULE cp_ddapc_forces
   USE cp2k_units,                      ONLY: get_cp2k_units,&
                                              unit_convert_type
   USE cp_control_types,                ONLY: ddapc_restraint_type
-  USE cp_ddapc_types,                  ONLY: cp_ddapc_create,&
-                                             cp_ddapc_release,&
-                                             cp_ddapc_type,&
-                                             cp_ddapc_decoupling,&  
-                                             cp_ddapc_qmmmperiodic,&
-                                             cp_ddapc_solvationSph
   USE erf_fn,                          ONLY: erfc
   USE input_constants,                 ONLY: do_ddapc_constraint,&
                                              do_ddapc_restraint,&
-                                             weight_type_unit,&
-                                             weight_type_mass
+                                             weight_type_mass,&
+                                             weight_type_unit
   USE input_section_types,             ONLY: section_vals_type,&
                                              section_vals_val_get
   USE kinds,                           ONLY: dp
@@ -52,10 +46,10 @@ MODULE cp_ddapc_forces
   USE qs_environment_types,            ONLY: get_qs_env,&
                                              qs_environment_type
   USE qs_force_types,                  ONLY: qs_force_type
+  USE spherical_harmonics,             ONLY: dlegendre,&
+                                             legendre
   USE timings,                         ONLY: timeset,&
                                              timestop
-  USE spherical_harmonics,             ONLY: legendre,&
-                                             dlegendre
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -96,10 +90,10 @@ CONTAINS
        factor, multipole_section, cell, particle_set, radii, dq, charges, error)
     TYPE(qs_environment_type), POINTER       :: qs_env
     TYPE(pw_type), POINTER                   :: coeff
-    TYPE(cell_type), POINTER                 :: cell
-    REAL(KIND=dp),INTENT(IN)                 :: factor
     LOGICAL, INTENT(IN)                      :: apply_qmmm_periodic
+    REAL(KIND=dp), INTENT(IN)                :: factor
     TYPE(section_vals_type), POINTER         :: multipole_section
+    TYPE(cell_type), POINTER                 :: cell
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     REAL(KIND=dp), DIMENSION(:), POINTER     :: radii
@@ -116,12 +110,11 @@ CONTAINS
     INTEGER :: handle, ip1, ip2, iparticle1, iparticle2, k1, k2, k3, n_rep, &
       nmax1, nmax2, nmax3, r1, r2, r3, rmax1, rmax2, rmax3, sfact, stat
     LOGICAL                                  :: analyt, failure
-    REAL(KIND=dp)                            :: alpha, eps, eps0, fac, &
-                                                fac2, fac3, fs, galpha, gsq, &
-                                                gsqi, q1t, q2t, r, rcut, rcut2, t1, &
-                                                t2, tol, tol1, r2tmp
-    REAL(KIND=dp), DIMENSION(3)              :: drvec, fvec, gvec, ra, &
-                                                rvec
+    REAL(KIND=dp)                            :: alpha, eps, eps0, fac, fac2, &
+                                                fac3, fs, galpha, gsq, gsqi, &
+                                                q1t, q2t, r, r2tmp, rcut, &
+                                                rcut2, t1, t2, tol, tol1
+    REAL(KIND=dp), DIMENSION(3)              :: drvec, fvec, gvec, ra, rvec
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: d_el, M
     TYPE(unit_convert_type), POINTER         :: units
 
@@ -431,7 +424,8 @@ CONTAINS
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: dE, order_p
 
-    ! order parameter (i.e. the sum of the charges of the selected atoms)
+! order parameter (i.e. the sum of the charges of the selected atoms)
+
     failure = .FALSE.
     order_p = 0.0_dp
     DO I=1,ddapc_restraint_control%natoms
@@ -600,19 +594,17 @@ CONTAINS
 
     CHARACTER(len=*), PARAMETER :: routineN = 'solvation_ddapc_force', &
       routineP = moduleN//':'//routineN
-    REAL(KIND=dp), DIMENSION(:), ALLOCATABLE :: SolvM
-    LOGICAL :: failure
-    REAL(KIND=dp) :: eps_in, eps_out, Rs, mass, center(3), r1(3), r2(3), rvec(3)
-    REAL(KIND=dp) :: r1s, r2s, pos1, pos2, pos1i, pos2i, dpos1(3), dpos2(3), ptcos
-    REAL(KIND=dp) :: mycos, factor1(3), factor2(3), dcos1(3), dcos2(3), lr
-    REAL(KIND=dp), DIMENSION(:), POINTER   :: R0, pos
-    REAL(KIND=dp), DIMENSION(:,:), POINTER :: LocP
-    INTEGER  :: lmax, n_rep1, n_rep2, weight, i, stat, l, j, idim
-    INTEGER  :: iparticle2, ip2, q2t
-    INTEGER  :: iparticle1, ip1, q1t
-    INTEGER, DIMENSION(:), POINTER :: list
-    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: d_el, M
-    LOGICAL  :: fixed_center
+
+    INTEGER                                  :: i, ip1, ip2, iparticle1, &
+                                                iparticle2, l, lmax, n_rep1, &
+                                                n_rep2, q1t, q2t, stat, weight
+    INTEGER, DIMENSION(:), POINTER           :: list
+    LOGICAL                                  :: failure, fixed_center
+    REAL(KIND=dp) :: center(3), dcos1(3), dcos2(3), dpos1(3), dpos2(3), &
+      eps_in, eps_out, factor1(3), factor2(3), lr, mass, mycos, pos1, pos1i, &
+      pos2, pos2i, ptcos, r1(3), r1s, r2(3), r2s, Rs, rvec(3)
+    REAL(KIND=dp), DIMENSION(:), POINTER     :: pos, R0
+    REAL(KIND=dp), DIMENSION(:, :), POINTER  :: d_el, LocP, M
 
     failure = .FALSE.
     fixed_center = .FALSE.

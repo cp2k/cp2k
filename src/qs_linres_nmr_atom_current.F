@@ -127,7 +127,7 @@ MODULE qs_linres_nmr_atom_current
       nnode_c, nsetc, nsgfa, nsgfb, nsoctot, nspins
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: failure, new_atom_b, paw_atom
-    REAL(dp)                                 :: rab(3), rac(3), rbc(3)
+    REAL(dp)                                 :: rab(3), rbc(3)
     REAL(KIND=dp), ALLOCATABLE, &
       DIMENSION(:, :)                        :: PC
     REAL(KIND=dp), DIMENSION(:, :), POINTER  :: C_coeff_hh_a, C_coeff_hh_b, &
@@ -875,10 +875,8 @@ MODULE qs_linres_nmr_atom_current
     CHARACTER(len=*), PARAMETER :: routineN = 'shift_atom', &
       routineP = moduleN//':'//routineN
 
-
-    INTEGER :: handle, ia, iat, iatom, idir2, idir3, ikind, ir, ispin, &
-               jatom, mepos, n_nics, na, natom, natom_tot,  nkind, nr,&
-               nspins, num_pe
+    INTEGER :: handle, ia, iat, iatom, idir2, idir3, ikind, ir, ispin, jatom, &
+      mepos, n_nics, na, natom, natom_tot, nkind, nr, nspins, num_pe
     INTEGER, DIMENSION(2)                    :: bo
     INTEGER, DIMENSION(:), POINTER           :: atom_list
     LOGICAL                                  :: failure, jatomisneighbor, &

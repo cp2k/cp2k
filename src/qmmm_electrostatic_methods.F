@@ -764,7 +764,7 @@ CONTAINS
     REAL(KIND=dp) :: xs2, xs3
     REAL(KIND=dp), DIMENSION(3)              :: ra, vec
     REAL(KIND=dp), DIMENSION(:, :, :), &
-      POINTER                                :: grid,grid2
+      POINTER                                :: grid, grid2
     TYPE(pw_type), POINTER                   :: pw
     TYPE(qmmm_per_pot_type), POINTER         :: per_pot
 

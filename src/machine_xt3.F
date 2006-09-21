@@ -129,7 +129,7 @@ END SUBROUTINE m_datum
       "echo -e ""\\n PID""",pid,""" <"//TRIM(checkpoint)//&
       ">:"" `ps -o vsz -p",pid," | tail -1` KBytes""\\c"""
 
-    write(6,*) TRIM(checkpoint) 
+    WRITE(6,*) TRIM(checkpoint) 
 
 !   CALL system(cmdstr)
 

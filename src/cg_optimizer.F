@@ -203,8 +203,8 @@ CONTAINS
     CHARACTER(LEN=5)                         :: wildcard
     CHARACTER(LEN=80)                        :: title
     INTEGER                                  :: brent_max_iter, dataunit, &
-                                                its, max_steep_steps, &
-                                                maxiter, stat, handle
+                                                handle, its, max_steep_steps, &
+                                                maxiter, stat
     LOGICAL                                  :: conv, failure, &
                                                 Fletcher_Reeves_ON, &
                                                 should_stop, use_fit
@@ -392,7 +392,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'LinMinE', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: loc_iter, odim, stat, handle
+    INTEGER                                  :: handle, loc_iter, odim, stat
     LOGICAL                                  :: failure, should_stop
     REAL(KIND=dp)                            :: ax, bx, fprev, rms_dr, &
                                                 rms_force, scale, xmin, xx
@@ -498,7 +498,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'LinMin', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat,handle
+    INTEGER                                  :: handle, stat
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: ax, bx, xmin, xx
     REAL(KIND=dp), DIMENSION(:), POINTER     :: pcom, xicom
@@ -575,7 +575,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cg_mnbrak', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: loc_iter, odim, stat, handle
+    INTEGER                                  :: handle, loc_iter, odim, stat
     LOGICAL                                  :: failure, hist, should_stop
     REAL(KIND=dp)                            :: dum, fa, fb, fc, fu, gold, q, &
                                                 r, u, ulim
@@ -776,7 +776,7 @@ CONTAINS
       routineP = moduleN//':'//routineN
     REAL(KIND=dp), PARAMETER                 :: zeps = 1.0E-8_dp
 
-    INTEGER                                  :: iter, loc_iter, handle
+    INTEGER                                  :: handle, iter, loc_iter
     LOGICAL                                  :: failure, ok1, ok2, &
                                                 should_stop, skip0, skip1
     REAL(KIND=dp)                            :: a, b, d, d1, d2, du, dv, dw, &
@@ -934,7 +934,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cg_eval1d', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat, handle
+    INTEGER                                  :: handle, stat
     LOGICAL                                  :: failure
     REAL(KIND=dp), DIMENSION(:), POINTER     :: xvec
 
@@ -991,7 +991,7 @@ CONTAINS
     CHARACTER(len=*), PARAMETER :: routineN = 'cg_deval1d', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: stat, handle
+    INTEGER                                  :: handle, stat
     LOGICAL                                  :: failure
     REAL(KIND=dp)                            :: energy
     REAL(KIND=dp), DIMENSION(:), POINTER     :: grad, xvec
