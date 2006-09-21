@@ -374,7 +374,11 @@ CONTAINS
       CALL cp_iterate(logger%iter_info,last=(istep==simpar%nsteps),&
            iter_nr=itimes,error=error)
       CALL velocity_verlet(md_env,error)
-      ! test for EXIT_MD to exit, if so we don't overwrite the restart or append to the trajectory
+      ! Test for EXIT_MD or for WALL_TIME to exit 
+      ! IF so we don't overwrite the restart or append to the trajectory
+      ! because the execution could in principle stop inside the SCF where energy
+      ! and forces are not converged. So we don't want to dump trajectory
+      ! with wrong coordinates (due to the last integration step with fake forces)..
       CALL external_control(should_stop,"MD",globenv,error=error)
       IF (should_stop) EXIT
       DO ibead=1,nbeads
