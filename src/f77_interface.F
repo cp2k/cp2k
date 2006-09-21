@@ -92,7 +92,7 @@ MODULE f77_interface
   USE physcon,                         ONLY: init_physcon
   USE qmmm_init,                       ONLY: qmmm_create_force_env
   USE qs_main,                         ONLY: quickstep_create_force_env
-  USE string_table,                    ONLY: string_table_allocate, &
+  USE string_table,                    ONLY: string_table_allocate,&
                                              string_table_deallocate
   USE tbmd_main,                       ONLY: tbmd_create_force_env
   USE timings,                         ONLY: add_timer_env,&
@@ -649,10 +649,7 @@ END SUBROUTINE f_env_rm_defaults
     logger => cp_get_default_logger()
     ! warning this is dangerous, I did not check that all the subfunctions
     ! support it, the program might crash upon error
-    ! CALL cp_error_init(error,stop_level=cp_fatal_level,logger=logger)
-    ! no, there are plenty of places where this doesn't work so far,
-    ! and failure go unnoticed
-    CALL cp_error_init(error,stop_level=cp_failure_level,logger=logger)
+    CALL cp_error_init(error,stop_level=cp_fatal_level,logger=logger)
 
     NULLIFY(input_file)
     IF (PRESENT(input)) input_file => input
@@ -681,6 +678,8 @@ END SUBROUTINE f_env_rm_defaults
     ! XXXXXXXXXXXXXXXXXXXXXXXXXXX
     root_section => input_file
     CALL section_vals_retain(root_section,error)
+    CALL cp_error_dealloc_ref(error)
+    CALL cp_error_init(error,stop_level=cp_failure_level,logger=logger)
 
     IF (n_f_envs+1>SIZE(f_envs)) THEN
        f_envs_old => f_envs
@@ -890,13 +889,9 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'get_natom', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: isub
     LOGICAL                                  :: failure
     TYPE(cp_error_type)                      :: error
-    TYPE(cp_subsystem_p_type), &
-      DIMENSION(:), POINTER                  :: subsys
     TYPE(f_env_type), POINTER                :: f_env
-    TYPE(particle_list_type), POINTER        :: particles
 
     failure=.FALSE.
 
@@ -1018,13 +1013,9 @@ CPSourceFileRef,&
     CHARACTER(len=*), PARAMETER :: routineN = 'get_pos', &
       routineP = moduleN//':'//routineN
 
-    INTEGER                                  :: idir, ii, ip, isub, my_n_el
     LOGICAL                                  :: failure
     TYPE(cp_error_type)                      :: error
-    TYPE(cp_subsystem_p_type), &
-      DIMENSION(:), POINTER                  :: subsys
     TYPE(f_env_type), POINTER                :: f_env
-    TYPE(particle_list_type), POINTER        :: particles
 
     failure=.FALSE.
 
@@ -1577,22 +1568,23 @@ CPSourceFileRef,&
 !!
 !!*** **********************************************************************
 SUBROUTINE do_shake(f_env_id,dt,shake_tol,ierr)
-  INTEGER, intent(in) :: f_env_id
-  REAL(kind=dp), INTENT(in) :: dt,shake_tol
-  INTEGER, intent(out) :: ierr
-  
-  logical :: failure
-  character(len=*), parameter :: routineN='do_shake',&
-        routineP=moduleN//':'//routineN
-  TYPE(cp_error_type)                      :: error
-  TYPE(f_env_type), POINTER                :: f_env
+    INTEGER, INTENT(in)                      :: f_env_id
+    REAL(kind=dp), INTENT(in)                :: dt, shake_tol
+    INTEGER, INTENT(out)                     :: ierr
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'do_shake', &
+      routineP = moduleN//':'//routineN
+
+    LOGICAL                                  :: failure
+    TYPE(cp_error_type)                      :: error
+    TYPE(f_env_type), POINTER                :: f_env
 
   failure=.FALSE.
   
   NULLIFY(f_env)
   CALL f_env_add_defaults(f_env_id,f_env,error,failure)
   IF (.NOT.failure) THEN
-     call force_env_shake(f_env%force_env,&
+     CALL force_env_shake(f_env%force_env,&
             dt=dt,shake_tol=shake_tol, error=error)
   END IF
   CALL f_env_rm_defaults(f_env,error,ierr)
