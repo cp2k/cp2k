@@ -212,8 +212,7 @@ CONTAINS
       output_unit= cp_logger_get_default_unit_nr(logger)
     ELSE
       output_unit = -1
-    END IF
-    
+    END IF    
     iw = cp_print_key_unit_nr(logger,mm_section,"PRINT%FF_INFO",&
          extension=".mmLog",error=error)
     iw2= cp_print_key_unit_nr(logger,mm_section,"PRINT%FF_INFO/SPLINE_INFO",&
@@ -1966,14 +1965,14 @@ CONTAINS
     failure = .FALSE.
     IF (ASSOCIATED(array)) THEN
        IF (output_unit>0) THEN
+          WRITE(output_unit,'(T2,"FORCEFIELD|",A)')&
+               " WARNING: Non Critical ForceField Parameter missing!   Calculation proceeding.",&
+               " Non Critical Parameters are:   Urey-Bradley,   Torsions,  Impropers  and  1-4",&
+               " All missing parameters will give a zero contribution to the potential energy!"
           IF (fatal.OR.iw>0) THEN
              DO i = 1,SIZE(array)
                 WRITE(output_unit,'(A)')array(i)
              END DO
-          END IF
-          IF (.NOT.fatal) THEN
-             WRITE(output_unit,'(T2,"FORCEFIELD|",A)')&
-                  " Non Critical Parameter missing.. Calculation proceed.."
           END IF
           IF (.NOT.fatal.AND.iw<0) THEN
              WRITE(output_unit,'(T2,"FORCEFIELD|",A)')&
@@ -1983,7 +1982,7 @@ CONTAINS
        DEALLOCATE(array,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     END IF
-    IF (fatal) CALL stop_program(TRIM(routineN),"Missing critical parameters! Abort..")
+    IF (fatal) CALL stop_program(TRIM(routineN),"Missing critical ForceField parameters! Abort..")
   END SUBROUTINE release_FF_missing_par
 !******************************************************************************
 !!****** force_fields_util/store_FF_missing_par [1.0] *
