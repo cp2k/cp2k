@@ -40,6 +40,7 @@ MODULE cp_subsystem_methods
   USE input_section_types,             ONLY: section_vals_get,&
                                              section_vals_get_subs_vals,&
                                              section_vals_type
+  USE input_constants,                 ONLY: do_conn_off
   USE kinds,                           ONLY: default_string_length,&
                                              dp
   USE mol_kind_new_list_types,         ONLY: mol_kind_new_list_create,&
@@ -253,8 +254,7 @@ CONTAINS
           topology%atom_info%atm_mass(iat)=0._dp
           topology%atom_info%atm_charge(iat)=0._dp
        END DO
-       topology%bondparm_factor=0._dp
-
+       topology%conn_type=do_conn_off
 
        !-----------------------------------------------------------------------------
        !-----------------------------------------------------------------------------

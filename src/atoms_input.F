@@ -43,6 +43,8 @@ MODULE atoms_input
                                              timestop
   USE topology_types,                  ONLY: atom_info_type,&
                                              topology_parameters_type
+  USE input_constants,                 ONLY: do_conn_off,&
+                                             do_conn_generate
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -89,19 +91,27 @@ CONTAINS
 
     CHARACTER(len=2*default_string_length)   :: line_att
     INTEGER                                  :: atm_equal_mol, end_c, iatom, &
-                                                ILEN, j, natom, start_c, wrd
+                                                ILEN, j, natom, start_c, wrd,&
+                                                output_unit
     LOGICAL                                  :: explicit, failure, &
                                                 my_overwrite, &
-                                                scaled_coordinates
+                                                scaled_coordinates, ionode
     REAL(KIND=dp)                            :: unit_of_length
     TYPE(atom_info_type), POINTER            :: atom_info
     TYPE(cell_type), POINTER                 :: cell
     TYPE(section_vals_type), POINTER         :: coord_section
-
-!   ---------------------------------------------------------------------------
+    TYPE(cp_logger_type), POINTER            :: logger
 
     failure=.FALSE.
     my_overwrite = .FALSE.
+    NULLIFY(logger)
+    logger => cp_error_get_logger(error)
+    ionode = logger%para_env%mepos==logger%para_env%source
+    IF (ionode) THEN
+      output_unit= cp_logger_get_default_unit_nr(logger)
+    ELSE
+      output_unit = -1
+    END IF
     IF (PRESENT(overwrite)) my_overwrite=overwrite
     NULLIFY(coord_section)
     coord_section => section_vals_get_subs_vals(subsys_section,"COORD",error=error)
@@ -116,8 +126,6 @@ CONTAINS
     CALL get_cell(cell=cell,&
          scaled_coordinates=scaled_coordinates,&
          unit_of_length=unit_of_length)
-
-
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 2. Read in the coordinates from &COORD section in the input file
@@ -224,7 +232,6 @@ CONTAINS
 
        END DO
     END IF
-
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 3. Convert coordinates into internal cp2k coordinates
@@ -236,22 +243,27 @@ CONTAINS
           atom_info%r(:,iatom) = atom_info%r(:,iatom)*unit_of_length
        END IF
     END DO
-
-
     !-----------------------------------------------------------------------------
     !-----------------------------------------------------------------------------
     ! 4. Post processing for special molecule name at the end of xyz
     !-----------------------------------------------------------------------------
-    IF (.NOT.my_overwrite) THEN
+    IF ((.NOT.my_overwrite).AND.(topology%conn_type == do_conn_generate)) THEN
        atm_equal_mol = 0
        DO iatom=1,natom
           IF(atom_info%label_molname(iatom)==atom_info%label_atmname(iatom))THEN
              atm_equal_mol = atm_equal_mol + 1
-             topology%bondparm_factor=0.0_dp
+             topology%conn_type = do_conn_off
           END IF
        END DO
-       IF ((atm_equal_mol /= 0) .AND. (atm_equal_mol /= natom)) THEN
-          CALL stop_program ('read_atoms_input','check coord optional molname')
+       IF (atm_equal_mol /= 0) THEN
+          WRITE(output_unit,'(T2,A)')'CONNECTIVITY| WARNING: User requested the generation of connectivity'
+          WRITE(output_unit,'(T2,A)')'CONNECTIVITY| But in the COORD section was not specified the name of'
+          WRITE(output_unit,'(T2,A)')'CONNECTIVITY| molecule. Reverting to connectivity OFF.Each atom will'
+          WRITE(output_unit,'(T2,A)')'CONNECTIVITY| be considered as a molecule.'
+          IF (atm_equal_mol /= natom) THEN
+             WRITE(output_unit,'(T2,A)')'CONNECTIVITY| Missing molecule name in COORD section for few atoms'
+             CALL stop_program ('read_atoms_input','check coord optional molname')
+          END IF
        END IF
     END IF
   END SUBROUTINE read_atoms_input

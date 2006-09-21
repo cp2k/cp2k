@@ -51,6 +51,11 @@ MODULE topology_util
      INTEGER, POINTER, DIMENSION(:) :: bonds => NULL()
   END TYPE atom_bond_list_type
 
+  TYPE array2_list_type
+     INTEGER, POINTER, DIMENSION(:) :: array1 => NULL()
+     INTEGER, POINTER, DIMENSION(:) :: array2 => NULL()
+  END TYPE array2_list_type
+
   PRIVATE
   PUBLIC :: topology_set_atm_mass,&
             topology_reorder_atoms,&
@@ -58,7 +63,12 @@ MODULE topology_util
             check_subsys_element,&
             reorder_structure,&
             find_molecule,&
-            atom_bond_list_type
+            atom_bond_list_type,&
+            array2_list_type
+
+  INTERFACE reorder_structure
+     MODULE PROCEDURE reorder_structure1d, reorder_structure2d
+  END INTERFACE
   
 !!*****
 !******************************************************************************
@@ -265,14 +275,14 @@ CONTAINS
 !!     each atom will be assigned a molecule number based on bonded fragments
 !!
 !!   AUTHOR
-!!     Joost 05.2006
+!!     Teodoro Laino 08.2006
 !!
 !!   MODIFICATION HISTORY
 !!
 !!
 !!   SOURCE
 !******************************************************************************
-  SUBROUTINE reorder_structure(work, list1, list2, N, error)
+  SUBROUTINE reorder_structure1d(work, list1, list2, N, error)
     TYPE(atom_bond_list_type), &
       DIMENSION(:), INTENT(INOUT)            :: work
     INTEGER, DIMENSION(:), INTENT(IN)        :: list1, list2
@@ -280,7 +290,7 @@ CONTAINS
     TYPE(cp_error_type), INTENT(inout), &
       OPTIONAL                               :: error
 
-    CHARACTER(len=*), PARAMETER :: routineN = 'reorder_structure', &
+    CHARACTER(len=*), PARAMETER :: routineN = 'reorder_structure1d', &
       routineP = moduleN//':'//routineN
 
     INTEGER                                  :: atom_a, atom_b, I, Nbond, stat
@@ -311,7 +321,86 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
     ENDDO    
 
-  END SUBROUTINE reorder_structure
+  END SUBROUTINE reorder_structure1d
+
+!******************************************************************************
+!!****** topology_util [1.0] *
+!!
+!!   NAME
+!!    reorder_structure 
+!!
+!!   SYNOPSIS
+!!
+!!   FUNCTION
+!!     each atom will be assigned a molecule number based on bonded fragments
+!!
+!!   AUTHOR
+!!     Joost 05.2006
+!!
+!!   MODIFICATION HISTORY
+!!
+!!
+!!   SOURCE
+!******************************************************************************
+  SUBROUTINE reorder_structure2d(work, list1, list2, list3, N, error)
+    TYPE(array2_list_type), &
+      DIMENSION(:), INTENT(INOUT)            :: work
+    INTEGER, DIMENSION(:), INTENT(IN)        :: list1, list2, list3
+    INTEGER, INTENT(IN)                      :: N
+    TYPE(cp_error_type), INTENT(inout), &
+      OPTIONAL                               :: error
+
+    CHARACTER(len=*), PARAMETER :: routineN = 'reorder_structure2d', &
+      routineP = moduleN//':'//routineN
+
+    INTEGER                                  :: index1, index2, index3, I, Nsize, stat
+    INTEGER, DIMENSION(:), POINTER           :: wrk_tmp
+    LOGICAL                                  :: failure
+
+    failure = .FALSE.
+    DO I=1,N
+       index1=list1(I)
+       index2=list2(I)
+       index3=list3(I)
+
+       wrk_tmp => work(index1)%array1
+       Nsize=SIZE(wrk_tmp)
+       ALLOCATE(work(index1)%array1(Nsize+1),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       work(index1)%array1(1:Nsize) = wrk_tmp
+       work(index1)%array1(Nsize+1) = index2
+       DEALLOCATE(wrk_tmp,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       
+       wrk_tmp => work(index2)%array1
+       Nsize=SIZE(wrk_tmp)
+       ALLOCATE(work(index2)%array1(Nsize+1),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       work(index2)%array1(1:Nsize) = wrk_tmp
+       work(index2)%array1(Nsize+1) = index1
+       DEALLOCATE(wrk_tmp,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+       wrk_tmp => work(index1)%array2
+       Nsize=SIZE(wrk_tmp)
+       ALLOCATE(work(index1)%array2(Nsize+1),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       work(index1)%array2(1:Nsize) = wrk_tmp
+       work(index1)%array2(Nsize+1) = index3
+       DEALLOCATE(wrk_tmp,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+
+       wrk_tmp => work(index2)%array2
+       Nsize=SIZE(wrk_tmp)
+       ALLOCATE(work(index2)%array2(Nsize+1),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       work(index2)%array2(1:Nsize) = wrk_tmp
+       work(index2)%array2(Nsize+1) = -index3
+       DEALLOCATE(wrk_tmp,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+    ENDDO    
+
+  END SUBROUTINE reorder_structure2d
     
 !******************************************************************************
 !!****** topology_util [1.0] *

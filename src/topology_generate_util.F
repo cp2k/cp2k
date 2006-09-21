@@ -26,9 +26,6 @@ MODULE topology_generate_util
                                              atomic_kind_type,&
                                              deallocate_atomic_kind_set,&
                                              set_atomic_kind
-  USE cell_types,                      ONLY: cell_create,&
-                                             cell_release,&
-                                             cell_type
   USE convert_units,                   ONLY: convert_to_cp2k_units
   USE cp_output_handling,              ONLY: cp_print_key_finished_output,&
                                              cp_print_key_unit_nr
@@ -61,10 +58,13 @@ MODULE topology_generate_util
                                              connectivity_info_type,&
                                              topology_parameters_type
   USE topology_util,                   ONLY: atom_bond_list_type,&
+                                             array2_list_type,&
                                              find_molecule,&
                                              reorder_structure
   USE util,                            ONLY: find_boundary,&
                                              sort
+  USE cell_types,                      ONLY: pbc
+  USE mathlib,                         ONLY: matvec_3x3
 #include "cp_common_uses.h"
 
   IMPLICIT NONE
@@ -404,33 +404,32 @@ CONTAINS
 
     CHARACTER(LEN=2)                         :: upper_sym_1, upper_sym_2
     CHARACTER(LEN=2), POINTER                :: atm_symbol(:)
-    INTEGER :: cbond, handle, handle2, i, iatm1, iatm2, iatom, ibond, ielem, &
-      ielem_found, iw, j, jatom, n_bonds, n_heavy_bonds, n_hydr_bonds, natom, &
-      nelem, npairs, output_unit, stat
-    INTEGER, ALLOCATABLE, DIMENSION(:)       :: bond_a, bond_b, list
+    INTEGER :: cbond, handle, handle2, i, iatm1, iatm2, iatom, ibond, idim, &
+      ielem, ielem_found, iw, j, jatom, n_bonds, n_heavy_bonds, n_hydr_bonds, &
+      natom, nelem, npairs, output_unit, stat, k
+    INTEGER, ALLOCATABLE, DIMENSION(:)       :: bond_a, bond_b, list, map_nb
     LOGICAL                                  :: element_found, failure, ionode
     LOGICAL, ALLOCATABLE, DIMENSION(:)       :: h_list
-    REAL(KIND=dp)                            :: dr(3), hmat(3,3), &
-                                                max_coord(3), min_coord(3), &
-                                                r2, r2_min, rbond, rbond2, tmp
+    REAL(KIND=dp)                            :: dr(3), r2, r2_min, ksign, &
+                                                rbond, rbond2, tmp, cell_v(3)
     REAL(KIND=dp), DIMENSION(1, 1)           :: r_max, r_minsq
     REAL(KIND=dp), DIMENSION(:), POINTER     :: radius
-    TYPE(atom_bond_list_type), &
+    TYPE(array2_list_type), &
       DIMENSION(:), POINTER                  :: bond_list
     TYPE(atom_info_type), POINTER            :: atom_info
     TYPE(atomic_kind_type), DIMENSION(:), &
       POINTER                                :: atomic_kind_set
     TYPE(atomic_kind_type), POINTER          :: atomic_kind
-    TYPE(cell_type), POINTER                 :: cell
     TYPE(connectivity_info_type), POINTER    :: conn_info
     TYPE(cp_logger_type), POINTER            :: logger
     TYPE(fist_neighbor_type), POINTER        :: nonbonded
     TYPE(particle_type), DIMENSION(:), &
       POINTER                                :: particle_set
     TYPE(section_vals_type), POINTER         :: bond_section
+    REAL(KIND=dp), DIMENSION(:,:), POINTER   :: pbc_coord
 
     failure = .FALSE.    
-    NULLIFY(logger, particle_set, atomic_kind_set, nonbonded, cell)
+    NULLIFY(logger, particle_set, atomic_kind_set, nonbonded)
     logger => cp_error_get_logger(error)
     ionode = logger%para_env%mepos==logger%para_env%source
     IF (ionode) THEN
@@ -438,9 +437,8 @@ CONTAINS
     ELSE
       output_unit = -1
     END IF
-    output_unit = cp_logger_get_default_unit_nr(logger)
     iw = cp_print_key_unit_nr(logger,subsys_section,"PRINT%TOPOLOGY_INFO/GENERATE_INFO",&
-         extension=".subsysLog",error=error)    
+         extension=".subsysLog",error=error)
     CALL timeset(routineN,'I','',handle)
     IF (.NOT.failure) THEN
        atom_info => topology%atom_info
@@ -456,6 +454,8 @@ CONTAINS
        ALLOCATE(list(natom),STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ALLOCATE(h_list(natom),STAT=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       ALLOCATE(pbc_coord(3,natom),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        h_list = .FALSE.
        CALL timeset(TRIM(routineN)//"_1",'I','',handle2)
@@ -478,6 +478,7 @@ CONTAINS
              IF(upper_sym_1 == upper_sym_2)THEN
                 element_found=.TRUE.
                 ielem_found=ielem
+                EXIT
              END IF
           END DO
           IF (upper_sym_2=="H ") h_list(iatom) = .TRUE.
@@ -496,7 +497,7 @@ CONTAINS
              CALL stop_program ("topology_generate_bond","illegal bondparm_type")
           END IF
           CALL convert_to_cp2k_units("ANGSTROM",length=radius(iatom))
-          
+
           atom_info%atm_mass(iatom) = ptable(ielem_found)% amass
           IF(iw>0) WRITE(iw,'(T2,"GENERATE|",5X,A,T77,A5)') &
                "In topology_generate_bond :: iatom = ",ptable(ielem_found)%symbol
@@ -512,28 +513,15 @@ CONTAINS
        atomic_kind => atomic_kind_set(1)
        CALL set_atomic_kind(atomic_kind=atomic_kind,kind_number=1,&
             name="XXX",element_symbol="XXX",mass=0.0_dp,atom_list=list)
-       min_coord =  atom_info%r(:,1)
-       max_coord =  atom_info%r(:,1)
-       DO i=1,natom
-          IF (atom_info%r(1,i) >= max_coord(1)) max_coord(1) = atom_info%r(1,i)
-          IF (atom_info%r(2,i) >= max_coord(2)) max_coord(2) = atom_info%r(2,i)
-          IF (atom_info%r(3,i) >= max_coord(3)) max_coord(3) = atom_info%r(3,i)
-          IF (atom_info%r(1,i) <= min_coord(1)) min_coord(1) = atom_info%r(1,i)
-          IF (atom_info%r(2,i) <= min_coord(2)) min_coord(2) = atom_info%r(2,i)
-          IF (atom_info%r(3,i) <= min_coord(3)) min_coord(3) = atom_info%r(3,i)
-       END DO
        CALL section_vals_val_get(subsys_section,"TOPOLOGY%GENERATE%BONDLENGTH_MAX",r_val=tmp,&
             error=error)
        r_max     = tmp
-       hmat      = 0.0_dp
-       hmat(1,1) = max_coord(1) - min_coord(1) + 2.0_dp*tmp
-       hmat(2,2) = max_coord(2) - min_coord(2) + 2.0_dp*tmp
-       hmat(3,3) = max_coord(3) - min_coord(3) + 2.0_dp*tmp
        DO i=1,natom
           particle_set(i)%atomic_kind => atomic_kind_set(1)
-          particle_set(i)%r(1) = atom_info%r(1,i) - min_coord(1) + tmp - hmat(1,1)/2.0_dp
-          particle_set(i)%r(2) = atom_info%r(2,i) - min_coord(2) + tmp - hmat(2,2)/2.0_dp
-          particle_set(i)%r(3) = atom_info%r(3,i) - min_coord(3) + tmp - hmat(3,3)/2.0_dp
+          particle_set(i)%r(1) = atom_info%r(1,i)
+          particle_set(i)%r(2) = atom_info%r(2,i)
+          particle_set(i)%r(3) = atom_info%r(3,i)
+          pbc_coord(:,i) = pbc(atom_info%r(:,i),topology%cell)
           NULLIFY(particle_set(i)%list_exclude_vdw)
           NULLIFY(particle_set(i)%list_exclude_ei)
           ALLOCATE(particle_set(i)%list_exclude_vdw(0),stat=stat)
@@ -541,48 +529,57 @@ CONTAINS
           ALLOCATE(particle_set(i)%list_exclude_ei(0),stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)          
        END DO
-       CALL cell_create(cell,hmat,periodic=(/0,0,0/),orthorhombic=.TRUE.)
-       cell%unit_of_length      = topology%cell%unit_of_length
-       cell%unit_of_length_name = topology%cell%unit_of_length_name
        CALL section_vals_val_get(subsys_section,"TOPOLOGY%GENERATE%BONDLENGTH_MIN",r_val=tmp,&
             error=error)
        r_minsq = tmp*tmp
        CALL timestop(0.0_dp,handle2)
        CALL timeset(TRIM(routineN)//"_3",'I','',handle2)
        CALL build_fist_neighbor_lists(atomic_kind_set,particle_set,&
-            cell=cell, r_max=r_max, r_minsq=r_minsq, nonbonded=nonbonded,&
+            cell=topology%cell, r_max=r_max, r_minsq=r_minsq, nonbonded=nonbonded,&
             para_env=para_env, build_from_scratch=.TRUE.,&
             force_env_section=force_env_section,error=error)
        IF (iw>0) THEN
           WRITE(iw,'(T2,"GENERATE| Number of prescreened bonds (neighbors):",T71,I10)')&
                nonbonded%neighbor_kind_pairs(1)%npairs
        END IF
-       DO i = 2, SIZE(nonbonded%neighbor_kind_pairs)
-          ! I want all neighbors in the first image cell 
-          ! In order to have less interactions to screen..
-          failure = nonbonded%neighbor_kind_pairs(i)%npairs/=0
-          CPPostcondition(.NOT.failure,cp_failure_level,routineP,error,failure)
+       npairs = 0
+       DO i = 1, SIZE(nonbonded%neighbor_kind_pairs)
+          npairs = npairs + nonbonded%neighbor_kind_pairs(i)%npairs
        END DO
-       npairs = nonbonded%neighbor_kind_pairs(1)%npairs
        ALLOCATE(bond_a(npairs),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ALLOCATE(bond_b(npairs),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DO i = 1, npairs
-          bond_a(i) = nonbonded%neighbor_kind_pairs(1)%list(1,i)
-          bond_b(i) = nonbonded%neighbor_kind_pairs(1)%list(2,i)
+       ALLOCATE(map_nb(npairs),stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       idim = 0
+       DO j = 1, SIZE(nonbonded%neighbor_kind_pairs)
+          DO i = 1, nonbonded%neighbor_kind_pairs(j)%npairs
+             idim = idim + 1
+             bond_a(idim) = nonbonded%neighbor_kind_pairs(j)%list(1,i)
+             bond_b(idim) = nonbonded%neighbor_kind_pairs(j)%list(2,i)
+             map_nb(idim) = j
+          END DO
        END DO
-       CALL fist_neighbor_deallocate(nonbonded,error)
        CALL timestop(0.0_dp,handle2)
        CALL timeset(TRIM(routineN)//"_4",'I','',handle2)
        ! We have a list of neighbors let's order the list w.r.t. the particle number
        ALLOCATE(bond_list(natom),stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DO I = 1, natom
-          ALLOCATE(bond_list(I)%bonds(0),stat=stat)
+          ALLOCATE(bond_list(I)%array1(0),stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          ALLOCATE(bond_list(I)%array2(0),stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ENDDO
-       CALL reorder_structure(bond_list, bond_a, bond_b, SIZE(bond_a), error)
+       CALL reorder_structure(bond_list, bond_a, bond_b, map_nb, SIZE(bond_a),&
+            error=error)
+       DEALLOCATE(bond_a,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE(bond_b,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+       DEALLOCATE(map_nb,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ! Find the Real bonds in the system
        ! Let's start with heavy atoms.. hydrogens will be treated only later on...
        ! Heavy atoms loop
@@ -592,18 +589,18 @@ CONTAINS
        n_bonds       = 0
        DO iatm1 = 1, natom
           IF (h_list(iatm1)) CYCLE
-          DO j = 1,SIZE(bond_list(iatm1)%bonds)
-             iatm2 = bond_list(iatm1)%bonds(j)
+          DO j = 1,SIZE(bond_list(iatm1)%array1)
+             iatm2 = bond_list(iatm1)%array1(j)
              IF(h_list(iatm2).OR.(iatm2<=iatm1)) CYCLE
-             
-             dr(1) = particle_set(iatm1)%r(1) - particle_set(iatm2)%r(1)
-             dr(2) = particle_set(iatm1)%r(2) - particle_set(iatm2)%r(2)
-             dr(3) = particle_set(iatm1)%r(3) - particle_set(iatm2)%r(3)
-
+             k     = bond_list(iatm1)%array2(j)
+             ksign = SIGN(1.0_dp,REAL(k,KIND=dp))
+             k     = ABS(k)
+             CALL matvec_3x3(cell_v,topology%cell%hmat,REAL(nonbonded%neighbor_kind_pairs(k)%cell_vector,KIND=dp))
+             dr = pbc_coord(:,iatm1) - pbc_coord(:,iatm2) - ksign*cell_v
              r2 = DOT_PRODUCT(dr,dr)
              IF(r2 <= 0.01_dp) THEN
                 CALL stop_program ("topology_generate_bond",&
-                     "bond distance between atoms less then 0.1")
+                     "bond distance between atoms less then 0.01")
              END IF
              
              ! Screen neighbors
@@ -629,18 +626,17 @@ CONTAINS
           IF (.NOT.h_list(iatm1)) CYCLE
           r2_min = HUGE(0.0_dp)
           ibond  = -1
-          DO j = 1,SIZE(bond_list(iatm1)%bonds)
-             iatm2 = bond_list(iatm1)%bonds(j)
-             IF(iatm2<=iatm1) CYCLE
-             
-             dr(1) = particle_set(iatm1)%r(1) - particle_set(iatm2)%r(1)
-             dr(2) = particle_set(iatm1)%r(2) - particle_set(iatm2)%r(2)
-             dr(3) = particle_set(iatm1)%r(3) - particle_set(iatm2)%r(3)
-             
+          DO j = 1,SIZE(bond_list(iatm1)%array1)
+             iatm2 = bond_list(iatm1)%array1(j)
+             k     = bond_list(iatm1)%array2(j)
+             ksign = SIGN(1.0_dp,REAL(k,KIND=dp))
+             k     = ABS(k)
+             CALL matvec_3x3(cell_v,topology%cell%hmat,REAL(nonbonded%neighbor_kind_pairs(k)%cell_vector,KIND=dp))
+             dr = pbc_coord(:,iatm1) - pbc_coord(:,iatm2) - ksign*cell_v
              r2 = DOT_PRODUCT(dr,dr)
              IF(r2 <= 0.01_dp) THEN
                 CALL stop_program ("topology_generate_bond",&
-                     "bond distance between atoms less then 0.1")
+                     "bond distance between atoms less then 0.01")
              END IF
              IF (r2 <= r2_min) THEN
                 r2_min = r2
@@ -648,14 +644,15 @@ CONTAINS
              END IF
           END DO
           IF (ibond == -1) THEN
-             WRITE(output_unit,'(A,I10,A)')"Hydrogen - Atom Nr:",iatm1," has no connectivity!"
-             CALL stop_program ("topology_generate_bond",&
-                  "One hydrogen atom isolated! cannot determine the connectivity!")
+             WRITE(output_unit,'(T2,"GENERATE|",1X,A,I10,A)')&
+                  "WARNING:: Hydrogen - Atom Nr:",iatm1," has no connectivity!"
+          ELSE
+             n_hydr_bonds = n_hydr_bonds + 1
+             n_bonds      = n_bonds + 1
+             CALL add_bonds_list(conn_info, MIN(iatm1, ibond), MAX(iatm1, ibond), n_bonds)
           END IF
-          n_hydr_bonds = n_hydr_bonds + 1
-          n_bonds      = n_bonds + 1
-          CALL add_bonds_list(conn_info, iatm1, ibond, n_bonds)
        END DO
+       CALL fist_neighbor_deallocate(nonbonded,error)
        IF (output_unit>0) THEN
           WRITE(output_unit,'(T2,"GENERATE|",1X,A,T71,I10)')" Preliminary Number of Bonds generated:",&
                n_bonds
@@ -676,14 +673,14 @@ CONTAINS
        CALL timeset(TRIM(routineN)//"_6",'I','',handle2)
        ! Deallocate temporary working arrays
        DO I = 1, natom
-          DEALLOCATE(bond_list(I)%bonds,stat=stat)
+          DEALLOCATE(bond_list(I)%array1,stat=stat)
+          CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
+          DEALLOCATE(bond_list(I)%array2,stat=stat)
           CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        ENDDO
+       DEALLOCATE(pbc_coord,stat=stat)
+       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DEALLOCATE(bond_list,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DEALLOCATE(bond_a,stat=stat)
-       CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       DEALLOCATE(bond_b,stat=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DEALLOCATE(atm_symbol,STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
@@ -691,7 +688,6 @@ CONTAINS
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
        DEALLOCATE(list,STAT=stat)
        CPPostcondition(stat==0,cp_failure_level,routineP,error,failure)
-       CALL cell_release(cell,error)
        CALL deallocate_particle_set(particle_set)
        CALL deallocate_atomic_kind_set(atomic_kind_set)
        !

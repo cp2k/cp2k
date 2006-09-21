@@ -138,7 +138,6 @@ MODULE topology_types
      LOGICAL                                   :: reorder_atom
      LOGICAL                                   :: molecules_check
      LOGICAL                                   :: coordinate
-     LOGICAL                                   :: connectivity
      LOGICAL                                   :: dump_topology
      CHARACTER (LEN=default_path_length)       :: coord_file_name
      CHARACTER (LEN=default_path_length)       :: conn_file_name
@@ -212,7 +211,6 @@ CONTAINS
     topology%reorder_atom=.FALSE.
     topology%molecules_check=.FALSE.
     topology%coordinate=.FALSE.
-    topology%connectivity=.FALSE.
     topology%dump_topology=.FALSE.
     topology%nhcopt=do_nhcopt_global
     topology%coord_type=-1
